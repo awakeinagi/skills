@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+node_modules/
+.playwright-cli/
+.scratch/
+frontends/*/node_modules/
+.venv/
+.agents/
+.claude/
+docs/

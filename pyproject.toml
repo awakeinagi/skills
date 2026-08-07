@@ -1,0 +1,7 @@
+[project]
+name = "wysiwyg-grilling-skill"
+version = "0.1.0"
+description = "WYSIWYG Grilling - a Claude Code skill + local canvas app for visual design grilling"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []

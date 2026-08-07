@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "skills": {
+    "affinity-diagram": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "design-research/skills/affinity-diagram/SKILL.md",
+      "computedHash": "1d03a439a56db0bf6de1691851ce5f3488358f2e12cb2da6659b64313d0db78d"
+    },
+    "architecture-diagram": {
+      "source": "cocoon-ai/architecture-diagram-generator",
+      "sourceType": "github",
+      "skillPath": "architecture-diagram/SKILL.md",
+      "computedHash": "0109ef20fef39843a3dc14c733c69f4209b9d27ebb320cb8b403ff68a410684b"
+    },
+    "canvas-design": {
+      "source": "smithery.ai",
+      "sourceUrl": "https://smithery.ai/skills/anthropics/canvas-design",
+      "sourceType": "well-known",
+      "computedHash": "a1b2711c3153f632e8ce27ae6087494ccdebc02a24c2f1a76419efc7f687317d",
+      "wellKnownDigest": "sha256:fec37342fe6edf8414b27a1c76fa32a67fa5cacf2af385c547fd357791717b1a"
+    },
+    "design-doc-mermaid": {
+      "source": "spillwavesolutions/design-doc-mermaid",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "362eecfd376c8932aa86d366a6406bf389ac4f2f52d93e5892adf8c963392afe"
+    },
+    "diagram-creator": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "skillPath": "diagram-creator/SKILL.md",
+      "computedHash": "194c79fd66c553077dc7b957d5deec6d231eb53c48bd146ea5a25d2a18fa7f06"
+    },
+    "diagram-design": {
+      "source": "cathrynlavery/diagram-design",
+      "sourceType": "github",
+      "skillPath": "skills/diagram-design/SKILL.md",
+      "computedHash": "822be374967f05de95449b72b5b951ab0e103b83fcc2af79b2f9645c3573e2f4"
+    },
+    "diagramming-code": {
+      "source": "trailofbits/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/trailmark/skills/diagramming-code/SKILL.md",
+      "computedHash": "5d169bed21856dbb88a806ba6449dce37b54c22d3983152e99220d4587f62205"
+    },
+    "excalidraw-diagram-generator": {
+      "source": "smithery.ai",
+      "sourceUrl": "https://smithery.ai/skills/github/excalidraw-diagram-generator",
+      "sourceType": "well-known",
+      "computedHash": "a01740948f1c49eef0ad100b7706b226f8e8fd0618c56c99d0caf909ca30c446",
+      "wellKnownDigest": "sha256:432095bf37e500bbca7cc0b7cea0f006066308eb4f4a179ae6572f83857f0962"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+    },
+    "ui-ux-pro-max": {
+      "source": "smithery.ai",
+      "sourceUrl": "https://smithery.ai/skills/nextlevelbuilder/ui-ux-pro-max",
+      "sourceType": "well-known",
+      "computedHash": "ae6989c5c68a8a0cebbc2504e44f933dddd50d17974f295dc2fa5a80cb3d63ed",
+      "wellKnownDigest": "sha256:cdf17fdd9f5578081bef5821b004c30cb2e0b5b48c5a17233df41cb3ac6439e7"
+    },
+    "user-flow-diagram": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "prototyping-testing/skills/user-flow-diagram/SKILL.md",
+      "computedHash": "d5c3319e8f2bf605567454d2ca27191d6576af26c6b3ab82025025f20fa235ed"
+    },
+    "utility-mermaid-diagrams": {
+      "source": "product-on-purpose/pm-skills",
+      "sourceType": "github",
+      "skillPath": "skills/utility-mermaid-diagrams/SKILL.md",
+      "computedHash": "1579187af7ddbda60e5d3f0731abc96e3fa12dbdd5b1ed9901357f13d3dcd0cc"
+    },
+    "wireframe-spec": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "prototyping-testing/skills/wireframe-spec/SKILL.md",
+      "computedHash": "790a9e40f32453f4e2de4aac5ad8883a0aecb70b765b2201aa9370a37850bd37"
+    },
+    "wireframing": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "skillPath": "plugins/luxor-design-toolkit/skills/wireframing/SKILL.md",
+      "computedHash": "967ef5ab3540aefbb0fcdd3920a090b5e1615f6fe0cdb04afcfd6a76b0b02d6c"
+    }
+  }
+}

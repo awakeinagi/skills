@@ -1,0 +1,7 @@
+{
+  "name": "wysiwyg-grilling",
+  "description": "Visual grilling: during design conversations the agent draws wireframes, flows, and domain diagrams on a local Excalidraw canvas, you edit them directly, and the agent narrates its understanding of every change — closing the alignment loop faster than prose alone.",
+  "author": {
+    "name": "awakeinagi"
+  }
+}

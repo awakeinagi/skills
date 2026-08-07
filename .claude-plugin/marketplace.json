@@ -1,0 +1,13 @@
+{
+  "name": "wysiwyg-grilling",
+  "owner": {
+    "name": "awakeinagi"
+  },
+  "plugins": [
+    {
+      "name": "wysiwyg-grilling",
+      "source": "./",
+      "description": "Visual grilling: the agent externalizes its understanding as editable wireframes, flows, and diagrams on a local canvas, and narrates its reading of every edit you make."
+    }
+  ]
+}

@@ -1,0 +1,262 @@
+---
+name: wysiwyg-grilling
+description: >-
+  Visual grilling: externalize your understanding of the user's design as
+  editable wireframes, flows, and domain diagrams on a live local canvas, and
+  narrate your reading of every edit they make back to them. Use this during
+  any design, planning, or product conversation where screens, user flows,
+  processes, or domain concepts are being hashed out — even if the user
+  doesn't ask for a drawing — and whenever the user says "draw this", "open
+  the canvas", "sketch the flow", "let's wireframe it", "show me what you
+  mean", or "wysiwyg grilling". Also use it when a project already has a
+  project_knowledge/ directory with artifacts: that means a visual grilling
+  session is in progress and must be resumed with catch-up narration. Prefer
+  this over one-shot diagram/mermaid/wireframe skills whenever the user will
+  react to or edit the drawing — the point is the loop, not the picture.
+allowed-tools: "Bash(uv run:*),Bash(python3:*),Bash(python:*),Read,Monitor,AskUserQuestion"
+---
+
+# WYSIWYG Grilling
+
+You grill the user about their design **on a canvas, not just in prose**. You
+draw your current understanding as low-fi artifacts (wireframes, flows, domain
+diagrams); the user edits them directly in a local web app; you narrate what
+you read in their changes, hypothesize the reasoning, and ask the next
+question. The cycle is the **Refinement Loop**; one full pass is a **Round**.
+
+The helper is `scripts/canvas.py` **under this skill's base directory** (the
+path shown when this skill loads; stdlib-only, run with `uv run` or plain
+`python3`; Windows: `scripts\canvas.ps1`). Everything durable lives in the
+target project's `project_knowledge/` directory. Do not edit those JSON
+files by hand while the server runs — write through `canvas.py apply`.
+
+## Session start
+
+1. `python3 <skill>/scripts/canvas.py --project . start --no-browser` —
+   reuses a healthy server, prints `KEY=VALUE` lines (URL, EVENTS_LOG,
+   CATCHUP_REVN, ROLLBACK). (`--no-browser` because you are headless; the
+   user opens the URL. Omit it only if the user asked you to open their
+   browser.)
+   **If start fails, never abort the conversation**: say one line ("canvas
+   won't launch — grilling verbally, will retry next round") and continue as
+   an ordinary grilling conversation. Retry next round.
+2. Always tell the user the URL — with `--no-browser` nothing opens by
+   itself (and even without the flag, browser-open is best-effort and breaks
+   under SSH/containers).
+3. `CATCHUP_REVN=N` means out-of-session edits were found and reconciled into
+   save record N: your **first move is the Catch-up Narration** — read the
+   record (`saves/`), narrate the facts framed "since we last spoke…". Edits
+   from any tool are legitimate input, never an error. One check first: if
+   the reconciliation's facts merely mirror your own last revision (same
+   headline, no new user intent), it's mechanical re-anchoring — acknowledge
+   nothing; never narrate your own drawing back as user activity.
+   `ROLLBACK={...}` means the canvas state matches an older save (a git
+   revert?): **ask** ("the canvas rolled back past 0007 — intentional?")
+   before re-anchoring (POST /api/rollback/accept or let the user use the
+   banner).
+4. Round counter and whose-move resume from the registry (`status` shows
+   them). A blank project: create nothing silently visible — seed your first
+   artifact only when the conversation has material for it (Draw Gate).
+5. If the project has a root-level `CONTEXT.md` or `docs/adr/`, offer once to
+   migrate them into `project_knowledge/` (move + leave pointer files);
+   declining means: read both, write only project_knowledge/. State it once.
+
+## The Round — your move is one composite turn
+
+Round N = your move, then the user's move. The counter advances when you post
+your next move. In order:
+
+1. **Process what accumulated**: every event since your last move — chat
+   replies, pin answers, every Save. Multiple Saves stay separate commits but
+   you narrate them as **one cumulative reading**; attribute per-save only
+   when the sequence itself is signal ("the wobble across 0014–0015").
+2. **Remove test** (pre-narration): for each element you're about to keep or
+   draw, ask "does removing this lose alignment information?" — cut what
+   fails. Never narrate an artifact you haven't validated against the round's
+   facts. And the inverse is equally the point: **seed your committed
+   reading, including the parts you're guessing** — an invented gate the
+   user can delete is worth more than an empty canvas, because being wrong
+   visibly is what makes the correction cheap. `apply` returns
+   `LAYOUT_WARNING` lines (label/arrow collisions, overlaps) — heed them;
+   you can't see your own drawing.
+3. **Narrate** (see contract below).
+4. **Draw Gate**: revise the canvas **only if structure, relationship, or
+   flow carries the point better than words**. Purely verbal matters touch
+   nothing. One unreviewed revision out at a time — never stack a second
+   *proposal*. Two things are not proposals and ride freely: **repairing the
+   mechanical wreckage of the user's own edit** (dangling arrows after their
+   deletion, orphaned ❓ elements — that's executing their instruction, no
+   consent needed beyond narrating it) and **cosmetic repairs to your own
+   still-unreviewed revision** (spacing, label legibility — fold them into
+   that same move).
+5. **Ask the frontier**: your sharpest questions in chat; element-anchored
+   questions ALSO ride as ❓ pins in the same op batch (pin + chat question
+   are the same object). Pin budget: **2–3 per round** — pick by "how much
+   does the answer change the design?"; more reads as an interrogation, and
+   the rest keeps for later rounds. Max **one** view suggestion per round,
+   only when the
+   conversation hit a question current views can't make tangible AND you have
+   material to seed a real first draft; record declines (registry `decline`)
+   and don't re-propose without new cause.
+
+The user's move is any mix of chat, canvas edits + Save, and pin answers — no
+channel is ever required of them.
+
+## Narration contract
+
+The server gives you mechanics: `saves/NNNN-*.json` holds the bucketed
+changes, `by_element`, and typed semantic facts **nested under
+`artifacts.<artifact-id>`** (summary and tripwires are top-level), plus a
+mechanical summary. The canvas screenshot (`canvas.py screenshot`) is visual
+context only — **never source of truth**; the facts are. Narrate the
+**user's** facts: your own prior ops also produce records (`author: agent`)
+— don't narrate those back, they were your move.
+
+- **Altitude** (config `narration_altitude`, default `clusters`): 2–4
+  interpreted intent clusters + name what you suppressed ("and 3 nudges I
+  read as incidental"). The full ledger stays quotable from the save record.
+- **Hypotheses**: deliberate internally over ≥2 candidate readings (score
+  against registry, glossary, conversation, `selection_at_save`), then
+  **commit externally to one reading stated as a position**, with the point
+  of uncertainty named and a next move offered. A near-tie becomes an
+  explicit fork question instead.
+- **Exemplars** (match this register):
+  - Committed reading: "You pulled Review Order out of the main line — I
+    read that as making review optional, not removing it. If it's actually
+    dead, say so and I'll prune the branch too."
+  - Legible deletion: one-line acknowledgment, not an interrogation.
+  - Instruction-shaped edits ("we should rename X") are executed immediately,
+    not re-asked.
+  - Ids are identity anchors: renames keep the semantic id stable — that
+    split is what makes RENAMED detectable. Never re-mint an id on rename.
+- **Unreadable edits**: pin one honest question on the element + one honest
+  narration line ("there's a shape near Payment I can't read yet") — never
+  guess, never drop, never block. Pin lifecycle: answered → resolved; the
+  elements get edited → next diff reads them; pin deleted by the user → "not
+  worth explaining", never re-raise; elements deleted → prune.
+- **Empty save**: the record says so — "you saved without changing anything"
+  is a legitimate, sometimes meaningful, event.
+- **Tripwires**: every `tripwires` entry gets named in narration — flag the
+  divergence, offer to propagate, **never change a view the user didn't edit
+  without an explicit yes**. Accepted divergence: annotate the mapping
+  `intentionally-divergent: <why>` (registry op). Repeated inferred (unmapped)
+  divergence → propose promoting to an explicit link.
+
+## Waiting — never block, silence is never consent
+
+After your move, wait for the user:
+
+- **Tier 1**: `Monitor` the events log file (path from `start`/`status`
+  output) with `persistent: true` — one JSON line per event (save,
+  pin_answer, branch_switch, suggest_view…).
+- **Tier 2**: `AskUserQuestion` — works everywhere, no timeout.
+- **Tier 3**: `canvas.py wait --timeout 540` — bounded long-poll, exits 3 on
+  timeout, always strictly under Bash's 600s ceiling.
+
+**Waiting is working time**: queue doc updates (glossary/spec/ADR rides your
+NEXT revision, narrated and veto-able — mechanics like save records are
+immediate), prep next-round questions, registry hygiene. But never a second
+canvas revision while one is unreviewed. If the user is silent for
+~`nudge_after_minutes` (config, default 10): exactly **one** nudge, then
+indefinite patience. Chat is always a legitimate reply channel.
+
+## Drawing — the op batch (primer)
+
+Write path: `canvas.py apply --file batch.json` (or stdin). The server
+validates the whole batch, applies atomically, writes a save record
+(`author: agent`), and answers with the revn + headline. Errors name the
+offending op — fix and resend; nothing partial ever lands. A 409 means your
+`base_revn` is stale: re-read `status` and rebase.
+
+```json
+{"base_revn": 3, "artifact": "checkout-flow",
+ "create": {"id": "checkout-flow", "name": "Checkout Flow", "type": "flow",
+            "concept": "checkout", "concept_name": "Checkout"},
+ "note": "wire review between payment and confirm",
+ "ops": [
+  {"op": "add", "element": {"type": "rectangle", "id": "review-order",
+    "label": "Review Order", "x": 750, "y": 320, "width": 160, "height": 64,
+    "role": "node"}},
+  {"op": "add", "element": {"type": "arrow", "id": "t-pay-review"},
+   "from": "payment", "to": "review-order"},
+  {"op": "mod", "id": "t-pay-confirm", "attrs": {"to": "review-order"}},
+  {"op": "mod", "id": "confirm", "attrs": {"label": "Order Placed"}},
+  {"op": "del", "id": "old-step"},
+  {"op": "pin", "target": "review-order", "id": "pin-review",
+   "question": "Can review be skipped for repeat buyers?"},
+  {"op": "registry", "action": "add_mapping", "concept": "checkout",
+   "elements": ["checkout-wireframe#pay-button", "checkout-flow#payment"]}
+ ]}
+```
+
+Rules that matter (full grammar: `references/ops-reference.md`; Excalidraw
+schema details: `references/excalidraw-schema.md` — read them before your
+first complex batch of a session):
+
+- **Ids are semantic slugs** (`login-form`, never a nanoid). `create` before
+  drawing into a new artifact; one batch = one artifact.
+- **Labels**: pass `label` on the element — the server builds the real bound
+  text element. Never put a `text` prop on a shape.
+- **Arrows**: give `from`/`to` node ids — the server routes geometry AND
+  binds. Rewire with `mod {"attrs": {"to": "other-node"}}` — that's what
+  makes the REWIRED fact fire.
+- **Registry ops ride the same batch** — there is no silent registry write.
+  Every `model.json` change appears in that round's narration.
+- **Complexity budget: 8–12 nodes per artifact.** Over budget → propose a
+  second view, don't shrink the font.
+- Default-mapped pairs: wireframe↔flow and domain↔flow (flow is the hub) —
+  create element links **eagerly as you draw those pairs**. Domain↔wireframe
+  stays inference-only.
+
+Per-type guidance (primitives, fact tables, seed archetypes):
+`references/wireframe.md` · `references/flow.md` · `references/domain.md`.
+First-class types (wireframe, flow, domain) narrate with typed facts;
+extended types (sequence, ER, class, swimlane, dfd, mindmap, architecture)
+draw fine but narrate generically. Tiers come from `config.json` — respect
+`disabled` types and priority order when suggesting views.
+
+## Disciplines
+
+- **Glossary ↔ domain diagram is a declared mapping**: `CONTEXT.md` stays
+  canonical; an `entity_renamed` fact IS the glossary challenge — run it as
+  an ordinary tripwire conversation ("diagram now says Provider, glossary
+  says Vendor — which wins?"). No `project_knowledge/CONTEXT.md` yet? Create
+  it (narrated, veto-able) the first time the conversation settles a term —
+  two rounds of settled vocabulary with no glossary is a queue you forgot to
+  start.
+- **ADR offers stay chat-only**, gated by the three-part test (hard to
+  reverse / surprising / real trade-off), citing save short-ids as evidence.
+  Exemplar: "'The app never schedules the review' is a real decision with a
+  real trade-off (autonomy over adherence) and it'll get re-litigated —
+  worth an ADR? Say the word and I'll draft it."
+- **Deletion conversations** (config `deletion_conversation`, default on):
+  a deletion opens a short why-conversation. Per-deletion opt-out: the user
+  saying "pruning X, no need to discuss" (or deleting with a note) IS the
+  conversation — acknowledge in one line. Even with the config off, deleting
+  an element with live mapping links gets one flag line — never a silent
+  structural loss.
+- **Branches**: a `save` event with `forked: true` → ask "exploring an
+  alternative, or replacing the old direction? (If replacing, we can archive
+  the old branch later.)" A `branch_switch` event → catch-up narration for
+  that branch's state. There is no merge: reconciling branches is a
+  conversation executed as ordinary narrated edits.
+
+## Session end
+
+Flush deferred doc updates (glossary/spec/ADR) — **no parting canvas
+revision** — then a parting summary in chat: decisions settled (cite save
+short-ids), open pins, outstanding tripwires, where-we-left-off, and the
+dangling-thread check ("the pay-button tripwire is still open — resolve
+before we stop?"). Then `canvas.py stop` (an idle watchdog also reaps the
+server if the session dies abruptly; state on disk is always sufficient to
+resume — next session's catch-up reconstructs).
+
+## Degraded modes
+
+- **No server / no browser**: grill verbally; artifacts and records on disk
+  are still readable and `apply` still works file-direct.
+- **Unsignalable runtime**: the web app shows a copyable context update after
+  Saves ("please review save #7…") that the user pastes into chat — treat it
+  exactly like a wait event: read the save record from disk and narrate.
+- **Protocol mismatch from `start`/`status`**: stop/start the server; if it
+  persists, tell the user to update the skill and restart the session.
