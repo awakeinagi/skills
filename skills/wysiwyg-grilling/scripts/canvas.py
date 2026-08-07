@@ -23,6 +23,7 @@ import io
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -100,6 +101,7 @@ DEFAULT_REGISTRY = {
     "declined": [],
     "pins": [],
     "tripwires": [],
+    "divergence_policies": [],
 }
 
 
@@ -677,11 +679,86 @@ def route_arrow(arrow, src, dst):
     arrow["points"] = [[0, 0], [x2 - x1, y2 - y1]]
     arrow["startBinding"] = {"elementId": src["id"], "focus": 0, "gap": gap}
     arrow["endBinding"] = {"elementId": dst["id"], "focus": 0, "gap": gap}
+    cd = dict(arrow.get("customData") or {})
+    cd["routed"] = True  # marks server-owned geometry: safe to re-route/fan
+    arrow["customData"] = cd
     for node in (src, dst):
         bl = [b for b in (node.get("boundElements") or [])
               if not (b.get("id") == arrow["id"] and b.get("type") == "arrow")]
         bl.append({"id": arrow["id"], "type": "arrow"})
         node["boundElements"] = bl
+
+
+def _edge_side(el, px, py, eps=2.5):
+    """Which bbox edge of el the point sits on: left/right/top/bottom."""
+    if abs(px - el["x"]) <= eps:
+        return "left"
+    if abs(px - (el["x"] + el.get("width", 0))) <= eps:
+        return "right"
+    if abs(py - el["y"]) <= eps:
+        return "top"
+    if abs(py - (el["y"] + el.get("height", 0))) <= eps:
+        return "bottom"
+    return None
+
+
+def fan_attach_points(els):
+    """Spread server-routed arrows sharing one node edge along it at
+    L*k/(N+1) (diagram-design §6.4 — see references/layout.md): N arrows
+    converging on a single point read as one arrow. Only touches arrows
+    route_arrow marked `routed` — user geometry is never respaced."""
+    ix = {e["id"]: e for e in els}
+    ends = {}  # arrow id -> {"start": (x,y), "end": (x,y)}
+    per_side = {}  # (node_id, side) -> [(arrow_id, which_end)]
+    for a in els:
+        if a.get("type") not in ("arrow", "line") or \
+                not (a.get("customData") or {}).get("routed") or \
+                len(a.get("points") or []) != 2:
+            continue
+        sx, sy = a["x"], a["y"]
+        exx = a["x"] + a["points"][-1][0]
+        exy = a["y"] + a["points"][-1][1]
+        ends[a["id"]] = {"start": (sx, sy), "end": (exx, exy)}
+        for which, (px, py), key in (("start", (sx, sy), "startBinding"),
+                                     ("end", (exx, exy), "endBinding")):
+            node = ix.get((a.get(key) or {}).get("elementId"))
+            if node is None:
+                continue
+            side = _edge_side(node, px, py)
+            if side:
+                per_side.setdefault((node["id"], side), []) \
+                    .append((a["id"], which))
+    for (nid, side), members in per_side.items():
+        if len(members) < 2:
+            continue
+        node = ix[nid]
+        horiz = side in ("top", "bottom")
+        length = node.get("width", 0) if horiz else node.get("height", 0)
+        # order by the far end's cross-coordinate so fanned arrows don't cross
+        def far_coord(m):
+            aid, which = m
+            fx, fy = ends[aid]["end" if which == "start" else "start"]
+            return fx if horiz else fy
+        members = sorted(members, key=far_coord)
+        n = len(members)
+        for k, (aid, which) in enumerate(members, start=1):
+            off = length * k / (n + 1)
+            if side == "top":
+                pt = (node["x"] + off, node["y"])
+            elif side == "bottom":
+                pt = (node["x"] + off, node["y"] + node.get("height", 0))
+            elif side == "left":
+                pt = (node["x"], node["y"] + off)
+            else:
+                pt = (node["x"] + node.get("width", 0), node["y"] + off)
+            ends[aid][which] = pt
+    for aid, e2 in ends.items():
+        a = ix[aid]
+        (sx, sy), (exx, exy) = e2["start"], e2["end"]
+        a["x"], a["y"] = sx, sy
+        a["width"], a["height"] = abs(exx - sx), abs(exy - sy)
+        a["points"] = [[0, 0], [exx - sx, exy - sy]]
+        recenter_label(els, a)
 
 
 # ---------------------------------------------------------------------------
@@ -703,8 +780,17 @@ def recenter_label(els, el):
         pts = el.get("points") or [[0, 0]]
         mx = el["x"] + sum(p[0] for p in pts) / len(pts)
         my = el["y"] + sum(p[1] for p in pts) / len(pts)
-        label["x"] = mx - label.get("width", 0) / 2
-        label["y"] = my - label.get("height", 0) / 2
+        # offset the label 8px perpendicular off the stroke (leaning up) —
+        # a label sitting ON its arrow hides both (diagram-design §6.2)
+        dx = pts[-1][0] - pts[0][0]
+        dy = pts[-1][1] - pts[0][1]
+        run = (dx * dx + dy * dy) ** 0.5 or 1.0
+        px, py = -dy / run, dx / run
+        if py > 0:
+            px, py = -px, -py  # prefer above the stroke
+        lift = label.get("height", 16) / 2 + 8
+        label["x"] = mx + px * lift - label.get("width", 0) / 2
+        label["y"] = my + py * lift - label.get("height", 0) / 2
     else:
         label["x"] = el["x"] + max((el.get("width", 0) -
                                     label.get("width", 0)) / 2, 4)
@@ -765,28 +851,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 if attr == "label":
                     _set_label(els, index, existing, el, value)
                 elif attr in ("from", "to"):
-                    if el.get("type") not in ("arrow", "line"):
-                        errors.append("op %d: %r only applies to arrows" % (i, attr))
-                        continue
-                    endpoint = resolve(value, i, "rewire")
-                    if endpoint is None:
-                        continue
-                    sb = el.get("startBinding") or {}
-                    eb = el.get("endBinding") or {}
-                    src = index.get((sb or {}).get("elementId"))
-                    dst = index.get((eb or {}).get("elementId"))
-                    old = src if attr == "from" else dst
-                    if old is not None:
-                        old["boundElements"] = [
-                            b for b in (old.get("boundElements") or [])
-                            if b.get("id") != el["id"]]
-                    if attr == "from":
-                        src = endpoint
-                    else:
-                        dst = endpoint
-                    if src is not None and dst is not None:
-                        route_arrow(el, src, dst)
-                        recenter_label(els, el)
+                    continue  # rewires are processed jointly after this loop
                 elif attr == "text" and el.get("type") == "text":
                     el["text"] = value
                     el["originalText"] = value
@@ -800,6 +865,52 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     el[attr] = value
                     if attr in ("x", "y", "width", "height"):
                         recenter_label(els, el)
+            # rewires, processed jointly so one mod may set from AND to.
+            # A rewire that cannot bind is a hard validation error — the
+            # v0 behavior (silently accept, route nothing) burned rounds:
+            # the agent read "saved without changing anything" and re-issued
+            # the same rewire for eleven rounds (refinement audit F2).
+            rewire = {k: attrs[k] for k in ("from", "to") if k in attrs}
+            if rewire:
+                if el.get("type") not in ("arrow", "line"):
+                    errors.append("op %d: 'from'/'to' only apply to arrows"
+                                  % i)
+                else:
+                    src = index.get((el.get("startBinding") or {})
+                                    .get("elementId"))
+                    dst = index.get((el.get("endBinding") or {})
+                                    .get("elementId"))
+                    for battr, key in (("from", "startBinding"),
+                                       ("to", "endBinding")):
+                        if battr not in rewire:
+                            continue
+                        endpoint = resolve(rewire[battr], i, "rewire")
+                        if endpoint is None:
+                            continue  # resolve() already recorded the error
+                        old = src if battr == "from" else dst
+                        if old is not None and old is not endpoint:
+                            old["boundElements"] = [
+                                b for b in (old.get("boundElements") or [])
+                                if b.get("id") != el["id"]]
+                        if battr == "from":
+                            src = endpoint
+                        else:
+                            dst = endpoint
+                    if src is not None and dst is not None:
+                        route_arrow(el, src, dst)
+                        recenter_label(els, el)
+                    else:
+                        missing = "start (`from`)" if src is None \
+                            else "end (`to`)"
+                        errors.append(
+                            "op %d (mod %s %s): cannot rewire — the arrow's "
+                            "%s endpoint is unbound; set both `from` and "
+                            "`to` in one mod, or delete and re-add the "
+                            "arrow with from/to"
+                            % (i, op.get("id"),
+                               ", ".join("%s=%s" % kv
+                                         for kv in sorted(rewire.items())),
+                               missing))
         elif kind == "del":
             el = resolve(op.get("id"), i, "del")
             if el is None:
@@ -875,6 +986,39 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 cd = dict(el.get("customData") or {})
                 cd["status"] = "resolved"
                 el["customData"] = cd
+
+    # F1 post-pass: re-route every bound arrow whose endpoint node moved or
+    # resized in this batch. Without this, the agent's own layout tidying
+    # strands its arrows mid-air and it cannot see it (refinement audit F1:
+    # nine of seventeen demo revisions were spent re-issuing rewires this
+    # bug kept undoing). Only server-routed geometry (2-point paths — the
+    # only kind route_arrow emits) is rewritten: a user-shaped multi-point
+    # path is never silently flattened; the detached-endpoint lint flags it
+    # for a deliberate, narrated repair instead.
+    moved = set()
+    for op in ops:
+        if op.get("op") == "mod" and \
+                {"x", "y", "width", "height"} & set(op.get("attrs") or {}):
+            moved.add(op.get("id"))
+    if moved:
+        index = {e["id"]: e for e in els}
+        for e in els:
+            if e.get("type") not in ("arrow", "line"):
+                continue
+            s = (e.get("startBinding") or {}).get("elementId")
+            d = (e.get("endBinding") or {}).get("elementId")
+            if not ((s in moved or d in moved)
+                    and s in index and d in index):
+                continue
+            # a multi-point path is user geometry even if the arrow was
+            # originally server-routed (the `routed` mark goes stale the
+            # moment the user bends it) — never flatten it; the
+            # detached-endpoint lint flags it for a deliberate repair
+            if len(e.get("points") or []) <= 2:
+                route_arrow(e, index[s], index[d])
+                recenter_label(els, e)
+    if any(op.get("op") in ("add", "mod", "del") for op in ops):
+        fan_attach_points(els)
     return els
 
 
@@ -1062,7 +1206,16 @@ def replay_changes(elements, changes):
             for e in els:
                 if e["id"] == ch["id"]:
                     for a in ch["attrs"]:
-                        e[a["attr"]] = a["to"]
+                        val = a["to"]
+                        # save records store bindings NORMALIZED to id
+                        # strings; writing that back verbatim corrupts the
+                        # scene (Excalidraw needs {elementId, focus, gap}).
+                        # Inverse-replay is the revert path — a revert
+                        # across any rewire hit this.
+                        if a["attr"] in ("startBinding", "endBinding") \
+                                and isinstance(val, str):
+                            val = {"elementId": val, "focus": 0, "gap": 6}
+                        e[a["attr"]] = val
                         if a["attr"] == "text" and e.get("type") == "text":
                             e["originalText"] = a["to"]
         elif op == "move":
@@ -1629,26 +1782,392 @@ def _set_label(els, index, existing, el, value):
 # Store — registry, config, artifacts, save records, the commit DAG
 # ---------------------------------------------------------------------------
 
+def _svg_escape(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
+
+def _svg_dash(el):
+    style = el.get("strokeStyle")
+    if style == "dashed":
+        return ' stroke-dasharray="8 4"'
+    if style == "dotted":
+        return ' stroke-dasharray="2 3"'
+    return ""
+
+
+def render_svg(els, title=""):
+    """Deterministic stdlib SVG of an element array — the snapshot CLI's
+    tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
+    (drawn from the same coordinates the lint reads); text set in system
+    fonts, so it is an approximation of Excalidraw's hand-drawn look, not
+    a replica — good for legibility checks, never for style judgments."""
+    live = [e for e in els if not e.get("isDeleted")]
+    if not live:
+        return ("<svg xmlns='http://www.w3.org/2000/svg' width='320' "
+                "height='80'><text x='16' y='45' font-size='14'>"
+                "(empty artifact)</text></svg>"), 320, 80
+    xs, ys, x2s, y2s = [], [], [], []
+    for e in live:
+        if e.get("type") in ("arrow", "line"):
+            for p in e.get("points") or [[0, 0]]:
+                xs.append(e.get("x", 0) + p[0])
+                ys.append(e.get("y", 0) + p[1])
+                x2s.append(e.get("x", 0) + p[0])
+                y2s.append(e.get("y", 0) + p[1])
+        else:
+            xs.append(e.get("x", 0))
+            ys.append(e.get("y", 0))
+            x2s.append(e.get("x", 0) + e.get("width", 0))
+            y2s.append(e.get("y", 0) + e.get("height", 0))
+    pad = 40
+    minx, miny = min(xs) - pad, min(ys) - pad
+    w = max(x2s) - min(xs) + 2 * pad
+    h = max(y2s) - min(ys) + 2 * pad
+    out = ["<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d' "
+           "viewBox='%f %f %f %f'>" % (min(w, 4000), min(h, 3000),
+                                       minx, miny, w, h),
+           "<rect x='%f' y='%f' width='%f' height='%f' fill='#fdfcf8'/>"
+           % (minx, miny, w, h)]
+    if title:
+        out.append("<text x='%f' y='%f' font-size='13' fill='#999' "
+                   "font-family='sans-serif'>%s</text>"
+                   % (minx + 8, miny + 18, _svg_escape(title)))
+
+    def paint(e):
+        et = e.get("type")
+        stroke = e.get("strokeColor") or "#1e1e1e"
+        fill = e.get("backgroundColor") or "transparent"
+        if fill == "transparent":
+            fill = "none"
+        sw = e.get("strokeWidth") or 2
+        x, y = e.get("x", 0), e.get("y", 0)
+        ew, eh = e.get("width", 0), e.get("height", 0)
+        if et == "frame":
+            out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                       "fill='none' stroke='#94a3b8' stroke-width='1.5' "
+                       "stroke-dasharray='8 4' rx='8'/>" % (x, y, ew, eh))
+            out.append("<text x='%f' y='%f' font-size='12' fill='#64748b' "
+                       "font-family='sans-serif'>%s</text>"
+                       % (x + 4, y - 6, _svg_escape(e.get("name") or
+                                                    e.get("id", ""))))
+            return
+        if et == "rectangle":
+            out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                       "fill='%s' stroke='%s' stroke-width='%s' rx='4'%s/>"
+                       % (x, y, ew, eh, fill, stroke, sw, _svg_dash(e)))
+        elif et == "ellipse":
+            out.append("<ellipse cx='%f' cy='%f' rx='%f' ry='%f' fill='%s' "
+                       "stroke='%s' stroke-width='%s'%s/>"
+                       % (x + ew / 2, y + eh / 2, ew / 2, eh / 2, fill,
+                          stroke, sw, _svg_dash(e)))
+        elif et == "diamond":
+            pts = "%f,%f %f,%f %f,%f %f,%f" % (
+                x + ew / 2, y, x + ew, y + eh / 2,
+                x + ew / 2, y + eh, x, y + eh / 2)
+            out.append("<polygon points='%s' fill='%s' stroke='%s' "
+                       "stroke-width='%s'%s/>" % (pts, fill, stroke, sw,
+                                                  _svg_dash(e)))
+        elif et in ("arrow", "line"):
+            pts = e.get("points") or [[0, 0]]
+            abs_pts = [(x + p[0], y + p[1]) for p in pts]
+            path = " ".join("%f,%f" % p for p in abs_pts)
+            out.append("<polyline points='%s' fill='none' stroke='%s' "
+                       "stroke-width='%s'%s/>" % (path, stroke, sw,
+                                                  _svg_dash(e)))
+            if et == "arrow" and e.get("endArrowhead") and len(abs_pts) > 1:
+                (x1, y1), (x2, y2) = abs_pts[-2], abs_pts[-1]
+                dx, dy = x2 - x1, y2 - y1
+                ln = (dx * dx + dy * dy) ** 0.5 or 1
+                ux, uy = dx / ln, dy / ln
+                px, py = -uy, ux
+                out.append("<polygon points='%f,%f %f,%f %f,%f' fill='%s'/>"
+                           % (x2, y2, x2 - 10 * ux + 4 * px,
+                              y2 - 10 * uy + 4 * py,
+                              x2 - 10 * ux - 4 * px,
+                              y2 - 10 * uy - 4 * py, stroke))
+        elif et == "text":
+            fs = e.get("fontSize") or 16
+            lines = str(e.get("text") or "").split("\n")
+            anchor = "middle" if e.get("textAlign") == "center" else "start"
+            tx = x + (ew / 2 if anchor == "middle" else 0)
+            lh = fs * (e.get("lineHeight") or 1.25)
+            for li, line in enumerate(lines):
+                out.append("<text x='%f' y='%f' font-size='%s' fill='%s' "
+                           "text-anchor='%s' font-family='sans-serif'>"
+                           "%s</text>"
+                           % (tx, y + fs * 0.85 + li * lh, fs, stroke,
+                              anchor, _svg_escape(line)))
+
+    for e in live:
+        if e.get("type") == "frame":
+            paint(e)
+    for e in live:
+        if e.get("type") in ("arrow", "line"):
+            paint(e)
+    for e in live:
+        if e.get("type") not in ("frame", "arrow", "line", "text"):
+            paint(e)
+    for e in live:
+        if e.get("type") == "text":
+            paint(e)
+    out.append("</svg>")
+    return "\n".join(out), int(min(w, 4000)), int(min(h, 3000))
+
+
+def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):
+    """Sanity-check a PNG: signature, IHDR dims, bytes-per-pixel floor.
+    The demo's corrupted cold-start exports sat at ~0.03 bytes/px versus
+    0.12+ for good renders of identical dimensions — but stripes compress
+    unpredictably, so the floor is conservative and dimension mismatch is
+    the stronger signal."""
+    if len(data) < 33 or data[:8] != b"\x89PNG\r\n\x1a\n":
+        return False, "not a PNG"
+    if data[12:16] != b"IHDR":
+        return False, "malformed PNG (no IHDR)"
+    w = int.from_bytes(data[16:20], "big")
+    h = int.from_bytes(data[20:24], "big")
+    if not w or not h:
+        return False, "zero-sized PNG"
+    if want_w and abs(w - want_w) > max(64, want_w * 0.2):
+        return False, "width %d far from requested %d" % (w, want_w)
+    if want_h and abs(h - want_h) > max(64, want_h * 0.2):
+        return False, "height %d far from requested %d" % (h, want_h)
+    bpp = len(data) / float(w * h)
+    if bpp < min_bpp:
+        return False, "suspiciously thin (%.3f bytes/px)" % bpp
+    return True, "%dx%d, %.3f bytes/px" % (w, h, bpp)
+
+
+def find_browsers():
+    """Chromium-family binaries for headless rasterization, best first —
+    no playwright driver, no node; plain `--headless=new --screenshot`.
+    Snap-confined builds (/snap/bin) go LAST: their mount namespace hides
+    the real /tmp, so they only work with $HOME-based paths."""
+    found, snaps = [], []
+    for name in ("chromium", "chromium-browser", "google-chrome-stable",
+                 "google-chrome", "chrome", "brave-browser", "msedge",
+                 "microsoft-edge"):
+        path = shutil.which(name)
+        if not path:
+            continue
+        real = os.path.realpath(path)
+        (snaps if ("/snap/" in path or "/snap/" in real) else
+         found).append(path)
+    # a playwright-managed chromium is a normal unconfined binary — using
+    # it directly is not "pairing with playwright", just finding a browser
+    cache = Path.home() / ".cache" / "ms-playwright"
+    if cache.is_dir():
+        for pat in ("chromium-*/chrome-linux*/chrome",
+                    "chromium_headless_shell-*/chrome-linux*/"
+                    "headless_shell"):
+            for hit in sorted(cache.glob(pat), reverse=True):
+                if os.access(str(hit), os.X_OK):
+                    found.append(str(hit))
+                    break
+    return found + snaps
+
+
+def intent_echo(ops, els):
+    """One line per drawing op stating its OBSERVABLE consequence against
+    the final scene — because `apply` accepting a batch is not the same as
+    the batch having done what the agent meant (refinement audit §2.4).
+    The agent reads the echo, not the success line."""
+    ix = {e["id"]: e for e in els}
+    labels = label_map(els)
+
+    def describe(eid):
+        el = ix.get(eid)
+        if el is None:
+            return "%s: gone" % eid
+        if el.get("type") in ("arrow", "line"):
+            s = (el.get("startBinding") or {}).get("elementId")
+            d = (el.get("endBinding") or {}).get("elementId")
+            return "arrow %s binds %s → %s" % (eid, s or "∅ (unbound)",
+                                               d or "∅ (unbound)")
+        lbl = labels.get(eid)
+        return "%s%s at (%d,%d) %dx%d" % (
+            eid, " (%r)" % lbl if lbl else "",
+            el.get("x", 0), el.get("y", 0),
+            el.get("width", 0), el.get("height", 0))
+
+    lines = []
+    for i, op in enumerate(ops):
+        kind = op.get("op")
+        if kind == "add":
+            spec = op.get("element") or {}
+            eid = spec.get("id") or slugify(spec.get("label", "") or "el")
+            lines.append("op %d (add): %s" % (i, describe(eid)))
+        elif kind == "mod":
+            lines.append("op %d (mod %s): %s"
+                         % (i, ",".join(sorted((op.get("attrs") or {}))),
+                            describe(op.get("id"))))
+        elif kind == "del":
+            eid = op.get("id")
+            lines.append("op %d (del): %s %s" % (
+                i, eid, "deleted (with its bound label)"
+                if eid not in ix else "STILL PRESENT"))
+    return lines
+
+
+FLOW_KINDS = {"source", "transform", "agent", "control", "sink"}
+
+
+def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
+    """Does segment (x1,y1)-(x2,y2) pass through el's (slightly shrunk)
+    bounding box? Cohen–Sutherland-style reject, then edge intersection."""
+    rx1, ry1 = el["x"] + inset, el["y"] + inset
+    rx2 = el["x"] + el.get("width", 0) - inset
+    ry2 = el["y"] + el.get("height", 0) - inset
+    if rx2 <= rx1 or ry2 <= ry1:
+        return False
+    if max(x1, x2) < rx1 or min(x1, x2) > rx2 or \
+            max(y1, y2) < ry1 or min(y1, y2) > ry2:
+        return False
+    # inside-the-box endpoints count as a hit; otherwise check each rect edge
+    if rx1 <= x1 <= rx2 and ry1 <= y1 <= ry2:
+        return True
+    if rx1 <= x2 <= rx2 and ry1 <= y2 <= ry2:
+        return True
+
+    def ccw(ax, ay, bx, by, cx, cy):
+        return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax)
+
+    def crosses(ax, ay, bx, by, cx, cy, dx, dy):
+        return ccw(ax, ay, cx, cy, dx, dy) != ccw(bx, by, cx, cy, dx, dy) \
+            and ccw(ax, ay, bx, by, cx, cy) != ccw(ax, ay, bx, by, dx, dy)
+
+    edges = [(rx1, ry1, rx2, ry1), (rx2, ry1, rx2, ry2),
+             (rx2, ry2, rx1, ry2), (rx1, ry2, rx1, ry1)]
+    return any(crosses(x1, y1, x2, y2, *e) for e in edges)
+
+
 def lint_layout(els):
-    """Cheap legibility lint for headless agents (who can't see their own
-    drawing): arrow labels wider than their arrow's run, and overlapping
-    shapes. Returns warning strings — advisory, never blocking."""
-    warnings = []
+    """Layout lint for headless agents (who can't see their own drawing),
+    tiered per references/layout.md:
+      errors   — the drawing does not say what the agent meant; repair in
+                 the same move, before narrating
+      warnings — legibility defects worth a cosmetic repair
+      notes    — style/budget observations
+    Returns {"errors": [...], "warnings": [...], "notes": [...]}.
+    (Sequence/lane/shell-specific checks land with the type promotion —
+    task #7: time-reversal, activation-never-closes, lane-spanning,
+    app-shell drift, cardinality-token mismatch.)"""
+    errors, warnings, notes = [], [], []
     labels = label_map(els)
     ix = {e["id"]: e for e in els}
-    for e in els:
-        if e.get("type") in ("arrow", "line") and e.get("points"):
-            run = (e["points"][-1][0] ** 2 + e["points"][-1][1] ** 2) ** 0.5
-            lbl = next((t for t in els if t.get("containerId") == e["id"]
-                        and t.get("type") == "text"), None)
-            if lbl is not None and run < lbl.get("width", 0) + 24:
-                warnings.append(
-                    "label %r is wider than its arrow's %dpx run (%s) — "
-                    "spread the endpoints or shorten the label"
-                    % (lbl.get("text", "")[:30], int(run), e["id"]))
+
+    def name(eid):
+        lbl = labels.get(eid)
+        return "%s (%r)" % (eid, lbl) if lbl else eid
+
+    def bbox_pts(e):
+        pts = e.get("points") or [[0, 0]]
+        return (e.get("x", 0) + pts[0][0], e.get("y", 0) + pts[0][1],
+                e.get("x", 0) + pts[-1][0], e.get("y", 0) + pts[-1][1])
+
     shapes = [e for e in els if e.get("type") in
               ("rectangle", "diamond", "ellipse")
               and role_of(e) not in ("label", "pin")]
+    arrows = [e for e in els if e.get("type") in ("arrow", "line")
+              and e.get("points")]
+    nodes = [e for e in shapes if role_of(e) == "node" or
+             (e.get("customData") or {}).get("kind")]
+
+    # ---- ERROR: detached endpoints (server-routed) --------------------
+    TOL = 14  # binding gap (6) + slack
+    for a in arrows:
+        x1, y1, x2, y2 = bbox_pts(a)
+        for key, px, py in (("startBinding", x1, y1),
+                            ("endBinding", x2, y2)):
+            b = a.get(key)
+            tgt = ix.get((b or {}).get("elementId"))
+            if tgt is None:
+                continue
+            gx1, gy1 = tgt["x"] - TOL, tgt["y"] - TOL
+            gx2 = tgt["x"] + tgt.get("width", 0) + TOL
+            gy2 = tgt["y"] + tgt.get("height", 0) + TOL
+            if not (gx1 <= px <= gx2 and gy1 <= py <= gy2):
+                msg = ("arrow %s claims to bind %s but its %s point ends "
+                       "%dpx away — re-route it (mod x/y on the node "
+                       "re-routes 2-point arrows automatically)"
+                       % (a["id"], name(tgt["id"]),
+                          "start" if key == "startBinding" else "end",
+                          int(((px - max(gx1, min(px, gx2))) ** 2 +
+                               (py - max(gy1, min(py, gy2))) ** 2) ** 0.5)
+                          or TOL))
+                if len(a.get("points") or []) > 2:
+                    warnings.append(
+                        "user-shaped " + msg +
+                        " — not auto-routed (multi-point path is the "
+                        "user's geometry); re-route deliberately and "
+                        "narrate it")
+                else:
+                    errors.append(msg)
+
+    # ---- ERROR: flow-kind structural invariants ----------------------
+    kinds = {e["id"]: (e.get("customData") or {}).get("kind")
+             for e in nodes}
+    if any(k in FLOW_KINDS for k in kinds.values()):
+        inbound = {eid: 0 for eid in kinds}
+        outbound = {eid: 0 for eid in kinds}
+        for a in arrows:
+            s = (a.get("startBinding") or {}).get("elementId")
+            d = (a.get("endBinding") or {}).get("elementId")
+            if s in outbound:
+                outbound[s] += 1
+            if d in inbound:
+                inbound[d] += 1
+            if kinds.get(s) == "source" and kinds.get(d) == "sink":
+                errors.append(
+                    "arrow %s connects a source directly to a sink — "
+                    "nothing transforms in between; route through the "
+                    "step that does the work, or the diagram claims "
+                    "there isn't one" % a["id"])
+        for eid, k in kinds.items():
+            if k not in FLOW_KINDS:
+                continue
+            if k not in ("source",) and inbound[eid] and not outbound[eid] \
+                    and k != "sink":
+                errors.append(
+                    "%s is a black hole — flow enters and never leaves. "
+                    "Every gap like this is a conversation not yet had: "
+                    "ask it, don't just patch it" % name(eid))
+            if k not in ("sink",) and outbound[eid] and not inbound[eid] \
+                    and k != "source":
+                errors.append(
+                    "%s is a miracle — flow leaves it but nothing feeds "
+                    "it. Same rule: this is a question, then a repair"
+                    % name(eid))
+
+    # ---- WARNING: legibility -----------------------------------------
+    for e in arrows:
+        run = (e["points"][-1][0] ** 2 + e["points"][-1][1] ** 2) ** 0.5
+        lbl = next((t for t in els if t.get("containerId") == e["id"]
+                    and t.get("type") == "text"), None)
+        if lbl is not None and run < lbl.get("width", 0) + 24:
+            warnings.append(
+                "label %r is wider than its arrow's %dpx run (%s) — "
+                "spread the endpoints or shorten the label"
+                % (lbl.get("text", "")[:30], int(run), e["id"]))
+        if e.get("type") == "arrow" and e.get("startArrowhead") \
+                and e.get("endArrowhead"):
+            warnings.append(
+                "arrow %s points both ways — split it into two labeled "
+                "arrows; a bidirectional arrow says nothing about who "
+                "initiates" % e["id"])
+        # through-node crossing: straight segments vs non-endpoint nodes
+        x1, y1, x2, y2 = bbox_pts(e)
+        ends = {(e.get("startBinding") or {}).get("elementId"),
+                (e.get("endBinding") or {}).get("elementId")}
+        for n in nodes:
+            if n["id"] in ends:
+                continue
+            if _seg_hits_rect(x1, y1, x2, y2, n):
+                warnings.append(
+                    "arrow %s passes through %s, which is neither its "
+                    "source nor destination — route around it"
+                    % (e["id"], name(n["id"])))
     for i, a in enumerate(shapes):
         for b in shapes[i + 1:]:
             ox = min(a["x"] + a.get("width", 0), b["x"] + b.get("width", 0)) \
@@ -1660,10 +2179,108 @@ def lint_layout(els):
                               b.get("width", 1) * b.get("height", 1))
                 if ox * oy > 0.25 * smaller:
                     warnings.append(
-                        "%s (%s) and %s (%s) overlap — separate them"
-                        % (a["id"], labels.get(a["id"], a["id"]),
-                           b["id"], labels.get(b["id"], b["id"])))
-    return warnings
+                        "%s and %s overlap — separate them"
+                        % (name(a["id"]), name(b["id"])))
+    # annotations were excluded from the v0 overlap loop entirely — the
+    # demo shipped a note lying across a node for five rounds
+    annos = [e for e in els if e.get("type") == "text"
+             and role_of(e) == "annotation"]
+    for t in annos:
+        for n in nodes:
+            ox = min(t["x"] + t.get("width", 0),
+                     n["x"] + n.get("width", 0)) - max(t["x"], n["x"])
+            oy = min(t["y"] + t.get("height", 0),
+                     n["y"] + n.get("height", 0)) - max(t["y"], n["y"])
+            if ox > 8 and oy > 4:
+                warnings.append(
+                    "annotation %r lies on top of %s — move it clear "
+                    "(and give it customData.annotates so it stays "
+                    "attached to its subject)"
+                    % ((t.get("text") or "")[:30], name(n["id"])))
+    for e in shapes:
+        lbl = next((t for t in els if t.get("containerId") == e["id"]
+                    and t.get("type") == "text"), None)
+        if lbl is not None and lbl.get("width", 0) > e.get("width", 0) - 6:
+            warnings.append(
+                "label %r overflows its %dpx-wide box (%s) — bound labels "
+                "render on ONE line; widen the box or shorten the label"
+                % (lbl.get("text", "")[:30], int(e.get("width", 0)),
+                   e["id"]))
+    # shared attach points
+    anchor_pts = {}
+    for a in arrows:
+        x1, y1, x2, y2 = bbox_pts(a)
+        for key, px, py in (("startBinding", x1, y1),
+                            ("endBinding", x2, y2)):
+            tgt = ((a.get(key) or {}).get("elementId"))
+            if tgt:
+                anchor_pts.setdefault(tgt, []).append((a["id"], px, py))
+    for tgt, pts in anchor_pts.items():
+        for i, (id1, px1, py1) in enumerate(pts):
+            for id2, px2, py2 in pts[i + 1:]:
+                if abs(px1 - px2) < 12 and abs(py1 - py2) < 12:
+                    warnings.append(
+                        "arrows %s and %s share an attach point on %s — "
+                        "fan them (focus ±0.5 steps, or offset anchors "
+                        "≥12px)" % (id1, id2, name(tgt)))
+    # stranded element: far outside everything else's bounding box
+    if len(shapes) > 2:
+        for e in shapes:
+            others = [o for o in shapes if o is not e]
+            ox1 = min(o["x"] for o in others)
+            oy1 = min(o["y"] for o in others)
+            ox2 = max(o["x"] + o.get("width", 0) for o in others)
+            oy2 = max(o["y"] + o.get("height", 0) for o in others)
+            gap_x = max(ox1 - (e["x"] + e.get("width", 0)), e["x"] - ox2, 0)
+            gap_y = max(oy1 - (e["y"] + e.get("height", 0)), e["y"] - oy2, 0)
+            if max(gap_x, gap_y) > 800:
+                warnings.append(
+                    "%s sits %dpx away from everything else — stranded "
+                    "by a bad coordinate?" % (name(e["id"]),
+                                              int(max(gap_x, gap_y))))
+
+    # ---- NOTE: style & budgets ---------------------------------------
+    offgrid = [e["id"] for e in shapes
+               if any(isinstance(e.get(k), (int, float)) and e[k] % 4
+                      for k in ("x", "y", "width", "height"))]
+    if offgrid:
+        notes.append("%d element(s) off the 4px grid (%s%s) — seed from "
+                     "grid indices (references/layout.md)"
+                     % (len(offgrid), ", ".join(offgrid[:3]),
+                        "…" if len(offgrid) > 3 else ""))
+    for e in els:
+        if e.get("opacity") not in (None, 100):
+            notes.append("%s has opacity %s — opacity is state, not "
+                         "style; static elements stay at 100"
+                         % (e["id"], e.get("opacity")))
+    bound_ids = set()
+    for a in arrows:
+        for key in ("startBinding", "endBinding"):
+            t = (a.get(key) or {}).get("elementId")
+            if t:
+                bound_ids.add(t)
+    for d in shapes:
+        if d.get("type") != "diamond":
+            continue
+        for a in arrows:
+            if (a.get("startBinding") or {}).get("elementId") == d["id"] \
+                    and not any(t.get("containerId") == a["id"]
+                                for t in els if t.get("type") == "text"):
+                notes.append("arrow %s leaves decision %s unlabeled — "
+                             "name the branch" % (a["id"], name(d["id"])))
+    orphans = [n["id"] for n in nodes if n["id"] not in bound_ids]
+    if orphans:
+        notes.append("unconnected node(s): %s" % ", ".join(
+            name(o) for o in orphans[:4]))
+    if len(nodes) > 9:
+        notes.append("%d nodes (budget: 9) — split the view rather than "
+                     "shrink the font" % len(nodes))
+    real_arrows = [a for a in arrows if a.get("type") == "arrow"]
+    if len(real_arrows) > 12:
+        notes.append("%d arrows (budget: 12) — the arrow budget is the "
+                     "one that triggers a second view: edges collide, "
+                     "nodes don't" % len(real_arrows))
+    return {"errors": errors, "warnings": warnings, "notes": notes}
 
 
 class BatchError(Exception):
@@ -1920,6 +2537,12 @@ class Store:
                 "base_revn": base,
                 "branch": branch,
                 "author": author,
+                # the round this save lands in — an agent move OPENS the
+                # next round (the counter advances below), so stamp that.
+                # Rounds are the session's unit of time and ADRs cite them
+                # as evidence; unstamped records made that unverifiable.
+                "round": self.registry.get("round", 0) +
+                         (1 if author == "agent" else 0),
                 "saved_at": now_iso(),
                 "selection_at_save": selection or [],
                 "user_note": user_note,
@@ -2038,6 +2661,8 @@ class Store:
                 continue
             if note.startswith("intentionally-divergent"):
                 continue
+            if self._policy_covers(m):
+                continue
             for h in hits:
                 for s in siblings:
                     entry = {"mapping": self._mapping_key(m), "changed": h,
@@ -2048,6 +2673,21 @@ class Store:
                                       "save": revn, "status": "open"})
                     self.registry["tripwires"].append(reg_entry)
         return out
+
+    def _policy_covers(self, m):
+        """Does a class-level divergence policy cover this mapping? One
+        ruling ('wireframe blocks name report sections, flow steps name the
+        work — meant to differ') silences the whole class, instead of the
+        N identical per-mapping notes the demo session had to write."""
+        member_types = {self.artifact_type(e.split("#", 1)[0])
+                        for e in (m.get("elements") or [])}
+        for pol in self.registry.get("divergence_policies") or []:
+            if pol.get("concept") and pol["concept"] != m.get("concept"):
+                continue
+            if pol.get("types") and not member_types <= set(pol["types"]):
+                continue
+            return True
+        return False
 
     @staticmethod
     def _mapping_key(m):
@@ -2099,11 +2739,31 @@ class Store:
                                         "elements": op["elements"],
                                         "note": op.get("note")})
             elif action == "annotate_mapping":
+                pattern = op.get("pattern")
+                if pattern:
+                    # class-level ruling: ONE record covers every mapping
+                    # matching the pattern, now and in the future — the demo
+                    # session recorded the identical ruling 8 times because
+                    # only per-index annotation existed (audit §7.2)
+                    pol = {"types": sorted(pattern.get("types") or []),
+                           "concept": pattern.get("concept"),
+                           "note": op.get("note") or "intentionally-divergent"}
+                    if not pol["types"] and not pol["concept"]:
+                        errors.append(
+                            "registry op %d: annotate_mapping pattern needs "
+                            "`types` (e.g. [\"wireframe\",\"flow\"]) and/or "
+                            "`concept`" % i)
+                        continue
+                    reg.setdefault("divergence_policies", []).append(pol)
+                    applied.append({"action": "divergence_policy_added",
+                                    "policy": pol})
+                    continue
                 idx = op.get("index")
                 if not isinstance(idx, int) or idx >= len(reg["mappings"]):
                     errors.append("registry op %d: annotate_mapping needs a "
                                   "valid mapping `index` (see model.json "
-                                  "mappings order)" % i)
+                                  "mappings order) or a `pattern` for a "
+                                  "class-level ruling" % i)
                     continue
                 reg["mappings"][idx]["note"] = op.get("note")
             elif action == "remove_mapping":
@@ -2679,12 +3339,17 @@ class ServerApp:
                                pin_only=pin_only,
                                headline=record["summary"]["headline"])
             aid = body.get("artifact") or (body.get("create") or {}).get("id")
-            lint = lint_layout(self.store.scenes.get(aid, [])) if aid else []
+            scene = self.store.scenes.get(aid, []) if aid else []
+            lint = lint_layout(scene) if aid else \
+                {"errors": [], "warnings": [], "notes": []}
             return {"ok": True, "revn": record["revn"],
                     "short_id": record["short_id"],
                     "summary": record["summary"],
                     "pin_only": pin_only,
-                    "layout_warnings": lint}
+                    "intent_echo": intent_echo(body.get("ops") or [], scene),
+                    "layout_errors": lint["errors"],
+                    "layout_warnings": lint["warnings"],
+                    "layout_notes": lint["notes"]}
         if path == "/api/pending/resolve":
             pid = body.get("id")
             action = body.get("action")
@@ -2895,6 +3560,38 @@ def make_handler(app):
                         return self._send_json(
                             {"ok": False, "error": "no revn %d" % revn}, 404)
                     return self._send_json({"ok": True, "record": rec})
+                if path.startswith("/render/"):
+                    # minimal rasterization surface for the snapshot CLI's
+                    # headless tier: no app, no fonts race — just the SVG
+                    aid = path[len("/render/"):]
+                    raw = aid.endswith(".svg")
+                    if raw:
+                        aid = aid[:-4]
+                    els = app.store.scenes.get(aid)
+                    if els is None:
+                        return self._send_json(
+                            {"ok": False,
+                             "error": "unknown artifact %r" % aid}, 404)
+                    svg, _, _ = render_svg(
+                        els, title=(app.store.artifact_meta.get(aid) or
+                                    {}).get("name") or aid)
+                    if raw:
+                        body = svg.encode("utf-8")
+                        self.send_response(200)
+                        self.send_header("Content-Type", "image/svg+xml")
+                    else:
+                        body = ("<!doctype html><html><head><meta "
+                                "charset='utf-8'><style>body{margin:0;"
+                                "background:#fdfcf8}</style></head><body>"
+                                + svg + "</body></html>").encode("utf-8")
+                        self.send_response(200)
+                        self.send_header("Content-Type",
+                                         "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return None
                 return self._serve_static(path)
             except _Err as e:
                 return self._send_json(e.payload, e.status)
@@ -3270,8 +3967,14 @@ def cmd_apply(args):
         print_kv(revn=resp.get("revn"), short_id=resp.get("short_id"),
                  pin_only=str(resp.get("pin_only", False)).lower(),
                  headline=(resp.get("summary") or {}).get("headline"))
+        for line in resp.get("intent_echo") or []:
+            print("ECHO=%s" % line)
+        for e in resp.get("layout_errors") or []:
+            print("LAYOUT_ERROR=%s" % e)
         for w in resp.get("layout_warnings") or []:
             print("LAYOUT_WARNING=%s" % w)
+        for n in resp.get("layout_notes") or []:
+            print("LAYOUT_NOTE=%s" % n)
         return 0
     # degraded path: no server — apply directly against the files
     store = Store(project)
@@ -3287,37 +3990,141 @@ def cmd_apply(args):
              pin_only=str(pin_only).lower(),
              headline=record["summary"]["headline"], offline="true")
     aid = batch.get("artifact") or (batch.get("create") or {}).get("id")
-    for w in lint_layout(store.scenes.get(aid, [])) if aid else []:
-        print("LAYOUT_WARNING=%s" % w)
+    scene = store.scenes.get(aid, []) if aid else []
+    for line in intent_echo(batch.get("ops") or [], scene):
+        print("ECHO=%s" % line)
+    if aid:
+        lint = lint_layout(scene)
+        for e in lint["errors"]:
+            print("LAYOUT_ERROR=%s" % e)
+        for w in lint["warnings"]:
+            print("LAYOUT_WARNING=%s" % w)
+        for n in lint["notes"]:
+            print("LAYOUT_NOTE=%s" % n)
     return 0
 
 
-def cmd_screenshot(args):
+def cmd_snapshot(args):
+    """Tiered snapshot: connected tab → self-launched headless system
+    browser → stdlib SVG. Always yields something; exit 0 only with a
+    validated image (or the explicit SVG fallback). Prints KEY=VALUE:
+    TIER, PNG or SVG, VALID, plus NOTE lines."""
     project = Project(args.project)
+    store = Store(project)
+    aid = args.artifact
+    if aid is None:
+        if len(store.scenes) == 1:
+            aid = next(iter(store.scenes))
+        else:
+            die("ERROR=--artifact required (known: %s)"
+                % (", ".join(sorted(store.scenes)) or "none"), 2)
+    if aid not in store.scenes:
+        die("ERROR=unknown artifact %r (known: %s)"
+            % (aid, ", ".join(sorted(store.scenes)) or "none"), 2)
+    els = store.scenes[aid]
+    svg, want_w, want_h = render_svg(
+        els, title=(store.artifact_meta.get(aid) or {}).get("name") or aid)
+    outdir = Path(args.out).parent if args.out else project.runtime_dir
+    outdir.mkdir(parents=True, exist_ok=True)
+    out_png = Path(args.out) if args.out else \
+        outdir / ("%s-r%d.png" % (aid, store.head_revn()))
+
     state = project.read_state()
-    if not server_alive(state):
-        die("ERROR=no running server — run canvas.py start first.", 3)
-    try:
-        resp = http_json(state["url"] + "api/screenshot/request",
-                         payload={"artifact": args.artifact}, timeout=5.0)
-    except (OSError, ValueError, urllib.error.URLError) as e:
-        die("ERROR=request failed: %s" % e, 3)
-    sid = resp.get("id")
-    deadline = time.time() + args.timeout
-    while time.time() < deadline:
-        time.sleep(0.5)
-        st = http_json(state["url"] + "api/state", timeout=5.0)
-        waiting = [r for r in st.get("screenshot_requests") or []
-                   if r["id"] == sid]
-        if not waiting:
-            shots = sorted(project.shots_dir.glob("shot-%d.png" % sid))
-            if shots:
-                print_kv(screenshot=str(shots[0]))
+    alive = server_alive(state)
+
+    # ---- tier 1: connected browser tab (true Excalidraw rendering) ----
+    if alive and not args.no_tab:
+        for attempt in (1, 2):
+            try:
+                resp = http_json(state["url"] + "api/screenshot/request",
+                                 payload={"artifact": aid}, timeout=5.0)
+            except (OSError, ValueError, urllib.error.URLError):
+                break
+            sid = resp.get("id")
+            deadline = time.time() + args.tab_timeout
+            shot = None
+            while time.time() < deadline:
+                time.sleep(0.4)
+                st = http_json(state["url"] + "api/state", timeout=5.0)
+                if not [r for r in st.get("screenshot_requests") or []
+                        if r["id"] == sid]:
+                    shots = sorted(project.shots_dir.glob(
+                        "shot-%d.png" % sid))
+                    if shots:
+                        shot = shots[0]
+                    break
+            if shot is None:
+                break  # no client answered — go headless, don't retry
+            data = shot.read_bytes()
+            ok, why = validate_png(data)
+            if ok:
+                shutil.copyfile(str(shot), str(out_png))
+                print_kv(tier="1", png=str(out_png), valid="true",
+                         detail=why)
                 return 0
-    die("ERROR=no browser answered the screenshot request within %ds — the "
-        "canvas page is probably not open. The canvas is at %s; ask the "
-        "user to open it, or skip the screenshot (it is context, never "
-        "truth)." % (args.timeout, state["url"]), 3)
+            print("NOTE=tab export attempt %d invalid (%s)%s"
+                  % (attempt, why,
+                     " — retrying once" if attempt == 1 else ""))
+        print("NOTE=no valid tab export — falling back to headless render")
+
+    # ---- tier 2: system browser, headless, against the SVG surface ----
+    browsers = find_browsers() if not args.no_headless else []
+    if browsers:
+        # work in $HOME so snap-confined browsers (private /tmp) can see
+        # both the input html and the output png
+        workdir = Path.home() / ".cache" / "wysiwyg-grilling"
+        workdir.mkdir(parents=True, exist_ok=True)
+        work_png = workdir / out_png.name
+        if alive:
+            url = state["url"] + "render/" + aid
+        else:
+            html = ("<!doctype html><html><head><meta charset='utf-8'>"
+                    "<style>body{margin:0;background:#fdfcf8}</style>"
+                    "</head><body>" + svg + "</body></html>")
+            tmp_html = workdir / ("%s-render.html" % aid)
+            tmp_html.write_text(html, encoding="utf-8")
+            url = tmp_html.resolve().as_uri()
+        win_w = max(min(want_w, 3000), 320)
+        win_h = max(min(want_h, 2000), 200)
+        for browser in browsers:
+            if work_png.exists():
+                work_png.unlink()
+            cmd = [browser, "--headless=new", "--disable-gpu",
+                   "--no-sandbox", "--disable-dev-shm-usage",
+                   "--hide-scrollbars", "--force-device-scale-factor=1",
+                   "--screenshot=%s" % work_png,
+                   "--window-size=%d,%d" % (win_w, win_h), url]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, timeout=40)
+                if work_png.exists():
+                    data = work_png.read_bytes()
+                    ok, why = validate_png(data, win_w, win_h)
+                    if ok:
+                        if work_png != out_png:
+                            shutil.copyfile(str(work_png), str(out_png))
+                        print_kv(tier="2", png=str(out_png), valid="true",
+                                 detail=why,
+                                 browser=os.path.basename(browser))
+                        return 0
+                    print("NOTE=%s render invalid (%s)"
+                          % (os.path.basename(browser), why))
+                else:
+                    print("NOTE=%s produced no file (rc=%d%s)"
+                          % (os.path.basename(browser), proc.returncode,
+                             (", " + proc.stderr.decode("utf-8", "replace")
+                              .strip()[:120]) if proc.stderr else ""))
+            except (subprocess.TimeoutExpired, OSError) as e:
+                print("NOTE=%s failed: %s" % (os.path.basename(browser), e))
+    elif not args.no_headless:
+        print("NOTE=no chromium/chrome/edge/brave found — SVG fallback")
+
+    # ---- tier 3: the SVG itself, honestly labeled ---------------------
+    out_svg = out_png.with_suffix(".svg")
+    out_svg.write_text(svg, encoding="utf-8")
+    print_kv(tier="3", svg=str(out_svg), valid="true",
+             note="approximate rendering (system fonts, no sketch style) — "
+                  "geometry-faithful, good for legibility only")
+    return 0
 
 
 def cmd_serve(args):
@@ -3346,16 +4153,27 @@ def main(argv=None):
                    help="max seconds to wait (hard-capped at 540)")
     p = sub.add_parser("apply", help="apply a typed op batch (agent draws)")
     p.add_argument("--file", help="JSON batch file (default: stdin)")
-    p = sub.add_parser("screenshot", help="PNG of an artifact via the browser")
-    p.add_argument("--artifact", default=None)
-    p.add_argument("--timeout", type=int, default=20)
+    for name, hlp in (("snapshot", "PNG/SVG of an artifact — tiered: "
+                       "connected tab → headless system browser → SVG"),
+                      ("screenshot", "alias of snapshot (back-compat)")):
+        p = sub.add_parser(name, help=hlp)
+        p.add_argument("--artifact", default=None)
+        p.add_argument("--out", default=None,
+                       help="output PNG path (default: runtime dir)")
+        p.add_argument("--tab-timeout", type=int, default=8,
+                       help="seconds to wait for a connected tab (tier 1)")
+        p.add_argument("--no-tab", action="store_true",
+                       help="skip tier 1 (deterministic headless render)")
+        p.add_argument("--no-headless", action="store_true",
+                       help="skip tier 2 (no browser launch)")
     p = sub.add_parser("serve", help="(internal) run server in foreground")
     p.add_argument("--port", type=int, default=0)
 
     args = parser.parse_args(argv)
     handlers = {
         "start": cmd_start, "status": cmd_status, "stop": cmd_stop,
-        "wait": cmd_wait, "apply": cmd_apply, "screenshot": cmd_screenshot,
+        "wait": cmd_wait, "apply": cmd_apply, "screenshot": cmd_snapshot,
+        "snapshot": cmd_snapshot,
         "serve": cmd_serve,
     }
     if args.cmd not in handlers:

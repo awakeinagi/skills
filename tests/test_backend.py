@@ -650,5 +650,266 @@ class TestDeletionConsequences(Base):
         self.assertNotIn("renamed", [f["fact"] for f in facts])
 
 
+class TestRerouteOnMove(Base):
+    """F1 (v0.1): moving a node re-routes its server-routed bound arrows;
+    user-shaped multi-point paths are never silently flattened."""
+
+    def test_move_reroutes_bound_arrows(self):
+        self.store.apply_batch(seed_flow_batch())
+        # the report's minimal repro: move one endpoint node far away
+        self.store.apply_batch({"base_revn": 1, "artifact": "checkout-flow",
+                                "ops": [{"op": "mod", "id": "checkout",
+                                         "attrs": {"y": 600}}]})
+        els = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        t1, node = els["t1"], els["checkout"]
+        ex = t1["x"] + t1["points"][-1][0]
+        ey = t1["y"] + t1["points"][-1][1]
+        self.assertTrue(node["x"] - 14 <= ex <= node["x"] +
+                        node["width"] + 14)
+        self.assertTrue(node["y"] - 14 <= ey <= node["y"] +
+                        node["height"] + 14)
+        # binding survived the reroute
+        self.assertEqual(t1["endBinding"]["elementId"], "checkout")
+        # and the lint agrees: no detached-endpoint error
+        lint = canvas.lint_layout(self.store.scenes["checkout-flow"])
+        self.assertFalse([e for e in lint["errors"] if "t1" in e])
+
+    def test_user_shaped_arrow_not_flattened(self):
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        for e in els:
+            if e["id"] == "t1":  # user hand-bends the arrow: 3-point path
+                e["points"] = [[0, 0], [40, -60], [80, 0]]
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els}, base_revn=1)
+        self.store.apply_batch({"base_revn": 2, "artifact": "checkout-flow",
+                                "ops": [{"op": "mod", "id": "checkout",
+                                         "attrs": {"y": 600}}]})
+        t1 = next(e for e in self.store.scenes["checkout-flow"]
+                  if e["id"] == "t1")
+        self.assertEqual(len(t1["points"]), 3)  # geometry untouched
+        lint = canvas.lint_layout(self.store.scenes["checkout-flow"])
+        self.assertTrue(any("user-shaped" in w and "t1" in w
+                            for w in lint["warnings"]))
+
+
+class TestRewireValidation(Base):
+    """F2 (v0.1): a rewire that cannot bind rejects the batch with a named
+    error instead of silently doing nothing."""
+
+    def test_unbound_rewire_rejects(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({"base_revn": 1, "artifact": "checkout-flow",
+                                "ops": [{"op": "add", "element":
+                                         {"type": "arrow", "id": "t-free",
+                                          "x": 300, "y": 300, "width": 100,
+                                          "height": 0}}]})
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch({"base_revn": 2,
+                                    "artifact": "checkout-flow",
+                                    "ops": [{"op": "mod", "id": "t-free",
+                                             "attrs": {"to": "cart"}}]})
+        self.assertIn("unbound", str(cm.exception))
+        t = next(e for e in self.store.scenes["checkout-flow"]
+                 if e["id"] == "t-free")
+        self.assertIsNone(t["endBinding"])  # nothing partial landed
+
+    def test_joint_from_to_rewire_succeeds(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({"base_revn": 1, "artifact": "checkout-flow",
+                                "ops": [{"op": "add", "element":
+                                         {"type": "arrow", "id": "t-free",
+                                          "x": 300, "y": 300, "width": 100,
+                                          "height": 0}},
+                                        {"op": "mod", "id": "t-free",
+                                         "attrs": {"from": "cart",
+                                                   "to": "payment"}}]})
+        t = next(e for e in self.store.scenes["checkout-flow"]
+                 if e["id"] == "t-free")
+        self.assertEqual(t["startBinding"]["elementId"], "cart")
+        self.assertEqual(t["endBinding"]["elementId"], "payment")
+
+
+class TestIntentEcho(Base):
+    def test_echo_reports_bindings_and_deletion(self):
+        self.store.apply_batch(seed_flow_batch())
+        ops = [{"op": "mod", "id": "t3", "attrs": {"to": "checkout"}},
+               {"op": "del", "id": "confirm"}]
+        # ops are echoed against the FINAL scene
+        self.store.apply_batch({"base_revn": 1, "artifact": "checkout-flow",
+                                "ops": [ops[0]]})
+        echo = canvas.intent_echo([ops[0]],
+                                  self.store.scenes["checkout-flow"])
+        self.assertTrue(any("t3 binds payment → checkout" in ln
+                            for ln in echo))
+        self.store.apply_batch({"base_revn": 2, "artifact": "checkout-flow",
+                                "ops": [ops[1]]})
+        echo = canvas.intent_echo([ops[1]],
+                                  self.store.scenes["checkout-flow"])
+        self.assertTrue(any("confirm deleted" in ln for ln in echo))
+
+
+class TestLintTiers(Base):
+    def test_detached_endpoint_is_error(self):
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        for e in els:
+            if e["id"] == "checkout":   # user drags the node away; client
+                e["x"], e["y"] = 900, 900  # normally re-routes — simulate a
+        # broken client that didn't
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els}, base_revn=1)
+        lint = canvas.lint_layout(self.store.scenes["checkout-flow"])
+        self.assertTrue(any("claims to bind" in e for e in lint["errors"]))
+
+    def test_budgets_and_bidirectional(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({"base_revn": 1, "artifact": "checkout-flow",
+                                "ops": [{"op": "mod", "id": "t1",
+                                         "attrs": {"startArrowhead":
+                                                   "arrow"}}]})
+        lint = canvas.lint_layout(self.store.scenes["checkout-flow"])
+        self.assertTrue(any("both ways" in w for w in lint["warnings"]))
+
+    def test_fan_spreads_shared_attach_points(self):
+        # three sources converging on one target: anchors must not collide
+        ops = []
+        for i, nid in enumerate(("a", "b", "c")):
+            ops.append({"op": "add", "element":
+                        {"type": "rectangle", "id": nid, "label": nid.upper(),
+                         "x": 0, "y": i * 160, "width": 160, "height": 64,
+                         "role": "node"}})
+        ops.append({"op": "add", "element":
+                    {"type": "rectangle", "id": "hub", "label": "Hub",
+                     "x": 480, "y": 160, "width": 160, "height": 64,
+                     "role": "node"}})
+        for nid in ("a", "b", "c"):
+            ops.append({"op": "add", "element":
+                        {"type": "arrow", "id": "t-%s" % nid},
+                        "from": nid, "to": "hub"})
+        self.store.apply_batch({"base_revn": 0, "artifact": "fan",
+                                "create": {"id": "fan", "name": "Fan",
+                                           "type": "flow"}, "ops": ops})
+        lint = canvas.lint_layout(self.store.scenes["fan"])
+        self.assertFalse([w for w in lint["warnings"]
+                          if "share an attach point" in w])
+
+    def test_flow_kind_invariants(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "k", "create":
+                {"id": "k", "name": "K", "type": "flow"},
+            "ops": [
+                {"op": "add", "element": {"type": "rectangle", "id": "s",
+                                          "label": "In", "x": 0, "y": 0,
+                                          "width": 160, "height": 64,
+                                          "role": "node",
+                                          "customData": {"kind": "source"}}},
+                {"op": "add", "element": {"type": "rectangle", "id": "k2",
+                                          "label": "Out", "x": 320, "y": 0,
+                                          "width": 160, "height": 64,
+                                          "role": "node",
+                                          "customData": {"kind": "sink"}}},
+                {"op": "add", "element": {"type": "arrow", "id": "t"},
+                 "from": "s", "to": "k2"},
+            ]})
+        lint = canvas.lint_layout(self.store.scenes["k"])
+        self.assertTrue(any("source directly to a sink" in e
+                            for e in lint["errors"]))
+
+
+class TestHygiene(Base):
+    def test_round_stamped_on_save_records(self):
+        rec, _ = self.store.apply_batch(seed_flow_batch())
+        self.assertEqual(rec["round"], 1)      # agent move OPENS round 1
+        els = self.scene()
+        urec = self.store.commit(author="user",
+                                 new_scenes={"checkout-flow": els},
+                                 base_revn=1)
+        self.assertEqual(urec["round"], 1)     # user replies within round 1
+
+    def test_replay_restores_binding_shape(self):
+        self.store.apply_batch(seed_flow_batch())
+        # rewire produces a mod change whose binding values are normalized
+        # id strings in the save record
+        self.store.apply_batch({"base_revn": 1, "artifact": "checkout-flow",
+                                "ops": [{"op": "mod", "id": "t3",
+                                         "attrs": {"to": "checkout"}}]})
+        state = self.store.state_at(2)
+        t3 = next(e for e in state["checkout-flow"]["elements"]
+                  if e["id"] == "t3")
+        self.assertIsInstance(t3["endBinding"], dict)
+        self.assertEqual(t3["endBinding"]["elementId"], "checkout")
+
+    def test_divergence_policy_silences_class(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-wf",
+            "create": {"id": "checkout-wf", "name": "WF",
+                       "type": "wireframe"},
+            "ops": [
+                {"op": "add", "element": {"type": "rectangle", "id": "blk",
+                                          "label": "Pay button", "x": 0,
+                                          "y": 0, "width": 160, "height": 64,
+                                          "kind": "button", "role": "node"}},
+                {"op": "registry", "action": "add_mapping",
+                 "concept": "checkout",
+                 "elements": ["checkout-wf#blk", "checkout-flow#payment"]},
+            ]})
+        # without a policy, editing one side fires a tripwire
+        els = self.scene()
+        for e in els:
+            if e["id"] == "payment-label":
+                e["text"] = "Pay Now"
+        rec = self.store.commit(author="user",
+                                new_scenes={"checkout-flow": els},
+                                base_revn=2)
+        self.assertTrue(rec["tripwires"])
+        # class ruling via annotate_mapping pattern: one record
+        self.store.apply_batch({
+            "base_revn": 3, "artifact": "checkout-flow",
+            "ops": [{"op": "registry", "action": "annotate_mapping",
+                     "pattern": {"types": ["wireframe", "flow"]},
+                     "note": "intentionally-divergent: blocks name "
+                             "sections, steps name work"}]})
+        self.assertEqual(
+            len(self.store.registry["divergence_policies"]), 1)
+        els = self.scene()
+        for e in els:
+            if e["id"] == "payment-label":
+                e["text"] = "Pay Later"
+        rec = self.store.commit(author="user",
+                                new_scenes={"checkout-flow": els},
+                                base_revn=4)
+        self.assertFalse(rec["tripwires"])  # the class is ruled, silent
+
+
+class TestSnapshotPieces(Base):
+    def test_render_svg_carries_labels_and_escapes(self):
+        self.store.apply_batch(seed_flow_batch())
+        svg, w, h = canvas.render_svg(self.store.scenes["checkout-flow"])
+        self.assertIn("<svg", svg)
+        self.assertIn(">Cart<", svg)
+        self.assertGreater(w, 100)
+        self.assertGreater(h, 50)
+        els = [{"id": "t", "type": "text", "x": 0, "y": 0, "width": 100,
+                "height": 20, "text": "a < b & c"}]
+        svg2, _, _ = canvas.render_svg(els)
+        self.assertIn("a &lt; b &amp; c", svg2)
+
+    def test_validate_png(self):
+        ok, why = canvas.validate_png(b"definitely not a png")
+        self.assertFalse(ok)
+        # minimal structurally-valid PNG header (10x10) with enough body
+        import struct
+        ihdr = struct.pack(">II5B", 10, 10, 8, 2, 0, 0, 0)
+        png = (b"\x89PNG\r\n\x1a\n" +
+               struct.pack(">I", 13) + b"IHDR" + ihdr + b"\0\0\0\0" +
+               b"\0" * 64)
+        ok, why = canvas.validate_png(png)
+        self.assertTrue(ok, why)
+        ok, why = canvas.validate_png(png, want_w=2000)
+        self.assertFalse(ok)  # dimension mismatch is the strong signal
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

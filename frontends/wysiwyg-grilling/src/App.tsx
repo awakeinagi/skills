@@ -690,21 +690,23 @@ export default function App() {
             </div>
           )}
         </div>
-        {currentConceptViews.map((aid: string) => {
-          const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
-          return (
-            <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`} onClick={() => showArtifact(aid)}
-              title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})`}>
-              <SceneThumb elements={(viewingRevn != null ? viewScenes[aid] : buffersRef.current[aid] || artifacts[aid]?.elements) || []} />
-              <div className="tname">{artifacts[aid]?.name || aid}</div>
-              <div className="badges">
-                {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
-                {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
+        <div className="thumbs">
+          {currentConceptViews.map((aid: string) => {
+            const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
+            return (
+              <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`} onClick={() => showArtifact(aid)}
+                title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})`}>
+                <SceneThumb elements={(viewingRevn != null ? viewScenes[aid] : buffersRef.current[aid] || artifacts[aid]?.elements) || []} />
+                <div className="tname">{artifacts[aid]?.name || aid}</div>
+                <div className="badges">
+                  {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
+                  {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
+                </div>
               </div>
-            </div>
-          );
-        })}
-        <div className="thumb suggest" onClick={() => setSuggestOpen(true)}>+ suggest<br />a view…</div>
+            );
+          })}
+          <div className="thumb suggest" onClick={() => setSuggestOpen(true)}>+ suggest<br />a view…</div>
+        </div>
       </div>
 
       {/* ============ modals ============ */}

@@ -76,9 +76,13 @@ your next move. In order:
    facts. And the inverse is equally the point: **seed your committed
    reading, including the parts you're guessing** — an invented gate the
    user can delete is worth more than an empty canvas, because being wrong
-   visibly is what makes the correction cheap. `apply` returns
-   `LAYOUT_WARNING` lines (label/arrow collisions, overlaps) — heed them;
-   you can't see your own drawing.
+   visibly is what makes the correction cheap. `apply` answers with an
+   **intent echo** and `LAYOUT_ERROR` / `LAYOUT_WARNING` / `LAYOUT_NOTE`
+   lines — acceptance is not confirmation: read the echo, not the success
+   line, because you can't see your own drawing. **An ERROR means the
+   drawing doesn't say what you meant** — repair it in the same move,
+   before narrating; that repair is cosmetic-class, never a second
+   proposal.
 3. **Narrate** (see contract below).
 4. **Draw Gate**: revise the canvas **only if structure, relationship, or
    flow carries the point better than words**. Purely verbal matters touch
@@ -91,26 +95,68 @@ your next move. In order:
    that same move).
 5. **Ask the frontier**: your sharpest questions in chat; element-anchored
    questions ALSO ride as ❓ pins in the same op batch (pin + chat question
-   are the same object). Pin budget: **2–3 per round** — pick by "how much
-   does the answer change the design?"; more reads as an interrogation, and
-   the rest keeps for later rounds. Max **one** view suggestion per round,
-   only when the
-   conversation hit a question current views can't make tangible AND you have
-   material to seed a real first draft; record declines (registry `decline`)
-   and don't re-propose without new cause.
+   are the same object). Pin budget: **2–3 per round** — and the budget is a
+   count, not a bar: a question must additionally clear **proportionality**
+   ("the answer changes the design"; approve even what you could imagine
+   improving — manufacturing a gap from brevity is the classic reviewer
+   error; never ask at the wrong fidelity layer; judge a thing once).
+   Deferred pins aren't dead: once the baseline is stable, **reopen the most
+   consequential one** and model it to stability before taking the next
+   (`references/choreography.md` when the question supply runs thin or the
+   session stalls). Max **one new view per round** — a state/exception pair
+   drawn in one batch is one view, and the session's first artifact is the
+   Draw Gate opening, not a suggestion. Draw a view only when its debt
+   trigger has fired AND you have material to seed a real first draft;
+   record declines (registry `decline`) and don't re-propose without new
+   cause.
 
 The user's move is any mix of chat, canvas edits + Save, and pin answers — no
 channel is ever required of them.
+
+## View progression — what the project owes
+
+Round 1, one line in chat, correctable: **name the archetype** ("this is a
+document generator: a pipeline whose product is a thing someone reads") —
+plus the **parties** and the two or three things that pass between them:
+the 1000ft foundation, costing no view (a party-shaped opening may seed a
+DMF-mode party map as the first artifact — the Draw Gate decides). It
+fixes the **view set** the project owes and the order those views become
+decidable in — un-drawn views are **view debt**, carried on the registry
+(`concepts[].unviewed`), paid at most one view per round when a trigger
+fires. Every trigger is one shape — *the question on the table can't be
+made tangible in any view now on the canvas* — and each type has its tell
+(wireframe: a node's noun outweighs its verb; domain: a glossary term's
+definition names another term; sequence: a step is labelled with an actor;
+failure view: a deadline, timeout, or outside party got named). Archetype
+sets, all triggers, and the Draw Gate sharpeners live in
+`references/view-progression.md` — read it at session start on any new
+project. An archetype that never earns its second view was the wrong
+archetype: say so and re-name it.
+
+## Channel contract
+
+A question lives on the canvas **iff it is about a specific element the
+user can point at**; everything discursive lives in chat; everything
+settled leaves both and lands in docs. Canvas: pins, the drawing itself,
+tripwire markers. Chat: narration, cross-cutting frontier questions,
+archetype naming, view suggestions, ADR offers — and chat is the channel
+of last resort, everything works there when the canvas is down. Docs: a
+question you'd otherwise answer twice. A pin with no element, or a chat
+question that names exactly one box, is on the wrong channel.
 
 ## Narration contract
 
 The server gives you mechanics: `saves/NNNN-*.json` holds the bucketed
 changes, `by_element`, and typed semantic facts **nested under
 `artifacts.<artifact-id>`** (summary and tripwires are top-level), plus a
-mechanical summary. The canvas screenshot (`canvas.py screenshot`) is visual
-context only — **never source of truth**; the facts are. Narrate the
-**user's** facts: your own prior ops also produce records (`author: agent`)
-— don't narrate those back, they were your move.
+mechanical summary. The snapshot (`canvas.py snapshot`) is never the source
+of truth for what the design **says** — the facts are; it is the only
+source of truth for whether the drawing is **legible**. Take one when you
+seed a new artifact; never redesign from it; skip when no tier can produce
+one. Narrate the **user's** facts: your own prior ops also produce records
+(`author: agent`) — don't narrate those back, they were your move. Before
+committing to a reading, state it to yourself as one complete sentence —
+the sentence failing to complete IS the test that the reading isn't ready.
 
 - **Altitude** (config `narration_altitude`, default `clusters`): 2–4
   interpreted intent clusters + name what you suppressed ("and 3 nudges I
@@ -134,13 +180,19 @@ context only — **never source of truth**; the facts are. Narrate the
   guess, never drop, never block. Pin lifecycle: answered → resolved; the
   elements get edited → next diff reads them; pin deleted by the user → "not
   worth explaining", never re-raise; elements deleted → prune.
+- **Pin answer integrity**: if a pin's answer doesn't fit its question
+  (adjacent answers swapped in the rail, an answer that responds to a
+  different pin's text), say so and re-file or re-ask — never narrate a
+  mismatch as agreement.
 - **Empty save**: the record says so — "you saved without changing anything"
   is a legitimate, sometimes meaningful, event.
 - **Tripwires**: every `tripwires` entry gets named in narration — flag the
   divergence, offer to propagate, **never change a view the user didn't edit
   without an explicit yes**. Accepted divergence: annotate the mapping
-  `intentionally-divergent: <why>` (registry op). Repeated inferred (unmapped)
-  divergence → propose promoting to an explicit link.
+  `intentionally-divergent: <why>` (registry op) — and when one ruling
+  covers a class of mappings, record it once as a class-level ruling
+  (`pattern` on `annotate_mapping`), not N copies. **N tripwires with one
+  cause is one tripwire**: narrate the cause, not the count.
 
 ## Waiting — never block, silence is never consent
 
@@ -202,18 +254,24 @@ first complex batch of a session):
   makes the REWIRED fact fire.
 - **Registry ops ride the same batch** — there is no silent registry write.
   Every `model.json` change appears in that round's narration.
-- **Complexity budget: 8–12 nodes per artifact.** Over budget → propose a
-  second view, don't shrink the font.
-- Default-mapped pairs: wireframe↔flow and domain↔flow (flow is the hub) —
-  create element links **eagerly as you draw those pairs**. Domain↔wireframe
-  stays inference-only.
+- **Complexity budget: max 9 nodes AND max 12 arrows per artifact** — two
+  separate limits, and the arrow limit is the one that usually fires first
+  (edges collide, nodes don't). Over budget → propose a second view, don't
+  shrink the font.
+- Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
+  (flow is the hub) — create element links **eagerly as you draw those
+  pairs**. Domain↔wireframe stays inference-only.
 
 Per-type guidance (primitives, fact tables, seed archetypes):
-`references/wireframe.md` · `references/flow.md` · `references/domain.md`.
-First-class types (wireframe, flow, domain) narrate with typed facts;
-extended types (sequence, ER, class, swimlane, dfd, mindmap, architecture)
-draw fine but narrate generically. Tiers come from `config.json` — respect
-`disabled` types and priority order when suggesting views.
+`references/wireframe.md` · `references/flow.md` · `references/domain.md` ·
+`references/sequence.md`. Cross-type geometry — grid, connector rules,
+budgets, the lint contract — is `references/layout.md`: read it with your
+first drawing batch of a session. First-class types (wireframe, flow,
+domain, sequence) narrate with typed facts; extended types (ER, class,
+swimlane, dfd, mindmap, architecture) draw fine but narrate generically —
+lanes and cardinality live as extensions of flow and domain, not as
+separate types. Tiers come from `config.json` — respect `disabled` types
+and priority order when suggesting views.
 
 ## Disciplines
 
@@ -224,6 +282,12 @@ draw fine but narrate generically. Tiers come from `config.json` — respect
   it (narrated, veto-able) the first time the conversation settles a term —
   two rounds of settled vocabulary with no glossary is a queue you forgot to
   start.
+- **A settled glossary term IS a concept**: when a term lands in
+  CONTEXT.md, the same batch's registry op creates the concept (narrated,
+  veto-able) — at settlement only, never speculatively. This is what makes
+  mappings real joins and `concepts[].unviewed` a live view-debt signal;
+  the domain view is then simply the concept set, drawn. The complexity
+  budget applies to the domain *view*, never the concept set.
 - **ADR offers stay chat-only**, gated by the three-part test (hard to
   reverse / surprising / real trade-off), citing save short-ids as evidence.
   Exemplar: "'The app never schedules the review' is a real decision with a
@@ -245,9 +309,10 @@ draw fine but narrate generically. Tiers come from `config.json` — respect
 
 Flush deferred doc updates (glossary/spec/ADR) — **no parting canvas
 revision** — then a parting summary in chat: decisions settled (cite save
-short-ids), open pins, outstanding tripwires, where-we-left-off, and the
+short-ids), open pins, outstanding tripwires, where-we-left-off, the
 dangling-thread check ("the pay-button tripwire is still open — resolve
-before we stop?"). Then `canvas.py stop` (an idle watchdog also reaps the
+before we stop?"), and one explicit **"what is missing?"** — without that
+prompt, people skip details they've privately decided aren't relevant. Then `canvas.py stop` (an idle watchdog also reaps the
 server if the session dies abruptly; state on disk is always sufficient to
 resume — next session's catch-up reconstructs).
 

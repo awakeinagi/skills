@@ -207,7 +207,14 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .filmstrip {
   display: flex; align-items: stretch; gap: 10px;
   background: var(--chrome); border-top: 1px solid var(--border);
-  padding: 8px 12px; height: 96px; flex-shrink: 0; overflow-x: auto;
+  padding: 8px 12px; height: 96px; flex-shrink: 0;
+  /* no overflow here: an overflow container clips absolutely-positioned
+     descendants, which swallowed the artifact dropdown-menu (it pops above
+     the strip). Horizontal scrolling lives on .thumbs instead. */
+}
+.thumbs {
+  display: flex; align-items: stretch; gap: 10px;
+  flex: 1; min-width: 0; overflow-x: auto;
 }
 .artifact-dropdown { position: relative; flex-shrink: 0; display: flex; }
 .artifact-dropdown > button {
