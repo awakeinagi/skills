@@ -109,6 +109,7 @@ DEFAULT_REGISTRY = {
     "tripwires": [],
     "divergence_policies": [],
     "budgets": {},
+    "waives": {},
 }
 
 
@@ -325,6 +326,7 @@ def validate_registry(reg):
     for key in ("concepts", "mappings", "declined", "pins", "tripwires"):
         _require(reg, key, [], issues, "REG-007", "registry")
     _require(reg, "budgets", {}, issues, "REG-007", "registry")
+    _require(reg, "waives", {}, issues, "REG-007", "registry")
     names = set()
     for b in reg["branches"]:
         if not isinstance(b, dict) or "name" not in b:
@@ -2865,6 +2867,45 @@ def _sequence_facts(old_ix, new_ix, old_labels, new_labels, changes,
     return facts
 
 
+def frame_reading_order(els, frame_id, row_tol=6):
+    """Linearise a screen frame's content into reading order (v0.4 U1).
+
+    A wireframe has no DOM, so the only reading-order claim it can make
+    is geometric — which is what WCAG 1.3.2 asks about. Sort the frame's
+    content shapes by y then x, merging rows whose tops differ by no
+    more than ``row_tol`` (half the 12px gutter, ruling Q30).
+
+    Args:
+        els: The artifact's elements.
+        frame_id: The frame whose children to linearise.
+        row_tol: Max y-delta (px) for two elements to share a row.
+
+    Returns:
+        The frame's content elements (shapes minus labels, pins,
+        decorations and annotations), in reading order.
+    """
+    kids = [e for e in els
+            if e.get("frameId") == frame_id
+            and e.get("type") in ("rectangle", "diamond", "ellipse")
+            and role_of(e) not in ("label", "pin", "decoration",
+                                   "annotation")]
+    kids.sort(key=lambda e: e.get("y", 0))
+    rows, row, row_y = [], [], 0
+    for e in kids:
+        y = e.get("y", 0)
+        if row and y - row_y > row_tol:
+            rows.append(row)
+            row = []
+        if not row:
+            row_y = y
+        row.append(e)
+    if row:
+        rows.append(row)
+    for r in rows:
+        r.sort(key=lambda e: (e.get("x", 0), e.get("y", 0)))
+    return [e for r in rows for e in r]
+
+
 def _wireframe_facts(old_ix, new_ix, old_labels, new_labels, changes,
                      adds, dels):
     facts = []
@@ -2900,7 +2941,8 @@ def _wireframe_facts(old_ix, new_ix, old_labels, new_labels, changes,
                     if container is not None and \
                             (container.get("customData") or {}).get("kind") in \
                             ("button", "nav", "link", "tab",
-                             "checkbox", "toggle", "kpi", "slider"):
+                             "checkbox", "toggle", "kpi", "slider",
+                             "help", "feedback", "sticky-bar"):
                         F("label_renamed", container["id"],
                           **{"from": a["from"], "to": a["to"]})
         elif c["op"] == "move":
@@ -2941,6 +2983,30 @@ def _wireframe_facts(old_ix, new_ix, old_labels, new_labels, changes,
             if a["attr"] == "text":
                 F("priority_changed", c["id"], **{"from": a["from"],
                                                   "to": a["to"]})
+
+    # reading order (v0.4 U1): narrate a screen's linearised sequence on
+    # first draw and whenever an edit changes the computed order — the
+    # cadence ruling; quiet rounds stay quiet, an unnoticed reorder
+    # always surfaces
+    new_els_l = list(new_ix.values())
+    old_els_l = list(old_ix.values())
+    added_frames = {el["id"] for el in adds if el.get("type") == "frame"}
+    for el in new_els_l:
+        if el.get("type") != "frame" or kind_of(el) in ("lane", "fold"):
+            continue
+        order = frame_reading_order(new_els_l, el["id"])
+        if len(order) < 2:
+            continue
+        seq = [display_label(e, new_labels) for e in order]
+        if el["id"] in added_frames:
+            F("reading_order_set", el["id"],
+              screen=el.get("name") or el["id"], order=seq)
+        elif el["id"] in old_ix:
+            old_order = frame_reading_order(old_els_l, el["id"])
+            if [e["id"] for e in old_order] != [e["id"] for e in order]:
+                F("reading_order_changed", el["id"],
+                  screen=el.get("name") or el["id"], order=seq,
+                  was=[display_label(e, old_labels) for e in old_order])
     return facts
 
 
@@ -3053,9 +3119,10 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
 SALIENCE = ["rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
             "message_reordered", "cardinality_changed", "ownership_changed",
-            "party_kind_changed", "fold_crossed", "type_changed",
-            "value_changed", "state_toggled",
-            "screen_added", "screen_deleted", "entity_renamed", "renamed",
+            "party_kind_changed", "fold_crossed", "reading_order_changed",
+            "type_changed", "value_changed", "state_toggled",
+            "screen_added", "screen_deleted", "reading_order_set",
+            "entity_renamed", "renamed",
             "label_renamed", "branch_added", "step_added", "entity_added",
             "actor_added", "lane_added", "handoff_added",
             "attribute_added", "attribute_removed", "added",
@@ -3173,6 +3240,11 @@ def headline_for(fact):
     if n == "fold_crossed":
         return "%s moved %s the fold" % (fact.get("label") or
                                          fact["element"], fact.get("to"))
+    if n in ("reading_order_set", "reading_order_changed"):
+        seq = fact.get("order") or []
+        shown = " / ".join(seq[:6]) + ("…" if len(seq) > 6 else "")
+        verb = "reads" if n == "reading_order_set" else "now reads"
+        return "screen %s %s: %s" % (fact.get("screen"), verb, shown)
     if n == "sync_changed":
         return "%s became %s (was %s)" % (fact.get("message") or
                                           fact["element"], fact.get("to"),
@@ -3583,6 +3655,18 @@ def intent_echo(ops, els):
 
 FLOW_KINDS = {"source", "transform", "agent", "control", "sink", "store"}
 
+# wireframe kinds a user is expected to hit/tap — the 2.5.8-shaped
+# target-size question only applies to these (v0.4 U11)
+INTERACTIVE_KINDS = {"button", "input", "checkbox", "toggle", "slider",
+                     "nav", "link", "tab"}
+
+# progress-indicator tells (v0.4 U5/Q25) — label evidence, plus the
+# status vocabulary the task-list archetype uses, which is exempt
+_PROGRESS_RE = re.compile(
+    r"\bstep\s+\d+\s+of\s+\d+\b|\bprogress\b|\b\d+\s*%", re.IGNORECASE)
+_STATUS_RE = re.compile(
+    r"^(in progress|not started|completed|done)$", re.IGNORECASE)
+
 
 def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     """Does segment (x1,y1)-(x2,y2) pass through el's (slightly shrunk)
@@ -3613,7 +3697,8 @@ def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     return any(crosses(x1, y1, x2, y2, *e) for e in edges)
 
 
-def lint_layout(els, artifact_type=None, budget=None):
+def lint_layout(els, artifact_type=None, budget=None, waives=None,
+                aid=None):
     """Layout lint for headless agents (who can't see their own drawing),
     tiered per references/layout.md:
       errors   — the drawing does not say what the agent meant; repair in
@@ -3632,6 +3717,10 @@ def lint_layout(els, artifact_type=None, budget=None):
         budget: Optional per-artifact override
             {"nodes": N, "arrows": M, "reason": str} from
             registry["budgets"] — recorded intent beats the default.
+        waives: Optional registry["waives"] dict — one-time questions
+            (e.g. the Q25 progress-indicator note) go quiet once a
+            waive keyed "<check>:<artifact>" is recorded (v0.4).
+        aid: Optional artifact id, needed to resolve waive keys.
     """
     errors, warnings, notes = [], [], []
     node_budget = 8 if artifact_type == "domain" else 9
@@ -3747,6 +3836,213 @@ def lint_layout(els, artifact_type=None, budget=None):
                          "by scenario, one diagram each" % len(msgs))
         # activation-never-closes needs message pairing semantics —
         # deferred until activations carry their span links (task #7 tail)
+
+    # ---- wireframe frame checks (v0.4 U-round) -----------------------
+    # reading-order, form and WCAG-shaped questions. Epistemics rule:
+    # these are questions a criterion will ask later, never verdicts —
+    # a wireframe cannot "fail WCAG" (NOTICE.md, refused absorptions)
+    if artifact_type == "wireframe":
+        def waived(check):
+            return bool(waives) and aid is not None and \
+                ("%s:%s" % (check, aid)) in waives
+
+        frames = [e for e in els if e.get("type") == "frame"
+                  and kind_of(e) not in ("lane", "fold")]
+        fname = {f["id"]: f.get("name") or f["id"] for f in frames}
+        # duplicate frame titles (GOV.UK question-pages)
+        titles = {}
+        for f in frames:
+            t = (f.get("name") or "").strip()
+            if t:
+                titles.setdefault(t, []).append(f["id"])
+        for t, fids in titles.items():
+            if len(fids) > 1:
+                notes.append(
+                    "screens %s share the title %r — which one is the "
+                    "user on? (GOV.UK: every question page gets its own "
+                    "title)" % (", ".join(fids), t))
+        for f in frames:
+            order = frame_reading_order(els, f["id"])
+            okinds = [(e.get("customData") or {}).get("kind")
+                      for e in order]
+            inputs = [e for e, k in zip(order, okinds) if k == "input"]
+            # submit before its inputs (the 1.3.2-shaped structural WARN)
+            for pos, k in enumerate(okinds):
+                if k != "button":
+                    continue
+                after = sum(1 for kk in okinds[pos + 1:] if kk == "input")
+                if after:
+                    warnings.append(
+                        "%s precedes %d of the inputs it submits in "
+                        "reading order (screen %s) — linearised, the "
+                        "action comes before its fields; move it below "
+                        "the inputs, or say the layout intends it"
+                        % (name(order[pos]["id"]), after,
+                           fname[f["id"]]))
+            # input labels: missing (3.3.2) and asterisk-marked (GOV.UK)
+            for e in inputs:
+                lbl = (labels.get(e["id"]) or "").strip()
+                if not lbl:
+                    warnings.append(
+                        "input %s has no label — what is it asking "
+                        "for? (label above the box, sentence case, no "
+                        "colon)" % e["id"])
+                elif "*" in lbl:
+                    warnings.append(
+                        "input %s marks required-ness with %r — write "
+                        "\"(optional)\" in the optional fields' labels "
+                        "instead; asterisks make everyone guess "
+                        "(GOV.UK question-pages)" % (e["id"], lbl))
+            # uniform input widths (Q4: width hints the expected answer)
+            if len(inputs) >= 3:
+                widths = {int(e.get("width", 0)) for e in inputs}
+                if len(widths) == 1:
+                    notes.append(
+                        "all %d inputs on screen %s are %dpx wide — is "
+                        "every answer the same length? (width table: "
+                        "references/wireframe.md)"
+                        % (len(inputs), fname[f["id"]],
+                           widths.pop()))
+            # declared sticky bar over inputs (Q7, 2.4.11-shaped)
+            for s in els:
+                if s.get("frameId") == f["id"] and inputs and \
+                        (s.get("customData") or {}).get("kind") == \
+                        "sticky-bar":
+                    notes.append(
+                        "%s is pinned and screen %s has %d input(s) — "
+                        "when they tab to the last field, is it under "
+                        "the bar? (the 2.4.11 question, cheapest to "
+                        "answer here)" % (name(s["id"]),
+                                          fname[f["id"]], len(inputs)))
+        # help presence + slot drift (Q9, 3.2.6-shaped)
+        helps = [e for e in els if e.get("frameId")
+                 and (e.get("customData") or {}).get("kind") == "help"]
+        if helps and len(frames) > 1:
+            have = {e["frameId"] for e in helps}
+            missing = [fname[f["id"]] for f in frames
+                       if f["id"] not in have]
+            if missing:
+                notes.append(
+                    "help lives on %d of %d screens — where does it "
+                    "live on %s? (3.2.6: help in the same relative "
+                    "slot on every screen)"
+                    % (len(have), len(frames), ", ".join(missing[:3])))
+            quads = {}
+            for e in helps:
+                fr = ix.get(e.get("frameId"))
+                if fr is None:
+                    continue
+                cx = e.get("x", 0) + e.get("width", 0) / 2 - fr.get("x", 0)
+                cy = e.get("y", 0) + e.get("height", 0) / 2 - fr.get("y", 0)
+                q = ("top" if cy < fr.get("height", 1) / 2 else "bottom") \
+                    + "-" + ("left" if cx < fr.get("width", 1) / 2
+                             else "right")
+                quads.setdefault(q, []).append(
+                    fname.get(e["frameId"], e["frameId"]))
+            if len(quads) > 1:
+                notes.append(
+                    "help drifts across screens (%s) — 3.2.6 wants the "
+                    "same slot everywhere"
+                    % "; ".join("%s on %s" % (q, ", ".join(v[:2]))
+                                for q, v in sorted(quads.items())))
+        # target size (Q11, 2.5.8-shaped; legal because frames are
+        # declared 1:1 CSS px — references/wireframe.md). NOTE forever,
+        # never a verdict: four of five exceptions are semantic
+        inter = {}
+        for e in els:
+            if e.get("frameId") and \
+                    (e.get("customData") or {}).get("kind") in \
+                    INTERACTIVE_KINDS:
+                inter.setdefault(e["frameId"], []).append(e)
+        def centre(t):
+            return (t.get("x", 0) + t.get("width", 0) / 2,
+                    t.get("y", 0) + t.get("height", 0) / 2)
+
+        for fid, group in inter.items():
+            for i2, a2 in enumerate(group):
+                for b2 in group[i2 + 1:]:
+                    small = [t for t in (a2, b2)
+                             if min(t.get("width", 0),
+                                    t.get("height", 0)) < 24]
+                    if not small:
+                        continue
+                    # W3C spacing test: a 24px circle centred on each
+                    # undersized target must clear other targets, and
+                    # two undersized circles must clear each other
+                    hits = []
+                    for s2 in small:
+                        o2 = b2 if s2 is a2 else a2
+                        scx, scy = centre(s2)
+                        qx = max(o2.get("x", 0),
+                                 min(scx, o2.get("x", 0) +
+                                     o2.get("width", 0)))
+                        qy = max(o2.get("y", 0),
+                                 min(scy, o2.get("y", 0) +
+                                     o2.get("height", 0)))
+                        d2 = ((scx - qx) ** 2 + (scy - qy) ** 2) ** 0.5
+                        if d2 < 12:
+                            hits.append(d2)
+                    if len(small) == 2:
+                        (acx, acy), (bcx, bcy) = centre(a2), centre(b2)
+                        cc = ((acx - bcx) ** 2 + (acy - bcy) ** 2) ** 0.5
+                        if cc < 24:
+                            hits.append(cc)
+                    if hits:
+                        notes.append(
+                            "%s and %s are closer than a thumb (%dpx "
+                            "centre-to-neighbour) — 2.5.8 will ask for "
+                            "24px targets or spacing; intentional? "
+                            "(inline / essential / equivalent-control "
+                            "exceptions are yours to claim)"
+                            % (name(a2["id"]), name(b2["id"]),
+                               int(min(hits))))
+        # progress indicator (Q25) — question, never a rule; fires once
+        # per artifact, then a registry waive keeps it quiet
+        if not waived("q25"):
+            prog = None
+            for e in els:
+                if e.get("type") == "text":
+                    txt = (e.get("originalText") or e.get("text")
+                           or "").strip()
+                    if _PROGRESS_RE.search(txt) and \
+                            not _STATUS_RE.match(txt):
+                        prog = e.get("containerId") or e["id"]
+                        break
+            if prog is None:
+                # dot-row tell: ≥3 small same-size shapes in one row
+                # near a frame's top edge
+                for fid, group in (
+                        (f["id"], [e for e in els
+                                   if e.get("frameId") == f["id"]
+                                   and e.get("type") in
+                                   ("rectangle", "ellipse")
+                                   and e.get("width", 99) <= 40
+                                   and e.get("height", 99) <= 16])
+                        for f in frames):
+                    fr = ix.get(fid)
+                    if fr is None or len(group) < 3:
+                        continue
+                    top = fr.get("y", 0) + fr.get("height", 0) * 0.25
+                    row2 = [e for e in group if e.get("y", 0) <= top]
+                    row2.sort(key=lambda e: e.get("y", 0))
+                    run2 = [e for e in row2
+                            if abs(e.get("y", 0) -
+                                   row2[0].get("y", 0)) <= 4] \
+                        if row2 else []
+                    sizes = {(int(e.get("width", 0)),
+                              int(e.get("height", 0))) for e in run2}
+                    if len(run2) >= 3 and len(sizes) == 1:
+                        prog = run2[0]["id"]
+                        break
+            if prog is not None:
+                notes.append(
+                    "a progress indicator (%s) — does the *user* need "
+                    "to know where they are, or do *you* need them to? "
+                    "GDS removed a 12-step indicator from a live "
+                    "service; completion, time and volume were "
+                    "unchanged. Settle it, then waive with registry op "
+                    "{action: waive, key: \"q25:%s\", reason: ...}"
+                    % (name(prog), aid or "<artifact>"))
 
     # ---- WARNING: legibility -----------------------------------------
     for e in arrows:
@@ -4199,10 +4495,12 @@ def project_lint(project, els, registry=None, artifact_type=None,
         artifact_type: Optional type for type-aware budgets (v0.3).
         aid: Optional artifact id for the budget override lookup.
     """
-    budget = None
+    budget, waives = None, None
     if registry is not None and aid:
         budget = (registry.get("budgets") or {}).get(aid)
-    lint = lint_layout(els, artifact_type=artifact_type, budget=budget)
+        waives = registry.get("waives") or {}
+    lint = lint_layout(els, artifact_type=artifact_type, budget=budget,
+                       waives=waives, aid=aid)
     avoid, terms = {}, []
     ctx = project.pk / "CONTEXT.md"
     ctx_exists = False
@@ -4974,12 +5272,35 @@ class Store:
                 if op.get("arrows"):
                     entry["arrows"] = op["arrows"]
                 reg.setdefault("budgets", {})[aid2] = entry
+            elif action == "waive":
+                # one-time-question suppression (v0.4): a waived
+                # question is an answered question — the reason IS the
+                # answer, recorded where the lint will look
+                key = (op.get("key") or "").strip()
+                if not key or ":" not in key:
+                    errors.append(
+                        "registry op %d: waive needs a key like "
+                        "'q25:<artifact>' (got %r)" % (i, key))
+                    continue
+                if op.get("clear"):
+                    reg.setdefault("waives", {}).pop(key, None)
+                    applied.append({"action": "waive_cleared",
+                                    "key": key})
+                    continue
+                if not (op.get("reason") or "").strip():
+                    errors.append(
+                        "registry op %d: waive requires a `reason` — "
+                        "it is the recorded answer, not a silencer" % i)
+                    continue
+                reg.setdefault("waives", {})[key] = {
+                    "reason": op["reason"].strip(),
+                    "when": now_iso()[:10]}
             else:
                 errors.append("registry op %d: unknown action %r (allowed: "
                               "upsert_concept, remove_view, add_mapping, "
                               "annotate_mapping, remove_mapping, "
                               "resolve_tripwire, annotate_tripwire, "
-                              "decline, set_round, set_budget)"
+                              "decline, set_round, set_budget, waive)"
                               % (i, action))
                 continue
             applied.append({k: v for k, v in op.items() if k != "op"})
@@ -5457,6 +5778,7 @@ class Store:
                 "lint_debt": self.lint_debt(),
                 "pin_debt": self.pin_debt(),
                 "budgets": self.registry.get("budgets") or {},
+                "waives": self.registry.get("waives") or {},
                 "declined": self.registry["declined"],
                 "config": self.config,
                 "artifacts": artifacts,

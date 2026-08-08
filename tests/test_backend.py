@@ -3540,5 +3540,209 @@ class TestBudgetsV03(Base):
                             for w in lint["warnings"]))
 
 
+class TestUiUxLintsV04(Base):
+    """v0.4 WP1: reading order, form/WCAG-shaped wireframe lints, and the
+    waive registry op (rulings Q29+, docs/refinement/v0.4-progress.md)."""
+
+    def wf(self, ops, artifact_type="wireframe"):
+        errors = []
+        els = canvas.apply_ops([], ops, errors)
+        self.assertEqual(errors, [])
+        return canvas.lint_layout(els, artifact_type=artifact_type)
+
+    @staticmethod
+    def frame(fid="scr", name="Screen", x=0, y=0, w=360, h=480):
+        return {"op": "add", "element": {
+            "type": "frame", "id": fid, "label": name, "x": x, "y": y,
+            "width": w, "height": h}}
+
+    @staticmethod
+    def block(bid, label, kind, x, y, w=320, h=40, fid="scr"):
+        return {"op": "add", "element": {
+            "type": "rectangle", "id": bid, "label": label, "kind": kind,
+            "x": x, "y": y, "width": w, "height": h, "frameId": fid,
+            "role": "node"}}
+
+    def test_frame_reading_order_rows_merge_at_6px(self):
+        errors = []
+        els = canvas.apply_ops([], [
+            self.frame(),
+            self.block("b", "Bravo", "block", 200, 64),
+            self.block("a", "Alpha", "block", 20, 60, w=160),
+            self.block("c", "Charlie", "block", 20, 120),
+        ], errors)
+        self.assertEqual(errors, [])
+        order = [e["id"] for e in canvas.frame_reading_order(els, "scr")]
+        # a and b differ by 4px in y → one row, ordered by x; c below
+        self.assertEqual(order, ["a", "b", "c"])
+
+    def test_reading_order_facts_first_draw_and_change(self):
+        rec, _ = self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [self.frame(),
+                    self.block("title", "Title", "block", 20, 40),
+                    self.block("cta", "Continue", "button", 20, 120)]})
+        facts = rec["artifacts"]["wf"]["facts"]
+        ro = [f for f in facts if f["fact"] == "reading_order_set"]
+        self.assertEqual(len(ro), 1)
+        self.assertEqual(ro[0]["order"], ["Title", "Continue"])
+        self.assertIn("reads: Title / Continue",
+                      canvas.headline_for(ro[0]))
+        # swap: move the button above the title → order change narrates
+        rec2, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf", "ops": [
+                {"op": "mod", "id": "cta", "attrs": {"y": 8}}]})
+        facts2 = rec2["artifacts"]["wf"]["facts"]
+        ch = [f for f in facts2 if f["fact"] == "reading_order_changed"]
+        self.assertEqual(len(ch), 1)
+        self.assertEqual(ch[0]["order"], ["Continue", "Title"])
+        self.assertEqual(ch[0]["was"], ["Title", "Continue"])
+        # a nudge inside the row tolerance is not an order change
+        rec3, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "wf", "ops": [
+                {"op": "mod", "id": "cta", "attrs": {"y": 12}}]})
+        self.assertFalse([f for f in rec3["artifacts"]["wf"]["facts"]
+                          if f["fact"] == "reading_order_changed"])
+
+    def test_submit_before_inputs_warns(self):
+        lint = self.wf([
+            self.frame(),
+            self.block("go", "Continue", "button", 20, 60, w=120),
+            self.block("name", "Name", "input", 20, 140),
+            self.block("mail", "Email", "input", 20, 200)])
+        self.assertTrue(any("precedes 2 of the inputs" in w
+                            for w in lint["warnings"]))
+        lint2 = self.wf([
+            self.frame(),
+            self.block("name", "Name", "input", 20, 60),
+            self.block("mail", "Email", "input", 20, 120),
+            self.block("go", "Continue", "button", 20, 200, w=120)])
+        self.assertFalse(any("precedes" in w for w in lint2["warnings"]))
+
+    def test_input_label_lints(self):
+        lint = self.wf([
+            self.frame(),
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "bare", "kind": "input",
+                "x": 20, "y": 60, "width": 320, "height": 40,
+                "frameId": "scr", "role": "node"}},
+            self.block("req", "Name *", "input", 20, 120)])
+        self.assertTrue(any("has no label" in w for w in lint["warnings"]))
+        self.assertTrue(any("(optional)" in w and "asterisk" in w
+                            for w in lint["warnings"]))
+
+    def test_uniform_width_note_needs_three(self):
+        rows = [self.frame(),
+                self.block("a", "Day", "input", 20, 60),
+                self.block("b", "Month", "input", 20, 120),
+                self.block("c", "Year", "input", 20, 180)]
+        lint = self.wf(rows)
+        self.assertTrue(any("every answer the same length" in n
+                            for n in lint["notes"]))
+        rows[3] = self.block("c", "Year", "input", 20, 180, w=96)
+        lint2 = self.wf(rows)
+        self.assertFalse(any("every answer the same length" in n
+                             for n in lint2["notes"]))
+
+    def test_sticky_bar_note_needs_inputs(self):
+        base = [self.frame(),
+                self.block("bar", "Total £42", "sticky-bar", 0, 440,
+                           w=360, h=40)]
+        lint = self.wf(base)
+        self.assertFalse(any("2.4.11" in n for n in lint["notes"]))
+        lint2 = self.wf([*base, self.block("pc", "Postcode", "input",
+                                           20, 200)])
+        self.assertTrue(any("2.4.11" in n and "under the bar" in n
+                            for n in lint2["notes"]))
+
+    def test_help_presence_and_slot_drift(self):
+        two = [self.frame("s1", "One", x=0),
+               self.frame("s2", "Two", x=400),
+               self.block("h1", "Help", "help", 300, 8, w=48, h=24,
+                          fid="s1")]
+        lint = self.wf(two)
+        self.assertTrue(any("help lives on 1 of 2 screens" in n
+                            for n in lint["notes"]))
+        both = [*two, self.block("h2", "Help", "help", 420, 440, w=48,
+                                 h=24, fid="s2")]
+        lint2 = self.wf(both)
+        self.assertTrue(any("help drifts across screens" in n
+                            for n in lint2["notes"]))
+
+    def test_target_size_note(self):
+        # undersized checkbox whose 24px spacing circle clips a button
+        lint = self.wf([
+            self.frame(),
+            self.block("chk", "T&C", "checkbox", 20, 200, w=20, h=20),
+            self.block("go", "Continue", "button", 40, 200, w=120, h=40)])
+        self.assertTrue(any("closer than a thumb" in n
+                            for n in lint["notes"]))
+        # two undersized targets: circles intersect at <24px centres
+        lint2 = self.wf([
+            self.frame(),
+            self.block("c1", "A", "checkbox", 20, 200, w=20, h=20),
+            self.block("c2", "B", "checkbox", 40, 200, w=20, h=20)])
+        self.assertTrue(any("closer than a thumb" in n
+                            for n in lint2["notes"]))
+        # clear spacing → silent
+        lint3 = self.wf([
+            self.frame(),
+            self.block("chk", "T&C", "checkbox", 20, 200, w=20, h=20),
+            self.block("go", "Continue", "button", 80, 260, w=120, h=40)])
+        self.assertFalse(any("closer than a thumb" in n
+                             for n in lint3["notes"]))
+
+    def test_duplicate_frame_titles_note(self):
+        lint = self.wf([self.frame("s1", "Details", x=0),
+                        self.frame("s2", "Details", x=400)])
+        self.assertTrue(any("share the title" in n for n in lint["notes"]))
+
+    def test_progress_indicator_note_and_waive(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [self.frame(),
+                    self.block("bar", "Step 2 of 4", "block", 20, 8,
+                               h=24)]})
+        lint = canvas.project_lint(self.project, self.store.scenes["wf"],
+                                   self.store.registry,
+                                   artifact_type="wireframe", aid="wf")
+        self.assertTrue(any("progress indicator" in n
+                            for n in lint["notes"]))
+        with self.assertRaises(canvas.BatchError):  # reason required
+            self.store.apply_batch({
+                "base_revn": 1, "artifact": "wf", "ops": [
+                    {"op": "registry", "action": "waive",
+                     "key": "q25:wf"}]})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf", "ops": [
+                {"op": "registry", "action": "waive", "key": "q25:wf",
+                 "reason": "the user needs the steps — regulated flow"}]})
+        lint2 = canvas.project_lint(self.project, self.store.scenes["wf"],
+                                    self.store.registry,
+                                    artifact_type="wireframe", aid="wf")
+        self.assertFalse(any("progress indicator" in n
+                             for n in lint2["notes"]))
+
+    def test_task_list_statuses_exempt_from_q25(self):
+        lint = self.wf([
+            self.frame(),
+            self.block("t1", "Your details", "block", 20, 60),
+            {"op": "add", "element": {
+                "type": "text", "id": "st1", "text": "In progress",
+                "x": 260, "y": 68, "frameId": "scr"}}])
+        self.assertFalse(any("progress indicator" in n
+                             for n in lint["notes"]))
+
+    def test_waives_survive_registry_repair(self):
+        reg = json.loads(json.dumps(canvas.DEFAULT_REGISTRY))
+        reg.pop("waives", None)
+        fixed, _issues = canvas.validate_registry(reg)
+        self.assertEqual(fixed["waives"], {})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
