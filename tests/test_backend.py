@@ -3906,5 +3906,110 @@ class TestCrossLintV04(Base):
         self.assertGreaterEqual(debt["wf"]["notes"], 1)
 
 
+class TestUiUxAcceptance(Base):
+    """v0.4 WP7 acceptance: one GOV.UK-shaped form project exercises the
+    whole U-round surface — reading-order facts, the form/WCAG lint set,
+    cross-artifact findings, and waive-driven quieting."""
+
+    def test_v04_uiux_round_end_to_end(self):
+        rec, _ = self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "Details", "type": "wireframe",
+                       "concept": "signup", "concept_name": "Signup"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "frame", "id": "scr", "label": "Your details",
+                    "x": 0, "y": 0, "width": 360, "height": 480}},
+                # submit ABOVE the inputs it submits
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "go", "label": "Continue",
+                    "kind": "button", "x": 20, "y": 40, "width": 120,
+                    "height": 40, "frameId": "scr", "role": "node"}},
+                # progress indicator label
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "prog",
+                    "label": "Step 2 of 4", "kind": "block", "x": 160,
+                    "y": 40, "width": 160, "height": 40,
+                    "frameId": "scr", "role": "node"}},
+                # three uniform-width inputs, one unlabeled, one asterisk
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "in-name",
+                    "label": "Name *", "kind": "input", "x": 20, "y": 120,
+                    "width": 320, "height": 40, "frameId": "scr",
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "in-mail", "label": "Email",
+                    "kind": "input", "x": 20, "y": 180, "width": 320,
+                    "height": 40, "frameId": "scr", "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "in-bare", "kind": "input",
+                    "x": 20, "y": 240, "width": 320, "height": 40,
+                    "frameId": "scr", "role": "node"}},
+                # undersized checkbox hugging a button (2.5.8)
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "tc", "label": "T&C",
+                    "kind": "checkbox", "x": 20, "y": 320, "width": 20,
+                    "height": 20, "frameId": "scr", "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "send", "label": "Send",
+                    "kind": "button", "x": 40, "y": 320, "width": 120,
+                    "height": 40, "frameId": "scr", "role": "node"}},
+                # declared sticky bar
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "bar", "label": "Total",
+                    "kind": "sticky-bar", "x": 0, "y": 440, "width": 360,
+                    "height": 40, "frameId": "scr",
+                    "role": "decoration"}}]})
+        facts = rec["artifacts"]["wf"]["facts"]
+        ro = [f for f in facts if f["fact"] == "reading_order_set"]
+        self.assertEqual(len(ro), 1)
+        self.assertEqual(ro[0]["order"][0], "Continue")
+
+        lint = self.store.lint_lines()["wf"]
+        joined = " | ".join(lint["warnings"])
+        self.assertIn("precedes", joined)              # 1.3.2-shaped
+        self.assertIn("has no label", joined)          # 3.3.2
+        self.assertIn("(optional)", joined)            # GOV.UK asterisk
+        notes = " | ".join(lint["notes"])
+        self.assertIn("every answer the same length", notes)   # Q4
+        self.assertIn("under the bar", notes)                  # Q7
+        self.assertIn("closer than a thumb", notes)            # Q11
+        self.assertIn("progress indicator", notes)             # Q25
+
+        # domain term + matching wireframe label → Q12; waives quiet both
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "dom",
+            "create": {"id": "dom", "name": "Dom", "type": "domain",
+                       "concept": "signup"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "acct", "label": "Email",
+                "kind": "entity", "x": 60, "y": 60, "width": 180,
+                "height": 64, "role": "node"}}]})
+        notes2 = " | ".join(self.store.lint_lines()["wf"]["notes"])
+        self.assertIn("whose word", notes2)
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "wf", "ops": [
+                {"op": "registry", "action": "waive", "key": "q25:wf",
+                 "reason": "steps stay — regulated journey"},
+                {"op": "registry", "action": "waive",
+                 "key": "q12:wf:email",
+                 "reason": "Email is the users' word too"}]})
+        notes3 = " | ".join(self.store.lint_lines()["wf"]["notes"])
+        self.assertNotIn("progress indicator", notes3)
+        self.assertNotIn("whose word", notes3)
+
+        # reordering the form narrates reading_order_changed
+        rec2, _ = self.store.apply_batch({
+            "base_revn": 3, "artifact": "wf", "ops": [
+                {"op": "mod", "id": "go", "attrs": {"y": 400}}]})
+        ch = [f for f in rec2["artifacts"]["wf"]["facts"]
+              if f["fact"] == "reading_order_changed"]
+        self.assertEqual(len(ch), 1)
+        self.assertNotEqual(ch[0]["order"][0], "Continue")
+        # and the fixed order clears the submit-before-inputs WARN
+        warns = " | ".join(self.store.lint_lines()["wf"]["warnings"])
+        self.assertNotIn("precedes", warns)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
