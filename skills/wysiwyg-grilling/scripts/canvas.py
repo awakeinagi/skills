@@ -5982,6 +5982,18 @@ def make_handler(app):
                         return self._send_json(
                             {"ok": False, "error": "no revn %d" % revn}, 404)
                     return self._send_json({"ok": True, "record": rec})
+                if path == "/api/docs":
+                    # attachable-document listing for the inspector
+                    # (v0.3): every markdown under project_knowledge,
+                    # minus machinery directories
+                    base = app.project.pk.resolve()
+                    docs = []
+                    for f in sorted(base.rglob("*.md")):
+                        rel = f.relative_to(base).as_posix()
+                        if rel.startswith(("saves/", "artifacts/")):
+                            continue
+                        docs.append(rel)
+                    return self._send_json({"ok": True, "docs": docs})
                 if path.startswith("/api/doc/"):
                     # report reader: markdown from project_knowledge only,
                     # path-sandboxed (never serve outside the project)

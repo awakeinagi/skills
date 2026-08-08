@@ -7,7 +7,7 @@ import { TripwireCard, gotoRefOf } from "./QuestionUI";
 export function Rail({
   state, currentArtifact, viewingRevn, onAnswerPin, onAnswerTripwire,
   onGoto, onOpenDetail, onSwitchBranch, onArchive, onViewCommit,
-  onDismissPin, onLabelSave,
+  onDismissPin, onLabelSave, inspector,
 }: {
   state: any; currentArtifact: string | null; viewingRevn: number | null;
   onAnswerPin: (id: string, answer: string) => void;
@@ -19,6 +19,7 @@ export function Rail({
   onViewCommit: (revn: number) => void;
   onDismissPin?: (pin: any) => void;
   onLabelSave?: (revn: number, current: string) => void;
+  inspector?: React.ReactNode;
 }) {
   const [showArchivedChips, setShowArchivedChips] = useState(false);
   const [showPinArchive, setShowPinArchive] = useState(false);
@@ -97,6 +98,8 @@ export function Rail({
 
   return (
     <div className="rail">
+      {/* -------- element inspector (v0.3, only while selected) -------- */}
+      {inspector}
       {/* -------- registry panel -------- */}
       <div className="rail-section">
         <h3>Registry {concepts.length > 0 && <span className="count">{concepts.length} concept{concepts.length > 1 ? "s" : ""}</span>}</h3>
@@ -224,7 +227,11 @@ export function Rail({
             }}
             title="click for the full story"
           >
-            <div className="q">❓ {p.question}</div>
+            <div className="q">❓ {p.question}
+              <span className={`who-chip ${p.direction === "user" ? "user" : "agent"}`}>
+                {p.direction === "user" ? "yours" : "agent"}
+              </span>
+            </div>
             {p.element && <div className="anchor">anchored to {p.artifact} › {p.element}</div>}
             <div className="answer-row">
               <input

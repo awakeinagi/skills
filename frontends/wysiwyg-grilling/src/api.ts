@@ -66,6 +66,9 @@ export function fingerprint(elements: readonly any[]): string {
         e.angle?.toFixed?.(2) ?? 0, text, e.containerId ?? "",
         e.frameId ?? "", e.strokeColor, e.backgroundColor,
         e.startBinding?.elementId ?? "", e.endBinding?.elementId ?? "",
+        // link + locked: the v0.3 inspector edits these — leaving them
+        // out of the hash made those edits invisible to dirty detection
+        e.link ?? "", e.locked ? "L" : "",
         JSON.stringify(e.customData ?? null),
       ].join("|");
     });

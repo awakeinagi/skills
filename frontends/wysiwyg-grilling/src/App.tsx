@@ -9,6 +9,9 @@ import { HistoryGraph } from "./components/HistoryGraph";
 import { SceneThumb } from "./components/Thumb";
 import { QuestionModal, gotoRefOf } from "./components/QuestionUI";
 import { DocReader } from "./components/DocReader";
+import { AnchoredPopover, AnchoredQuestion, anchorStyle } from "./components/AnchoredPopover";
+import { TooltipCard, TooltipEditor } from "./components/Tooltip";
+import { Inspector } from "./components/Inspector";
 import { libraryItems, TEMPLATES, templateElements } from "./library";
 
 const POLL_MS = 2500;
@@ -56,6 +59,23 @@ export default function App() {
   const [camera, setCamera] = useState({ scrollX: 0, scrollY: 0, zoom: 1 });
   const [detailItem, setDetailItem] = useState<{ kind: "pin" | "tripwire"; data: any } | null>(null);
   const [docView, setDocView] = useState<{ path: string; content: string } | null>(null);
+  // v0.3 — anchored popovers, tooltips, inspector, revert
+  const [anchored, setAnchored] = useState<{
+    kind: "pin" | "tripwire"; data: any;
+    el: { x: number; y: number; width?: number; height?: number };
+  } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{
+    x: number; y: number; elId: string; hasTooltip: boolean;
+    el: any;
+  } | null>(null);
+  const [tooltipEdit, setTooltipEdit] = useState<{
+    elId: string; initial: string;
+    el: { x: number; y: number; width?: number; height?: number };
+  } | null>(null);
+  const [hoverTip, setHoverTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [revertPrompt, setRevertPrompt] = useState(false);
+  const [selElId, setSelElId] = useState<string | null>(null);
+  const [docsList, setDocsList] = useState<string[]>([]);
   const [insertOpen, setInsertOpen] = useState(false);
   const [walkIdx, setWalkIdx] = useState<number | null>(null);
   // the onion skin: an old revision kept as a DOM overlay only. It never
@@ -81,10 +101,14 @@ export default function App() {
   const servicingShot = useRef<Set<number>>(new Set());
   const prevSelRef = useRef<string>("");
   const suppressPinOpenRef = useRef<number>(0);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const cameraRef = useRef({ scrollX: 0, scrollY: 0, zoom: 1 });
+  const hoverTimerRef = useRef<any>(null);
 
   currentRef.current = currentArtifact;
   dirtyRef.current = dirtyMap;
   viewingRef.current = viewingRevn;
+  cameraRef.current = camera;
 
   const toast = useCallback((text: string) => {
     const id = ++toastSeq;
@@ -292,12 +316,16 @@ export default function App() {
     const selKey = selIds.join(",");
     if (selKey !== prevSelRef.current) {
       prevSelRef.current = selKey;
+      setSelElId(selIds.length === 1 ? selIds[0] : null);
       if (selIds.length === 1 && Date.now() > suppressPinOpenRef.current) {
         const sel = els.find((e) => e.id === selIds[0]);
         if (sel?.customData?.role === "pin") {
           const pin = stateRef.current?.pins?.find((p: any) => p.id === sel.id);
           if (pin && pin.status !== "resolved")
-            setDetailItem({ kind: "pin", data: pin });
+            // anchored next to the ❓ (v0.3) — the centered modal lost
+            // the spatial context the pin exists to give
+            setAnchored({ kind: "pin", data: pin,
+              el: { x: sel.x, y: sel.y, width: sel.width, height: sel.height } });
         } else if (sel?.customData?.document) {
           // report reader: a document-backed element opens readable in
           // place, never download-to-read (demo parity)
@@ -629,10 +657,12 @@ export default function App() {
       if (e.key !== "Escape") return;
       if (suggestOpen) { setSuggestOpen(false); setSuggestText(""); }
       else if (forkPrompt?.open) setForkPrompt(null);
+      else if (revertPrompt) setRevertPrompt(false);
+      else if (ctxMenu) setCtxMenu(null);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [suggestOpen, forkPrompt]);
+  }, [suggestOpen, forkPrompt, revertPrompt, ctxMenu]);
 
   /* ---------------- user-authored elements (Phase 5) ---------------- */
   const insertElements = useCallback((newEls: any[]) => {
@@ -723,6 +753,161 @@ export default function App() {
     api.updateScene({ elements: live });
     toast("Pin dismissed — Save to record it (reads as “not worth explaining”).");
   }, [showArtifact, toast]);
+
+  /* ---------------- v0.3: tooltips, inspector, revert ---------------- */
+
+  /** Client coords → scene coords via the live camera. */
+  const sceneAt = useCallback((clientX: number, clientY: number) => {
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const r = wrap.getBoundingClientRect();
+    const cam = cameraRef.current;
+    const z = cam.zoom || 1;
+    return {
+      sx: (clientX - r.left) / z - cam.scrollX,
+      sy: (clientY - r.top) / z - cam.scrollY,
+      wx: clientX - r.left, wy: clientY - r.top,
+    };
+  }, []);
+
+  /** Smallest non-label element whose bbox contains the scene point. */
+  const hitAtClient = useCallback((clientX: number, clientY: number) => {
+    const api = apiRef.current;
+    const p = sceneAt(clientX, clientY);
+    if (!api || !p) return null;
+    let best: any = null;
+    let bestArea = Infinity;
+    for (const e of api.getSceneElements()) {
+      if (e.isDeleted || e.type === "frame") continue;
+      if (e.customData?.role === "label") continue;
+      const w = e.width || 0, h = e.height || 0;
+      if (p.sx >= e.x && p.sx <= e.x + w && p.sy >= e.y && p.sy <= e.y + h) {
+        const area = (w * h) || 1;
+        if (area < bestArea) { best = e; bestArea = area; }
+      }
+    }
+    return best;
+  }, [sceneAt]);
+
+  /** Patch a live element (fields + customData; null cd value deletes the
+   * key). Version bump makes the change reach the dirty fingerprint, so
+   * it lands in the next Save and narrates like any user edit. */
+  const patchElement = useCallback((elId: string, patch: any, cdPatch?: any) => {
+    const api = apiRef.current;
+    if (!api) return;
+    const els = api.getSceneElements().map((e: any) => {
+      if (e.id !== elId || e.isDeleted) return e;
+      const cd: any = { ...(e.customData || {}) };
+      for (const [k, v] of Object.entries(cdPatch || {})) {
+        if (v === null) delete cd[k];
+        else cd[k] = v;
+      }
+      return { ...e, ...patch, customData: cd, version: (e.version || 0) + 1 };
+    });
+    api.updateScene({ elements: restoreElements(els, null) as any });
+  }, []);
+
+  const setElementTooltip = useCallback((elId: string, text: string) => {
+    patchElement(elId, {}, { tooltip: text || null });
+    toast(text ? "Tooltip set — Save to record it."
+      : "Tooltip removed — Save to record it.");
+  }, [patchElement, toast]);
+
+  const openTooltipEditor = useCallback((el: any) => {
+    setCtxMenu(null);
+    setTooltipEdit({
+      elId: el.id, initial: el.customData?.tooltip || "",
+      el: { x: el.x, y: el.y, width: el.width, height: el.height },
+    });
+  }, []);
+
+  /* right-click on an element → tooltip menu (capture: Excalidraw's own
+     context menu must not open over it; empty canvas passes through) */
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const h = (e: MouseEvent) => {
+      if (viewingRef.current != null) return;
+      const el = hitAtClient(e.clientX, e.clientY);
+      if (!el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const r = wrap.getBoundingClientRect();
+      setCtxMenu({
+        x: e.clientX - r.left, y: e.clientY - r.top, elId: el.id,
+        hasTooltip: !!el.customData?.tooltip, el,
+      });
+    };
+    wrap.addEventListener("contextmenu", h, true);
+    return () => wrap.removeEventListener("contextmenu", h, true);
+  }, [hitAtClient]);
+
+  /* hover → tooltip card after a beat; any movement re-arms */
+  const onWrapPointerMove = useCallback((e: React.PointerEvent) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (hoverTip) setHoverTip(null);
+    if (e.buttons !== 0 || walkIdx != null) return;
+    const { clientX, clientY } = e;
+    hoverTimerRef.current = setTimeout(() => {
+      const el = hitAtClient(clientX, clientY);
+      const text = el?.customData?.tooltip;
+      const p = sceneAt(clientX, clientY);
+      if (text && p) setHoverTip({ x: p.wx + 14, y: p.wy + 12, text });
+    }, 450);
+  }, [hitAtClient, sceneAt, hoverTip, walkIdx]);
+
+  const onWrapPointerLeave = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoverTip(null);
+  }, []);
+
+  /** Revert all: drop every unsaved buffer and restore the currently
+   * selected history node (live head, or the checkout point). */
+  const revertAll = useCallback(async () => {
+    setRevertPrompt(false);
+    buffersRef.current = {};
+    setDirtyMap({});
+    const cur = currentRef.current;
+    const co = stateRef.current?.checkout_revn;
+    if (co != null && cur) {
+      try {
+        const r = await apiGet(`/api/artifact/${cur}?at=${co}`);
+        const els = r.elements || [];
+        loadedHashRef.current[cur] = JSON.stringify(els);
+        const restored = loadScene(els, false);
+        baselineFpRef.current[cur] = fingerprint(restored);
+        pendingBaselineRef.current = cur;
+        toast(`Restored to save #${co} — nothing was recorded.`);
+      } catch (e: any) {
+        toast(e.message);
+      }
+    } else {
+      const s = await refresh();
+      if (cur && s) showArtifact(cur, s, true);
+      toast(`Restored to save #${stateRef.current?.head_revn ?? "?"} — nothing was recorded.`);
+    }
+  }, [refresh, showArtifact, loadScene, toast]);
+
+  /* attachable documents for the inspector */
+  useEffect(() => {
+    apiGet("/api/docs").then((r) => setDocsList(r.docs || [])).catch(() => {});
+  }, [state?.revn]);
+
+  /* tooltip presence dots — discoverability for hover-only content */
+  const tooltipDots = useMemo(() => {
+    if (!currentArtifact) return [];
+    const els = (viewingRevn != null
+      ? viewScenes[currentArtifact]
+      : buffersRef.current[currentArtifact] ||
+        artifacts[currentArtifact]?.elements) || [];
+    return els.filter((e: any) => !e.isDeleted && e.customData?.tooltip);
+  }, [currentArtifact, state, viewingRevn, viewScenes, dirtyMap]);
+
+  const selEl = useMemo(() => {
+    if (!selElId || !apiRef.current) return null;
+    return apiRef.current.getSceneElements()
+      .find((e: any) => e.id === selElId && !e.isDeleted) || null;
+  }, [selElId, dirtyMap, state, camera]);
 
   /* ---------------- Phase 6: wireframing power tools ---------------- */
 
@@ -954,6 +1139,11 @@ export default function App() {
           disabled={!hasFrames} onClick={() => (walkIdx == null ? walkTo(0) : setWalkIdx(null))}>▶ walk</button>
         <button className="icon-btn" title={theme === "dark" ? "switch the canvas back to paper" : "dark canvas (the chrome stays dark either way)"}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? "☀" : "🌙"}</button>
+        <button className="icon-btn revert-btn"
+          disabled={!anyDirty || viewingRevn != null}
+          onClick={() => setRevertPrompt(true)}
+          title={anyDirty ? "discard ALL unsaved changes and restore the current save" : "no unsaved changes to revert"}
+        >↺ revert</button>
         <button
           className="save-btn"
           disabled={!anyDirty || viewingRevn != null}
@@ -1032,7 +1222,10 @@ export default function App() {
       {/* ============ main ============ */}
       <div className="main">
         <div className="center">
-          <div className={`canvas-wrap ${theme === "dark" ? "dark" : ""}`}>
+          <div className={`canvas-wrap ${theme === "dark" ? "dark" : ""}`}
+            ref={wrapRef}
+            onPointerMove={onWrapPointerMove}
+            onPointerLeave={onWrapPointerLeave}>
             <Excalidraw
               theme={theme}
               excalidrawAPI={(api) => {
@@ -1114,12 +1307,80 @@ export default function App() {
                   left: (el.x + (el.width || 0) + camera.scrollX) * camera.zoom,
                   top: (el.y + camera.scrollY) * camera.zoom - 10,
                 }}
-                onClick={() => setDetailItem({ kind: "tripwire", data: t })}
+                onClick={() => setAnchored({ kind: "tripwire", data: t,
+                  el: { x: el.x, y: el.y, width: el.width, height: el.height } })}
                 title="mapping tripwire — click to read and answer"
               >
                 <span className="trip-q">?</span>
               </div>
             ))}
+            {/* tooltip presence dots (v0.3) — hover-only content needs a
+                discoverable tell */}
+            {tooltipDots.map((e: any) => (
+              <div key={`tip-${e.id}`} className="tip-dot"
+                style={{
+                  left: (e.x + (e.width || 0) + camera.scrollX) * camera.zoom - 4,
+                  top: (e.y + (e.height || 0) + camera.scrollY) * camera.zoom - 4,
+                }}
+                title="has a tooltip — hover the element" />
+            ))}
+            {hoverTip && <TooltipCard x={hoverTip.x} y={hoverTip.y} text={hoverTip.text} />}
+            {ctxMenu && (
+              <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}
+                onPointerLeave={() => setCtxMenu(null)}>
+                <div className="item" onClick={() => openTooltipEditor(ctxMenu.el)}>
+                  {ctxMenu.hasTooltip ? "✎ Edit tooltip…" : "🛈 Add tooltip…"}
+                </div>
+                {ctxMenu.hasTooltip && (
+                  <div className="item" onClick={() => {
+                    setCtxMenu(null);
+                    setElementTooltip(ctxMenu.elId, "");
+                  }}>✕ Remove tooltip</div>
+                )}
+              </div>
+            )}
+            {anchored && (
+              <AnchoredPopover
+                style={anchorStyle(anchored.el, camera,
+                  appStateRef.current?.width || 800)}
+                onClose={() => setAnchored(null)}>
+                <AnchoredQuestion
+                  kind={anchored.kind}
+                  data={anchored.data}
+                  onAnswer={viewingRevn != null ||
+                    ["answered", "resolved", "dismissed", "pruned"]
+                      .includes(anchored.data?.status)
+                    ? null
+                    : (a: string) => {
+                        const path = anchored.kind === "pin"
+                          ? "/api/pins/answer" : "/api/tripwires/answer";
+                        apiPost(path, { id: anchored.data.id, answer: a })
+                          .then(() => {
+                            toast("Answer sent — the agent picks it up on its next move.");
+                            refresh();
+                          })
+                          .catch((e) => toast(e.message));
+                      }}
+                  onFullStory={() => {
+                    setDetailItem({ kind: anchored.kind, data: anchored.data });
+                    setAnchored(null);
+                  }}
+                  onClose={() => setAnchored(null)}
+                />
+              </AnchoredPopover>
+            )}
+            {tooltipEdit && (
+              <AnchoredPopover
+                style={anchorStyle(tooltipEdit.el, camera,
+                  appStateRef.current?.width || 800)}
+                onClose={() => setTooltipEdit(null)}>
+                <TooltipEditor
+                  initial={tooltipEdit.initial}
+                  onSave={(text) => setElementTooltip(tooltipEdit.elId, text)}
+                  onClose={() => setTooltipEdit(null)}
+                />
+              </AnchoredPopover>
+            )}
             {emptyCanvas && (
               <div className="empty-state">
                 <div className="empty-card">
@@ -1202,6 +1463,17 @@ export default function App() {
               .catch((e) => toast(e.message));
           }}
           onViewCommit={viewCommit}
+          inspector={selEl && currentArtifact ? (
+            <Inspector
+              el={selEl}
+              artifactType={artifacts[currentArtifact]?.artifact_type || "flow"}
+              artifacts={artifacts}
+              docs={docsList}
+              disabled={viewingRevn != null}
+              onPatch={(patch, cdPatch) => patchElement(selEl.id, patch, cdPatch)}
+              onEditTooltip={() => openTooltipEditor(selEl)}
+            />
+          ) : null}
         />
       </div>
 
@@ -1271,6 +1543,26 @@ export default function App() {
             <div className="actions">
               <button className="ghost" onClick={() => setForkPrompt(null)}>Cancel</button>
               <button className="primary" onClick={() => { const n = forkPrompt.name.trim() || "alt"; setForkPrompt(null); doSave(n); }}>Fork &amp; Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {revertPrompt && (
+        <div className="modal-scrim"
+          onClick={(e) => { if (e.target === e.currentTarget) setRevertPrompt(false); }}>
+          <div className="modal small">
+            <h2>Revert all changes?</h2>
+            <p>
+              Discards every unsaved edit
+              ({Object.values(dirtyMap).filter(Boolean).length} artifact{Object.values(dirtyMap).filter(Boolean).length === 1 ? "" : "s"})
+              and restores {state?.checkout_revn != null
+                ? <>the checked-out save <b>#{state.checkout_revn}</b></>
+                : <>save <b>#{state?.head_revn}</b></>}.
+              Nothing already saved is touched — but the unsaved edits are gone for good.
+            </p>
+            <div className="actions">
+              <button className="ghost" autoFocus onClick={() => setRevertPrompt(false)}>Keep editing</button>
+              <button className="danger" onClick={revertAll}>↺ Revert all changes</button>
             </div>
           </div>
         </div>

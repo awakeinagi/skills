@@ -131,7 +131,7 @@ def diff_scenes(
 ### TypeScript
 
 - `strict: true` is the target (see *Known debt*). Write new code to pass it.
-- Ban new `: any`. Use `unknown` plus narrowing at boundaries. The 68 existing
+- Ban new `: any`. Use `unknown` plus narrowing at boundaries. All existing
   `any`s are debt, not precedent.
 - Type the API boundary (`api.ts`) — that is where `unknown` should be
   converted once, not sprinkled.
