@@ -572,17 +572,11 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   pointer-events: none;
 }
 
-/* right-click context menu */
-.ctx-menu {
-  position: absolute; z-index: 70; min-width: 170px;
-  background: var(--chrome-2, #262a33); border: 1px solid var(--border);
-  border-radius: 9px; padding: 4px; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+/* injected tooltip items in Excalidraw's native context menu inherit its
+   own .context-menu-item styling; only the hover needs a nudge */
+.wg-tooltip-item .context-menu-item:hover {
+  background-color: var(--color-primary, #6965db); color: #fff;
 }
-.ctx-menu .item {
-  padding: 7px 10px; border-radius: 6px; cursor: pointer;
-  font-size: 12.5px; color: var(--text);
-}
-.ctx-menu .item:hover { background: var(--chrome-3); }
 
 /* tooltip editor */
 .tip-editor textarea {

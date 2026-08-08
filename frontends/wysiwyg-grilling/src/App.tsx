@@ -64,10 +64,6 @@ export default function App() {
     kind: "pin" | "tripwire"; data: any;
     el: { x: number; y: number; width?: number; height?: number };
   } | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<{
-    x: number; y: number; elId: string; hasTooltip: boolean;
-    el: any;
-  } | null>(null);
   const [tooltipEdit, setTooltipEdit] = useState<{
     elId: string; initial: string;
     el: { x: number; y: number; width?: number; height?: number };
@@ -658,11 +654,10 @@ export default function App() {
       if (suggestOpen) { setSuggestOpen(false); setSuggestText(""); }
       else if (forkPrompt?.open) setForkPrompt(null);
       else if (revertPrompt) setRevertPrompt(false);
-      else if (ctxMenu) setCtxMenu(null);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [suggestOpen, forkPrompt, revertPrompt, ctxMenu]);
+  }, [suggestOpen, forkPrompt, revertPrompt]);
 
   /* ---------------- user-authored elements (Phase 5) ---------------- */
   const insertElements = useCallback((newEls: any[]) => {
@@ -814,33 +809,71 @@ export default function App() {
   }, [patchElement, toast]);
 
   const openTooltipEditor = useCallback((el: any) => {
-    setCtxMenu(null);
     setTooltipEdit({
       elId: el.id, initial: el.customData?.tooltip || "",
       el: { x: el.x, y: el.y, width: el.width, height: el.height },
     });
   }, []);
 
-  /* right-click on an element → tooltip menu (capture: Excalidraw's own
-     context menu must not open over it; empty canvas passes through) */
+  /* right-click on an element: Excalidraw's own menu opens untouched
+     (copy, delete, z-order…) and the tooltip actions are APPENDED to it.
+     There is no public menu-extension API, so we inject styled items
+     into the rendered menu — replacing the native menu was a v0.3
+     regression (user report). */
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
+    const closeNativeMenu = () => {
+      // Excalidraw closes its menu on Escape / outside pointerdown
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    };
     const h = (e: MouseEvent) => {
       if (viewingRef.current != null) return;
-      const el = hitAtClient(e.clientX, e.clientY);
-      if (!el) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const r = wrap.getBoundingClientRect();
-      setCtxMenu({
-        x: e.clientX - r.left, y: e.clientY - r.top, elId: el.id,
-        hasTooltip: !!el.customData?.tooltip, el,
-      });
+      const hit = hitAtClient(e.clientX, e.clientY);
+      if (!hit) return;
+      let tries = 0;
+      const inject = () => {
+        const menu = wrap.querySelector<HTMLElement>("ul.context-menu") ||
+          document.querySelector<HTMLElement>("ul.context-menu");
+        if (!menu) {
+          if (++tries < 10) setTimeout(inject, 30);
+          return;
+        }
+        if (menu.querySelector(".wg-tooltip-item")) return;
+        const live = apiRef.current?.getSceneElements()
+          .find((x: any) => x.id === hit.id && !x.isDeleted) || hit;
+        const has = !!live.customData?.tooltip;
+        const mk = (label: string, fn: () => void) => {
+          const li = document.createElement("li");
+          li.className = "wg-tooltip-item";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "context-menu-item";
+          const span = document.createElement("span");
+          span.className = "context-menu-item__label";
+          span.textContent = label;
+          btn.appendChild(span);
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            closeNativeMenu();
+            fn();
+          });
+          li.appendChild(btn);
+          menu.appendChild(li);
+        };
+        const sep = document.createElement("li");
+        sep.className = "context-menu-item-separator wg-tooltip-item";
+        menu.appendChild(sep);
+        mk(has ? "✎ Edit tooltip…" : "🛈 Add tooltip…",
+          () => openTooltipEditor(live));
+        if (has) mk("Remove tooltip", () => setElementTooltip(live.id, ""));
+      };
+      setTimeout(inject, 0);
     };
-    wrap.addEventListener("contextmenu", h, true);
-    return () => wrap.removeEventListener("contextmenu", h, true);
-  }, [hitAtClient]);
+    wrap.addEventListener("contextmenu", h);
+    return () => wrap.removeEventListener("contextmenu", h);
+  }, [hitAtClient, openTooltipEditor, setElementTooltip]);
 
   /* hover → tooltip card after a beat; any movement re-arms */
   const onWrapPointerMove = useCallback((e: React.PointerEvent) => {
@@ -1325,20 +1358,6 @@ export default function App() {
                 title="has a tooltip — hover the element" />
             ))}
             {hoverTip && <TooltipCard x={hoverTip.x} y={hoverTip.y} text={hoverTip.text} />}
-            {ctxMenu && (
-              <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}
-                onPointerLeave={() => setCtxMenu(null)}>
-                <div className="item" onClick={() => openTooltipEditor(ctxMenu.el)}>
-                  {ctxMenu.hasTooltip ? "✎ Edit tooltip…" : "🛈 Add tooltip…"}
-                </div>
-                {ctxMenu.hasTooltip && (
-                  <div className="item" onClick={() => {
-                    setCtxMenu(null);
-                    setElementTooltip(ctxMenu.elId, "");
-                  }}>✕ Remove tooltip</div>
-                )}
-              </div>
-            )}
             {anchored && (
               <AnchoredPopover
                 style={anchorStyle(anchored.el, camera,
