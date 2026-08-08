@@ -4108,6 +4108,275 @@ class TestUiUxAcceptance(Base):
         self.assertNotIn("precedes", warns)
 
 
+class TestHandoverExport(Base):
+    """Tooltips survive leaving the canvas (v0.5).
+
+    Per-element detail lives in a hover-only tooltip, which survives no
+    export at all — so a session that ends "I'm handing these to my
+    analyst" hands over drawings with the detail stripped out.
+    """
+
+    def seed(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "fl",
+            "create": {"id": "fl", "name": "FL", "type": "flow",
+                       "concept": "fl", "concept_name": "FL"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "edgar", "label": "SEC EDGAR",
+                "x": 100, "y": 100, "width": 160, "height": 60,
+                "role": "node",
+                "tooltip": "Feeds **three** of the five scorers."}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "news", "label": "News",
+                    "x": 400, "y": 100, "width": 160, "height": 60,
+                    "role": "node"}}]})
+
+    def test_footnotes_carry_the_tooltip_text(self):
+        self.seed()
+        svg, _, _ = canvas.render_svg(self.store.scenes["fl"],
+                                      footnotes=True)
+        self.assertIn("Feeds three of the five scorers.", svg)
+        self.assertIn("SEC EDGAR", svg)
+
+    def test_markdown_emphasis_is_flattened_not_printed(self):
+        self.seed()
+        svg, _, _ = canvas.render_svg(self.store.scenes["fl"],
+                                      footnotes=True)
+        self.assertNotIn("**", svg)
+
+    def test_no_footnotes_without_the_flag(self):
+        self.seed()
+        svg, _, _ = canvas.render_svg(self.store.scenes["fl"])
+        self.assertNotIn("Feeds three", svg)
+
+    def test_only_tooltip_bearing_elements_are_numbered(self):
+        self.seed()
+        notes = canvas.collect_footnotes(self.store.scenes["fl"])
+        self.assertEqual([n[1] for n in notes], ["SEC EDGAR"])
+
+    def test_glossary_pairs_carry_definitions(self):
+        pairs = dict(canvas.parse_glossary_pairs(
+            "# Glossary\n\n**Pull**: one fetch of one Source at one\n"
+            "moment.\n\n**Run**: one execution of the pipeline.\n"))
+        self.assertEqual(pairs["Pull"],
+                         "one fetch of one Source at one moment.")
+        self.assertEqual(pairs["Run"], "one execution of the pipeline.")
+
+
+class TestLintHygiene(Base):
+    """Lint noise reduction (v0.5).
+
+    The v0.4 assessment ended with 16 standing notes of which ~4 were
+    distinct: one registry finding copied into every artifact bucket, one
+    question repeated across three frames of the same screen, and nags
+    about elements the user drew.
+    """
+
+    def test_registry_findings_stay_in_the_registry_bucket(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "registry", "action": "upsert_concept",
+                     "id": "checkout", "owed": ["domain"]}]})
+        lines = self.store.lint_lines()
+        reg = " | ".join(lines.get("registry", {}).get("notes") or [])
+        art = " | ".join(lines["checkout-flow"]["notes"])
+        self.assertNotEqual(reg, "")
+        for note in lines.get("registry", {}).get("notes") or []:
+            self.assertNotIn(note, art)
+
+    def test_misfile_note_never_pushes_a_view_to_the_umbrella(self):
+        reg = {"concepts": [
+            {"id": "argus", "name": "Argus", "views": [], "unviewed": True},
+            {"id": "dashboard", "name": "Dashboard",
+             "views": ["argus-dashboard"], "unviewed": False}],
+            "mappings": [], "waives": {}}
+        notes = " | ".join(canvas.lint_registry([], reg))
+        self.assertNotIn("is named after concept", notes)
+
+    def test_misfile_note_still_catches_a_view_stuck_on_the_umbrella(self):
+        reg = {"concepts": [
+            {"id": "shop", "name": "Shop",
+             "views": ["report-wireframe"], "unviewed": False},
+            {"id": "report", "name": "Report", "views": [],
+             "unviewed": True}],
+            "mappings": [], "waives": {}}
+        notes = " | ".join(canvas.lint_registry([], reg))
+        self.assertIn("is named after concept", notes)
+
+    def test_q12_asks_once_per_waive_key(self):
+        """Three frames of one screen are one question, not three."""
+        ops = [{"op": "add", "element": {
+            "type": "rectangle", "id": "e-provider", "kind": "entity",
+            "label": "Provider", "x": 40, "y": 40, "width": 164,
+            "height": 96}}]
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": "DM", "type": "domain",
+                       "concept": "dm", "concept_name": "DM"}, "ops": ops})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "b%d" % i, "kind": "button",
+                "label": "Provider", "x": 40 + i * 200, "y": 40,
+                "width": 160, "height": 40}} for i in range(3)]})
+        x = canvas.cross_lint(self.store.scenes,
+                              {a: self.store.artifact_type(a)
+                               for a in self.store.scenes},
+                              self.store.registry)
+        hits = [n for n in (x.get("wf") or {}).get("notes") or []
+                if "whose word" in n]
+        self.assertEqual(len(hits), 1)
+
+    def test_offgrid_ignores_user_drawn_elements(self):
+        els = [{"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
+                "width": 101, "height": 53, "isDeleted": False,
+                "customData": {"role": "node", "author": "user"}}]
+        notes = canvas.lint_layout(els, artifact_type="flow")["notes"]
+        self.assertFalse(any("off the 4px grid" in n for n in notes))
+        els[0]["customData"]["author"] = "agent"
+        notes2 = canvas.lint_layout(els, artifact_type="flow")["notes"]
+        self.assertTrue(any("off the 4px grid" in n for n in notes2))
+
+
+class TestTextFit(Base):
+    """Text that does not fit the box it is drawn in (v0.5).
+
+    The agent cannot see its own drawing, so an overflow it is never told
+    about ships. Three did in the v0.4 assessment. The old check read the
+    STORED label width — an estimate the client re-derives — so it stayed
+    silent on all three.
+    """
+
+    def entity(self, attrs, width=164):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": "DM", "type": "domain",
+                       "concept": "dm", "concept_name": "DM"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "report", "kind": "entity",
+                "label": "Report", "attributes": attrs,
+                "x": 100, "y": 100, "width": width, "height": 96}}]})
+        return canvas.lint_layout(self.store.scenes["dm"],
+                                  artifact_type="domain")
+
+    def test_attribute_row_wider_than_its_entity_warns(self):
+        warns = self.entity(["audience: us | clients | committee"])["warnings"]
+        self.assertTrue(any("does not fit" in w and "too wide" in w
+                            for w in warns))
+
+    def test_attribute_row_that_fits_is_silent(self):
+        warns = self.entity(["sections"])["warnings"]
+        self.assertFalse(any("does not fit" in w for w in warns))
+
+    def test_wrapping_label_is_judged_wrapped_not_unwrapped(self):
+        """A two-word label the renderer wraps is not an overflow.
+
+        Measuring it unwrapped reported every slightly-long node label in
+        the assessment fixture — 13 false positives against 3 real ones.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "fl",
+            "create": {"id": "fl", "name": "FL", "type": "flow",
+                       "concept": "fl", "concept_name": "FL"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "Technical Signals",
+                "x": 100, "y": 100, "width": 152, "height": 60,
+                "role": "node"}}]})
+        warns = canvas.lint_layout(self.store.scenes["fl"],
+                                   artifact_type="flow")["warnings"]
+        self.assertFalse(any("does not fit" in w for w in warns))
+
+    def test_unbreakable_word_wider_than_its_box_warns(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "fl",
+            "create": {"id": "fl", "name": "FL", "type": "flow",
+                       "concept": "fl", "concept_name": "FL"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1",
+                "label": "Unsplittablesupercalifragilistic",
+                "x": 100, "y": 100, "width": 96, "height": 60,
+                "role": "node"}}]})
+        warns = canvas.lint_layout(self.store.scenes["fl"],
+                                   artifact_type="flow")["warnings"]
+        self.assertTrue(any("does not fit" in w for w in warns))
+
+    def test_render_svg_wraps_fixed_width_text(self):
+        """The snapshot is the agent's eyes — it must not lie about fit.
+
+        `render_svg` only split on newlines, so a label the live canvas lays
+        out over two lines exported as one long line spilling out of its
+        box (the Weekly Brief provenance line, v0.4 assessment).
+        """
+        long_text = ("Issued 08:12 - built from the run of 8 Aug 06:00 - "
+                     "thresholds 0.70 / VaR 2.5%")
+        els = [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 200,
+                "height": 40, "text": long_text, "originalText": long_text,
+                "fontSize": 16, "autoResize": False, "textAlign": "left",
+                "isDeleted": False}]
+        svg, _, _ = canvas.render_svg(els)
+        self.assertGreater(svg.count("<text"), 1)
+
+
+class TestInputValue(Base):
+    """kind:"input" carries its value (v0.5).
+
+    `value` was read only by kpi and slider, so an input handed one had
+    it silently dropped — while `mod value` on the same element errored
+    loudly. The admin console's schedule field rendered as a box reading
+    "Run at" with no time in it and nothing complained.
+    """
+
+    def seed(self, **extra):
+        el = {"type": "rectangle", "id": "sched", "kind": "input",
+              "label": "Run at", "x": 100, "y": 100, "width": 260,
+              "height": 40}
+        el.update(extra)
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [{"op": "add", "element": el}]})
+
+    def value_rows(self):
+        return [e["text"] for e in self.store.scenes["wf"]
+                if (e.get("customData") or {}).get("value_of") == "sched"]
+
+    def test_add_with_value_composes_a_value_row(self):
+        self.seed(value="weekdays 06:00")
+        self.assertEqual(self.value_rows(), ["weekdays 06:00"])
+
+    def test_add_without_value_stays_a_bare_field(self):
+        self.seed()
+        self.assertEqual(self.value_rows(), [])
+
+    def test_mod_value_retexts_in_place_and_narrates(self):
+        self.seed(value="weekdays 06:00")
+        rec, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "sched",
+                     "attrs": {"value": "weekdays 05:30"}}]})
+        self.assertEqual(self.value_rows(), ["weekdays 05:30"])
+        self.assertIn("value_changed",
+                      [f["fact"] for f in rec["artifacts"]["wf"]["facts"]])
+
+    def test_mod_value_on_a_plain_block_still_errors(self):
+        self.seed()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "blk", "kind": "block",
+                "label": "Notes", "x": 400, "y": 100, "width": 160,
+                "height": 60}}]})
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch({
+                "base_revn": 2, "artifact": "wf",
+                "ops": [{"op": "mod", "id": "blk", "attrs": {"value": "x"}}]})
+        self.assertIn("kind:input", "\n".join(cm.exception.errors))
+
+
 class TestHeldRevisions(Base):
     """The pending-revision queue (v0.5).
 

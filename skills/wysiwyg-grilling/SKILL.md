@@ -42,7 +42,12 @@ files by hand while the server runs — write through `canvas.py apply`.
    an ordinary grilling conversation. Retry next round.
 2. Always tell the user the URL — with `--no-browser` nothing opens by
    itself (and even without the flag, browser-open is best-effort and breaks
-   under SSH/containers).
+   under SSH/containers). What they can DO once it's open — sticky notes,
+   ❓ ask, insert, tidy, the cadence toggle, and `▶ walk` (steps a
+   wireframe's screen frames like a prototype) — is
+   `references/canvas-app.md`, with the moment each one is worth naming.
+   You cannot see their screen: an affordance you never mention is one
+   they never find.
 3. `CATCHUP_REVN=N` means out-of-session edits were found and reconciled into
    save record N: your **first move is the Catch-up Narration** — read the
    record (`saves/`), narrate the facts framed "since we last spoke…". Edits
@@ -114,7 +119,11 @@ your next move. In order:
    deletion, orphaned ❓ elements — that's executing their instruction, no
    consent needed beyond narrating it) and **cosmetic repairs to your own
    still-unreviewed revision** (spacing, label legibility — fold them into
-   that same move).
+   that same move). **A user asking for a still canvas** ("don't push
+   anything while I look at this", flipping cadence to `pulled`)
+   suppresses this step and this step only — the reading is still owed.
+   Answering a turn full of rulings with a held-my-hands line is the
+   failure here, not drawing.
 5. **Ask the frontier**: your sharpest questions in chat; element-anchored
    questions ALSO ride as ❓ pins in the same op batch (pin + chat question
    are the same object). Give every pin `detail` + `examples`
@@ -329,7 +338,8 @@ Per-type guidance (primitives, fact tables, seed archetypes):
 `references/wireframe.md` · `references/flow.md` · `references/domain.md` ·
 `references/sequence.md`. Cross-type geometry — grid, connector rules,
 budgets, the lint contract — is `references/layout.md`: read it with your
-first drawing batch of a session. First-class types (wireframe, flow,
+first drawing batch of a session. What the USER can do in the app, and
+when to point them at it, is `references/canvas-app.md`. First-class types (wireframe, flow,
 domain, sequence) narrate with typed facts; extended types (ER, class,
 swimlane, dfd, mindmap, architecture) draw fine but narrate generically —
 lanes and cardinality live as extensions of flow and domain, not as
@@ -383,7 +393,16 @@ revision** — then a parting summary in chat: decisions settled (cite save
 short-ids), open pins, outstanding tripwires, where-we-left-off, the
 dangling-thread check ("the pay-button tripwire is still open — resolve
 before we stop?"), and one explicit **"what is missing?"** — without that
-prompt, people skip details they've privately decided aren't relevant. Then `canvas.py stop` (an idle watchdog also reaps the
+prompt, people skip details they've privately decided aren't relevant.
+
+**If the drawings are being handed on** — to a colleague, a ticket, a doc —
+say so out loud, because two things don't survive leaving the canvas:
+hover-only tooltips and the `▶ walk` prototype mode. `canvas.py export
+--artifact <id> --with-footnotes` writes an SVG with the tooltips numbered
+underneath and the glossary appended, so the artifact carries its own
+detail. Name the glossary as the thing to read first.
+
+Then `canvas.py stop` (an idle watchdog also reaps the
 server if the session dies abruptly; state on disk is always sufficient to
 resume — next session's catch-up reconstructs).
 
