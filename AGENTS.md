@@ -1,0 +1,227 @@
+# AGENTS.md
+
+Engineering standards for **wysiwyg-grilling-skill**. This is the canonical
+file; `CLAUDE.md` points here. Read it before writing code.
+
+## What this repo is
+
+| Path | What | Language |
+| --- | --- | --- |
+| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. ~5.4k lines. | Python 3.9+ |
+| `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
+| `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. ~1.6k lines. | TypeScript / React 18 |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py` (~120 tests, ~2s). | Python |
+
+The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
+released skill is self-contained.
+
+## Hard constraints — do not violate
+
+1. **`canvas.py` is stdlib-only.** `dependencies = []` in `pyproject.toml` is
+   load-bearing: the skill is run by users as `uv run canvas.py` with no
+   install step. Never add a third-party import to it.
+2. **`canvas.py` is a single file.** Do not split it into a package. The skill
+   ships one script.
+3. **Python floor is 3.9** (RHEL9). No `match`, no PEP 604 `X | Y` at runtime,
+   no `tomllib`. See *Type hints* for how to write modern annotations anyway.
+4. **Dev tooling must not become a runtime dependency.** Linters and type
+   checkers run via `uvx`/`pre-commit`, never via `pyproject.toml`
+   `dependencies`.
+
+## Documentation standard
+
+Every **module, class, function, and method** carries a docstring — public and
+private alike. This is enforced (`ruff` rule set `D`, Google convention).
+
+### Python — Google style
+
+Sections, in order, only when they apply: `Args`, `Returns`, `Yields`,
+`Raises`, `Attributes` (classes), `Example`.
+
+```python
+def slugify(text: str, fallback: str = "item") -> str:
+    """Derive a stable, collision-free slug from a display name.
+
+    Ids are identity anchors, so the one thing this may never do is map two
+    different names onto one id. `'Émissions'` losing its `É` is ugly, but
+    `'報告'` and `'分析'` both landing on `'item'` silently merges two
+    concepts, so scripts with no ASCII decomposition get a hash suffix.
+
+    Args:
+        text: Display name to slug. May be empty or non-Latin.
+        fallback: Stem used when `text` yields no ASCII characters.
+
+    Returns:
+        A lowercase `[a-z0-9-]` slug. Stable for a given `text` and distinct
+        between different `text` values.
+    """
+```
+
+Rules:
+
+- **Summary line**: one line, imperative mood ("Derive", not "Derives"), ends
+  with a period, fits on the first line after `"""`.
+- **Blank line** after the summary whenever more follows (`D205`).
+- **Why, not what.** The body explains the decision the code encodes — the
+  failure it prevents, the invariant it holds. The existing prose comments in
+  `canvas.py` are the model; keep that voice, just move it into the Google
+  frame. Do not narrate control flow the reader can see.
+- **`Args`**: every parameter, by name, no type in the text (the annotation is
+  the type). Omit the whole section for zero-arg functions. Skip `self`/`cls`.
+- **`Returns`**: required whenever the function returns a value (`DOC201`).
+  Describe the meaning, not the type. Omit for `-> None`.
+- **`Raises`**: every exception raised deliberately (`DOC501`).
+- **Classes** document purpose in the class docstring with `Attributes:`;
+  `__init__` documents its `Args`.
+- **Module docstrings** state what the module is for and its contract. The one
+  in `canvas.py` (commands + invocation) is the standard to match.
+
+### TypeScript — TSDoc
+
+Every exported symbol, React component, and non-trivial internal helper gets a
+`/** … */` block. Use `@param`, `@returns`, `@throws`.
+
+```ts
+/**
+ * Fingerprint the semantically-significant parts of a scene.
+ *
+ * Excalidraw re-derives bound-arrow endpoint geometry on every load, drag,
+ * and undo, so hashing raw geometry made drag-then-undo read as dirty
+ * forever. Bound arrows therefore hash binding topology plus interior
+ * points; bound labels hash text, never their re-centered position.
+ *
+ * @param elements - Scene elements, including soft-deleted ones.
+ * @returns A hash that changes only on user-meaningful edits.
+ */
+export function fingerprint(elements: readonly ExcalidrawElement[]): string {
+```
+
+- Do **not** restate types in prose — the signature carries them.
+- React components document what they render and their props contract.
+- Props interfaces document each field with a `/** … */` on the member.
+
+## Type hints
+
+### Python
+
+Annotate **every** parameter and return (`ruff` rule set `ANN`).
+
+Put `from __future__ import annotations` at the top of the module (directly
+after the docstring). It makes annotations strings at runtime, so 3.9 can use
+modern syntax:
+
+```python
+from __future__ import annotations
+
+def diff_scenes(
+    old_els: list[dict[str, Any]],          # not typing.List — future import
+    new_els: list[dict[str, Any]],
+    significant_attrs: list[str] | None = None,   # not Optional[...]
+) -> list[dict[str, Any]]:
+```
+
+- Use `list`/`dict`/`tuple`/`set` builtins and `X | None`, never
+  `typing.List` / `Optional`.
+- `-> None` on procedures. Never leave a return unannotated.
+- Excalidraw elements are loose JSON: `dict[str, Any]` is correct and honest.
+  Do not invent `TypedDict`s that drift from the real payloads.
+- Prefer `Sequence`/`Mapping` (from `collections.abc`) for read-only params.
+- `Path` for filesystem paths, not `str`.
+
+### TypeScript
+
+- `strict: true` is the target (see *Known debt*). Write new code to pass it.
+- Ban new `: any`. Use `unknown` plus narrowing at boundaries. All existing
+  `any`s are debt, not precedent.
+- Type the API boundary (`api.ts`) — that is where `unknown` should be
+  converted once, not sprinkled.
+
+## Commands
+
+```bash
+# Tests (~2s)
+python3 -m unittest discover -s tests -q
+
+# Lint + docstrings + annotations
+uvx ruff check .
+
+# Type check
+uvx mypy skills/wysiwyg-grilling/scripts/canvas.py
+
+# Frontend (requires: npm --prefix frontends/wysiwyg-grilling ci)
+npm --prefix frontends/wysiwyg-grilling run lint
+npm --prefix frontends/wysiwyg-grilling run typecheck
+
+# Everything, as CI runs it
+uvx pre-commit run --all-files
+```
+
+## Pre-commit
+
+Install the hook once:
+
+```bash
+uvx pre-commit install
+```
+
+Then it runs on every `git commit` against staged files. To run the full suite
+manually, `uvx pre-commit run --all-files`. To update pinned tool versions,
+`uvx pre-commit autoupdate`.
+
+The frontend hooks need `node_modules`; run
+`npm --prefix frontends/wysiwyg-grilling ci` once, or those hooks will fail
+with a clear message rather than silently passing.
+
+## Formatting — no autoformatter
+
+**`ruff format` is deliberately not used.** `canvas.py` packs data tables into
+filled lines:
+
+```python
+DEFAULT_SIGNIFICANT_ATTRS = [
+    "type", "x", "y", "width", "height", "angle", "points", "text",
+    "containerId", "frameId", "groupIds", "startBinding", "endBinding",
+]
+```
+
+Ruff and Black have no "fill" mode: any collection that does not fit on one
+line is exploded to one item per line. Measured, that rewrites ~6,000 lines
+across the two Python files, inflates them, and destroys `git blame` — with no
+readability gain for tables like this one. Line length is policed by the
+linter (`E501`, 88 cols) instead of a formatter.
+
+Match surrounding style by hand: ~79-col target, packed collections, aligned
+trailing comments.
+
+## Known debt
+
+Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`, each
+line annotated with its count. Delete a line once that code is clean — the
+ignore list is a burn-down chart, not a permanent exemption.
+
+Snapshot at the time of writing — re-measure with
+`uvx ruff check --statistics` and `npm run lint` rather than trusting these:
+
+| Debt | Count | Where |
+| --- | --- | --- |
+| Missing docstrings (`D101`/`D102`/`D103`/`D107`) | 69 | `canvas.py` |
+| Docstrings not in Google shape (`D205`/`D209`/`D4xx`) | 89 | `canvas.py` |
+| Missing `Returns:` / `Raises:` (`DOC201`/`DOC501`) | 55 | `canvas.py` |
+| Missing annotations (`ANN`) | 481 | `canvas.py` |
+| Code-quality findings (`SIM`/`PERF`/`B`/`UP`…) | 48 | `canvas.py`, tests |
+| Missing TSDoc (`jsdoc/require-*`) | 39 | `src/` |
+| `: any` in TypeScript | 101 | `src/` |
+| `react-hooks/exhaustive-deps` | 14 | `src/` |
+| `strict: false` in `tsconfig.json` | — | frontend |
+
+Three of the code-quality findings are defect-shaped rather than stylistic and
+are worth reading before they are auto-fixed: `B023` (a closure capturing a
+loop variable), `SIM115` ×2 (a file opened without a context manager), and
+`E741` (an ambiguous `l`/`I`/`O` name). Roughly 19 of the 48 clear with
+`uvx ruff check --fix`.
+
+Retrofit rule: **when you touch a function, bring it to standard** — full
+Google docstring and full annotations — even if the change was one line. That
+is how the counts above go down without a stop-the-world commit.
+
+New code has no exemption. Write it to standard the first time.

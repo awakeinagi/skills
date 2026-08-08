@@ -96,7 +96,8 @@ export function HistoryGraph({
                 {isViewed && <circle cx={p.x} cy={p.y} r={9} fill="none" stroke="#e6a23c" strokeWidth={2} />}
                 <circle cx={p.x} cy={p.y} r={5.5} fill={color} stroke="#14161b" strokeWidth={1.5} />
                 <text x={p.x} y={p.y + 22} textAnchor="middle">{s.revn}</text>
-                <title>{`revn ${s.revn} · ${s.short_id} · ${s.author}\n${s.headline}`}</title>
+                {s.label && <text x={p.x} y={p.y - 12} textAnchor="middle">🔖</text>}
+                <title>{`revn ${s.revn} · ${s.short_id} · ${s.author}${s.label ? `\n🔖 ${s.label}` : ""}\n${s.headline}`}</title>
               </g>
             );
           })}

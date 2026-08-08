@@ -24,7 +24,9 @@ and "everything freezes here" are different claims than "code runs":
 
 `source` (data enters) · `transform` (deterministic work) · **`agent`**
 (nondeterministic — a model decides) · **`control`** (gate, cutoff,
-deadline, freeze) · `sink` (leaves the system).
+deadline, freeze) · `sink` (leaves the system) · `store` (data at rest —
+a legal flow terminal like sink; draw it as a rounded rectangle via
+`roundness`).
 
 Two duties ride the kinds: **every `agent` node owes a "what does it do
 when it's unsure?" question** — its answer is a content rule the design
@@ -93,8 +95,13 @@ became a decision" — say that, not the mechanics.
 Elaborate a flow in this order, each stage a round or less: happy path
 first (no errors yet) → decision branches → the fixed edge-case walk
 (empty/null, invalid input, timeout, interruption, permission denial,
-back/cancel) → resilience (undo/confirm on irreversible actions — and no
-gratuitous confirm on reversible ones). **Reverse Narrative** — walking
+back/cancel) → resilience (an irreversible action needs **one of
+confirm / undo / review step** — multi-step data entry gets the review
+step, i.e. the check-answers frame; and no gratuitous confirm on
+reversible ones). An irreversible terminal submit also owes its
+**confirmation frame** (reference + what-happens-next,
+`references/wireframe.md`) — a flow ending at a bare submit points into
+void. **Reverse Narrative** — walking
 backward from the end asking "what must have happened for this?" — is the
 cheapest way to find missing steps (`references/choreography.md`).
 

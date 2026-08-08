@@ -7,6 +7,7 @@ import { TripwireCard, gotoRefOf } from "./QuestionUI";
 export function Rail({
   state, currentArtifact, viewingRevn, onAnswerPin, onAnswerTripwire,
   onGoto, onOpenDetail, onSwitchBranch, onArchive, onViewCommit,
+  onDismissPin, onLabelSave, inspector,
 }: {
   state: any; currentArtifact: string | null; viewingRevn: number | null;
   onAnswerPin: (id: string, answer: string) => void;
@@ -16,6 +17,9 @@ export function Rail({
   onSwitchBranch: (name: string) => void;
   onArchive: (name: string, archived: boolean) => void;
   onViewCommit: (revn: number) => void;
+  onDismissPin?: (pin: any) => void;
+  onLabelSave?: (revn: number, current: string) => void;
+  inspector?: React.ReactNode;
 }) {
   const [showArchivedChips, setShowArchivedChips] = useState(false);
   const [showPinArchive, setShowPinArchive] = useState(false);
@@ -82,6 +86,31 @@ export function Rail({
     ? mappings.filter((m: any) => m.concept === currentConcept.id)
     : mappings;
 
+  // layout lint for the current artifact (v0.4): server-computed lines
+  // (incl. cross-artifact findings), rendered read-only — waives are
+  // agent ops that ride the next batch
+  const lintRows = useMemo(() => {
+    const li = (state?.lint || {})[currentArtifact || ""];
+    if (!li) return [] as { tier: string; msg: string; el?: string }[];
+    const ids = new Set(
+      ((artifacts[currentArtifact || ""] || {}).elements || [])
+        .map((e: any) => e.id));
+    const refOf = (msg: string): string | undefined => {
+      for (const tok of msg.match(/[A-Za-z0-9][\w-]*/g) || [])
+        if (ids.has(tok)) return tok;
+      return undefined;
+    };
+    const rows: { tier: string; msg: string; el?: string }[] = [];
+    for (const [tier, msgs] of [["error", li.errors],
+      ["warning", li.warnings], ["note", li.notes]] as const)
+      for (const msg of msgs || [])
+        rows.push({ tier, msg, el: refOf(msg) });
+    return rows;
+  }, [state?.lint, artifacts, currentArtifact]);
+  const [showLintNotes, setShowLintNotes] = useState(false);
+  const lintHard = lintRows.filter((r) => r.tier !== "note");
+  const lintNotes = lintRows.filter((r) => r.tier === "note");
+
   const openPins = pins.filter((p: any) => p.status === "open");
   const resolvedPins = pins.filter((p: any) => p.status !== "open").slice().reverse();
   const resolvedTripwires = (state?.tripwires || [])
@@ -94,6 +123,8 @@ export function Rail({
 
   return (
     <div className="rail">
+      {/* -------- element inspector (v0.3, only while selected) -------- */}
+      {inspector}
       {/* -------- registry panel -------- */}
       <div className="rail-section">
         <h3>Registry {concepts.length > 0 && <span className="count">{concepts.length} concept{concepts.length > 1 ? "s" : ""}</span>}</h3>
@@ -207,6 +238,39 @@ export function Rail({
         })()}
       </div>
 
+      {/* -------- layout lint (v0.4) -------- */}
+      {lintRows.length > 0 && currentArtifact && (
+        <div className="rail-section">
+          <h3>Layout <span className="count">{lintRows.length}</span></h3>
+          {lintHard.map((r, i) => (
+            <div key={`lh${i}`} className={`tripline lint-row ${r.tier}`}>
+              <span className="lint-tier">{r.tier === "error" ? "▲" : "⚠"}</span>
+              {" "}{r.msg}
+              {r.el && (
+                <button className="linkish" title="show on canvas"
+                  onClick={() => onGoto({ aid: currentArtifact, el: r.el! })}>⌖</button>
+              )}
+            </div>
+          ))}
+          {lintNotes.length > 0 && (
+            <button className="show-archived"
+              onClick={() => setShowLintNotes(!showLintNotes)}>
+              {showLintNotes ? "hide" : "show"} {lintNotes.length} note{lintNotes.length > 1 ? "s" : ""}
+            </button>
+          )}
+          {showLintNotes && lintNotes.map((r, i) => (
+            <div key={`ln${i}`} className="tripline lint-row note">
+              <span className="lint-tier">·</span>
+              {" "}{r.msg}
+              {r.el && (
+                <button className="linkish" title="show on canvas"
+                  onClick={() => onGoto({ aid: currentArtifact, el: r.el! })}>⌖</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* -------- pinned questions -------- */}
       <div className="rail-section">
         <h3>Pinned questions {openPins.length > 0 && <span className="count">{openPins.length} open</span>}</h3>
@@ -221,7 +285,11 @@ export function Rail({
             }}
             title="click for the full story"
           >
-            <div className="q">❓ {p.question}</div>
+            <div className="q">❓ {p.question}
+              <span className={`who-chip ${p.direction === "user" ? "user" : "agent"}`}>
+                {p.direction === "user" ? "yours" : "agent"}
+              </span>
+            </div>
             {p.element && <div className="anchor">anchored to {p.artifact} › {p.element}</div>}
             <div className="answer-row">
               <input
@@ -251,6 +319,12 @@ export function Rail({
               )}
               <button className="linkish"
                 onClick={() => onOpenDetail("pin", p)}>ⓘ details</button>
+              {onDismissPin && (
+                <button className="linkish dismiss"
+                  disabled={viewingRevn != null}
+                  title="delete the ❓ — reads as “not worth explaining”, never re-raised"
+                  onClick={() => onDismissPin(p)}>✕ dismiss</button>
+              )}
             </div>
           </div>
         ))}
@@ -344,8 +418,11 @@ export function Rail({
               title={`view the project at save ${s.revn}`}
             >
               <div className="dot-col"><span className={`adot ${s.author}`} /></div>
-              <div>
-                <div className="gist">{s.headline || "(no summary)"}</div>
+              <div className="tl-body">
+                <div className="gist">
+                  {s.headline || "(no summary)"}
+                  {s.label && <span className="save-label">🔖 {s.label}</span>}
+                </div>
                 <div className="meta">
                   <span className="short">{s.short_id}</span>
                   <span>#{s.revn}</span>
@@ -355,6 +432,13 @@ export function Rail({
                   {s.tripwires > 0 && <span className="tw-badge">⚠ {s.tripwires}</span>}
                 </div>
               </div>
+              {onLabelSave && (
+                <button
+                  className="bookmark-btn"
+                  title={s.label ? `bookmarked “${s.label}” — click to rename or clear` : "bookmark this save with a short name"}
+                  onClick={(e) => { e.stopPropagation(); onLabelSave(s.revn, s.label || ""); }}
+                >🔖</button>
+              )}
             </div>
           ))}
           {!shownSaves.length && <div className="map-status">No saves yet — the first Save starts the history.</div>}

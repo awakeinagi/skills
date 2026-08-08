@@ -7,13 +7,17 @@ THIS way?"**
 
 | Element | Spec | Meaning |
 |---|---|---|
-| Entity | `rectangle`, `role: node`, `kind: entity`, label = the term | a domain concept |
+| Entity | `rectangle`, `role: node`, `kind: entity`, label = the term; optional `attributes: ["cash, mandate", …]` renders rows beneath the term (facts: `attribute_added/removed`) | a domain concept |
 | Relationship | `arrow` with `from`/`to` + a short label ("owns", "emits") | how they relate |
 | Cluster | `frame` around related entities (sparingly) | bounded context |
 | Note | `text`, `role: annotation`, `annotates: <id>` | caveat/example |
 
 Entity labels are singular nouns matching the glossary term exactly —
 that identity is what wires the glossary discipline.
+
+Keep visible `attributes` to ~2 rows; verbose per-entity detail (field
+lists, invariants, examples) belongs in the element's `tooltip`
+(markdown, shown on hover) where it can't collide with the drawing.
 
 ## Cardinality
 

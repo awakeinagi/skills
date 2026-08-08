@@ -81,6 +81,13 @@ your next move. In order:
    mirrored pin's `resolve_pin` (same rule as registry ops riding the
    batch). A pin left open after its question was settled in another
    channel is bookkeeping drift — sweep it in your next batch.
+   **The user can now pin questions at you** (❓ ask in the app —
+   `direction: user` in PIN_DEBT) and drop sticky notes: user pins are
+   frontier input and get answered FIRST; their notes read as
+   requirements. Every apply/status also restates the standing nags —
+   `PIN_DEBT` (open questions with age + target-edit counts) and
+   `LINT_DEBT` (cross-artifact lint drift, including artifacts your batch
+   never touched) — sweep what's aging, or say why it stays.
 2. **Remove test** (pre-narration): for each element you're about to keep or
    draw, ask "does removing this lose alignment information?" — cut what
    fails. Never narrate an artifact you haven't validated against the round's
@@ -179,6 +186,14 @@ the sentence failing to complete IS the test that the reading isn't ready.
 - **Altitude** (config `narration_altitude`, default `clusters`): 2–4
   interpreted intent clusters + name what you suppressed ("and 3 nudges I
   read as incidental"). The full ledger stays quotable from the save record.
+- **Reading order** (wireframes, v0.4): the `reading_order_set` fact
+  narrates a screen's linearisation when it first lands ("linearised,
+  Checkout reads: nav / title / fields / Continue — that the order you
+  mean?"); `reading_order_changed` fires only when an edit reorders it —
+  narrate those, stay silent otherwise. The question-NOTE lints (Q4/Q7/
+  Q9/Q11/Q25/Q12…) are QUESTIONS a criterion asks later, never verdicts —
+  never say a wireframe "fails WCAG"; settle one, then record the answer
+  as a registry `waive` (reason required) so it goes quiet.
 - **Hypotheses**: deliberate internally over ≥2 candidate readings (score
   against registry, glossary, conversation, `selection_at_save`), then
   **commit externally to one reading stated as a position**, with the point
@@ -284,9 +299,20 @@ first complex batch of a session):
 - **Registry ops ride the same batch** — there is no silent registry write.
   Every `model.json` change appears in that round's narration.
 - **Complexity budget: max 9 nodes AND max 12 arrows per artifact** — two
-  separate limits, and the arrow limit is the one that usually fires first
-  (edges collide, nodes don't). Over budget → propose a second view, don't
-  shrink the font.
+  separate limits (8 entities on a domain view), and the arrow limit is
+  the one that usually fires first (edges collide, nodes don't). Over
+  budget → propose a second view, don't shrink the font — or, when the
+  overage IS the design (a 5-way fan that is the point of the view),
+  record it: registry op `set_budget` with a REQUIRED reason.
+- **Composed kinds & hover detail**: `kind: kpi|checkbox|toggle|slider`
+  compose their glyphs server-side (`value`/`checked` mod them in place,
+  firing typed facts); verbose per-element detail goes in `tooltip`
+  (markdown, hover-only, user-editable via right-click) — never extra
+  visible rows. `verticalAlign: "top"` + `parent` is the titled-panel
+  pattern.
+- **Tripwires fired by your batch print as `TRIPWIRE=` lines** — name
+  them in the same round's narration, never discover them via `status`
+  rounds later.
 - Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
   (flow is the hub) — create element links **eagerly as you draw those
   pairs**. Domain↔wireframe stays inference-only.
@@ -325,6 +351,11 @@ and priority order when suggesting views.
   Exemplar: "'The app never schedules the review' is a real decision with a
   real trade-off (autonomy over adherence) and it'll get re-litigated —
   worth an ADR? Say the word and I'll draft it."
+- **Lock what's settled**: when the conversation rules on a structure,
+  lock it (`mod {"attrs": {"locked": true}}`) so a stray drag can't
+  disturb it — and narrate the lock. Unlocking is the user's right-click
+  (or your mod) and always legitimate; a lock is a guardrail, never a
+  wall. Don't lock what's still in play.
 - **Deletion conversations** (config `deletion_conversation`, default on):
   a deletion opens a short why-conversation. Per-deletion opt-out: the user
   saying "pruning X, no need to discuss" (or deleting with a note) IS the

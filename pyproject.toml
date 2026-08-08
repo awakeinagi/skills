@@ -4,4 +4,139 @@ version = "0.1.0"
 description = "WYSIWYG Grilling - a Claude Code skill + local canvas app for visual design grilling"
 readme = "README.md"
 requires-python = ">=3.9"
+# Load-bearing: canvas.py is stdlib-only so `uv run canvas.py` needs no
+# install step. Dev tooling lives in .pre-commit-config.yaml, never here.
 dependencies = []
+
+# ---------------------------------------------------------------------------
+# ruff — lint, docstrings (Google), type-hint presence. No formatter; see
+# AGENTS.md § Formatting for why `ruff format` is deliberately not used.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+extend-exclude = [
+    "skills/wysiwyg-grilling/scripts/web",
+    "tests/fixtures",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import sorting
+    "B",         # bugbear
+    "SIM",       # simplify
+    "C4",        # comprehensions
+    "PERF",      # performance
+    "UP",        # pyupgrade — keeps typing syntax modern
+    "RUF",       # ruff-specific
+    "D",         # pydocstyle — docstring presence + shape
+    "ANN",       # flake8-annotations — type-hint presence
+    "DOC",       # pydoclint — Args/Returns/Raises completeness (preview)
+]
+ignore = [
+    # The codebase deliberately uses %-formatting throughout; converting 224
+    # sites buys nothing and churns every line. f-strings are fine in new code.
+    "UP031",
+    "D203",      # incompatible with D211 (ruff prefers D211)
+    "D213",      # incompatible with D212 (Google puts summary on line 1)
+    "ANN401",    # Excalidraw payloads are loose JSON; dict[str, Any] is honest
+    # Prose uses real typography (— … → ×) on purpose, in comments and in
+    # user-facing strings the agent narrates back. Not a homoglyph risk here.
+    "RUF001", "RUF002", "RUF003",
+    # Rule *codes* in this file are intentional: they are stable, greppable,
+    # and match every ruff doc page. RUF201 wants long names instead.
+    "RUF201",
+    # `# noqa` is the universal spelling and works with every other tool;
+    # RUF105 (preview) prefers ruff's own `# ruff: ignore`.
+    "RUF105",
+]
+# Required for the DOC (pydoclint) rules that enforce Args/Returns/Raises.
+# Preview rules can change between releases — that is why the ruff rev in
+# .pre-commit-config.yaml is pinned, and why `autoupdate` needs a re-run of
+# `uvx pre-commit run --all-files` before it is committed.
+preview = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-annotations]
+mypy-init-return = true          # __init__ needs no -> None
+suppress-dummy-args = true       # _ and __ need no annotation
+
+# ---------------------------------------------------------------------------
+# DEBT BURN-DOWN. Each entry is a temporary exemption with a measured count,
+# not a permanent rule. When you touch a function, bring it to standard
+# (full Google docstring + full annotations). Delete a code from this list
+# once `uvx ruff check` is clean without it. New files get no exemption.
+# ---------------------------------------------------------------------------
+[tool.ruff.lint.per-file-ignores]
+"skills/wysiwyg-grilling/scripts/canvas.py" = [
+    "D100",   #   1 module docstring not in Google shape
+    "D101",   #   7 undocumented public class
+    "D102",   #  26 undocumented public method
+    "D103",   #  29 undocumented public function
+    "D105",   #     undocumented magic method
+    "D107",   #   7 undocumented __init__
+    "D205",   #  41 missing blank line after summary
+    "D209",   #  40 closing quotes not on their own line
+    "D301",   #   1 backslash in docstring needs r"""
+    "D401",   #     summary not in imperative mood
+    "D403",   #   2 first word not capitalized
+    "D415",   #   2 summary missing terminal punctuation
+    "DOC201", #  49 docstring missing Returns section
+    "DOC501", #   4 docstring missing Raises section
+    "ANN",    # 474 missing type annotations
+
+    # Code-quality findings, all pre-existing. 17 clear with
+    # `uvx ruff check --fix`; the rest need a human. Worth a look first —
+    # B023, SIM115 and E741 are defect-shaped, not style.
+    "B023",    #  1 closure captures the loop variable
+    "SIM115",  #  2 file opened without a context manager
+    "E741",    #  1 ambiguous variable name (l/I/O)
+    "SIM105",  #  6 try/except/pass → contextlib.suppress
+    "PERF401", #  3 manual list comprehension
+    "PERF203", #  2 try/except inside a loop
+    "PERF102", #  1 .items() where only keys/values are used
+    "B007",    #  2 unused loop control variable
+    "SIM102",  #  1 collapsible if
+    "SIM103",  #  2 needless bool
+    "C420",    #  2 dict comprehension → dict.fromkeys
+    "RUF046",  #  1 unnecessary int() cast
+    "RUF100",  #  4 unused noqa directive
+    "E501",    #  1 line over 88 cols (the single 92-col line)
+    "E306",    #  2 missing blank line before nested def
+    "UP009",   #  1 redundant utf-8 coding declaration
+    "UP020",   #  5 io.open → open
+    "UP034",   #  2 extraneous parentheses
+]
+"tests/test_backend.py" = [
+    "ANN",    # unannotated helpers and test cases
+    "D101", "D102", "D103", "D107",
+    "D205", "D209", "D415",
+    "DOC201", "DOC501",
+    "F841",    #  1 assigned-but-unused local
+    "RUF059",  #  1 unused unpacked variable
+    "RUF100",  #  1 unused noqa directive
+    "B007",    #  1 unused loop control variable
+    "PERF401", #  3 manual list comprehension
+    "SIM300",  #  1 Yoda condition
+]
+
+# ---------------------------------------------------------------------------
+# mypy — strengthens automatically as annotations land: unannotated function
+# bodies are skipped by default, so every function you annotate becomes
+# type-checked without changing this config.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.9"
+files = ["skills/wysiwyg-grilling/scripts/canvas.py"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+# Target state — flip on once the ANN debt above is retired:
+# disallow_untyped_defs = true
+# disallow_incomplete_defs = true
