@@ -14,6 +14,7 @@ On success: atomic write, normalized artifact, save record
   "artifact": "checkout-flow",  // target artifact id (optional if only one exists)
   "create": { ... },         // only when creating a new artifact (below)
   "note": "why this revision",  // shown in banners/timeline — write it
+  "supersedes": 4,           // optional: replace this queued revision (v0.5)
   "ops": [ ... ] }
 ```
 
@@ -21,6 +22,23 @@ A stale `base_revn` → 409 with the current head; re-read `status` and rebase.
 If the user has unsaved edits (or cadence is `pulled`), the batch **queues**
 behind the pending-revision banner instead of landing — the response says so
 (`QUEUED=true`). That is success, not an error; the user chooses when.
+
+A queued batch is validated and linted **at queue time** and answers with
+the same `ECHO=` / `LAYOUT_*` lines an applied one does (v0.5) — read
+them. Before v0.5 nothing was checked until the *user* clicked Apply, so
+an impossible batch came back `QUEUED=true`, got narrated as drawn, and
+failed in the user's face minutes later.
+
+**Fixing a queued revision:** re-send it with `supersedes: <pending_id>`
+so the corrected batch *replaces* the original. Without it the user is
+left with two banners for one intent and no way to tell them apart. A
+revision that failed on the way in is already gone — the queue drops an
+entry that cannot apply rather than re-offering it.
+
+**`canvas.py apply --check`** dry-runs a batch: same validation, same
+`ECHO=` / `LAYOUT_*` output, nothing committed, exit 5 if it would be
+rejected. Use it when you cannot afford to be wrong — a batch you are
+about to queue, or one you cannot see the result of.
 
 ## `create` — new artifact
 
@@ -208,6 +226,17 @@ it "agent asked a question" with no Apply action.
  "elements": ["checkout-wireframe#pay-button", "checkout-flow#payment"]}
 {"op": "registry", "action": "annotate_mapping", "index": 0,
  "note": "intentionally-divergent: wireframe uses marketing copy"}
+// SCOPE the annotation (v0.5). `kinds` names the divergence you are
+// excusing; anything else on that mapping still trips. Omit it and you
+// mute the mapping for every kind of change forever — which is how a
+// note about cardinality ("three tiles, one store") went on to swallow a
+// rename, and the two views drifted apart in silence.
+{"op": "registry", "action": "annotate_mapping", "index": 0,
+ "note": "intentionally-divergent: three KPI tiles, one store",
+ "kinds": ["cardinality_changed"]}
+// verbs worth scoping to: renamed · label_renamed · entity_renamed ·
+// moved · rewired · relationship_rewired · value_changed ·
+// state_toggled · cardinality_changed
 {"op": "registry", "action": "remove_mapping", "index": 0}
 {"op": "registry", "action": "resolve_tripwire", "id": "tw-8-1"}
 // tripwires are answerable in place like pins (rail card + red ? on the
@@ -233,7 +262,9 @@ it "agent asked a question" with no Apply action.
  "clear": true}
 // one-time-question waive (v0.4): the reason IS the recorded answer.
 // Keys the lints consult: "q25:<artifact>" (progress indicator),
-// "q12:<artifact>:<label-slug>" (whose-word). `clear: true` un-waives.
+// "q12:<artifact>:<label-slug>" (whose-word), "324:<artifact>:<step-slug>"
+// (one function, one label). `clear: true` un-waives. Every note that
+// offers a key prints it — copy it out of the lint line.
 {"op": "registry", "action": "waive", "key": "q25:pipeline-flow",
  "reason": "user ruled: regulated flow, steps must show"}
 ```
@@ -258,6 +289,9 @@ it "agent asked a question" with no Apply action.
   context only, never truth).
 - `POST <url>api/tidy {"artifact": id}` → grid-snap + re-route + re-fan +
   z-order as an ordinary agent revision (revertible).
+- `POST <url>api/pending/resolve {"id": N, "action": ...}` → the banner's
+  own buttons: `apply_now`, `after_save`, or `discard` (v0.5 — the user's
+  way to say no). The user drives this; you supersede or re-send.
 - `POST <url>api/save-label {"revn": N, "label": "v1 baseline"}` →
   bookmark a save (shown in timeline + graph).
 - `GET <url>api/doc/<project_knowledge-relative .md>` → document content

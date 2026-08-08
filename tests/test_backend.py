@@ -3,6 +3,7 @@
 Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 """
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -510,6 +511,60 @@ class TestMappingsTripwires(Base):
                                 new_scenes={"checkout-wireframe": els},
                                 base_revn=self.store.head_revn())
         self.assertFalse(rec["tripwires"])
+
+    def _relabel(self, label):
+        els = [dict(e) for e in self.store.scenes["checkout-wireframe"]]
+        errors = []
+        els = canvas.apply_ops(els, [
+            {"op": "mod", "id": "pay-button", "attrs": {"label": label}}],
+            errors)
+        return self.store.commit(author="user",
+                                 new_scenes={"checkout-wireframe": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_scoped_annotation_still_fires_on_another_kind(self):
+        """The demo's flagship tripwire, which v0.4 could not fire.
+
+        An annotation recorded because three KPI tiles fan into one store
+        used to mute that mapping forever, so a later rename diverged in
+        silence and the dashboard and the pipeline drifted apart.
+        """
+        self.store.registry["mappings"][0].update({
+            "note": "intentionally-divergent: three tiles, one store",
+            "kinds": ["cardinality_changed"]})
+        rec = self._relabel("Excess Return")
+        self.assertTrue(rec["tripwires"])
+        self.assertEqual(rec["tripwires"][0]["changed"],
+                         "checkout-wireframe#pay-button")
+
+    def test_scoped_annotation_silences_its_own_kind(self):
+        self.store.registry["mappings"][0].update({
+            "note": "intentionally-divergent: marketing copy",
+            "kinds": ["renamed", "label_renamed"]})
+        self.assertFalse(self._relabel("Buy!")["tripwires"])
+
+    def test_unscoped_annotation_keeps_blanket_behaviour(self):
+        self.store.registry["mappings"][0]["note"] = \
+            "intentionally-divergent: marketing copy"
+        self.store.registry["mappings"][0]["kinds"] = None
+        self.assertFalse(self._relabel("Buy!")["tripwires"])
+
+    def test_scoped_policy_still_fires_on_another_kind(self):
+        self.store.registry["mappings"][0]["note"] = None
+        self.store.registry.setdefault("divergence_policies", []).append(
+            {"types": ["wireframe", "flow"], "concept": None,
+             "kinds": ["moved"], "note": "layout only"})
+        self.assertTrue(self._relabel("Express Pay")["tripwires"])
+
+    def test_kinds_must_be_a_list_of_fact_names(self):
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(),
+                "artifact": "checkout-flow",
+                "ops": [{"op": "registry", "action": "annotate_mapping",
+                         "index": 0, "note": "intentionally-divergent: x",
+                         "kinds": "renamed"}]})
+        self.assertIn("list of fact names", "\n".join(cm.exception.errors))
 
 
 class TestPins(Base):
@@ -3853,6 +3908,48 @@ class TestCrossLintV04(Base):
         warns = (x2.get("wf") or {}).get("warnings") or []
         self.assertTrue(any("different consequences" in w for w in warns))
 
+    def test_324_goes_quiet_on_an_annotated_mapping(self):
+        """Lint used to ignore what the tripwire check honoured.
+
+        A divergence the agent had already explained kept coming back as
+        'same action, 2 names; pick one?' every round, with no waive key
+        to settle it (v0.4 capability assessment).
+        """
+        self.seed(btn_a="Continue", btn_b="Next", flow_b="n2")
+        for m in self.store.registry["mappings"]:
+            m["note"] = "intentionally-divergent: the button is the " \
+                        "user's word, the step is ours"
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        notes = (x.get("wf") or {}).get("notes") or []
+        self.assertFalse(any("same action" in n for n in notes))
+
+    def test_324_annotation_scoped_elsewhere_still_fires(self):
+        self.seed(btn_a="Continue", btn_b="Next", flow_b="n2")
+        for m in self.store.registry["mappings"]:
+            m["note"] = "intentionally-divergent: layout only"
+            m["kinds"] = ["moved"]
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        notes = (x.get("wf") or {}).get("notes") or []
+        self.assertTrue(any("same action" in n for n in notes))
+
+    def test_324_offers_a_waive_key_that_works(self):
+        self.seed(btn_a="Continue", btn_b="Next", flow_b="n2")
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        note = next(n for n in (x.get("wf") or {}).get("notes") or []
+                    if "same action" in n)
+        key = re.search(r"key: '([^']+)'", note).group(1)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "wf",
+            "ops": [{"op": "registry", "action": "waive", "key": key,
+                     "reason": "the step and the button differ on purpose"}]})
+        x2 = canvas.cross_lint(self.store.scenes, self.types(),
+                               self.store.registry)
+        self.assertFalse(any("same action" in n
+                             for n in (x2.get("wf") or {}).get("notes") or []))
+
     def test_unmapped_elements_never_fire_324(self):
         self.store.apply_batch({
             "base_revn": 0, "artifact": "wf",
@@ -4009,6 +4106,126 @@ class TestUiUxAcceptance(Base):
         # and the fixed order clears the submit-before-inputs WARN
         warns = " | ".join(self.store.lint_lines()["wf"]["warnings"])
         self.assertNotIn("precedes", warns)
+
+
+class TestHeldRevisions(Base):
+    """The pending-revision queue (v0.5).
+
+    A held batch used to skip validation entirely: `apply` answered
+    `queued: true` for a batch that could never land, the agent narrated
+    the drawing as done, and the user met the validator error minutes
+    later. A failed pull then left the entry armed, so the same error came
+    back on every click with no way to discard it.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.store = self.app.store
+        self.store.apply_batch(seed_flow_batch())
+        self.app.store.config["canvas_updates"] = "pulled"
+
+    def tearDown(self):
+        self.app.log_file.close()
+        super().tearDown()
+
+    def post(self, path, body):
+        """Call a POST route, turning its _Err into a payload dict."""
+        try:
+            return self.app.handle_post(path, body)
+        except canvas._Err as e:
+            return dict(e.payload, status=e.status)
+
+    def apply(self, batch):
+        return self.post("/api/apply", batch)
+
+    def batch(self, ops, **kw):
+        b = {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ops}
+        b.update(kw)
+        return b
+
+    def test_invalid_ops_rejected_at_queue_time(self):
+        # the live failure: an attribute that does not exist
+        r = self.apply(self.batch([
+            {"op": "mod", "id": "payment",
+             "attrs": {"attributes": {"x": 1}}}]))
+        self.assertFalse(r.get("ok"))
+        self.assertEqual(r.get("status"), 422)
+        self.assertIn("unknown attribute", r["error"])
+        self.assertEqual(self.app.pending, [])
+
+    def test_invalid_registry_op_rejected_at_queue_time(self):
+        # the second live failure — a registry op, not a drawing op
+        r = self.apply(self.batch(
+            [{"op": "mod", "id": "payment", "attrs": {"x": 500}},
+             {"op": "registry", "action": "set_budget",
+              "artifact": "checkout-flow", "arrows": -1,
+              "reason": "no"}]))
+        self.assertFalse(r.get("ok"))
+        self.assertIn("positive integer", r["error"])
+        self.assertEqual(self.app.pending, [])
+
+    def test_check_batch_does_not_mutate_the_registry(self):
+        before = json.dumps(self.store.registry, sort_keys=True)
+        self.store.check_batch(self.batch(
+            [{"op": "mod", "id": "payment", "attrs": {"x": 500}},
+             {"op": "registry", "action": "upsert_concept",
+              "name": "Refund"}]))
+        self.assertEqual(json.dumps(self.store.registry, sort_keys=True),
+                         before)
+
+    def test_queued_response_carries_echo_and_layout(self):
+        r = self.apply(self.batch([
+            {"op": "mod", "id": "payment", "attrs": {"label": "Pay"}}]))
+        self.assertTrue(r["queued"])
+        self.assertTrue(r["intent_echo"])
+        for k in ("layout_errors", "layout_warnings", "layout_notes"):
+            self.assertIn(k, r)
+
+    def test_failed_pull_evicts_instead_of_re_arming(self):
+        r = self.apply(self.batch([
+            {"op": "mod", "id": "payment", "attrs": {"x": 500}}]))
+        pid = r["pending_id"]
+        # the user deletes the element the held batch targets
+        els = [e for e in self.scene() if e["id"] != "payment"]
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        out = self.post("/api/pending/resolve",
+                        {"id": pid, "action": "apply_now"})
+        self.assertFalse(out.get("ok"))
+        self.assertEqual(self.app.pending, [])
+
+    def test_discard_removes_the_entry(self):
+        pid = self.apply(self.batch([
+            {"op": "mod", "id": "payment", "attrs": {"x": 500}}]))["pending_id"]
+        out = self.post("/api/pending/resolve",
+                        {"id": pid, "action": "discard"})
+        self.assertTrue(out["discarded"])
+        self.assertEqual(self.app.pending, [])
+
+    def test_unknown_action_names_discard(self):
+        pid = self.apply(self.batch([
+            {"op": "mod", "id": "payment", "attrs": {"x": 500}}]))["pending_id"]
+        out = self.post("/api/pending/resolve",
+                        {"id": pid, "action": "nope"})
+        self.assertIn("discard", out["error"])
+
+    def test_supersedes_replaces_rather_than_stacks(self):
+        first = self.apply(self.batch([
+            {"op": "mod", "id": "payment", "attrs": {"x": 500}}]))
+        second = self.apply(self.batch(
+            [{"op": "mod", "id": "payment", "attrs": {"x": 520}}],
+            supersedes=first["pending_id"]))
+        self.assertEqual([p["id"] for p in self.app.pending],
+                         [second["pending_id"]])
+
+    def test_pin_only_revisions_still_bypass_the_queue(self):
+        r = self.apply(self.batch([
+            {"op": "pin", "target": "payment", "id": "pin-pay",
+             "question": "Card only?"}]))
+        self.assertTrue(r["ok"])
+        self.assertNotIn("queued", r)
 
 
 if __name__ == "__main__":

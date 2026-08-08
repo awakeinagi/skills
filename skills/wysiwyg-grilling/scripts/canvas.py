@@ -18,6 +18,7 @@ Canonical invocation:  uv run canvas.py <cmd>   (bare python3 works too)
 """
 
 import argparse
+import copy
 import hashlib
 import io
 import json
@@ -4541,8 +4542,35 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
 
     waives = (registry or {}).get("waives") or {}
     label_maps = {aid: label_map(els) for aid, els in scenes.items()}
+    policies = (registry or {}).get("divergence_policies") or []
+
+    def declared_divergent(m, member_types):
+        """Has this mapping's naming divergence already been ruled on?
+
+        The tripwire check honours `intentionally-divergent`; this lint
+        never did, so it went on asking 'same action, N names; pick one?'
+        about a divergence the agent had explained rounds earlier (v0.4
+        capability assessment). A scope that names no label-ish verb does
+        not cover a naming complaint.
+        """
+        naming = {"renamed", "label_renamed", "entity_renamed"}
+
+        def scoped(kinds):
+            return (not kinds) or bool(naming & set(kinds))
+        if str(m.get("note") or "").startswith("intentionally-divergent"):
+            if scoped(m.get("kinds")):
+                return True
+        for pol in policies:
+            if pol.get("concept") and pol["concept"] != m.get("concept"):
+                continue
+            if pol.get("types") and not member_types <= set(pol["types"]):
+                continue
+            if scoped(pol.get("kinds")):
+                return True
+        return False
+
     # mapping joins: every (wireframe member, flow member) pair
-    pairs = []
+    pairs, divergent = [], set()
     for m in (registry or {}).get("mappings") or []:
         wf, fl = [], []
         for ref in m.get("elements") or []:
@@ -4554,24 +4582,32 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 wf.append((aid, eid))
             elif t == "flow":
                 fl.append((aid, eid))
-        pairs.extend((wa, we, fa, fe) for wa, we in wf for fa, fe in fl)
+        mine = [(wa, we, fa, fe) for wa, we in wf for fa, fe in fl]
+        pairs.extend(mine)
+        if declared_divergent(m, {artifact_types.get(a.split("#", 1)[0])
+                                  for a in m.get("elements") or []}):
+            divergent.update(mine)
 
     # ---- 3.2.4 consistent identification (mapped elements only) ------
     by_flow, by_label = {}, {}
     for wa, we, fa, fe in pairs:
         lbl = (label_maps.get(wa, {}).get(we) or "").strip()
-        if not lbl:
+        if not lbl or (wa, we, fa, fe) in divergent:
             continue
         by_flow.setdefault((fa, fe), set()).add((wa, we, lbl))
         by_label.setdefault(lbl.lower(), set()).add((wa, we, fa, fe))
     for (fa, fe), members in sorted(by_flow.items()):
         lbls = sorted({lbl for _, _, lbl in members})
-        if len(lbls) > 1:
-            add(sorted(members)[0][0], "notes",
+        aid0 = sorted(members)[0][0]
+        if len(lbls) > 1 and \
+                "324:%s:%s" % (aid0, slugify(fe)) not in waives:
+            add(aid0, "notes",
                 "%s all map to %s#%s — same action, %d names; pick "
-                "one? (3.2.4: one function, one label)"
+                "one? (3.2.4: one function, one label). Settled? "
+                "annotate the mapping intentionally-divergent, or waive "
+                "{action: waive, key: '324:%s:%s', reason: ...}"
                 % (" / ".join(repr(x) for x in lbls), fa, fe,
-                   len(lbls)))
+                   len(lbls), aid0, slugify(fe)))
     for lbl, refs in sorted(by_label.items()):
         flows = sorted({(fa, fe) for _, _, fa, fe in refs})
         if len(flows) > 1:
@@ -4896,7 +4932,7 @@ class Store:
             revn = self.registry["revn"] + 1
             artifacts = {}
             all_tripwires = []
-            changed_elements = set()
+            changed_elements = {}
             sig = self.config.get("significant_attrs")
             for aid, els in sorted(new_scenes.items()):
                 new_norm = [normalize_element(e) for e in els
@@ -4919,7 +4955,12 @@ class Store:
                 for f in facts:
                     if f.get("consequence_of") is None and \
                             f["fact"] != "saved_no_changes" and f["element"]:
-                        changed_elements.add("%s#%s" % (aid, f["element"]))
+                        # keep the VERB, not just the identity: a mapping
+                        # annotated "intentionally divergent" for one kind
+                        # of change used to go deaf to every other kind
+                        changed_elements.setdefault(
+                            "%s#%s" % (aid, f["element"]), set()
+                        ).add(f["fact"])
                 by_element = self._by_element(diff, facts, consequences,
                                               new_norm, old)
                 artifacts[aid] = {
@@ -5139,6 +5180,53 @@ class Store:
         return list(entries.values())
 
     # -- tripwires --------------------------------------------------------
+    @staticmethod
+    def _annotation_covers(scope, verbs):
+        """Does a divergence annotation excuse THIS change?
+
+        An unscoped annotation (no `kinds`) keeps the original blanket
+        behaviour. A scoped one excuses only the verbs it names, which is
+        the whole point: a mapping annotated because three KPI tiles fan
+        into one store was also silently excusing a later rename of one of
+        them, so the dashboard and the pipeline drifted apart under an
+        annotation that had nothing to say about labels (v0.4 capability
+        assessment — the demo's flagship tripwire never fired).
+
+        Args:
+            scope: The annotation's `kinds` list, or None/empty.
+            verbs: Fact names that fired on the changed element.
+
+        Returns:
+            True when the annotation covers every verb that fired.
+        """
+        if not scope:
+            return True
+        return bool(verbs) and set(verbs) <= set(scope)
+
+    @staticmethod
+    def _parse_kinds(op, i, errors):
+        """Read an optional `kinds` scope off a registry op.
+
+        Args:
+            op: The registry op.
+            i: Its index in the batch, for the error message.
+            errors: Collector appended to when `kinds` is malformed.
+
+        Returns:
+            The verb list, or None when the op carries no scope.
+        """
+        kinds = op.get("kinds")
+        if kinds is None:
+            return None
+        if not isinstance(kinds, list) or \
+                not all(isinstance(k, str) and k for k in kinds):
+            errors.append(
+                "registry op %d: `kinds` must be a list of fact names, e.g. "
+                "[\"cardinality_changed\"] — the divergence this annotation "
+                "excuses. Omit it to excuse every kind of change." % i)
+            return None
+        return sorted(set(kinds))
+
     def _check_tripwires(self, changed_elements, revn, new_mapping_keys=()):
         out = []
         if not changed_elements:
@@ -5163,9 +5251,13 @@ class Store:
                             t["status"] = "resolved"
                             t["resolved_by"] = revn
                 continue
-            if note.startswith("intentionally-divergent"):
+            fired = set()
+            for e in hits:
+                fired |= set(changed_elements.get(e) or ())
+            if note.startswith("intentionally-divergent") and \
+                    self._annotation_covers(m.get("kinds"), fired):
                 continue
-            if self._policy_covers(m):
+            if self._policy_covers(m, fired):
                 continue
             for h in hits:
                 for s in siblings:
@@ -5213,17 +5305,30 @@ class Store:
                     entry["question"] = reg_entry["question"]
         return out
 
-    def _policy_covers(self, m):
-        """Does a class-level divergence policy cover this mapping? One
-        ruling ('wireframe blocks name report sections, flow steps name the
-        work — meant to differ') silences the whole class, instead of the
-        N identical per-mapping notes the demo session had to write."""
+    def _policy_covers(self, m, verbs=()):
+        """Does a class-level divergence policy cover this change?
+
+        One ruling ('wireframe blocks name report sections, flow steps
+        name the work — meant to differ') silences the whole class,
+        instead of the N identical per-mapping notes the demo session had
+        to write. A policy carrying `kinds` silences only those verbs, on
+        the same reasoning as `_annotation_covers`.
+
+        Args:
+            m: The mapping being tested.
+            verbs: Fact names that fired on the changed side.
+
+        Returns:
+            True when a policy excuses this divergence.
+        """
         member_types = {self.artifact_type(e.split("#", 1)[0])
                         for e in (m.get("elements") or [])}
         for pol in self.registry.get("divergence_policies") or []:
             if pol.get("concept") and pol["concept"] != m.get("concept"):
                 continue
             if pol.get("types") and not member_types <= set(pol["types"]):
+                continue
+            if not self._annotation_covers(pol.get("kinds"), verbs):
                 continue
             return True
         return False
@@ -5316,7 +5421,9 @@ class Store:
                     continue
                 reg["mappings"].append({"concept": op["concept"],
                                         "elements": op["elements"],
-                                        "note": op.get("note")})
+                                        "note": op.get("note"),
+                                        "kinds": self._parse_kinds(
+                                            op, i, errors)})
             elif action == "annotate_mapping":
                 pattern = op.get("pattern")
                 if pattern is not None and not isinstance(pattern, dict):
@@ -5334,6 +5441,7 @@ class Store:
                     # only per-index annotation existed (audit §7.2)
                     pol = {"types": sorted(pattern.get("types") or []),
                            "concept": pattern.get("concept"),
+                           "kinds": self._parse_kinds(op, i, errors),
                            "note": op.get("note") or "intentionally-divergent"}
                     if not pol["types"] and not pol["concept"]:
                         errors.append(
@@ -5353,6 +5461,8 @@ class Store:
                                   "class-level ruling" % i)
                     continue
                 reg["mappings"][idx]["note"] = op.get("note")
+                reg["mappings"][idx]["kinds"] = self._parse_kinds(
+                    op, i, errors)
             elif action == "remove_mapping":
                 idx = op.get("index")
                 if not isinstance(idx, int) or idx >= len(reg["mappings"]):
@@ -5491,8 +5601,30 @@ class Store:
         write_json(self.p.registry_path, self.registry)
 
     # -- the agent write path --------------------------------------------
-    def apply_batch(self, batch):
-        """Validate-all-then-apply. Returns (record, pin_only)."""
+    def _validate_batch(self, batch):
+        """Check a batch against current state, changing nothing.
+
+        Split out of `apply_batch` so the same work can back a dry run.
+        A held revision used to reach the queue unvalidated, so the agent
+        was answered `queued: true` for batches that could never apply and
+        narrated the drawing as done; the user met the validator error
+        minutes later, for a mistake it was too late to repair (v0.4
+        capability assessment).
+
+        Args:
+            batch: Op-batch envelope — `base_revn`, `artifact` or `create`,
+                `ops`, and the optional `note`.
+
+        Returns:
+            The work already done while validating, so the caller need not
+            repeat it: `artifact`, `new_els`, `new_meta`, `pin_reg`,
+            `registry_ops`, `pin_only` and `ops`.
+
+        Raises:
+            BatchError: The envelope is malformed, names an unknown or
+                duplicate artifact, resolves an unknown pin, or carries ops
+                that do not apply to the current scene.
+        """
         with self.lock:
             errors = []
             base_revn = batch.get("base_revn")
@@ -5570,6 +5702,91 @@ class Store:
                                      "views": [aid],
                                      "view_types":
                                          {aid: create.get("type", "flow")}})
+            return {"artifact": aid, "new_els": new_els, "new_meta": new_meta,
+                    "pin_reg": pin_reg, "registry_ops": registry_ops,
+                    "pin_only": pin_only, "ops": ops}
+
+    def check_batch(self, batch):
+        """Dry-run a batch: would it land, and what would it say?
+
+        The agent cannot see its own drawing, so `apply` answers with an
+        intent echo and layout findings and the skill tells it to read
+        those rather than the success line. A held batch never got that
+        far. This runs the whole read-only half — envelope, ops, registry
+        ops, echo and lint — against throwaway state, so a queued revision
+        can be answered with the same evidence as an applied one.
+
+        Staleness is deliberately not checked: `commit_pending` rebases a
+        held batch onto the head it eventually lands on, so a `base_revn`
+        that has since moved is not an error here.
+
+        Args:
+            batch: The same op-batch envelope `apply_batch` takes.
+
+        Returns:
+            `{"ok": bool, "errors": [str], "artifact": str | None,
+            "intent_echo": [str], "layout_errors": [str],
+            "layout_warnings": [str], "layout_notes": [str]}`. Never
+            raises for a rejected batch — the errors come back in the
+            payload so a caller can report them without a try/except.
+        """
+        with self.lock:
+            try:
+                checked = self._validate_batch(batch)
+            except BatchError as e:
+                return {"ok": False, "errors": list(e.errors),
+                        "artifact": batch.get("artifact"), "intent_echo": [],
+                        "layout_errors": [], "layout_warnings": [],
+                        "layout_notes": []}
+            aid = checked["artifact"]
+            # registry ops are the other half of a batch and they failed
+            # this way in the field (`set_budget` with arrows: 0). The
+            # dispatch mutates self.registry as it validates, so it runs
+            # here against a copy that is thrown away either way.
+            saved = self.registry
+            self.registry = copy.deepcopy(saved)
+            try:
+                reg_errors = []
+                self._apply_registry_ops(checked["registry_ops"], reg_errors)
+                reg_after = self.registry
+            except BatchError as e:
+                reg_errors, reg_after = list(e.errors), saved
+            finally:
+                self.registry = saved
+            if reg_errors:
+                return {"ok": False, "errors": reg_errors, "artifact": aid,
+                        "intent_echo": [], "layout_errors": [],
+                        "layout_warnings": [], "layout_notes": []}
+            atype = (checked["new_meta"].get(aid) or
+                     self.artifact_meta.get(aid) or {}).get("artifact_type")
+            lint = project_lint(self.p, checked["new_els"], reg_after,
+                                artifact_type=atype, aid=aid)
+            return {"ok": True, "errors": [], "artifact": aid,
+                    "intent_echo": intent_echo(checked["ops"],
+                                               checked["new_els"]),
+                    "layout_errors": lint["errors"],
+                    "layout_warnings": lint["warnings"],
+                    "layout_notes": lint["notes"]}
+
+    def apply_batch(self, batch):
+        """Validate-all-then-apply.
+
+        Args:
+            batch: Op-batch envelope — see `_validate_batch`.
+
+        Returns:
+            `(record, pin_only)` — the save record, and whether the batch
+            drew nothing (pin-only revisions never hold behind the banner).
+            Propagates `BatchError` from `_validate_batch`/`commit` and
+            `StaleError` from `commit`.
+        """
+        with self.lock:
+            checked = self._validate_batch(batch)
+            aid = checked["artifact"]
+            new_els, new_meta = checked["new_els"], checked["new_meta"]
+            pin_reg, registry_ops = checked["pin_reg"], checked["registry_ops"]
+            pin_only, ops = checked["pin_only"], checked["ops"]
+            base_revn = batch.get("base_revn")
 
             # explicit points mods are intent, but their diff entries are
             # derived (bound-arrow geometry) — surface them as facts so
@@ -6087,6 +6304,7 @@ class ServerApp:
             except (OSError, ValueError):
                 pass
         self.log = log
+        self.log_file = log_f      # held so a short-lived app can close it
         self.store = Store(project, log)
         self.events = EventLog(project.events_path)
         self.web_root = (Path(__file__).resolve().parent / "web")
@@ -6113,16 +6331,52 @@ class ServerApp:
             self.log(traceback.format_exc())
 
     # -- pending agent revisions -----------------------------------------
-    def queue_pending(self, batch, pin_only):
+    def drop_pending(self, pending_id):
+        """Remove a queued revision from the banner.
+
+        Args:
+            pending_id: Queue entry id.
+
+        Returns:
+            True when an entry was removed.
+        """
         with self.lock:
+            before = len(self.pending)
+            self.pending = [p for p in self.pending
+                            if p["id"] != pending_id]
+            return len(self.pending) != before
+
+    def queue_pending(self, batch, pin_only, supersedes=None):
+        """Hold a revision behind the banner for the user to pull.
+
+        Args:
+            batch: The validated op-batch envelope.
+            pin_only: Whether the batch draws nothing.
+            supersedes: Queue entry this batch replaces. A corrected retry
+                used to stack a second banner beside the broken original,
+                leaving the user two entries for one intent with no way to
+                tell them apart (v0.4 capability assessment).
+
+        Returns:
+            The new queue entry.
+        """
+        with self.lock:
+            if supersedes is not None:
+                self.drop_pending(supersedes)
             self.pending_seq += 1
             entry = {"id": self.pending_seq, "batch": batch,
                      "pin_only": pin_only, "deferred": False,
-                     "queued_at": now_iso()}
+                     "supersedes": supersedes, "queued_at": now_iso()}
             self.pending.append(entry)
             return entry
 
     def sanitize_pending(self):
+        """Project the queue to the shape the web app renders.
+
+        Returns:
+            One dict per queued revision — id, pin_only, deferred, note,
+            artifact, ops and queued_at.
+        """
         with self.lock:
             return [{"id": p["id"], "pin_only": p["pin_only"],
                      "deferred": p["deferred"],
@@ -6132,13 +6386,39 @@ class ServerApp:
                      "ops": p["batch"].get("ops") or [],
                      "queued_at": p["queued_at"]} for p in self.pending]
 
-    def commit_pending(self, entry):
+    def commit_pending(self, entry, trigger="the banner"):
+        """Apply a held revision, rebased onto the current head.
+
+        A failing entry is evicted rather than left armed. It used to stay
+        in the queue — the de-queue ran only after a successful apply — so
+        a batch that could never land re-offered the identical error on
+        every click and could not be got rid of (v0.4 capability
+        assessment).
+
+        Args:
+            entry: The queue entry to apply.
+            trigger: What pulled it, for the failure event's message.
+
+        Returns:
+            The save record.
+
+        Raises:
+            BatchError: The batch does not validate against the head it
+                landed on. The entry is dropped first.
+            StaleError: Propagated from `commit`; the entry is dropped.
+        """
         batch = dict(entry["batch"])
         batch["base_revn"] = self.store.head_revn()
-        record, pin_only = self.store.apply_batch(batch)
-        with self.lock:
-            self.pending = [p for p in self.pending
-                            if p["id"] != entry["id"]]
+        try:
+            record, pin_only = self.store.apply_batch(batch)
+        except (BatchError, StaleError) as e:
+            self.drop_pending(entry["id"])
+            self.events.append(
+                "agent_revision_failed", pending_id=entry["id"],
+                error="Revision pulled from %s could not be applied: %s "
+                      "Re-read state and redraw." % (trigger, e))
+            raise
+        self.drop_pending(entry["id"])
         self.events.append("agent_revision", revn=record["revn"],
                            short_id=record["short_id"], pin_only=pin_only,
                            headline=record["summary"]["headline"],
@@ -6146,17 +6426,12 @@ class ServerApp:
         return record
 
     def flush_deferred(self):
+        """Apply every revision the user parked until after their Save."""
         for entry in [p for p in self.pending if p["deferred"]]:
             try:
-                self.commit_pending(entry)
-            except (BatchError, StaleError) as e:
-                with self.lock:
-                    self.pending = [p for p in self.pending
-                                    if p["id"] != entry["id"]]
-                self.events.append(
-                    "agent_revision_failed", pending_id=entry["id"],
-                    error="Deferred revision could not be applied after the "
-                          "user's Save: %s Re-read state and redraw." % e)
+                self.commit_pending(entry, trigger="your Save")
+            except (BatchError, StaleError):
+                pass    # commit_pending evicted it and said so
 
     # -- request handling --------------------------------------------------
     def api_state(self):
@@ -6222,7 +6497,14 @@ class ServerApp:
             # behind the banner (feel-test finding, Appendix A row 13)
             hold = (self.dirty or cadence == "pulled") and not pin_only
             if hold:
-                entry = self.queue_pending(body, pin_only)
+                # a held batch used to skip validation entirely and only
+                # fail when the USER clicked Apply — so the agent was told
+                # it had drawn, and narrated as much (v0.4 assessment)
+                check = self.store.check_batch(body)
+                if not check["ok"]:
+                    return err(422, "\n".join(check["errors"]))
+                entry = self.queue_pending(body, pin_only,
+                                           supersedes=body.get("supersedes"))
                 self.events.append("agent_pending", pending_id=entry["id"],
                                    pin_only=pin_only,
                                    reason="dirty canvas" if self.dirty
@@ -6232,8 +6514,14 @@ class ServerApp:
                         "reason": ("the user has unsaved edits"
                                    if self.dirty else
                                    "cadence is set to pulled"),
+                        "intent_echo": check["intent_echo"],
+                        "layout_errors": check["layout_errors"],
+                        "layout_warnings": check["layout_warnings"],
+                        "layout_notes": check["layout_notes"],
                         "hint": "The revision will land behind the pending-"
-                                "revision banner; the user chooses when."}
+                                "revision banner; the user chooses when. It "
+                                "validates and lints clean against the "
+                                "current head — read the echo, not this line."}
             try:
                 record, pin_only = self.store.apply_batch(body)
             except BatchError as e:
@@ -6284,7 +6572,15 @@ class ServerApp:
                 with self.lock:
                     entry["deferred"] = True
                 return {"ok": True, "deferred": True}
-            return err(400, "action must be apply_now or after_save")
+            if action == "discard":
+                # without this a revision the user does not want can only
+                # be applied or parked — there was no way to say no
+                self.drop_pending(pid)
+                self.events.append("agent_revision_discarded",
+                                   pending_id=pid,
+                                   note=entry["batch"].get("note"))
+                return {"ok": True, "discarded": True}
+            return err(400, "action must be apply_now, after_save or discard")
         if path == "/api/pins/answer":
             try:
                 pin = self.store.answer_pin(body.get("id"),
@@ -6928,6 +7224,22 @@ def cmd_wait(args):
     return 3
 
 
+def _print_layout(resp):
+    """Print the echo and layout findings of an apply/check response.
+
+    Args:
+        resp: Any payload carrying `intent_echo` and `layout_*` keys.
+    """
+    for line in resp.get("intent_echo") or []:
+        print("ECHO=%s" % line)
+    for e in resp.get("layout_errors") or []:
+        print("LAYOUT_ERROR=%s" % e)
+    for w in resp.get("layout_warnings") or []:
+        print("LAYOUT_WARNING=%s" % w)
+    for n in resp.get("layout_notes") or []:
+        print("LAYOUT_NOTE=%s" % n)
+
+
 def cmd_apply(args):
     project = Project(args.project)
     if args.file:
@@ -6942,6 +7254,19 @@ def cmd_apply(args):
             die("ERROR=stdin was not valid JSON: %s. Pass a batch like "
                 "{\"base_revn\": N, \"artifact\": \"id\", \"ops\": [...]}"
                 % e, 2)
+    if getattr(args, "check", False):
+        # dry run: says whether the batch WOULD land, and what it would
+        # say, without committing. Reads the files directly so it works
+        # with or without a server.
+        result = Store(project).check_batch(batch)
+        if not result["ok"]:
+            for line in result["errors"]:
+                print("ERROR=%s" % line)
+            print_kv(would_apply="false")
+            return 5
+        print_kv(would_apply="true", artifact=result.get("artifact"))
+        _print_layout(result)
+        return 0
     state = project.read_state()
     if server_alive(state):
         try:
@@ -6956,20 +7281,17 @@ def cmd_apply(args):
         except (OSError, ValueError, urllib.error.URLError) as e:
             die("ERROR=server unreachable (%s) — run canvas.py start" % e, 3)
         if resp.get("queued"):
+            # a queued revision still owes its echo — swallowing it left
+            # the agent with a success line and nothing to check it
+            # against (v0.4 capability assessment)
             print_kv(queued="true", pending_id=resp.get("pending_id"),
                      reason=resp.get("reason"), hint=resp.get("hint"))
+            _print_layout(resp)
             return 0
         print_kv(revn=resp.get("revn"), short_id=resp.get("short_id"),
                  pin_only=str(resp.get("pin_only", False)).lower(),
                  headline=(resp.get("summary") or {}).get("headline"))
-        for line in resp.get("intent_echo") or []:
-            print("ECHO=%s" % line)
-        for err in resp.get("layout_errors") or []:
-            print("LAYOUT_ERROR=%s" % err)
-        for w in resp.get("layout_warnings") or []:
-            print("LAYOUT_WARNING=%s" % w)
-        for n in resp.get("layout_notes") or []:
-            print("LAYOUT_NOTE=%s" % n)
+        _print_layout(resp)
         _print_tripwires(resp.get("tripwires"))
         _print_debt(resp.get("lint_debt"), resp.get("pin_debt"))
         return 0
@@ -6988,18 +7310,14 @@ def cmd_apply(args):
              headline=record["summary"]["headline"], offline="true")
     aid = batch.get("artifact") or (batch.get("create") or {}).get("id")
     scene = store.scenes.get(aid, []) if aid else []
-    for line in intent_echo(batch.get("ops") or [], scene):
-        print("ECHO=%s" % line)
-    if aid:
-        lint = project_lint(project, scene, store.registry,
-                            artifact_type=store.artifact_type(aid),
-                            aid=aid)
-        for err in lint["errors"]:
-            print("LAYOUT_ERROR=%s" % err)
-        for w in lint["warnings"]:
-            print("LAYOUT_WARNING=%s" % w)
-        for n in lint["notes"]:
-            print("LAYOUT_NOTE=%s" % n)
+    # lint_lines, not project_lint: the offline path used to miss every
+    # cross-artifact finding the server path reports
+    lint = (store.lint_lines().get(aid) if aid else None) or \
+        {"errors": [], "warnings": [], "notes": []}
+    _print_layout({"intent_echo": intent_echo(batch.get("ops") or [], scene),
+                   "layout_errors": lint["errors"],
+                   "layout_warnings": lint["warnings"],
+                   "layout_notes": lint["notes"]})
     _print_tripwires(record.get("tripwires"))
     _print_debt(store.lint_debt(), store.pin_debt())
     return 0
@@ -7180,6 +7498,10 @@ def main(argv=None):
                    help="max seconds to wait (hard-capped at 540)")
     p = sub.add_parser("apply", help="apply a typed op batch (agent draws)")
     p.add_argument("--file", help="JSON batch file (default: stdin)")
+    p.add_argument("--check", action="store_true",
+                   help="dry run: would it apply, and what would it say? "
+                        "Prints ECHO/LAYOUT lines, commits nothing, exits 5 "
+                        "if the batch would be rejected")
     for name, hlp in (("snapshot", "PNG/SVG of an artifact — tiered: "
                        "connected tab → headless system browser → SVG"),
                       ("screenshot", "alias of snapshot (back-compat)")):

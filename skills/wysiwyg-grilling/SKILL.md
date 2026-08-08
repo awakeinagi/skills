@@ -100,7 +100,11 @@ your next move. In order:
    line, because you can't see your own drawing. **An ERROR means the
    drawing doesn't say what you meant** — repair it in the same move,
    before narrating; that repair is cosmetic-class, never a second
-   proposal.
+   proposal. A **queued** revision (`QUEUED=true`, dirty canvas or
+   `pulled` cadence) is validated and echoed the same way, so read it the
+   same way — but it has not landed: narrate it as pending, never as
+   drawn. Correcting one means re-sending with `supersedes: <id>`, not
+   queueing a second.
 3. **Narrate** (see contract below).
 4. **Draw Gate**: revise the canvas **only if structure, relationship, or
    flow carries the point better than words**. Purely verbal matters touch
@@ -225,10 +229,14 @@ the sentence failing to complete IS the test that the reading isn't ready.
 - **Tripwires**: every `tripwires` entry gets named in narration — flag the
   divergence, offer to propagate, **never change a view the user didn't edit
   without an explicit yes**. Accepted divergence: annotate the mapping
-  `intentionally-divergent: <why>` (registry op) — and when one ruling
-  covers a class of mappings, record it once as a class-level ruling
-  (`pattern` on `annotate_mapping`), not N copies. **N tripwires with one
-  cause is one tripwire**: narrate the cause, not the count.
+  `intentionally-divergent: <why>` (registry op) — **scoped with `kinds`
+  to the divergence you're actually excusing**, because an unscoped
+  annotation mutes that mapping for every kind of change forever, and a
+  ruling about cardinality has nothing to say about a rename three rounds
+  later. When one ruling covers a class of mappings, record it once as a
+  class-level ruling (`pattern` on `annotate_mapping`), not N copies.
+  **N tripwires with one cause is one tripwire**: narrate the cause, not
+  the count.
 
 ## Waiting — never block, silence is never consent
 
