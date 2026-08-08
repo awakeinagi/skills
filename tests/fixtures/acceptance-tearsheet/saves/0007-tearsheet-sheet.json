@@ -1,0 +1,1223 @@
+{
+ "artifacts": {
+  "tearsheet-sheet": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "sheet-complete",
+     "kind": "frame",
+     "label": "Tearsheet — all inputs in",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Tearsheet — all inputs in"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "sheet-degraded",
+     "kind": "frame",
+     "label": "Tearsheet — news feed down",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Tearsheet — news feed down"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "decide-a",
+     "kind": "block",
+     "label": "Needs a Decision Today",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Needs a Decision Today"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pnl-a",
+     "kind": "block",
+     "label": "P&L Snapshot — Book",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "P&L Snapshot — Book",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 2,
+       "label": "P&L Snapshot — Book",
+       "spatial": "nudged"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "fold-a",
+     "kind": "fold",
+     "label": "· · · fold · first screenful ends · · ·",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "· · · fold · first screenful ends · · ·",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 2,
+       "label": "· · · fold · first screenful ends · · ·",
+       "spatial": "nudged"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "movers-a",
+     "kind": "block",
+     "label": "Top Movers + one-line why",
+     "ops": [
+      7,
+      8
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Top Movers + one-line why",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 14,
+       "label": "Top Movers + one-line why",
+       "spatial": "moved down"
+      },
+      "resized": {
+       "label": "Top Movers + one-line why"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "news-a",
+     "kind": "block",
+     "label": "News, grouped by holding",
+     "ops": [
+      10,
+      11
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "News, grouped by holding",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 16,
+       "label": "News, grouped by holding",
+       "spatial": "moved down"
+      },
+      "resized": {
+       "label": "News, grouped by holding"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cal-a",
+     "kind": "block",
+     "label": "Macro Calendar",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Macro Calendar",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 14,
+       "label": "Macro Calendar",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "decide-b",
+     "kind": "block",
+     "label": "Needs a Decision (partial)",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Needs a Decision (partial)"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pnl-b",
+     "kind": "block",
+     "label": "P&L Snapshot — Book",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "P&L Snapshot — Book",
+       "screen": "Tearsheet — news feed down"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 2,
+       "label": "P&L Snapshot — Book",
+       "spatial": "nudged"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "fold-b",
+     "kind": "fold",
+     "label": "· · · fold · first screenful ends · · ·",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "· · · fold · first screenful ends · · ·",
+       "screen": "Tearsheet — news feed down"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 2,
+       "label": "· · · fold · first screenful ends · · ·",
+       "spatial": "nudged"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "movers-b",
+     "kind": "block",
+     "label": "Top Movers + one-line why",
+     "ops": [
+      20,
+      21
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Top Movers + one-line why",
+       "screen": "Tearsheet — news feed down"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 14,
+       "label": "Top Movers + one-line why",
+       "spatial": "moved down"
+      },
+      "resized": {
+       "label": "Top Movers + one-line why"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "news-b",
+     "kind": "block",
+     "label": "News unavailable (timeout)",
+     "ops": [
+      23,
+      24
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "News unavailable (timeout)",
+       "screen": "Tearsheet — news feed down"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 16,
+       "label": "News unavailable (timeout)",
+       "spatial": "moved down"
+      },
+      "resized": {
+       "label": "News unavailable (timeout)"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cal-b",
+     "kind": "block",
+     "label": "Macro Calendar",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Macro Calendar",
+       "screen": "Tearsheet — news feed down"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 14,
+       "label": "Macro Calendar",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 706,
+       "to": 720
+      }
+     ],
+     "id": "sheet-complete",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 706,
+       "to": 720
+      }
+     ],
+     "id": "sheet-degraded",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 110,
+       "to": 112
+      }
+     ],
+     "id": "decide-a",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 321,
+       "to": 322
+      }
+     ],
+     "id": "decide-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      398
+     ],
+     "id": "pnl-a",
+     "op": "move",
+     "to": [
+      120,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 436,
+       "to": 438
+      }
+     ],
+     "id": "pnl-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      506
+     ],
+     "id": "fold-a",
+     "op": "move",
+     "to": [
+      120,
+      508
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 110,
+       "to": 112
+      }
+     ],
+     "id": "movers-a",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      526
+     ],
+     "id": "movers-a",
+     "op": "move",
+     "to": [
+      120,
+      540
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 571,
+       "to": 586
+      }
+     ],
+     "id": "movers-a-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 130,
+       "to": 128
+      }
+     ],
+     "id": "news-a",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      648
+     ],
+     "id": "news-a",
+     "op": "move",
+     "to": [
+      120,
+      664
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 703,
+       "to": 718
+      }
+     ],
+     "id": "news-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      790
+     ],
+     "id": "cal-a",
+     "op": "move",
+     "to": [
+      120,
+      804
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 828,
+       "to": 842
+      }
+     ],
+     "id": "cal-a-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 110,
+       "to": 112
+      }
+     ],
+     "id": "decide-b",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 321,
+       "to": 322
+      }
+     ],
+     "id": "decide-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      398
+     ],
+     "id": "pnl-b",
+     "op": "move",
+     "to": [
+      640,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 436,
+       "to": 438
+      }
+     ],
+     "id": "pnl-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      506
+     ],
+     "id": "fold-b",
+     "op": "move",
+     "to": [
+      640,
+      508
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 110,
+       "to": 112
+      }
+     ],
+     "id": "movers-b",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      526
+     ],
+     "id": "movers-b",
+     "op": "move",
+     "to": [
+      640,
+      540
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 571,
+       "to": 586
+      }
+     ],
+     "id": "movers-b-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 130,
+       "to": 128
+      }
+     ],
+     "id": "news-b",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      648
+     ],
+     "id": "news-b",
+     "op": "move",
+     "to": [
+      640,
+      664
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 703,
+       "to": 718
+      }
+     ],
+     "id": "news-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      790
+     ],
+     "id": "cal-b",
+     "op": "move",
+     "to": [
+      640,
+      804
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 828,
+       "to": 842
+      }
+     ],
+     "id": "cal-b-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "sheet-complete",
+     "fact": "resized",
+     "label": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "sheet-degraded",
+     "fact": "resized",
+     "label": "Tearsheet — news feed down"
+    },
+    {
+     "element": "decide-a",
+     "fact": "resized",
+     "label": "Needs a Decision Today"
+    },
+    {
+     "dx": 0,
+     "dy": 2,
+     "element": "pnl-a",
+     "fact": "moved",
+     "label": "P&L Snapshot — Book",
+     "spatial": "nudged"
+    },
+    {
+     "dx": 0,
+     "dy": 2,
+     "element": "fold-a",
+     "fact": "moved",
+     "label": "· · · fold · first screenful ends · · ·",
+     "spatial": "nudged"
+    },
+    {
+     "element": "movers-a",
+     "fact": "resized",
+     "label": "Top Movers + one-line why"
+    },
+    {
+     "dx": 0,
+     "dy": 14,
+     "element": "movers-a",
+     "fact": "moved",
+     "label": "Top Movers + one-line why",
+     "spatial": "moved down"
+    },
+    {
+     "element": "news-a",
+     "fact": "resized",
+     "label": "News, grouped by holding"
+    },
+    {
+     "dx": 0,
+     "dy": 16,
+     "element": "news-a",
+     "fact": "moved",
+     "label": "News, grouped by holding",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 14,
+     "element": "cal-a",
+     "fact": "moved",
+     "label": "Macro Calendar",
+     "spatial": "moved down"
+    },
+    {
+     "element": "decide-b",
+     "fact": "resized",
+     "label": "Needs a Decision (partial)"
+    },
+    {
+     "dx": 0,
+     "dy": 2,
+     "element": "pnl-b",
+     "fact": "moved",
+     "label": "P&L Snapshot — Book",
+     "spatial": "nudged"
+    },
+    {
+     "dx": 0,
+     "dy": 2,
+     "element": "fold-b",
+     "fact": "moved",
+     "label": "· · · fold · first screenful ends · · ·",
+     "spatial": "nudged"
+    },
+    {
+     "element": "movers-b",
+     "fact": "resized",
+     "label": "Top Movers + one-line why"
+    },
+    {
+     "dx": 0,
+     "dy": 14,
+     "element": "movers-b",
+     "fact": "moved",
+     "label": "Top Movers + one-line why",
+     "spatial": "moved down"
+    },
+    {
+     "element": "news-b",
+     "fact": "resized",
+     "label": "News unavailable (timeout)"
+    },
+    {
+     "dx": 0,
+     "dy": 16,
+     "element": "news-b",
+     "fact": "moved",
+     "label": "News unavailable (timeout)",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 14,
+     "element": "cal-b",
+     "fact": "moved",
+     "label": "Macro Calendar",
+     "spatial": "moved down"
+    },
+    {
+     "element": "pnl-a",
+     "fact": "block_moved_within_screen",
+     "label": "P&L Snapshot — Book",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "fold-a",
+     "fact": "block_moved_within_screen",
+     "label": "· · · fold · first screenful ends · · ·",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "movers-a",
+     "fact": "block_moved_within_screen",
+     "label": "Top Movers + one-line why",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "news-a",
+     "fact": "block_moved_within_screen",
+     "label": "News, grouped by holding",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "cal-a",
+     "fact": "block_moved_within_screen",
+     "label": "Macro Calendar",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "pnl-b",
+     "fact": "block_moved_within_screen",
+     "label": "P&L Snapshot — Book",
+     "screen": "Tearsheet — news feed down"
+    },
+    {
+     "element": "fold-b",
+     "fact": "block_moved_within_screen",
+     "label": "· · · fold · first screenful ends · · ·",
+     "screen": "Tearsheet — news feed down"
+    },
+    {
+     "element": "movers-b",
+     "fact": "block_moved_within_screen",
+     "label": "Top Movers + one-line why",
+     "screen": "Tearsheet — news feed down"
+    },
+    {
+     "element": "news-b",
+     "fact": "block_moved_within_screen",
+     "label": "News unavailable (timeout)",
+     "screen": "Tearsheet — news feed down"
+    },
+    {
+     "element": "cal-b",
+     "fact": "block_moved_within_screen",
+     "label": "Macro Calendar",
+     "screen": "Tearsheet — news feed down"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 842,
+       "to": 828
+      }
+     ],
+     "id": "cal-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      804
+     ],
+     "id": "cal-b",
+     "op": "move",
+     "to": [
+      640,
+      790
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 718,
+       "to": 703
+      }
+     ],
+     "id": "news-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      664
+     ],
+     "id": "news-b",
+     "op": "move",
+     "to": [
+      640,
+      648
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 130
+      }
+     ],
+     "id": "news-b",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 586,
+       "to": 571
+      }
+     ],
+     "id": "movers-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      540
+     ],
+     "id": "movers-b",
+     "op": "move",
+     "to": [
+      640,
+      526
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 112,
+       "to": 110
+      }
+     ],
+     "id": "movers-b",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      508
+     ],
+     "id": "fold-b",
+     "op": "move",
+     "to": [
+      640,
+      506
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 438,
+       "to": 436
+      }
+     ],
+     "id": "pnl-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      400
+     ],
+     "id": "pnl-b",
+     "op": "move",
+     "to": [
+      640,
+      398
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 322,
+       "to": 321
+      }
+     ],
+     "id": "decide-b-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 112,
+       "to": 110
+      }
+     ],
+     "id": "decide-b",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 842,
+       "to": 828
+      }
+     ],
+     "id": "cal-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      804
+     ],
+     "id": "cal-a",
+     "op": "move",
+     "to": [
+      120,
+      790
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 718,
+       "to": 703
+      }
+     ],
+     "id": "news-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      664
+     ],
+     "id": "news-a",
+     "op": "move",
+     "to": [
+      120,
+      648
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 130
+      }
+     ],
+     "id": "news-a",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 586,
+       "to": 571
+      }
+     ],
+     "id": "movers-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      540
+     ],
+     "id": "movers-a",
+     "op": "move",
+     "to": [
+      120,
+      526
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 112,
+       "to": 110
+      }
+     ],
+     "id": "movers-a",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      508
+     ],
+     "id": "fold-a",
+     "op": "move",
+     "to": [
+      120,
+      506
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 438,
+       "to": 436
+      }
+     ],
+     "id": "pnl-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      400
+     ],
+     "id": "pnl-a",
+     "op": "move",
+     "to": [
+      120,
+      398
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 322,
+       "to": 321
+      }
+     ],
+     "id": "decide-a-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 112,
+       "to": 110
+      }
+     ],
+     "id": "decide-a",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 720,
+       "to": 706
+      }
+     ],
+     "id": "sheet-degraded",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 720,
+       "to": 706
+      }
+     ],
+     "id": "sheet-complete",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-sheet",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 6,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 7,
+ "round": 7,
+ "saved_at": "2026-08-07T21:46:54Z",
+ "selection_at_save": [],
+ "short_id": "2394412",
+ "summary": {
+  "headline": "P&L Snapshot — Book nudged (+27 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "block_moved_within_screen": 10,
+   "moved": 10,
+   "resized": 8
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "tearsheet-sheet#sheet-complete",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-complete+tearsheet-flow#draft-tearsheet",
+   "sibling": "tearsheet-flow#draft-tearsheet"
+  },
+  {
+   "changed": "tearsheet-sheet#sheet-degraded",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-degraded+tearsheet-flow#deadline-0730",
+   "sibling": "tearsheet-flow#deadline-0730"
+  },
+  {
+   "changed": "tearsheet-sheet#news-a",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#news-a+tearsheet-flow#summarize-news",
+   "sibling": "tearsheet-flow#summarize-news"
+  },
+  {
+   "changed": "tearsheet-sheet#pnl-a",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#pnl-a+tearsheet-flow#run-analysis",
+   "sibling": "tearsheet-flow#run-analysis"
+  }
+ ],
+ "user_note": "Snap both sheets back onto the 4px grid; shared row baselines so the pair stays diffable"
+}

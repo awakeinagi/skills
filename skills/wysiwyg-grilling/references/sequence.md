@@ -100,8 +100,8 @@ lands, narrate guards from the annotation texts.
 
 Complexity budget: **5 lifelines** (sub-limit of the 9-node budget);
 messages count against the 12-arrow budget — and 5–9 messages per
-scenario is the readable range (domain-message-flow practice converges
-on Miller's law here). Over either → split by scenario ("happy path" /
+scenario is the readable range (domain-message-flow practice; a working
+convention, not a cognitive law). Over either → split by scenario ("happy path" /
 "failure path"), one scenario per diagram.
 
 ---

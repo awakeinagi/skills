@@ -1,0 +1,2677 @@
+{
+ "artifacts": {
+  "tearsheet-failures": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "book-fails",
+     "kind": "source",
+     "label": "Book fails",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Book fails"
+      },
+      "step_added": {
+       "label": "Book fails"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "abort-run",
+     "kind": "control",
+     "label": "Abort run",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Abort run"
+      },
+      "step_added": {
+       "label": "Abort run"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "page-oncall",
+     "kind": "sink",
+     "label": "Page on-call",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Page on-call"
+      },
+      "step_added": {
+       "label": "Page on-call"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "source-late",
+     "kind": "source",
+     "label": "Source late",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Source late"
+      },
+      "step_added": {
+       "label": "Source late"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "writer-late",
+     "kind": "source",
+     "label": "Writer late",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Writer late"
+      },
+      "step_added": {
+       "label": "Writer late"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "flag-the-gap",
+     "kind": "transform",
+     "label": "Flag the gap",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Flag the gap"
+      },
+      "step_added": {
+       "label": "Flag the gap"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "ship-partial",
+     "kind": "sink",
+     "label": "Ship partial",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Ship partial"
+      },
+      "step_added": {
+       "label": "Ship partial"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "f-book-abort",
+     "kind": "arrow",
+     "label": "f-book-abort",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "f-book-abort"
+      },
+      "transition_added": {
+       "between": [
+        "Book fails",
+        "Abort run"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "f-abort-page",
+     "kind": "arrow",
+     "label": "f-abort-page",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "f-abort-page"
+      },
+      "transition_added": {
+       "between": [
+        "Abort run",
+        "Page on-call"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "f-late-gap",
+     "kind": "arrow",
+     "label": "f-late-gap",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "f-late-gap"
+      },
+      "transition_added": {
+       "between": [
+        "Source late",
+        "Flag the gap"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "f-writer-gap",
+     "kind": "arrow",
+     "label": "f-writer-gap",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "f-writer-gap"
+      },
+      "transition_added": {
+       "between": [
+        "Writer late",
+        "Flag the gap"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "f-gap-ship",
+     "kind": "arrow",
+     "label": "f-gap-ship",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "f-gap-ship"
+      },
+      "transition_added": {
+       "between": [
+        "Flag the gap",
+        "Ship partial"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-never-stale",
+     "kind": "text",
+     "label": "Never yesterday's sheet — stale numbers ",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "ship-partial",
+       "text": "Never yesterday's sheet — stale numbers dressed as fresh is the unforgivable failure"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-no-sheet",
+     "kind": "text",
+     "label": "No sheet beats a sheet of 'unavailable'",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "page-oncall",
+       "text": "No sheet beats a sheet of 'unavailable'"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-oncall",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Who is actually awake and reachable at 06:50 to take this page, and can they realistically fix a book-load failure before 07:30? If not, this branch means 'no tearsheet today' and should say so."
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "book-fails-label",
+        "type": "text"
+       },
+       {
+        "id": "f-book-abort",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "The one unrecoverable input. Everything the sheet is about is scoped by the book.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "book-fails",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1554032807,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 100,
+      "y": 240
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "book-fails",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "book-fails-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Book fails",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 787884910,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Book fails",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 132,
+      "y": 262
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "abort-run-label",
+        "type": "text"
+       },
+       {
+        "id": "f-book-abort",
+        "type": "arrow"
+       },
+       {
+        "id": "f-abort-page",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "No partial sheet. A sheet full of 'unavailable' is worse than no sheet.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "abort-run",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979120247,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 420,
+      "y": 240
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "abort-run",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "abort-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Abort run",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1188339067,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Abort run",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 457,
+      "y": 262
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "page-oncall-label",
+        "type": "text"
+       },
+       {
+        "id": "f-abort-page",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Around 06:50. Assumes somebody is reachable and can fix it before 07:30 — that assumption is untested.",
+       "kind": "sink",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "page-oncall",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 394859070,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 740,
+      "y": 240
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "page-oncall",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "page-oncall-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Page on-call",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 237561157,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Page on-call",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 762,
+      "y": 262
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "source-late-label",
+        "type": "text"
+       },
+       {
+        "id": "f-late-gap",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "A feed has not landed by 07:30.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "source-late",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1840392505,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 100,
+      "y": 560
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "source-late",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "source-late-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Source late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 999345740,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Source late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 128,
+      "y": 582
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "writer-late-label",
+        "type": "text"
+       },
+       {
+        "id": "f-writer-gap",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "The agent is still writing at 07:30. Same treatment as missing data — the deadline does not care why a section is empty.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "writer-late",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2124672792,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 100,
+      "y": 720
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "writer-late",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "writer-late-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Writer late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 113587191,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Writer late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 128,
+      "y": 742
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "flag-the-gap-label",
+        "type": "text"
+       },
+       {
+        "id": "f-late-gap",
+        "type": "arrow"
+       },
+       {
+        "id": "f-writer-gap",
+        "type": "arrow"
+       },
+       {
+        "id": "f-gap-ship",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "One mechanism serves both causes: the section stays present and says it is unavailable.",
+       "kind": "transform",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "flag-the-gap",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 475135858,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 420,
+      "y": 640
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "flag-the-gap",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "flag-the-gap-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Flag the gap",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 678840619,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Flag the gap",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 442,
+      "y": 662
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "ship-partial-label",
+        "type": "text"
+       },
+       {
+        "id": "f-gap-ship",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Done sections go at 07:30. Never a fallback to yesterday's numbers.",
+       "kind": "sink",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "ship-partial",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1247770228,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 740,
+      "y": 640
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "ship-partial",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "ship-partial-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Ship partial",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1245142500,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Ship partial",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 762,
+      "y": 662
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "b5acc254a1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "abort-run",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "f-book-abort",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 547727542,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "book-fails",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 260,
+      "y": 272
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "b1eb3f783d"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "page-oncall",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "f-abort-page",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1402123632,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "abort-run",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 580,
+      "y": 272
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "96c6be30ae"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "flag-the-gap",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "f-late-gap",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 336248166,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "source-late",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 260,
+      "y": 592
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "95456596ca"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "flag-the-gap",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "f-writer-gap",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 83450775,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "writer-late",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 260,
+      "y": 752
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "8f0753fb4a"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "ship-partial",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "f-gap-ship",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1378174218,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "flag-the-gap",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 580,
+      "y": 672
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-never-stale",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Never yesterday's sheet — stale numbers dressed as fresh is the unforgivable failure",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 217986525,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Never yesterday's sheet — stale numbers dressed as fresh is the unforgivable failure",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 705,
+      "x": 700,
+      "y": 760
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-no-sheet",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "No sheet beats a sheet of 'unavailable'",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1772033590,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "No sheet beats a sheet of 'unavailable'",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 327,
+      "x": 700,
+      "y": 360
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Who is actually awake and reachable at 06:50 to take this page, and can they realistically fix a book-load failure before 07:30? If not, this branch means 'no tearsheet today' and should say so.",
+       "role": "pin",
+       "status": "open",
+       "target": "page-oncall"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-oncall",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1013101637,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 232
+     },
+     "index": 21,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "book-fails",
+     "fact": "added",
+     "kind": "source",
+     "label": "Book fails"
+    },
+    {
+     "element": "abort-run",
+     "fact": "added",
+     "kind": "control",
+     "label": "Abort run"
+    },
+    {
+     "element": "page-oncall",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Page on-call"
+    },
+    {
+     "element": "source-late",
+     "fact": "added",
+     "kind": "source",
+     "label": "Source late"
+    },
+    {
+     "element": "writer-late",
+     "fact": "added",
+     "kind": "source",
+     "label": "Writer late"
+    },
+    {
+     "element": "flag-the-gap",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Flag the gap"
+    },
+    {
+     "element": "ship-partial",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Ship partial"
+    },
+    {
+     "element": "f-book-abort",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "f-book-abort"
+    },
+    {
+     "element": "f-abort-page",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "f-abort-page"
+    },
+    {
+     "element": "f-late-gap",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "f-late-gap"
+    },
+    {
+     "element": "f-writer-gap",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "f-writer-gap"
+    },
+    {
+     "element": "f-gap-ship",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "f-gap-ship"
+    },
+    {
+     "element": "note-never-stale",
+     "fact": "annotated",
+     "target": "ship-partial",
+     "text": "Never yesterday's sheet — stale numbers dressed as fresh is the unforgivable failure"
+    },
+    {
+     "element": "note-no-sheet",
+     "fact": "annotated",
+     "target": "page-oncall",
+     "text": "No sheet beats a sheet of 'unavailable'"
+    },
+    {
+     "element": "pin-oncall",
+     "fact": "pin_added",
+     "question": "Who is actually awake and reachable at 06:50 to take this page, and can they realistically fix a book-load failure before 07:30? If not, this branch means 'no tearsheet today' and should say so."
+    },
+    {
+     "element": "book-fails",
+     "fact": "step_added",
+     "label": "Book fails"
+    },
+    {
+     "element": "abort-run",
+     "fact": "step_added",
+     "label": "Abort run"
+    },
+    {
+     "element": "page-oncall",
+     "fact": "step_added",
+     "label": "Page on-call"
+    },
+    {
+     "element": "source-late",
+     "fact": "step_added",
+     "label": "Source late"
+    },
+    {
+     "element": "writer-late",
+     "fact": "step_added",
+     "label": "Writer late"
+    },
+    {
+     "element": "flag-the-gap",
+     "fact": "step_added",
+     "label": "Flag the gap"
+    },
+    {
+     "element": "ship-partial",
+     "fact": "step_added",
+     "label": "Ship partial"
+    },
+    {
+     "between": [
+      "Book fails",
+      "Abort run"
+     ],
+     "element": "f-book-abort",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Abort run",
+      "Page on-call"
+     ],
+     "element": "f-abort-page",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Source late",
+      "Flag the gap"
+     ],
+     "element": "f-late-gap",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Writer late",
+      "Flag the gap"
+     ],
+     "element": "f-writer-gap",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Flag the gap",
+      "Ship partial"
+     ],
+     "element": "f-gap-ship",
+     "fact": "transition_added"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Who is actually awake and reachable at 06:50 to take this page, and can they realistically fix a book-load failure before 07:30? If not, this branch means 'no tearsheet today' and should say so.",
+       "role": "pin",
+       "status": "open",
+       "target": "page-oncall"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-oncall",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1013101637,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 232
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-no-sheet",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "No sheet beats a sheet of 'unavailable'",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1772033590,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "No sheet beats a sheet of 'unavailable'",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 327,
+      "x": 700,
+      "y": 360
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-never-stale",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Never yesterday's sheet — stale numbers dressed as fresh is the unforgivable failure",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 217986525,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Never yesterday's sheet — stale numbers dressed as fresh is the unforgivable failure",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 705,
+      "x": 700,
+      "y": 760
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "8f0753fb4a"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "ship-partial",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "f-gap-ship",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1378174218,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "flag-the-gap",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 580,
+      "y": 672
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "95456596ca"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "flag-the-gap",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "f-writer-gap",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 83450775,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "writer-late",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 260,
+      "y": 752
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "96c6be30ae"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "flag-the-gap",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "f-late-gap",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 336248166,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "source-late",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 260,
+      "y": 592
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "b1eb3f783d"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "page-oncall",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "f-abort-page",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1402123632,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "abort-run",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 580,
+      "y": 272
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "b5acc254a1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "abort-run",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "f-book-abort",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 547727542,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "book-fails",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 260,
+      "y": 272
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "ship-partial",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "ship-partial-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Ship partial",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1245142500,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Ship partial",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 762,
+      "y": 662
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "ship-partial-label",
+        "type": "text"
+       },
+       {
+        "id": "f-gap-ship",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Done sections go at 07:30. Never a fallback to yesterday's numbers.",
+       "kind": "sink",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "ship-partial",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1247770228,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 740,
+      "y": 640
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "flag-the-gap",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "flag-the-gap-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Flag the gap",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 678840619,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Flag the gap",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 442,
+      "y": 662
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "flag-the-gap-label",
+        "type": "text"
+       },
+       {
+        "id": "f-late-gap",
+        "type": "arrow"
+       },
+       {
+        "id": "f-writer-gap",
+        "type": "arrow"
+       },
+       {
+        "id": "f-gap-ship",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "One mechanism serves both causes: the section stays present and says it is unavailable.",
+       "kind": "transform",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "flag-the-gap",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 475135858,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 420,
+      "y": 640
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "writer-late",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "writer-late-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Writer late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 113587191,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Writer late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 128,
+      "y": 742
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "writer-late-label",
+        "type": "text"
+       },
+       {
+        "id": "f-writer-gap",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "The agent is still writing at 07:30. Same treatment as missing data — the deadline does not care why a section is empty.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "writer-late",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2124672792,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 100,
+      "y": 720
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "source-late",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "source-late-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Source late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 999345740,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Source late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 128,
+      "y": 582
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "source-late-label",
+        "type": "text"
+       },
+       {
+        "id": "f-late-gap",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "A feed has not landed by 07:30.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "source-late",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1840392505,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 100,
+      "y": 560
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "page-oncall",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "page-oncall-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Page on-call",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 237561157,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Page on-call",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 762,
+      "y": 262
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "page-oncall-label",
+        "type": "text"
+       },
+       {
+        "id": "f-abort-page",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Around 06:50. Assumes somebody is reachable and can fix it before 07:30 — that assumption is untested.",
+       "kind": "sink",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "page-oncall",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 394859070,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 740,
+      "y": 240
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "abort-run",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "abort-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Abort run",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1188339067,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Abort run",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 457,
+      "y": 262
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "abort-run-label",
+        "type": "text"
+       },
+       {
+        "id": "f-book-abort",
+        "type": "arrow"
+       },
+       {
+        "id": "f-abort-page",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "No partial sheet. A sheet full of 'unavailable' is worse than no sheet.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "abort-run",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979120247,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 420,
+      "y": 240
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "book-fails",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "book-fails-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Book fails",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 787884910,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Book fails",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 132,
+      "y": 262
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "book-fails-label",
+        "type": "text"
+       },
+       {
+        "id": "f-book-abort",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "The one unrecoverable input. Everything the sheet is about is scoped by the book.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "book-fails",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1554032807,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 100,
+      "y": 240
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Failure Modes"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 12,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-failures#ship-partial",
+    "tearsheet-sheet#sheet-degraded"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-failures#flag-the-gap",
+    "tearsheet-flow#deadline-0730"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "id": "morning-tearsheet",
+   "name": "Morning Tearsheet",
+   "views": [
+    "tearsheet-failures"
+   ]
+  }
+ ],
+ "revn": 13,
+ "round": 12,
+ "saved_at": "2026-08-07T21:54:14Z",
+ "selection_at_save": [],
+ "short_id": "ba24733",
+ "summary": {
+  "headline": "added Book fails (+26 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 12,
+   "annotated": 2,
+   "pin_added": 1,
+   "step_added": 7,
+   "transition_added": 5
+  }
+ },
+ "tripwires": [],
+ "user_note": "Split out of the main flow: three ways the 06:45 run goes wrong and the two outcomes you allow"
+}

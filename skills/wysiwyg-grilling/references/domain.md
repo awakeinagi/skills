@@ -146,8 +146,12 @@ knowledge, so make the assumption explicit where it can be deleted.
 
 The glossary's `_Avoid_` lists are live ammunition: relabeling an entity
 TO a term some other entry rejects ("_Avoid_: Vendor") is always a
-glossary challenge, never a silent accept. (Lint candidate — needs
-CONTEXT.md parsing; a duty until then.)
+glossary challenge, never a silent accept. The server lints this
+(`LAYOUT_WARNING` naming the canonical term) by parsing
+`project_knowledge/CONTEXT.md`; the warning is your cue to run the
+challenge in chat, and an accepted rejection makes `_Avoid_` the
+resolution sink for `possible_merge` questions — the losing synonym
+lands there, so it can never quietly return.
 
 ## Two anti-patterns in YOUR questioning
 

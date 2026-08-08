@@ -1,0 +1,254 @@
+{
+ "artifacts": {
+  "tearsheet-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-analysis",
+     "kind": "arrow",
+     "label": "t-positions-analysis",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-positions-analysis"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Load Positions",
+        "Run Analysis"
+       ]
+      }
+     },
+     "verb": "deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "5fef887bf4"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "run-analysis",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 117,
+      "id": "t-positions-analysis",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        560,
+        0
+       ],
+       [
+        560,
+        -117
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 145263018,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 560,
+      "x": 580,
+      "y": 421
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Confirmed deterministic. The agent never computes a number. Produces the P&L snapshot and top movers, both book-scoped.",
+        "kind": "transform",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Deterministic, confirmed. Computes the P&L snapshot and top movers from position sizes carried forward with the price pull. The agent never computes a number.",
+        "kind": "transform",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "run-analysis",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-positions-analysis",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-positions-analysis"
+     }
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Run Analysis"
+     ],
+     "element": "t-positions-analysis",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Deterministic, confirmed. Computes the P&L snapshot and top movers from position sizes carried forward with the price pull. The agent never computes a number.",
+        "kind": "transform",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Confirmed deterministic. The agent never computes a number. Produces the P&L snapshot and top movers, both book-scoped.",
+        "kind": "transform",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "run-analysis",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "5fef887bf4"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "run-analysis",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 117,
+      "id": "t-positions-analysis",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        560,
+        0
+       ],
+       [
+        560,
+        -117
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 145263018,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 560,
+      "x": 580,
+      "y": 421
+     },
+     "index": 25,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 4,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 5,
+ "round": 5,
+ "saved_at": "2026-08-07T21:45:34Z",
+ "selection_at_save": [],
+ "short_id": "048cfab",
+ "summary": {
+  "headline": "deleted t-positions-analysis (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 1,
+   "transition_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "Drop the redundant book→analysis arrow: the book already flows forward through the market-data pull"
+}

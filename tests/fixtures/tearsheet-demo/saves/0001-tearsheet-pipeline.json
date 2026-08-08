@@ -1,0 +1,4538 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "daily-trigger",
+     "kind": "ellipse",
+     "label": "Daily 6:45 AM ET",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "ellipse",
+       "label": "Daily 6:45 AM ET"
+      },
+      "step_added": {
+       "label": "Daily 6:45 AM ET"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-market",
+     "kind": "rectangle",
+     "label": "Pull Market + Pre-Market",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Pull Market + Pre-Market"
+      },
+      "step_added": {
+       "label": "Pull Market + Pre-Market"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "load-positions",
+     "kind": "rectangle",
+     "label": "Load Positions",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Load Positions"
+      },
+      "step_added": {
+       "label": "Load Positions"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-news",
+     "kind": "rectangle",
+     "label": "Pull News for Holdings",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Pull News for Holdings"
+      },
+      "step_added": {
+       "label": "Pull News for Holdings"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "compute-metrics",
+     "kind": "rectangle",
+     "label": "Compute Moves, P&L, Risk",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Compute Moves, P&L, Risk"
+      },
+      "step_added": {
+       "label": "Compute Moves, P&L, Risk"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "agent-summarize-news",
+     "kind": "agent",
+     "label": "Agent: Summarize News",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "agent",
+       "label": "Agent: Summarize News"
+      },
+      "step_added": {
+       "label": "Agent: Summarize News"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "agent-write-tearsheet",
+     "kind": "agent",
+     "label": "Agent: Write Tearsheet",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "agent",
+       "label": "Agent: Write Tearsheet"
+      },
+      "step_added": {
+       "label": "Agent: Write Tearsheet"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "review-gate",
+     "kind": "diamond",
+     "label": "Human sign-off?",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "diamond",
+       "label": "Human sign-off?"
+      },
+      "branch_added": {
+       "label": "Human sign-off?"
+      },
+      "step_added": {
+       "label": "Human sign-off?"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "send-to-team",
+     "kind": "rectangle",
+     "label": "Send to Team",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Send to Team"
+      },
+      "step_added": {
+       "label": "Send to Team"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-market",
+     "kind": "arrow",
+     "label": "t-trigger-market",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-trigger-market"
+      },
+      "transition_added": {
+       "between": [
+        "Daily 6:45 AM ET",
+        "Pull Market + Pre-Market"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-positions",
+     "kind": "arrow",
+     "label": "t-trigger-positions",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-trigger-positions"
+      },
+      "transition_added": {
+       "between": [
+        "Daily 6:45 AM ET",
+        "Load Positions"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-news",
+     "kind": "arrow",
+     "label": "by ticker",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "by ticker"
+      },
+      "transition_added": {
+       "between": [
+        "Load Positions",
+        "Pull News for Holdings"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-market-compute"
+      },
+      "transition_added": {
+       "between": [
+        "Pull Market + Pre-Market",
+        "Compute Moves, P&L, Risk"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-positions-compute"
+      },
+      "transition_added": {
+       "between": [
+        "Load Positions",
+        "Compute Moves, P&L, Risk"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-news-summarize"
+      },
+      "transition_added": {
+       "between": [
+        "Pull News for Holdings",
+        "Agent: Summarize News"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-compute-write",
+     "kind": "arrow",
+     "label": "t-compute-write",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-compute-write"
+      },
+      "transition_added": {
+       "between": [
+        "Compute Moves, P&L, Risk",
+        "Agent: Write Tearsheet"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-summarize-write",
+     "kind": "arrow",
+     "label": "t-summarize-write",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-summarize-write"
+      },
+      "transition_added": {
+       "between": [
+        "Agent: Summarize News",
+        "Agent: Write Tearsheet"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-write-gate",
+     "kind": "arrow",
+     "label": "t-write-gate",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-write-gate"
+      },
+      "transition_added": {
+       "between": [
+        "Agent: Write Tearsheet",
+        "Human sign-off?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-gate-send",
+     "kind": "arrow",
+     "label": "ship",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "ship"
+      },
+      "transition_added": {
+       "between": [
+        "Human sign-off?",
+        "Send to Team"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-gate-rewrite",
+     "kind": "arrow",
+     "label": "edits",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "edits"
+      },
+      "transition_added": {
+       "between": [
+        "Human sign-off?",
+        "Agent: Write Tearsheet"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-deadline",
+     "kind": "text",
+     "label": "note-deadline",
+     "ops": [
+      32
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "daily-trigger",
+       "text": ""
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-news-scope",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      34
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-review-gate",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      35
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-one-or-many",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      36
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes."
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "daily-trigger-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-trigger-positions",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "scheduled kickoff; time is a guess",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "daily-trigger",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 738150468,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 60,
+      "y": 300
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "daily-trigger",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "daily-trigger-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Daily 6:45 AM ET",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1411572924,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Daily 6:45 AM ET",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 153,
+      "x": 68,
+      "y": 322
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-market-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-market-compute",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "overnight closes, futures, pre-market quotes",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1288836787,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 400,
+      "y": 140
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-market",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull Market + Pre-Market",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 627248497,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull Market + Pre-Market",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 230,
+      "x": 404,
+      "y": 162
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "load-positions-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-positions",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-compute",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "current book; defines what counts as relevant",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "load-positions",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 132109511,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 400,
+      "y": 460
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "load-positions",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "load-positions-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Load Positions",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 681591777,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Load Positions",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 428,
+      "y": 482
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-news-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-summarize",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "news query is driven by the holdings list",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1157369030,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 760,
+      "y": 460
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull News for Holdings",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 438474645,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull News for Holdings",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 764,
+      "y": 482
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "compute-metrics-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-compute-write",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "the deterministic analysis layer",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "compute-metrics",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 150614480,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 1120,
+      "y": 140
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "compute-metrics",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "compute-metrics-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Compute Moves, P&L, Risk",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1257709916,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Compute Moves, P&L, Risk",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 230,
+      "x": 1124,
+      "y": 162
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e7f0ff",
+      "boundElements": [
+       {
+        "id": "agent-summarize-news-label",
+        "type": "text"
+       },
+       {
+        "id": "t-news-summarize",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-write",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "LLM reads articles, writes per-holding takeaways",
+       "kind": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "agent-summarize-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 204708010,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 1120,
+      "y": 460
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "agent-summarize-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "agent-summarize-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Agent: Summarize News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1879105740,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Agent: Summarize News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 201,
+      "x": 1124,
+      "y": 482
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e7f0ff",
+      "boundElements": [
+       {
+        "id": "agent-write-tearsheet-label",
+        "type": "text"
+       },
+       {
+        "id": "t-compute-write",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-write",
+        "type": "arrow"
+       },
+       {
+        "id": "t-write-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-rewrite",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "LLM assembles numbers + news into the final report",
+       "kind": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "agent-write-tearsheet",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1840885358,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 1480,
+      "y": 300
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "agent-write-tearsheet",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "agent-write-tearsheet-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Agent: Write Tearsheet",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 535365120,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Agent: Write Tearsheet",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 1484,
+      "y": 322
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "t-write-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-send",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-rewrite",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "INVENTED by me - delete if the agent sends unsupervised",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1840,
+      "y": 272
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Human sign-off?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Human sign-off?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 1868,
+      "y": 322
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "send-to-team-label",
+        "type": "text"
+       },
+       {
+        "id": "t-gate-send",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "delivery channel unspecified",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "send-to-team",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 404809724,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 2190,
+      "y": 300
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "send-to-team",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "send-to-team-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Send to Team",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1776522341,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Send to Team",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 2228,
+      "y": 322
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-market",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-trigger-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        210,
+        -96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1239869905,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 215,
+      "y": 300
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-trigger-positions",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        210,
+        96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 409947997,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 215,
+      "y": 364
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-positions-news-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-positions-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        170,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2111240938,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 590,
+      "y": 492
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-positions-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-positions-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "by ticker",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 674790880,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "by ticker",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 632,
+      "y": 482
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-market-compute",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        530,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1438866308,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-market",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 530,
+      "x": 590,
+      "y": 172
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 256,
+      "id": "t-positions-compute",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        584,
+        -256
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 114234170,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 584,
+      "x": 568,
+      "y": 460
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-summarize-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-news-summarize",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        170,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1945308415,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 950,
+      "y": 492
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-compute-write",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        216,
+        96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1849708285,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 216,
+      "x": 1297,
+      "y": 204
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-summarize-write",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        216,
+        -96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 833275148,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-summarize-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 216,
+      "x": 1297,
+      "y": 460
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-write-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1960163066,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1690,
+      "y": 332
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-send-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1155805184,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 2040,
+      "y": 332
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-send",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-send-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "ship",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1306155851,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "ship",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 2096,
+      "y": 322
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-rewrite-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-rewrite",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 135849546,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1840,
+      "y": 332
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-rewrite",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-rewrite-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "edits",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1352410371,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "edits",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1741,
+      "y": 322
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "note-deadline-label",
+        "type": "text"
+       }
+      ],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2034844479,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 10,
+      "x": 40,
+      "y": 402
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "note-deadline",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Deadline: before 9:30 ET open",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 355910455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Deadline: before 9:30 ET open",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 278,
+      "x": 44,
+      "y": 406
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+       "role": "pin",
+       "status": "open",
+       "target": "pull-news"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-news-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1638494659,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 958,
+      "y": 452
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?",
+       "role": "pin",
+       "status": "open",
+       "target": "review-gate"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-review-gate",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 864383509,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2048,
+      "y": 264
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+       "role": "pin",
+       "status": "open",
+       "target": "agent-write-tearsheet"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-one-or-many",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 699480704,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1698,
+      "y": 292
+     },
+     "index": 36,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "daily-trigger",
+     "fact": "added",
+     "kind": "ellipse",
+     "label": "Daily 6:45 AM ET"
+    },
+    {
+     "element": "pull-market",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Pull Market + Pre-Market"
+    },
+    {
+     "element": "load-positions",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Load Positions"
+    },
+    {
+     "element": "pull-news",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Pull News for Holdings"
+    },
+    {
+     "element": "compute-metrics",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Compute Moves, P&L, Risk"
+    },
+    {
+     "element": "agent-summarize-news",
+     "fact": "added",
+     "kind": "agent",
+     "label": "Agent: Summarize News"
+    },
+    {
+     "element": "agent-write-tearsheet",
+     "fact": "added",
+     "kind": "agent",
+     "label": "Agent: Write Tearsheet"
+    },
+    {
+     "element": "review-gate",
+     "fact": "added",
+     "kind": "diamond",
+     "label": "Human sign-off?"
+    },
+    {
+     "element": "send-to-team",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Send to Team"
+    },
+    {
+     "element": "t-trigger-market",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-trigger-market"
+    },
+    {
+     "element": "t-trigger-positions",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-trigger-positions"
+    },
+    {
+     "element": "t-positions-news",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "by ticker"
+    },
+    {
+     "element": "t-market-compute",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-market-compute"
+    },
+    {
+     "element": "t-positions-compute",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-positions-compute"
+    },
+    {
+     "element": "t-news-summarize",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-news-summarize"
+    },
+    {
+     "element": "t-compute-write",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-compute-write"
+    },
+    {
+     "element": "t-summarize-write",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-summarize-write"
+    },
+    {
+     "element": "t-write-gate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-write-gate"
+    },
+    {
+     "element": "t-gate-send",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "ship"
+    },
+    {
+     "element": "t-gate-rewrite",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "edits"
+    },
+    {
+     "element": "note-deadline",
+     "fact": "annotated",
+     "target": "daily-trigger",
+     "text": ""
+    },
+    {
+     "element": "pin-news-scope",
+     "fact": "pin_added",
+     "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?"
+    },
+    {
+     "element": "pin-review-gate",
+     "fact": "pin_added",
+     "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?"
+    },
+    {
+     "element": "pin-one-or-many",
+     "fact": "pin_added",
+     "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes."
+    },
+    {
+     "element": "daily-trigger",
+     "fact": "step_added",
+     "label": "Daily 6:45 AM ET"
+    },
+    {
+     "element": "pull-market",
+     "fact": "step_added",
+     "label": "Pull Market + Pre-Market"
+    },
+    {
+     "element": "load-positions",
+     "fact": "step_added",
+     "label": "Load Positions"
+    },
+    {
+     "element": "pull-news",
+     "fact": "step_added",
+     "label": "Pull News for Holdings"
+    },
+    {
+     "element": "compute-metrics",
+     "fact": "step_added",
+     "label": "Compute Moves, P&L, Risk"
+    },
+    {
+     "element": "agent-summarize-news",
+     "fact": "step_added",
+     "label": "Agent: Summarize News"
+    },
+    {
+     "element": "agent-write-tearsheet",
+     "fact": "step_added",
+     "label": "Agent: Write Tearsheet"
+    },
+    {
+     "element": "review-gate",
+     "fact": "step_added",
+     "label": "Human sign-off?"
+    },
+    {
+     "element": "review-gate",
+     "fact": "branch_added",
+     "label": "Human sign-off?"
+    },
+    {
+     "element": "send-to-team",
+     "fact": "step_added",
+     "label": "Send to Team"
+    },
+    {
+     "between": [
+      "Daily 6:45 AM ET",
+      "Pull Market + Pre-Market"
+     ],
+     "element": "t-trigger-market",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Daily 6:45 AM ET",
+      "Load Positions"
+     ],
+     "element": "t-trigger-positions",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Pull News for Holdings"
+     ],
+     "element": "t-positions-news",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Pull Market + Pre-Market",
+      "Compute Moves, P&L, Risk"
+     ],
+     "element": "t-market-compute",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Compute Moves, P&L, Risk"
+     ],
+     "element": "t-positions-compute",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Pull News for Holdings",
+      "Agent: Summarize News"
+     ],
+     "element": "t-news-summarize",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Compute Moves, P&L, Risk",
+      "Agent: Write Tearsheet"
+     ],
+     "element": "t-compute-write",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Agent: Summarize News",
+      "Agent: Write Tearsheet"
+     ],
+     "element": "t-summarize-write",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Agent: Write Tearsheet",
+      "Human sign-off?"
+     ],
+     "element": "t-write-gate",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Human sign-off?",
+      "Send to Team"
+     ],
+     "element": "t-gate-send",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Human sign-off?",
+      "Agent: Write Tearsheet"
+     ],
+     "element": "t-gate-rewrite",
+     "fact": "transition_added"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+       "role": "pin",
+       "status": "open",
+       "target": "agent-write-tearsheet"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-one-or-many",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 699480704,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1698,
+      "y": 292
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?",
+       "role": "pin",
+       "status": "open",
+       "target": "review-gate"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-review-gate",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 864383509,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2048,
+      "y": 264
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+       "role": "pin",
+       "status": "open",
+       "target": "pull-news"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-news-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1638494659,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 958,
+      "y": 452
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "note-deadline",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Deadline: before 9:30 ET open",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 355910455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Deadline: before 9:30 ET open",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 278,
+      "x": 44,
+      "y": 406
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "note-deadline-label",
+        "type": "text"
+       }
+      ],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2034844479,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 10,
+      "x": 40,
+      "y": 402
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-rewrite",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-rewrite-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "edits",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1352410371,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "edits",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1741,
+      "y": 322
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-rewrite-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-rewrite",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 135849546,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1840,
+      "y": 332
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-send",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-send-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "ship",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1306155851,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "ship",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 2096,
+      "y": 322
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-send-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1155805184,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 2040,
+      "y": 332
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-write-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1960163066,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1690,
+      "y": 332
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-summarize-write",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        216,
+        -96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 833275148,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-summarize-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 216,
+      "x": 1297,
+      "y": 460
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-compute-write",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        216,
+        96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1849708285,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 216,
+      "x": 1297,
+      "y": 204
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-summarize-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-news-summarize",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        170,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1945308415,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 950,
+      "y": 492
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 256,
+      "id": "t-positions-compute",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        584,
+        -256
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 114234170,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 584,
+      "x": 568,
+      "y": 460
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-market-compute",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        530,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1438866308,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-market",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 530,
+      "x": 590,
+      "y": 172
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-positions-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-positions-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "by ticker",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 674790880,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "by ticker",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 632,
+      "y": 482
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-positions-news-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-positions-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        170,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2111240938,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 590,
+      "y": 492
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-trigger-positions",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        210,
+        96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 409947997,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 215,
+      "y": 364
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-market",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-trigger-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        210,
+        -96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1239869905,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 215,
+      "y": 300
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "send-to-team",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "send-to-team-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Send to Team",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1776522341,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Send to Team",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 2228,
+      "y": 322
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "send-to-team-label",
+        "type": "text"
+       },
+       {
+        "id": "t-gate-send",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "delivery channel unspecified",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "send-to-team",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 404809724,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 2190,
+      "y": 300
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Human sign-off?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Human sign-off?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 1868,
+      "y": 322
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "t-write-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-send",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-rewrite",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "INVENTED by me - delete if the agent sends unsupervised",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1840,
+      "y": 272
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "agent-write-tearsheet",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "agent-write-tearsheet-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Agent: Write Tearsheet",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 535365120,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Agent: Write Tearsheet",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 1484,
+      "y": 322
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e7f0ff",
+      "boundElements": [
+       {
+        "id": "agent-write-tearsheet-label",
+        "type": "text"
+       },
+       {
+        "id": "t-compute-write",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-write",
+        "type": "arrow"
+       },
+       {
+        "id": "t-write-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-rewrite",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "LLM assembles numbers + news into the final report",
+       "kind": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "agent-write-tearsheet",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1840885358,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 1480,
+      "y": 300
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "agent-summarize-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "agent-summarize-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Agent: Summarize News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1879105740,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Agent: Summarize News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 201,
+      "x": 1124,
+      "y": 482
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e7f0ff",
+      "boundElements": [
+       {
+        "id": "agent-summarize-news-label",
+        "type": "text"
+       },
+       {
+        "id": "t-news-summarize",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-write",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "LLM reads articles, writes per-holding takeaways",
+       "kind": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "agent-summarize-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 204708010,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 1120,
+      "y": 460
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "compute-metrics",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "compute-metrics-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Compute Moves, P&L, Risk",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1257709916,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Compute Moves, P&L, Risk",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 230,
+      "x": 1124,
+      "y": 162
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "compute-metrics-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-compute-write",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "the deterministic analysis layer",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "compute-metrics",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 150614480,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 210,
+      "x": 1120,
+      "y": 140
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull News for Holdings",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 438474645,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull News for Holdings",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 764,
+      "y": 482
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-news-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-summarize",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "news query is driven by the holdings list",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1157369030,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 760,
+      "y": 460
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "load-positions",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "load-positions-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Load Positions",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 681591777,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Load Positions",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 428,
+      "y": 482
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "load-positions-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-positions",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-compute",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "current book; defines what counts as relevant",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "load-positions",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 132109511,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 400,
+      "y": 460
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-market",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull Market + Pre-Market",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 627248497,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull Market + Pre-Market",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 230,
+      "x": 404,
+      "y": 162
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-market-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-market-compute",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "overnight closes, futures, pre-market quotes",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1288836787,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 400,
+      "y": 140
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "daily-trigger",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "daily-trigger-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Daily 6:45 AM ET",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1411572924,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Daily 6:45 AM ET",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 153,
+      "x": 68,
+      "y": 322
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "daily-trigger-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-trigger-positions",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "scheduled kickoff; time is a guess",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "daily-trigger",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 738150468,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 60,
+      "y": 300
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 0,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "id": "morning-tearsheet",
+   "name": "Morning Tearsheet",
+   "views": [
+    "tearsheet-pipeline"
+   ]
+  }
+ ],
+ "revn": 1,
+ "saved_at": "2026-08-07T18:40:01Z",
+ "selection_at_save": [],
+ "short_id": "951af74",
+ "summary": {
+  "headline": "added Human sign-off? (+44 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 20,
+   "annotated": 1,
+   "branch_added": 1,
+   "pin_added": 3,
+   "step_added": 9,
+   "transition_added": 11
+  }
+ },
+ "tripwires": [],
+ "user_note": "First reading of the morning tearsheet run: scheduled trigger, positions gate the news pull, two agent steps, invented human sign-off before send"
+}

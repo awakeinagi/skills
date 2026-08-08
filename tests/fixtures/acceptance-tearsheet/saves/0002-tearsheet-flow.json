@@ -1,0 +1,80 @@
+{
+ "artifacts": {
+  "tearsheet-flow": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Guess: it runs on a schedule, not on demand. The hour is a placeholder.",
+        "kind": "control",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Guess: schedule-fired, not human-fired. The hour is a placeholder and the firing mechanism is an open question.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "trigger",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Guess: schedule-fired, not human-fired. The hour is a placeholder and the firing mechanism is an open question.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Guess: it runs on a schedule, not on demand. The hour is a placeholder.",
+        "kind": "control",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "trigger",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 1,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 2,
+ "round": 2,
+ "saved_at": "2026-08-07T21:33:06Z",
+ "selection_at_save": [],
+ "short_id": "04c5b3e",
+ "summary": {
+  "headline": "saved without changing anything",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "Repair: the trigger is where the clock enters the run, so it is a source, not a control gate"
+}

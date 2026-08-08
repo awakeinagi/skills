@@ -1,0 +1,636 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-cutoff",
+     "kind": "text",
+     "label": "Missing at 7:00 = section still shown,\nm",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -220,
+       "label": "Missing at 7:00 = section still shown,\nm",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-send",
+     "kind": "text",
+     "label": "Hard send 7:15 ET\nread 7:30-8:00, on pho",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -210,
+       "label": "Hard send 7:15 ET\nread 7:30-8:00, on pho",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "render-fallback",
+     "kind": "control",
+     "label": "Fallback: Numbers Only",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 440,
+       "dy": 0,
+       "label": "Fallback: Numbers Only",
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-stale-positions",
+     "kind": "text",
+     "label": "If today's file is late:\nyesterday's boo",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -380,
+       "dy": 30,
+       "label": "If today's file is late:\nyesterday's boo",
+       "spatial": "moved left-down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→?",
+       "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→?",
+       "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→?",
+       "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1340,
+      520
+     ],
+     "id": "note-cutoff",
+     "op": "move",
+     "to": [
+      1340,
+      300
+     ]
+    },
+    {
+     "from": [
+      2680,
+      510
+     ],
+     "id": "note-send",
+     "op": "move",
+     "to": [
+      2680,
+      300
+     ]
+    },
+    {
+     "from": [
+      2240,
+      640
+     ],
+     "id": "render-fallback",
+     "op": "move",
+     "to": [
+      2680,
+      640
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2274,
+       "to": 2714
+      }
+     ],
+     "id": "render-fallback-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1974,
+       "to": 2007
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 373,
+       "to": 746
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         373,
+         356
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         746,
+         356
+        ]
+       ]
+      }
+     ],
+     "id": "t-compute-fallback",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2108,
+       "to": 2328
+      }
+     ],
+     "id": "t-compute-fallback-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2436,
+       "to": 2820
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 327,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         327,
+         -186
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -186
+        ]
+       ]
+      }
+     ],
+     "id": "t-fallback-send",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2552,
+       "to": 2772
+      }
+     ],
+     "id": "t-fallback-send-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      530
+     ],
+     "id": "note-stale-positions",
+     "op": "move",
+     "to": [
+      80,
+      560
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "dx": 0,
+     "dy": -220,
+     "element": "note-cutoff",
+     "fact": "moved",
+     "label": "Missing at 7:00 = section still shown,\nm",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -210,
+     "element": "note-send",
+     "fact": "moved",
+     "label": "Hard send 7:15 ET\nread 7:30-8:00, on pho",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 440,
+     "dy": 0,
+     "element": "render-fallback",
+     "fact": "moved",
+     "label": "Fallback: Numbers Only",
+     "spatial": "moved right"
+    },
+    {
+     "dx": -380,
+     "dy": 30,
+     "element": "note-stale-positions",
+     "fact": "moved",
+     "label": "If today's file is late:\nyesterday's boo",
+     "spatial": "moved left-down"
+    },
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→?",
+     "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→?",
+     "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→?",
+     "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "from": [
+      80,
+      560
+     ],
+     "id": "note-stale-positions",
+     "op": "move",
+     "to": [
+      460,
+      530
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2772,
+       "to": 2552
+      }
+     ],
+     "id": "t-fallback-send-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2820,
+       "to": 2436
+      },
+      {
+       "attr": "width",
+       "from": 0,
+       "to": 327
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -186
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         327,
+         -186
+        ]
+       ]
+      }
+     ],
+     "id": "t-fallback-send",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2328,
+       "to": 2108
+      }
+     ],
+     "id": "t-compute-fallback-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2007,
+       "to": 1974
+      },
+      {
+       "attr": "width",
+       "from": 746,
+       "to": 373
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         746,
+         356
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         373,
+         356
+        ]
+       ]
+      }
+     ],
+     "id": "t-compute-fallback",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2714,
+       "to": 2274
+      }
+     ],
+     "id": "render-fallback-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2680,
+      640
+     ],
+     "id": "render-fallback",
+     "op": "move",
+     "to": [
+      2240,
+      640
+     ]
+    },
+    {
+     "from": [
+      2680,
+      300
+     ],
+     "id": "note-send",
+     "op": "move",
+     "to": [
+      2680,
+      510
+     ]
+    },
+    {
+     "from": [
+      1340,
+      300
+     ],
+     "id": "note-cutoff",
+     "op": "move",
+     "to": [
+      1340,
+      520
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 11,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 12,
+ "saved_at": "2026-08-07T19:10:50Z",
+ "selection_at_save": [],
+ "short_id": "bcaaec1",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→? to Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs (+7 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 4,
+   "rewired": 3,
+   "sequence_reordered": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "final layout pass: fallback moved under Send to Team so its arrow stops crossing the summarizer's, notes moved into genuinely empty space"
+}

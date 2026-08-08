@@ -1,0 +1,42 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 9,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-7-1"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-7-2"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-7-3"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-7-4"
+  }
+ ],
+ "revn": 10,
+ "round": 10,
+ "saved_at": "2026-08-07T21:48:06Z",
+ "selection_at_save": [],
+ "short_id": "a489627",
+ "summary": {
+  "headline": "saved without changing anything",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "Resolve four tripwires my own grid-snap raised: geometry-only, no semantic divergence from the flow siblings"
+}

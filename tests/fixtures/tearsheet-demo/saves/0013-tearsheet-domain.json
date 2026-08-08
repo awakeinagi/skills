@@ -1,0 +1,94 @@
+{
+ "artifacts": {
+  "tearsheet-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-price",
+     "kind": "text",
+     "label": "Which price? Yesterday's close,\npre-mark",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 140,
+       "dy": 30,
+       "label": "Which price? Yesterday's close,\npre-mark",
+       "spatial": "moved right-down"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      1280,
+      610
+     ],
+     "id": "note-price",
+     "op": "move",
+     "to": [
+      1420,
+      640
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "dx": 140,
+     "dy": 30,
+     "element": "note-price",
+     "fact": "moved",
+     "label": "Which price? Yesterday's close,\npre-mark",
+     "spatial": "moved right-down"
+    }
+   ],
+   "inverse": [
+    {
+     "from": [
+      1420,
+      640
+     ],
+     "id": "note-price",
+     "op": "move",
+     "to": [
+      1280,
+      610
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Tearsheet Domain"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 12,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 13,
+ "saved_at": "2026-08-07T19:10:50Z",
+ "selection_at_save": [],
+ "short_id": "b775e4c",
+ "summary": {
+  "headline": "Which price? Yesterday's close,\npre-mark moved right-down",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "move the price note off the Price Point -> Metric arrow"
+}

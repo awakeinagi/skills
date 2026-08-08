@@ -7,6 +7,7 @@ import { apiGet, apiPost, fingerprint, replayChanges } from "./api";
 import { Rail } from "./components/Rail";
 import { HistoryGraph } from "./components/HistoryGraph";
 import { SceneThumb } from "./components/Thumb";
+import { QuestionModal, TripwireCard, gotoRefOf } from "./components/QuestionUI";
 
 const POLL_MS = 2500;
 
@@ -28,6 +29,7 @@ export default function App() {
   const [seenPins, setSeenPins] = useState<string[]>([]);
   const [lastSave, setLastSave] = useState<any>(null);
   const [camera, setCamera] = useState({ scrollX: 0, scrollY: 0, zoom: 1 });
+  const [detailItem, setDetailItem] = useState<{ kind: "pin" | "tripwire"; data: any } | null>(null);
 
   const apiRef = useRef<any>(null);
   const stateRef = useRef<any>(null);
@@ -444,6 +446,37 @@ export default function App() {
     return groups;
   }, [concepts, artifactIds.join(",")]);
 
+  /* ---------------- goto: reveal an anchored element on canvas -------- */
+  const revealElement = useCallback((elId: string) => {
+    const api = apiRef.current;
+    if (!api) return;
+    const el = api.getSceneElements().find((e: any) => e.id === elId);
+    if (!el) { toast("That element is no longer on the canvas."); return; }
+    try {
+      api.scrollToContent([el], { fitToViewport: false, animate: true });
+      api.updateScene({ appState: { selectedElementIds: { [el.id]: true } } });
+    } catch {
+      /* selection API differences are cosmetic — scroll is the point */
+    }
+  }, []);
+
+  const gotoElement = useCallback((ref: { aid: string; el: string }) => {
+    if (!ref) return;
+    if (ref.aid !== currentRef.current) {
+      showArtifact(ref.aid);
+      // let the scene land before revealing
+      setTimeout(() => revealElement(ref.el), 350);
+    } else {
+      revealElement(ref.el);
+    }
+  }, [revealElement, showArtifact]);
+
+  const answerTripwire = useCallback((id: string, answer: string) => {
+    apiPost("/api/tripwires/answer", { id, answer })
+      .then(() => { toast("Answer sent — the agent picks it up on its next move."); refresh(); })
+      .catch((e) => toast(e.message));
+  }, [refresh]);
+
   const tripTagsForCurrent = useMemo(
     () =>
       openTripwires
@@ -560,7 +593,13 @@ export default function App() {
         <div className="center">
           <div className="canvas-wrap">
             <Excalidraw
-              excalidrawAPI={(api) => (apiRef.current = api)}
+              excalidrawAPI={(api) => {
+                apiRef.current = api;
+                // debug affordance for a local tool: lets a headless
+                // agent (or a human devtools session) interrogate the
+                // client-side scene when it diverges from server state
+                (window as any).excalidrawAPI = api;
+              }}
               onChange={onChange}
               viewModeEnabled={viewingRevn != null}
               initialData={{
@@ -576,13 +615,26 @@ export default function App() {
             {tripTagsForCurrent.map(({ el, t }: any) => (
               <div
                 key={t.id}
-                className="trip-tag"
+                className="trip-mark"
                 style={{
-                  left: (el.x + (el.width || 0) / 2 + camera.scrollX) * camera.zoom,
-                  top: (el.y + camera.scrollY) * camera.zoom - 6,
+                  left: (el.x + (el.width || 0) + camera.scrollX) * camera.zoom,
+                  top: (el.y + camera.scrollY) * camera.zoom - 10,
                 }}
+                onClick={() => setDetailItem({ kind: "tripwire", data: t })}
+                title="mapping tripwire — click for the full story"
               >
-                ⚠ diverged from {String(t.sibling).split("#")[0]}
+                <span className="trip-q">?</span>
+                {/* hover fades in the same card the rail uses */}
+                <div className="trip-hover" onClick={(e) => e.stopPropagation()}>
+                  <TripwireCard
+                    t={t}
+                    compact
+                    disabled={viewingRevn != null}
+                    onAnswer={(a) => answerTripwire(t.id, a)}
+                    onGoto={null}
+                    onOpen={() => setDetailItem({ kind: "tripwire", data: t })}
+                  />
+                </div>
               </div>
             ))}
             {emptyCanvas && (
@@ -642,6 +694,9 @@ export default function App() {
               .then(() => { toast("Answer sent — the agent picks it up on its next move."); refresh(); })
               .catch((e) => toast(e.message));
           }}
+          onAnswerTripwire={answerTripwire}
+          onGoto={gotoElement}
+          onOpenDetail={(kind, data) => setDetailItem({ kind, data })}
           onSwitchBranch={(name) => {
             if (Object.values(dirtyRef.current).some(Boolean)) {
               toast("Unsaved edits — Save before switching branches.");
@@ -749,6 +804,16 @@ export default function App() {
       <div className="toasts">
         {toasts.map((t) => <div key={t.id} className="toast">{t.text}</div>)}
       </div>
+      {detailItem && (
+        <QuestionModal
+          kind={detailItem.kind}
+          data={detailItem.data}
+          onClose={() => setDetailItem(null)}
+          onGoto={gotoRefOf(detailItem.data, detailItem.kind)
+            ? () => gotoElement(gotoRefOf(detailItem.data, detailItem.kind)!)
+            : null}
+        />
+      )}
     </div>
   );
 }

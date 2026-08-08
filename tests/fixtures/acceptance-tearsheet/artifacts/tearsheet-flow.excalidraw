@@ -1,0 +1,1549 @@
+{
+ "appState": {
+  "gridSize": 20,
+  "viewBackgroundColor": "#faf8f2"
+ },
+ "elements": [
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "trigger-label",
+     "type": "text"
+    },
+    {
+     "id": "t-trigger-market",
+     "type": "arrow"
+    },
+    {
+     "id": "t-trigger-positions",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Cron at 06:45, no human in the loop. That leaves a 45-minute window to the 07:30 cutoff.",
+    "kind": "source",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "trigger",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 443223901,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 100,
+   "y": 480
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "trigger",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "trigger-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Cron 06:45",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 228838114,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Cron 06:45",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 96,
+   "x": 132,
+   "y": 502
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "pull-market-data-label",
+     "type": "text"
+    },
+    {
+     "id": "t-trigger-market",
+     "type": "arrow"
+    },
+    {
+     "id": "t-market-analysis",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Corrected: runs straight off the cron, not behind the book. Index, FX and rates context is needed every morning regardless of holdings. Also carries the macro calendar — same vendor.",
+    "kind": "source",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "pull-market-data",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 949171020,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 420,
+   "y": 120
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "pull-market-data",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "pull-market-data-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Pull Market Data",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 953612573,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Pull Market Data",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 153,
+   "x": 424,
+   "y": 142
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "pull-news-label",
+     "type": "text"
+    },
+    {
+     "id": "t-positions-news",
+     "type": "arrow"
+    },
+    {
+     "id": "t-news-summarize",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Held names only. The dependency arrow from Load Positions is what carries that constraint.",
+    "kind": "source",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "pull-news",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1157369030,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 740,
+   "y": 640
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "pull-news",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "pull-news-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Pull News",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 438474645,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Pull News",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 86,
+   "x": 777,
+   "y": 662
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "run-analysis-label",
+     "type": "text"
+    },
+    {
+     "id": "t-market-analysis",
+     "type": "arrow"
+    },
+    {
+     "id": "t-analysis-cutoff",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Deterministic, confirmed. Computes the P&L snapshot and top movers from position sizes carried forward with the price pull. The agent never computes a number.",
+    "kind": "transform",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "run-analysis",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1699770075,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 740,
+   "y": 120
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "run-analysis",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "run-analysis-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Run Analysis",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 2024417431,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Run Analysis",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 115,
+   "x": 762,
+   "y": 142
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "summarize-news-label",
+     "type": "text"
+    },
+    {
+     "id": "t-news-summarize",
+     "type": "arrow"
+    },
+    {
+     "id": "t-summarize-cutoff",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Uncertainty policy: include and mark low-confidence. Skimming noise beats missing a mover.",
+    "kind": "agent",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "summarize-news",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 2011174383,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1060,
+   "y": 640
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "summarize-news",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "summarize-news-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Summarize News",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1804830070,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Summarize News",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 134,
+   "x": 1073,
+   "y": 662
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "draft-tearsheet-label",
+     "type": "text"
+    },
+    {
+     "id": "t-cutoff-draft",
+     "type": "arrow"
+    },
+    {
+     "id": "t-draft-deliver",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Omit-and-flag on numbers. Writes the advisory section too, and every item in it must cite the section it came from — no free-floating opinions.",
+    "kind": "agent",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "draft-tearsheet",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1806927567,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1700,
+   "y": 380
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "draft-tearsheet",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "draft-tearsheet-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Draft Tearsheet",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 907880408,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Draft Tearsheet",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 144,
+   "x": 1708,
+   "y": 402
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "deliver-label",
+     "type": "text"
+    },
+    {
+     "id": "t-draft-deliver",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "PMs read on phones in the ten minutes before the 08:00 meeting. Channel still unknown.",
+    "kind": "sink",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "deliver",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1455263924,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 2020,
+   "y": 380
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "deliver",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "deliver-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Send to PMs",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 352428680,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Send to PMs",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 105,
+   "x": 2048,
+   "y": 402
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "question": "If market data is still missing at the deadline, does the tearsheet go out with a gap flagged, or does it hold until the data lands? Which is worse for your team: late, or incomplete?",
+    "role": "pin",
+    "status": "resolved",
+    "target": "cutoff"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-cutoff",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 33198357,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 1248,
+   "y": 376
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "question": "When the agent isn't sure a story matters to your book, does it include it or drop it? Which error hurts more: a cluttered sheet, or a missed headline?",
+    "role": "pin",
+    "status": "resolved",
+    "target": "summarize-news"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-news-judgment",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 231032988,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 908,
+   "y": 472
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "question": "What's the rule when the agent is unsure of a number or a claim: omit it, hedge it, or print it with a citation and let the reader judge?",
+    "role": "pin",
+    "status": "resolved",
+    "target": "draft-tearsheet"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-report-truth",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1927286808,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 1548,
+   "y": 392
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "load-positions-label",
+     "type": "text"
+    },
+    {
+     "id": "t-trigger-positions",
+     "type": "arrow"
+    },
+    {
+     "id": "t-positions-news",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "The book. Gates news only. If it fails to load the whole run aborts — see the Failure Modes view.",
+    "kind": "source",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "load-positions",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 132109511,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 420,
+   "y": 640
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "load-positions",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "load-positions-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Load Positions",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 681591777,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Load Positions",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 134,
+   "x": 433,
+   "y": 662
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "deadline-0730-label",
+     "type": "text"
+    },
+    {
+     "id": "t-analysis-cutoff",
+     "type": "arrow"
+    },
+    {
+     "id": "t-summarize-cutoff",
+     "type": "arrow"
+    },
+    {
+     "id": "t-cutoff-draft",
+     "type": "arrow"
+    }
+   ],
+   "customData": {
+    "intent": "Hard barrier. Whatever is done ships; unfinished sections get the same unavailable treatment as missing data. Never a fallback to yesterday's sheet.",
+    "kind": "control",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "deadline-0730",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1949750604,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1380,
+   "y": 380
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "deadline-0730",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "deadline-0730-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "07:30 Cutoff",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 477583089,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "07:30 Cutoff",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 115,
+   "x": 1402,
+   "y": 402
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "question": "Positions now gate three of the four sections. If the book fails to load at 06:45, is there any tearsheet worth sending, or does the run abort?",
+    "role": "pin",
+    "status": "open",
+    "target": "load-positions"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-book-fails",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 32745251,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 588,
+   "y": 392
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "question": "The four sections tell a PM what changed. Which one tells them what needs a decision today — or does the agent owe an explicit fifth thing?",
+    "role": "pin",
+    "status": "open",
+    "target": "draft-tearsheet"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-decision-section",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1281155117,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 1868,
+   "y": 392
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "d24c9dde5d"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "pull-market-data",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 328,
+   "id": "t-trigger-market",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     -328
+    ],
+    [
+     240,
+     -328
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1239869905,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "trigger",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 240,
+   "x": 180,
+   "y": 480
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "30f5f1a6c1"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "load-positions",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 128,
+   "id": "t-trigger-positions",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     240,
+     0
+    ],
+    [
+     240,
+     128
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 409947997,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "trigger",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 240,
+   "x": 260,
+   "y": 512
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "3c44c6b7f6"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "run-analysis",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-market-analysis",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 606215017,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "pull-market-data",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 580,
+   "y": 152
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "8f0753fb4a"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "pull-news",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-positions-news",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 2111240938,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "load-positions",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 580,
+   "y": 672
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "ba4e5822e8"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "summarize-news",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-news-summarize",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1945308415,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "pull-news",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 900,
+   "y": 672
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "c09ddf7c11"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "deadline-0730",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 228,
+   "id": "t-analysis-cutoff",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     560,
+     0
+    ],
+    [
+     560,
+     228
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1762544953,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "run-analysis",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 560,
+   "x": 900,
+   "y": 152
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "8a61127c06"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "deadline-0730",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 228,
+   "id": "t-summarize-cutoff",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     240,
+     0
+    ],
+    [
+     240,
+     -228
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1277084035,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "summarize-news",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 240,
+   "x": 1220,
+   "y": 672
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "51f8478b97"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "draft-tearsheet",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-cutoff-draft",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1063641678,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "deadline-0730",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1540,
+   "y": 412
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "role": "node",
+    "routed": "eeb43789db"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "deliver",
+    "focus": 0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-draft-deliver",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1847102547,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "draft-tearsheet",
+    "focus": 0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1860,
+   "y": 412
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "role": "annotation"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 14,
+   "frameId": null,
+   "groupIds": [],
+   "height": 17,
+   "id": "note-calendar",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "+ macro calendar (same vendor)",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 547853963,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "+ macro calendar (same vendor)",
+   "textAlign": "left",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 252,
+   "x": 420,
+   "y": 60
+  }
+ ],
+ "files": {},
+ "source": "wysiwyg-grilling",
+ "type": "excalidraw",
+ "version": 2,
+ "wysiwyg": {
+  "artifact": "tearsheet-flow",
+  "artifact_type": "flow",
+  "migrations": [
+   "0001-baseline"
+  ],
+  "name": "Morning Tearsheet Pipeline"
+ }
+}

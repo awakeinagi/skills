@@ -1,0 +1,80 @@
+{
+ "artifact_types": {
+  "architecture": {
+   "priority": 16,
+   "tier": "extended"
+  },
+  "class": {
+   "priority": 12,
+   "tier": "extended"
+  },
+  "dfd": {
+   "priority": 14,
+   "tier": "extended"
+  },
+  "domain": {
+   "priority": 3,
+   "tier": "first-class"
+  },
+  "er": {
+   "priority": 11,
+   "tier": "extended"
+  },
+  "flow": {
+   "priority": 2,
+   "tier": "first-class"
+  },
+  "mindmap": {
+   "priority": 15,
+   "tier": "extended"
+  },
+  "sequence": {
+   "priority": 4,
+   "tier": "first-class"
+  },
+  "swimlane": {
+   "priority": 13,
+   "tier": "extended"
+  },
+  "wireframe": {
+   "priority": 1,
+   "tier": "first-class"
+  }
+ },
+ "canvas_updates": "per-round",
+ "deletion_conversation": true,
+ "migrations": [
+  "0001-baseline"
+ ],
+ "narration_altitude": "clusters",
+ "nudge_after_minutes": 10,
+ "significant_attrs": [
+  "type",
+  "x",
+  "y",
+  "width",
+  "height",
+  "angle",
+  "points",
+  "text",
+  "containerId",
+  "frameId",
+  "groupIds",
+  "startBinding",
+  "endBinding",
+  "customData",
+  "strokeColor",
+  "backgroundColor",
+  "fillStyle",
+  "strokeWidth",
+  "strokeStyle",
+  "roughness",
+  "opacity",
+  "fontSize",
+  "fontFamily",
+  "textAlign",
+  "arrowhead",
+  "startArrowhead",
+  "endArrowhead"
+ ]
+}

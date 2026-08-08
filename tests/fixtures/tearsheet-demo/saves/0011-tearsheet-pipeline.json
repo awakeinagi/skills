@@ -1,0 +1,2153 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "daily-trigger",
+     "kind": "ellipse",
+     "label": "Daily 6:45 AM ET",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 20,
+       "label": "Daily 6:45 AM ET",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "load-positions",
+     "kind": "rectangle",
+     "label": "Load Positions",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 40,
+       "label": "Load Positions",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-news",
+     "kind": "rectangle",
+     "label": "Pull News for Holdings",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 60,
+       "label": "Pull News for Holdings",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-macro-news",
+     "kind": "rectangle",
+     "label": "Pull Macro News",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 20,
+       "label": "Pull Macro News",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "check-earnings",
+     "kind": "rectangle",
+     "label": "Check Earnings Calendar",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 80,
+       "label": "Check Earnings Calendar",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "input-cutoff",
+     "kind": "control",
+     "label": "7:00 Cutoff - Freeze Inputs",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 20,
+       "label": "7:00 Cutoff - Freeze Inputs",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-cutoff",
+     "kind": "text",
+     "label": "Missing at 7:00 = section still shown,\nm",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -20,
+       "dy": 10,
+       "label": "Missing at 7:00 = section still shown,\nm",
+       "spatial": "moved left-down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-stale-positions",
+     "kind": "text",
+     "label": "If today's file is late:\nyesterday's boo",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 44,
+       "label": "If today's file is late:\nyesterday's boo",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→?",
+       "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→?",
+       "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→?",
+       "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      60,
+      260
+     ],
+     "id": "daily-trigger",
+     "op": "move",
+     "to": [
+      60,
+      280
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 282,
+       "to": 302
+      }
+     ],
+     "id": "daily-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      400
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      460,
+      440
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 462
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      900,
+      560
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      900,
+      620
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 582,
+       "to": 642
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 215,
+       "to": 264
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 300,
+       "to": 280
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 210,
+       "to": 252
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         210,
+         -96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         252,
+         -96
+        ]
+       ]
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 215,
+       "to": 264
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 364,
+       "to": 344
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 210,
+       "to": 252
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         210,
+         96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         252,
+         96
+        ]
+       ]
+      }
+     ],
+     "id": "t-trigger-positions",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 590,
+       "to": 678
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 492,
+       "to": 504
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 170,
+       "to": 284
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 116
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         170,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         284,
+         116
+        ]
+       ]
+      }
+     ],
+     "id": "t-positions-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 632,
+       "to": 777
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 552
+      }
+     ],
+     "id": "t-positions-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 583,
+       "to": 699
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 541,
+       "to": 668
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 196,
+       "to": 216
+      },
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 590,
+       "to": 740
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 430,
+       "to": 467
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 530,
+       "to": 600
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 9,
+       "to": 22
+      },
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 926,
+       "to": 1108
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 560,
+       "to": 620
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 221,
+       "to": 297
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 100,
+       "to": 140
+      },
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1297,
+       "to": 2023
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 204,
+       "to": 284
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 216,
+       "to": 274
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 96,
+       "to": 106
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         216,
+         96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         274,
+         106
+        ]
+       ]
+      }
+     ],
+     "id": "t-compute-write",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1297,
+       "to": 2023
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 460,
+       "to": 560
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 216,
+       "to": 274
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 96,
+       "to": 106
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         216,
+         -96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         274,
+         -106
+        ]
+       ]
+      }
+     ],
+     "id": "t-summarize-write",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      260
+     ],
+     "id": "pull-macro-news",
+     "op": "move",
+     "to": [
+      460,
+      280
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 282,
+       "to": 302
+      }
+     ],
+     "id": "pull-macro-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      900,
+      700
+     ],
+     "id": "check-earnings",
+     "op": "move",
+     "to": [
+      900,
+      780
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 722,
+       "to": 802
+      }
+     ],
+     "id": "check-earnings-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1340,
+      380
+     ],
+     "id": "input-cutoff",
+     "op": "move",
+     "to": [
+      1340,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 410,
+       "to": 430
+      }
+     ],
+     "id": "input-cutoff-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 230,
+       "to": 300
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 292,
+       "to": 312
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 170,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         170,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "t-trigger-macro",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 533,
+       "to": 641
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 464,
+       "to": 504
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 283,
+       "to": 357
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 236,
+       "to": 276
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         283,
+         236
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         357,
+         276
+        ]
+       ]
+      }
+     ],
+     "id": "t-positions-earnings",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 632,
+       "to": 777
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 572,
+       "to": 632
+      }
+     ],
+     "id": "t-positions-earnings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 590,
+       "to": 740
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 308,
+       "to": 332
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 530,
+       "to": 600
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 92,
+       "to": 86
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         530,
+         92
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         600,
+         86
+        ]
+       ]
+      }
+     ],
+     "id": "t-macro-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 894,
+       "to": 1079
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 700,
+       "to": 780
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 292,
+       "to": 363
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 240,
+       "to": 300
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         292,
+         -240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         363,
+         -300
+        ]
+       ]
+      }
+     ],
+     "id": "t-earnings-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1321,
+       "to": 1586
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 380,
+       "to": 400
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 206,
+       "to": 278
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 96,
+       "to": 116
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         206,
+         -96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         278,
+         -116
+        ]
+       ]
+      }
+     ],
+     "id": "t-cutoff-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1319,
+       "to": 1608
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 460,
+       "to": 480
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 209,
+       "to": 237
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 100,
+       "to": 80
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         209,
+         100
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         237,
+         80
+        ]
+       ]
+      }
+     ],
+     "id": "t-cutoff-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2060,
+       "to": 2520
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 150,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         150,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "t-write-send",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1360,
+      510
+     ],
+     "id": "note-cutoff",
+     "op": "move",
+     "to": [
+      1340,
+      520
+     ]
+    },
+    {
+     "from": [
+      460,
+      486
+     ],
+     "id": "note-stale-positions",
+     "op": "move",
+     "to": [
+      460,
+      530
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "dx": 0,
+     "dy": 20,
+     "element": "daily-trigger",
+     "fact": "moved",
+     "label": "Daily 6:45 AM ET",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 40,
+     "element": "load-positions",
+     "fact": "moved",
+     "label": "Load Positions",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 60,
+     "element": "pull-news",
+     "fact": "moved",
+     "label": "Pull News for Holdings",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 20,
+     "element": "pull-macro-news",
+     "fact": "moved",
+     "label": "Pull Macro News",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 80,
+     "element": "check-earnings",
+     "fact": "moved",
+     "label": "Check Earnings Calendar",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 20,
+     "element": "input-cutoff",
+     "fact": "moved",
+     "label": "7:00 Cutoff - Freeze Inputs",
+     "spatial": "moved down"
+    },
+    {
+     "dx": -20,
+     "dy": 10,
+     "element": "note-cutoff",
+     "fact": "moved",
+     "label": "Missing at 7:00 = section still shown,\nm",
+     "spatial": "moved left-down"
+    },
+    {
+     "dx": 0,
+     "dy": 44,
+     "element": "note-stale-positions",
+     "fact": "moved",
+     "label": "If today's file is late:\nyesterday's boo",
+     "spatial": "moved down"
+    },
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→?",
+     "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→?",
+     "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→?",
+     "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "from": [
+      460,
+      530
+     ],
+     "id": "note-stale-positions",
+     "op": "move",
+     "to": [
+      460,
+      486
+     ]
+    },
+    {
+     "from": [
+      1340,
+      520
+     ],
+     "id": "note-cutoff",
+     "op": "move",
+     "to": [
+      1360,
+      510
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2520,
+       "to": 2060
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 150
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         150,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "t-write-send",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1608,
+       "to": 1319
+      },
+      {
+       "attr": "y",
+       "from": 480,
+       "to": 460
+      },
+      {
+       "attr": "width",
+       "from": 237,
+       "to": 209
+      },
+      {
+       "attr": "height",
+       "from": 80,
+       "to": 100
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         237,
+         80
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         209,
+         100
+        ]
+       ]
+      }
+     ],
+     "id": "t-cutoff-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1586,
+       "to": 1321
+      },
+      {
+       "attr": "y",
+       "from": 400,
+       "to": 380
+      },
+      {
+       "attr": "width",
+       "from": 278,
+       "to": 206
+      },
+      {
+       "attr": "height",
+       "from": 116,
+       "to": 96
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         278,
+         -116
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         206,
+         -96
+        ]
+       ]
+      }
+     ],
+     "id": "t-cutoff-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1079,
+       "to": 894
+      },
+      {
+       "attr": "y",
+       "from": 780,
+       "to": 700
+      },
+      {
+       "attr": "width",
+       "from": 363,
+       "to": 292
+      },
+      {
+       "attr": "height",
+       "from": 300,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         363,
+         -300
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         292,
+         -240
+        ]
+       ]
+      }
+     ],
+     "id": "t-earnings-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 740,
+       "to": 590
+      },
+      {
+       "attr": "y",
+       "from": 332,
+       "to": 308
+      },
+      {
+       "attr": "width",
+       "from": 600,
+       "to": 530
+      },
+      {
+       "attr": "height",
+       "from": 86,
+       "to": 92
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         600,
+         86
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         530,
+         92
+        ]
+       ]
+      }
+     ],
+     "id": "t-macro-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 777,
+       "to": 632
+      },
+      {
+       "attr": "y",
+       "from": 632,
+       "to": 572
+      }
+     ],
+     "id": "t-positions-earnings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 641,
+       "to": 533
+      },
+      {
+       "attr": "y",
+       "from": 504,
+       "to": 464
+      },
+      {
+       "attr": "width",
+       "from": 357,
+       "to": 283
+      },
+      {
+       "attr": "height",
+       "from": 276,
+       "to": 236
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         357,
+         276
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         283,
+         236
+        ]
+       ]
+      }
+     ],
+     "id": "t-positions-earnings",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 300,
+       "to": 230
+      },
+      {
+       "attr": "y",
+       "from": 312,
+       "to": 292
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 170
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         170,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "t-trigger-macro",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 430,
+       "to": 410
+      }
+     ],
+     "id": "input-cutoff-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1340,
+      400
+     ],
+     "id": "input-cutoff",
+     "op": "move",
+     "to": [
+      1340,
+      380
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 802,
+       "to": 722
+      }
+     ],
+     "id": "check-earnings-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      900,
+      780
+     ],
+     "id": "check-earnings",
+     "op": "move",
+     "to": [
+      900,
+      700
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 302,
+       "to": 282
+      }
+     ],
+     "id": "pull-macro-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      280
+     ],
+     "id": "pull-macro-news",
+     "op": "move",
+     "to": [
+      460,
+      260
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2023,
+       "to": 1297
+      },
+      {
+       "attr": "y",
+       "from": 560,
+       "to": 460
+      },
+      {
+       "attr": "width",
+       "from": 274,
+       "to": 216
+      },
+      {
+       "attr": "height",
+       "from": 106,
+       "to": 96
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         274,
+         -106
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         216,
+         -96
+        ]
+       ]
+      }
+     ],
+     "id": "t-summarize-write",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2023,
+       "to": 1297
+      },
+      {
+       "attr": "y",
+       "from": 284,
+       "to": 204
+      },
+      {
+       "attr": "width",
+       "from": 274,
+       "to": 216
+      },
+      {
+       "attr": "height",
+       "from": 106,
+       "to": 96
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         274,
+         106
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         216,
+         96
+        ]
+       ]
+      }
+     ],
+     "id": "t-compute-write",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1108,
+       "to": 926
+      },
+      {
+       "attr": "y",
+       "from": 620,
+       "to": 560
+      },
+      {
+       "attr": "width",
+       "from": 297,
+       "to": 221
+      },
+      {
+       "attr": "height",
+       "from": 140,
+       "to": 100
+      },
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 740,
+       "to": 590
+      },
+      {
+       "attr": "y",
+       "from": 467,
+       "to": 430
+      },
+      {
+       "attr": "width",
+       "from": 600,
+       "to": 530
+      },
+      {
+       "attr": "height",
+       "from": 22,
+       "to": 9
+      },
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 699,
+       "to": 583
+      },
+      {
+       "attr": "width",
+       "from": 668,
+       "to": 541
+      },
+      {
+       "attr": "height",
+       "from": 216,
+       "to": 196
+      },
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 777,
+       "to": 632
+      },
+      {
+       "attr": "y",
+       "from": 552,
+       "to": 482
+      }
+     ],
+     "id": "t-positions-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 678,
+       "to": 590
+      },
+      {
+       "attr": "y",
+       "from": 504,
+       "to": 492
+      },
+      {
+       "attr": "width",
+       "from": 284,
+       "to": 170
+      },
+      {
+       "attr": "height",
+       "from": 116,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         284,
+         116
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         170,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "t-positions-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 264,
+       "to": 215
+      },
+      {
+       "attr": "y",
+       "from": 344,
+       "to": 364
+      },
+      {
+       "attr": "width",
+       "from": 252,
+       "to": 210
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         252,
+         96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         210,
+         96
+        ]
+       ]
+      }
+     ],
+     "id": "t-trigger-positions",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 264,
+       "to": 215
+      },
+      {
+       "attr": "y",
+       "from": 280,
+       "to": 300
+      },
+      {
+       "attr": "width",
+       "from": 252,
+       "to": 210
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         252,
+         -96
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         210,
+         -96
+        ]
+       ]
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 642,
+       "to": 582
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      900,
+      620
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      900,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 462,
+       "to": 422
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      440
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      460,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 302,
+       "to": 282
+      }
+     ],
+     "id": "daily-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      280
+     ],
+     "id": "daily-trigger",
+     "op": "move",
+     "to": [
+      60,
+      260
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 10,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 11,
+ "saved_at": "2026-08-07T19:10:01Z",
+ "selection_at_save": [],
+ "short_id": "9165c52",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→? to Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs (+11 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 8,
+   "rewired": 3,
+   "sequence_reordered": 1
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "tearsheet-pipeline#load-positions",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#position+tearsheet-pipeline#load-positions",
+   "sibling": "tearsheet-domain#position"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-news",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#news-item+tearsheet-pipeline#pull-news",
+   "sibling": "tearsheet-domain#news-item"
+  },
+  {
+   "changed": "tearsheet-pipeline#check-earnings",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#earnings-event+tearsheet-pipeline#check-earnings",
+   "sibling": "tearsheet-domain#earnings-event"
+  },
+  {
+   "changed": "tearsheet-pipeline#input-cutoff",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#section+tearsheet-pipeline#input-cutoff",
+   "sibling": "tearsheet-domain#section"
+  }
+ ],
+ "user_note": "layout repair after seeing it rendered: re-spaced so no fan-in arrow crosses a sibling box, and forced every arrow to re-route (geometry had gone stale when the boxes moved)"
+}

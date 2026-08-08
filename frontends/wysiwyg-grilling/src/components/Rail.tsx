@@ -1,18 +1,25 @@
 import React, { useMemo, useState } from "react";
+import { TripwireCard, gotoRefOf } from "./QuestionUI";
 
 /** Right rail — read-only state display, no navigation (spec §7): registry
- * panel, tripwires in words, interactive pins, branch chips, save timeline. */
+ * panel, interactive tripwires and pins (answer in place, goto, detail
+ * modal), branch chips, save timeline. */
 export function Rail({
-  state, currentArtifact, viewingRevn, onAnswerPin, onSwitchBranch,
-  onArchive, onViewCommit,
+  state, currentArtifact, viewingRevn, onAnswerPin, onAnswerTripwire,
+  onGoto, onOpenDetail, onSwitchBranch, onArchive, onViewCommit,
 }: {
   state: any; currentArtifact: string | null; viewingRevn: number | null;
   onAnswerPin: (id: string, answer: string) => void;
+  onAnswerTripwire: (id: string, answer: string) => void;
+  onGoto: (ref: { aid: string; el: string }) => void;
+  onOpenDetail: (kind: "pin" | "tripwire", data: any) => void;
   onSwitchBranch: (name: string) => void;
   onArchive: (name: string, archived: boolean) => void;
   onViewCommit: (revn: number) => void;
 }) {
   const [showArchivedChips, setShowArchivedChips] = useState(false);
+  const [showPinArchive, setShowPinArchive] = useState(false);
+  const [showTwArchive, setShowTwArchive] = useState(false);
   const [allBranches, setAllBranches] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
@@ -76,7 +83,13 @@ export function Rail({
     : mappings;
 
   const openPins = pins.filter((p: any) => p.status === "open");
-  const resolvedPins = pins.filter((p: any) => p.status !== "open").slice(-4);
+  const resolvedPins = pins.filter((p: any) => p.status !== "open").slice().reverse();
+  const resolvedTripwires = (state?.tripwires || [])
+    .filter((t: any) => t.status !== "open").slice().reverse();
+  const suppressedMappings = mappings.filter((m: any) =>
+    (m.note || "").startsWith("intentionally-divergent"));
+  const twArchiveCount = resolvedTripwires.length +
+    new Set(suppressedMappings.map((m: any) => m.note)).size;
   const archivedCount = branches.filter((b: any) => b.archived).length;
 
   return (
@@ -102,23 +115,44 @@ export function Rail({
                 </span>
               </div>
             ))}
-            {conceptMappings.length > 0 ? (
-              conceptMappings.map((m: any, i: number) => {
-                const suppressed = (m.note || "").startsWith("intentionally-divergent");
-                const hasTrip = tripwires.some((t: any) => t.mapping?.startsWith(`${m.concept}:`));
-                return (
-                  <div key={i} className="map-status">
-                    {suppressed ? (
-                      <span>⛭ mapped — <span className="div">intentionally divergent</span>: {(m.note || "").split(":").slice(1).join(":").trim() || "accepted"}</span>
-                    ) : hasTrip ? (
-                      <span>⚠ mapped — <span className="div">divergence flagged below</span></span>
-                    ) : (
-                      <span><span className="ok">✓</span> mapped — {mappingWords(m)}</span>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
+            {(currentConcept.owed || []).map((t: string) => (
+              <div key={`owed-${t}`} className="view-row owed"
+                title="view debt — a view this concept's archetype still owes; drawn only when a question needs it">
+                <span>owed: not drawn yet</span>
+                <span className="tag owed">{t}</span>
+              </div>
+            ))}
+            {conceptMappings.length > 0 ? (() => {
+              // one class-level ruling can cover many mappings — collapse
+              // identical divergence notes into a single counted row instead
+              // of drowning the concept in near-identical lines
+              const live = conceptMappings.filter((m: any) => !(m.note || "").startsWith("intentionally-divergent"));
+              const byNote: Record<string, number> = {};
+              for (const m of conceptMappings)
+                if ((m.note || "").startsWith("intentionally-divergent"))
+                  byNote[m.note] = (byNote[m.note] || 0) + 1;
+              return (
+                <>
+                  {live.map((m: any, i: number) => {
+                    const hasTrip = tripwires.some((t: any) => t.mapping?.startsWith(`${m.concept}:`));
+                    return (
+                      <div key={i} className="map-status">
+                        {hasTrip ? (
+                          <span>⚠ mapped — <span className="div">divergence flagged below</span></span>
+                        ) : (
+                          <span><span className="ok">✓</span> mapped — {mappingWords(m)}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {Object.entries(byNote).map(([note, n], i) => (
+                    <div key={`sg${i}`} className="map-status">
+                      <span>⛭ {n > 1 ? `${n} mappings` : "mapped"} — <span className="div">intentionally divergent</span>: {note.split(":").slice(1).join(":").trim() || "accepted"}</span>
+                    </div>
+                  ))}
+                </>
+              );
+            })() : (
               currentConcept.views?.length > 1 && <div className="map-status">views unmapped (inference only)</div>
             )}
           </div>
@@ -130,34 +164,63 @@ export function Rail({
             </div>
           </div>
         ))}
-        {/* tripwires in words */}
+        {/* open tripwires — answerable in place, like pins */}
         {tripwires.map((t: any) => (
-          <div key={t.id} className="tripline">
-            <div className="tw-title">⚠ Mapping tripwire</div>
-            <b>{t.changed.replace("#", " › ")}</b> changed at save {t.save}, but its
-            mapped sibling <b>{t.sibling.replace("#", " › ")}</b> didn't move.
-            Divergence, or should it propagate? The agent will ask — nothing
-            syncs without your yes.
+          <TripwireCard
+            key={t.id}
+            t={t}
+            disabled={viewingRevn != null}
+            onAnswer={(a) => onAnswerTripwire(t.id, a)}
+            onGoto={gotoRefOf(t, "tripwire")
+              ? () => onGoto(gotoRefOf(t, "tripwire")!)
+              : null}
+            onOpen={() => onOpenDetail("tripwire", t)}
+          />
+        ))}
+        {/* archive: resolved tripwires + settled divergence rulings, out of
+            live space (expands inline — never an absolutely-positioned popup
+            inside this scroll container) */}
+        {twArchiveCount > 0 && (
+          <button className="show-archived" onClick={() => setShowTwArchive(!showTwArchive)}>
+            {showTwArchive ? "hide" : "show"} archive ({twArchiveCount})
+          </button>
+        )}
+        {showTwArchive && resolvedTripwires.map((t: any) => (
+          <div key={t.id} className="tripline suppressed">
+            <div className="tw-title">✓ Tripwire resolved</div>
+            <b>{(t.changed || "").replace("#", " › ")}</b> vs{" "}
+            <b>{(t.sibling || "").replace("#", " › ")}</b> — raised at save {t.save}
+            {t.resolved_by != null ? `, settled at save ${t.resolved_by}` : ", settled by ruling"}.
           </div>
         ))}
-        {mappings
-          .filter((m: any) => (m.note || "").startsWith("intentionally-divergent"))
-          .map((m: any, i: number) => (
+        {showTwArchive && (() => {
+          const byNote: Record<string, any[]> = {};
+          for (const m of suppressedMappings) (byNote[m.note] = byNote[m.note] || []).push(m);
+          return Object.entries(byNote).map(([note, ms], i) => (
             <div key={`sup${i}`} className="tripline suppressed">
-              <div className="tw-title">⛭ Intentionally divergent</div>
-              {mappingWords(m)} — {(m.note || "").split(":").slice(1).join(":").trim() || "accepted divergence"}
+              <div className="tw-title">⛭ Intentionally divergent{ms.length > 1 ? ` — ${ms.length} mappings` : ""}</div>
+              {ms.length > 1
+                ? (note.split(":").slice(1).join(":").trim() || "accepted divergence")
+                : <>{mappingWords(ms[0])} — {note.split(":").slice(1).join(":").trim() || "accepted divergence"}</>}
             </div>
-          ))}
+          ));
+        })()}
       </div>
 
       {/* -------- pinned questions -------- */}
       <div className="rail-section">
         <h3>Pinned questions {openPins.length > 0 && <span className="count">{openPins.length} open</span>}</h3>
-        {!openPins.length && !resolvedPins.length && (
+        {!openPins.length && (
           <div className="map-status">No open questions. Element-anchored questions land here — answer in place, or in chat.</div>
         )}
         {openPins.map((p: any) => (
-          <div key={p.id} className="pin-card">
+          <div key={p.id} className="pin-card"
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("button,input")) return;
+              onOpenDetail("pin", p);
+            }}
+            title="click for the full story"
+          >
             <div className="q">❓ {p.question}</div>
             {p.element && <div className="anchor">anchored to {p.artifact} › {p.element}</div>}
             <div className="answer-row">
@@ -178,12 +241,32 @@ export function Rail({
                 Answer
               </button>
             </div>
+            <div className="card-foot">
+              {gotoRefOf(p, "pin") && (
+                <button className="linkish"
+                  onClick={() => onGoto(gotoRefOf(p, "pin")!)}
+                  title="reveal this element on the canvas">
+                  ⌖ show on canvas
+                </button>
+              )}
+              <button className="linkish"
+                onClick={() => onOpenDetail("pin", p)}>ⓘ details</button>
+            </div>
           </div>
         ))}
-        {resolvedPins.map((p: any) => (
+        {resolvedPins.length > 0 && (
+          <button className="show-archived" onClick={() => setShowPinArchive(!showPinArchive)}>
+            {showPinArchive ? "hide" : "show"} archive ({resolvedPins.length})
+          </button>
+        )}
+        {showPinArchive && resolvedPins.map((p: any) => (
           <div key={p.id} className="pin-card resolved">
             <div className="q">{p.question}</div>
-            <div className="a">↳ {p.answer || "(resolved on canvas)"}</div>
+            <div className="a">↳ {p.answer || (
+              p.status === "dismissed" ? "(dismissed — not worth explaining)" :
+              p.status === "pruned" ? "(elements deleted)" : "(resolved on canvas)"
+            )}</div>
+            {p.element && <div className="anchor">was anchored to {p.artifact} › {p.element}</div>}
           </div>
         ))}
       </div>

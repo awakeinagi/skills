@@ -1,0 +1,257 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→?",
+       "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→?",
+       "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→?",
+       "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→?",
+     "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→?",
+     "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→?",
+     "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 14,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "annotate_mapping",
+   "index": 8,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 9,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 10,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 11,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 12,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 13,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 14,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 15,
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-11-1"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-11-2"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-11-3"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-11-4"
+  }
+ ],
+ "revn": 15,
+ "saved_at": "2026-08-07T19:12:05Z",
+ "selection_at_save": [],
+ "short_id": "1beb9a5",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→? to Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs (+3 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "rewired": 3,
+   "sequence_reordered": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "resolve the 4 position-only tripwires my layout repair fired; annotate domain<->pipeline mappings so moving a box never flags again"
+}

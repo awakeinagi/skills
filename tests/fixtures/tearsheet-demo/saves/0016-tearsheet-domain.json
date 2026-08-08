@@ -1,0 +1,176 @@
+{
+ "artifacts": {
+  "tearsheet-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "width",
+      "text"
+     ],
+     "consequence_of": null,
+     "id": "note-position",
+     "kind": "text",
+     "label": "POSITION carries as_of - which is\nwhat m",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "Carries as_of - which is what\nmakes 'stale' representable.",
+       "to": "POSITION carries as_of - which is\nwhat makes 'stale' representable."
+      },
+      "resized": {
+       "label": "POSITION carries as_of - which is\nwhat m"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "text"
+     ],
+     "consequence_of": null,
+     "id": "note-story",
+     "kind": "text",
+     "label": "STORY is invented by me:\nten wire storie",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "INVENTED by me: ten wire stories,\none actual event.",
+       "to": "STORY is invented by me:\nten wire stories, one actual event."
+      },
+      "resized": {
+       "label": "STORY is invented by me:\nten wire storie"
+      }
+     },
+     "verb": "renamed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 278,
+       "to": 316
+      },
+      {
+       "attr": "text",
+       "from": "Carries as_of - which is what\nmakes 'stale' representable.",
+       "to": "POSITION carries as_of - which is\nwhat makes 'stale' representable."
+      }
+     ],
+     "id": "note-position",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 316,
+       "to": 336
+      },
+      {
+       "attr": "text",
+       "from": "INVENTED by me: ten wire stories,\none actual event.",
+       "to": "STORY is invented by me:\nten wire stories, one actual event."
+      }
+     ],
+     "id": "note-story",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "note-position",
+     "fact": "renamed",
+     "from": "Carries as_of - which is what\nmakes 'stale' representable.",
+     "to": "POSITION carries as_of - which is\nwhat makes 'stale' representable."
+    },
+    {
+     "element": "note-story",
+     "fact": "renamed",
+     "from": "INVENTED by me: ten wire stories,\none actual event.",
+     "to": "STORY is invented by me:\nten wire stories, one actual event."
+    },
+    {
+     "element": "note-position",
+     "fact": "resized",
+     "label": "POSITION carries as_of - which is\nwhat m"
+    },
+    {
+     "element": "note-story",
+     "fact": "resized",
+     "label": "STORY is invented by me:\nten wire storie"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 336,
+       "to": 316
+      },
+      {
+       "attr": "text",
+       "from": "STORY is invented by me:\nten wire stories, one actual event.",
+       "to": "INVENTED by me: ten wire stories,\none actual event."
+      }
+     ],
+     "id": "note-story",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 316,
+       "to": 278
+      },
+      {
+       "attr": "text",
+       "from": "POSITION carries as_of - which is\nwhat makes 'stale' representable.",
+       "to": "Carries as_of - which is what\nmakes 'stale' representable."
+      }
+     ],
+     "id": "note-position",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Tearsheet Domain"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 15,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 16,
+ "saved_at": "2026-08-07T19:14:01Z",
+ "selection_at_save": [],
+ "short_id": "a7b965d",
+ "summary": {
+  "headline": "renamed \"Carries as_of - which is what\\nmakes 'stale' representable.\" → \"POSITION carries as_of - which is\\nwhat makes 'stale' representable.\" (+3 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "renamed": 2,
+   "resized": 2
+  }
+ },
+ "tripwires": [],
+ "user_note": "make the two floating notes name their own subject - placement alone was making them read as comments on the nearest arrow"
+}

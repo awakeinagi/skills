@@ -1,0 +1,239 @@
+{
+ "artifacts": {
+  "tearsheet-domain": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "tearsheet-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Tearsheet Domain"
+   }
+  },
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→?",
+       "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→?",
+       "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→?",
+       "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→?",
+     "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→?",
+     "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→?",
+     "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  },
+  "tearsheet-wireframe": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "tearsheet-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "out-of-session",
+ "base_revn": 17,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": true,
+ "registry_changes": [],
+ "revn": 18,
+ "saved_at": "2026-08-07T19:59:17Z",
+ "selection_at_save": [],
+ "short_id": "f4d7c88",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→? to Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs (+5 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "rewired": 3,
+   "saved_no_changes": 2,
+   "sequence_reordered": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

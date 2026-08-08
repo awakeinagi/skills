@@ -1,0 +1,447 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "review-gate",
+     "kind": "diamond",
+     "label": "Human sign-off?",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "diamond",
+        "label": "Human sign-off?"
+       }
+      },
+      "step_deleted": {
+       "label": "Human sign-off?"
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "send-to-team",
+     "kind": "rectangle",
+     "label": "Send to Team",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -360,
+       "dy": -24,
+       "label": "Send to Team",
+       "spatial": "moved left-up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "t-write-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-send",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-rewrite",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "INVENTED by me - delete if the agent sends unsupervised",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1840,
+      "y": 272
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Human sign-off?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Human sign-off?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 1868,
+      "y": 322
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "from": [
+      2190,
+      300
+     ],
+     "id": "send-to-team",
+     "op": "move",
+     "to": [
+      1830,
+      276
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2228,
+       "to": 1860
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 322,
+       "to": 298
+      }
+     ],
+     "id": "send-to-team-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "open",
+        "target": "pull-news"
+       },
+       "to": {
+        "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "answered",
+        "target": "pull-news"
+       }
+      }
+     ],
+     "id": "pin-news-scope",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "open",
+        "target": "agent-write-tearsheet"
+       },
+       "to": {
+        "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "answered",
+        "target": "agent-write-tearsheet"
+       }
+      }
+     ],
+     "id": "pin-one-or-many",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "review-gate",
+     "fact": "deleted",
+     "was": {
+      "kind": "diamond",
+      "label": "Human sign-off?"
+     }
+    },
+    {
+     "dx": -360,
+     "dy": -24,
+     "element": "send-to-team",
+     "fact": "moved",
+     "label": "Send to Team",
+     "spatial": "moved left-up"
+    },
+    {
+     "element": "review-gate",
+     "fact": "step_deleted",
+     "label": "Human sign-off?"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "answered",
+        "target": "agent-write-tearsheet"
+       },
+       "to": {
+        "answer": null,
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "open",
+        "target": "agent-write-tearsheet"
+       }
+      }
+     ],
+     "id": "pin-one-or-many",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "answered",
+        "target": "pull-news"
+       },
+       "to": {
+        "answer": null,
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "open",
+        "target": "pull-news"
+       }
+      }
+     ],
+     "id": "pin-news-scope",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1860,
+       "to": 2228
+      },
+      {
+       "attr": "y",
+       "from": 298,
+       "to": 322
+      }
+     ],
+     "id": "send-to-team-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1830,
+      276
+     ],
+     "id": "send-to-team",
+     "op": "move",
+     "to": [
+      2190,
+      300
+     ]
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Human sign-off?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Human sign-off?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 1868,
+      "y": 322
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "t-write-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-send",
+        "type": "arrow"
+       },
+       {
+        "id": "t-gate-rewrite",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "INVENTED by me - delete if the agent sends unsupervised",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1840,
+      "y": 272
+     },
+     "index": 14,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 1,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 2,
+ "saved_at": "2026-08-07T18:42:37Z",
+ "selection_at_save": [],
+ "short_id": "74a9380",
+ "summary": {
+  "headline": "deleted Human sign-off? (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 1,
+   "moved": 1,
+   "step_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

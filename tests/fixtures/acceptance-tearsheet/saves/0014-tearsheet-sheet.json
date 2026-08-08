@@ -1,0 +1,606 @@
+{
+ "artifacts": {
+  "tearsheet-sheet": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-citation-depth",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-partial-advice",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pnl-b",
+     "kind": "block",
+     "label": "P&L Snapshot — Book",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "P&L Snapshot — Book",
+       "screen": "Tearsheet — news feed down"
+      },
+      "fold_crossed": {
+       "from": "above",
+       "label": "P&L Snapshot — Book",
+       "to": "below"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 156,
+       "label": "P&L Snapshot — Book",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "movers-b",
+     "kind": "block",
+     "label": "Top Movers + one-line why",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Top Movers + one-line why",
+       "screen": "Tearsheet — news feed down"
+      },
+      "fold_crossed": {
+       "from": "below",
+       "label": "Top Movers + one-line why",
+       "to": "above"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -152,
+       "label": "Top Movers + one-line why",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+       "role": "pin",
+       "status": "open",
+       "target": "decide-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-citation-depth",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1148673137,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 268
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+       "role": "pin",
+       "status": "open",
+       "target": "decide-b"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-partial-advice",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1949092151,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 968,
+      "y": 268
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "INVENTED. You said PMs want what changed AND what needs a decision. The four sections you named only cover what changed. This is my guess at the missing piece.",
+        "kind": "block",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Confirmed: the sheet is an advisor, not a reporter. Every item must cite the section it came from — no free-floating opinions from the agent.",
+        "kind": "block",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "decide-a",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "kind": "block",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Advisory section computed from incomplete input. '(partial)' is my guess at honest labelling; suppressing it entirely is the alternative.",
+        "kind": "block",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "decide-b",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      400
+     ],
+     "id": "pnl-b",
+     "op": "move",
+     "to": [
+      640,
+      556
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 438,
+       "to": 594
+      }
+     ],
+     "id": "pnl-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      540
+     ],
+     "id": "movers-b",
+     "op": "move",
+     "to": [
+      640,
+      388
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 586,
+       "to": 434
+      }
+     ],
+     "id": "movers-b-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+        "role": "pin",
+        "status": "open",
+        "target": "movers-a"
+       },
+       "to": {
+        "answer": null,
+        "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "movers-a"
+       }
+      }
+     ],
+     "id": "pin-fold-order",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "pin-citation-depth",
+     "fact": "pin_added",
+     "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label."
+    },
+    {
+     "element": "pin-partial-advice",
+     "fact": "pin_added",
+     "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?"
+    },
+    {
+     "dx": 0,
+     "dy": 156,
+     "element": "pnl-b",
+     "fact": "moved",
+     "label": "P&L Snapshot — Book",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": -152,
+     "element": "movers-b",
+     "fact": "moved",
+     "label": "Top Movers + one-line why",
+     "spatial": "moved up"
+    },
+    {
+     "element": "pnl-b",
+     "fact": "block_moved_within_screen",
+     "label": "P&L Snapshot — Book",
+     "screen": "Tearsheet — news feed down"
+    },
+    {
+     "element": "pnl-b",
+     "fact": "fold_crossed",
+     "from": "above",
+     "label": "P&L Snapshot — Book",
+     "to": "below"
+    },
+    {
+     "element": "movers-b",
+     "fact": "block_moved_within_screen",
+     "label": "Top Movers + one-line why",
+     "screen": "Tearsheet — news feed down"
+    },
+    {
+     "element": "movers-b",
+     "fact": "fold_crossed",
+     "from": "below",
+     "label": "Top Movers + one-line why",
+     "to": "above"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "movers-a"
+       },
+       "to": {
+        "answer": null,
+        "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+        "role": "pin",
+        "status": "open",
+        "target": "movers-a"
+       }
+      }
+     ],
+     "id": "pin-fold-order",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 434,
+       "to": 586
+      }
+     ],
+     "id": "movers-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      388
+     ],
+     "id": "movers-b",
+     "op": "move",
+     "to": [
+      640,
+      540
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 594,
+       "to": 438
+      }
+     ],
+     "id": "pnl-b-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      640,
+      556
+     ],
+     "id": "pnl-b",
+     "op": "move",
+     "to": [
+      640,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Advisory section computed from incomplete input. '(partial)' is my guess at honest labelling; suppressing it entirely is the alternative.",
+        "kind": "block",
+        "role": "node"
+       },
+       "to": {
+        "kind": "block",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "decide-b",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Confirmed: the sheet is an advisor, not a reporter. Every item must cite the section it came from — no free-floating opinions from the agent.",
+        "kind": "block",
+        "role": "node"
+       },
+       "to": {
+        "intent": "INVENTED. You said PMs want what changed AND what needs a decision. The four sections you named only cover what changed. This is my guess at the missing piece.",
+        "kind": "block",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "decide-a",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+       "role": "pin",
+       "status": "open",
+       "target": "decide-b"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-partial-advice",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1949092151,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 968,
+      "y": 268
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+       "role": "pin",
+       "status": "open",
+       "target": "decide-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-citation-depth",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1148673137,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 268
+     },
+     "index": 29,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-sheet",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 13,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-11-1"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-12-1"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-12-2"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-12-3"
+  }
+ ],
+ "revn": 14,
+ "round": 13,
+ "saved_at": "2026-08-07T21:55:13Z",
+ "selection_at_save": [],
+ "short_id": "8731b91",
+ "summary": {
+  "headline": "P&L Snapshot — Book moved below the fold (+7 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "block_moved_within_screen": 2,
+   "fold_crossed": 2,
+   "moved": 2,
+   "pin_added": 2
+  }
+ },
+ "tripwires": [],
+ "user_note": "Mirror the movers/P&L swap into the degraded twin so the pair stays diffable; settle answered pins"
+}

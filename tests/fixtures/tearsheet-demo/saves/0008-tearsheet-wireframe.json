@@ -1,0 +1,2581 @@
+{
+ "artifacts": {
+  "tearsheet-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-normal",
+     "kind": "nav",
+     "label": "Morning Tearsheet 07:15",
+     "ops": [],
+     "semantic": {
+      "label_renamed": {
+       "from": "Morning Tearsheet - 07:15",
+       "to": "Morning Tearsheet 07:15"
+      },
+      "renamed": {
+       "from": "Morning Tearsheet - 07:15",
+       "to": "Morning Tearsheet 07:15"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-top-of-sheet",
+     "kind": "block",
+     "label": "Top of Sheet (3 lines)",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Top of Sheet - 3 lines, what matters today",
+       "to": "Top of Sheet (3 lines)"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-book",
+     "kind": "block",
+     "label": "Your Book",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Your Book - P&L, top 5 movers",
+       "to": "Your Book"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-risk",
+     "kind": "block",
+     "label": "Risk & Exposure",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Risk - exposure, VaR, concentration",
+       "to": "Risk & Exposure"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-news-holdings",
+     "kind": "block",
+     "label": "Holdings News",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Holdings News - 1 line per name",
+       "to": "Holdings News"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-news-macro",
+     "kind": "block",
+     "label": "Macro News",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Macro News - Fed / CPI / geo",
+       "to": "Macro News"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-earnings",
+     "kind": "nav",
+     "label": "Morning Tearsheet 07:15",
+     "ops": [],
+     "semantic": {
+      "label_renamed": {
+       "from": "Morning Tearsheet - 07:15",
+       "to": "Morning Tearsheet 07:15"
+      },
+      "renamed": {
+       "from": "Morning Tearsheet - 07:15",
+       "to": "Morning Tearsheet 07:15"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-earnings-lead",
+     "kind": "block",
+     "label": "NVDA REPORTED",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "NVDA REPORTED 16:05 - vs consensus, pre-mkt reaction, our position",
+       "to": "NVDA REPORTED"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-book-e",
+     "kind": "block",
+     "label": "Your Book",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Your Book - P&L, top 5 movers",
+       "to": "Your Book"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-risk-e",
+     "kind": "block",
+     "label": "Risk & Exposure",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Risk - exposure, VaR, concentration",
+       "to": "Risk & Exposure"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-news-holdings-e",
+     "kind": "block",
+     "label": "Holdings News (NVDA kept)",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Holdings News - NVDA line REMOVED (promoted)",
+       "to": "Holdings News (NVDA kept)"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-news-macro-e",
+     "kind": "block",
+     "label": "Macro News",
+     "ops": [],
+     "semantic": {
+      "renamed": {
+       "from": "Macro News - Fed / CPI / geo",
+       "to": "Macro News"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "text"
+     ],
+     "consequence_of": null,
+     "id": "note-no-top-of-sheet",
+     "kind": "text",
+     "label": "Earnings block replaces Top of Sheet.\nNV",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "No generic Top of Sheet here -\nthe earnings block IS the top,\nand everything below demotes one place.",
+       "to": "Earnings block replaces Top of Sheet.\nNVDA KEEPS its Holdings News line -\njust short, the story is already up top."
+      },
+      "resized": {
+       "label": "Earnings block replaces Top of Sheet.\nNV"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "screen-degraded",
+     "kind": "frame",
+     "label": "Degraded Morning",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "frame",
+       "label": "Degraded Morning"
+      },
+      "screen_added": {
+       "name": "Degraded Morning"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-degraded",
+     "kind": "nav",
+     "label": "Morning Tearsheet 07:15",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "nav",
+       "label": "Morning Tearsheet 07:15"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-top-of-sheet-d",
+     "kind": "block",
+     "label": "Top of Sheet (3 lines)",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Top of Sheet (3 lines)"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-book-d",
+     "kind": "block",
+     "label": "Your Book - STALE",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Your Book - STALE"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "fold-degraded",
+     "kind": "text",
+     "label": "- - - - - phone fold - - - - -",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "blk-market-d",
+       "text": "- - - - - phone fold - - - - -"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-market-d",
+     "kind": "block",
+     "label": "Overnight & Pre-Market",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Overnight & Pre-Market"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-risk-d",
+     "kind": "block",
+     "label": "Risk - UNAVAILABLE",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Risk - UNAVAILABLE"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-news-holdings-d",
+     "kind": "block",
+     "label": "Holdings News",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Holdings News"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "blk-news-macro-d",
+     "kind": "block",
+     "label": "Macro News",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Macro News"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-degraded",
+     "kind": "text",
+     "label": "Nothing is hidden and nothing is late.\nB",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "blk-news-macro-d",
+       "text": "Nothing is hidden and nothing is late.\nBook says 'as of yesterday's close'.\nRisk says 'unavailable - vendor timeout'.\nThe sheet still ships at 07:15."
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-promotion-removes",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 860,
+      "id": "screen-degraded",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Degraded Morning",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1121527853,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 1160,
+      "y": 80
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "nav-degraded-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 48,
+      "id": "nav-degraded",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 651700445,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 100
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "nav-degraded",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "nav-degraded-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Morning Tearsheet 07:15",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1111806126,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Morning Tearsheet 07:15",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 220,
+      "x": 1230,
+      "y": 114
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-top-of-sheet-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "blk-top-of-sheet-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2001510019,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 168
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-top-of-sheet-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-top-of-sheet-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Top of Sheet (3 lines)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1429106025,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Top of Sheet (3 lines)",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 1234,
+      "y": 206
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#ededed",
+      "boundElements": [
+       {
+        "id": "blk-book-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "yesterday's closing book, labelled - not a hole",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 104,
+      "id": "blk-book-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1011374285,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 284
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-book-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-book-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Your Book - STALE",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1971646072,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Your Book - STALE",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 1258,
+      "y": 326
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 17,
+      "id": "fold-degraded",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "- - - - - phone fold - - - - -",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 252050702,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "- - - - - phone fold - - - - -",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 252,
+      "x": 1208,
+      "y": 400
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-market-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 88,
+      "id": "blk-market-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1142524618,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 436
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-market-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-market-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Overnight & Pre-Market",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1406318678,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Overnight & Pre-Market",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 1234,
+      "y": 470
+     },
+     "index": 44,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#ededed",
+      "boundElements": [
+       {
+        "id": "blk-risk-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "still rendered, carrying its reason - never silently omitted",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 88,
+      "id": "blk-risk-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 705775569,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 544
+     },
+     "index": 45,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-risk-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-risk-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk - UNAVAILABLE",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 750495905,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk - UNAVAILABLE",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 172,
+      "x": 1254,
+      "y": 578
+     },
+     "index": 46,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-news-holdings-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "blk-news-holdings-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 846032706,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 652
+     },
+     "index": 47,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-news-holdings-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-news-holdings-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Holdings News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 336682725,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Holdings News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 1278,
+      "y": 690
+     },
+     "index": 48,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-news-macro-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 88,
+      "id": "blk-news-macro-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 572384256,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 768
+     },
+     "index": 49,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-news-macro-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-news-macro-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 110849133,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1292,
+      "y": 802
+     },
+     "index": 50,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "note-degraded",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Nothing is hidden and nothing is late.\nBook says 'as of yesterday's close'.\nRisk says 'unavailable - vendor timeout'.\nThe sheet still ships at 07:15.",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 787570899,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Nothing is hidden and nothing is late.\nBook says 'as of yesterday's close'.\nRisk says 'unavailable - vendor timeout'.\nThe sheet still ships at 07:15.",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 393,
+      "x": 1160,
+      "y": 970
+     },
+     "index": 51,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Promotion means removal - I stripped NVDA's line out of Holdings News because it is already at the top, so the sheet never says the same thing twice. But if people scan that section as a checklist and expect every held name to appear, a missing NVDA reads as a bug rather than as an editorial choice. Which is it?",
+       "role": "pin",
+       "status": "open",
+       "target": "blk-news-holdings-e"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-promotion-removes",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 758494982,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 968,
+      "y": 684
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 240,
+       "to": 220
+      },
+      {
+       "attr": "text",
+       "from": "Morning Tearsheet - 07:15",
+       "to": "Morning Tearsheet 07:15"
+      }
+     ],
+     "id": "nav-normal-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 403,
+       "to": 211
+      },
+      {
+       "attr": "text",
+       "from": "Top of Sheet - 3 lines, what matters today",
+       "to": "Top of Sheet (3 lines)"
+      }
+     ],
+     "id": "blk-top-of-sheet-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 278,
+       "to": 86
+      },
+      {
+       "attr": "text",
+       "from": "Your Book - P&L, top 5 movers",
+       "to": "Your Book"
+      }
+     ],
+     "id": "blk-book-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 336,
+       "to": 144
+      },
+      {
+       "attr": "text",
+       "from": "Risk - exposure, VaR, concentration",
+       "to": "Risk & Exposure"
+      }
+     ],
+     "id": "blk-risk-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 297,
+       "to": 124
+      },
+      {
+       "attr": "text",
+       "from": "Holdings News - 1 line per name",
+       "to": "Holdings News"
+      }
+     ],
+     "id": "blk-news-holdings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 268,
+       "to": 96
+      },
+      {
+       "attr": "text",
+       "from": "Macro News - Fed / CPI / geo",
+       "to": "Macro News"
+      }
+     ],
+     "id": "blk-news-macro-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 240,
+       "to": 220
+      },
+      {
+       "attr": "text",
+       "from": "Morning Tearsheet - 07:15",
+       "to": "Morning Tearsheet 07:15"
+      }
+     ],
+     "id": "nav-earnings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 633,
+       "to": 124
+      },
+      {
+       "attr": "text",
+       "from": "NVDA REPORTED 16:05 - vs consensus, pre-mkt reaction, our position",
+       "to": "NVDA REPORTED"
+      }
+     ],
+     "id": "blk-earnings-lead-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 278,
+       "to": 86
+      },
+      {
+       "attr": "text",
+       "from": "Your Book - P&L, top 5 movers",
+       "to": "Your Book"
+      }
+     ],
+     "id": "blk-book-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 336,
+       "to": 144
+      },
+      {
+       "attr": "text",
+       "from": "Risk - exposure, VaR, concentration",
+       "to": "Risk & Exposure"
+      }
+     ],
+     "id": "blk-risk-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 422,
+       "to": 240
+      },
+      {
+       "attr": "text",
+       "from": "Holdings News - NVDA line REMOVED (promoted)",
+       "to": "Holdings News (NVDA kept)"
+      }
+     ],
+     "id": "blk-news-holdings-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 268,
+       "to": 96
+      },
+      {
+       "attr": "text",
+       "from": "Macro News - Fed / CPI / geo",
+       "to": "Macro News"
+      }
+     ],
+     "id": "blk-news-macro-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 374,
+       "to": 384
+      },
+      {
+       "attr": "text",
+       "from": "No generic Top of Sheet here -\nthe earnings block IS the top,\nand everything below demotes one place.",
+       "to": "Earnings block replaces Top of Sheet.\nNVDA KEEPS its Holdings News line -\njust short, the story is already up top."
+      }
+     ],
+     "id": "note-no-top-of-sheet",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "nav-normal",
+     "fact": "renamed",
+     "from": "Morning Tearsheet - 07:15",
+     "to": "Morning Tearsheet 07:15"
+    },
+    {
+     "element": "blk-top-of-sheet",
+     "fact": "renamed",
+     "from": "Top of Sheet - 3 lines, what matters today",
+     "to": "Top of Sheet (3 lines)"
+    },
+    {
+     "element": "blk-book",
+     "fact": "renamed",
+     "from": "Your Book - P&L, top 5 movers",
+     "to": "Your Book"
+    },
+    {
+     "element": "blk-risk",
+     "fact": "renamed",
+     "from": "Risk - exposure, VaR, concentration",
+     "to": "Risk & Exposure"
+    },
+    {
+     "element": "blk-news-holdings",
+     "fact": "renamed",
+     "from": "Holdings News - 1 line per name",
+     "to": "Holdings News"
+    },
+    {
+     "element": "blk-news-macro",
+     "fact": "renamed",
+     "from": "Macro News - Fed / CPI / geo",
+     "to": "Macro News"
+    },
+    {
+     "element": "nav-earnings",
+     "fact": "renamed",
+     "from": "Morning Tearsheet - 07:15",
+     "to": "Morning Tearsheet 07:15"
+    },
+    {
+     "element": "blk-earnings-lead",
+     "fact": "renamed",
+     "from": "NVDA REPORTED 16:05 - vs consensus, pre-mkt reaction, our position",
+     "to": "NVDA REPORTED"
+    },
+    {
+     "element": "blk-book-e",
+     "fact": "renamed",
+     "from": "Your Book - P&L, top 5 movers",
+     "to": "Your Book"
+    },
+    {
+     "element": "blk-risk-e",
+     "fact": "renamed",
+     "from": "Risk - exposure, VaR, concentration",
+     "to": "Risk & Exposure"
+    },
+    {
+     "element": "blk-news-holdings-e",
+     "fact": "renamed",
+     "from": "Holdings News - NVDA line REMOVED (promoted)",
+     "to": "Holdings News (NVDA kept)"
+    },
+    {
+     "element": "blk-news-macro-e",
+     "fact": "renamed",
+     "from": "Macro News - Fed / CPI / geo",
+     "to": "Macro News"
+    },
+    {
+     "element": "note-no-top-of-sheet",
+     "fact": "renamed",
+     "from": "No generic Top of Sheet here -\nthe earnings block IS the top,\nand everything below demotes one place.",
+     "to": "Earnings block replaces Top of Sheet.\nNVDA KEEPS its Holdings News line -\njust short, the story is already up top."
+    },
+    {
+     "element": "screen-degraded",
+     "fact": "added",
+     "kind": "frame",
+     "label": "Degraded Morning"
+    },
+    {
+     "element": "nav-degraded",
+     "fact": "added",
+     "kind": "nav",
+     "label": "Morning Tearsheet 07:15"
+    },
+    {
+     "element": "blk-top-of-sheet-d",
+     "fact": "added",
+     "kind": "block",
+     "label": "Top of Sheet (3 lines)"
+    },
+    {
+     "element": "blk-book-d",
+     "fact": "added",
+     "kind": "block",
+     "label": "Your Book - STALE"
+    },
+    {
+     "element": "fold-degraded",
+     "fact": "annotated",
+     "target": "blk-market-d",
+     "text": "- - - - - phone fold - - - - -"
+    },
+    {
+     "element": "blk-market-d",
+     "fact": "added",
+     "kind": "block",
+     "label": "Overnight & Pre-Market"
+    },
+    {
+     "element": "blk-risk-d",
+     "fact": "added",
+     "kind": "block",
+     "label": "Risk - UNAVAILABLE"
+    },
+    {
+     "element": "blk-news-holdings-d",
+     "fact": "added",
+     "kind": "block",
+     "label": "Holdings News"
+    },
+    {
+     "element": "blk-news-macro-d",
+     "fact": "added",
+     "kind": "block",
+     "label": "Macro News"
+    },
+    {
+     "element": "note-degraded",
+     "fact": "annotated",
+     "target": "blk-news-macro-d",
+     "text": "Nothing is hidden and nothing is late.\nBook says 'as of yesterday's close'.\nRisk says 'unavailable - vendor timeout'.\nThe sheet still ships at 07:15."
+    },
+    {
+     "element": "pin-promotion-removes",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "note-no-top-of-sheet",
+     "fact": "resized",
+     "label": "Earnings block replaces Top of Sheet.\nNV"
+    },
+    {
+     "element": "screen-degraded",
+     "fact": "screen_added",
+     "name": "Degraded Morning"
+    },
+    {
+     "element": "nav-normal",
+     "fact": "label_renamed",
+     "from": "Morning Tearsheet - 07:15",
+     "to": "Morning Tearsheet 07:15"
+    },
+    {
+     "element": "nav-earnings",
+     "fact": "label_renamed",
+     "from": "Morning Tearsheet - 07:15",
+     "to": "Morning Tearsheet 07:15"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 384,
+       "to": 374
+      },
+      {
+       "attr": "text",
+       "from": "Earnings block replaces Top of Sheet.\nNVDA KEEPS its Holdings News line -\njust short, the story is already up top.",
+       "to": "No generic Top of Sheet here -\nthe earnings block IS the top,\nand everything below demotes one place."
+      }
+     ],
+     "id": "note-no-top-of-sheet",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 96,
+       "to": 268
+      },
+      {
+       "attr": "text",
+       "from": "Macro News",
+       "to": "Macro News - Fed / CPI / geo"
+      }
+     ],
+     "id": "blk-news-macro-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 422
+      },
+      {
+       "attr": "text",
+       "from": "Holdings News (NVDA kept)",
+       "to": "Holdings News - NVDA line REMOVED (promoted)"
+      }
+     ],
+     "id": "blk-news-holdings-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 144,
+       "to": 336
+      },
+      {
+       "attr": "text",
+       "from": "Risk & Exposure",
+       "to": "Risk - exposure, VaR, concentration"
+      }
+     ],
+     "id": "blk-risk-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 86,
+       "to": 278
+      },
+      {
+       "attr": "text",
+       "from": "Your Book",
+       "to": "Your Book - P&L, top 5 movers"
+      }
+     ],
+     "id": "blk-book-e-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 124,
+       "to": 633
+      },
+      {
+       "attr": "text",
+       "from": "NVDA REPORTED",
+       "to": "NVDA REPORTED 16:05 - vs consensus, pre-mkt reaction, our position"
+      }
+     ],
+     "id": "blk-earnings-lead-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 220,
+       "to": 240
+      },
+      {
+       "attr": "text",
+       "from": "Morning Tearsheet 07:15",
+       "to": "Morning Tearsheet - 07:15"
+      }
+     ],
+     "id": "nav-earnings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 96,
+       "to": 268
+      },
+      {
+       "attr": "text",
+       "from": "Macro News",
+       "to": "Macro News - Fed / CPI / geo"
+      }
+     ],
+     "id": "blk-news-macro-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 124,
+       "to": 297
+      },
+      {
+       "attr": "text",
+       "from": "Holdings News",
+       "to": "Holdings News - 1 line per name"
+      }
+     ],
+     "id": "blk-news-holdings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 144,
+       "to": 336
+      },
+      {
+       "attr": "text",
+       "from": "Risk & Exposure",
+       "to": "Risk - exposure, VaR, concentration"
+      }
+     ],
+     "id": "blk-risk-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 86,
+       "to": 278
+      },
+      {
+       "attr": "text",
+       "from": "Your Book",
+       "to": "Your Book - P&L, top 5 movers"
+      }
+     ],
+     "id": "blk-book-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 211,
+       "to": 403
+      },
+      {
+       "attr": "text",
+       "from": "Top of Sheet (3 lines)",
+       "to": "Top of Sheet - 3 lines, what matters today"
+      }
+     ],
+     "id": "blk-top-of-sheet-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 220,
+       "to": 240
+      },
+      {
+       "attr": "text",
+       "from": "Morning Tearsheet 07:15",
+       "to": "Morning Tearsheet - 07:15"
+      }
+     ],
+     "id": "nav-normal-label",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Promotion means removal - I stripped NVDA's line out of Holdings News because it is already at the top, so the sheet never says the same thing twice. But if people scan that section as a checklist and expect every held name to appear, a missing NVDA reads as a bug rather than as an editorial choice. Which is it?",
+       "role": "pin",
+       "status": "open",
+       "target": "blk-news-holdings-e"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-promotion-removes",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 758494982,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 968,
+      "y": 684
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "note-degraded",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Nothing is hidden and nothing is late.\nBook says 'as of yesterday's close'.\nRisk says 'unavailable - vendor timeout'.\nThe sheet still ships at 07:15.",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 787570899,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Nothing is hidden and nothing is late.\nBook says 'as of yesterday's close'.\nRisk says 'unavailable - vendor timeout'.\nThe sheet still ships at 07:15.",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 393,
+      "x": 1160,
+      "y": 970
+     },
+     "index": 51,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-news-macro-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-news-macro-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 110849133,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1292,
+      "y": 802
+     },
+     "index": 50,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-news-macro-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 88,
+      "id": "blk-news-macro-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 572384256,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 768
+     },
+     "index": 49,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-news-holdings-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-news-holdings-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Holdings News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 336682725,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Holdings News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 1278,
+      "y": 690
+     },
+     "index": 48,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-news-holdings-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "blk-news-holdings-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 846032706,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 652
+     },
+     "index": 47,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-risk-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-risk-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk - UNAVAILABLE",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 750495905,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk - UNAVAILABLE",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 172,
+      "x": 1254,
+      "y": 578
+     },
+     "index": 46,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#ededed",
+      "boundElements": [
+       {
+        "id": "blk-risk-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "still rendered, carrying its reason - never silently omitted",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 88,
+      "id": "blk-risk-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 705775569,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 544
+     },
+     "index": 45,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-market-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-market-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Overnight & Pre-Market",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1406318678,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Overnight & Pre-Market",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 1234,
+      "y": 470
+     },
+     "index": 44,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-market-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 88,
+      "id": "blk-market-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1142524618,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 436
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 17,
+      "id": "fold-degraded",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "- - - - - phone fold - - - - -",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 252050702,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "- - - - - phone fold - - - - -",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 252,
+      "x": 1208,
+      "y": 400
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-book-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-book-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Your Book - STALE",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1971646072,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Your Book - STALE",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 1258,
+      "y": 326
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#ededed",
+      "boundElements": [
+       {
+        "id": "blk-book-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "yesterday's closing book, labelled - not a hole",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 104,
+      "id": "blk-book-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1011374285,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 284
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "blk-top-of-sheet-d",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "blk-top-of-sheet-d-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Top of Sheet (3 lines)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1429106025,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Top of Sheet (3 lines)",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 1234,
+      "y": 206
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "blk-top-of-sheet-d-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "blk-top-of-sheet-d",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2001510019,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 168
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "nav-degraded",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "nav-degraded-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Morning Tearsheet 07:15",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1111806126,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Morning Tearsheet 07:15",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 220,
+      "x": 1230,
+      "y": 114
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "nav-degraded-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-degraded",
+      "groupIds": [],
+      "height": 48,
+      "id": "nav-degraded",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 651700445,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1180,
+      "y": 100
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 860,
+      "id": "screen-degraded",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Degraded Morning",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1121527853,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 1160,
+      "y": 80
+     },
+     "index": 35,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 7,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-top-of-sheet",
+    "tearsheet-pipeline#agent-write-tearsheet"
+   ]
+  }
+ ],
+ "revn": 8,
+ "saved_at": "2026-08-07T19:01:08Z",
+ "selection_at_save": [],
+ "short_id": "53b40a9",
+ "summary": {
+  "headline": "added Degraded Morning (+27 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 8,
+   "annotated": 2,
+   "label_renamed": 2,
+   "pin_deleted": 1,
+   "renamed": 13,
+   "resized": 1,
+   "screen_added": 1
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "tearsheet-wireframe#blk-book",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-book+tearsheet-pipeline#load-positions",
+   "sibling": "tearsheet-pipeline#load-positions"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-risk",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-risk+tearsheet-pipeline#compute-metrics",
+   "sibling": "tearsheet-pipeline#compute-metrics"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-news-holdings",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-holdings+tearsheet-pipeline#pull-news",
+   "sibling": "tearsheet-pipeline#pull-news"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-news-macro",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-macro+tearsheet-pipeline#pull-macro-news",
+   "sibling": "tearsheet-pipeline#pull-macro-news"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-earnings-lead",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-earnings-lead+tearsheet-pipeline#check-earnings",
+   "sibling": "tearsheet-pipeline#check-earnings"
+  }
+ ],
+ "user_note": "Labels cut to fit the 320px phone column (they do not wrap); NVDA line restored to Holdings News per your rejection; added the degraded morning screen"
+}

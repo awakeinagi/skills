@@ -1,0 +1,267 @@
+{
+ "branches": [
+  {
+   "archived": false,
+   "head": 15,
+   "name": "main"
+  }
+ ],
+ "concepts": [
+  {
+   "glossary": null,
+   "id": "morning-tearsheet",
+   "name": "Morning Tearsheet",
+   "unviewed": false,
+   "views": [
+    "tearsheet-flow",
+    "tearsheet-sheet",
+    "tearsheet-failures"
+   ]
+  }
+ ],
+ "declined": [],
+ "divergence_policies": [],
+ "head": "main",
+ "mappings": [
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#sheet-complete",
+    "tearsheet-flow#draft-tearsheet"
+   ],
+   "note": null
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#sheet-degraded",
+    "tearsheet-flow#deadline-0730"
+   ],
+   "note": null
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#news-a",
+    "tearsheet-flow#summarize-news"
+   ],
+   "note": null
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#pnl-a",
+    "tearsheet-flow#run-analysis"
+   ],
+   "note": null
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-failures#ship-partial",
+    "tearsheet-sheet#sheet-degraded"
+   ],
+   "note": null
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-failures#flag-the-gap",
+    "tearsheet-flow#deadline-0730"
+   ],
+   "note": null
+  }
+ ],
+ "migrations": [
+  "0001-baseline"
+ ],
+ "pins": [
+  {
+   "answer": null,
+   "artifact": "tearsheet-flow",
+   "asked_at_revn": 1,
+   "element": "cutoff",
+   "id": "pin-cutoff",
+   "question": "If market data is still missing at the deadline, does the tearsheet go out with a gap flagged, or does it hold until the data lands? Which is worse for your team: late, or incomplete?",
+   "round": 1,
+   "status": "pruned"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-flow",
+   "asked_at_revn": 1,
+   "element": "summarize-news",
+   "id": "pin-news-judgment",
+   "question": "When the agent isn't sure a story matters to your book, does it include it or drop it? Which error hurts more: a cluttered sheet, or a missed headline?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-flow",
+   "asked_at_revn": 1,
+   "element": "draft-tearsheet",
+   "id": "pin-report-truth",
+   "question": "What's the rule when the agent is unsure of a number or a claim: omit it, hedge it, or print it with a citation and let the reader judge?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-flow",
+   "asked_at_revn": 3,
+   "element": "load-positions",
+   "id": "pin-book-fails",
+   "question": "Positions now gate three of the four sections. If the book fails to load at 06:45, is there any tearsheet worth sending, or does the run abort?",
+   "round": 3,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-flow",
+   "asked_at_revn": 3,
+   "element": "deadline-0730",
+   "id": "pin-slow-agent",
+   "question": "This cutoff guards against late data. What guards against a slow agent — if it is still writing at 07:30, do you ship a half-written sheet?",
+   "round": 3,
+   "status": "dismissed"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-flow",
+   "asked_at_revn": 3,
+   "element": "draft-tearsheet",
+   "id": "pin-decision-section",
+   "question": "The four sections tell a PM what changed. Which one tells them what needs a decision today — or does the agent owe an explicit fifth thing?",
+   "round": 3,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-sheet",
+   "asked_at_revn": 6,
+   "element": "movers-a",
+   "id": "pin-fold-order",
+   "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+   "round": 6,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-sheet",
+   "asked_at_revn": 6,
+   "element": "cal-a",
+   "id": "pin-calendar-source",
+   "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?",
+   "round": 6,
+   "status": "dismissed"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-failures",
+   "asked_at_revn": 13,
+   "element": "page-oncall",
+   "id": "pin-oncall",
+   "question": "Who is actually awake and reachable at 06:50 to take this page, and can they realistically fix a book-load failure before 07:30? If not, this branch means 'no tearsheet today' and should say so.",
+   "round": 12,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-sheet",
+   "asked_at_revn": 14,
+   "element": "decide-a",
+   "id": "pin-citation-depth",
+   "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+   "round": 13,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-sheet",
+   "asked_at_revn": 14,
+   "element": "decide-b",
+   "id": "pin-partial-advice",
+   "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+   "round": 13,
+   "status": "resolved"
+  }
+ ],
+ "revn": 15,
+ "round": 14,
+ "tripwires": [
+  {
+   "changed": "tearsheet-sheet#sheet-complete",
+   "id": "tw-7-1",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-complete+tearsheet-flow#draft-tearsheet",
+   "save": 7,
+   "sibling": "tearsheet-flow#draft-tearsheet",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-sheet#sheet-degraded",
+   "id": "tw-7-2",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-degraded+tearsheet-flow#deadline-0730",
+   "save": 7,
+   "sibling": "tearsheet-flow#deadline-0730",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-sheet#news-a",
+   "id": "tw-7-3",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#news-a+tearsheet-flow#summarize-news",
+   "save": 7,
+   "sibling": "tearsheet-flow#summarize-news",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-sheet#pnl-a",
+   "id": "tw-7-4",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#pnl-a+tearsheet-flow#run-analysis",
+   "save": 7,
+   "sibling": "tearsheet-flow#run-analysis",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-sheet#pnl-a",
+   "id": "tw-11-1",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#pnl-a+tearsheet-flow#run-analysis",
+   "save": 11,
+   "sibling": "tearsheet-flow#run-analysis",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-flow#draft-tearsheet",
+   "id": "tw-12-1",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-complete+tearsheet-flow#draft-tearsheet",
+   "save": 12,
+   "sibling": "tearsheet-sheet#sheet-complete",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-flow#deadline-0730",
+   "id": "tw-12-2",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-degraded+tearsheet-flow#deadline-0730",
+   "save": 12,
+   "sibling": "tearsheet-sheet#sheet-degraded",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-flow#run-analysis",
+   "id": "tw-12-3",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#pnl-a+tearsheet-flow#run-analysis",
+   "save": 12,
+   "sibling": "tearsheet-sheet#pnl-a",
+   "status": "resolved"
+  }
+ ],
+ "whose_move": "user"
+}

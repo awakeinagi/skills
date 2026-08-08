@@ -57,7 +57,13 @@ files by hand while the server runs — write through `canvas.py apply`.
 4. Round counter and whose-move resume from the registry (`status` shows
    them). A blank project: create nothing silently visible — seed your first
    artifact only when the conversation has material for it (Draw Gate).
-5. If the project has a root-level `CONTEXT.md` or `docs/adr/`, offer once to
+5. **New project (no artifacts yet)? Read `references/view-progression.md`
+   NOW, before your first move** — that move owes the archetype + parties
+   line ("this is a document generator: parties X and Y, passing A and B"),
+   one correctable sentence in chat that fixes which views this project
+   will owe. Skipping it is the v0 failure mode: views arrived only when
+   the user asked, which means too late.
+6. If the project has a root-level `CONTEXT.md` or `docs/adr/`, offer once to
    migrate them into `project_knowledge/` (move + leave pointer files);
    declining means: read both, write only project_knowledge/. State it once.
 
@@ -70,6 +76,11 @@ your next move. In order:
    replies, pin answers, every Save. Multiple Saves stay separate commits but
    you narrate them as **one cumulative reading**; attribute per-save only
    when the sequence itself is signal ("the wobble across 0014–0015").
+   **An answer settles its question wherever it arrives** — pin rail, chat,
+   or AskUserQuestion: the batch that executes an answer also carries its
+   mirrored pin's `resolve_pin` (same rule as registry ops riding the
+   batch). A pin left open after its question was settled in another
+   channel is bookkeeping drift — sweep it in your next batch.
 2. **Remove test** (pre-narration): for each element you're about to keep or
    draw, ask "does removing this lose alignment information?" — cut what
    fails. Never narrate an artifact you haven't validated against the round's
@@ -95,7 +106,13 @@ your next move. In order:
    that same move).
 5. **Ask the frontier**: your sharpest questions in chat; element-anchored
    questions ALSO ride as ❓ pins in the same op batch (pin + chat question
-   are the same object). Pin budget: **2–3 per round** — and the budget is a
+   are the same object). Give every pin `detail` + `examples`
+   (`references/ops-reference.md`) — the rail card opens a modal and that
+   briefing is the user's only out-of-band context for the question.
+   Tripwires fire already answerable (default choices + synthesized
+   detail); sharpen them with `annotate_tripwire` when the default
+   under-explains, and treat `tripwire_answer` events exactly like pin
+   answers: act, then `resolve_tripwire`. Pin budget: **2–3 per round** — and the budget is a
    count, not a bar: a question must additionally clear **proportionality**
    ("the answer changes the design"; approve even what you could imagine
    improving — manufacturing a gap from brevity is the classic reviewer
@@ -121,9 +138,10 @@ plus the **parties** and the two or three things that pass between them:
 the 1000ft foundation, costing no view (a party-shaped opening may seed a
 DMF-mode party map as the first artifact — the Draw Gate decides). It
 fixes the **view set** the project owes and the order those views become
-decidable in — un-drawn views are **view debt**, carried on the registry
-(`concepts[].unviewed`), paid at most one view per round when a trigger
-fires. Every trigger is one shape — *the question on the table can't be
+decidable in — un-drawn views are **view debt**, recorded at naming time
+via `upsert_concept` `owed: [types]` (auto-paid when a view of that type
+lands; nagged at NOTE tier until then), paid at most one view per round
+when a trigger fires. Every trigger is one shape — *the question on the table can't be
 made tangible in any view now on the canvas* — and each type has its tell
 (wireframe: a node's noun outweighs its verb; domain: a glossary term's
 definition names another term; sequence: a step is labelled with an actor;
@@ -177,9 +195,12 @@ the sentence failing to complete IS the test that the reading isn't ready.
     split is what makes RENAMED detectable. Never re-mint an id on rename.
 - **Unreadable edits**: pin one honest question on the element + one honest
   narration line ("there's a shape near Payment I can't read yet") — never
-  guess, never drop, never block. Pin lifecycle: answered → resolved; the
-  elements get edited → next diff reads them; pin deleted by the user → "not
-  worth explaining", never re-raise; elements deleted → prune.
+  guess, never drop, never block. Pin lifecycle: open → answered → resolved
+  (full state machine: `references/ops-reference.md`) — and **resolution
+  removes the ❓ from the canvas**: settled things leave both channels, per
+  the channel contract. The elements get edited → next diff reads them; pin
+  deleted by the user → "not worth explaining", never re-raise; elements
+  deleted → prune.
 - **Pin answer integrity**: if a pin's answer doesn't fit its question
   (adjacent answers swapped in the rail, an answer that responds to a
   different pin's text), say so and re-file or re-ask — never narrate a
@@ -247,6 +268,14 @@ first complex batch of a session):
 
 - **Ids are semantic slugs** (`login-form`, never a nanoid). `create` before
   drawing into a new artifact; one batch = one artifact.
+- **`create.concept` names the MOST SPECIFIC concept the view makes
+  tangible** — an output wireframe of the report is a view of `report`,
+  not of the project umbrella. The umbrella concept holds only views that
+  genuinely span the whole design — and **view debt never justifies filing
+  under the umbrella**: `owed` is the *project's* debt and a view of an
+  owed type pays it wherever it attaches. A settled term-concept adopting its
+  first view flips `unviewed` and pays `owed` debt — and is what makes the
+  all-artifacts dropdown grow real categories instead of one flat group.
 - **Labels**: pass `label` on the element — the server builds the real bound
   text element. Never put a `text` prop on a shape.
 - **Arrows**: give `from`/`to` node ids — the server routes geometry AND
@@ -283,11 +312,14 @@ and priority order when suggesting views.
   two rounds of settled vocabulary with no glossary is a queue you forgot to
   start.
 - **A settled glossary term IS a concept**: when a term lands in
-  CONTEXT.md, the same batch's registry op creates the concept (narrated,
-  veto-able) — at settlement only, never speculatively. This is what makes
-  mappings real joins and `concepts[].unviewed` a live view-debt signal;
-  the domain view is then simply the concept set, drawn. The complexity
-  budget applies to the domain *view*, never the concept set.
+  CONTEXT.md, the SAME batch carries `{"op": "registry", "action":
+  "upsert_concept", "name": "<Term>", "glossary": "<Term>"}` (narrated,
+  veto-able) — at settlement only, never speculatively. A glossary entry
+  without its registry op is the v0.1-acceptance failure mode (15 terms,
+  zero concepts) and the server now nags it at NOTE tier. This is what
+  makes mappings real joins; the domain view is then simply the concept
+  set, drawn. The complexity budget applies to the domain *view*, never
+  the concept set. Use the CONTEXT-FORMAT term shape (`**Term**:`).
 - **ADR offers stay chat-only**, gated by the three-part test (hard to
   reverse / surprising / real trade-off), citing save short-ids as evidence.
   Exemplar: "'The app never schedules the review' is a real decision with a

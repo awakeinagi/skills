@@ -1,0 +1,156 @@
+{
+ "artifacts": {
+  "tearsheet-sheet": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-calendar-source",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?",
+       "role": "pin",
+       "status": "open",
+       "target": "cal-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-calendar-source",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1215466386,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 782
+     },
+     "index": 29,
+     "op": "del"
+    }
+   ],
+   "facts": [
+    {
+     "element": "pin-calendar-source",
+     "fact": "pin_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?",
+       "role": "pin",
+       "status": "open",
+       "target": "cal-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-calendar-source",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1215466386,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 782
+     },
+     "index": 29,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-sheet",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 7,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 8,
+ "round": 8,
+ "saved_at": "2026-08-07T21:47:42Z",
+ "selection_at_save": [],
+ "short_id": "299a9bc",
+ "summary": {
+  "headline": "no changes",
+  "suppressed": 0,
+  "verb_counts": {
+   "pin_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "Keep the pin count honest: calendar-source moves to chat"
+}

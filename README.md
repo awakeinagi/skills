@@ -9,7 +9,8 @@ of every change — closing the alignment loop faster than prose alone.
 The core cycle is the **Refinement Loop**: the agent revises the canvas and
 asks for feedback → you edit and **Save** → the agent narrates its
 understanding, hypothesizing reasoning and implications → you correct →
-repeat. Full design: [spec.md](spec.md) · glossary: [CONTEXT.md](CONTEXT.md)
+repeat. Full design: [spec-v0.1.md](spec-v0.1.md) (v0 archive:
+[spec.md](spec.md)) · glossary: [CONTEXT.md](CONTEXT.md)
 · decisions: [docs/adr/](docs/adr/).
 
 ## Install
@@ -53,7 +54,8 @@ skills/wysiwyg-grilling/   the skill: SKILL.md, references/, scripts/
 frontends/wysiwyg-grilling/  web app source (maintainers only)
 tests/                     backend test suite
 docs/adr/                  architecture decision records
-spec.md                    the locked product spec
+spec-v0.1.md               the current product spec
+spec.md                    the v0 spec (frozen archive)
 ```
 
 ## Maintainer build (frontend)

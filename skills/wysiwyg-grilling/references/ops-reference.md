@@ -31,6 +31,18 @@ behind the pending-revision banner instead of landing — the response says so
            "concept_name": "Checkout"}   // used if the concept is new
 ```
 
+`concept` takes the **MOST SPECIFIC** concept the view makes tangible —
+an output wireframe of the report is a view of `report`, not of the
+project umbrella. The umbrella holds only views that genuinely span the
+whole design (typically the domain diagram and the end-to-end flow). If
+the artifact id is named after a settled term, that term is almost
+always the right concept, and the lint says so.
+
+**View debt is not a reason to file under the umbrella.** `owed` is
+archetype debt — the view set the *project* owes — so a view of an owed
+type pays it wherever it attaches (ADR 0010). Drawing `report-wireframe`
+on concept `report` clears the umbrella's `wireframe` debt.
+
 ## Element ops
 
 **add** — full spec through the `make_element` funnel:
@@ -76,15 +88,37 @@ answers arrive as `pin_answer` events carrying the text):
 
 ```jsonc
 {"op": "pin", "id": "pin-review", "target": "review-order",
- "question": "Can review be skipped for repeat buyers?"}
+ "question": "Can review be skipped for repeat buyers?",
+ // OPTIONAL but write them: the rail card opens a detail modal — `detail`
+ // is the comprehensive what/why (paragraphs split on blank lines),
+ // `examples` are concrete cases. Brief the user like a stakeholder who
+ // wasn't in the room: what hangs on this answer, what each choice
+ // implies. A bare question is a missed teaching moment.
+ "detail": "Repeat buyers abandon at re-review. But review is where\n"
+           "price changes surface.\n\nSkipping trades friction for\n"
+           "surprise-charge complaints — the answer decides which.",
+ "examples": ["Amazon: 1-click skips review entirely",
+              "Airline checkout: review is mandatory — prices move"]}
 {"op": "resolve_pin", "id": "pin-review"}   // after it's settled in chat
 ```
 
-`resolve_pin` updates both the canvas element and the registry pin record.
-When a pin's TARGET element gets deleted, the server auto-prunes the
-registry pin — but the leftover ❓ element stays on canvas until you remove
-it with an ordinary `{"op": "del", "id": "pin-review"}` in your next
-revision (tidying wreckage, not a proposal).
+**Pin state machine** — `open → answered → resolved`, with one writer per
+transition: the *server* moves a pin to `answered` on a `pin_answer` event;
+the *agent* moves it to `resolved` with `resolve_pin`, and only
+`resolve_pin` closes a pin. A pin may go straight `open → resolved` when
+its answer arrived off-canvas (chat, AskUserQuestion) — the batch that
+executes the answer carries the `resolve_pin`. A pin sitting `answered`
+for more than one round, or `open` after its question was settled in
+another channel, is bookkeeping drift: sweep it in your next batch.
+
+`resolve_pin` updates the registry record **and deletes the ❓ element**
+(tombstoned in the save record) — settled things leave the canvas.
+*(Server enforces the glyph deletion from v0.2; until then, pair
+`resolve_pin` with an explicit `{"op": "del", "id": "pin-review"}` in the
+same batch.)* When a pin's TARGET element gets deleted, the server
+auto-prunes the registry pin — but the leftover ❓ element stays on canvas
+until you remove it with an ordinary `del` in your next revision (tidying
+wreckage, not a proposal).
 
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.
@@ -94,6 +128,16 @@ it "agent asked a question" with no Apply action.
 ```jsonc
 {"op": "registry", "action": "upsert_concept", "id": "checkout",
  "name": "Checkout", "views": ["checkout-flow"], "glossary": "Checkout"}
+// a term settling into CONTEXT.md IS a concept being minted (ADR 0007):
+// upsert with glossary set and no views — it lands `unviewed: true`
+{"op": "registry", "action": "upsert_concept", "name": "The Book",
+ "glossary": "The book"}
+// view debt (ADR 0006): `owed` lists artifact types the archetype says
+// this concept still owes. Recorded at naming time; registering a view
+// of an owed type pays that debt automatically. The apply/status output
+// nags unpaid debt at NOTE tier.
+{"op": "registry", "action": "upsert_concept", "id": "checkout",
+ "owed": ["domain", "sequence"]}
 {"op": "registry", "action": "remove_view", "concept": "checkout",
  "view": "old-artifact"}                 // concept survives unviewed
 {"op": "registry", "action": "add_mapping", "concept": "checkout",
@@ -102,6 +146,18 @@ it "agent asked a question" with no Apply action.
  "note": "intentionally-divergent: wireframe uses marketing copy"}
 {"op": "registry", "action": "remove_mapping", "index": 0}
 {"op": "registry", "action": "resolve_tripwire", "id": "tw-8-1"}
+// tripwires are answerable in place like pins (rail card + red ? on the
+// canvas near the diverged element): they fire with a default question,
+// two choices ("Intentional divergence" / "Propagate"), and a synthesized
+// detail. Sharpen any of it when the default under-explains — an empty
+// choices list means free-text only. Answers arrive as `tripwire_answer`
+// events; act on the answer, then resolve_tripwire.
+{"op": "registry", "action": "annotate_tripwire", "id": "tw-8-1",
+ "question": "Basket or Cart — which name wins?",
+ "choices": ["Basket everywhere", "Cart everywhere", "Different things"],
+ "detail": "The glossary says Cart; the wireframe now says Basket.\n\n"
+           "Naming is the contract — pick one or split the concept.",
+ "examples": ["UK retail says basket; US says cart"]}
 {"op": "registry", "action": "decline", "concept": "checkout",
  "view_type": "domain", "kind": "suggestion", "reason": "user: later"}
 ```

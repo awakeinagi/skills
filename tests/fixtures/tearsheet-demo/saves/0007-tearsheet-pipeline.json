@@ -1,0 +1,2424 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "render-fallback",
+     "kind": "control",
+     "label": "Fallback: Numbers Only",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Fallback: Numbers Only"
+      },
+      "step_added": {
+       "label": "Fallback: Numbers Only"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-compute-fallback",
+     "kind": "arrow",
+     "label": "writer late",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "writer late"
+      },
+      "transition_added": {
+       "between": [
+        "Compute Moves, P&L, Risk",
+        "Fallback: Numbers Only"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-fallback-send",
+     "kind": "arrow",
+     "label": "instead of",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "instead of"
+      },
+      "transition_added": {
+       "between": [
+        "Fallback: Numbers Only",
+        "Send to Team"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-stale-positions",
+     "kind": "text",
+     "label": "If today's file is late:\nyesterday's boo",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "t-positions-news",
+       "text": "If today's file is late:\nyesterday's book, labelled stale.\nNever a hole."
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-stale-positions",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "daily-trigger",
+     "kind": "ellipse",
+     "label": "Daily 6:45 AM ET",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Daily 6:45 AM ET"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "pull-market",
+     "kind": "rectangle",
+     "label": "Pull Market + Pre-Market",
+     "ops": [
+      10,
+      11
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 60,
+       "dy": 0,
+       "label": "Pull Market + Pre-Market",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Pull Market + Pre-Market"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "load-positions",
+     "kind": "rectangle",
+     "label": "Load Positions",
+     "ops": [
+      13,
+      14
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 60,
+       "dy": 0,
+       "label": "Load Positions",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Load Positions"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "pull-news",
+     "kind": "rectangle",
+     "label": "Pull News for Holdings",
+     "ops": [
+      16,
+      17
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 140,
+       "dy": 0,
+       "label": "Pull News for Holdings",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Pull News for Holdings"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "compute-metrics",
+     "kind": "rectangle",
+     "label": "Compute Moves, P&L, Risk",
+     "ops": [
+      19,
+      20
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 310,
+       "dy": 0,
+       "label": "Compute Moves, P&L, Risk",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Compute Moves, P&L, Risk"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "agent-summarize-news",
+     "kind": "agent",
+     "label": "Agent: Summarize News",
+     "ops": [
+      22,
+      23
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 310,
+       "dy": 0,
+       "label": "Agent: Summarize News",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Agent: Summarize News"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "agent-write-tearsheet",
+     "kind": "agent",
+     "label": "Agent: Write Tearsheet",
+     "ops": [
+      25,
+      26
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 390,
+       "dy": 0,
+       "label": "Agent: Write Tearsheet",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Agent: Write Tearsheet"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "send-to-team",
+     "kind": "rectangle",
+     "label": "Send to Team",
+     "ops": [
+      28,
+      29
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 470,
+       "dy": 0,
+       "label": "Send to Team",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Send to Team"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "pull-macro-news",
+     "kind": "rectangle",
+     "label": "Pull Macro News",
+     "ops": [
+      34,
+      35
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 60,
+       "dy": 0,
+       "label": "Pull Macro News",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Pull Macro News"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "check-earnings",
+     "kind": "rectangle",
+     "label": "Check Earnings Calendar",
+     "ops": [
+      37,
+      38
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 140,
+       "dy": 0,
+       "label": "Check Earnings Calendar",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Check Earnings Calendar"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "input-cutoff",
+     "kind": "control",
+     "label": "7:00 Cutoff - Freeze Inputs",
+     "ops": [
+      40,
+      41
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 220,
+       "dy": 0,
+       "label": "7:00 Cutoff - Freeze Inputs",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "render-fallback",
+     "id": "note-cutoff",
+     "kind": "text",
+     "label": "Missing at 7:00 = section still shown,\nm",
+     "ops": [
+      43
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "render-fallback",
+       "dx": 300,
+       "dy": 10,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "render-fallback",
+     "id": "note-send",
+     "kind": "text",
+     "label": "Hard send 7:15 ET\nread 7:30-8:00, on pho",
+     "ops": [
+      44
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "render-fallback",
+       "dx": 480,
+       "dy": 20,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      31
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→?",
+       "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      32
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→?",
+       "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      33
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→?",
+       "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff3bf",
+      "boundElements": [
+       {
+        "id": "render-fallback-label",
+        "type": "text"
+       },
+       {
+        "id": "t-compute-fallback",
+        "type": "arrow"
+       },
+       {
+        "id": "t-fallback-send",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "deterministic template, no model involved - the path that makes 'always 07:15' true when the writing agent hangs",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "render-fallback",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1519167239,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 2240,
+      "y": 640
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "render-fallback",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "render-fallback-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Fallback: Numbers Only",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1540604261,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Fallback: Numbers Only",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 2274,
+      "y": 662
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-compute-fallback-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "render-fallback",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 356,
+      "id": "t-compute-fallback",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        373,
+        356
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2087975272,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 373,
+      "x": 1974,
+      "y": 284
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-compute-fallback",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-compute-fallback-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "writer late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 648161891,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "writer late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 2108,
+      "y": 452
+     },
+     "index": 44,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-fallback-send-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 186,
+      "id": "t-fallback-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        327,
+        -186
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 608624588,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "render-fallback",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 327,
+      "x": 2436,
+      "y": 640
+     },
+     "index": 45,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-fallback-send",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-fallback-send-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "instead of",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1341445284,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "instead of",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 2552,
+      "y": 537
+     },
+     "index": 46,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 60,
+      "id": "note-stale-positions",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "If today's file is late:\nyesterday's book, labelled stale.\nNever a hole.",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2074935548,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "If today's file is late:\nyesterday's book, labelled stale.\nNever a hole.",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 316,
+      "x": 460,
+      "y": 486
+     },
+     "index": 47,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "7:00 still loses the 7:02 morning - the exact case you named. But positions are the one input with a real fallback: yesterday's closing book is ~99% right, and a sheet built on it, labelled 'positions as of yesterday's close', beats both waiting and omitting. Prices have no such fallback (a stale quote lies). Should 'stale but labelled' be a third state alongside fresh and unavailable - and if so, does the cutoff time stop mattering much for this box?",
+       "role": "pin",
+       "status": "open",
+       "target": "load-positions"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-stale-positions",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 550749001,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 598,
+      "y": 392
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 170,
+       "to": 240
+      }
+     ],
+     "id": "daily-trigger",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 68,
+       "to": 104
+      }
+     ],
+     "id": "daily-trigger-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 190,
+       "to": 280
+      }
+     ],
+     "id": "pull-market",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      120
+     ],
+     "id": "pull-market",
+     "op": "move",
+     "to": [
+      460,
+      120
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 404,
+       "to": 485
+      }
+     ],
+     "id": "pull-market-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 190,
+       "to": 280
+      }
+     ],
+     "id": "load-positions",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      400
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      460,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 428,
+       "to": 533
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 190,
+       "to": 280
+      }
+     ],
+     "id": "pull-news",
+     "op": "mod"
+    },
+    {
+     "from": [
+      760,
+      560
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      900,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 764,
+       "to": 934
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 210,
+       "to": 280
+      }
+     ],
+     "id": "compute-metrics",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1490,
+      220
+     ],
+     "id": "compute-metrics",
+     "op": "move",
+     "to": [
+      1800,
+      220
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1494,
+       "to": 1825
+      }
+     ],
+     "id": "compute-metrics-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 210,
+       "to": 280
+      }
+     ],
+     "id": "agent-summarize-news",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1490,
+      560
+     ],
+     "id": "agent-summarize-news",
+     "op": "move",
+     "to": [
+      1800,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1494,
+       "to": 1840
+      }
+     ],
+     "id": "agent-summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 210,
+       "to": 280
+      }
+     ],
+     "id": "agent-write-tearsheet",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1850,
+      390
+     ],
+     "id": "agent-write-tearsheet",
+     "op": "move",
+     "to": [
+      2240,
+      390
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1854,
+       "to": 2274
+      }
+     ],
+     "id": "agent-write-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 190,
+       "to": 280
+      }
+     ],
+     "id": "send-to-team",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2210,
+      390
+     ],
+     "id": "send-to-team",
+     "op": "move",
+     "to": [
+      2680,
+      390
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2248,
+       "to": 2762
+      }
+     ],
+     "id": "send-to-team-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 190,
+       "to": 280
+      }
+     ],
+     "id": "pull-macro-news",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      260
+     ],
+     "id": "pull-macro-news",
+     "op": "move",
+     "to": [
+      460,
+      260
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 423,
+       "to": 528
+      }
+     ],
+     "id": "pull-macro-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 190,
+       "to": 280
+      }
+     ],
+     "id": "check-earnings",
+     "op": "mod"
+    },
+    {
+     "from": [
+      760,
+      700
+     ],
+     "id": "check-earnings",
+     "op": "move",
+     "to": [
+      900,
+      700
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 764,
+       "to": 930
+      }
+     ],
+     "id": "check-earnings-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 230,
+       "to": 300
+      }
+     ],
+     "id": "input-cutoff",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1120,
+      380
+     ],
+     "id": "input-cutoff",
+     "op": "move",
+     "to": [
+      1340,
+      380
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1124,
+       "to": 1360
+      }
+     ],
+     "id": "input-cutoff-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      500
+     ],
+     "id": "note-cutoff",
+     "op": "move",
+     "to": [
+      1360,
+      510
+     ]
+    },
+    {
+     "from": [
+      2200,
+      490
+     ],
+     "id": "note-send",
+     "op": "move",
+     "to": [
+      2680,
+      510
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "render-fallback",
+     "fact": "added",
+     "kind": "control",
+     "label": "Fallback: Numbers Only"
+    },
+    {
+     "element": "t-compute-fallback",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "writer late"
+    },
+    {
+     "element": "t-fallback-send",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "instead of"
+    },
+    {
+     "element": "note-stale-positions",
+     "fact": "annotated",
+     "target": "t-positions-news",
+     "text": "If today's file is late:\nyesterday's book, labelled stale.\nNever a hole."
+    },
+    {
+     "element": "pin-stale-positions",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "daily-trigger",
+     "fact": "resized",
+     "label": "Daily 6:45 AM ET"
+    },
+    {
+     "element": "pull-market",
+     "fact": "resized",
+     "label": "Pull Market + Pre-Market"
+    },
+    {
+     "dx": 60,
+     "dy": 0,
+     "element": "pull-market",
+     "fact": "moved",
+     "label": "Pull Market + Pre-Market",
+     "spatial": "moved right"
+    },
+    {
+     "element": "load-positions",
+     "fact": "resized",
+     "label": "Load Positions"
+    },
+    {
+     "dx": 60,
+     "dy": 0,
+     "element": "load-positions",
+     "fact": "moved",
+     "label": "Load Positions",
+     "spatial": "moved right"
+    },
+    {
+     "element": "pull-news",
+     "fact": "resized",
+     "label": "Pull News for Holdings"
+    },
+    {
+     "dx": 140,
+     "dy": 0,
+     "element": "pull-news",
+     "fact": "moved",
+     "label": "Pull News for Holdings",
+     "spatial": "moved right"
+    },
+    {
+     "element": "compute-metrics",
+     "fact": "resized",
+     "label": "Compute Moves, P&L, Risk"
+    },
+    {
+     "dx": 310,
+     "dy": 0,
+     "element": "compute-metrics",
+     "fact": "moved",
+     "label": "Compute Moves, P&L, Risk",
+     "spatial": "moved right"
+    },
+    {
+     "element": "agent-summarize-news",
+     "fact": "resized",
+     "label": "Agent: Summarize News"
+    },
+    {
+     "dx": 310,
+     "dy": 0,
+     "element": "agent-summarize-news",
+     "fact": "moved",
+     "label": "Agent: Summarize News",
+     "spatial": "moved right"
+    },
+    {
+     "element": "agent-write-tearsheet",
+     "fact": "resized",
+     "label": "Agent: Write Tearsheet"
+    },
+    {
+     "dx": 390,
+     "dy": 0,
+     "element": "agent-write-tearsheet",
+     "fact": "moved",
+     "label": "Agent: Write Tearsheet",
+     "spatial": "moved right"
+    },
+    {
+     "element": "send-to-team",
+     "fact": "resized",
+     "label": "Send to Team"
+    },
+    {
+     "dx": 470,
+     "dy": 0,
+     "element": "send-to-team",
+     "fact": "moved",
+     "label": "Send to Team",
+     "spatial": "moved right"
+    },
+    {
+     "element": "pull-macro-news",
+     "fact": "resized",
+     "label": "Pull Macro News"
+    },
+    {
+     "dx": 60,
+     "dy": 0,
+     "element": "pull-macro-news",
+     "fact": "moved",
+     "label": "Pull Macro News",
+     "spatial": "moved right"
+    },
+    {
+     "element": "check-earnings",
+     "fact": "resized",
+     "label": "Check Earnings Calendar"
+    },
+    {
+     "dx": 140,
+     "dy": 0,
+     "element": "check-earnings",
+     "fact": "moved",
+     "label": "Check Earnings Calendar",
+     "spatial": "moved right"
+    },
+    {
+     "element": "input-cutoff",
+     "fact": "resized",
+     "label": "7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "dx": 220,
+     "dy": 0,
+     "element": "input-cutoff",
+     "fact": "moved",
+     "label": "7:00 Cutoff - Freeze Inputs",
+     "spatial": "moved right"
+    },
+    {
+     "consequence_of": "render-fallback",
+     "dx": 300,
+     "dy": 10,
+     "element": "note-cutoff",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "render-fallback",
+     "dx": 480,
+     "dy": 20,
+     "element": "note-send",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "render-fallback",
+     "fact": "step_added",
+     "label": "Fallback: Numbers Only"
+    },
+    {
+     "between": [
+      "Compute Moves, P&L, Risk",
+      "Fallback: Numbers Only"
+     ],
+     "element": "t-compute-fallback",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Fallback: Numbers Only",
+      "Send to Team"
+     ],
+     "element": "t-fallback-send",
+     "fact": "transition_added"
+    },
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→?",
+     "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→?",
+     "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→?",
+     "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "from": [
+      2680,
+      510
+     ],
+     "id": "note-send",
+     "op": "move",
+     "to": [
+      2200,
+      490
+     ]
+    },
+    {
+     "from": [
+      1360,
+      510
+     ],
+     "id": "note-cutoff",
+     "op": "move",
+     "to": [
+      1060,
+      500
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1360,
+       "to": 1124
+      }
+     ],
+     "id": "input-cutoff-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1340,
+      380
+     ],
+     "id": "input-cutoff",
+     "op": "move",
+     "to": [
+      1120,
+      380
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 300,
+       "to": 230
+      }
+     ],
+     "id": "input-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 930,
+       "to": 764
+      }
+     ],
+     "id": "check-earnings-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      900,
+      700
+     ],
+     "id": "check-earnings",
+     "op": "move",
+     "to": [
+      760,
+      700
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 190
+      }
+     ],
+     "id": "check-earnings",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 528,
+       "to": 423
+      }
+     ],
+     "id": "pull-macro-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      260
+     ],
+     "id": "pull-macro-news",
+     "op": "move",
+     "to": [
+      400,
+      260
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 190
+      }
+     ],
+     "id": "pull-macro-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2762,
+       "to": 2248
+      }
+     ],
+     "id": "send-to-team-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2680,
+      390
+     ],
+     "id": "send-to-team",
+     "op": "move",
+     "to": [
+      2210,
+      390
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 190
+      }
+     ],
+     "id": "send-to-team",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2274,
+       "to": 1854
+      }
+     ],
+     "id": "agent-write-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2240,
+      390
+     ],
+     "id": "agent-write-tearsheet",
+     "op": "move",
+     "to": [
+      1850,
+      390
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 210
+      }
+     ],
+     "id": "agent-write-tearsheet",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1840,
+       "to": 1494
+      }
+     ],
+     "id": "agent-summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1800,
+      560
+     ],
+     "id": "agent-summarize-news",
+     "op": "move",
+     "to": [
+      1490,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 210
+      }
+     ],
+     "id": "agent-summarize-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1825,
+       "to": 1494
+      }
+     ],
+     "id": "compute-metrics-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1800,
+      220
+     ],
+     "id": "compute-metrics",
+     "op": "move",
+     "to": [
+      1490,
+      220
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 210
+      }
+     ],
+     "id": "compute-metrics",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 934,
+       "to": 764
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      900,
+      560
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      760,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 190
+      }
+     ],
+     "id": "pull-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 533,
+       "to": 428
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      400
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      400,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 190
+      }
+     ],
+     "id": "load-positions",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 485,
+       "to": 404
+      }
+     ],
+     "id": "pull-market-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      460,
+      120
+     ],
+     "id": "pull-market",
+     "op": "move",
+     "to": [
+      400,
+      120
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 190
+      }
+     ],
+     "id": "pull-market",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 104,
+       "to": 68
+      }
+     ],
+     "id": "daily-trigger-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 170
+      }
+     ],
+     "id": "daily-trigger",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "7:00 still loses the 7:02 morning - the exact case you named. But positions are the one input with a real fallback: yesterday's closing book is ~99% right, and a sheet built on it, labelled 'positions as of yesterday's close', beats both waiting and omitting. Prices have no such fallback (a stale quote lies). Should 'stale but labelled' be a third state alongside fresh and unavailable - and if so, does the cutoff time stop mattering much for this box?",
+       "role": "pin",
+       "status": "open",
+       "target": "load-positions"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-stale-positions",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 550749001,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 598,
+      "y": 392
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 60,
+      "id": "note-stale-positions",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "If today's file is late:\nyesterday's book, labelled stale.\nNever a hole.",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2074935548,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "If today's file is late:\nyesterday's book, labelled stale.\nNever a hole.",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 316,
+      "x": 460,
+      "y": 486
+     },
+     "index": 47,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-fallback-send",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-fallback-send-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "instead of",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1341445284,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "instead of",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 2552,
+      "y": 537
+     },
+     "index": 46,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-fallback-send-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 186,
+      "id": "t-fallback-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        327,
+        -186
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 608624588,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "render-fallback",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 327,
+      "x": 2436,
+      "y": 640
+     },
+     "index": 45,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-compute-fallback",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-compute-fallback-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "writer late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 648161891,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "writer late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 2108,
+      "y": 452
+     },
+     "index": 44,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-compute-fallback-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "render-fallback",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 356,
+      "id": "t-compute-fallback",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        373,
+        356
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2087975272,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 373,
+      "x": 1974,
+      "y": 284
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "render-fallback",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "render-fallback-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Fallback: Numbers Only",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1540604261,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Fallback: Numbers Only",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 2274,
+      "y": 662
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff3bf",
+      "boundElements": [
+       {
+        "id": "render-fallback-label",
+        "type": "text"
+       },
+       {
+        "id": "t-compute-fallback",
+        "type": "arrow"
+       },
+       {
+        "id": "t-fallback-send",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "deterministic template, no model involved - the path that makes 'always 07:15' true when the writing agent hangs",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "render-fallback",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1519167239,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 2240,
+      "y": 640
+     },
+     "index": 41,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 6,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 7,
+ "saved_at": "2026-08-07T19:00:36Z",
+ "selection_at_save": [],
+ "short_id": "3f07023",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→? to Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs (+32 more)",
+  "suppressed": 2,
+  "verb_counts": {
+   "added": 3,
+   "annotated": 1,
+   "moved": 12,
+   "pin_deleted": 1,
+   "resized": 11,
+   "rewired": 3,
+   "sequence_reordered": 1,
+   "step_added": 1,
+   "transition_added": 2
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "tearsheet-pipeline#agent-write-tearsheet",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#screen-normal+tearsheet-pipeline#agent-write-tearsheet",
+   "sibling": "tearsheet-wireframe#screen-normal"
+  },
+  {
+   "changed": "tearsheet-pipeline#load-positions",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-book+tearsheet-pipeline#load-positions",
+   "sibling": "tearsheet-wireframe#blk-book"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-market",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-market+tearsheet-pipeline#pull-market",
+   "sibling": "tearsheet-wireframe#blk-market"
+  },
+  {
+   "changed": "tearsheet-pipeline#compute-metrics",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-risk+tearsheet-pipeline#compute-metrics",
+   "sibling": "tearsheet-wireframe#blk-risk"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-news",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-holdings+tearsheet-pipeline#pull-news",
+   "sibling": "tearsheet-wireframe#blk-news-holdings"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-macro-news",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-macro+tearsheet-pipeline#pull-macro-news",
+   "sibling": "tearsheet-wireframe#blk-news-macro"
+  },
+  {
+   "changed": "tearsheet-pipeline#check-earnings",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-earnings-lead+tearsheet-pipeline#check-earnings",
+   "sibling": "tearsheet-wireframe#blk-earnings-lead"
+  }
+ ],
+ "user_note": "Widened every box to fit its label (labels do not wrap), re-spaced the columns, moved both notes clear of the arrows, added the deterministic fallback renderer, and recorded stale-but-labelled positions"
+}

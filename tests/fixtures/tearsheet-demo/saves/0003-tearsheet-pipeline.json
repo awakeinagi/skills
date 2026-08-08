@@ -1,0 +1,4481 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-macro-news",
+     "kind": "rectangle",
+     "label": "Pull Macro News",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Pull Macro News"
+      },
+      "step_added": {
+       "label": "Pull Macro News"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "check-earnings",
+     "kind": "rectangle",
+     "label": "Check Earnings Calendar",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "Check Earnings Calendar"
+      },
+      "step_added": {
+       "label": "Check Earnings Calendar"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "input-cutoff",
+     "kind": "control",
+     "label": "6:55 Cutoff - Freeze Inputs",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "6:55 Cutoff - Freeze Inputs"
+      },
+      "step_added": {
+       "label": "6:55 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-macro",
+     "kind": "arrow",
+     "label": "t-trigger-macro",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-trigger-macro"
+      },
+      "transition_added": {
+       "between": [
+        "Daily 6:45 AM ET",
+        "Pull Macro News"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-earnings",
+     "kind": "arrow",
+     "label": "by ticker",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "by ticker"
+      },
+      "transition_added": {
+       "between": [
+        "Load Positions",
+        "Check Earnings Calendar"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-macro-cutoff",
+     "kind": "arrow",
+     "label": "t-macro-cutoff",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-macro-cutoff"
+      },
+      "transition_added": {
+       "between": [
+        "Pull Macro News",
+        "6:55 Cutoff - Freeze Inputs"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-earnings-cutoff",
+     "kind": "arrow",
+     "label": "t-earnings-cutoff",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-earnings-cutoff"
+      },
+      "transition_added": {
+       "between": [
+        "Check Earnings Calendar",
+        "6:55 Cutoff - Freeze Inputs"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-cutoff-compute",
+     "kind": "arrow",
+     "label": "t-cutoff-compute",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-cutoff-compute"
+      },
+      "transition_added": {
+       "between": [
+        "6:55 Cutoff - Freeze Inputs",
+        "Compute Moves, P&L, Risk"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-cutoff-summarize",
+     "kind": "arrow",
+     "label": "t-cutoff-summarize",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-cutoff-summarize"
+      },
+      "transition_added": {
+       "between": [
+        "6:55 Cutoff - Freeze Inputs",
+        "Agent: Summarize News"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-write-send",
+     "kind": "arrow",
+     "label": "t-write-send",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-write-send"
+      },
+      "transition_added": {
+       "between": [
+        "Agent: Write Tearsheet",
+        "Send to Team"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-cutoff",
+     "kind": "text",
+     "label": "Missing at 6:55 =\nsection marked unavail",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "input-cutoff",
+       "text": "Missing at 6:55 =\nsection marked unavailable"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-send",
+     "kind": "text",
+     "label": "Hard send 7:15 ET\nread 7:30-8:00, on pho",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "send-to-team",
+       "text": "Hard send 7:15 ET\nread 7:30-8:00, on phones"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-earnings-lookup",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "I made earnings a deterministic calendar lookup off your positions - NOT something the news agent notices while reading. The principle: the agent should never be responsible for spotting salience it could simply be told about. Is that right? And what's the window - reported after yesterday's close, reporting before today's open, or both?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-unavailable-means",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "This is your hill-to-die-on turned into a mechanism. What I can't tell: does 'unavailable' mean the section is omitted entirely, or shown with a reason ('risk numbers unavailable - vendor timeout')? On a phone those read completely differently, and only one of them tells you to go look elsewhere."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-agent-unsure",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Nothing now stands between this box and the team's inbox. Different question from the gate you deleted: when the model is UNSURE - stale quote, ambiguous headline, thin news - what does the sheet actually do? Hedge in prose, drop the item, or state it flat? At 7:35 on a train nobody is checking its work."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-write-gate",
+     "kind": "arrow",
+     "label": "t-write-gate",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-write-gate"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Agent: Write Tearsheet",
+        "review-gate"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-gate-send",
+     "kind": "arrow",
+     "label": "ship",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "ship"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "review-gate",
+        "Send to Team"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-gate-rewrite",
+     "kind": "arrow",
+     "label": "edits",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "edits"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "review-gate",
+        "Agent: Write Tearsheet"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-deadline",
+     "kind": "text",
+     "label": "note-deadline",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "annotation_deleted": {
+       "text": ""
+      }
+     },
+     "verb": "annotation_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-review-gate",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "daily-trigger",
+     "kind": "ellipse",
+     "label": "Daily 6:45 AM ET",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -40,
+       "label": "Daily 6:45 AM ET",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-market",
+     "kind": "rectangle",
+     "label": "Pull Market + Pre-Market",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -20,
+       "label": "Pull Market + Pre-Market",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "load-positions",
+     "kind": "rectangle",
+     "label": "Load Positions",
+     "ops": [
+      31
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -60,
+       "label": "Load Positions",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-news",
+     "kind": "rectangle",
+     "label": "Pull News for Holdings",
+     "ops": [
+      33
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 100,
+       "label": "Pull News for Holdings",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "pull-macro-news",
+     "id": "compute-metrics",
+     "kind": "rectangle",
+     "label": "Compute Moves, P&L, Risk",
+     "ops": [
+      35
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "pull-macro-news",
+       "dx": 370,
+       "dy": 80,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "pull-macro-news",
+     "id": "agent-summarize-news",
+     "kind": "agent",
+     "label": "Agent: Summarize News",
+     "ops": [
+      37
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "pull-macro-news",
+       "dx": 370,
+       "dy": 100,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "pull-macro-news",
+     "id": "agent-write-tearsheet",
+     "kind": "agent",
+     "label": "Agent: Write Tearsheet",
+     "ops": [
+      39
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "pull-macro-news",
+       "dx": 370,
+       "dy": 90,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "pull-macro-news",
+     "id": "send-to-team",
+     "kind": "rectangle",
+     "label": "Send to Team",
+     "ops": [
+      41
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "pull-macro-news",
+       "dx": 380,
+       "dy": 114,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      43
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→Compute Moves, P&L, Risk",
+       "to": "Pull Market + Pre-Market→6:55 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      44
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→Compute Moves, P&L, Risk",
+       "to": "Load Positions→6:55 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      45
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→Agent: Summarize News",
+       "to": "Pull News for Holdings→6:55 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-macro-news-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-macro",
+        "type": "arrow"
+       },
+       {
+        "id": "t-macro-cutoff",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Fed, CPI, geopolitics - independent of what we hold, so it runs off the trigger",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-macro-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2108483732,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 400,
+      "y": 260
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-macro-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-macro-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull Macro News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1720159947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull Macro News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 423,
+      "y": 282
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "check-earnings-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-earnings",
+        "type": "arrow"
+       },
+       {
+        "id": "t-earnings-cutoff",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "deterministic lookup: which of our names reported overnight or reports today",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "check-earnings",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1685890169,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 760,
+      "y": 700
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "check-earnings",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "check-earnings-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Check Earnings Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 96995641,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Check Earnings Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 220,
+      "x": 764,
+      "y": 722
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff3bf",
+      "boundElements": [
+       {
+        "id": "input-cutoff-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-summarize",
+        "type": "arrow"
+       },
+       {
+        "id": "t-macro-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-earnings-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-summarize",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "the deadline made structural: whatever has landed is the input set; gaps become explicit unavailable markers",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "input-cutoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 158550061,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 230,
+      "x": 1120,
+      "y": 380
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "input-cutoff",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "input-cutoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "6:55 Cutoff - Freeze Inputs",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 111819427,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "6:55 Cutoff - Freeze Inputs",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 259,
+      "x": 1124,
+      "y": 410
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-macro-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-trigger-macro",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        170,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 59944544,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 230,
+      "y": 292
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-positions-earnings-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "check-earnings",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 236,
+      "id": "t-positions-earnings",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        283,
+        236
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1598856926,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 283,
+      "x": 533,
+      "y": 464
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-positions-earnings",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-positions-earnings-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "by ticker",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 844462744,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "by ticker",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 632,
+      "y": 572
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 92,
+      "id": "t-macro-cutoff",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        530,
+        92
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1029395894,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-macro-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 530,
+      "x": 590,
+      "y": 308
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 240,
+      "id": "t-earnings-cutoff",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        292,
+        -240
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1685380390,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "check-earnings",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 292,
+      "x": 894,
+      "y": 700
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-cutoff-compute",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        206,
+        -96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1543751134,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 206,
+      "x": 1321,
+      "y": 380
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-summarize-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 100,
+      "id": "t-cutoff-summarize",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        209,
+        100
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 445054420,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 209,
+      "x": 1319,
+      "y": 460
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-write-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1804407971,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 2060,
+      "y": 422
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "note-cutoff",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Missing at 6:55 =\nsection marked unavailable",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1561695908,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Missing at 6:55 =\nsection marked unavailable",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 249,
+      "x": 1060,
+      "y": 500
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "note-send",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Hard send 7:15 ET\nread 7:30-8:00, on phones",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 68917306,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Hard send 7:15 ET\nread 7:30-8:00, on phones",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 240,
+      "x": 2200,
+      "y": 490
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I made earnings a deterministic calendar lookup off your positions - NOT something the news agent notices while reading. The principle: the agent should never be responsible for spotting salience it could simply be told about. Is that right? And what's the window - reported after yesterday's close, reporting before today's open, or both?",
+       "role": "pin",
+       "status": "open",
+       "target": "check-earnings"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-earnings-lookup",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2076468012,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 958,
+      "y": 692
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "This is your hill-to-die-on turned into a mechanism. What I can't tell: does 'unavailable' mean the section is omitted entirely, or shown with a reason ('risk numbers unavailable - vendor timeout')? On a phone those read completely differently, and only one of them tells you to go look elsewhere.",
+       "role": "pin",
+       "status": "open",
+       "target": "input-cutoff"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-unavailable-means",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 217661959,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1358,
+      "y": 372
+     },
+     "index": 44,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Nothing now stands between this box and the team's inbox. Different question from the gate you deleted: when the model is UNSURE - stale quote, ambiguous headline, thin news - what does the sheet actually do? Hedge in prose, drop the item, or state it flat? At 7:35 on a train nobody is checking its work.",
+       "role": "pin",
+       "status": "open",
+       "target": "agent-write-tearsheet"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-agent-unsure",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 755946558,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2068,
+      "y": 382
+     },
+     "index": 45,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-write-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1960163066,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1690,
+      "y": 332
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-send-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1155805184,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 2040,
+      "y": 332
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-send",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-send-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "ship",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1306155851,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "ship",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 2096,
+      "y": 322
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-rewrite-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-rewrite",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 135849546,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1840,
+      "y": 332
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-rewrite",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-rewrite-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "edits",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1352410371,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "edits",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1741,
+      "y": 322
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "note-deadline-label",
+        "type": "text"
+       }
+      ],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2034844479,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 10,
+      "x": 40,
+      "y": 402
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "note-deadline",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Deadline: before 9:30 ET open",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 355910455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Deadline: before 9:30 ET open",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 278,
+      "x": 44,
+      "y": 406
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?",
+       "role": "pin",
+       "status": "open",
+       "target": "review-gate"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-review-gate",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 864383509,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2048,
+      "y": 264
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "from": [
+      60,
+      300
+     ],
+     "id": "daily-trigger",
+     "op": "move",
+     "to": [
+      60,
+      260
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 322,
+       "to": 282
+      }
+     ],
+     "id": "daily-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      140
+     ],
+     "id": "pull-market",
+     "op": "move",
+     "to": [
+      400,
+      120
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 162,
+       "to": 142
+      }
+     ],
+     "id": "pull-market-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      460
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      400,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 422
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      760,
+      460
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      760,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 582
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1120,
+      140
+     ],
+     "id": "compute-metrics",
+     "op": "move",
+     "to": [
+      1490,
+      220
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1124,
+       "to": 1494
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 162,
+       "to": 242
+      }
+     ],
+     "id": "compute-metrics-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1120,
+      460
+     ],
+     "id": "agent-summarize-news",
+     "op": "move",
+     "to": [
+      1490,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1124,
+       "to": 1494
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 582
+      }
+     ],
+     "id": "agent-summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1480,
+      300
+     ],
+     "id": "agent-write-tearsheet",
+     "op": "move",
+     "to": [
+      1850,
+      390
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1484,
+       "to": 1854
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 322,
+       "to": 412
+      }
+     ],
+     "id": "agent-write-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1830,
+      276
+     ],
+     "id": "send-to-team",
+     "op": "move",
+     "to": [
+      2210,
+      390
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1860,
+       "to": 2248
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 298,
+       "to": 412
+      }
+     ],
+     "id": "send-to-team-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 590,
+       "to": 583
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 172,
+       "to": 184
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 530,
+       "to": 541
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 196
+      },
+      {
+       "attr": "endBinding",
+       "from": "compute-metrics",
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 568,
+       "to": 590
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 460,
+       "to": 430
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 584,
+       "to": 530
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 256,
+       "to": 9
+      },
+      {
+       "attr": "endBinding",
+       "from": "compute-metrics",
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 950,
+       "to": 926
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 492,
+       "to": 560
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 170,
+       "to": 221
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 100
+      },
+      {
+       "attr": "endBinding",
+       "from": "agent-summarize-news",
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "answered",
+        "target": "pull-news"
+       },
+       "to": {
+        "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "pull-news"
+       }
+      }
+     ],
+     "id": "pin-news-scope",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "answered",
+        "target": "agent-write-tearsheet"
+       },
+       "to": {
+        "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "resolved",
+        "target": "agent-write-tearsheet"
+       }
+      }
+     ],
+     "id": "pin-one-or-many",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "pull-macro-news",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Pull Macro News"
+    },
+    {
+     "element": "check-earnings",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "Check Earnings Calendar"
+    },
+    {
+     "element": "input-cutoff",
+     "fact": "added",
+     "kind": "control",
+     "label": "6:55 Cutoff - Freeze Inputs"
+    },
+    {
+     "element": "t-trigger-macro",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-trigger-macro"
+    },
+    {
+     "element": "t-positions-earnings",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "by ticker"
+    },
+    {
+     "element": "t-macro-cutoff",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-macro-cutoff"
+    },
+    {
+     "element": "t-earnings-cutoff",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-earnings-cutoff"
+    },
+    {
+     "element": "t-cutoff-compute",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-cutoff-compute"
+    },
+    {
+     "element": "t-cutoff-summarize",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-cutoff-summarize"
+    },
+    {
+     "element": "t-write-send",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-write-send"
+    },
+    {
+     "element": "note-cutoff",
+     "fact": "annotated",
+     "target": "input-cutoff",
+     "text": "Missing at 6:55 =\nsection marked unavailable"
+    },
+    {
+     "element": "note-send",
+     "fact": "annotated",
+     "target": "send-to-team",
+     "text": "Hard send 7:15 ET\nread 7:30-8:00, on phones"
+    },
+    {
+     "element": "pin-earnings-lookup",
+     "fact": "pin_added",
+     "question": "I made earnings a deterministic calendar lookup off your positions - NOT something the news agent notices while reading. The principle: the agent should never be responsible for spotting salience it could simply be told about. Is that right? And what's the window - reported after yesterday's close, reporting before today's open, or both?"
+    },
+    {
+     "element": "pin-unavailable-means",
+     "fact": "pin_added",
+     "question": "This is your hill-to-die-on turned into a mechanism. What I can't tell: does 'unavailable' mean the section is omitted entirely, or shown with a reason ('risk numbers unavailable - vendor timeout')? On a phone those read completely differently, and only one of them tells you to go look elsewhere."
+    },
+    {
+     "element": "pin-agent-unsure",
+     "fact": "pin_added",
+     "question": "Nothing now stands between this box and the team's inbox. Different question from the gate you deleted: when the model is UNSURE - stale quote, ambiguous headline, thin news - what does the sheet actually do? Hedge in prose, drop the item, or state it flat? At 7:35 on a train nobody is checking its work."
+    },
+    {
+     "element": "t-write-gate",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-write-gate"
+     }
+    },
+    {
+     "element": "t-gate-send",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "ship"
+     }
+    },
+    {
+     "element": "t-gate-rewrite",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "edits"
+     }
+    },
+    {
+     "element": "note-deadline",
+     "fact": "annotation_deleted",
+     "text": ""
+    },
+    {
+     "element": "pin-review-gate",
+     "fact": "pin_deleted"
+    },
+    {
+     "dx": 0,
+     "dy": -40,
+     "element": "daily-trigger",
+     "fact": "moved",
+     "label": "Daily 6:45 AM ET",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -20,
+     "element": "pull-market",
+     "fact": "moved",
+     "label": "Pull Market + Pre-Market",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -60,
+     "element": "load-positions",
+     "fact": "moved",
+     "label": "Load Positions",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": 100,
+     "element": "pull-news",
+     "fact": "moved",
+     "label": "Pull News for Holdings",
+     "spatial": "moved down"
+    },
+    {
+     "consequence_of": "pull-macro-news",
+     "dx": 370,
+     "dy": 80,
+     "element": "compute-metrics",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "pull-macro-news",
+     "dx": 370,
+     "dy": 100,
+     "element": "agent-summarize-news",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "pull-macro-news",
+     "dx": 370,
+     "dy": 90,
+     "element": "agent-write-tearsheet",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "pull-macro-news",
+     "dx": 380,
+     "dy": 114,
+     "element": "send-to-team",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "pull-macro-news",
+     "fact": "step_added",
+     "label": "Pull Macro News"
+    },
+    {
+     "element": "check-earnings",
+     "fact": "step_added",
+     "label": "Check Earnings Calendar"
+    },
+    {
+     "element": "input-cutoff",
+     "fact": "step_added",
+     "label": "6:55 Cutoff - Freeze Inputs"
+    },
+    {
+     "between": [
+      "Daily 6:45 AM ET",
+      "Pull Macro News"
+     ],
+     "element": "t-trigger-macro",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Check Earnings Calendar"
+     ],
+     "element": "t-positions-earnings",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Pull Macro News",
+      "6:55 Cutoff - Freeze Inputs"
+     ],
+     "element": "t-macro-cutoff",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Check Earnings Calendar",
+      "6:55 Cutoff - Freeze Inputs"
+     ],
+     "element": "t-earnings-cutoff",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "6:55 Cutoff - Freeze Inputs",
+      "Compute Moves, P&L, Risk"
+     ],
+     "element": "t-cutoff-compute",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "6:55 Cutoff - Freeze Inputs",
+      "Agent: Summarize News"
+     ],
+     "element": "t-cutoff-summarize",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Agent: Write Tearsheet",
+      "Send to Team"
+     ],
+     "element": "t-write-send",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Agent: Write Tearsheet",
+      "review-gate"
+     ],
+     "element": "t-write-gate",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "review-gate",
+      "Send to Team"
+     ],
+     "element": "t-gate-send",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "review-gate",
+      "Agent: Write Tearsheet"
+     ],
+     "element": "t-gate-rewrite",
+     "fact": "transition_deleted"
+    },
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→Compute Moves, P&L, Risk",
+     "to": "Pull Market + Pre-Market→6:55 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→Compute Moves, P&L, Risk",
+     "to": "Load Positions→6:55 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→Agent: Summarize News",
+     "to": "Pull News for Holdings→6:55 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "resolved",
+        "target": "agent-write-tearsheet"
+       },
+       "to": {
+        "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+        "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+        "role": "pin",
+        "status": "answered",
+        "target": "agent-write-tearsheet"
+       }
+      }
+     ],
+     "id": "pin-one-or-many",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "pull-news"
+       },
+       "to": {
+        "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+        "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+        "role": "pin",
+        "status": "answered",
+        "target": "pull-news"
+       }
+      }
+     ],
+     "id": "pin-news-scope",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 926,
+       "to": 950
+      },
+      {
+       "attr": "y",
+       "from": 560,
+       "to": 492
+      },
+      {
+       "attr": "width",
+       "from": 221,
+       "to": 170
+      },
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 0
+      },
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": "agent-summarize-news"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 590,
+       "to": 568
+      },
+      {
+       "attr": "y",
+       "from": 430,
+       "to": 460
+      },
+      {
+       "attr": "width",
+       "from": 530,
+       "to": 584
+      },
+      {
+       "attr": "height",
+       "from": 9,
+       "to": 256
+      },
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": "compute-metrics"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 583,
+       "to": 590
+      },
+      {
+       "attr": "y",
+       "from": 184,
+       "to": 172
+      },
+      {
+       "attr": "width",
+       "from": 541,
+       "to": 530
+      },
+      {
+       "attr": "height",
+       "from": 196,
+       "to": 0
+      },
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": "compute-metrics"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2248,
+       "to": 1860
+      },
+      {
+       "attr": "y",
+       "from": 412,
+       "to": 298
+      }
+     ],
+     "id": "send-to-team-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2210,
+      390
+     ],
+     "id": "send-to-team",
+     "op": "move",
+     "to": [
+      1830,
+      276
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1854,
+       "to": 1484
+      },
+      {
+       "attr": "y",
+       "from": 412,
+       "to": 322
+      }
+     ],
+     "id": "agent-write-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1850,
+      390
+     ],
+     "id": "agent-write-tearsheet",
+     "op": "move",
+     "to": [
+      1480,
+      300
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1494,
+       "to": 1124
+      },
+      {
+       "attr": "y",
+       "from": 582,
+       "to": 482
+      }
+     ],
+     "id": "agent-summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1490,
+      560
+     ],
+     "id": "agent-summarize-news",
+     "op": "move",
+     "to": [
+      1120,
+      460
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1494,
+       "to": 1124
+      },
+      {
+       "attr": "y",
+       "from": 242,
+       "to": 162
+      }
+     ],
+     "id": "compute-metrics-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1490,
+      220
+     ],
+     "id": "compute-metrics",
+     "op": "move",
+     "to": [
+      1120,
+      140
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 582,
+       "to": 482
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      760,
+      560
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      760,
+      460
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 422,
+       "to": 482
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      400
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      400,
+      460
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 142,
+       "to": 162
+      }
+     ],
+     "id": "pull-market-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      120
+     ],
+     "id": "pull-market",
+     "op": "move",
+     "to": [
+      400,
+      140
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 282,
+       "to": 322
+      }
+     ],
+     "id": "daily-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      260
+     ],
+     "id": "daily-trigger",
+     "op": "move",
+     "to": [
+      60,
+      300
+     ]
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?",
+       "role": "pin",
+       "status": "open",
+       "target": "review-gate"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-review-gate",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 864383509,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2048,
+      "y": 264
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "note-deadline",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Deadline: before 9:30 ET open",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 355910455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Deadline: before 9:30 ET open",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 278,
+      "x": 44,
+      "y": 406
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "note-deadline-label",
+        "type": "text"
+       }
+      ],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "note-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2034844479,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 10,
+      "x": 40,
+      "y": 402
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-rewrite",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-rewrite-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "edits",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1352410371,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "edits",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1741,
+      "y": 322
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-rewrite-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-rewrite",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 135849546,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1840,
+      "y": 332
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-gate-send",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-gate-send-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "ship",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1306155851,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "ship",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 2096,
+      "y": 322
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-gate-send-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-gate-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1155805184,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 2040,
+      "y": 332
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-write-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1960163066,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 1690,
+      "y": 332
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Nothing now stands between this box and the team's inbox. Different question from the gate you deleted: when the model is UNSURE - stale quote, ambiguous headline, thin news - what does the sheet actually do? Hedge in prose, drop the item, or state it flat? At 7:35 on a train nobody is checking its work.",
+       "role": "pin",
+       "status": "open",
+       "target": "agent-write-tearsheet"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-agent-unsure",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 755946558,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2068,
+      "y": 382
+     },
+     "index": 45,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "This is your hill-to-die-on turned into a mechanism. What I can't tell: does 'unavailable' mean the section is omitted entirely, or shown with a reason ('risk numbers unavailable - vendor timeout')? On a phone those read completely differently, and only one of them tells you to go look elsewhere.",
+       "role": "pin",
+       "status": "open",
+       "target": "input-cutoff"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-unavailable-means",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 217661959,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1358,
+      "y": 372
+     },
+     "index": 44,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "I made earnings a deterministic calendar lookup off your positions - NOT something the news agent notices while reading. The principle: the agent should never be responsible for spotting salience it could simply be told about. Is that right? And what's the window - reported after yesterday's close, reporting before today's open, or both?",
+       "role": "pin",
+       "status": "open",
+       "target": "check-earnings"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-earnings-lookup",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2076468012,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 958,
+      "y": 692
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "note-send",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Hard send 7:15 ET\nread 7:30-8:00, on phones",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 68917306,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Hard send 7:15 ET\nread 7:30-8:00, on phones",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 240,
+      "x": 2200,
+      "y": 490
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "note-cutoff",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Missing at 6:55 =\nsection marked unavailable",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1561695908,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Missing at 6:55 =\nsection marked unavailable",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 249,
+      "x": 1060,
+      "y": 500
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "send-to-team",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-write-send",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        150,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1804407971,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agent-write-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 150,
+      "x": 2060,
+      "y": 422
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "agent-summarize-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 100,
+      "id": "t-cutoff-summarize",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        209,
+        100
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 445054420,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 209,
+      "x": 1319,
+      "y": 460
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compute-metrics",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "t-cutoff-compute",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        206,
+        -96
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1543751134,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 206,
+      "x": 1321,
+      "y": 380
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 240,
+      "id": "t-earnings-cutoff",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        292,
+        -240
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1685380390,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "check-earnings",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 292,
+      "x": 894,
+      "y": 700
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "input-cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 92,
+      "id": "t-macro-cutoff",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        530,
+        92
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1029395894,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-macro-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 530,
+      "x": 590,
+      "y": 308
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-positions-earnings",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-positions-earnings-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "by ticker",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 844462744,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "by ticker",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 632,
+      "y": 572
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-positions-earnings-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "check-earnings",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 236,
+      "id": "t-positions-earnings",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        283,
+        236
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1598856926,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 283,
+      "x": 533,
+      "y": 464
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-macro-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-trigger-macro",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        170,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 59944544,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 170,
+      "x": 230,
+      "y": 292
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "input-cutoff",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "input-cutoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "6:55 Cutoff - Freeze Inputs",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 111819427,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "6:55 Cutoff - Freeze Inputs",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 259,
+      "x": 1124,
+      "y": 410
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff3bf",
+      "boundElements": [
+       {
+        "id": "input-cutoff-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-summarize",
+        "type": "arrow"
+       },
+       {
+        "id": "t-macro-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-earnings-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-compute",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-summarize",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "the deadline made structural: whatever has landed is the input set; gaps become explicit unavailable markers",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "input-cutoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 158550061,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 230,
+      "x": 1120,
+      "y": 380
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "check-earnings",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "check-earnings-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Check Earnings Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 96995641,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Check Earnings Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 220,
+      "x": 764,
+      "y": 722
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "check-earnings-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-earnings",
+        "type": "arrow"
+       },
+       {
+        "id": "t-earnings-cutoff",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "deterministic lookup: which of our names reported overnight or reports today",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "check-earnings",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1685890169,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 760,
+      "y": 700
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-macro-news",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-macro-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull Macro News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1720159947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull Macro News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 423,
+      "y": 282
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-macro-news-label",
+        "type": "text"
+       },
+       {
+        "id": "t-trigger-macro",
+        "type": "arrow"
+       },
+       {
+        "id": "t-macro-cutoff",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Fed, CPI, geopolitics - independent of what we hold, so it runs off the trigger",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-macro-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2108483732,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 190,
+      "x": 400,
+      "y": 260
+     },
+     "index": 27,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 2,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Morning Tearsheet",
+   "id": "morning-tearsheet",
+   "name": "Morning Tearsheet",
+   "views": [
+    "tearsheet-pipeline"
+   ]
+  }
+ ],
+ "revn": 3,
+ "saved_at": "2026-08-07T18:46:47Z",
+ "selection_at_save": [],
+ "short_id": "f1861c2",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→Compute Moves, P&L, Risk to Pull Market + Pre-Market→6:55 Cutoff - Freeze Inputs (+40 more)",
+  "suppressed": 4,
+  "verb_counts": {
+   "added": 10,
+   "annotated": 2,
+   "annotation_deleted": 1,
+   "deleted": 3,
+   "moved": 8,
+   "pin_added": 3,
+   "pin_deleted": 1,
+   "rewired": 3,
+   "sequence_reordered": 1,
+   "step_added": 3,
+   "transition_added": 7,
+   "transition_deleted": 3
+  }
+ },
+ "tripwires": [],
+ "user_note": "Deadline-first rebuild: macro news split off the holdings path, earnings as a deterministic calendar lookup, and a 6:55 input cutoff that makes 'partial on time' a mechanism rather than a wish. Also cleared the wreckage from the deleted gate."
+}

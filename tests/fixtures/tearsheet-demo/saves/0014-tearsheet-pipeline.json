@@ -1,0 +1,549 @@
+{
+ "artifacts": {
+  "tearsheet-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "render-fallback",
+     "kind": "control",
+     "label": "Fallback: Numbers Only",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -440,
+       "dy": 20,
+       "label": "Fallback: Numbers Only",
+       "spatial": "moved left-down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-compute",
+     "kind": "arrow",
+     "label": "t-market-compute",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-compute",
+       "from": "Pull Market + Pre-Market→?",
+       "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-compute",
+     "kind": "arrow",
+     "label": "t-positions-compute",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-positions-compute",
+       "from": "Load Positions→?",
+       "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-summarize",
+       "from": "Pull News for Holdings→?",
+       "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": null,
+       "to": "input-cutoff"
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2680,
+      640
+     ],
+     "id": "render-fallback",
+     "op": "move",
+     "to": [
+      2240,
+      660
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2714,
+       "to": 2274
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 662,
+       "to": 682
+      }
+     ],
+     "id": "render-fallback-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2007,
+       "to": 1972
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 746,
+       "to": 376
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 356,
+       "to": 376
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         746,
+         356
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         376,
+         376
+        ]
+       ]
+      }
+     ],
+     "id": "t-compute-fallback",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2328,
+       "to": 2108
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 452,
+       "to": 462
+      }
+     ],
+     "id": "t-compute-fallback-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2820,
+       "to": 2432
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 640,
+       "to": 660
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 0,
+       "to": 336
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 186,
+       "to": 206
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -186
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         336,
+         -206
+        ]
+       ]
+      }
+     ],
+     "id": "t-fallback-send",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2772,
+       "to": 2552
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 537,
+       "to": 547
+      }
+     ],
+     "id": "t-fallback-send-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": -440,
+     "dy": 20,
+     "element": "render-fallback",
+     "fact": "moved",
+     "label": "Fallback: Numbers Only",
+     "spatial": "moved left-down"
+    },
+    {
+     "arrow": "t-market-compute",
+     "element": "t-market-compute",
+     "fact": "rewired",
+     "from": "Pull Market + Pre-Market→?",
+     "to": "Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-positions-compute",
+     "element": "t-positions-compute",
+     "fact": "rewired",
+     "from": "Load Positions→?",
+     "to": "Load Positions→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrow": "t-news-summarize",
+     "element": "t-news-summarize",
+     "fact": "rewired",
+     "from": "Pull News for Holdings→?",
+     "to": "Pull News for Holdings→7:00 Cutoff - Freeze Inputs"
+    },
+    {
+     "arrows": [
+      "t-market-compute",
+      "t-positions-compute",
+      "t-news-summarize"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2552,
+       "to": 2772
+      },
+      {
+       "attr": "y",
+       "from": 547,
+       "to": 537
+      }
+     ],
+     "id": "t-fallback-send-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2432,
+       "to": 2820
+      },
+      {
+       "attr": "y",
+       "from": 660,
+       "to": 640
+      },
+      {
+       "attr": "width",
+       "from": 336,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "from": 206,
+       "to": 186
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         336,
+         -206
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -186
+        ]
+       ]
+      }
+     ],
+     "id": "t-fallback-send",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2108,
+       "to": 2328
+      },
+      {
+       "attr": "y",
+       "from": 462,
+       "to": 452
+      }
+     ],
+     "id": "t-compute-fallback-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1972,
+       "to": 2007
+      },
+      {
+       "attr": "width",
+       "from": 376,
+       "to": 746
+      },
+      {
+       "attr": "height",
+       "from": 376,
+       "to": 356
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         376,
+         376
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         746,
+         356
+        ]
+       ]
+      }
+     ],
+     "id": "t-compute-fallback",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2274,
+       "to": 2714
+      },
+      {
+       "attr": "y",
+       "from": 682,
+       "to": 662
+      }
+     ],
+     "id": "render-fallback-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2240,
+      660
+     ],
+     "id": "render-fallback",
+     "op": "move",
+     "to": [
+      2680,
+      640
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-positions-compute",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "input-cutoff",
+       "to": null
+      }
+     ],
+     "id": "t-market-compute",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 13,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 14,
+ "saved_at": "2026-08-07T19:11:23Z",
+ "selection_at_save": [],
+ "short_id": "0075194",
+ "summary": {
+  "headline": "rewired Pull Market + Pre-Market→? to Pull Market + Pre-Market→7:00 Cutoff - Freeze Inputs (+4 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 1,
+   "rewired": 3,
+   "sequence_reordered": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "fallback back under the write step: one clean arrow crossing beats an arrow running through a box"
+}

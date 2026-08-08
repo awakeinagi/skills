@@ -1,0 +1,432 @@
+{
+ "branches": [
+  {
+   "archived": false,
+   "head": 18,
+   "name": "main"
+  }
+ ],
+ "concepts": [
+  {
+   "glossary": "Morning Tearsheet",
+   "id": "morning-tearsheet",
+   "name": "Morning Tearsheet",
+   "unviewed": false,
+   "views": [
+    "tearsheet-pipeline",
+    "tearsheet-wireframe",
+    "tearsheet-domain"
+   ]
+  }
+ ],
+ "declined": [],
+ "head": "main",
+ "mappings": [
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#screen-normal",
+    "tearsheet-pipeline#agent-write-tearsheet"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-book",
+    "tearsheet-pipeline#load-positions"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-market",
+    "tearsheet-pipeline#pull-market"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-risk",
+    "tearsheet-pipeline#compute-metrics"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-news-holdings",
+    "tearsheet-pipeline#pull-news"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-news-macro",
+    "tearsheet-pipeline#pull-macro-news"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-earnings-lead",
+    "tearsheet-pipeline#check-earnings"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-wireframe#blk-top-of-sheet",
+    "tearsheet-pipeline#agent-write-tearsheet"
+   ],
+   "note": "intentionally-divergent: a wireframe block names a SECTION OF THE REPORT, a flow step names THE WORK THAT PRODUCES IT. They are meant to read differently; the link exists for lineage, not for matching wording."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#position",
+    "tearsheet-pipeline#load-positions"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#price",
+    "tearsheet-pipeline#pull-market"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#news-item",
+    "tearsheet-pipeline#pull-news"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#earnings-event",
+    "tearsheet-pipeline#check-earnings"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#computed-metric",
+    "tearsheet-pipeline#compute-metrics"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#story",
+    "tearsheet-pipeline#agent-summarize-news"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#tearsheet",
+    "tearsheet-pipeline#agent-write-tearsheet"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  },
+  {
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-domain#section",
+    "tearsheet-pipeline#input-cutoff"
+   ],
+   "note": "intentionally-divergent: cross-artifact geometry is meaningless - a box moves in the pipeline for legibility, not because the domain model changed. Only label and wiring changes on this pair are worth flagging."
+  }
+ ],
+ "migrations": [
+  "0001-baseline"
+ ],
+ "pins": [
+  {
+   "answer": "Both. News on names we hold, plus the general macro stuff - Fed, CPI, big geopolitics. The macro part doesn't depend on what we own.",
+   "answered_at": "2026-08-07T18:42:37Z",
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 1,
+   "element": "pull-news",
+   "id": "pin-news-scope",
+   "question": "I made the news pull depend on the position list - you fetch news for tickers you actually hold. Is that the whole story, or do you also want macro / sector / competitor news for names nobody owns yet?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 1,
+   "element": "review-gate",
+   "id": "pin-review-gate",
+   "question": "I invented this gate. Does a person read the tearsheet before the team does? And if that person is asleep at 7:15, does it ship anyway or does the team get nothing?",
+   "round": 1,
+   "status": "pruned"
+  },
+  {
+   "answer": "One tearsheet for the whole team for now. Maybe per-PM sections someday, but don't build for that yet.",
+   "answered_at": "2026-08-07T18:42:37Z",
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 1,
+   "element": "agent-write-tearsheet",
+   "id": "pin-one-or-many",
+   "question": "One tearsheet for the whole team, or one per person/book? If it is per-person, this node is really N runs and the whole right half of the pipeline changes.",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": "Show the section with a reason - 'risk unavailable, vendor timeout'. If it just vanished people would assume the tool is broken.",
+   "answered_at": "2026-08-07T18:49:07Z",
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 3,
+   "element": "check-earnings",
+   "id": "pin-earnings-lookup",
+   "question": "I made earnings a deterministic calendar lookup off your positions - NOT something the news agent notices while reading. The principle: the agent should never be responsible for spotting salience it could simply be told about. Is that right? And what's the window - reported after yesterday's close, reporting before today's open, or both?",
+   "round": 2,
+   "status": "dismissed"
+  },
+  {
+   "answer": "Both - anything reported after yesterday's close plus names reporting this morning before the open.",
+   "answered_at": "2026-08-07T18:49:09Z",
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 3,
+   "element": "input-cutoff",
+   "id": "pin-unavailable-means",
+   "question": "This is your hill-to-die-on turned into a mechanism. What I can't tell: does 'unavailable' mean the section is omitted entirely, or shown with a reason ('risk numbers unavailable - vendor timeout')? On a phone those read completely differently, and only one of them tells you to go look elsewhere.",
+   "round": 2,
+   "status": "dismissed"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 3,
+   "element": "agent-write-tearsheet",
+   "id": "pin-agent-unsure",
+   "question": "Nothing now stands between this box and the team's inbox. Different question from the gate you deleted: when the model is UNSURE - stale quote, ambiguous headline, thin news - what does the sheet actually do? Hedge in prose, drop the item, or state it flat? At 7:35 on a train nobody is checking its work.",
+   "round": 2,
+   "status": "dismissed"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-pipeline",
+   "asked_at_revn": 5,
+   "element": "load-positions",
+   "id": "pin-stale-positions",
+   "question": "7:00 still loses the 7:02 morning - the exact case you named. But positions are the one input with a real fallback: yesterday's closing book is ~99% right, and a sheet built on it, labelled 'positions as of yesterday's close', beats both waiting and omitting. Prices have no such fallback (a stale quote lies). Should 'stale but labelled' be a third state alongside fresh and unavailable - and if so, does the cutoff time stop mattering much for this box?",
+   "round": 4,
+   "status": "dismissed"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-wireframe",
+   "asked_at_revn": 6,
+   "element": "blk-top-of-sheet",
+   "id": "pin-prose-above-numbers",
+   "question": "I put agent-written prose above every number. Reasoning: at 07:35 on a phone the first screenful IS the product, so it should be synthesis, not a market recap people can get anywhere. The cost: the first thing your PMs read every single morning is model-written text, unreviewed. Is that the right thing above the fold, or do you want hard numbers first and prose further down where it can do less damage?",
+   "round": 5,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-wireframe",
+   "asked_at_revn": 6,
+   "element": "blk-news-holdings-e",
+   "id": "pin-promotion-removes",
+   "question": "Promotion means removal - I stripped NVDA's line out of Holdings News because it is already at the top, so the sheet never says the same thing twice. But if people scan that section as a checklist and expect every held name to appear, a missing NVDA reads as a bug rather than as an editorial choice. Which is it?",
+   "round": 5,
+   "status": "dismissed"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-domain",
+   "asked_at_revn": 9,
+   "element": "issuer",
+   "id": "pin-issuer-vs-instrument",
+   "question": "The conflation I think will bite you hardest. You hold NVDA equity; suppose you also hold NVDA converts and are short NVDA calls. That is three Instruments, one Issuer, and exactly ONE earnings event. If earnings hangs off the ticker you get three earnings blocks on the same morning; if it hangs off the Issuer you get one, with three position lines under it. Is Issuer a real object for you, or does your book only ever hold one instrument per company - in which case I should collapse these two and stop being clever?",
+   "round": 8,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-domain",
+   "asked_at_revn": 9,
+   "element": "price",
+   "id": "pin-which-price",
+   "question": "'Prices' is doing at least three jobs: yesterday's official close, the pre-market last trade at 07:00, and whatever mark your books use for P&L. The overnight move needs two of them and the P&L needs a specific one - and if they disagree, your tearsheet contradicts the risk system, which is how people stop trusting it. Which mark is authoritative for the P&L number, and is it the same source the risk team uses?",
+   "round": 8,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "tearsheet-domain",
+   "asked_at_revn": 9,
+   "element": "story",
+   "id": "pin-story-dedup",
+   "question": "I invented Story and you should decide whether it survives. On a busy morning one event generates ten wire items. Without Story the agent sees ten inputs and either writes ten lines or silently picks - and silent picking is the thing you told me never to do. With Story, clustering is an explicit step someone owns and can get wrong visibly. Real object, or overbuilding?",
+   "round": 8,
+   "status": "resolved"
+  }
+ ],
+ "revn": 18,
+ "round": 16,
+ "tripwires": [
+  {
+   "changed": "tearsheet-pipeline#agent-write-tearsheet",
+   "id": "tw-7-1",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#screen-normal+tearsheet-pipeline#agent-write-tearsheet",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#screen-normal",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#load-positions",
+   "id": "tw-7-2",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-book+tearsheet-pipeline#load-positions",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#blk-book",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-market",
+   "id": "tw-7-3",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-market+tearsheet-pipeline#pull-market",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#blk-market",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#compute-metrics",
+   "id": "tw-7-4",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-risk+tearsheet-pipeline#compute-metrics",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#blk-risk",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-news",
+   "id": "tw-7-5",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-holdings+tearsheet-pipeline#pull-news",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#blk-news-holdings",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-macro-news",
+   "id": "tw-7-6",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-macro+tearsheet-pipeline#pull-macro-news",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#blk-news-macro",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#check-earnings",
+   "id": "tw-7-7",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-earnings-lead+tearsheet-pipeline#check-earnings",
+   "save": 7,
+   "sibling": "tearsheet-wireframe#blk-earnings-lead",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-book",
+   "id": "tw-8-1",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-book+tearsheet-pipeline#load-positions",
+   "save": 8,
+   "sibling": "tearsheet-pipeline#load-positions",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-risk",
+   "id": "tw-8-2",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-risk+tearsheet-pipeline#compute-metrics",
+   "save": 8,
+   "sibling": "tearsheet-pipeline#compute-metrics",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-news-holdings",
+   "id": "tw-8-3",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-holdings+tearsheet-pipeline#pull-news",
+   "save": 8,
+   "sibling": "tearsheet-pipeline#pull-news",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-news-macro",
+   "id": "tw-8-4",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-news-macro+tearsheet-pipeline#pull-macro-news",
+   "save": 8,
+   "sibling": "tearsheet-pipeline#pull-macro-news",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-wireframe#blk-earnings-lead",
+   "id": "tw-8-5",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-wireframe#blk-earnings-lead+tearsheet-pipeline#check-earnings",
+   "save": 8,
+   "sibling": "tearsheet-pipeline#check-earnings",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#load-positions",
+   "id": "tw-11-1",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#position+tearsheet-pipeline#load-positions",
+   "save": 11,
+   "sibling": "tearsheet-domain#position",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#pull-news",
+   "id": "tw-11-2",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#news-item+tearsheet-pipeline#pull-news",
+   "save": 11,
+   "sibling": "tearsheet-domain#news-item",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#check-earnings",
+   "id": "tw-11-3",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#earnings-event+tearsheet-pipeline#check-earnings",
+   "save": 11,
+   "sibling": "tearsheet-domain#earnings-event",
+   "status": "resolved"
+  },
+  {
+   "changed": "tearsheet-pipeline#input-cutoff",
+   "id": "tw-11-4",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-domain#section+tearsheet-pipeline#input-cutoff",
+   "save": 11,
+   "sibling": "tearsheet-domain#section",
+   "status": "resolved"
+  }
+ ],
+ "whose_move": "user"
+}

@@ -1,0 +1,4558 @@
+{
+ "artifacts": {
+  "tearsheet-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "trigger",
+     "kind": "source",
+     "label": "Cron 06:45",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "Trigger 05:00",
+       "to": "Cron 06:45"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "pull-news",
+     "kind": "source",
+     "label": "Pull News (Held Names)",
+     "ops": [
+      27,
+      28
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": 80,
+       "label": "Pull News (Held Names)",
+       "spatial": "moved right-down"
+      },
+      "renamed": {
+       "from": "Pull News Feeds",
+       "to": "Pull News (Held Names)"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "deliver",
+     "kind": "sink",
+     "label": "Deliver to Phones",
+     "ops": [
+      39,
+      40
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": 0,
+       "label": "Deliver to Phones",
+       "spatial": "moved right"
+      },
+      "renamed": {
+       "from": "Deliver to Team",
+       "to": "Deliver to Phones"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "load-positions",
+     "kind": "source",
+     "label": "Load Positions",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Load Positions"
+      },
+      "step_added": {
+       "label": "Load Positions"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-calendar",
+     "kind": "source",
+     "label": "Pull Calendar",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Pull Calendar"
+      },
+      "step_added": {
+       "label": "Pull Calendar"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "deadline-0730",
+     "kind": "control",
+     "label": "07:30 Cutoff",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "07:30 Cutoff"
+      },
+      "step_added": {
+       "label": "07:30 Cutoff"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-positions",
+     "kind": "arrow",
+     "label": "t-trigger-positions",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-trigger-positions"
+      },
+      "transition_added": {
+       "between": [
+        "Cron 06:45",
+        "Load Positions"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-news",
+     "kind": "arrow",
+     "label": "t-positions-news",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-positions-news"
+      },
+      "transition_added": {
+       "between": [
+        "Load Positions",
+        "Pull News (Held Names)"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-analysis",
+     "kind": "arrow",
+     "label": "t-positions-analysis",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-positions-analysis"
+      },
+      "transition_added": {
+       "between": [
+        "Load Positions",
+        "Run Analysis"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-calendar",
+     "kind": "arrow",
+     "label": "t-positions-calendar",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-positions-calendar"
+      },
+      "transition_added": {
+       "between": [
+        "Load Positions",
+        "Pull Calendar"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-calendar-cutoff",
+     "kind": "arrow",
+     "label": "t-calendar-cutoff",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-calendar-cutoff"
+      },
+      "transition_added": {
+       "between": [
+        "Pull Calendar",
+        "07:30 Cutoff"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-book-fails",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Positions now gate three of the four sections. If the book fails to load at 06:45, is there any tearsheet worth sending, or does the run abort?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-slow-agent",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "This cutoff guards against late data. What guards against a slow agent — if it is still writing at 07:30, do you ship a half-written sheet?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-decision-section",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "The four sections tell a PM what changed. Which one tells them what needs a decision today — or does the agent owe an explicit fifth thing?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cutoff",
+     "kind": "control",
+     "label": "Inputs in by 06:30?",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "control",
+        "label": "Inputs in by 06:30?"
+       }
+      },
+      "step_deleted": {
+       "label": "Inputs in by 06:30?"
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "flag-gaps",
+     "kind": "control",
+     "label": "Flag Gaps",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "control",
+        "label": "Flag Gaps"
+       }
+      },
+      "step_deleted": {
+       "label": "Flag Gaps"
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-news",
+     "kind": "arrow",
+     "label": "t-trigger-news",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-trigger-news"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Trigger 05:00",
+        "Pull News Feeds"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-cutoff-flag",
+     "kind": "arrow",
+     "label": "no",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "no"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Inputs in by 06:30?",
+        "Flag Gaps"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-flag-draft",
+     "kind": "arrow",
+     "label": "t-flag-draft",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-flag-draft"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Flag Gaps",
+        "Draft Tearsheet"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pull-market-data",
+     "kind": "source",
+     "label": "Pull Market Data",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -80,
+       "label": "Pull Market Data",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "run-analysis",
+     "kind": "transform",
+     "label": "Run Analysis",
+     "ops": [
+      30,
+      31
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": -80,
+       "label": "Run Analysis",
+       "spatial": "moved right-up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "summarize-news",
+     "kind": "agent",
+     "label": "Summarize News",
+     "ops": [
+      33,
+      34
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": 80,
+       "label": "Summarize News",
+       "spatial": "moved right-down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "draft-tearsheet",
+     "kind": "agent",
+     "label": "Draft Tearsheet",
+     "ops": [
+      36,
+      37
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": 0,
+       "label": "Draft Tearsheet",
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "height",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-analysis-cutoff",
+     "kind": "arrow",
+     "label": "t-analysis-cutoff",
+     "ops": [
+      44
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-analysis-cutoff",
+       "consequence_of": "cutoff",
+       "from": "Run Analysis→Inputs in by 06:30?",
+       "to": "Run Analysis→07:30 Cutoff"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-summarize-cutoff",
+     "kind": "arrow",
+     "label": "t-summarize-cutoff",
+     "ops": [
+      45
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-summarize-cutoff",
+       "consequence_of": "cutoff",
+       "from": "Summarize News→Inputs in by 06:30?",
+       "to": "Summarize News→07:30 Cutoff"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-cutoff-draft",
+     "kind": "arrow",
+     "label": "t-cutoff-draft",
+     "ops": [
+      46
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-cutoff-draft",
+       "consequence_of": "cutoff",
+       "from": "Inputs in by 06:30?→Draft Tearsheet",
+       "to": "07:30 Cutoff→Draft Tearsheet"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "load-positions-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-calendar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-trigger-positions",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-analysis",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "The book. Loaded first because it scopes everything downstream: which names get news, which get analysed, whose earnings land on the calendar.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "load-positions",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 132109511,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 420,
+      "y": 400
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "load-positions",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "load-positions-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Load Positions",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 681591777,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Load Positions",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 433,
+      "y": 422
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-calendar-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-calendar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-calendar-cutoff",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Guess: the macro calendar section needs its own feed (data releases) plus earnings dates filtered to held names.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1615411000,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 740,
+      "y": 760
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-calendar",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1990407935,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 758,
+      "y": 782
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "deadline-0730-label",
+        "type": "text"
+       },
+       {
+        "id": "t-calendar-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-analysis-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-draft",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Hard barrier, not a decision. Late is worse than incomplete: whatever is ready at 07:30 ships, gaps flagged.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "deadline-0730",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1949750604,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1380,
+      "y": 400
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "deadline-0730",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "deadline-0730-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "07:30 Cutoff",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 477583089,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "07:30 Cutoff",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1402,
+      "y": 422
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "7a1ddf8624"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-trigger-positions",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 409947997,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 260,
+      "y": 432
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "d46a71b440"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 117,
+      "id": "t-positions-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        117
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 2111240938,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 580,
+      "y": 443
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "5fef887bf4"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "run-analysis",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 117,
+      "id": "t-positions-analysis",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        560,
+        0
+       ],
+       [
+        560,
+        -117
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 145263018,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 560,
+      "x": 580,
+      "y": 421
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "d8bb0d8db3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-calendar",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 328,
+      "id": "t-positions-calendar",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        328
+       ],
+       [
+        240,
+        328
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1714614236,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 500,
+      "y": 464
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "81a6dbd41e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "deadline-0730",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 328,
+      "id": "t-calendar-cutoff",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        533,
+        0
+       ],
+       [
+        533,
+        -328
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 2018835438,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-calendar",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 533,
+      "x": 900,
+      "y": 792
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Positions now gate three of the four sections. If the book fails to load at 06:45, is there any tearsheet worth sending, or does the run abort?",
+       "role": "pin",
+       "status": "open",
+       "target": "load-positions"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-book-fails",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 32745251,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 588,
+      "y": 392
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "This cutoff guards against late data. What guards against a slow agent — if it is still writing at 07:30, do you ship a half-written sheet?",
+       "role": "pin",
+       "status": "open",
+       "target": "deadline-0730"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-slow-agent",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1651444227,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1548,
+      "y": 392
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "The four sections tell a PM what changed. Which one tells them what needs a decision today — or does the agent owe an explicit fifth thing?",
+       "role": "pin",
+       "status": "open",
+       "target": "draft-tearsheet"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-decision-section",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1281155117,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1868,
+      "y": 392
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cutoff-label",
+        "type": "text"
+       },
+       {
+        "id": "t-analysis-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-draft",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-flag",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Invented gate: a morning deliverable has a deadline, so something must decide what to do about stragglers.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "cutoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1043333234,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1040,
+      "y": 384
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cutoff",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cutoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Inputs in by 06:30?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1514245199,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Inputs in by 06:30?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 182,
+      "x": 1049,
+      "y": 422
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "flag-gaps-label",
+        "type": "text"
+       },
+       {
+        "id": "t-cutoff-flag",
+        "type": "arrow"
+       },
+       {
+        "id": "t-flag-draft",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Guessed failure policy: ship on time, mark what is missing, rather than hold the sheet.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "flag-gaps",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1182989743,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1060,
+      "y": 560
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "flag-gaps",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "flag-gaps-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Flag Gaps",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 702326955,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Flag Gaps",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1097,
+      "y": 582
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "f9faef8e96"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-trigger-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 39073711,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 260,
+      "y": 443
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-cutoff-draft",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-cutoff-draft-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "yes",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1741246721,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "yes",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 28,
+      "x": 1296,
+      "y": 404
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-cutoff-flag-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node",
+       "routed": "66e8eb2c41"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "flag-gaps",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "t-cutoff-flag",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -33,
+        80
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1902075398,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 33,
+      "x": 1173,
+      "y": 480
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-cutoff-flag",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-cutoff-flag-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "no",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1431478170,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "no",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 19,
+      "x": 1131,
+      "y": 503
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "a99a17fa8a"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "draft-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 128,
+      "id": "t-flag-draft",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -128
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 503520668,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "flag-gaps",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 1220,
+      "y": 592
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Guess: schedule-fired, not human-fired. The hour is a placeholder and the firing mechanism is an open question.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Cron at 06:45, no human in the loop. That leaves a 45-minute window to the 07:30 cutoff.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "trigger",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 118,
+       "to": 132
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 124,
+       "to": 96
+      },
+      {
+       "attr": "text",
+       "from": "Trigger 05:00",
+       "to": "Cron 06:45"
+      }
+     ],
+     "id": "trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      420,
+      320
+     ],
+     "id": "pull-market-data",
+     "op": "move",
+     "to": [
+      420,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "pull-market-data-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Text data. Split from market data because it needs a reader, not a calculator.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Not all news. Filtered to names in the book, which is why it cannot start until positions load.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "pull-news",
+     "op": "mod"
+    },
+    {
+     "from": [
+      420,
+      480
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      740,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 428,
+       "to": 744
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 502,
+       "to": 582
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 144,
+       "to": 211
+      },
+      {
+       "attr": "text",
+       "from": "Pull News Feeds",
+       "to": "Pull News (Held Names)"
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Deterministic code, not the agent. Numbers must be reproducible.",
+        "kind": "transform",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Confirmed deterministic. The agent never computes a number. Produces the P&L snapshot and top movers, both book-scoped.",
+        "kind": "transform",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "run-analysis",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      320
+     ],
+     "id": "run-analysis",
+     "op": "move",
+     "to": [
+      1060,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 762,
+       "to": 1082
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "run-analysis-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Agent stage 1: read the feed, decide what matters, compress it.",
+        "kind": "agent",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Uncertainty policy: include and mark low-confidence. Skimming noise beats missing a mover.",
+        "kind": "agent",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "summarize-news",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      480
+     ],
+     "id": "summarize-news",
+     "op": "move",
+     "to": [
+      1060,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 753,
+       "to": 1073
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 502,
+       "to": 582
+      }
+     ],
+     "id": "summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Agent stage 2: assemble analysis + news summary into the report the team reads.",
+        "kind": "agent",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Uncertainty policy: omit and flag. Never print a number it is unsure of.",
+        "kind": "agent",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "draft-tearsheet",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1380,
+      400
+     ],
+     "id": "draft-tearsheet",
+     "op": "move",
+     "to": [
+      1700,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1388,
+       "to": 1708
+      }
+     ],
+     "id": "draft-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Channel unknown. Email, Slack, a page they open? Placeholder.",
+        "kind": "sink",
+        "role": "node"
+       },
+       "to": {
+        "intent": "PMs read on phones in the ten minutes before the 08:00 meeting. Channel still unknown.",
+        "kind": "sink",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "deliver",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1700,
+      400
+     ],
+     "id": "deliver",
+     "op": "move",
+     "to": [
+      2020,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1708,
+       "to": 2024
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 144,
+       "to": 163
+      },
+      {
+       "attr": "text",
+       "from": "Deliver to Team",
+       "to": "Deliver to Phones"
+      }
+     ],
+     "id": "deliver-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 160,
+       "to": 480
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         480,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "daffaaadfd"
+       },
+       "to": {
+        "role": "node",
+        "routed": "569355de46"
+       }
+      }
+     ],
+     "id": "t-market-analysis",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 580,
+       "to": 900
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 512,
+       "to": 592
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "b16d1ddc2d"
+       },
+       "to": {
+        "role": "node",
+        "routed": "dc487697a6"
+       }
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 900,
+       "to": 1220
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 272
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 32,
+       "to": 128
+      },
+      {
+       "attr": "endBinding",
+       "from": "cutoff",
+       "to": "deadline-0730"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "079f301693"
+       },
+       "to": {
+        "role": "node",
+        "routed": "cf4efcc058"
+       }
+      }
+     ],
+     "id": "t-analysis-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 900,
+       "to": 1220
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 512,
+       "to": 592
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 207,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 32,
+       "to": 128
+      },
+      {
+       "attr": "endBinding",
+       "from": "cutoff",
+       "to": "deadline-0730"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "3f0aba2393"
+       },
+       "to": {
+        "role": "node",
+        "routed": "e8376c30bb"
+       }
+      }
+     ],
+     "id": "t-summarize-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1240,
+       "to": 1540
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 140,
+       "to": 160
+      },
+      {
+       "attr": "startBinding",
+       "from": "cutoff",
+       "to": "deadline-0730"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "811e48be41"
+       },
+       "to": {
+        "role": "node",
+        "routed": "af96cecb30"
+       }
+      }
+     ],
+     "id": "t-cutoff-draft",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1540,
+       "to": 1860
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "af96cecb30"
+       },
+       "to": {
+        "role": "node",
+        "routed": "27f8851995"
+       }
+      }
+     ],
+     "id": "t-draft-deliver",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "If market data is still missing at the deadline, does the tearsheet go out with a gap flagged, or does it hold until the data lands? Which is worse for your team: late, or incomplete?",
+        "role": "pin",
+        "status": "open",
+        "target": "cutoff"
+       },
+       "to": {
+        "answer": null,
+        "question": "If market data is still missing at the deadline, does the tearsheet go out with a gap flagged, or does it hold until the data lands? Which is worse for your team: late, or incomplete?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "cutoff"
+       }
+      }
+     ],
+     "id": "pin-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "When the agent isn't sure a story matters to your book, does it include it or drop it? Which error hurts more: a cluttered sheet, or a missed headline?",
+        "role": "pin",
+        "status": "open",
+        "target": "summarize-news"
+       },
+       "to": {
+        "answer": null,
+        "question": "When the agent isn't sure a story matters to your book, does it include it or drop it? Which error hurts more: a cluttered sheet, or a missed headline?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "summarize-news"
+       }
+      }
+     ],
+     "id": "pin-news-judgment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "What's the rule when the agent is unsure of a number or a claim: omit it, hedge it, or print it with a citation and let the reader judge?",
+        "role": "pin",
+        "status": "open",
+        "target": "draft-tearsheet"
+       },
+       "to": {
+        "answer": null,
+        "question": "What's the rule when the agent is unsure of a number or a claim: omit it, hedge it, or print it with a citation and let the reader judge?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "draft-tearsheet"
+       }
+      }
+     ],
+     "id": "pin-report-truth",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "trigger",
+     "fact": "renamed",
+     "from": "Trigger 05:00",
+     "to": "Cron 06:45"
+    },
+    {
+     "element": "pull-news",
+     "fact": "renamed",
+     "from": "Pull News Feeds",
+     "to": "Pull News (Held Names)"
+    },
+    {
+     "element": "deliver",
+     "fact": "renamed",
+     "from": "Deliver to Team",
+     "to": "Deliver to Phones"
+    },
+    {
+     "element": "load-positions",
+     "fact": "added",
+     "kind": "source",
+     "label": "Load Positions"
+    },
+    {
+     "element": "pull-calendar",
+     "fact": "added",
+     "kind": "source",
+     "label": "Pull Calendar"
+    },
+    {
+     "element": "deadline-0730",
+     "fact": "added",
+     "kind": "control",
+     "label": "07:30 Cutoff"
+    },
+    {
+     "element": "t-trigger-positions",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-trigger-positions"
+    },
+    {
+     "element": "t-positions-news",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-positions-news"
+    },
+    {
+     "element": "t-positions-analysis",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-positions-analysis"
+    },
+    {
+     "element": "t-positions-calendar",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-positions-calendar"
+    },
+    {
+     "element": "t-calendar-cutoff",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-calendar-cutoff"
+    },
+    {
+     "element": "pin-book-fails",
+     "fact": "pin_added",
+     "question": "Positions now gate three of the four sections. If the book fails to load at 06:45, is there any tearsheet worth sending, or does the run abort?"
+    },
+    {
+     "element": "pin-slow-agent",
+     "fact": "pin_added",
+     "question": "This cutoff guards against late data. What guards against a slow agent — if it is still writing at 07:30, do you ship a half-written sheet?"
+    },
+    {
+     "element": "pin-decision-section",
+     "fact": "pin_added",
+     "question": "The four sections tell a PM what changed. Which one tells them what needs a decision today — or does the agent owe an explicit fifth thing?"
+    },
+    {
+     "element": "cutoff",
+     "fact": "deleted",
+     "was": {
+      "kind": "control",
+      "label": "Inputs in by 06:30?"
+     }
+    },
+    {
+     "element": "flag-gaps",
+     "fact": "deleted",
+     "was": {
+      "kind": "control",
+      "label": "Flag Gaps"
+     }
+    },
+    {
+     "element": "t-trigger-news",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-trigger-news"
+     }
+    },
+    {
+     "element": "t-cutoff-flag",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "no"
+     }
+    },
+    {
+     "element": "t-flag-draft",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-flag-draft"
+     }
+    },
+    {
+     "dx": 0,
+     "dy": -80,
+     "element": "pull-market-data",
+     "fact": "moved",
+     "label": "Pull Market Data",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 320,
+     "dy": 80,
+     "element": "pull-news",
+     "fact": "moved",
+     "label": "Pull News (Held Names)",
+     "spatial": "moved right-down"
+    },
+    {
+     "dx": 320,
+     "dy": -80,
+     "element": "run-analysis",
+     "fact": "moved",
+     "label": "Run Analysis",
+     "spatial": "moved right-up"
+    },
+    {
+     "dx": 320,
+     "dy": 80,
+     "element": "summarize-news",
+     "fact": "moved",
+     "label": "Summarize News",
+     "spatial": "moved right-down"
+    },
+    {
+     "dx": 320,
+     "dy": 0,
+     "element": "draft-tearsheet",
+     "fact": "moved",
+     "label": "Draft Tearsheet",
+     "spatial": "moved right"
+    },
+    {
+     "dx": 320,
+     "dy": 0,
+     "element": "deliver",
+     "fact": "moved",
+     "label": "Deliver to Phones",
+     "spatial": "moved right"
+    },
+    {
+     "element": "load-positions",
+     "fact": "step_added",
+     "label": "Load Positions"
+    },
+    {
+     "element": "pull-calendar",
+     "fact": "step_added",
+     "label": "Pull Calendar"
+    },
+    {
+     "element": "deadline-0730",
+     "fact": "step_added",
+     "label": "07:30 Cutoff"
+    },
+    {
+     "between": [
+      "Cron 06:45",
+      "Load Positions"
+     ],
+     "element": "t-trigger-positions",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Pull News (Held Names)"
+     ],
+     "element": "t-positions-news",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Run Analysis"
+     ],
+     "element": "t-positions-analysis",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Pull Calendar"
+     ],
+     "element": "t-positions-calendar",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Pull Calendar",
+      "07:30 Cutoff"
+     ],
+     "element": "t-calendar-cutoff",
+     "fact": "transition_added"
+    },
+    {
+     "element": "cutoff",
+     "fact": "step_deleted",
+     "label": "Inputs in by 06:30?"
+    },
+    {
+     "element": "flag-gaps",
+     "fact": "step_deleted",
+     "label": "Flag Gaps"
+    },
+    {
+     "between": [
+      "Trigger 05:00",
+      "Pull News Feeds"
+     ],
+     "element": "t-trigger-news",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Inputs in by 06:30?",
+      "Flag Gaps"
+     ],
+     "element": "t-cutoff-flag",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Flag Gaps",
+      "Draft Tearsheet"
+     ],
+     "element": "t-flag-draft",
+     "fact": "transition_deleted"
+    },
+    {
+     "arrow": "t-analysis-cutoff",
+     "consequence_of": "cutoff",
+     "element": "t-analysis-cutoff",
+     "fact": "rewired",
+     "from": "Run Analysis→Inputs in by 06:30?",
+     "to": "Run Analysis→07:30 Cutoff"
+    },
+    {
+     "arrow": "t-summarize-cutoff",
+     "consequence_of": "cutoff",
+     "element": "t-summarize-cutoff",
+     "fact": "rewired",
+     "from": "Summarize News→Inputs in by 06:30?",
+     "to": "Summarize News→07:30 Cutoff"
+    },
+    {
+     "arrow": "t-cutoff-draft",
+     "consequence_of": "cutoff",
+     "element": "t-cutoff-draft",
+     "fact": "rewired",
+     "from": "Inputs in by 06:30?→Draft Tearsheet",
+     "to": "07:30 Cutoff→Draft Tearsheet"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "What's the rule when the agent is unsure of a number or a claim: omit it, hedge it, or print it with a citation and let the reader judge?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "draft-tearsheet"
+       },
+       "to": {
+        "answer": null,
+        "question": "What's the rule when the agent is unsure of a number or a claim: omit it, hedge it, or print it with a citation and let the reader judge?",
+        "role": "pin",
+        "status": "open",
+        "target": "draft-tearsheet"
+       }
+      }
+     ],
+     "id": "pin-report-truth",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "When the agent isn't sure a story matters to your book, does it include it or drop it? Which error hurts more: a cluttered sheet, or a missed headline?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "summarize-news"
+       },
+       "to": {
+        "answer": null,
+        "question": "When the agent isn't sure a story matters to your book, does it include it or drop it? Which error hurts more: a cluttered sheet, or a missed headline?",
+        "role": "pin",
+        "status": "open",
+        "target": "summarize-news"
+       }
+      }
+     ],
+     "id": "pin-news-judgment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "If market data is still missing at the deadline, does the tearsheet go out with a gap flagged, or does it hold until the data lands? Which is worse for your team: late, or incomplete?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "cutoff"
+       },
+       "to": {
+        "answer": null,
+        "question": "If market data is still missing at the deadline, does the tearsheet go out with a gap flagged, or does it hold until the data lands? Which is worse for your team: late, or incomplete?",
+        "role": "pin",
+        "status": "open",
+        "target": "cutoff"
+       }
+      }
+     ],
+     "id": "pin-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1860,
+       "to": 1540
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "27f8851995"
+       },
+       "to": {
+        "role": "node",
+        "routed": "af96cecb30"
+       }
+      }
+     ],
+     "id": "t-draft-deliver",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1540,
+       "to": 1240
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 140
+      },
+      {
+       "attr": "startBinding",
+       "from": "deadline-0730",
+       "to": "cutoff"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "af96cecb30"
+       },
+       "to": {
+        "role": "node",
+        "routed": "811e48be41"
+       }
+      }
+     ],
+     "id": "t-cutoff-draft",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1220,
+       "to": 900
+      },
+      {
+       "attr": "y",
+       "from": 592,
+       "to": 512
+      },
+      {
+       "attr": "width",
+       "from": 267,
+       "to": 207
+      },
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 32
+      },
+      {
+       "attr": "endBinding",
+       "from": "deadline-0730",
+       "to": "cutoff"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "e8376c30bb"
+       },
+       "to": {
+        "role": "node",
+        "routed": "3f0aba2393"
+       }
+      }
+     ],
+     "id": "t-summarize-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1220,
+       "to": 900
+      },
+      {
+       "attr": "y",
+       "from": 272,
+       "to": 352
+      },
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 32
+      },
+      {
+       "attr": "endBinding",
+       "from": "deadline-0730",
+       "to": "cutoff"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "cf4efcc058"
+       },
+       "to": {
+        "role": "node",
+        "routed": "079f301693"
+       }
+      }
+     ],
+     "id": "t-analysis-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 900,
+       "to": 580
+      },
+      {
+       "attr": "y",
+       "from": 592,
+       "to": 512
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "dc487697a6"
+       },
+       "to": {
+        "role": "node",
+        "routed": "b16d1ddc2d"
+       }
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 272,
+       "to": 352
+      },
+      {
+       "attr": "width",
+       "from": 480,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         480,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "569355de46"
+       },
+       "to": {
+        "role": "node",
+        "routed": "daffaaadfd"
+       }
+      }
+     ],
+     "id": "t-market-analysis",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2024,
+       "to": 1708
+      },
+      {
+       "attr": "width",
+       "from": 163,
+       "to": 144
+      },
+      {
+       "attr": "text",
+       "from": "Deliver to Phones",
+       "to": "Deliver to Team"
+      }
+     ],
+     "id": "deliver-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2020,
+      400
+     ],
+     "id": "deliver",
+     "op": "move",
+     "to": [
+      1700,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "PMs read on phones in the ten minutes before the 08:00 meeting. Channel still unknown.",
+        "kind": "sink",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Channel unknown. Email, Slack, a page they open? Placeholder.",
+        "kind": "sink",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "deliver",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1708,
+       "to": 1388
+      }
+     ],
+     "id": "draft-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1700,
+      400
+     ],
+     "id": "draft-tearsheet",
+     "op": "move",
+     "to": [
+      1380,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Uncertainty policy: omit and flag. Never print a number it is unsure of.",
+        "kind": "agent",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Agent stage 2: assemble analysis + news summary into the report the team reads.",
+        "kind": "agent",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "draft-tearsheet",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1073,
+       "to": 753
+      },
+      {
+       "attr": "y",
+       "from": 582,
+       "to": 502
+      }
+     ],
+     "id": "summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      560
+     ],
+     "id": "summarize-news",
+     "op": "move",
+     "to": [
+      740,
+      480
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Uncertainty policy: include and mark low-confidence. Skimming noise beats missing a mover.",
+        "kind": "agent",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Agent stage 1: read the feed, decide what matters, compress it.",
+        "kind": "agent",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "summarize-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1082,
+       "to": 762
+      },
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "run-analysis-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      240
+     ],
+     "id": "run-analysis",
+     "op": "move",
+     "to": [
+      740,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Confirmed deterministic. The agent never computes a number. Produces the P&L snapshot and top movers, both book-scoped.",
+        "kind": "transform",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Deterministic code, not the agent. Numbers must be reproducible.",
+        "kind": "transform",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "run-analysis",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 744,
+       "to": 428
+      },
+      {
+       "attr": "y",
+       "from": 582,
+       "to": 502
+      },
+      {
+       "attr": "width",
+       "from": 211,
+       "to": 144
+      },
+      {
+       "attr": "text",
+       "from": "Pull News (Held Names)",
+       "to": "Pull News Feeds"
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      560
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      420,
+      480
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Not all news. Filtered to names in the book, which is why it cannot start until positions load.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Text data. Split from market data because it needs a reader, not a calculator.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "pull-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "pull-market-data-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      420,
+      240
+     ],
+     "id": "pull-market-data",
+     "op": "move",
+     "to": [
+      420,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 132,
+       "to": 118
+      },
+      {
+       "attr": "width",
+       "from": 96,
+       "to": 124
+      },
+      {
+       "attr": "text",
+       "from": "Cron 06:45",
+       "to": "Trigger 05:00"
+      }
+     ],
+     "id": "trigger-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Cron at 06:45, no human in the loop. That leaves a 45-minute window to the 07:30 cutoff.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Guess: schedule-fired, not human-fired. The hour is a placeholder and the firing mechanism is an open question.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "trigger",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "a99a17fa8a"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "draft-tearsheet",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 128,
+      "id": "t-flag-draft",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -128
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 503520668,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "flag-gaps",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 1220,
+      "y": 592
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-cutoff-flag",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-cutoff-flag-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "no",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1431478170,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "no",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 19,
+      "x": 1131,
+      "y": 503
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-cutoff-flag-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "role": "node",
+       "routed": "66e8eb2c41"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "flag-gaps",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "t-cutoff-flag",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -33,
+        80
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1902075398,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "cutoff",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 33,
+      "x": 1173,
+      "y": 480
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-cutoff-draft",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-cutoff-draft-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "yes",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1741246721,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "yes",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 28,
+      "x": 1296,
+      "y": 404
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "f9faef8e96"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-trigger-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 39073711,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 260,
+      "y": 443
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "flag-gaps",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "flag-gaps-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Flag Gaps",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 702326955,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Flag Gaps",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1097,
+      "y": 582
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "flag-gaps-label",
+        "type": "text"
+       },
+       {
+        "id": "t-cutoff-flag",
+        "type": "arrow"
+       },
+       {
+        "id": "t-flag-draft",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Guessed failure policy: ship on time, mark what is missing, rather than hold the sheet.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "flag-gaps",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1182989743,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1060,
+      "y": 560
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cutoff",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cutoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Inputs in by 06:30?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1514245199,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Inputs in by 06:30?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 182,
+      "x": 1049,
+      "y": 422
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cutoff-label",
+        "type": "text"
+       },
+       {
+        "id": "t-analysis-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-draft",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-flag",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Invented gate: a morning deliverable has a deadline, so something must decide what to do about stragglers.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "cutoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1043333234,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1040,
+      "y": 384
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "The four sections tell a PM what changed. Which one tells them what needs a decision today — or does the agent owe an explicit fifth thing?",
+       "role": "pin",
+       "status": "open",
+       "target": "draft-tearsheet"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-decision-section",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1281155117,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1868,
+      "y": 392
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "This cutoff guards against late data. What guards against a slow agent — if it is still writing at 07:30, do you ship a half-written sheet?",
+       "role": "pin",
+       "status": "open",
+       "target": "deadline-0730"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-slow-agent",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1651444227,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1548,
+      "y": 392
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Positions now gate three of the four sections. If the book fails to load at 06:45, is there any tearsheet worth sending, or does the run abort?",
+       "role": "pin",
+       "status": "open",
+       "target": "load-positions"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-book-fails",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 32745251,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 588,
+      "y": 392
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "81a6dbd41e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "deadline-0730",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 328,
+      "id": "t-calendar-cutoff",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        533,
+        0
+       ],
+       [
+        533,
+        -328
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 2018835438,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pull-calendar",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 533,
+      "x": 900,
+      "y": 792
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "d8bb0d8db3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-calendar",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 328,
+      "id": "t-positions-calendar",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        328
+       ],
+       [
+        240,
+        328
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1714614236,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 500,
+      "y": 464
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "5fef887bf4"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "run-analysis",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 117,
+      "id": "t-positions-analysis",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        560,
+        0
+       ],
+       [
+        560,
+        -117
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 145263018,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 560,
+      "x": 580,
+      "y": 421
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "d46a71b440"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-news",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 117,
+      "id": "t-positions-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        117
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 2111240938,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 580,
+      "y": 443
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "7a1ddf8624"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-trigger-positions",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 409947997,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 260,
+      "y": 432
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "deadline-0730",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "deadline-0730-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "07:30 Cutoff",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 477583089,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "07:30 Cutoff",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1402,
+      "y": 422
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "deadline-0730-label",
+        "type": "text"
+       },
+       {
+        "id": "t-calendar-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-analysis-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-summarize-cutoff",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-draft",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Hard barrier, not a decision. Late is worse than incomplete: whatever is ready at 07:30 ships, gaps flagged.",
+       "kind": "control",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "deadline-0730",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1949750604,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1380,
+      "y": 400
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pull-calendar",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pull-calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pull Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1990407935,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pull Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 758,
+      "y": 782
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pull-calendar-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-calendar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-calendar-cutoff",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "Guess: the macro calendar section needs its own feed (data releases) plus earnings dates filtered to held names.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "pull-calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1615411000,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 740,
+      "y": 760
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "load-positions",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "load-positions-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Load Positions",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 681591777,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Load Positions",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 433,
+      "y": 422
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "load-positions-label",
+        "type": "text"
+       },
+       {
+        "id": "t-positions-calendar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-trigger-positions",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-positions-analysis",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "intent": "The book. Loaded first because it scopes everything downstream: which names get news, which get analysed, whose earnings land on the calendar.",
+       "kind": "source",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "load-positions",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 132109511,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 420,
+      "y": 400
+     },
+     "index": 24,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 2,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 3,
+ "round": 3,
+ "saved_at": "2026-08-07T21:41:24Z",
+ "selection_at_save": [],
+ "short_id": "007e76f",
+ "summary": {
+  "headline": "renamed 'Trigger 05:00' → 'Cron 06:45' (+37 more)",
+  "suppressed": 3,
+  "verb_counts": {
+   "added": 8,
+   "deleted": 5,
+   "moved": 6,
+   "pin_added": 3,
+   "renamed": 3,
+   "rewired": 3,
+   "step_added": 3,
+   "step_deleted": 2,
+   "transition_added": 5,
+   "transition_deleted": 3
+  }
+ },
+ "tripwires": [],
+ "user_note": "Positions become the hub: the book gates news, analysis and calendar. Cutoff is a hard 07:30 barrier, not a fork."
+}

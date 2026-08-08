@@ -40,7 +40,9 @@ it. Facts: `lane_added/deleted {owner}` (a party entered the process),
 **`ownership_changed {step, from_lane, to_lane}`** (flagship —
 responsibility moved), `handoff_added {from_lane, to_lane}` (a transition
 crosses lanes — boundary crossings are where failures live; each deserves
-a question). Budget: 5 lanes.
+a question). Budget: 5 lanes. (The `swimlane` artifact type in config is
+this overlay under an older name — prefer a `flow` with lane frames; a
+standalone swimlane artifact draws but narrates generically.)
 
 Seed the **first node centered** and let the flow grow in both directions —
 a left-edge start guarantees a 2000px crawl rightward. Branches: "yes"

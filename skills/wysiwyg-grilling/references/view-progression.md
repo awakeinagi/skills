@@ -18,10 +18,25 @@ the **two or three things that pass between them**, one line each. That
 parties-and-passings line is the 1000ft foundation: it costs no view, it
 feeds the archetype naming, and everything later refines it. It fixes the
 **view set** the project owes and the order those views become decidable
-in. Un-drawn views in that set are **view debt**: carried on the registry
-(`concepts[].unviewed`), never drawn speculatively. Debt is paid at most
-one view per round, only when its trigger fires. An archetype that never
-earns its second view was the wrong archetype — say so and re-name it.
+in. Un-drawn views in that set are **view debt**: record it ON the
+registry when you name the archetype — `{"op": "registry", "action":
+"upsert_concept", "id": "<umbrella-concept>", "owed": ["domain", ...]}`
+— never draw it speculatively. Registering a view of an owed type pays
+that debt automatically; unpaid debt shows in `status` (`VIEW_DEBT=`),
+nags at NOTE tier on every apply, and renders as a dashed "owed" chip in
+the rail. Debt is paid at most one view per round, only when its trigger
+fires. An archetype that never earns its second view was the wrong
+archetype — say so and re-name it (and rewrite the `owed` list to
+match).
+
+**The debt is the project's; the view is its own concept's.** `owed`
+gets written on the umbrella because that is where the archetype is
+named — it does NOT mean the paying view belongs there. Draw the owed
+wireframe of the report onto concept `report` (`create.concept`), and
+the umbrella's `wireframe` debt clears anyway: payment is project-wide
+by type (ADR 0010). Filing views on the umbrella to make the nag go
+away is the failure this rule exists to prevent — it buys `VIEW_DEBT=none`
+with a concept graph in which nothing but the umbrella has a view.
 
 **Party-shaped openings seed a party map.** When the user's opening
 material describes parties exchanging things ("the vendor sends us files,

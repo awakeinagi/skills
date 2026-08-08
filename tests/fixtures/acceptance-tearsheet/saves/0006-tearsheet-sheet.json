@@ -1,0 +1,3013 @@
+{
+ "artifacts": {
+  "tearsheet-sheet": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sheet-complete",
+     "kind": "frame",
+     "label": "Tearsheet — all inputs in",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "frame",
+       "label": "Tearsheet — all inputs in"
+      },
+      "screen_added": {
+       "name": "Tearsheet — all inputs in"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sheet-degraded",
+     "kind": "frame",
+     "label": "Tearsheet — news feed down",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "frame",
+       "label": "Tearsheet — news feed down"
+      },
+      "screen_added": {
+       "name": "Tearsheet — news feed down"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-a",
+     "kind": "nav",
+     "label": "Tearsheet · 07:30",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "nav",
+       "label": "Tearsheet · 07:30"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "decide-a",
+     "kind": "block",
+     "label": "Needs a Decision Today",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Needs a Decision Today"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pnl-a",
+     "kind": "block",
+     "label": "P&L Snapshot — Book",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "P&L Snapshot — Book"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "fold-a",
+     "kind": "fold",
+     "label": "· · · fold · first screenful ends · · ·",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "sheet-complete",
+       "text": "· · · fold · first screenful ends · · ·"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "movers-a",
+     "kind": "block",
+     "label": "Top Movers + one-line why",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Top Movers + one-line why"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "news-a",
+     "kind": "block",
+     "label": "News, grouped by holding",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "News, grouped by holding"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cal-a",
+     "kind": "block",
+     "label": "Macro Calendar",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Macro Calendar"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-b",
+     "kind": "nav",
+     "label": "Tearsheet · 07:30 · 1 gap",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "nav",
+       "label": "Tearsheet · 07:30 · 1 gap"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "decide-b",
+     "kind": "block",
+     "label": "Needs a Decision (partial)",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Needs a Decision (partial)"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pnl-b",
+     "kind": "block",
+     "label": "P&L Snapshot — Book",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "P&L Snapshot — Book"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "fold-b",
+     "kind": "fold",
+     "label": "· · · fold · first screenful ends · · ·",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "sheet-degraded",
+       "text": "· · · fold · first screenful ends · · ·"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "movers-b",
+     "kind": "block",
+     "label": "Top Movers + one-line why",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Top Movers + one-line why"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "news-b",
+     "kind": "block",
+     "label": "News unavailable (timeout)",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "News unavailable (timeout)"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cal-b",
+     "kind": "block",
+     "label": "Macro Calendar",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Macro Calendar"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-fold-order",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-calendar-source",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 706,
+      "id": "sheet-complete",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Tearsheet — all inputs in",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 695109716,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 100,
+      "y": 200
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 706,
+      "id": "sheet-degraded",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Tearsheet — news feed down",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 200675177,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 620,
+      "y": 200
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "nav-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 44,
+      "id": "nav-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 693744020,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 220
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "nav-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "nav-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Tearsheet · 07:30",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1757173768,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Tearsheet · 07:30",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 198,
+      "y": 232
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "decide-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "INVENTED. You said PMs want what changed AND what needs a decision. The four sections you named only cover what changed. This is my guess at the missing piece.",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 110,
+      "id": "decide-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 310908956,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 276
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "decide-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "decide-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Needs a Decision Today",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1371465687,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Needs a Decision Today",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 174,
+      "y": 321
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pnl-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 96,
+      "id": "pnl-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1062973063,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 398
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pnl-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pnl-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "P&L Snapshot — Book",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1557734567,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "P&L Snapshot — Book",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 182,
+      "x": 189,
+      "y": 436
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "kind": "fold",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 20,
+      "id": "fold-a",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "· · · fold · first screenful ends · · ·",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1354534174,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "dashed",
+      "strokeWidth": 1,
+      "text": "· · · fold · first screenful ends · · ·",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 320,
+      "x": 120,
+      "y": 506
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "movers-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 110,
+      "id": "movers-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1384510929,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 526
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "movers-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "movers-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Top Movers + one-line why",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 779926734,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Top Movers + one-line why",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 160,
+      "y": 571
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "news-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 130,
+      "id": "news-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1747874489,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 648
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "news-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "news-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News, grouped by holding",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2055971641,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News, grouped by holding",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 230,
+      "x": 165,
+      "y": 703
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cal-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 96,
+      "id": "cal-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1081627523,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 790
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cal-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cal-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 449240544,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 213,
+      "y": 828
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "nav-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 44,
+      "id": "nav-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 810606638,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 220
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "nav-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "nav-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Tearsheet · 07:30 · 1 gap",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1498694293,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Tearsheet · 07:30 · 1 gap",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 680,
+      "y": 232
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "decide-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 110,
+      "id": "decide-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 193022374,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 276
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "decide-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "decide-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Needs a Decision (partial)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1616313674,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Needs a Decision (partial)",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 249,
+      "x": 676,
+      "y": 321
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pnl-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "pnl-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 642973501,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 398
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pnl-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pnl-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "P&L Snapshot — Book",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1831943738,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "P&L Snapshot — Book",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 182,
+      "x": 709,
+      "y": 436
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "kind": "fold",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 20,
+      "id": "fold-b",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "· · · fold · first screenful ends · · ·",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1236655268,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "dashed",
+      "strokeWidth": 1,
+      "text": "· · · fold · first screenful ends · · ·",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 320,
+      "x": 640,
+      "y": 506
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "movers-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 110,
+      "id": "movers-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1267508331,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 526
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "movers-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "movers-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Top Movers + one-line why",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 529835603,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Top Movers + one-line why",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 680,
+      "y": 571
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "news-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "This is what omit-and-flag looks like on a phone. Is a named empty section right, or should the section vanish entirely?",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 130,
+      "id": "news-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1898390275,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 648
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "news-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "news-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News unavailable (timeout)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1264826788,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News unavailable (timeout)",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 249,
+      "x": 676,
+      "y": 703
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cal-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "cal-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1500578361,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 790
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cal-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cal-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 724486013,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 733,
+      "y": 828
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+       "role": "pin",
+       "status": "open",
+       "target": "movers-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-fold-order",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 293532383,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 518
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?",
+       "role": "pin",
+       "status": "open",
+       "target": "cal-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-calendar-source",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1215466386,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 782
+     },
+     "index": 29,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "sheet-complete",
+     "fact": "added",
+     "kind": "frame",
+     "label": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "sheet-degraded",
+     "fact": "added",
+     "kind": "frame",
+     "label": "Tearsheet — news feed down"
+    },
+    {
+     "element": "nav-a",
+     "fact": "added",
+     "kind": "nav",
+     "label": "Tearsheet · 07:30"
+    },
+    {
+     "element": "decide-a",
+     "fact": "added",
+     "kind": "block",
+     "label": "Needs a Decision Today"
+    },
+    {
+     "element": "pnl-a",
+     "fact": "added",
+     "kind": "block",
+     "label": "P&L Snapshot — Book"
+    },
+    {
+     "element": "fold-a",
+     "fact": "annotated",
+     "target": "sheet-complete",
+     "text": "· · · fold · first screenful ends · · ·"
+    },
+    {
+     "element": "movers-a",
+     "fact": "added",
+     "kind": "block",
+     "label": "Top Movers + one-line why"
+    },
+    {
+     "element": "news-a",
+     "fact": "added",
+     "kind": "block",
+     "label": "News, grouped by holding"
+    },
+    {
+     "element": "cal-a",
+     "fact": "added",
+     "kind": "block",
+     "label": "Macro Calendar"
+    },
+    {
+     "element": "nav-b",
+     "fact": "added",
+     "kind": "nav",
+     "label": "Tearsheet · 07:30 · 1 gap"
+    },
+    {
+     "element": "decide-b",
+     "fact": "added",
+     "kind": "block",
+     "label": "Needs a Decision (partial)"
+    },
+    {
+     "element": "pnl-b",
+     "fact": "added",
+     "kind": "block",
+     "label": "P&L Snapshot — Book"
+    },
+    {
+     "element": "fold-b",
+     "fact": "annotated",
+     "target": "sheet-degraded",
+     "text": "· · · fold · first screenful ends · · ·"
+    },
+    {
+     "element": "movers-b",
+     "fact": "added",
+     "kind": "block",
+     "label": "Top Movers + one-line why"
+    },
+    {
+     "element": "news-b",
+     "fact": "added",
+     "kind": "block",
+     "label": "News unavailable (timeout)"
+    },
+    {
+     "element": "cal-b",
+     "fact": "added",
+     "kind": "block",
+     "label": "Macro Calendar"
+    },
+    {
+     "element": "pin-fold-order",
+     "fact": "pin_added",
+     "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?"
+    },
+    {
+     "element": "pin-calendar-source",
+     "fact": "pin_added",
+     "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?"
+    },
+    {
+     "element": "sheet-complete",
+     "fact": "screen_added",
+     "name": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "sheet-degraded",
+     "fact": "screen_added",
+     "name": "Tearsheet — news feed down"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "Where does this section's data come from? I removed the calendar feed I had invented in the flow — is it the same vendor as market data, or its own pull?",
+       "role": "pin",
+       "status": "open",
+       "target": "cal-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-calendar-source",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1215466386,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 782
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "question": "The fold sits after P&L, so a PM's first screenful is 'needs a decision' + P&L and nothing else. Is that the right first screenful, or should Top Movers be above it?",
+       "role": "pin",
+       "status": "open",
+       "target": "movers-a"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-fold-order",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 293532383,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 448,
+      "y": 518
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cal-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cal-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 724486013,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 733,
+      "y": 828
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cal-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "cal-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1500578361,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 790
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "news-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "news-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News unavailable (timeout)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1264826788,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News unavailable (timeout)",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 249,
+      "x": 676,
+      "y": 703
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "news-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "This is what omit-and-flag looks like on a phone. Is a named empty section right, or should the section vanish entirely?",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 130,
+      "id": "news-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1898390275,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 648
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "movers-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "movers-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Top Movers + one-line why",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 529835603,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Top Movers + one-line why",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 680,
+      "y": 571
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "movers-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 110,
+      "id": "movers-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1267508331,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 526
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "kind": "fold",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 20,
+      "id": "fold-b",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "· · · fold · first screenful ends · · ·",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1236655268,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "dashed",
+      "strokeWidth": 1,
+      "text": "· · · fold · first screenful ends · · ·",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 320,
+      "x": 640,
+      "y": 506
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pnl-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pnl-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "P&L Snapshot — Book",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1831943738,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "P&L Snapshot — Book",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 182,
+      "x": 709,
+      "y": 436
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pnl-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 96,
+      "id": "pnl-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 642973501,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 398
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "decide-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "decide-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Needs a Decision (partial)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1616313674,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Needs a Decision (partial)",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 249,
+      "x": 676,
+      "y": 321
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "decide-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 110,
+      "id": "decide-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 193022374,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 276
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "nav-b",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "nav-b-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Tearsheet · 07:30 · 1 gap",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1498694293,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Tearsheet · 07:30 · 1 gap",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 680,
+      "y": 232
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "nav-b-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-degraded",
+      "groupIds": [],
+      "height": 44,
+      "id": "nav-b",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 810606638,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 640,
+      "y": 220
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cal-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cal-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 449240544,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 213,
+      "y": 828
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cal-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 96,
+      "id": "cal-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1081627523,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 790
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "news-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "news-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News, grouped by holding",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2055971641,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News, grouped by holding",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 230,
+      "x": 165,
+      "y": 703
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "news-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 130,
+      "id": "news-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1747874489,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 648
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "movers-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "movers-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Top Movers + one-line why",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 779926734,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Top Movers + one-line why",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 160,
+      "y": 571
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "movers-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 110,
+      "id": "movers-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1384510929,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 526
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "kind": "fold",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 20,
+      "id": "fold-a",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "· · · fold · first screenful ends · · ·",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1354534174,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "dashed",
+      "strokeWidth": 1,
+      "text": "· · · fold · first screenful ends · · ·",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 320,
+      "x": 120,
+      "y": 506
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pnl-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pnl-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "P&L Snapshot — Book",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1557734567,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "P&L Snapshot — Book",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 182,
+      "x": 189,
+      "y": 436
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pnl-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 96,
+      "id": "pnl-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1062973063,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 398
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "decide-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "decide-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Needs a Decision Today",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1371465687,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Needs a Decision Today",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 211,
+      "x": 174,
+      "y": 321
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "decide-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "intent": "INVENTED. You said PMs want what changed AND what needs a decision. The four sections you named only cover what changed. This is my guess at the missing piece.",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 110,
+      "id": "decide-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 310908956,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 276
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "nav-a",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "nav-a-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Tearsheet · 07:30",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1757173768,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Tearsheet · 07:30",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 198,
+      "y": 232
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "nav-a-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "sheet-complete",
+      "groupIds": [],
+      "height": 44,
+      "id": "nav-a",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 693744020,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 120,
+      "y": 220
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 706,
+      "id": "sheet-degraded",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Tearsheet — news feed down",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 200675177,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 620,
+      "y": 200
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 706,
+      "id": "sheet-complete",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Tearsheet — all inputs in",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 695109716,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 100,
+      "y": 200
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 5,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#sheet-complete",
+    "tearsheet-flow#draft-tearsheet"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#sheet-degraded",
+    "tearsheet-flow#deadline-0730"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#news-a",
+    "tearsheet-flow#summarize-news"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "morning-tearsheet",
+   "elements": [
+    "tearsheet-sheet#pnl-a",
+    "tearsheet-flow#run-analysis"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "id": "morning-tearsheet",
+   "name": "Morning Tearsheet",
+   "views": [
+    "tearsheet-sheet"
+   ]
+  }
+ ],
+ "revn": 6,
+ "round": 6,
+ "saved_at": "2026-08-07T21:46:31Z",
+ "selection_at_save": [],
+ "short_id": "4ea9f68",
+ "summary": {
+  "headline": "added Tearsheet — all inputs in (+19 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 14,
+   "annotated": 2,
+   "pin_added": 2,
+   "screen_added": 2
+  }
+ },
+ "tripwires": [],
+ "user_note": "The deliverable itself: four sections you named plus a synthesis block I invented, and the same sheet with a hole in it"
+}

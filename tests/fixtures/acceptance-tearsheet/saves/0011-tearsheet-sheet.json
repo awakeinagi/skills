@@ -1,0 +1,245 @@
+{
+ "artifacts": {
+  "tearsheet-sheet": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pnl-a",
+     "kind": "block",
+     "label": "P&L Snapshot — Book",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "P&L Snapshot — Book",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "fold_crossed": {
+       "from": "above",
+       "label": "P&L Snapshot — Book",
+       "to": "below"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 156,
+       "label": "P&L Snapshot — Book",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "movers-a",
+     "kind": "block",
+     "label": "Top Movers + one-line why",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Top Movers + one-line why",
+       "screen": "Tearsheet — all inputs in"
+      },
+      "fold_crossed": {
+       "from": "below",
+       "label": "Top Movers + one-line why",
+       "to": "above"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -152,
+       "label": "Top Movers + one-line why",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      120,
+      400
+     ],
+     "id": "pnl-a",
+     "op": "move",
+     "to": [
+      120,
+      556
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 438,
+       "to": 594
+      }
+     ],
+     "id": "pnl-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      540
+     ],
+     "id": "movers-a",
+     "op": "move",
+     "to": [
+      120,
+      388
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 586,
+       "to": 434
+      }
+     ],
+     "id": "movers-a-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": 0,
+     "dy": 156,
+     "element": "pnl-a",
+     "fact": "moved",
+     "label": "P&L Snapshot — Book",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": -152,
+     "element": "movers-a",
+     "fact": "moved",
+     "label": "Top Movers + one-line why",
+     "spatial": "moved up"
+    },
+    {
+     "element": "pnl-a",
+     "fact": "block_moved_within_screen",
+     "label": "P&L Snapshot — Book",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "pnl-a",
+     "fact": "fold_crossed",
+     "from": "above",
+     "label": "P&L Snapshot — Book",
+     "to": "below"
+    },
+    {
+     "element": "movers-a",
+     "fact": "block_moved_within_screen",
+     "label": "Top Movers + one-line why",
+     "screen": "Tearsheet — all inputs in"
+    },
+    {
+     "element": "movers-a",
+     "fact": "fold_crossed",
+     "from": "below",
+     "label": "Top Movers + one-line why",
+     "to": "above"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 434,
+       "to": 586
+      }
+     ],
+     "id": "movers-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      388
+     ],
+     "id": "movers-a",
+     "op": "move",
+     "to": [
+      120,
+      540
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 594,
+       "to": 438
+      }
+     ],
+     "id": "pnl-a-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      120,
+      556
+     ],
+     "id": "pnl-a",
+     "op": "move",
+     "to": [
+      120,
+      400
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-sheet",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 10,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 11,
+ "round": 10,
+ "saved_at": "2026-08-07T21:50:48Z",
+ "selection_at_save": [],
+ "short_id": "fd9434b",
+ "summary": {
+  "headline": "P&L Snapshot — Book moved below the fold (+5 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "block_moved_within_screen": 2,
+   "fold_crossed": 2,
+   "moved": 2
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "tearsheet-sheet#pnl-a",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#pnl-a+tearsheet-flow#run-analysis",
+   "sibling": "tearsheet-flow#run-analysis"
+  }
+ ],
+ "user_note": "movers above the fold"
+}

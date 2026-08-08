@@ -1,0 +1,133 @@
+{
+ "artifacts": {
+  "tearsheet-domain": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "The conflation I think will bite you hardest. You hold NVDA equity; suppose you also hold NVDA converts and are short NVDA calls. That is three Instruments, one Issuer, and exactly ONE earnings event. If earnings hangs off the ticker you get three earnings blocks on the same morning; if it hangs off the Issuer you get one, with three position lines under it. Is Issuer a real object for you, or does your book only ever hold one instrument per company - in which case I should collapse these two and stop being clever?",
+        "role": "pin",
+        "status": "open",
+        "target": "issuer"
+       },
+       "to": {
+        "answer": null,
+        "question": "The conflation I think will bite you hardest. You hold NVDA equity; suppose you also hold NVDA converts and are short NVDA calls. That is three Instruments, one Issuer, and exactly ONE earnings event. If earnings hangs off the ticker you get three earnings blocks on the same morning; if it hangs off the Issuer you get one, with three position lines under it. Is Issuer a real object for you, or does your book only ever hold one instrument per company - in which case I should collapse these two and stop being clever?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "issuer"
+       }
+      }
+     ],
+     "id": "pin-issuer-vs-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "I invented Story and you should decide whether it survives. On a busy morning one event generates ten wire items. Without Story the agent sees ten inputs and either writes ten lines or silently picks - and silent picking is the thing you told me never to do. With Story, clustering is an explicit step someone owns and can get wrong visibly. Real object, or overbuilding?",
+        "role": "pin",
+        "status": "open",
+        "target": "story"
+       },
+       "to": {
+        "answer": null,
+        "question": "I invented Story and you should decide whether it survives. On a busy morning one event generates ten wire items. Without Story the agent sees ten inputs and either writes ten lines or silently picks - and silent picking is the thing you told me never to do. With Story, clustering is an explicit step someone owns and can get wrong visibly. Real object, or overbuilding?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "story"
+       }
+      }
+     ],
+     "id": "pin-story-dedup",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "I invented Story and you should decide whether it survives. On a busy morning one event generates ten wire items. Without Story the agent sees ten inputs and either writes ten lines or silently picks - and silent picking is the thing you told me never to do. With Story, clustering is an explicit step someone owns and can get wrong visibly. Real object, or overbuilding?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "story"
+       },
+       "to": {
+        "answer": null,
+        "question": "I invented Story and you should decide whether it survives. On a busy morning one event generates ten wire items. Without Story the agent sees ten inputs and either writes ten lines or silently picks - and silent picking is the thing you told me never to do. With Story, clustering is an explicit step someone owns and can get wrong visibly. Real object, or overbuilding?",
+        "role": "pin",
+        "status": "open",
+        "target": "story"
+       }
+      }
+     ],
+     "id": "pin-story-dedup",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "The conflation I think will bite you hardest. You hold NVDA equity; suppose you also hold NVDA converts and are short NVDA calls. That is three Instruments, one Issuer, and exactly ONE earnings event. If earnings hangs off the ticker you get three earnings blocks on the same morning; if it hangs off the Issuer you get one, with three position lines under it. Is Issuer a real object for you, or does your book only ever hold one instrument per company - in which case I should collapse these two and stop being clever?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "issuer"
+       },
+       "to": {
+        "answer": null,
+        "question": "The conflation I think will bite you hardest. You hold NVDA equity; suppose you also hold NVDA converts and are short NVDA calls. That is three Instruments, one Issuer, and exactly ONE earnings event. If earnings hangs off the ticker you get three earnings blocks on the same morning; if it hangs off the Issuer you get one, with three position lines under it. Is Issuer a real object for you, or does your book only ever hold one instrument per company - in which case I should collapse these two and stop being clever?",
+        "role": "pin",
+        "status": "open",
+        "target": "issuer"
+       }
+      }
+     ],
+     "id": "pin-issuer-vs-instrument",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Tearsheet Domain"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 16,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 17,
+ "saved_at": "2026-08-07T19:15:57Z",
+ "selection_at_save": [],
+ "short_id": "20062c5",
+ "summary": {
+  "headline": "saved without changing anything",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "session close: mark the three settled pins resolved (Issuer stays, Story stays, prose stays above the numbers)"
+}

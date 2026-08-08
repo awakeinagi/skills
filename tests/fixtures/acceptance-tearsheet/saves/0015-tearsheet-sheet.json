@@ -1,0 +1,134 @@
+{
+ "artifacts": {
+  "tearsheet-sheet": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+        "role": "pin",
+        "status": "open",
+        "target": "decide-a"
+       },
+       "to": {
+        "answer": null,
+        "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+        "role": "pin",
+        "status": "resolved",
+        "target": "decide-a"
+       }
+      }
+     ],
+     "id": "pin-citation-depth",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+        "role": "pin",
+        "status": "open",
+        "target": "decide-b"
+       },
+       "to": {
+        "answer": null,
+        "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "decide-b"
+       }
+      }
+     ],
+     "id": "pin-partial-advice",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+        "role": "pin",
+        "status": "resolved",
+        "target": "decide-b"
+       },
+       "to": {
+        "answer": null,
+        "question": "When news is missing, this advice is computed from partial input. Is marking it '(partial)' honest enough, or should the advisory section suppress itself entirely when its inputs are incomplete?",
+        "role": "pin",
+        "status": "open",
+        "target": "decide-b"
+       }
+      }
+     ],
+     "id": "pin-partial-advice",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+        "role": "pin",
+        "status": "resolved",
+        "target": "decide-a"
+       },
+       "to": {
+        "answer": null,
+        "question": "'Cites which section it came from' — on a phone, is a text label like 'from News' enough, or does the PM need to tap through to the actual story or number? A citation you cannot follow is just a label.",
+        "role": "pin",
+        "status": "open",
+        "target": "decide-a"
+       }
+      }
+     ],
+     "id": "pin-citation-depth",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-sheet",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The Tearsheet (phone)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 14,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 15,
+ "round": 14,
+ "saved_at": "2026-08-07T21:58:06Z",
+ "selection_at_save": [],
+ "short_id": "e9ed0ea",
+ "summary": {
+  "headline": "saved without changing anything",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "Session close: all three pins answered in chat"
+}

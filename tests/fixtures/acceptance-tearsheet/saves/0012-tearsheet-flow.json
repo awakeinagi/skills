@@ -1,0 +1,2501 @@
+{
+ "artifacts": {
+  "tearsheet-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-market",
+     "kind": "arrow",
+     "label": "t-trigger-market",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-trigger-market"
+      },
+      "transition_added": {
+       "between": [
+        "Cron 06:45",
+        "Pull Market Data"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-calendar",
+     "kind": "text",
+     "label": "+ macro calendar (same vendor)",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "annotated": {
+       "target": "pull-market-data",
+       "text": "+ macro calendar (same vendor)"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-positions-market",
+     "kind": "arrow",
+     "label": "t-positions-market",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-positions-market"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Load Positions",
+        "Pull Market Data"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "trigger",
+     "kind": "source",
+     "label": "Cron 06:45",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 80,
+       "label": "Cron 06:45",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "pull-market-data",
+     "kind": "source",
+     "label": "Pull Market Data",
+     "ops": [
+      5,
+      6
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -320,
+       "dy": -120,
+       "label": "Pull Market Data",
+       "spatial": "moved left-up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-market",
+     "id": "pull-news",
+     "kind": "source",
+     "label": "Pull News",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-market",
+       "dx": 0,
+       "dy": -120,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "run-analysis",
+     "kind": "transform",
+     "label": "Run Analysis",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -320,
+       "dy": -120,
+       "label": "Run Analysis",
+       "spatial": "moved left-up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-market",
+     "id": "summarize-news",
+     "kind": "agent",
+     "label": "Summarize News",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-market",
+       "dx": 0,
+       "dy": -120,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "draft-tearsheet",
+     "kind": "agent",
+     "label": "Draft Tearsheet",
+     "ops": [
+      14,
+      15
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -20,
+       "label": "Draft Tearsheet",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-market",
+     "id": "deliver",
+     "kind": "sink",
+     "label": "Send to PMs",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-market",
+       "dx": 0,
+       "dy": -20,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "load-positions",
+     "kind": "source",
+     "label": "Load Positions",
+     "ops": [
+      19,
+      20
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 240,
+       "label": "Load Positions",
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "Load Positions"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "deadline-0730",
+     "kind": "control",
+     "label": "07:30 Cutoff",
+     "ops": [
+      22,
+      23
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -20,
+       "label": "07:30 Cutoff",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "07:30 Cutoff"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-trigger-positions",
+     "kind": "arrow",
+     "label": "t-trigger-positions",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-trigger-positions"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-market-analysis",
+     "kind": "arrow",
+     "label": "t-market-analysis",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-market-analysis"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-positions-news",
+     "kind": "arrow",
+     "label": "t-positions-news",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-positions-news"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-news-summarize",
+     "kind": "arrow",
+     "label": "t-news-summarize",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-news-summarize"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-analysis-cutoff",
+     "kind": "arrow",
+     "label": "t-analysis-cutoff",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-analysis-cutoff"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-summarize-cutoff",
+     "kind": "arrow",
+     "label": "t-summarize-cutoff",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-summarize-cutoff"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-cutoff-draft",
+     "kind": "arrow",
+     "label": "t-cutoff-draft",
+     "ops": [
+      31
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-cutoff-draft"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-draft-deliver",
+     "kind": "arrow",
+     "label": "t-draft-deliver",
+     "ops": [
+      32
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "t-draft-deliver"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "d24c9dde5d"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-market-data",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 328,
+      "id": "t-trigger-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -328
+       ],
+       [
+        240,
+        -328
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1239869905,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 180,
+      "y": 480
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-calendar",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "+ macro calendar (same vendor)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 547853963,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "+ macro calendar (same vendor)",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 252,
+      "x": 420,
+      "y": 60
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "e2d560fd4e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-market-data",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 128,
+      "id": "t-positions-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -128
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 557683486,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 580,
+      "y": 432
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "from": [
+      100,
+      400
+     ],
+     "id": "trigger",
+     "op": "move",
+     "to": [
+      100,
+      480
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 502
+      }
+     ],
+     "id": "trigger-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Guess to challenge: scoped to the book like news is, not a broad market pull. If you need index/FX/rates context regardless of holdings, this dependency is wrong.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Corrected: runs straight off the cron, not behind the book. Index, FX and rates context is needed every morning regardless of holdings. Also carries the macro calendar — same vendor.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "pull-market-data",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      240
+     ],
+     "id": "pull-market-data",
+     "op": "move",
+     "to": [
+      420,
+      120
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 744,
+       "to": 424
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 262,
+       "to": 142
+      }
+     ],
+     "id": "pull-market-data-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      760
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      740,
+      640
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 782,
+       "to": 662
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      240
+     ],
+     "id": "run-analysis",
+     "op": "move",
+     "to": [
+      740,
+      120
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1082,
+       "to": 762
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 262,
+       "to": 142
+      }
+     ],
+     "id": "run-analysis-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      760
+     ],
+     "id": "summarize-news",
+     "op": "move",
+     "to": [
+      1060,
+      640
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 782,
+       "to": 662
+      }
+     ],
+     "id": "summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Uncertainty policy: omit and flag. Never print a number it is unsure of.",
+        "kind": "agent",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Omit-and-flag on numbers. Writes the advisory section too, and every item in it must cite the section it came from — no free-floating opinions.",
+        "kind": "agent",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "draft-tearsheet",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1700,
+      400
+     ],
+     "id": "draft-tearsheet",
+     "op": "move",
+     "to": [
+      1700,
+      380
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 402
+      }
+     ],
+     "id": "draft-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2020,
+      400
+     ],
+     "id": "deliver",
+     "op": "move",
+     "to": [
+      2020,
+      380
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2024,
+       "to": 2048
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 402
+      }
+     ],
+     "id": "deliver-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "The book. Loaded first because it scopes everything downstream: which names get news, which get analysed, whose earnings land on the calendar.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "The book. Gates news only. If it fails to load the whole run aborts — see the Failure Modes view.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "load-positions",
+     "op": "mod"
+    },
+    {
+     "from": [
+      420,
+      400
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      420,
+      640
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 662
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Hard barrier, not a decision. Late is worse than incomplete: whatever is ready at 07:30 ships, gaps flagged.",
+        "kind": "control",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Hard barrier. Whatever is done ships; unfinished sections get the same unavailable treatment as missing data. Never a fallback to yesterday's sheet.",
+        "kind": "control",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "deadline-0730",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1380,
+      400
+     ],
+     "id": "deadline-0730",
+     "op": "move",
+     "to": [
+      1380,
+      380
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 402
+      }
+     ],
+     "id": "deadline-0730-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 512
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 128
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         128
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "7a1ddf8624"
+       },
+       "to": {
+        "role": "node",
+        "routed": "30f5f1a6c1"
+       }
+      }
+     ],
+     "id": "t-trigger-positions",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 900,
+       "to": 580
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 152
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "f9975f8e91"
+       },
+       "to": {
+        "role": "node",
+        "routed": "3c44c6b7f6"
+       }
+      }
+     ],
+     "id": "t-market-analysis",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 500,
+       "to": 580
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 464,
+       "to": 672
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 328,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         328
+        ],
+        [
+         240,
+         328
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "d8bb0d8db3"
+       },
+       "to": {
+        "role": "node",
+        "routed": "8f0753fb4a"
+       }
+      }
+     ],
+     "id": "t-positions-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 792,
+       "to": 672
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "d8e1fabd22"
+       },
+       "to": {
+        "role": "node",
+        "routed": "ba4e5822e8"
+       }
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1220,
+       "to": 900
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 152
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 240,
+       "to": 560
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 128,
+       "to": 228
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         128
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         560,
+         0
+        ],
+        [
+         560,
+         228
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "cf4efcc058"
+       },
+       "to": {
+        "role": "node",
+        "routed": "c09ddf7c11"
+       }
+      }
+     ],
+     "id": "t-analysis-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1140,
+       "to": 1220
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 760,
+       "to": 672
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 328,
+       "to": 228
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -328
+        ],
+        [
+         240,
+         -328
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -228
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "caf60f93d4"
+       },
+       "to": {
+        "role": "node",
+        "routed": "8a61127c06"
+       }
+      }
+     ],
+     "id": "t-summarize-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 412
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "af96cecb30"
+       },
+       "to": {
+        "role": "node",
+        "routed": "51f8478b97"
+       }
+      }
+     ],
+     "id": "t-cutoff-draft",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 412
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "27f8851995"
+       },
+       "to": {
+        "role": "node",
+        "routed": "eeb43789db"
+       }
+      }
+     ],
+     "id": "t-draft-deliver",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "trigger",
+      "trigger-label",
+      "pull-market-data",
+      "pull-market-data-label",
+      "pull-news",
+      "pull-news-label",
+      "run-analysis",
+      "run-analysis-label",
+      "summarize-news",
+      "summarize-news-label",
+      "draft-tearsheet",
+      "draft-tearsheet-label",
+      "deliver",
+      "deliver-label",
+      "t-analysis-cutoff",
+      "t-cutoff-draft",
+      "t-draft-deliver",
+      "pin-cutoff",
+      "pin-news-judgment",
+      "pin-report-truth",
+      "load-positions",
+      "load-positions-label",
+      "deadline-0730",
+      "deadline-0730-label",
+      "t-trigger-positions",
+      "pin-book-fails",
+      "pin-decision-section",
+      "t-positions-market",
+      "t-positions-news",
+      "t-market-analysis",
+      "t-news-summarize",
+      "t-summarize-cutoff"
+     ],
+     "moved": [
+      "pin-cutoff",
+      "pin-news-judgment",
+      "pin-report-truth",
+      "load-positions",
+      "load-positions-label",
+      "deadline-0730",
+      "deadline-0730-label",
+      "pin-book-fails",
+      "pin-decision-section",
+      "t-trigger-positions",
+      "t-market-analysis",
+      "t-positions-news",
+      "t-news-summarize",
+      "t-analysis-cutoff",
+      "t-summarize-cutoff",
+      "t-cutoff-draft",
+      "t-draft-deliver"
+     ],
+     "op": "reorder",
+     "order": [
+      "trigger",
+      "trigger-label",
+      "pull-market-data",
+      "pull-market-data-label",
+      "pull-news",
+      "pull-news-label",
+      "run-analysis",
+      "run-analysis-label",
+      "summarize-news",
+      "summarize-news-label",
+      "draft-tearsheet",
+      "draft-tearsheet-label",
+      "deliver",
+      "deliver-label",
+      "pin-cutoff",
+      "pin-news-judgment",
+      "pin-report-truth",
+      "load-positions",
+      "load-positions-label",
+      "deadline-0730",
+      "deadline-0730-label",
+      "pin-book-fails",
+      "pin-decision-section",
+      "t-trigger-market",
+      "t-trigger-positions",
+      "t-market-analysis",
+      "t-positions-news",
+      "t-news-summarize",
+      "t-analysis-cutoff",
+      "t-summarize-cutoff",
+      "t-cutoff-draft",
+      "t-draft-deliver",
+      "note-calendar"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-trigger-market",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-trigger-market"
+    },
+    {
+     "element": "note-calendar",
+     "fact": "annotated",
+     "target": "pull-market-data",
+     "text": "+ macro calendar (same vendor)"
+    },
+    {
+     "element": "t-positions-market",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-positions-market"
+     }
+    },
+    {
+     "dx": 0,
+     "dy": 80,
+     "element": "trigger",
+     "fact": "moved",
+     "label": "Cron 06:45",
+     "spatial": "moved down"
+    },
+    {
+     "dx": -320,
+     "dy": -120,
+     "element": "pull-market-data",
+     "fact": "moved",
+     "label": "Pull Market Data",
+     "spatial": "moved left-up"
+    },
+    {
+     "consequence_of": "t-trigger-market",
+     "dx": 0,
+     "dy": -120,
+     "element": "pull-news",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "dx": -320,
+     "dy": -120,
+     "element": "run-analysis",
+     "fact": "moved",
+     "label": "Run Analysis",
+     "spatial": "moved left-up"
+    },
+    {
+     "consequence_of": "t-trigger-market",
+     "dx": 0,
+     "dy": -120,
+     "element": "summarize-news",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "dx": 0,
+     "dy": -20,
+     "element": "draft-tearsheet",
+     "fact": "moved",
+     "label": "Draft Tearsheet",
+     "spatial": "moved up"
+    },
+    {
+     "consequence_of": "t-trigger-market",
+     "dx": 0,
+     "dy": -20,
+     "element": "deliver",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "dx": 0,
+     "dy": 240,
+     "element": "load-positions",
+     "fact": "moved",
+     "label": "Load Positions",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": -20,
+     "element": "deadline-0730",
+     "fact": "moved",
+     "label": "07:30 Cutoff",
+     "spatial": "moved up"
+    },
+    {
+     "element": "load-positions",
+     "fact": "reordered",
+     "label": "Load Positions"
+    },
+    {
+     "element": "deadline-0730",
+     "fact": "reordered",
+     "label": "07:30 Cutoff"
+    },
+    {
+     "element": "t-trigger-positions",
+     "fact": "reordered",
+     "label": "t-trigger-positions"
+    },
+    {
+     "element": "t-market-analysis",
+     "fact": "reordered",
+     "label": "t-market-analysis"
+    },
+    {
+     "element": "t-positions-news",
+     "fact": "reordered",
+     "label": "t-positions-news"
+    },
+    {
+     "element": "t-news-summarize",
+     "fact": "reordered",
+     "label": "t-news-summarize"
+    },
+    {
+     "element": "t-analysis-cutoff",
+     "fact": "reordered",
+     "label": "t-analysis-cutoff"
+    },
+    {
+     "element": "t-summarize-cutoff",
+     "fact": "reordered",
+     "label": "t-summarize-cutoff"
+    },
+    {
+     "element": "t-cutoff-draft",
+     "fact": "reordered",
+     "label": "t-cutoff-draft"
+    },
+    {
+     "element": "t-draft-deliver",
+     "fact": "reordered",
+     "label": "t-draft-deliver"
+    },
+    {
+     "between": [
+      "Cron 06:45",
+      "Pull Market Data"
+     ],
+     "element": "t-trigger-market",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Load Positions",
+      "Pull Market Data"
+     ],
+     "element": "t-positions-market",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "trigger",
+      "trigger-label",
+      "pull-market-data",
+      "pull-market-data-label",
+      "pull-news",
+      "pull-news-label",
+      "run-analysis",
+      "run-analysis-label",
+      "summarize-news",
+      "summarize-news-label",
+      "draft-tearsheet",
+      "draft-tearsheet-label",
+      "deliver",
+      "deliver-label",
+      "pin-cutoff",
+      "pin-news-judgment",
+      "pin-report-truth",
+      "load-positions",
+      "load-positions-label",
+      "deadline-0730",
+      "deadline-0730-label",
+      "pin-book-fails",
+      "pin-decision-section",
+      "t-trigger-market",
+      "t-trigger-positions",
+      "t-market-analysis",
+      "t-positions-news",
+      "t-news-summarize",
+      "t-analysis-cutoff",
+      "t-summarize-cutoff",
+      "t-cutoff-draft",
+      "t-draft-deliver",
+      "note-calendar"
+     ],
+     "moved": [
+      "pin-cutoff",
+      "pin-news-judgment",
+      "pin-report-truth",
+      "load-positions",
+      "load-positions-label",
+      "deadline-0730",
+      "deadline-0730-label",
+      "pin-book-fails",
+      "pin-decision-section",
+      "t-trigger-positions",
+      "t-market-analysis",
+      "t-positions-news",
+      "t-news-summarize",
+      "t-analysis-cutoff",
+      "t-summarize-cutoff",
+      "t-cutoff-draft",
+      "t-draft-deliver"
+     ],
+     "op": "reorder",
+     "order": [
+      "trigger",
+      "trigger-label",
+      "pull-market-data",
+      "pull-market-data-label",
+      "pull-news",
+      "pull-news-label",
+      "run-analysis",
+      "run-analysis-label",
+      "summarize-news",
+      "summarize-news-label",
+      "draft-tearsheet",
+      "draft-tearsheet-label",
+      "deliver",
+      "deliver-label",
+      "t-analysis-cutoff",
+      "t-cutoff-draft",
+      "t-draft-deliver",
+      "pin-cutoff",
+      "pin-news-judgment",
+      "pin-report-truth",
+      "load-positions",
+      "load-positions-label",
+      "deadline-0730",
+      "deadline-0730-label",
+      "t-trigger-positions",
+      "pin-book-fails",
+      "pin-decision-section",
+      "t-positions-market",
+      "t-positions-news",
+      "t-market-analysis",
+      "t-news-summarize",
+      "t-summarize-cutoff"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 412,
+       "to": 432
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "eeb43789db"
+       },
+       "to": {
+        "role": "node",
+        "routed": "27f8851995"
+       }
+      }
+     ],
+     "id": "t-draft-deliver",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 412,
+       "to": 432
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "51f8478b97"
+       },
+       "to": {
+        "role": "node",
+        "routed": "af96cecb30"
+       }
+      }
+     ],
+     "id": "t-cutoff-draft",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1220,
+       "to": 1140
+      },
+      {
+       "attr": "y",
+       "from": 672,
+       "to": 760
+      },
+      {
+       "attr": "height",
+       "from": 228,
+       "to": 328
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -228
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -328
+        ],
+        [
+         240,
+         -328
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "8a61127c06"
+       },
+       "to": {
+        "role": "node",
+        "routed": "caf60f93d4"
+       }
+      }
+     ],
+     "id": "t-summarize-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 900,
+       "to": 1220
+      },
+      {
+       "attr": "y",
+       "from": 152,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 560,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "from": 228,
+       "to": 128
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         560,
+         0
+        ],
+        [
+         560,
+         228
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         128
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "c09ddf7c11"
+       },
+       "to": {
+        "role": "node",
+        "routed": "cf4efcc058"
+       }
+      }
+     ],
+     "id": "t-analysis-cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 672,
+       "to": 792
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "ba4e5822e8"
+       },
+       "to": {
+        "role": "node",
+        "routed": "d8e1fabd22"
+       }
+      }
+     ],
+     "id": "t-news-summarize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 580,
+       "to": 500
+      },
+      {
+       "attr": "y",
+       "from": 672,
+       "to": 464
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "from": 0,
+       "to": 328
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         328
+        ],
+        [
+         240,
+         328
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "8f0753fb4a"
+       },
+       "to": {
+        "role": "node",
+        "routed": "d8bb0d8db3"
+       }
+      }
+     ],
+     "id": "t-positions-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 580,
+       "to": 900
+      },
+      {
+       "attr": "y",
+       "from": 152,
+       "to": 272
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "3c44c6b7f6"
+       },
+       "to": {
+        "role": "node",
+        "routed": "f9975f8e91"
+       }
+      }
+     ],
+     "id": "t-market-analysis",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 512,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         128
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "30f5f1a6c1"
+       },
+       "to": {
+        "role": "node",
+        "routed": "7a1ddf8624"
+       }
+      }
+     ],
+     "id": "t-trigger-positions",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 402,
+       "to": 422
+      }
+     ],
+     "id": "deadline-0730-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1380,
+      380
+     ],
+     "id": "deadline-0730",
+     "op": "move",
+     "to": [
+      1380,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Hard barrier. Whatever is done ships; unfinished sections get the same unavailable treatment as missing data. Never a fallback to yesterday's sheet.",
+        "kind": "control",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Hard barrier, not a decision. Late is worse than incomplete: whatever is ready at 07:30 ships, gaps flagged.",
+        "kind": "control",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "deadline-0730",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 662,
+       "to": 422
+      }
+     ],
+     "id": "load-positions-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      420,
+      640
+     ],
+     "id": "load-positions",
+     "op": "move",
+     "to": [
+      420,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "The book. Gates news only. If it fails to load the whole run aborts — see the Failure Modes view.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "The book. Loaded first because it scopes everything downstream: which names get news, which get analysed, whose earnings land on the calendar.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "load-positions",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2048,
+       "to": 2024
+      },
+      {
+       "attr": "y",
+       "from": 402,
+       "to": 422
+      }
+     ],
+     "id": "deliver-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2020,
+      380
+     ],
+     "id": "deliver",
+     "op": "move",
+     "to": [
+      2020,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 402,
+       "to": 422
+      }
+     ],
+     "id": "draft-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1700,
+      380
+     ],
+     "id": "draft-tearsheet",
+     "op": "move",
+     "to": [
+      1700,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Omit-and-flag on numbers. Writes the advisory section too, and every item in it must cite the section it came from — no free-floating opinions.",
+        "kind": "agent",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Uncertainty policy: omit and flag. Never print a number it is unsure of.",
+        "kind": "agent",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "draft-tearsheet",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 662,
+       "to": 782
+      }
+     ],
+     "id": "summarize-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      640
+     ],
+     "id": "summarize-news",
+     "op": "move",
+     "to": [
+      1060,
+      760
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 762,
+       "to": 1082
+      },
+      {
+       "attr": "y",
+       "from": 142,
+       "to": 262
+      }
+     ],
+     "id": "run-analysis-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      120
+     ],
+     "id": "run-analysis",
+     "op": "move",
+     "to": [
+      1060,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 662,
+       "to": 782
+      }
+     ],
+     "id": "pull-news-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      740,
+      640
+     ],
+     "id": "pull-news",
+     "op": "move",
+     "to": [
+      740,
+      760
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 424,
+       "to": 744
+      },
+      {
+       "attr": "y",
+       "from": 142,
+       "to": 262
+      }
+     ],
+     "id": "pull-market-data-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      420,
+      120
+     ],
+     "id": "pull-market-data",
+     "op": "move",
+     "to": [
+      740,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "intent": "Corrected: runs straight off the cron, not behind the book. Index, FX and rates context is needed every morning regardless of holdings. Also carries the macro calendar — same vendor.",
+        "kind": "source",
+        "role": "node"
+       },
+       "to": {
+        "intent": "Guess to challenge: scoped to the book like news is, not a broad market pull. If you need index/FX/rates context regardless of holdings, this dependency is wrong.",
+        "kind": "source",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "pull-market-data",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 502,
+       "to": 422
+      }
+     ],
+     "id": "trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      100,
+      480
+     ],
+     "id": "trigger",
+     "op": "move",
+     "to": [
+      100,
+      400
+     ]
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "e2d560fd4e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-market-data",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 128,
+      "id": "t-positions-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -128
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 557683486,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "load-positions",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 580,
+      "y": 432
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-calendar",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "+ macro calendar (same vendor)",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 547853963,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "+ macro calendar (same vendor)",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 252,
+      "x": 420,
+      "y": 60
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "role": "node",
+       "routed": "d24c9dde5d"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pull-market-data",
+       "focus": 0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 328,
+      "id": "t-trigger-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -328
+       ],
+       [
+        240,
+        -328
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1239869905,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "trigger",
+       "focus": 0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 180,
+      "y": 480
+     },
+     "index": 23,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Morning Tearsheet Pipeline"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 11,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 12,
+ "round": 11,
+ "saved_at": "2026-08-07T21:53:47Z",
+ "selection_at_save": [],
+ "short_id": "2d8d88e",
+ "summary": {
+  "headline": "added (+20 more)",
+  "suppressed": 3,
+  "verb_counts": {
+   "added": 1,
+   "annotated": 1,
+   "deleted": 1,
+   "moved": 9,
+   "reordered": 10,
+   "transition_added": 1,
+   "transition_deleted": 1
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "tearsheet-flow#draft-tearsheet",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-complete+tearsheet-flow#draft-tearsheet",
+   "sibling": "tearsheet-sheet#sheet-complete"
+  },
+  {
+   "changed": "tearsheet-flow#deadline-0730",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#sheet-degraded+tearsheet-flow#deadline-0730",
+   "sibling": "tearsheet-sheet#sheet-degraded"
+  },
+  {
+   "changed": "tearsheet-flow#run-analysis",
+   "kind": "divergence",
+   "mapping": "morning-tearsheet:tearsheet-sheet#pnl-a+tearsheet-flow#run-analysis",
+   "sibling": "tearsheet-sheet#pnl-a"
+  }
+ ],
+ "user_note": "Market data runs off the cron in parallel with the book; only news waits on positions. Calendar folds into the market vendor."
+}

@@ -8,3 +8,4 @@ frontends/*/node_modules/
 .agents/
 .claude/
 docs/
+project_knowledge/
