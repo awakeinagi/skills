@@ -58,7 +58,13 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
       // exempt from connector lints and budgets, painted beneath arrows.
   "kind": "button" | "nav" | "input" | "entity" | "image" | "store"
-        | "kpi" | "checkbox" | "toggle" | "slider" | …,
+        | "kpi" | "checkbox" | "toggle" | "slider"
+        | "help" | "sticky-bar" | "feedback" | …,
+      // v0.4 plain kinds (no composition, but the lints watch them):
+      //   help       — where help lives; 3.2.6 slot-drift NOTEs.
+      //   sticky-bar — pinned chrome flush with a frame edge; declaring
+      //                it arms the 2.4.11 focus-obscured question.
+      //   feedback   — post-action confirmation banner/toast.
       // kind: "image" on a rectangle composes the X-box for you (rect +
       // two grouped decoration strokes; they move and delete with it).
       // v0.3 composed kinds (same composite machinery):
@@ -225,6 +231,11 @@ it "agent asked a question" with no Apply action.
  "nodes": 14, "arrows": 18, "reason": "the 5-way ingest fan IS this view"}
 {"op": "registry", "action": "set_budget", "artifact": "pipeline-flow",
  "clear": true}
+// one-time-question waive (v0.4): the reason IS the recorded answer.
+// Keys the lints consult: "q25:<artifact>" (progress indicator),
+// "q12:<artifact>:<label-slug>" (whose-word). `clear: true` un-waives.
+{"op": "registry", "action": "waive", "key": "q25:pipeline-flow",
+ "reason": "user ruled: regulated flow, steps must show"}
 ```
 
 ## Reading state back

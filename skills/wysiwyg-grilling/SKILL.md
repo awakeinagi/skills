@@ -186,6 +186,14 @@ the sentence failing to complete IS the test that the reading isn't ready.
 - **Altitude** (config `narration_altitude`, default `clusters`): 2–4
   interpreted intent clusters + name what you suppressed ("and 3 nudges I
   read as incidental"). The full ledger stays quotable from the save record.
+- **Reading order** (wireframes, v0.4): the `reading_order_set` fact
+  narrates a screen's linearisation when it first lands ("linearised,
+  Checkout reads: nav / title / fields / Continue — that the order you
+  mean?"); `reading_order_changed` fires only when an edit reorders it —
+  narrate those, stay silent otherwise. The question-NOTE lints (Q4/Q7/
+  Q9/Q11/Q25/Q12…) are QUESTIONS a criterion asks later, never verdicts —
+  never say a wireframe "fails WCAG"; settle one, then record the answer
+  as a registry `waive` (reason required) so it goes quiet.
 - **Hypotheses**: deliberate internally over ≥2 candidate readings (score
   against registry, glossary, conversation, `selection_at_save`), then
   **commit externally to one reading stated as a position**, with the point
