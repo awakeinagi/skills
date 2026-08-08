@@ -997,6 +997,18 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             out[1]["textAlign"] = "left"
         out.extend(_compose_control_glyph(el, custom["kind"],
                                           custom["checked"], existing_ids))
+    if custom.get("kind") == "input" and etype == "rectangle" and \
+            spec.get("value") is not None:
+        # a settled value belongs ON the control (v0.5). `value` used to
+        # be read only by kpi and slider, so an input was handed one and
+        # silently dropped it — the admin console's schedule field read
+        # "Run at" with no time in it, and nothing complained
+        gid = el_id + "-grp"
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+        if len(out) > 1 and out[1].get("containerId") == el_id:
+            out[1]["textAlign"] = "left"
+        custom["value"] = str(spec["value"])
+        out.append(_compose_input_value(el, custom["value"], existing_ids))
     if custom.get("kind") == "slider" and etype == "rectangle":
         # slider stand-in (v0.3): track + thumb; customData.value (0–100)
         # positions the thumb, `mod value` moves it
@@ -1064,6 +1076,56 @@ def _compose_kpi_value(el, value_text, existing_ids):
         fontSize=24, fontFamily=FONT_LEGIBLE,
         textAlign="center", verticalAlign="top", lineHeight=1.25,
         containerId=None, autoResize=False, strokeColor="#1e1e1e")
+
+
+def _compose_input_value(el, value_text, existing_ids):
+    """Build the value row of a kind:"input" field.
+
+    Right-aligned so the label reads on the left and the answer on the
+    right, the way a settings row does — an input drawn with no value is
+    a box whose whole point (what is it set to?) is missing.
+
+    Args:
+        el: The owner rectangle (already positioned/sized).
+        value_text: The value string.
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        The value text element (role: decoration, value_of: owner).
+    """
+    fs = 14
+    vw, vh = text_dims(value_text or " ", fs)
+    return _deco(
+        el["id"] + "-value", "value_of", el["id"],
+        el["id"] + "-grp", existing_ids,
+        type="text",
+        x=el["x"] + max(el.get("width", 160) - vw - 10, 6),
+        y=el["y"] + max((el.get("height", 40) - vh) / 2, 2),
+        width=vw, height=vh,
+        text=value_text, originalText=value_text,
+        fontSize=fs, fontFamily=FONT_LEGIBLE,
+        textAlign="left", verticalAlign="top", lineHeight=1.25,
+        containerId=None, autoResize=False, strokeColor="#1e1e1e")
+
+
+def _recompose_input_value(els, el, value_text):
+    """Retext an input's composed value row in place (id stays stable).
+
+    Args:
+        els: Live element list (searched for the value row).
+        el: The owner input rectangle.
+        value_text: The new value string.
+    """
+    for t in els:
+        if (t.get("customData") or {}).get("value_of") == el["id"]:
+            t["text"] = value_text
+            t["originalText"] = value_text
+            vw, vh = text_dims(value_text or " ", t.get("fontSize", 14))
+            t["width"], t["height"] = vw, vh
+            t["x"] = el["x"] + max(el.get("width", 160) - vw - 10, 6)
+            return
+    els.append(_compose_input_value(el, value_text,
+                                    {e["id"] for e in els}))
 
 
 def _recompose_kpi_value(els, el, value_text):
@@ -1784,11 +1846,16 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                             if (t.get("customData") or {}) \
                                     .get("thumb_of") == el["id"]:
                                 t["x"] = _slider_thumb_x(el, v2)
+                    elif k2 == "input":
+                        cd = dict(el.get("customData") or {})
+                        cd["value"] = str(value)
+                        el["customData"] = cd
+                        _recompose_input_value(els, el, cd["value"])
                     else:
                         errors.append(
                             "op %d (mod %s): `value` only applies to "
-                            "kind:kpi and kind:slider elements (this is "
-                            "%r)" % (i, op.get("id"), k2))
+                            "kind:kpi, kind:input and kind:slider elements "
+                            "(this is %r)" % (i, op.get("id"), k2))
                 elif attr == "checked":
                     k2 = (el.get("customData") or {}).get("kind")
                     if k2 not in ("checkbox", "toggle"):
@@ -2589,7 +2656,7 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
                         continue
                     lbl2 = display_label(el, new_labels)
                     k2 = newc.get("kind") or oldc.get("kind")
-                    if k2 in ("kpi", "slider") and \
+                    if k2 in ("kpi", "slider", "input") and \
                             oldc.get("value") != newc.get("value"):
                         F("value_changed", c["id"], label=lbl2,
                           **{"from": oldc.get("value"),
@@ -3380,12 +3447,70 @@ def _svg_dash(el):
     return ""
 
 
-def render_svg(els, title=""):
+def _plain(md):
+    """Flatten markdown emphasis for a renderer with no rich text.
+
+    Tooltips are authored as markdown because the app renders them that
+    way; SVG has no such luxury, and printing the asterisks is worse than
+    losing the emphasis.
+
+    Args:
+        md: Tooltip or definition text.
+
+    Returns:
+        One-line plain text.
+    """
+    s = " ".join(str(md or "").split())
+    s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+    s = re.sub(r"(?<!\w)[*_](.+?)[*_](?!\w)", r"\1", s)
+    return s.replace("`", "")
+
+
+def collect_footnotes(els):
+    """Number the tooltips on an artifact, in reading order.
+
+    Per-element detail lives in `customData.tooltip`, which is hover-only
+    and therefore survives nothing: not a PNG, not a print, not being
+    handed to someone who was not in the session. A session that ends
+    "I'm giving these to my analyst on Monday" ends with the detail
+    stripped out (v0.4 capability assessment).
+
+    Args:
+        els: The artifact's elements.
+
+    Returns:
+        A list of `(number, label, tooltip, element)` in top-to-bottom,
+        left-to-right order.
+    """
+    labels = label_map(els)
+    owners = [e for e in els
+              if not e.get("isDeleted") and (e.get("customData") or {})
+              .get("tooltip")]
+    owners.sort(key=lambda e: (round(e.get("y", 0) / 40), e.get("x", 0)))
+    return [(i + 1, (labels.get(e["id"]) or e.get("name") or e["id"]),
+             str((e.get("customData") or {})["tooltip"]), e)
+            for i, e in enumerate(owners)]
+
+
+def render_svg(els, title="", footnotes=False, glossary=None):
     """Deterministic stdlib SVG of an element array — the snapshot CLI's
     tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
     (drawn from the same coordinates the lint reads); text set in system
     fonts, so it is an approximation of Excalidraw's hand-drawn look, not
-    a replica — good for legibility checks, never for style judgments."""
+    a replica — good for legibility checks, never for style judgments.
+
+    Args:
+        els: The artifact's elements.
+        title: Optional caption drawn top-left.
+        footnotes: Mark tooltip-bearing elements and print their text
+            below the drawing, so an exported artifact carries its own
+            detail instead of losing it with the hover.
+        glossary: Optional `(term, definition)` pairs appended under the
+            footnotes — the words the drawing assumes.
+
+    Returns:
+        `(svg_text, width, height)`.
+    """
     live = [e for e in els if not e.get("isDeleted")]
     if not live:
         return ("<svg xmlns='http://www.w3.org/2000/svg' width='320' "
@@ -3414,9 +3539,27 @@ def render_svg(els, title=""):
             x2s.append(e.get("x", 0) + ew2)
             y2s.append(e.get("y", 0) + eh2)
     pad = 40
+    notes = collect_footnotes(live) if footnotes else []
+    gloss = list(glossary or []) if footnotes else []
     minx, miny = min(xs) - pad, min(ys) - pad
     w = max(x2s) - min(xs) + 2 * pad
     h = max(y2s) - min(ys) + 2 * pad
+    # room under the drawing for the notes block, wrapped to the width
+    note_lines = []
+    for n, lbl, tip, _e in notes:
+        body = _plain(tip)
+        for j, line in enumerate(
+                wrap_label_text(body, max(w - 80, 240), 13).split("\n")):
+            note_lines.append(("%d. %s — %s" % (n, lbl, line)) if j == 0
+                              else "      " + line)
+    for term, definition in gloss:
+        body = _plain(definition)
+        for j, line in enumerate(
+                wrap_label_text(body, max(w - 80, 240), 13).split("\n")):
+            note_lines.append(("%s: %s" % (term, line)) if j == 0
+                              else "      " + line)
+    foot_h = (48 + 19 * len(note_lines)) if note_lines else 0
+    h += foot_h
     # cap raster size UNIFORMLY: the old independent min(w,4000)/min(h,3000)
     # clamp squashed the aspect ratio of anything wider than 4000px
     scale = min(1.0, 4000.0 / w, 3000.0 / h)
@@ -3485,6 +3628,14 @@ def render_svg(els, title=""):
         elif et == "text":
             fs = e.get("fontSize") or 16
             lines = str(e.get("text") or "").split("\n")
+            # fixed-width text WRAPS on the live canvas, but this renderer
+            # only ever split on \n — so a label the app lays out in two
+            # lines was exported as one long line spilling out of its box.
+            # The snapshot is the agent's only way to see its own drawing,
+            # so it was being lied to about legibility (v0.4 assessment).
+            if e.get("autoResize") is False and ew > 0:
+                lines = [wl for line in lines
+                         for wl in wrap_label_text(line, ew, fs).split("\n")]
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
             lh = fs * (e.get("lineHeight") or 1.25)
@@ -3507,6 +3658,22 @@ def render_svg(els, title=""):
     for e in live:
         if e.get("type") == "text":
             paint(e)
+    for n, _lbl, _tip, e in notes:
+        mx = e.get("x", 0) + e.get("width", 0) - 4
+        my = e.get("y", 0) + 4
+        out.append("<circle cx='%f' cy='%f' r='8' fill='#fdfcf8' "
+                   "stroke='#b45309' stroke-width='1'/>" % (mx, my))
+        out.append("<text x='%f' y='%f' font-size='10' fill='#b45309' "
+                   "text-anchor='middle' font-family='sans-serif'>%d</text>"
+                   % (mx, my + 3.5, n))
+    if note_lines:
+        fy = miny + h - foot_h + 12
+        out.append("<line x1='%f' y1='%f' x2='%f' y2='%f' stroke='#ccc' "
+                   "stroke-width='1'/>" % (minx + 20, fy, minx + w - 20, fy))
+        for k, line in enumerate(note_lines):
+            out.append("<text x='%f' y='%f' font-size='13' fill='#444' "
+                       "font-family='sans-serif'>%s</text>"
+                       % (minx + 24, fy + 24 + k * 19, _svg_escape(line)))
     out.append("</svg>")
     return "\n".join(out), int(w * scale), int(h * scale)
 
@@ -4172,15 +4339,55 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "(and give it customData.annotates so it stays "
                     "attached to its subject)"
                     % ((t.get("text") or "")[:30], name(n["id"])))
-    for e in shapes:
-        lbl = next((t for t in els if t.get("containerId") == e["id"]
-                    and t.get("type") == "text"), None)
-        if lbl is not None and lbl.get("width", 0) > e.get("width", 0) - 6:
+    # text that does not fit the box it is drawn in. MEASURED, not read
+    # off the stored width: a stored extent is an estimate the client
+    # re-derives, and trusting it is why three overflows shipped in the
+    # v0.4 assessment — including a footnote that spilled 100px past its
+    # frame. The agent cannot see any of this, so the lint is its only
+    # tell. Covers composed rows (KPI values, entity attributes) too,
+    # which the old containerId-only check never looked at.
+    owners = {e["id"]: e for e in shapes}
+    for t in els:
+        if t.get("type") != "text":
+            continue
+        cd = t.get("customData") or {}
+        oid = t.get("containerId") or cd.get("value_of") or \
+            cd.get("attr_of") or cd.get("parent")
+        owner = owners.get(oid or "")
+        if owner is None:
+            continue
+        txt = t.get("text") or ""
+        if not txt.strip():
+            continue
+        fs = t.get("fontSize") or 16
+        # composed rows (KPI values, entity attributes) are emitted one
+        # per line and never wrap, so width alone decides. Everything
+        # else — bound labels, sticky notes, fixed-width text — is
+        # wrapped by the renderer, so judge the WRAPPED height and only
+        # call it too wide when a single word cannot fit.
+        single_line = bool(cd.get("attr_of") or cd.get("value_of"))
+        pad = 16 if single_line else 8
+        room_w = int(owner.get("width") or 0) - pad
+        room_h = int(owner.get("height") or 0) - 4
+        if single_line:
+            tw, th = text_dims(txt, fs)
+            over_w, over_h = tw > room_w, False
+        else:
+            wrapped = wrap_label_text(txt.replace("\n", " "), room_w, fs)
+            tw, th = text_dims(wrapped, fs)
+            longest = max((text_dims(w, fs)[0] for w in txt.split()),
+                          default=0)
+            over_w, over_h = longest > room_w, th > room_h
+        if over_w or over_h:
             warnings.append(
-                "label %r overflows its %dpx-wide box (%s) — bound labels "
-                "render on ONE line; widen the box or shorten the label"
-                % (lbl.get("text", "")[:30], int(e.get("width", 0)),
-                   e["id"]))
+                "%r does not fit %s: needs ~%dx%dpx, the box gives %dx%dpx "
+                "(%s) — widen the box, shorten the text, or move the detail "
+                "to a tooltip"
+                % (txt.replace("\n", " ")[:34], name(owner["id"]),
+                   tw, th, max(room_w, 0), max(room_h, 0),
+                   "too wide" if over_w and not over_h else
+                   "too tall" if over_h and not over_w else
+                   "too wide and too tall"))
     # shared attach points
     anchor_pts = {}
     for a in arrows:
@@ -4219,9 +4426,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                                               int(max(gap_x, gap_y))))
 
     # ---- NOTE: style & budgets ---------------------------------------
+    # the user's own elements are not the agent's to re-grid: nagging
+    # about where someone dropped their sticky note is noise it can only
+    # answer by moving their work (v0.4 capability assessment)
     offgrid = [e["id"] for e in shapes
-               if any(isinstance(e.get(k), (int, float)) and e[k] % 4
-                      for k in ("x", "y", "width", "height"))]
+               if (e.get("customData") or {}).get("author") != "user"
+               and any(isinstance(e.get(k), (int, float)) and e[k] % 4
+                       for k in ("x", "y", "width", "height"))]
     if offgrid:
         notes.append("%d element(s) off the 4px grid (%s%s) — seed from "
                      "grid indices (references/layout.md)"
@@ -4380,6 +4591,41 @@ def parse_glossary_terms(text):
     return terms
 
 
+def parse_glossary_pairs(text):
+    """CONTEXT.md → ordered `(term, definition)` pairs.
+
+    `parse_glossary_terms` returns names only, which is enough to lint
+    with and not enough to hand someone: an exported diagram carrying the
+    words but not what they mean explains nothing.
+
+    Args:
+        text: CONTEXT.md contents.
+
+    Returns:
+        `(term, definition)` for every settled term, definition flattened
+        to one line (empty string when the entry is just a name).
+    """
+    pairs, term, body = [], None, []
+    for raw in text.splitlines():
+        m = re.match(TERM_RE, raw.strip())
+        if m:
+            if term is not None:
+                pairs.append((term, " ".join(" ".join(body).split())))
+            term = m.group(1).strip()
+            rest = raw.strip()[m.end():].lstrip(":—- ").strip()
+            body = [rest] if rest else []
+        elif term is not None:
+            line = raw.strip()
+            if line.startswith("#"):
+                pairs.append((term, " ".join(" ".join(body).split())))
+                term, body = None, []
+            elif line:
+                body.append(line)
+    if term is not None:
+        pairs.append((term, " ".join(" ".join(body).split())))
+    return pairs
+
+
 def lint_registry(terms, registry, context_exists=False):
     """Registry-level discipline notes (NOTE tier, artifact-independent):
     settled glossary terms with no concept behind them (ADR 0007 — a term
@@ -4466,8 +4712,18 @@ def lint_registry(terms, registry, context_exists=False):
         for other in concepts:
             if other is c:
                 continue
+            other_tokens = [t for t in str(other.get("id") or "").split("-")
+                            if t]
             for v in other.get("views") or []:
                 vt = set(str(v).split("-"))
+                # only nag when the claiming concept matches MORE of the
+                # artifact id than its current holder does. Without this
+                # the umbrella wins any tie on a project-prefixed id, so
+                # `argus-dashboard` — correctly filed under `Dashboard` —
+                # was told to move to `Argus`, the exact opposite of the
+                # most-specific-concept rule (v0.4 capability assessment)
+                if len(cid_tokens) <= len(set(other_tokens) & vt):
+                    continue
                 if set(cid_tokens) <= vt and v not in (c.get("views") or []):
                     notes.append(
                         "view %r is named after concept %r but is "
@@ -4674,6 +4930,7 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                         entity_labels.add(lbl)
     terms = entity_labels | {t.strip() for t in (glossary_terms or [])
                              if t and t.strip()}
+    seen_q12 = set()
     for aid, t in sorted(artifact_types.items()):
         if t != "wireframe":
             continue
@@ -4687,8 +4944,15 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
             if not lbl or lbl not in terms:
                 continue
             key = "q12:%s:%s" % (aid, slugify(lbl))
-            if key in waives:
+            # one key, one question. A screen drawn in three states —
+            # normal / stale / disabled — repeats every label three
+            # times, and all three share this key, so one waive already
+            # silenced all three: they were never three findings (v0.4
+            # capability assessment; the skill's own "N tripwires with
+            # one cause is one tripwire")
+            if key in waives or key in seen_q12:
                 continue
+            seen_q12.add(key)
             add(aid, "notes",
                 "label %r on %s matches the domain term — whose word "
                 "is this, yours or theirs? Do users say %r? Settle "
@@ -4732,7 +4996,13 @@ def project_lint(project, els, registry=None, artifact_type=None,
     has_map = (project.root / "CONTEXT-MAP.md").exists()
     extra = lint_glossary(els, avoid, has_map)
     out = {k: lint[k] + extra[k] for k in ("errors", "warnings", "notes")}
-    if registry is not None:
+    # registry findings are project-scope: lint_registry never sees `els`
+    # or `aid`, so appending them to every per-artifact call copied the
+    # same note into every bucket AND the registry bucket — one finding
+    # about one concept read as four problems across four artifacts, and
+    # inflated every LINT_DEBT count (v0.4 capability assessment). The
+    # registry-scope call is the one made without an artifact.
+    if registry is not None and aid is None:
         out["notes"] = out["notes"] + lint_registry(terms, registry,
                                                     ctx_exists)
     return out
@@ -6673,6 +6943,14 @@ class ServerApp:
             patch = body.get("patch") or {}
             allowed = {"canvas_updates", "narration_altitude",
                        "deletion_conversation", "nudge_after_minutes"}
+            if not isinstance(patch, dict) or not patch:
+                # an unwrapped body used to no-op silently AND log a
+                # config_changed event with an empty patch, so the agent
+                # could read a cadence change that never happened
+                return err(400, "config needs a non-empty `patch` object, "
+                                "e.g. {\"patch\": {\"canvas_updates\": "
+                                "\"pulled\"}} — settable keys: %s"
+                           % ", ".join(sorted(allowed)))
             bad = set(patch.keys()) - allowed
             if bad:
                 return err(400, "config keys not settable here: %s"
@@ -7185,6 +7463,127 @@ def cmd_stop(args):
     return 0
 
 
+def cmd_export(args):
+    """Write an artifact to SVG, optionally carrying its own detail.
+
+    The handover case: the drawings outlive the session and get read by
+    someone who was not in it. Hover-only tooltips do not survive that,
+    so `--with-footnotes` prints them under the diagram, numbered against
+    markers on the elements they belong to, with the glossary appended.
+
+    Args:
+        args: Parsed CLI args — `project`, `artifact`, `out`,
+            `with_footnotes`, `no_glossary`.
+
+    Returns:
+        Process exit code: 0 on success.
+    """
+    project = Project(args.project)
+    store = Store(project)
+    aid = args.artifact
+    if aid is None:
+        if len(store.scenes) != 1:
+            die("ERROR=--artifact required (known: %s)"
+                % (", ".join(sorted(store.scenes)) or "none"), 2)
+        aid = next(iter(store.scenes))
+    if aid not in store.scenes:
+        die("ERROR=unknown artifact %r (known: %s)"
+            % (aid, ", ".join(sorted(store.scenes)) or "none"), 2)
+    gloss = []
+    if args.with_footnotes and not args.no_glossary:
+        ctx = project.pk / "CONTEXT.md"
+        try:
+            if ctx.exists():
+                gloss = parse_glossary_pairs(ctx.read_text(encoding="utf-8"))
+        except OSError:
+            gloss = []
+    name = (store.artifact_meta.get(aid) or {}).get("name") or aid
+    svg, w, h = render_svg(store.scenes[aid], title=name,
+                           footnotes=bool(args.with_footnotes),
+                           glossary=gloss)
+    out = Path(args.out) if args.out else (project.pk / ("%s.svg" % aid))
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(svg, encoding="utf-8")
+    except OSError as e:
+        die("ERROR=could not write %s: %s" % (out, e), 2)
+    print_kv(artifact=aid, path=str(out), width=w, height=h,
+             footnotes=len(collect_footnotes(store.scenes[aid]))
+             if args.with_footnotes else 0,
+             glossary_terms=len(gloss))
+    return 0
+
+
+def cmd_lint(args):
+    """Print the standing lint findings, bodies and all.
+
+    `status` reports only counts ("argus-dashboard 9N"), so the only way
+    to read what a note actually says was to apply a batch and watch the
+    response — which is a poor reason to draw something (v0.4 capability
+    assessment).
+
+    Args:
+        args: Parsed CLI args — `project`, optional `artifact`.
+
+    Returns:
+        Process exit code: 0 always (findings are not failures).
+    """
+    project = Project(args.project)
+    store = Store(project)
+    lines = store.lint_lines()
+    aids = [args.artifact] if args.artifact else sorted(lines)
+    if args.artifact and args.artifact not in lines:
+        die("ERROR=unknown artifact %r (known: %s)"
+            % (args.artifact, ", ".join(sorted(lines)) or "none"), 2)
+    total = 0
+    for aid in aids:
+        li = lines.get(aid) or {}
+        for tier, prefix in (("errors", "LAYOUT_ERROR"),
+                             ("warnings", "LAYOUT_WARNING"),
+                             ("notes", "LAYOUT_NOTE")):
+            for msg in li.get(tier) or []:
+                total += 1
+                print("%s=%s: %s" % (prefix, aid, msg))
+    print_kv(artifacts=len(aids), findings=total)
+    return 0
+
+
+def cmd_pending(args):
+    """List the revisions waiting behind the user's banner.
+
+    Args:
+        args: Parsed CLI args — `project`, optional `discard` id.
+
+    Returns:
+        Process exit code: 0, or 3 when no server is running.
+    """
+    project = Project(args.project)
+    state = project.read_state()
+    if not server_alive(state):
+        die("ERROR=server unreachable — the pending queue lives in the "
+            "running server; run canvas.py start", 3)
+    if args.discard is not None:
+        try:
+            http_json(state["url"] + "api/pending/resolve",
+                      payload={"id": args.discard, "action": "discard"})
+        except urllib.error.HTTPError as e:
+            die("ERROR=could not discard %r (%s)" % (args.discard, e), 2)
+        print_kv(discarded=args.discard)
+        return 0
+    try:
+        st = http_json(state["url"] + "api/state", timeout=10.0)
+    except (OSError, ValueError, urllib.error.URLError) as e:
+        die("ERROR=server unreachable (%s)" % e, 3)
+    entries = st.get("pending") or []
+    for p in entries:
+        print_kv(pending_id=p.get("id"), artifact=p.get("artifact"),
+                 ops=len(p.get("ops") or []),
+                 deferred=str(bool(p.get("deferred"))).lower(),
+                 queued_at=p.get("queued_at"), note=p.get("note"))
+    print_kv(pending=len(entries))
+    return 0
+
+
 def cmd_wait(args):
     """Tier-3 bounded long-poll. Self-terminates strictly under Bash's 600s
     ceiling. Exit 0 = events printed; exit 3 = timed out with none."""
@@ -7496,6 +7895,25 @@ def main(argv=None):
                    help="event seq to wait after (default: now)")
     p.add_argument("--timeout", type=int, default=540,
                    help="max seconds to wait (hard-capped at 540)")
+    p = sub.add_parser("export", help="write an artifact to SVG, optionally "
+                                      "carrying its tooltips as footnotes")
+    p.add_argument("--artifact", default=None)
+    p.add_argument("--out", default=None,
+                   help="output .svg path (default: project_knowledge/)")
+    p.add_argument("--with-footnotes", action="store_true",
+                   help="number tooltip-bearing elements and print their "
+                        "text under the drawing, plus the glossary — for "
+                        "handing the artifact to someone who wasn't here")
+    p.add_argument("--no-glossary", action="store_true",
+                   help="footnotes without the glossary appendix")
+    p = sub.add_parser("lint", help="print standing lint findings in full "
+                                    "(status shows only the counts)")
+    p.add_argument("--artifact", default=None,
+                   help="limit to one artifact id")
+    p = sub.add_parser("pending", help="list revisions held behind the "
+                                       "user's banner")
+    p.add_argument("--discard", type=int, default=None,
+                   help="drop a queued revision by id")
     p = sub.add_parser("apply", help="apply a typed op batch (agent draws)")
     p.add_argument("--file", help="JSON batch file (default: stdin)")
     p.add_argument("--check", action="store_true",
@@ -7521,7 +7939,9 @@ def main(argv=None):
     args = parser.parse_args(argv)
     handlers = {
         "start": cmd_start, "status": cmd_status, "stop": cmd_stop,
-        "wait": cmd_wait, "apply": cmd_apply, "screenshot": cmd_snapshot,
+        "wait": cmd_wait, "apply": cmd_apply, "lint": cmd_lint,
+        "export": cmd_export,
+        "pending": cmd_pending, "screenshot": cmd_snapshot,
         "snapshot": cmd_snapshot,
         "serve": cmd_serve,
     }

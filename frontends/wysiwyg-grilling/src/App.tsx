@@ -18,6 +18,29 @@ const POLL_MS = 2500;
 
 let toastSeq = 0;
 
+/** Describe a held revision's ops in a few words.
+ *
+ * "Apply now" used to be a blind click: the banner named the agent's
+ * note but never what the revision would actually do to the drawing.
+ *
+ * @param ops - The queued batch's op list, as sent by the server.
+ * @returns A short phrase like "adds 3, rewires 1", or "no drawing ops".
+ */
+function opSummary(ops: unknown): string {
+  const list = Array.isArray(ops) ? ops : [];
+  const verbs: Record<string, string> = {
+    add: "adds", mod: "changes", del: "deletes", reorder: "reorders",
+    pin: "asks", resolve_pin: "closes", registry: "records",
+  };
+  const counts = new Map<string, number>();
+  for (const o of list) {
+    const kind = verbs[String((o as { op?: string })?.op ?? "")] ?? "other";
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  if (!counts.size) return "no drawing ops";
+  return [...counts].map(([verb, n]) => `${verb} ${n}`).join(", ");
+}
+
 /** One element of the onion skin. Deliberately schematic: the point is
  * "something used to be here, this big" — a faithful re-render would
  * compete with the live drawing instead of annotating it. */
@@ -53,6 +76,7 @@ export default function App() {
   const [suggestText, setSuggestText] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
   const [dismissedPending, setDismissedPending] = useState<number[]>([]);
+  const [showAllPending, setShowAllPending] = useState(false);
   const [seenPins, setSeenPins] = useState<string[]>([]);
   const [lastSave, setLastSave] = useState<any>(null);
   const [narrOpen, setNarrOpen] = useState(false);
@@ -472,9 +496,15 @@ export default function App() {
 
   /* ---------------- pending revisions ---------------- */
   const resolvePending = useCallback(
-    async (id: number, action: "apply_now" | "after_save") => {
+    async (id: number, action: "apply_now" | "after_save" | "discard") => {
       try {
         const r = await apiPost("/api/pending/resolve", { id, action });
+        if (action === "discard") {
+          setDismissedPending((d) => [...d, id]);
+          toast("Revision discarded.");
+          refresh();
+          return;
+        }
         if (action === "apply_now") {
           const cur = currentRef.current;
           if (cur && dirtyRef.current[cur] && r.changes?.[cur] && apiRef.current) {
@@ -1173,8 +1203,14 @@ export default function App() {
       {/* ============ round header ============ */}
       <header className="header">
         <div className="brand"><span className="logo" /> WYSIWYG&nbsp;Grilling</div>
-        <div className="round">
-          Round {state?.round ?? "…"} — <span className="whose">{whoseMove === "user" ? "your move" : "agent reading"}</span>
+        {/* the round counter only advances when an agent revision LANDS,
+            so under `pulled` cadence it sits still while the agent keeps
+            moving — the header read "Round 5" ten exchanges in. The "+"
+            says the number is behind rather than quietly lying. */}
+        <div className="round" title={pending.length
+          ? `${pending.length} agent revision(s) held — the round advances when they land`
+          : undefined}>
+          Round {state?.round ?? "…"}{pending.length ? "+" : ""} — <span className="whose">{whoseMove === "user" ? "your move" : "agent reading"}</span>
         </div>
         <div className="crumbs">
           {state?.project || "…"} · <b>{currentArtifact ? artifacts[currentArtifact]?.name || currentArtifact : "no artifact yet"}</b>
@@ -1288,17 +1324,38 @@ export default function App() {
           <button onClick={() => setNarrOpen(false)}>Got it</button>
         </div>
       )}
-      {pending.map((p: any) => (
+      {(showAllPending ? pending : pending.slice(0, 1)).map((p: any) => (
         <div key={p.id} className="banner pending">
-          <span>✎ Agent revision waiting{p.note ? `: ${p.note}` : ""} — your unsaved work is safe either way.</span>
+          <span>
+            ✎ Agent revision waiting
+            {p.artifact ? ` on ${p.artifact}` : ""}
+            {p.note ? `: ${p.note}` : ""}
+            {" — "}
+            <span style={{ opacity: 0.8 }}>{opSummary(p.ops)}</span>
+            {". Your unsaved work is safe either way."}
+          </span>
           <div className="grow" />
           {!p.deferred && <>
             <button onClick={() => resolvePending(p.id, "apply_now")}>Apply now</button>
             <button onClick={() => resolvePending(p.id, "after_save")}>After I save</button>
           </>}
+          <button onClick={() => resolvePending(p.id, "discard")} title="drop this revision — the agent is told">Discard</button>
           {p.deferred && <span style={{ opacity: 0.8 }}>lands after your next Save</span>}
         </div>
       ))}
+      {pending.length > 1 && (
+        <div className="banner pending">
+          <span style={{ opacity: 0.85 }}>
+            {showAllPending
+              ? `${pending.length} revisions waiting`
+              : `+${pending.length - 1} more revision${pending.length > 2 ? "s" : ""} waiting`}
+          </span>
+          <div className="grow" />
+          <button onClick={() => setShowAllPending((v) => !v)}>
+            {showAllPending ? "Collapse" : "Show all"}
+          </button>
+        </div>
+      )}
 
       {/* ============ main ============ */}
       <div className="main">

@@ -119,7 +119,13 @@ proposal):
   it said (a rewire that didn't bind, a frame move that stranded members).
 
 And as **LAYOUT_WARNING** (legibility): annotation overlapping any element ·
-bound label wider than its container · element stranded far outside the
+**text that does not fit the box it is drawn in** (v0.5 — measured, not
+read off the stored width, and it covers composed rows too: KPI values,
+entity attribute lines, fixed-width text. Wrapping text is judged on its
+wrapped height and only called too wide when a single word cannot fit;
+non-wrapping composed rows are judged on width. This is the one class of
+defect you are structurally blind to, so it is the lint to actually read)
+· element stranded far outside the
 artifact's cluster · bidirectional arrow (both arrowheads — split it into
 two labeled arrows) · activation bar that never closes. Wireframe form
 warnings (v0.4): submit button preceding its inputs in reading order ·

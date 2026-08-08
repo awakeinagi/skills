@@ -92,12 +92,19 @@ on concept `report` clears the umbrella's `wireframe` debt.
       //   checkbox — box glyph + check stroke; pass "checked": true.
       //   toggle   — pill + thumb; "checked" moves the thumb.
       //   slider   — track + thumb; pass "value": 0–100.
-  "value": "+3.1%",           // kpi (string) / slider (number 0–100)
+      //   input    — (v0.5) a settled value renders right-aligned in the
+      //              field, label left: `Run at    weekdays 06:00`. Before
+      //              v0.5 `value` was read only by kpi/slider, so an input
+      //              handed one dropped it SILENTLY and the field drew as
+      //              an empty labelled box.
+  "value": "+3.1%",           // kpi/input (string) / slider (number 0–100)
   "checked": true,            // checkbox/toggle state
   "tooltip": "markdown…",     // hover-only detail card (v0.3): rendered
       // on hover in the client, editable from the element's right-click
-      // menu; NEVER exported to SVG/PNG. Verbose per-element detail
-      // belongs here, not in more visible rows.
+      // menu. Not in the app's PNG export — but `canvas.py export
+      // --with-footnotes` prints tooltips under the drawing, numbered
+      // against markers, so a handed-on artifact keeps its detail.
+      // Verbose per-element detail belongs here, not in more visible rows.
   "verticalAlign": "top" | "middle" | "bottom",
       // pins the bound label to the header band (titled panels: pair
       // with `parent` nesting for the shelf-of-cards pattern) or the
@@ -282,6 +289,13 @@ it "agent asked a question" with no Apply action.
   pins, tripwires, pending).
 - `GET <url>api/save-record/<revn>` → a full save record (also on disk:
   `project_knowledge/saves/NNNN-*.json`).
+- `canvas.py lint [--artifact <id>]` → the standing findings in full.
+  `status` gives you counts only ("dashboard 9N"); this gives you the
+  sentences, without applying a batch to find out what they say.
+- `canvas.py pending [--discard <id>]` → what is queued behind the user's
+  banner, with each entry's artifact, note and op count.
+- `canvas.py export --artifact <id> --with-footnotes` → SVG carrying its
+  tooltips as numbered footnotes plus the glossary — for handover.
 - `canvas.py wait --timeout 540` → prints new events as JSON lines; exit 3 on
   quiet timeout (that's your cue for queued work or a nudge — never a retry
   loop without doing something useful between).
