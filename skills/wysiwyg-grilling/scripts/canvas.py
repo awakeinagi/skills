@@ -1203,6 +1203,12 @@ def _route_sig(arrow):
 def server_owns_geometry(arrow):
     cd = arrow.get("customData") or {}
     mark = cd.get("routed")
+    if mark == "authored":
+        # hand-authored waypoints (mod points, v0.3): explicitly the
+        # agent's/user's geometry — never re-routed, re-fanned, or
+        # flattened. A rewire (mod from/to) re-routes because that is a
+        # new path request.
+        return False
     if mark is True:  # pre-signature mark (early v0.1): trust 2-point only
         return len(arrow.get("points") or []) <= 2
     if isinstance(mark, str):
@@ -1286,14 +1292,38 @@ def _route_candidates(src, dst):
     return out
 
 
-def route_arrow(arrow, src, dst, obstacles=None):
+def _segs_cross(ax, ay, bx, by, cx, cy, dx, dy):
+    """Do open segments AB and CD properly intersect? (orientation test)"""
+    def orient(px, py, qx, qy, rx, ry):
+        v = (qx - px) * (ry - py) - (qy - py) * (rx - px)
+        return 0 if abs(v) < 1e-9 else (1 if v > 0 else -1)
+    o1 = orient(ax, ay, bx, by, cx, cy)
+    o2 = orient(ax, ay, bx, by, dx, dy)
+    o3 = orient(cx, cy, dx, dy, ax, ay)
+    o4 = orient(cx, cy, dx, dy, bx, by)
+    return o1 != o2 and o3 != o4 and 0 not in (o1, o2, o3, o4)
+
+
+def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
+                other_arrows=None):
     """Compute explicit geometry for a bound arrow (bindings do NOT route —
     feel-prototype finding) and attach start/end bindings. Off-axis pairs
     get orthogonal elbows (diagram-design §6.1); when the direct path
     crosses a foreign box, alternate orientations and bounded Z-detours
     are tried and the cleanest path wins (Phase-4 router — before this,
     dense fan-outs routed straight through neighbors and only the lint
-    noticed)."""
+    noticed).
+
+    Args:
+        arrow: The arrow element to (re)route in place.
+        src: Source node element.
+        dst: Destination node element.
+        obstacles: Hard obstacles (foreign boxes) — dominant score term.
+        soft_obstacles: Label/annotation bboxes (v0.3) — a path over a
+            label is legal but reads badly; penalized below hard hits.
+        other_arrows: [(id, x, y, points)] of other routed arrows —
+            each crossing costs like a soft hit.
+    """
     def hits(path):
         n = 0
         for (ax, ay), (bx, by) in zip(path, path[1:]):
@@ -1304,6 +1334,22 @@ def route_arrow(arrow, src, dst, obstacles=None):
                     n += 1
         return n
 
+    def soft(path):
+        n = 0
+        for (ax, ay), (bx, by) in zip(path, path[1:]):
+            for ob in soft_obstacles or []:
+                if _seg_hits_rect(ax, ay, bx, by, ob):
+                    n += 1
+            for oid, ox, oy, opts in other_arrows or []:
+                if oid == arrow.get("id"):
+                    continue
+                for p1, p2 in zip(opts, opts[1:]):
+                    if _segs_cross(ax, ay, bx, by,
+                                   ox + p1[0], oy + p1[1],
+                                   ox + p2[0], oy + p2[1]):
+                        n += 1
+        return n
+
     def score(path):
         bends = len(path) - 2
         length = sum(abs(bx - ax) + abs(by - ay)
@@ -1311,7 +1357,7 @@ def route_arrow(arrow, src, dst, obstacles=None):
         diag = any(abs(bx - ax) > 12 and abs(by - ay) > 12
                    for (ax, ay), (bx, by) in zip(path, path[1:]))
         # a true diagonal reads worse than one clean bend (layout.md §6.1)
-        return (hits(path), bends + (2 if diag else 0), length)
+        return (hits(path), soft(path), bends + (2 if diag else 0), length)
 
     path = min(_route_candidates(src, dst), key=score)
     x1, y1 = path[0]
@@ -1322,14 +1368,38 @@ def route_arrow(arrow, src, dst, obstacles=None):
     arrow["width"] = max(abs(p[0]) for p in pts)
     arrow["height"] = max(abs(p[1]) for p in pts)
     arrow["points"] = pts
-    arrow["startBinding"] = {"elementId": src["id"], "focus": 0, "gap": gap}
-    arrow["endBinding"] = {"elementId": dst["id"], "focus": 0, "gap": gap}
+    arrow["startBinding"] = {"elementId": src["id"],
+                             "focus": binding_focus(src, x1, y1),
+                             "gap": gap}
+    arrow["endBinding"] = {"elementId": dst["id"],
+                           "focus": binding_focus(dst, *path[-1]),
+                           "gap": gap}
     _stamp_route(arrow)
     for node in (src, dst):
         bl = [b for b in (node.get("boundElements") or [])
               if not (b.get("id") == arrow["id"] and b.get("type") == "arrow")]
         bl.append({"id": arrow["id"], "type": "arrow"})
         node["boundElements"] = bl
+
+
+def binding_focus(node, px, py):
+    """Excalidraw-style focus for an attach point: signed center-offset
+    ratio along the attached edge's cross axis, clamped to ±0.9. Focus 0
+    means "aim at the center" — which is why every fanned endpoint used
+    to snap back to one shared point on the first client re-render
+    (v0.3 assessment: the lint's own advice was unfollowable)."""
+    cx = node["x"] + node.get("width", 0) / 2.0
+    cy = node["y"] + node.get("height", 0) / 2.0
+    side = _edge_side(node, px, py)
+    if side in ("left", "right"):
+        half = max(node.get("height", 0) / 2.0, 1.0)
+        f = (py - cy) / half
+    elif side in ("top", "bottom"):
+        half = max(node.get("width", 0) / 2.0, 1.0)
+        f = (px - cx) / half
+    else:
+        return 0
+    return max(-0.9, min(0.9, round(f, 3)))
 
 
 def _edge_side(el, px, py, eps=2.5):
@@ -1345,6 +1415,17 @@ def _edge_side(el, px, py, eps=2.5):
     return None
 
 
+def _fan_point(node, side, off):
+    """Absolute attach point at offset `off` along a node's bbox side."""
+    if side == "top":
+        return (node["x"] + off, node["y"])
+    if side == "bottom":
+        return (node["x"] + off, node["y"] + node.get("height", 0))
+    if side == "left":
+        return (node["x"], node["y"] + off)
+    return (node["x"] + node.get("width", 0), node["y"] + off)
+
+
 def fan_attach_points(els):
     """Spread server-routed arrows sharing one node edge along it at
     L*k/(N+1) (diagram-design §6.4 — see references/layout.md): N arrows
@@ -1353,6 +1434,7 @@ def fan_attach_points(els):
     ix = {e["id"]: e for e in els}
     ends = {}  # arrow id -> {"start": (x,y), "end": (x,y)}
     per_side = {}  # (node_id, side) -> [(arrow_id, which_end)]
+    fan_slides = {}  # (arrow_id, which) -> (node, side, off, length)
     for a in els:
         if a.get("type") not in ("arrow", "line") or \
                 not server_owns_geometry(a) or \
@@ -1384,17 +1466,12 @@ def fan_attach_points(els):
             return fx if horiz else fy
         members = sorted(members, key=far_coord)
         n = len(members)
+        slide_of = {}
         for k, (aid, which) in enumerate(members, start=1):
             off = length * k / (n + 1)
-            if side == "top":
-                pt = (node["x"] + off, node["y"])
-            elif side == "bottom":
-                pt = (node["x"] + off, node["y"] + node.get("height", 0))
-            elif side == "left":
-                pt = (node["x"], node["y"] + off)
-            else:
-                pt = (node["x"] + node.get("width", 0), node["y"] + off)
-            ends[aid][which] = pt
+            slide_of[aid, which] = (node, side, off, length)
+            ends[aid][which] = _fan_point(node, side, off)
+        fan_slides.update(slide_of)
     # obstacle set for the crossing check below (the router avoids foreign
     # boxes; the fan must not undo that work by sliding a segment into one)
     fan_obstacles = [e for e in els
@@ -1415,29 +1492,71 @@ def fan_attach_points(els):
                     n += 1
         return n
 
-    for aid, e2 in ends.items():
-        a = ix[aid]
-        (sx, sy), (exx, exy) = e2["start"], e2["end"]
+    def _elbowed_pts(a, sx, sy, exx, exy):
         old = a.get("points") or []
-        old_x, old_y = a["x"], a["y"]
         if len(old) == 3:
             # preserve the elbow's orthogonality: the corner keeps sharing
             # its constant coordinate with whichever segment held it
             first_horizontal = abs(old[1][1] - old[0][1]) < 0.5
             corner = (exx, sy) if first_horizontal else (sx, exy)
-            pts = [[0, 0], [corner[0] - sx, corner[1] - sy],
-                   [exx - sx, exy - sy]]
-        else:
-            pts = [[0, 0], [exx - sx, exy - sy]]
-        if _fan_hits(a, sx, sy, pts) > _fan_hits(a, old_x, old_y, old):
-            # fanning this arrow would push a segment through a foreign
-            # box — keep the routed path (a shared attach point is the
-            # lesser evil and still lints if it matters)
-            continue
+            return [[0, 0], [corner[0] - sx, corner[1] - sy],
+                    [exx - sx, exy - sy]]
+        return [[0, 0], [exx - sx, exy - sy]]
+
+    for aid, e2 in ends.items():
+        a = ix[aid]
+        (sx, sy), (exx, exy) = e2["start"], e2["end"]
+        old = a.get("points") or []
+        old_x, old_y = a["x"], a["y"]
+        pts = _elbowed_pts(a, sx, sy, exx, exy)
+        base_hits = _fan_hits(a, old_x, old_y, old)
+        if _fan_hits(a, sx, sy, pts) > base_hits:
+            # the ideal L*k/(N+1) slot pushes a segment through a foreign
+            # box — slide the fanned end along its edge in 12px steps
+            # toward safety before giving up (v0.3: the old bail left a
+            # shared attach point the lint then complained about with
+            # advice nothing could execute)
+            placed = False
+            for which in ("start", "end"):
+                slide = fan_slides.get((aid, which))
+                if slide is None:
+                    continue
+                node, side, off, length = slide
+                for delta in (12, -12, 24, -24):
+                    off2 = off + delta
+                    if not 8 <= off2 <= length - 8:
+                        continue
+                    p2 = _fan_point(node, side, off2)
+                    s2, e2b = ((p2, (exx, exy)) if which == "start"
+                               else ((sx, sy), p2))
+                    pts2 = _elbowed_pts(a, s2[0], s2[1], e2b[0], e2b[1])
+                    if _fan_hits(a, s2[0], s2[1], pts2) <= base_hits:
+                        sx, sy = s2
+                        exx, exy = e2b
+                        pts = pts2
+                        placed = True
+                        break
+                if placed:
+                    break
+            if not placed:
+                continue
         a["x"], a["y"] = sx, sy
         a["points"] = pts
         a["width"] = max(abs(p[0]) for p in pts)
         a["height"] = max(abs(p[1]) for p in pts)
+        # focus follows the fanned point — focus 0 aims at the CENTER, so
+        # the client's first re-render used to snap every fanned endpoint
+        # straight back onto the shared anchor (v0.3). REPLACE the binding
+        # dict: apply_ops copies elements shallowly, so an in-place write
+        # would leak into the caller's scene even on a rejected batch.
+        for which, key in (("start", "startBinding"), ("end", "endBinding")):
+            b = a.get(key)
+            node = ix.get((b or {}).get("elementId"))
+            if b and node is not None:
+                px, py = (sx, sy) if which == "start" else (exx, exy)
+                nb = dict(b)
+                nb["focus"] = binding_focus(node, px, py)
+                a[key] = nb
         _stamp_route(a)
         recenter_label(els, a)
 
@@ -1533,6 +1652,23 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 and (e.get("customData") or {}).get("role")
                 not in ("label", "pin", "decoration")]
 
+    def soft_obstacles():
+        # labels + annotations: legal to cross, ugly to cross (v0.3)
+        return [e for e in els if e.get("type") == "text"
+                and (e.get("containerId")
+                     or role_of(e) == "annotation")]
+
+    def arrow_paths():
+        return [(e["id"], e.get("x", 0), e.get("y", 0),
+                 e.get("points") or [])
+                for e in els if e.get("type") == "arrow"
+                and len(e.get("points") or []) >= 2]
+
+    def route_ctx(arrow, src, dst):
+        route_arrow(arrow, src, dst, obstacles(),
+                    soft_obstacles=soft_obstacles(),
+                    other_arrows=arrow_paths())
+
     for i, op in enumerate(ops):
         kind = op.get("op")
         if kind not in OP_KINDS:
@@ -1555,7 +1691,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     src = resolve(src_id, i, "arrow from") if src_id else None
                     dst = resolve(dst_id, i, "arrow to") if dst_id else None
                     if src is not None and dst is not None:
-                        route_arrow(arrow, src, dst, obstacles())
+                        route_ctx(arrow, src, dst)
                         recenter_label(els, arrow)
         elif kind == "mod":
             el = resolve(op.get("id"), i, "mod")
@@ -1700,9 +1836,14 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                                for p1, p2 in zip(el["points"],
                                                  el["points"][1:])):
                             el["roundness"] = None
-                        # hand-authored elbows stay server-owned: stamp the
-                        # route and move the label onto the new path
-                        _stamp_route(el)
+                        # hand-authored paths are the author's (v0.3):
+                        # marked "authored" so no later pass re-routes,
+                        # re-fans, or re-stamps them back onto the anchor
+                        # they were steered away from
+                        _snap_geom(el)
+                        cd = dict(el.get("customData") or {})
+                        cd["routed"] = "authored"
+                        el["customData"] = cd
                         recenter_label(els, el)
                 elif attr == "name":
                     if el.get("type") != "frame":
@@ -1774,7 +1915,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                         else:
                             dst = endpoint
                     if src is not None and dst is not None:
-                        route_arrow(el, src, dst, obstacles())
+                        route_ctx(el, src, dst)
                         recenter_label(els, el)
                     else:
                         missing = "start (`from`)" if src is None \
@@ -1918,7 +2059,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             # geometry; the detached-endpoint lint flags it for a
             # deliberate, narrated repair instead
             if server_owns_geometry(e):
-                route_arrow(e, index[s], index[d], obstacles())
+                route_ctx(e, index[s], index[d])
                 recenter_label(els, e)
     if any(op.get("op") in ("add", "mod", "del") for op in ops):
         # final routing pass with the COMPLETE obstacle set: an arrow
@@ -1939,7 +2080,9 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 for p1, p2 in zip(pts, pts[1:])
                 for ob in obs if ob.get("id") not in (sN["id"], dN["id"]))
             if hit:
-                route_arrow(e, sN, dN, obs)
+                route_arrow(e, sN, dN, obs,
+                            soft_obstacles=soft_obstacles(),
+                            other_arrows=arrow_paths())
                 recenter_label(els, e)
         fan_attach_points(els)
         els = normalize_z_order(els)
@@ -2047,6 +2190,14 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
         for attr in sig:
             ov, nv = old.get(attr), new.get(attr)
             if attr in ("startBinding", "endBinding"):
+                if _norm_binding(ov) == _norm_binding(nv):
+                    if ov != nv:
+                        # same endpoint, focus/gap drift (fan, v0.3):
+                        # routing churn to narration, but replay must be
+                        # lossless — record the full dicts, derived
+                        attrs.append({"attr": attr, "from": ov, "to": nv,
+                                      "derived": True})
+                    continue
                 ov, nv = _norm_binding(ov), _norm_binding(nv)
             if ov == nv:
                 continue
@@ -3699,10 +3850,14 @@ def lint_layout(els):
         for i, (id1, px1, py1) in enumerate(pts):
             for id2, px2, py2 in pts[i + 1:]:
                 if abs(px1 - px2) < 12 and abs(py1 - py2) < 12:
+                    # the apply post-pass auto-fans; this only fires when
+                    # obstacles blocked every slide slot — advice must be
+                    # something the grammar can actually do (v0.3)
                     warnings.append(
                         "arrows %s and %s share an attach point on %s — "
-                        "fan them (focus ±0.5 steps, or offset anchors "
-                        "≥12px)" % (id1, id2, name(tgt)))
+                        "auto-fan couldn't separate them (obstacles in "
+                        "every slot); author waypoints via `mod points`, "
+                        "or move the nodes apart" % (id1, id2, name(tgt)))
     # stranded element: far outside everything else's bounding box
     if len(shapes) > 2:
         for e in shapes:
@@ -5077,7 +5232,18 @@ class Store:
                 d = index.get((e.get("endBinding") or {}).get("elementId"))
                 if s is not None and d is not None and \
                         server_owns_geometry(e):
-                    route_arrow(e, s, d, obstacles)
+                    route_arrow(
+                        e, s, d, obstacles,
+                        soft_obstacles=[t for t in els
+                                        if t.get("type") == "text"
+                                        and (t.get("containerId") or
+                                             role_of(t) == "annotation")],
+                        other_arrows=[(t["id"], t.get("x", 0),
+                                       t.get("y", 0),
+                                       t.get("points") or [])
+                                      for t in els
+                                      if t.get("type") == "arrow"
+                                      and len(t.get("points") or []) >= 2])
                     recenter_label(els, e)
                     rerouted += 1
             fan_attach_points(els)

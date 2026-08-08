@@ -2228,7 +2228,10 @@ class TestModPathFixes(Base):
                  "attrs": {"points": [[0, 0], [40, 0], [40, 60],
                                       [120, 60]]}}]})
         by_id = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
-        self.assertTrue(canvas.server_owns_geometry(by_id["t1"]))
+        # v0.3: hand-authored waypoints are the author's geometry — marked
+        # "authored", never server-owned, so no later pass re-routes them
+        self.assertEqual(by_id["t1"]["customData"]["routed"], "authored")
+        self.assertFalse(canvas.server_owns_geometry(by_id["t1"]))
         names = [f["fact"] for f in
                  rec["artifacts"]["checkout-flow"]["facts"]]
         self.assertIn("rerouted", names)
@@ -3213,6 +3216,119 @@ class TestComposedKindsAndTooltips(Base):
                     if f["fact"] == "annotated")
         self.assertEqual(anno["author"], "agent")
         self.assertIn("my note", canvas.headline_for(anno))
+
+
+class TestRouterV03(Base):
+    """v0.3 WP3: authored waypoints, real focus, fan slide fallback,
+    soft-obstacle routing."""
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_authored_points_survive_node_move_and_reload(self):
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow", "ops": [
+                {"op": "mod", "id": "t1",
+                 "attrs": {"points": [[0, 0], [40, 0], [40, 80],
+                                      [220, 80], [220, 0], [260, 0]]}}]})
+        authored = next(e for e in self.store.scenes["checkout-flow"]
+                        if e["id"] == "t1")
+        pts_before = [list(p) for p in authored["points"]]
+        # moving an endpoint node must NOT flatten the authored path
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow", "ops": [
+                {"op": "mod", "id": "cart", "attrs": {"y": 400}}]})
+        t1 = next(e for e in self.store.scenes["checkout-flow"]
+                  if e["id"] == "t1")
+        self.assertEqual([list(p) for p in t1["points"]], pts_before)
+        self.assertEqual(t1["customData"]["routed"], "authored")
+        # and the mark survives a persist round-trip
+        store2 = canvas.Store(self.project)
+        t1b = next(e for e in store2.scenes["checkout-flow"]
+                   if e["id"] == "t1")
+        self.assertEqual(t1b["customData"]["routed"], "authored")
+        self.assertFalse(canvas.server_owns_geometry(t1b))
+
+    def test_rewire_rereoutes_authored_arrow(self):
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow", "ops": [
+                {"op": "mod", "id": "t1",
+                 "attrs": {"points": [[0, 0], [40, 0], [40, 80],
+                                      [220, 80]]}}]})
+        # a rewire is a NEW path request — the router takes back over
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow", "ops": [
+                {"op": "mod", "id": "t1", "attrs": {"to": "payment"}}]})
+        t1 = next(e for e in self.store.scenes["checkout-flow"]
+                  if e["id"] == "t1")
+        self.assertEqual(t1["endBinding"]["elementId"], "payment")
+        self.assertNotEqual(t1["customData"]["routed"], "authored")
+        self.assertTrue(canvas.server_owns_geometry(t1))
+
+    def test_fanned_arrows_carry_nonzero_focus(self):
+        # two more sources into checkout → 3 arrows on one side get fanned
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow", "ops": [
+                {"op": "add", "element": {"type": "rectangle", "id": "s2",
+                                          "label": "Saved carts", "x": 40,
+                                          "y": 240, "width": 140,
+                                          "height": 60, "role": "node"}},
+                {"op": "add", "element": {"type": "rectangle", "id": "s3",
+                                          "label": "Wishlist", "x": 40,
+                                          "y": 360, "width": 140,
+                                          "height": 60, "role": "node"}},
+                {"op": "add", "element": {"type": "arrow", "id": "t-s2"},
+                 "from": "s2", "to": "checkout"},
+                {"op": "add", "element": {"type": "arrow", "id": "t-s3"},
+                 "from": "s3", "to": "checkout"}]})
+        els = self.store.scenes["checkout-flow"]
+        into = [e for e in els if e.get("type") == "arrow" and
+                (e.get("endBinding") or {}).get("elementId") == "checkout"]
+        self.assertGreaterEqual(len(into), 3)
+        ends = set()
+        for a in into:
+            p = a["points"][-1]
+            ends.add((round(a["x"] + p[0]), round(a["y"] + p[1])))
+        # attach points are actually distinct...
+        self.assertEqual(len(ends), len(into))
+        # ...and at least the outer fanned arrows carry nonzero focus so
+        # the client doesn't snap them back to center
+        focuses = [(a.get("endBinding") or {}).get("focus", 0)
+                   for a in into]
+        self.assertTrue(any(abs(f) > 0.05 for f in focuses))
+
+    def test_router_avoids_label_corridor(self):
+        # a wide annotation sits in the straight corridor between two
+        # nodes; with a clean detour available, the router must not run
+        # the arrow through the text
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow", "ops": [
+                {"op": "add", "element": {"type": "rectangle", "id": "a1",
+                                          "label": "A", "x": 40, "y": 600,
+                                          "width": 140, "height": 60,
+                                          "role": "node"}},
+                {"op": "add", "element": {"type": "rectangle", "id": "b1",
+                                          "label": "B", "x": 640, "y": 780,
+                                          "width": 140, "height": 60,
+                                          "role": "node"}},
+                {"op": "add", "element": {"type": "text", "id": "big-note",
+                                          "text": "a very wide annotation "
+                                                  "sitting in the corridor",
+                                          "x": 200, "y": 620, "width": 380,
+                                          "role": "annotation"}},
+                {"op": "add", "element": {"type": "arrow", "id": "t-ab"},
+                 "from": "a1", "to": "b1"}]})
+        els = self.store.scenes["checkout-flow"]
+        arrow = next(e for e in els if e["id"] == "t-ab")
+        note = next(e for e in els if e["id"] == "big-note")
+        pts = arrow["points"]
+        crossed = any(
+            canvas._seg_hits_rect(arrow["x"] + p1[0], arrow["y"] + p1[1],
+                                  arrow["x"] + p2[0], arrow["y"] + p2[1],
+                                  note)
+            for p1, p2 in zip(pts, pts[1:]))
+        self.assertFalse(crossed)
 
 
 if __name__ == "__main__":
