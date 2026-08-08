@@ -27,8 +27,19 @@ wireframe view of the same screen**, not styling on one.
 | Image | `rectangle` with `kind: image` — the X-box strokes compose automatically | picture slot |
 | Body text | `line`s with `role: decoration` (never lint as connectors) | wavy stand-in |
 | Nested card | `rectangle` with `parent: <container-id>` | card in a shelf |
+| Titled panel | `rectangle`, `kind: block`, `verticalAlign: "top"` label + `parent`-nested cards | shelf with a header |
+| KPI / stat tile | `rectangle`, `kind: kpi`, `label` = the metric NAME, `value` = the number (composed big row) | dashboard number |
+| Checkbox | `rectangle`, `kind: checkbox`, `checked: true\|false` (composed glyph) | binary setting |
+| Toggle | `rectangle`, `kind: toggle`, `checked` moves the thumb | on/off switch |
+| Slider | `rectangle`, `kind: slider`, `value: 0–100` positions the thumb | threshold/range |
 | Note | `text`, `role: annotation` | interaction note |
 | Priority | small `text` number, `kind: priority` | ordering |
+
+KPI, checkbox, toggle, and slider are composed kinds: the label stays the
+semantic name (renames fire `label_renamed`; the value never pollutes the
+fact), and `mod {"value": …}` / `mod {"checked": …}` fire typed
+`value_changed` / `state_toggled` facts. Hover-only detail belongs in
+`tooltip` (markdown), not extra rows.
 
 Everything inside a screen carries that frame's `frameId`. ~360×480 phone
 frame or 720×480 desktop; blocks 20px inset, 12px gutters (seeder: 12-col

@@ -15,6 +15,10 @@ THIS way?"**
 Entity labels are singular nouns matching the glossary term exactly —
 that identity is what wires the glossary discipline.
 
+Keep visible `attributes` to ~2 rows; verbose per-entity detail (field
+lists, invariants, examples) belongs in the element's `tooltip`
+(markdown, shown on hover) where it can't collide with the drawing.
+
 ## Cardinality
 
 Relationship labels may carry plain cardinality tokens — `1`, `0..1`,

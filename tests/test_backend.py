@@ -3005,5 +3005,215 @@ class TestV03ServerFixes(Base):
         self.assertTrue(any("grew to fit" in w for w in lint["warnings"]))
 
 
+class TestComposedKindsAndTooltips(Base):
+    """v0.3 WP2: kpi/checkbox/toggle/slider composites, verticalAlign,
+    tooltips, authorship."""
+
+    def seed_dashboard(self, extra_ops=()):
+        ops = [
+            {"op": "add", "element": {"type": "rectangle", "id": "kpi-alpha",
+                                      "kind": "kpi", "label": "Alpha",
+                                      "value": "+3.1%", "x": 40, "y": 40,
+                                      "width": 160, "height": 80,
+                                      "role": "node"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "cb-alerts",
+                                      "kind": "checkbox",
+                                      "label": "Enable alerts",
+                                      "checked": True, "x": 40, "y": 140,
+                                      "width": 200, "height": 28,
+                                      "role": "node"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "sl-risk",
+                                      "kind": "slider",
+                                      "label": "Risk tolerance",
+                                      "value": 60, "x": 40, "y": 200,
+                                      "width": 240, "height": 44,
+                                      "role": "node"}},
+        ]
+        ops.extend(extra_ops)
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "admin-wireframe",
+            "create": {"id": "admin-wireframe", "name": "Admin",
+                       "type": "wireframe", "concept": "admin",
+                       "concept_name": "Admin"},
+            "ops": ops})
+
+    def by_id(self):
+        return {e["id"]: e for e in self.store.scenes["admin-wireframe"]}
+
+    def test_kpi_composition(self):
+        self.seed_dashboard()
+        ix = self.by_id()
+        kpi, val = ix["kpi-alpha"], ix["kpi-alpha-value"]
+        self.assertEqual(kpi["customData"]["value"], "+3.1%")
+        self.assertEqual(val["text"], "+3.1%")
+        self.assertEqual(val["customData"]["role"], "decoration")
+        self.assertEqual(val["customData"]["value_of"], "kpi-alpha")
+        self.assertIn("kpi-alpha-grp", val["groupIds"])
+        # semantic name is the bound label, pinned to the bottom band
+        lbl = ix["kpi-alpha-label"]
+        self.assertEqual(lbl["verticalAlign"], "bottom")
+        self.assertGreater(lbl["y"], val["y"])
+
+    def test_kpi_value_mod_keeps_id_and_fires_fact(self):
+        self.seed_dashboard()
+        rec, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "kpi-alpha",
+                     "attrs": {"value": "+3.4%"}}]})
+        ix = self.by_id()
+        self.assertEqual(ix["kpi-alpha-value"]["text"], "+3.4%")
+        facts = rec["artifacts"]["admin-wireframe"]["facts"]
+        vc = next(f for f in facts if f["fact"] == "value_changed")
+        self.assertEqual(vc["from"], "+3.1%")
+        self.assertEqual(vc["to"], "+3.4%")
+        self.assertIn("is now +3.4%", rec["summary"]["headline"])
+
+    def test_kpi_rename_is_clean(self):
+        self.seed_dashboard()
+        rec, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "kpi-alpha",
+                     "attrs": {"label": "Excess Return"}}]})
+        facts = [f["fact"] for f in
+                 rec["artifacts"]["admin-wireframe"]["facts"]]
+        self.assertIn("label_renamed", facts)
+        # the value never pollutes the rename
+        self.assertNotIn("+3.1%", rec["summary"]["headline"])
+
+    def test_checkbox_toggle_state(self):
+        self.seed_dashboard()
+        ix = self.by_id()
+        self.assertTrue(ix["cb-alerts"]["customData"]["checked"])
+        self.assertIn("cb-alerts-chk", ix)
+        rec, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "cb-alerts",
+                     "attrs": {"checked": False}}]})
+        ix = self.by_id()
+        self.assertNotIn("cb-alerts-chk", ix)
+        facts = rec["artifacts"]["admin-wireframe"]["facts"]
+        st = next(f for f in facts if f["fact"] == "state_toggled")
+        self.assertFalse(st["to"])
+        self.assertIn("switched off", rec["summary"]["headline"])
+
+    def test_slider_value_moves_thumb(self):
+        self.seed_dashboard()
+        ix = self.by_id()
+        x60 = ix["sl-risk-thumb"]["x"]
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "sl-risk",
+                     "attrs": {"value": 90}}]})
+        ix = self.by_id()
+        self.assertGreater(ix["sl-risk-thumb"]["x"], x60)
+        self.assertEqual(ix["sl-risk"]["customData"]["value"], 90.0)
+
+    def test_value_checked_reject_wrong_kind(self):
+        self.seed_dashboard()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch({
+                "base_revn": 1, "artifact": "admin-wireframe",
+                "ops": [{"op": "mod", "id": "cb-alerts",
+                         "attrs": {"value": "nope"}}]})
+        self.assertIn("value", str(cm.exception))
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch({
+                "base_revn": 1, "artifact": "admin-wireframe",
+                "ops": [{"op": "mod", "id": "kpi-alpha",
+                         "attrs": {"checked": True}}]})
+
+    def test_composite_moves_and_deletes_whole(self):
+        self.seed_dashboard()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "sl-risk",
+                     "attrs": {"x": 400}}]})
+        ix = self.by_id()
+        self.assertEqual(ix["sl-risk-track"]["x"], 400 + 10)
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "admin-wireframe",
+            "ops": [{"op": "del", "id": "kpi-alpha"}]})
+        ix = self.by_id()
+        self.assertNotIn("kpi-alpha-value", ix)
+        self.assertNotIn("kpi-alpha-label", ix)
+
+    def test_tooltip_lifecycle(self):
+        self.seed_dashboard()
+        rec, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "kpi-alpha",
+                     "attrs": {"tooltip": "Trailing-quarter **excess "
+                                          "return** vs benchmark."}}]})
+        ix = self.by_id()
+        self.assertIn("excess", ix["kpi-alpha"]["customData"]["tooltip"])
+        facts = [f["fact"] for f in
+                 rec["artifacts"]["admin-wireframe"]["facts"]]
+        self.assertIn("tooltip_added", facts)
+        self.assertIn("added a tooltip", rec["summary"]["headline"])
+        rec2, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "kpi-alpha",
+                     "attrs": {"tooltip": ""}}]})
+        ix = self.by_id()
+        self.assertNotIn("tooltip", ix["kpi-alpha"]["customData"])
+        facts2 = [f["fact"] for f in
+                  rec2["artifacts"]["admin-wireframe"]["facts"]]
+        self.assertIn("tooltip_removed", facts2)
+
+    def test_tooltip_on_add(self):
+        self.seed_dashboard(extra_ops=[
+            {"op": "add", "element": {"type": "rectangle", "id": "blk",
+                                      "label": "Data sources",
+                                      "tooltip": "One row per feed.",
+                                      "x": 400, "y": 40, "width": 160,
+                                      "height": 60, "role": "node"}}])
+        ix = self.by_id()
+        self.assertEqual(ix["blk"]["customData"]["tooltip"],
+                         "One row per feed.")
+
+    def test_vertical_align_titled_panel(self):
+        self.seed_dashboard(extra_ops=[
+            {"op": "add", "element": {"type": "rectangle", "id": "shelf",
+                                      "label": "Reports",
+                                      "verticalAlign": "top",
+                                      "x": 400, "y": 200, "width": 300,
+                                      "height": 160, "role": "node",
+                                      "kind": "block"}}])
+        ix = self.by_id()
+        lbl = ix["shelf-label"]
+        self.assertEqual(lbl["verticalAlign"], "top")
+        self.assertEqual(lbl["y"], ix["shelf"]["y"] + 6)
+        # mod verticalAlign flips it
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "admin-wireframe",
+            "ops": [{"op": "mod", "id": "shelf",
+                     "attrs": {"verticalAlign": "middle"}}]})
+        ix = self.by_id()
+        self.assertEqual(ix["shelf-label"]["verticalAlign"], "middle")
+        bad = {"base_revn": 2, "artifact": "admin-wireframe",
+               "ops": [{"op": "mod", "id": "shelf",
+                        "attrs": {"verticalAlign": "sideways"}}]}
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(bad)
+
+    def test_agent_authorship_stamped_and_narrated(self):
+        self.seed_dashboard(extra_ops=[
+            {"op": "add", "element": {"type": "text", "id": "note-1",
+                                      "text": "contrarian screen was my "
+                                              "suggestion",
+                                      "x": 400, "y": 400, "width": 200,
+                                      "role": "annotation"}}])
+        ix = self.by_id()
+        self.assertEqual(ix["kpi-alpha"]["customData"]["author"], "agent")
+        self.assertEqual(ix["note-1"]["customData"]["author"], "agent")
+        self.assertEqual(ix["note-1"]["strokeColor"], "#5c8a5f")
+        rec = self.store.records[1]
+        anno = next(f for f in
+                    rec["artifacts"]["admin-wireframe"]["facts"]
+                    if f["fact"] == "annotated")
+        self.assertEqual(anno["author"], "agent")
+        self.assertIn("my note", canvas.headline_for(anno))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

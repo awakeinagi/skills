@@ -783,6 +783,11 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # a readable document behind this element (report reader):
         # project_knowledge-relative markdown path, served via /api/doc
         custom["document"] = spec["document"]
+    if spec.get("tooltip"):
+        # hover-only markdown detail (v0.3): rendered by the client on
+        # hover, managed from the element's right-click menu or ops;
+        # never rendered into SVG/PNG exports
+        custom["tooltip"] = str(spec["tooltip"])
     if spec.get("links_to"):
         # in-canvas navigation: clicking follows Excalidraw's native link
         # affordance; the client intercepts artifact: URIs
@@ -792,6 +797,9 @@ def make_element(spec, existing_ids, errors, index_hint=0):
                       custom.get("role") is None else custom.get("role", "node"))
     if custom.get("role") is None:
         custom["role"] = "node"
+    # every op-made element is agent work — user elements arrive via the
+    # canvas and carry author:"user" (sticky notes, user pins) or nothing
+    custom.setdefault("author", "agent")
     el["customData"] = custom
     for attr in ("strokeColor", "backgroundColor", "fillStyle", "strokeWidth",
                  "strokeStyle", "roughness", "opacity", "angle", "groupIds",
@@ -801,6 +809,11 @@ def make_element(spec, existing_ids, errors, index_hint=0):
     if spec.get("strategic") is not None:
         apply_strategic(el, spec["strategic"], errors, index_hint,
                         explicit_bg="backgroundColor" in spec)
+    if etype == "text" and custom.get("role") == "annotation" and \
+            "strokeColor" not in spec:
+        # agent notes read green, user sticky notes read yellow (the demo's
+        # authorship color language, v0.3) — explicit strokeColor wins
+        el["strokeColor"] = "#5c8a5f"
     if etype == "text":
         fs = spec.get("fontSize", 16)
         el["text"] = spec.get("text", "")
@@ -870,7 +883,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             "fontSize": fs, "fontFamily": spec.get("fontFamily", FONT_LEGIBLE),
             "textAlign": "center", "verticalAlign": "middle",
             "lineHeight": 1.25, "containerId": el_id, "autoResize": True,
-            "customData": {"role": "label"},
+            "customData": {"role": "label", "author": "agent"},
         })
         lbl["strokeColor"] = label_color
         fit_label_in(el, lbl)
@@ -881,6 +894,11 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             el["height"] = lbl["height"] + 10
         lbl["x"] = el["x"] + max((el["width"] - lbl["width"]) / 2, 4)
         lbl["y"] = el["y"] + max((el["height"] - lbl["height"]) / 2, 4)
+        if spec.get("verticalAlign") in ("top", "bottom"):
+            # titled panels pin the label to the header band; KPI tiles
+            # pin it to the footer (v0.3) — recenter_label preserves both
+            lbl["verticalAlign"] = spec["verticalAlign"]
+            recenter_label([el, lbl], el)
         el["boundElements"] = list(el.get("boundElements") or [])
         el["boundElements"].append({"id": lbl_id, "type": "text"})
         out.append(lbl)
@@ -905,7 +923,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
                 "startArrowhead": None, "endArrowhead": None,
                 "elbowed": False, "strokeColor": "#b8b2a5",
                 "groupIds": [gid],
-                "customData": {"role": "decoration", "x_of": el_id},
+                "customData": {"role": "decoration", "x_of": el_id,
+                               "author": "agent"},
             })
             out.append(ln)
     attrs_list = spec.get("attributes")
@@ -943,10 +962,215 @@ def make_element(spec, existing_ids, errors, index_hint=0):
                 "lineHeight": 1.25, "containerId": None,
                 "autoResize": False, "strokeColor": "#5c584d",
                 "groupIds": [gid],
-                "customData": {"role": "decoration", "attr_of": el_id},
+                "customData": {"role": "decoration", "attr_of": el_id,
+                               "author": "agent"},
             })
             out.append(row)
+    if custom.get("kind") == "kpi" and etype == "rectangle":
+        # KPI/stat tile (v0.3): big value above, small name below — the
+        # semantic NAME stays the bound label (renames narrate "Alpha",
+        # never "+3.1% Alpha"); the value is a composed decoration text
+        gid = el_id + "-grp"
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+        if el.get("height", 0) < 64:
+            el["height"] = 64
+        if len(out) > 1 and out[1].get("containerId") == el_id:
+            out[1]["verticalAlign"] = "bottom"
+            recenter_label([el, out[1]], el)
+        custom["value"] = str(spec.get("value") or "")
+        out.append(_compose_kpi_value(el, custom["value"], existing_ids))
+    if custom.get("kind") in ("checkbox", "toggle") and \
+            etype == "rectangle":
+        # form-control stand-ins (v0.3): a composed glyph carries the
+        # state; customData.checked is the truth, `mod checked` flips it
+        gid = el_id + "-grp"
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+        if el.get("height", 0) < 28:
+            el["height"] = 28
+        custom["checked"] = bool(spec.get("checked", False))
+        if len(out) > 1 and out[1].get("containerId") == el_id:
+            out[1]["textAlign"] = "left"
+        out.extend(_compose_control_glyph(el, custom["kind"],
+                                          custom["checked"], existing_ids))
+    if custom.get("kind") == "slider" and etype == "rectangle":
+        # slider stand-in (v0.3): track + thumb; customData.value (0–100)
+        # positions the thumb, `mod value` moves it
+        gid = el_id + "-grp"
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+        if el.get("height", 0) < 44:
+            el["height"] = 44
+        if len(out) > 1 and out[1].get("containerId") == el_id:
+            out[1]["verticalAlign"] = "top"
+            recenter_label([el, out[1]], el)
+        try:
+            v = float(spec.get("value", 50))
+        except (TypeError, ValueError):
+            errors.append("op %d: slider `value` must be a number 0–100"
+                          % index_hint)
+            v = 50.0
+        custom["value"] = max(0.0, min(100.0, v))
+        out.extend(_compose_slider_glyph(el, custom["value"],
+                                         existing_ids))
     return out
+
+
+def _deco(el_id, owner_key, owner_id, gid, existing_ids, **props):
+    """Build one composed decoration element for a kind composite.
+
+    Args:
+        el_id: Decoration element id (registered into existing_ids).
+        owner_key: customData key naming the owner (e.g. "value_of").
+        owner_id: The owner element's id (the key's value).
+        gid: Group id shared with the owner element.
+        existing_ids: Live id set — el_id is added to it.
+        **props: Element fields merged over the decoration defaults.
+
+    Returns:
+        The decoration element dict.
+    """
+    existing_ids.add(el_id)
+    d = dict(BASE_DEFAULTS)
+    d.update({"id": el_id, "groupIds": [gid],
+              "customData": {"role": "decoration", "author": "agent",
+                             owner_key: owner_id}})
+    d.update(props)
+    return d
+
+
+def _compose_kpi_value(el, value_text, existing_ids):
+    """Build the big value row of a kind:"kpi" tile.
+
+    Args:
+        el: The owner rectangle (already positioned/sized).
+        value_text: The value string ("" renders an empty slot).
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        The value text element (role: decoration, value_of: owner).
+    """
+    vw, vh = text_dims(value_text or " ", 24)
+    return _deco(
+        el["id"] + "-value", "value_of", el["id"],
+        el["id"] + "-grp", existing_ids,
+        type="text",
+        x=el["x"] + max((el.get("width", 160) - vw) / 2, 4),
+        y=el["y"] + 8, width=vw, height=vh,
+        text=value_text, originalText=value_text,
+        fontSize=24, fontFamily=FONT_LEGIBLE,
+        textAlign="center", verticalAlign="top", lineHeight=1.25,
+        containerId=None, autoResize=False, strokeColor="#1e1e1e")
+
+
+def _recompose_kpi_value(els, el, value_text):
+    """Retext a KPI tile's composed value row in place (id stays stable —
+    a delete/re-add would narrate phantom churn).
+
+    Args:
+        els: Live element list (searched for the value row).
+        el: The owner KPI rectangle.
+        value_text: The new value string.
+    """
+    for t in els:
+        if (t.get("customData") or {}).get("value_of") == el["id"]:
+            t["text"] = value_text
+            t["originalText"] = value_text
+            vw, vh = text_dims(value_text or " ", t.get("fontSize", 24))
+            t["width"], t["height"] = vw, vh
+            t["x"] = el["x"] + max((el.get("width", 160) - vw) / 2, 4)
+            return
+    # a kpi minted without a value has no row yet — compose one now
+    els.append(_compose_kpi_value(el, value_text,
+                                  {e["id"] for e in els}))
+
+
+def _compose_control_glyph(el, kind, checked, existing_ids):
+    """Build the state glyph of a checkbox or toggle.
+
+    Args:
+        el: The owner rectangle.
+        kind: "checkbox" or "toggle".
+        checked: Current state — checkbox gains a check stroke when True,
+            a toggle's thumb sits right when True.
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        List of decoration elements (box/pill, optional check, thumb).
+    """
+    gid = el["id"] + "-grp"
+    cy = el["y"] + el.get("height", 28) / 2.0
+    out = []
+    if kind == "checkbox":
+        out.append(_deco(
+            el["id"] + "-box", "box_of", el["id"], gid, existing_ids,
+            type="rectangle", x=el["x"] + 8, y=cy - 8,
+            width=16, height=16))
+        if checked:
+            out.append(_check_stroke(el, existing_ids))
+    else:  # toggle: pill + thumb
+        out.append(_deco(
+            el["id"] + "-box", "box_of", el["id"], gid, existing_ids,
+            type="rectangle", x=el["x"] + 8, y=cy - 8,
+            width=28, height=16, roundness={"type": 3}))
+        out.append(_deco(
+            el["id"] + "-thumb", "thumb_of", el["id"], gid,
+            existing_ids, type="ellipse",
+            x=_toggle_thumb_x(el, checked), y=cy - 6,
+            width=12, height=12, backgroundColor="#1e1e1e",
+            fillStyle="solid"))
+    return out
+
+
+def _check_stroke(el, existing_ids):
+    """Build the check-mark stroke of a checked checkbox."""
+    cy = el["y"] + el.get("height", 28) / 2.0
+    return _deco(
+        el["id"] + "-chk", "chk_of", el["id"], el["id"] + "-grp",
+        existing_ids, type="line",
+        x=el["x"] + 11, y=cy - 1, width=10, height=8,
+        points=[[0, 0], [4, 4], [10, -6]], lastCommittedPoint=None,
+        startBinding=None, endBinding=None,
+        startArrowhead=None, endArrowhead=None, elbowed=False,
+        strokeWidth=2)
+
+
+def _toggle_thumb_x(el, checked):
+    """X of a toggle thumb: left when off, right when on."""
+    return el["x"] + (22 if checked else 10)
+
+
+def _compose_slider_glyph(el, value, existing_ids):
+    """Build the track + thumb of a kind:"slider".
+
+    Args:
+        el: The owner rectangle.
+        value: 0–100 position of the thumb along the track.
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        List of [track line, thumb rect] decoration elements.
+    """
+    gid = el["id"] + "-grp"
+    w = el.get("width", 160)
+    ty = el["y"] + el.get("height", 44) - 14
+    track = _deco(
+        el["id"] + "-track", "track_of", el["id"], gid, existing_ids,
+        type="line", x=el["x"] + 10, y=ty, width=w - 20, height=0,
+        points=[[0, 0], [w - 20, 0]], lastCommittedPoint=None,
+        startBinding=None, endBinding=None,
+        startArrowhead=None, endArrowhead=None, elbowed=False,
+        strokeColor="#b8b2a5", strokeWidth=2)
+    thumb = _deco(
+        el["id"] + "-thumb", "thumb_of", el["id"], gid, existing_ids,
+        type="rectangle", x=_slider_thumb_x(el, value), y=ty - 6,
+        width=12, height=12, backgroundColor="#1e1e1e",
+        fillStyle="solid")
+    return [track, thumb]
+
+
+def _slider_thumb_x(el, value):
+    """X of a slider thumb for a 0–100 value along the inset track."""
+    w = el.get("width", 160)
+    return el["x"] + 10 + (w - 20 - 12) * (float(value) / 100.0)
 
 
 def edge_anchor(el, other_cx, other_cy):
@@ -1271,11 +1495,17 @@ def recenter_label(els, el):
     else:
         label["x"] = el["x"] + max((el.get("width", 0) -
                                     label.get("width", 0)) / 2, 4)
-        if label.get("verticalAlign") == "top":
+        va = label.get("verticalAlign")
+        if va == "top":
             # top-anchored labels (entities, titled panels) stay pinned to
             # the header band — centering them buries the term under its
             # attribute rows (v0.3 assessment bug)
             label["y"] = el["y"] + 6
+        elif va == "bottom":
+            # bottom-anchored labels (KPI tiles: big value above, small
+            # name below) stay pinned to the footer band
+            label["y"] = el["y"] + max(el.get("height", 0) -
+                                       label.get("height", 0) - 6, 4)
         else:
             label["y"] = el["y"] + max((el.get("height", 0) -
                                         label.get("height", 0)) / 2, 4)
@@ -1361,6 +1591,92 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     cd = dict(el.get("customData") or {})
                     cd[attr] = value
                     el["customData"] = cd
+                elif attr == "tooltip":
+                    # hover-only markdown detail (v0.3); ""/null removes
+                    cd = dict(el.get("customData") or {})
+                    if value:
+                        cd["tooltip"] = str(value)
+                    else:
+                        cd.pop("tooltip", None)
+                    el["customData"] = cd
+                elif attr == "verticalAlign":
+                    if value not in ("top", "middle", "bottom"):
+                        errors.append(
+                            "op %d (mod %s): verticalAlign must be top, "
+                            "middle, or bottom" % (i, op.get("id")))
+                    elif el.get("type") == "text":
+                        el["verticalAlign"] = value
+                    else:
+                        # on a shape this aligns its BOUND LABEL — the
+                        # titled-panel / KPI pattern (v0.3)
+                        lab = next((t for t in els
+                                    if t.get("type") == "text" and
+                                    t.get("containerId") == el["id"]),
+                                   None)
+                        if lab is None:
+                            errors.append(
+                                "op %d (mod %s): verticalAlign needs a "
+                                "bound label — set `label` first"
+                                % (i, op.get("id")))
+                        else:
+                            lab["verticalAlign"] = value
+                            recenter_label(els, el)
+                elif attr == "value":
+                    k2 = (el.get("customData") or {}).get("kind")
+                    if k2 == "kpi":
+                        cd = dict(el.get("customData") or {})
+                        cd["value"] = str(value or "")
+                        el["customData"] = cd
+                        _recompose_kpi_value(els, el, cd["value"])
+                    elif k2 == "slider":
+                        try:
+                            v2 = max(0.0, min(100.0, float(value)))
+                        except (TypeError, ValueError):
+                            errors.append(
+                                "op %d (mod %s): slider `value` must be "
+                                "a number 0–100" % (i, op.get("id")))
+                            continue
+                        cd = dict(el.get("customData") or {})
+                        cd["value"] = v2
+                        el["customData"] = cd
+                        for t in els:
+                            if (t.get("customData") or {}) \
+                                    .get("thumb_of") == el["id"]:
+                                t["x"] = _slider_thumb_x(el, v2)
+                    else:
+                        errors.append(
+                            "op %d (mod %s): `value` only applies to "
+                            "kind:kpi and kind:slider elements (this is "
+                            "%r)" % (i, op.get("id"), k2))
+                elif attr == "checked":
+                    k2 = (el.get("customData") or {}).get("kind")
+                    if k2 not in ("checkbox", "toggle"):
+                        errors.append(
+                            "op %d (mod %s): `checked` only applies to "
+                            "kind:checkbox and kind:toggle elements "
+                            "(this is %r)" % (i, op.get("id"), k2))
+                    else:
+                        cd = dict(el.get("customData") or {})
+                        cd["checked"] = bool(value)
+                        el["customData"] = cd
+                        if k2 == "checkbox":
+                            chk = next(
+                                (t for t in els
+                                 if (t.get("customData") or {})
+                                 .get("chk_of") == el["id"]), None)
+                            if cd["checked"] and chk is None:
+                                made = _check_stroke(el, existing)
+                                els.append(made)
+                                index[made["id"]] = made
+                            elif not cd["checked"] and chk is not None:
+                                els.remove(chk)
+                                index.pop(chk["id"], None)
+                        else:
+                            for t in els:
+                                if (t.get("customData") or {}) \
+                                        .get("thumb_of") == el["id"]:
+                                    t["x"] = _toggle_thumb_x(
+                                        el, cd["checked"])
                 elif attr == "links_to":
                     el["link"] = ("artifact:%s" % value) if value else None
                 elif attr == "points":
@@ -1554,7 +1870,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 "strokeColor": "#b45309",
                 "customData": {"role": "pin", "question": q,
                                "target": target, "status": "open",
-                               "answer": None},
+                               "answer": None, "author": "agent"},
             })
             els.append(pin_el)
             index[pid] = pin_el
@@ -2106,6 +2422,36 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             if "customData" in names and role_of(el) == "annotation":
                 F("annotated", c["id"], text=_anno_text(el),
                   target=_nearest_target(el, new_els))
+            if "customData" in names:
+                for a in c["attrs"]:
+                    if a["attr"] != "customData":
+                        continue
+                    oldc = a.get("from") or {}
+                    newc = a.get("to") or {}
+                    if not isinstance(oldc, dict) or \
+                            not isinstance(newc, dict):
+                        continue
+                    lbl2 = display_label(el, new_labels)
+                    k2 = newc.get("kind") or oldc.get("kind")
+                    if k2 in ("kpi", "slider") and \
+                            oldc.get("value") != newc.get("value"):
+                        F("value_changed", c["id"], label=lbl2,
+                          **{"from": oldc.get("value"),
+                             "to": newc.get("value")})
+                    if k2 in ("checkbox", "toggle") and \
+                            bool(oldc.get("checked")) != \
+                            bool(newc.get("checked")):
+                        F("state_toggled", c["id"], label=lbl2,
+                          to=bool(newc.get("checked")))
+                    if oldc.get("tooltip") != newc.get("tooltip"):
+                        if not oldc.get("tooltip"):
+                            F("tooltip_added", c["id"], label=lbl2,
+                              text=str(newc.get("tooltip"))[:80])
+                        elif not newc.get("tooltip"):
+                            F("tooltip_removed", c["id"], label=lbl2)
+                        else:
+                            F("tooltip_changed", c["id"], label=lbl2,
+                              text=str(newc.get("tooltip"))[:80])
         elif c["op"] == "reorder":
             for eid in (c.get("moved") or
                         ([c["id"]] if c.get("id") else [])):
@@ -2400,7 +2746,8 @@ def _wireframe_facts(old_ix, new_ix, old_labels, new_labels, changes,
                     container = new_ix.get(el["containerId"])
                     if container is not None and \
                             (container.get("customData") or {}).get("kind") in \
-                            ("button", "nav", "link", "tab"):
+                            ("button", "nav", "link", "tab",
+                             "checkbox", "toggle", "kpi", "slider"):
                         F("label_renamed", container["id"],
                           **{"from": a["from"], "to": a["to"]})
         elif c["op"] == "move":
@@ -2554,6 +2901,7 @@ SALIENCE = ["rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
             "message_reordered", "cardinality_changed", "ownership_changed",
             "party_kind_changed", "fold_crossed", "type_changed",
+            "value_changed", "state_toggled",
             "screen_added", "screen_deleted", "entity_renamed", "renamed",
             "label_renamed", "branch_added", "step_added", "entity_added",
             "actor_added", "lane_added", "handoff_added",
@@ -2564,6 +2912,7 @@ SALIENCE = ["rewired", "relationship_rewired", "rerouted",
             "relationship_added", "relationship_deleted", "message_added",
             "message_deleted", "annotated", "annotation_deleted",
             "pin_added", "pin_deleted", "priority_changed",
+            "tooltip_added", "tooltip_changed", "tooltip_removed",
             "activation_changed", "moved", "resized", "reordered",
             "restyled", "saved_no_changes"]
 
@@ -2598,8 +2947,20 @@ def headline_for(fact):
         return "%s lost attribute %r" % (fact.get("entity")
                                          or fact["element"],
                                          fact.get("attribute"))
+    if n == "annotation_added":
+        who = "my" if fact.get("author") == "agent" else "your"
+        return "%s note: %r" % (who, (fact.get("text") or "")[:60])
     if n == "annotation_deleted":
         return "removed note: %r" % (fact.get("text") or "")[:60]
+    if n == "tooltip_added":
+        return "added a tooltip to %s" % (fact.get("label")
+                                          or fact["element"])
+    if n == "tooltip_changed":
+        return "reworded the tooltip on %s" % (fact.get("label")
+                                               or fact["element"])
+    if n == "tooltip_removed":
+        return "removed the tooltip from %s" % (fact.get("label")
+                                                or fact["element"])
     if n == "pin_added":
         return "asked: %r" % (fact.get("question") or "")[:60]
     if n == "pin_deleted":
@@ -2618,7 +2979,17 @@ def headline_for(fact):
         return "%s moved to %s" % (fact.get("label") or fact["element"],
                                    fact.get("to_screen"))
     if n == "annotated":
+        if fact.get("author"):
+            who = "my" if fact.get("author") == "agent" else "your"
+            return "%s note: %r" % (who, (fact.get("text") or "")[:60])
         return "annotated: %r" % (fact.get("text") or "")[:60]
+    if n == "value_changed":
+        return "%s is now %s (was %s)" % (fact.get("label") or
+                                          fact["element"],
+                                          fact.get("to"), fact.get("from"))
+    if n == "state_toggled":
+        return "%s switched %s" % (fact.get("label") or fact["element"],
+                                   "on" if fact.get("to") else "off")
     if n == "moved":
         return "%s %s" % (fact.get("label") or fact["element"],
                           fact.get("spatial"))
@@ -2996,9 +3367,25 @@ def intent_echo(ops, els):
                                             or spec.get("text", "") or "el")
             lines.append("op %d (add): %s" % (i, describe(eid)))
         elif kind == "mod":
-            lines.append("op %d (mod %s): %s"
-                         % (i, ",".join(sorted((op.get("attrs") or {}))),
-                            describe(op.get("id"))))
+            # post-apply state for the v0.3 stateful attrs — "accepted"
+            # is not "did what you meant"
+            extra = ""
+            mel = ix.get(op.get("id"))
+            mattrs = op.get("attrs") or {}
+            if mel is not None:
+                mcd = mel.get("customData") or {}
+                if "tooltip" in mattrs:
+                    extra += " — tooltip %s" % (
+                        "set (%d chars)" % len(mcd.get("tooltip") or "")
+                        if mcd.get("tooltip") else "cleared")
+                if "value" in mattrs:
+                    extra += " — value now %r" % (mcd.get("value"),)
+                if "checked" in mattrs:
+                    extra += " — now %s" % (
+                        "checked" if mcd.get("checked") else "unchecked")
+            lines.append("op %d (mod %s): %s%s"
+                         % (i, ",".join(sorted(mattrs)),
+                            describe(op.get("id")), extra))
         elif kind == "del":
             eid = op.get("id")
             lines.append("op %d (del): %s %s" % (

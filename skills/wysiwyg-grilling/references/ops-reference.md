@@ -57,9 +57,27 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // default node; text w/o container → annotation. `decoration` is
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
       // exempt from connector lints and budgets, painted beneath arrows.
-  "kind": "button" | "nav" | "input" | "entity" | "image" | "store" | …,
+  "kind": "button" | "nav" | "input" | "entity" | "image" | "store"
+        | "kpi" | "checkbox" | "toggle" | "slider" | …,
       // kind: "image" on a rectangle composes the X-box for you (rect +
-      // two grouped decoration strokes; they move and delete with it)
+      // two grouped decoration strokes; they move and delete with it).
+      // v0.3 composed kinds (same composite machinery):
+      //   kpi      — big `value` row above, the label (the semantic NAME)
+      //              pinned to the bottom band; renames narrate "Alpha",
+      //              never "+3.1% Alpha". Pass "value": "+3.1%".
+      //   checkbox — box glyph + check stroke; pass "checked": true.
+      //   toggle   — pill + thumb; "checked" moves the thumb.
+      //   slider   — track + thumb; pass "value": 0–100.
+  "value": "+3.1%",           // kpi (string) / slider (number 0–100)
+  "checked": true,            // checkbox/toggle state
+  "tooltip": "markdown…",     // hover-only detail card (v0.3): rendered
+      // on hover in the client, editable from the element's right-click
+      // menu; NEVER exported to SVG/PNG. Verbose per-element detail
+      // belongs here, not in more visible rows.
+  "verticalAlign": "top" | "middle" | "bottom",
+      // pins the bound label to the header band (titled panels: pair
+      // with `parent` nesting for the shelf-of-cards pattern) or the
+      // footer band (kpi does this for you); default middle
   "attributes": ["cash, mandate", "holds Positions"],
       // entities only: attribute rows rendered beneath the term label
       // (the label stays the EXACT glossary term); fires attribute_added
@@ -96,6 +114,11 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
       // `rerouted` fact — never an empty save.
   "kind": "sink", "role": "decoration", "intent": "…", "parent": "shelf",
   "document": "docs/x.md",   // these five fold into customData correctly
+  "tooltip": "markdown…",    // set/replace hover detail; "" or null removes
+  "verticalAlign": "top",    // on a shape: aligns its BOUND LABEL
+  "value": "+3.4%",          // kpi/slider only — recomposes the glyph in
+  "checked": false,          //   place; checkbox/toggle only. Both fire
+                             //   typed facts (value_changed/state_toggled)
   "links_to": "other-artifact",  // sets the element's navigation link
   "locked": true,            // settled structure — the user can't drag it
   "x": 100, "y": 200, "width": 180,
