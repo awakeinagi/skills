@@ -841,6 +841,54 @@ export default function App() {
           return;
         }
         if (menu.querySelector(".wg-tooltip-item")) return;
+        // collapse the bulkiest native groups into hover flyouts (user
+        // request: the flat menu ate too much vertical space). Moving
+        // the original <li> nodes keeps their React handlers and
+        // shortcut hints intact.
+        const labelOf = (li: Element) =>
+          li.querySelector(".context-menu-item__label")?.textContent || "";
+        const collapse = (test: (l: string) => boolean, title: string) => {
+          const lis = Array.from(menu.children).filter(
+            (li) => li.tagName === "LI" && test(labelOf(li)));
+          if (lis.length < 2) return;
+          const parent = document.createElement("li");
+          parent.className = "wg-submenu-parent";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "context-menu-item";
+          const span = document.createElement("span");
+          span.className = "context-menu-item__label";
+          span.textContent = title;
+          const arrow = document.createElement("span");
+          arrow.className = "context-menu-item__shortcut";
+          arrow.textContent = "▸";
+          btn.append(span, arrow);
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+          });
+          const sub = document.createElement("ul");
+          sub.className = "context-menu wg-submenu";
+          // position:fixed escapes the popover's overflow clipping (a
+          // left/right flyout otherwise gets cut at the menu's box);
+          // :hover still reaches it because it stays a DOM child
+          parent.addEventListener("mouseenter", () => {
+            const r = parent.getBoundingClientRect();
+            const fitsRight = r.right + 200 <= window.innerWidth;
+            sub.style.left = (fitsRight ? r.right : r.left - 180) + "px";
+            sub.style.top = Math.max(8, Math.min(
+              r.top - 8, window.innerHeight - 40 * lis.length - 24)) + "px";
+          });
+          parent.append(btn, sub);
+          menu.insertBefore(parent, lis[0]);
+          lis.forEach((li) => sub.appendChild(li));
+        };
+        if (!menu.querySelector(".wg-submenu-parent")) {
+          collapse((l) => l.startsWith("Copy to clipboard as"), "Copy as…");
+          collapse((l) => ["Send backward", "Bring forward",
+                           "Send to back", "Bring to front"].includes(l),
+                   "Arrange");
+        }
         const live = apiRef.current?.getSceneElements()
           .find((x: any) => x.id === hit.id && !x.isDeleted) || hit;
         const has = !!live.customData?.tooltip;

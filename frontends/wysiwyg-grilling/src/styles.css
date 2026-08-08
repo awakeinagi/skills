@@ -578,6 +578,21 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   background-color: var(--color-primary, #6965db); color: #fff;
 }
 
+/* collapsed native groups → hover flyout submenus ("Copy as…",
+   "Arrange"): the nested ul reuses Excalidraw's .context-menu skin */
+.wg-submenu-parent { position: relative; }
+.wg-submenu-parent > .context-menu-item:hover {
+  background-color: var(--color-primary, #6965db); color: #fff;
+}
+.wg-submenu-parent > .wg-submenu {
+  /* fixed: escapes the popover's overflow clipping — coordinates are
+     set on hover from the parent row's rect */
+  display: none; position: fixed; margin: 0; min-width: 11rem;
+  z-index: 1000;
+}
+.wg-submenu-parent:hover > .wg-submenu,
+.wg-submenu-parent:focus-within > .wg-submenu { display: block; }
+
 /* tooltip editor */
 .tip-editor textarea {
   width: 100%; background: var(--chrome); border: 1px solid var(--border);
