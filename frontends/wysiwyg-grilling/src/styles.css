@@ -639,3 +639,20 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   background: #a5433c; color: #fff; border: 0; border-radius: 7px;
   padding: 7px 16px; font-weight: 700; cursor: pointer;
 }
+
+/* ---- v0.4 U-round: layout lint surface ---- */
+.badge.lint {
+  width: auto; min-width: 13px; height: 13px; border-radius: 7px;
+  font-size: 9px; font-weight: 700; line-height: 13px; padding: 0 3px;
+  text-align: center; color: #fff; background: var(--faint);
+}
+.badge.lint.error { background: #a5433c; }
+.badge.lint.warning { background: #b07d2e; }
+.lint-row { display: block; }
+.lint-row.error .lint-tier { color: #a5433c; }
+.lint-row.warning .lint-tier { color: #b07d2e; }
+.lint-row.note { opacity: 0.85; }
+.lint-row .linkish {
+  background: none; border: 0; cursor: pointer; color: var(--accent);
+  font-size: 11px; padding: 0 2px;
+}

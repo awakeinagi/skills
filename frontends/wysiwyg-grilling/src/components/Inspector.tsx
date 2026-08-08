@@ -7,7 +7,8 @@ import React from "react";
  * Save narrates them like any other user edit. */
 
 const WIREFRAME_KINDS = ["block", "button", "nav", "input", "image",
-  "kpi", "checkbox", "toggle", "slider", "priority"];
+  "kpi", "checkbox", "toggle", "slider", "priority", "help",
+  "sticky-bar", "feedback"];
 const FLOW_KINDS = ["source", "transform", "agent", "control", "sink",
   "store"];
 const DOMAIN_KINDS = ["entity"];

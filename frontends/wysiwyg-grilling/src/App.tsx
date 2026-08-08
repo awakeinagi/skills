@@ -1575,6 +1575,9 @@ export default function App() {
         <div className="thumbs">
           {currentConceptViews.map((aid: string) => {
             const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
+            const ld = (state?.lint_debt || {})[aid];
+            const lintN = ld ? (ld.errors || 0) + (ld.warnings || 0) + (ld.notes || 0) : 0;
+            const lintTier = ld?.errors ? "error" : ld?.warnings ? "warning" : "note";
             return (
               <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`} onClick={() => showArtifact(aid)}
                 title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})`}>
@@ -1589,6 +1592,7 @@ export default function App() {
                 <div className="badges">
                   {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
                   {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
+                  {lintN > 0 && <span className={`badge lint ${lintTier}`} title={`${lintN} layout finding${lintN > 1 ? "s" : ""} — see the Layout rail section`}>{lintN}</span>}
                 </div>
               </div>
             );

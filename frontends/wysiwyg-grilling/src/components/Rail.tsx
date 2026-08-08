@@ -86,6 +86,31 @@ export function Rail({
     ? mappings.filter((m: any) => m.concept === currentConcept.id)
     : mappings;
 
+  // layout lint for the current artifact (v0.4): server-computed lines
+  // (incl. cross-artifact findings), rendered read-only — waives are
+  // agent ops that ride the next batch
+  const lintRows = useMemo(() => {
+    const li = (state?.lint || {})[currentArtifact || ""];
+    if (!li) return [] as { tier: string; msg: string; el?: string }[];
+    const ids = new Set(
+      ((artifacts[currentArtifact || ""] || {}).elements || [])
+        .map((e: any) => e.id));
+    const refOf = (msg: string): string | undefined => {
+      for (const tok of msg.match(/[A-Za-z0-9][\w-]*/g) || [])
+        if (ids.has(tok)) return tok;
+      return undefined;
+    };
+    const rows: { tier: string; msg: string; el?: string }[] = [];
+    for (const [tier, msgs] of [["error", li.errors],
+      ["warning", li.warnings], ["note", li.notes]] as const)
+      for (const msg of msgs || [])
+        rows.push({ tier, msg, el: refOf(msg) });
+    return rows;
+  }, [state?.lint, artifacts, currentArtifact]);
+  const [showLintNotes, setShowLintNotes] = useState(false);
+  const lintHard = lintRows.filter((r) => r.tier !== "note");
+  const lintNotes = lintRows.filter((r) => r.tier === "note");
+
   const openPins = pins.filter((p: any) => p.status === "open");
   const resolvedPins = pins.filter((p: any) => p.status !== "open").slice().reverse();
   const resolvedTripwires = (state?.tripwires || [])
@@ -212,6 +237,39 @@ export function Rail({
           ));
         })()}
       </div>
+
+      {/* -------- layout lint (v0.4) -------- */}
+      {lintRows.length > 0 && currentArtifact && (
+        <div className="rail-section">
+          <h3>Layout <span className="count">{lintRows.length}</span></h3>
+          {lintHard.map((r, i) => (
+            <div key={`lh${i}`} className={`tripline lint-row ${r.tier}`}>
+              <span className="lint-tier">{r.tier === "error" ? "▲" : "⚠"}</span>
+              {" "}{r.msg}
+              {r.el && (
+                <button className="linkish" title="show on canvas"
+                  onClick={() => onGoto({ aid: currentArtifact, el: r.el! })}>⌖</button>
+              )}
+            </div>
+          ))}
+          {lintNotes.length > 0 && (
+            <button className="show-archived"
+              onClick={() => setShowLintNotes(!showLintNotes)}>
+              {showLintNotes ? "hide" : "show"} {lintNotes.length} note{lintNotes.length > 1 ? "s" : ""}
+            </button>
+          )}
+          {showLintNotes && lintNotes.map((r, i) => (
+            <div key={`ln${i}`} className="tripline lint-row note">
+              <span className="lint-tier">·</span>
+              {" "}{r.msg}
+              {r.el && (
+                <button className="linkish" title="show on canvas"
+                  onClick={() => onGoto({ aid: currentArtifact, el: r.el! })}>⌖</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* -------- pinned questions -------- */}
       <div className="rail-section">
