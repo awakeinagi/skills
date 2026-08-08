@@ -488,6 +488,12 @@ class TestMappingsTripwires(Base):
         tw = rec["tripwires"][0]
         self.assertEqual(tw["changed"], "checkout-wireframe#pay-button")
         self.assertEqual(tw["sibling"], "checkout-flow#payment")
+        # fired tripwires are visible at fire time: the record entry
+        # mirrors the registry id + question so apply responses can name
+        # them (v0.3)
+        self.assertIn("id", tw)
+        self.assertTrue(tw["id"].startswith("tw-"))
+        self.assertIn("changed but its mapped sibling", tw["question"])
         open_tw = [t for t in self.store.registry["tripwires"]
                    if t["status"] == "open"]
         self.assertTrue(open_tw)
@@ -2894,6 +2900,109 @@ class TestArgusAcceptance(Base):
         # 10 — standing nags exist and the pin debt is empty again
         self.assertEqual(s.pin_debt(), [])
         self.assertIsInstance(s.lint_debt(), dict)
+
+
+class TestV03ServerFixes(Base):
+    """v0.3 capability-assessment bug fixes (WP1)."""
+
+    def seed_entity(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "research-domain",
+            "create": {"id": "research-domain", "name": "Research Domain",
+                       "type": "domain", "concept": "domain",
+                       "concept_name": "Research Domain"},
+            "ops": [
+                {"op": "add", "element": {"type": "rectangle",
+                                          "id": "position",
+                                          "label": "Position",
+                                          "kind": "entity",
+                                          "attributes": ["qty, cost basis",
+                                                         "of an Instrument"],
+                                          "x": 320, "y": 60, "width": 180,
+                                          "height": 64, "role": "node"}},
+            ]})
+
+    def entity_and_label(self):
+        els = self.store.scenes["research-domain"]
+        ent = next(e for e in els if e["id"] == "position")
+        lbl = next(e for e in els if e.get("containerId") == "position")
+        return ent, lbl
+
+    def test_entity_move_keeps_label_top_aligned(self):
+        self.seed_entity()
+        ent, lbl = self.entity_and_label()
+        self.assertEqual(lbl["verticalAlign"], "top")
+        top_offset = lbl["y"] - ent["y"]
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "research-domain",
+            "ops": [{"op": "mod", "id": "position",
+                     "attrs": {"x": 380, "y": 200}}]})
+        ent, lbl = self.entity_and_label()
+        self.assertEqual(lbl["verticalAlign"], "top")
+        self.assertEqual(lbl["y"] - ent["y"], top_offset)
+
+    def test_tidy_preserves_entity_label_alignment(self):
+        self.seed_entity()
+        self.store.tidy("research-domain")
+        ent, lbl = self.entity_and_label()
+        self.assertEqual(lbl["y"] - ent["y"], 6)
+
+    def test_tidy_noop_does_not_commit(self):
+        self.seed_entity()
+        first = self.store.tidy("research-domain")
+        head = self.store.head_revn()
+        second = self.store.tidy("research-domain")
+        self.assertTrue(second.get("noop"))
+        self.assertEqual(self.store.head_revn(), head)
+        self.assertEqual(second["summary"]["headline"],
+                         "already tidy — nothing to change")
+        # the first tidy is allowed to commit or noop; whichever it did,
+        # a repeat must always be a noop
+        self.assertLessEqual(first["revn"], head)
+
+    def test_entity_drag_headlines_the_entity_not_its_rows(self):
+        self.seed_entity()
+        els = [dict(e) for e in self.store.scenes["research-domain"]]
+        for e in els:
+            if e["id"] == "position" or \
+                    (e.get("customData") or {}).get("attr_of") == \
+                    "position" or e.get("containerId") == "position":
+                e["x"] = e["x"] + 60
+        rec = self.store.commit(author="user",
+                                new_scenes={"research-domain": els},
+                                base_revn=self.store.head_revn())
+        self.assertIn("Position", rec["summary"]["headline"])
+        moved = [f for f in rec["artifacts"]["research-domain"]["facts"]
+                 if f["fact"] == "moved"]
+        row_moves = [f for f in moved if f["element"] != "position"]
+        self.assertTrue(all(f.get("low_signal") for f in row_moves))
+
+    def test_autogrow_overlap_warns(self):
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {"type": "rectangle", "id": "top-box",
+                                      "label": "Short", "x": 0, "y": 0,
+                                      "width": 120, "height": 40,
+                                      "role": "node"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "low-box",
+                                      "label": "Below", "x": 0, "y": 48,
+                                      "width": 120, "height": 40,
+                                      "role": "node"}},
+        ], errors)
+        self.assertEqual(errors, [])
+        lint = canvas.lint_layout(els)
+        self.assertFalse(any("grew to fit" in w for w in lint["warnings"]))
+        els = canvas.apply_ops(els, [
+            {"op": "mod", "id": "top-box",
+             "attrs": {"label": "A very long label that has to wrap into "
+                                "several lines to fit this narrow box"}}],
+            errors)
+        self.assertEqual(errors, [])
+        top = next(e for e in els if e["id"] == "top-box")
+        self.assertGreater((top.get("customData") or {})
+                           .get("auto_grown", 0), 0)
+        lint = canvas.lint_layout(els)
+        self.assertTrue(any("grew to fit" in w for w in lint["warnings"]))
 
 
 if __name__ == "__main__":

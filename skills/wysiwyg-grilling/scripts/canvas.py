@@ -688,7 +688,13 @@ def fit_label_in(container, lbl):
     lbl["height"] = text_dims(wrapped, fs)[1]
     lbl["autoResize"] = False  # keep the client wrapping inside this box
     if container.get("height", 0) < lbl["height"] + 16:
+        grown = lbl["height"] + 16 - container.get("height", 0)
         container["height"] = lbl["height"] + 16
+        # growth can shove the box into a sibling below; nothing reflows
+        # (that would need a constraint solver), so the overlap lint drops
+        # its size threshold for auto-grown boxes and warns instead
+        cd = container.setdefault("customData", {})
+        cd["auto_grown"] = cd.get("auto_grown", 0) + grown
 
 
 # strategic classification (references/domain.md) renders as muted fill
@@ -1265,8 +1271,14 @@ def recenter_label(els, el):
     else:
         label["x"] = el["x"] + max((el.get("width", 0) -
                                     label.get("width", 0)) / 2, 4)
-        label["y"] = el["y"] + max((el.get("height", 0) -
-                                    label.get("height", 0)) / 2, 4)
+        if label.get("verticalAlign") == "top":
+            # top-anchored labels (entities, titled panels) stay pinned to
+            # the header band — centering them buries the term under its
+            # attribute rows (v0.3 assessment bug)
+            label["y"] = el["y"] + 6
+        else:
+            label["y"] = el["y"] + max((el.get("height", 0) -
+                                        label.get("height", 0)) / 2, 4)
 
 
 def apply_ops(elements, ops, errors, pin_registry=None):
@@ -2062,6 +2074,14 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             if c["id"] in consequences:
                 F("moved", c["id"], dx=dx, dy=dy, spatial="layout adjusted",
                   consequence_of=consequences[c["id"]])
+            elif role_of(el) == "decoration":
+                # attribute rows, X-box strokes, glyphs travel with their
+                # composite parent — the parent's move is the story (v0.3
+                # assessment: "qty, cost basis moved right" headlined a
+                # Position drag)
+                F("moved", c["id"], dx=dx, dy=dy,
+                  spatial=spatial_phrase(dx, dy),
+                  label=display_label(el, new_labels), low_signal=True)
             else:
                 F("moved", c["id"], dx=dx, dy=dy,
                   spatial=spatial_phrase(dx, dy),
@@ -3218,9 +3238,19 @@ def lint_layout(els):
             oy = min(a["y"] + a.get("height", 0),
                      b["y"] + b.get("height", 0)) - max(a["y"], b["y"])
             if ox > 0 and oy > 0:
+                grown = (a.get("customData") or {}).get("auto_grown") or \
+                    (b.get("customData") or {}).get("auto_grown")
                 smaller = min(a.get("width", 1) * a.get("height", 1),
                               b.get("width", 1) * b.get("height", 1))
-                if ox * oy > 0.25 * smaller:
+                if grown:
+                    # a box that grew to fit its label gets no size
+                    # slack: ANY overlap it causes is real (nothing
+                    # reflows siblings — v0.3 assessment)
+                    warnings.append(
+                        "%s grew to fit its label and now overlaps %s — "
+                        "move one clear or widen the box"
+                        % (name(a["id"]), name(b["id"])))
+                elif ox * oy > 0.25 * smaller:
                     warnings.append(
                         "%s and %s overlap — separate them"
                         % (name(a["id"]), name(b["id"])))
@@ -4064,6 +4094,10 @@ class Store:
                     sb = s.replace("#", " › ")
                     reg_entry.update({
                         "id": "tw-%d-%d" % (revn, len(out)),
+                        # a fired tripwire must be visible at fire time —
+                        # the record entry mirrors id+question so the apply
+                        # response can name it (v0.3 assessment bug: fired
+                        # silently, agent found it rounds later via status)
                         "save": revn, "status": "open",
                         # answerable in place (like pins) — defaults the
                         # agent may sharpen via annotate_tripwire
@@ -4092,6 +4126,8 @@ class Store:
                         "answer": None,
                     })
                     self.registry["tripwires"].append(reg_entry)
+                    entry["id"] = reg_entry["id"]
+                    entry["question"] = reg_entry["question"]
         return out
 
     def _policy_covers(self, m):
@@ -4659,6 +4695,15 @@ class Store:
                     rerouted += 1
             fan_attach_points(els)
             els = normalize_z_order(els)
+            if json.dumps(els, sort_keys=True, default=str) == \
+                    json.dumps(base, sort_keys=True, default=str):
+                # nothing to repair — committing anyway would write an
+                # empty "saved without changing anything" revision (v0.3
+                # assessment bug)
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline":
+                                    "already tidy — nothing to change",
+                                    "verb_counts": {}, "suppressed": 0}}
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
@@ -5025,6 +5070,9 @@ class ServerApp:
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
                     "layout_notes": lint["notes"],
+                    # tripwires fired by THIS batch — visible at fire time,
+                    # not rounds later via status (v0.3 assessment bug)
+                    "tripwires": record.get("tripwires") or [],
                     "lint_debt": self.store.lint_debt(),
                     "pin_debt": self.store.pin_debt()}
         if path == "/api/pending/resolve":
@@ -5106,6 +5154,10 @@ class ServerApp:
                 record = self.store.tidy(aid)
             except (BatchError, StaleError) as e:
                 return err(400, str(e))
+            if record.get("noop"):
+                # nothing changed — no revision, no event
+                return {"ok": True, "revn": record["revn"], "noop": True,
+                        "headline": record["summary"]["headline"]}
             self.events.append("agent_revision", revn=record["revn"],
                                short_id=record["short_id"],
                                headline=record["summary"]["headline"],
@@ -5718,6 +5770,7 @@ def cmd_apply(args):
             print("LAYOUT_WARNING=%s" % w)
         for n in resp.get("layout_notes") or []:
             print("LAYOUT_NOTE=%s" % n)
+        _print_tripwires(resp.get("tripwires"))
         _print_debt(resp.get("lint_debt"), resp.get("pin_debt"))
         return 0
     # degraded path: no server — apply directly against the files
@@ -5745,8 +5798,16 @@ def cmd_apply(args):
             print("LAYOUT_WARNING=%s" % w)
         for n in lint["notes"]:
             print("LAYOUT_NOTE=%s" % n)
+    _print_tripwires(record.get("tripwires"))
     _print_debt(store.lint_debt(), store.pin_debt())
     return 0
+
+
+def _print_tripwires(tripwires):
+    """Name tripwires fired by this batch — divergence must be visible at
+    fire time, not rounds later via a status count (v0.3 assessment)."""
+    for t in tripwires or []:
+        print("TRIPWIRE=%s %s" % (t.get("id", "?"), t.get("question", "")))
 
 
 def _print_debt(lint_debt, pin_debt):
