@@ -3329,14 +3329,26 @@ def render_svg(els, title=""):
         else:
             xs.append(e.get("x", 0))
             ys.append(e.get("y", 0))
-            x2s.append(e.get("x", 0) + e.get("width", 0))
-            y2s.append(e.get("y", 0) + e.get("height", 0))
+            ew2, eh2 = e.get("width", 0), e.get("height", 0)
+            if e.get("type") == "text":
+                # stored text extents are estimates; real glyph advance
+                # regularly overhangs them and the overflow was cropped
+                # out of exports (v0.3 assessment) — bound by the larger
+                # of stored and estimated extents
+                tw, th = text_dims(e.get("text") or "",
+                                   e.get("fontSize", 16))
+                ew2, eh2 = max(ew2, tw), max(eh2, th)
+            x2s.append(e.get("x", 0) + ew2)
+            y2s.append(e.get("y", 0) + eh2)
     pad = 40
     minx, miny = min(xs) - pad, min(ys) - pad
     w = max(x2s) - min(xs) + 2 * pad
     h = max(y2s) - min(ys) + 2 * pad
+    # cap raster size UNIFORMLY: the old independent min(w,4000)/min(h,3000)
+    # clamp squashed the aspect ratio of anything wider than 4000px
+    scale = min(1.0, 4000.0 / w, 3000.0 / h)
     out = ["<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d' "
-           "viewBox='%f %f %f %f'>" % (min(w, 4000), min(h, 3000),
+           "viewBox='%f %f %f %f'>" % (int(w * scale), int(h * scale),
                                        minx, miny, w, h),
            "<rect x='%f' y='%f' width='%f' height='%f' fill='#fdfcf8'/>"
            % (minx, miny, w, h)]
@@ -3423,7 +3435,7 @@ def render_svg(els, title=""):
         if e.get("type") == "text":
             paint(e)
     out.append("</svg>")
-    return "\n".join(out), int(min(w, 4000)), int(min(h, 3000))
+    return "\n".join(out), int(w * scale), int(h * scale)
 
 
 def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):

@@ -488,9 +488,13 @@ export default function App() {
         try {
           const blob = await exportToBlob({
             elements: restoreElements(els, null) as any,
-            appState: { viewBackgroundColor: "#faf8f2", exportWithDarkMode: false },
+            appState: {
+              viewBackgroundColor: "#faf8f2", exportWithDarkMode: false,
+              frameRendering: { enabled: true, name: true, outline: true, clip: false },
+            },
             files: null,
             mimeType: "image/png",
+            exportPadding: 40,
           } as any);
           const dataUrl: string = await new Promise((res) => {
             const fr = new FileReader();
@@ -736,9 +740,16 @@ export default function App() {
     try {
       const blob = await exportToBlob({
         elements: restoreElements(els, null) as any,
-        appState: { viewBackgroundColor: "#faf8f2", exportWithDarkMode: false },
+        // clip:false — frame membership must not crop annotations that
+        // spill outside their screen frame (v0.3 assessment); padding
+        // keeps estimated text extents from being cut at the edge
+        appState: {
+          viewBackgroundColor: "#faf8f2", exportWithDarkMode: false,
+          frameRendering: { enabled: true, name: true, outline: true, clip: false },
+        },
         files: api.getFiles ? api.getFiles() : null,
         mimeType: "image/png",
+        exportPadding: 40,
       } as any);
       const name = String(artifacts[currentArtifact!]?.name || currentArtifact || "artifact")
         .replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "artifact";

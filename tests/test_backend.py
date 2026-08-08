@@ -939,6 +939,27 @@ class TestSnapshotPieces(Base):
         svg2, _, _ = canvas.render_svg(els)
         self.assertIn("a &lt; b &amp; c", svg2)
 
+    def test_render_svg_scales_uniformly_and_bounds_text(self):
+        # v0.3: a scene wider than 4000px must scale BOTH dimensions
+        # (the old independent clamp squashed the aspect ratio)
+        els = [{"id": "a", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 100},
+               {"id": "b", "type": "rectangle", "x": 7800, "y": 0,
+                "width": 200, "height": 100}]
+        svg, w, h = canvas.render_svg(els)
+        import re as _re
+        vb = _re.search(r"viewBox='([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)'",
+                        svg)
+        vw, vh = float(vb.group(3)), float(vb.group(4))
+        self.assertLessEqual(w, 4000)
+        self.assertAlmostEqual(w / h, vw / vh, delta=0.5)
+        # v0.3: text overflowing its stored width expands the bounds
+        wide_text = "x" * 120
+        els2 = [{"id": "t", "type": "text", "x": 0, "y": 0, "width": 40,
+                 "height": 20, "text": wide_text, "fontSize": 16}]
+        _, w2, _ = canvas.render_svg(els2)
+        self.assertGreater(w2, 40 + 80)  # stored width + 2*pad
+
     def test_validate_png(self):
         ok, why = canvas.validate_png(b"definitely not a png")
         self.assertFalse(ok)
