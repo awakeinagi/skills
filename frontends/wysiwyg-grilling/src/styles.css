@@ -28,6 +28,9 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .main { display: flex; flex: 1; min-height: 0; }
 .center { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .canvas-wrap { position: relative; flex: 1; min-height: 0; background: var(--paper); }
+/* dark canvas mode: only the drawing surface flips — the chrome around it
+   is dark either way, so the wrap has to stop showing paper behind it */
+.canvas-wrap.dark { background: #121212; }
 .canvas-wrap .excalidraw { --color-primary: #4a6fc3; }
 
 /* ---------- round header ---------- */
@@ -75,8 +78,32 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   position: absolute; top: -4px; right: -4px; width: 11px; height: 11px;
   background: var(--oos); border: 2px solid var(--chrome); border-radius: 50%;
 }
-.icon-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: 12px; }
-.icon-btn:hover { color: var(--text); border-color: var(--faint); }
+.icon-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.icon-btn:hover:not(:disabled) { color: var(--text); border-color: var(--faint); }
+.icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* the header carries a lot of tools now: only the crumbs may give ground */
+.header > * { flex-shrink: 0; }
+.header .crumbs { flex-shrink: 1; min-width: 0; }
+
+/* ---------- insert menu ---------- */
+.insert-wrap { position: relative; display: flex; }
+.insert-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 80;
+  min-width: 250px; padding: 6px;
+  background: var(--chrome-2); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+}
+.insert-menu .group {
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--faint); padding: 6px 8px 2px;
+}
+.insert-menu .item {
+  display: flex; align-items: baseline; gap: 8px; padding: 6px 8px;
+  border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--muted);
+}
+.insert-menu .item:hover { background: var(--chrome-3); color: var(--text); }
+.insert-menu .dim { margin-left: auto; font-size: 10.5px; color: var(--faint); }
 
 /* ---------- banners ---------- */
 .banner {
@@ -95,6 +122,8 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .banner.stale { background: var(--tripwire-soft); color: #ffc9cc; }
 .banner.viewing { background: #2c2440; color: #ddd0ff; }
 .banner.rollback { background: #3a2f1d; color: #ffe3b0; }
+.banner.narration { background: #1d3326; color: #b9e6c6; }
+.banner.narration b { color: #e4f7e9; }
 
 /* ---------- right rail ---------- */
 .rail {
@@ -180,7 +209,20 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .adot.agent { background: var(--agent); }
 .adot.out-of-session { background: var(--oos); }
 .adot.pending-ev { background: transparent; border: 2px dashed var(--faint); width: 7px; height: 7px; }
+.tl-entry .tl-body { flex: 1; min-width: 0; }
 .tl-entry .meta { font-size: 10.5px; color: var(--faint); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.save-label {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border: 1px solid #4a5a7a; border-radius: 999px;
+  background: #1c2942; color: #b9c8e8; font-size: 10.5px; white-space: nowrap;
+}
+.bookmark-btn {
+  background: none; border: 0; padding: 2px 2px 0; cursor: pointer;
+  font-size: 12px; line-height: 1; opacity: 0.22; align-self: flex-start;
+  filter: grayscale(1);
+}
+.tl-entry:hover .bookmark-btn { opacity: 0.75; filter: none; }
+.bookmark-btn:hover { opacity: 1 !important; filter: none; }
 .tl-entry .gist { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .tl-entry.pending-entry .gist { color: #b9c8e8; font-style: italic; }
 .tl-entry .short { font-family: ui-monospace, monospace; }
@@ -248,6 +290,9 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   font-size: 10.5px; padding: 3px 6px; background: var(--chrome-2);
   color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.thumb .tkind { margin-left: 5px; font-size: 9px; color: var(--faint); }
+.tier-chip { color: #b98add; font-weight: 700; }
+.card-foot .linkish.dismiss:hover { color: var(--tripwire); }
 .thumb.current .tname { color: var(--text); }
 .thumb .badges { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
 .thumb .badge { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--paper); }
@@ -268,6 +313,57 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 }
 .view-bar b { font-family: ui-monospace, monospace; }
 
+/* ---------- overlays: leader lines (annotation → target) ---------- */
+.leader-lines {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 25;
+}
+.leader-lines line { stroke: #b8b2a5; stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.6; }
+
+/* ---------- overlays: onion skin (revision diff) ---------- */
+.ghost-layer {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 20; overflow: visible;
+}
+.ghost-layer rect, .ghost-layer ellipse, .ghost-layer polygon, .ghost-layer polyline {
+  fill: none; stroke: #8a63d2; stroke-width: 1.5;
+  stroke-dasharray: 6 4; opacity: 0.35;
+  vector-effect: non-scaling-stroke;
+}
+.ghost-layer text {
+  fill: #8a63d2; opacity: 0.35; font-family: inherit;
+}
+.ghost-chip {
+  position: absolute; top: 10px; left: 10px; z-index: 45;
+  display: flex; align-items: center; gap: 9px;
+  background: #2c2440; color: #ddd0ff; border: 1px solid #6b4fae;
+  border-radius: 999px; padding: 5px 8px 5px 13px; font-size: 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+.ghost-chip.below-walk { top: 48px; }
+.ghost-chip em { color: #b8a6dd; font-style: italic; }
+.ghost-chip button {
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+  color: inherit; border-radius: 999px; padding: 2px 10px; font-size: 11.5px;
+  cursor: pointer; font-weight: 600;
+}
+.ghost-chip button:hover { background: rgba(255,255,255,0.22); }
+
+/* ---------- overlays: prototype walk ---------- */
+.walk-bar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 46;
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  background: rgba(20, 22, 27, 0.92); color: var(--text);
+  border-bottom: 1px solid var(--border); font-size: 12.5px;
+}
+.walk-bar .pos { font-family: ui-monospace, monospace; color: var(--muted); }
+.walk-bar .hint { color: var(--faint); font-size: 11.5px; }
+.walk-bar button {
+  background: var(--chrome-3); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+}
+.walk-bar button:hover { color: var(--text); border-color: var(--faint); }
+
 /* ---------- overlays: tripwire marks on canvas ---------- */
 .trip-mark {
   position: absolute; z-index: 30; transform: translate(-50%, -100%);
@@ -279,16 +375,10 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   background: var(--tripwire); color: #fff; font-size: 14px; font-weight: 800;
   box-shadow: 0 3px 8px rgba(0,0,0,0.35); border: 2px solid #fff;
 }
-.trip-mark .trip-hover {
-  position: absolute; left: 14px; top: 14px; width: 300px;
-  opacity: 0; pointer-events: none; transition: opacity 160ms ease;
-  z-index: 40; cursor: default;
-}
-.trip-mark:hover .trip-hover { opacity: 1; pointer-events: auto; }
-.trip-mark .trip-hover .pin-card {
-  background: var(--chrome-2, #262a33); border: 1px solid var(--border);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-}
+/* (the hover-card copy of the tripwire card was removed: it lived in the
+   canvas's stacking context behind pointer-events gating, so its buttons
+   never actually received clicks — the mark now opens the modal.) */
+.trip-mark:hover .trip-q { transform: scale(1.12); }
 
 /* ---------- question cards: choices, footer, canvas-hover copy ------- */
 .pin-card.tripwire { border-color: #5a3438; }
@@ -366,15 +456,18 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
-/* ---------- modal ---------- */
+/* ---------- lightweight modals (fork name, suggest view) ----------
+   scoped to .modal.small so they stop overriding the 560px question
+   detail modal (two competing bare `.modal` rules — the later one won
+   for both; capability assessment) */
 .modal-scrim { position: fixed; inset: 0; background: rgba(6,8,12,0.6); z-index: 90; display: flex; align-items: center; justify-content: center; }
-.modal {
+.modal.small {
   background: var(--chrome-2); border: 1px solid var(--border); border-radius: 12px;
   padding: 20px 22px; width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
 }
-.modal h2 { margin: 0 0 6px; font-size: 15px; }
-.modal p { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin: 0 0 12px; }
-.modal input, .modal textarea {
+.modal.small h2 { margin: 0 0 6px; font-size: 15px; }
+.modal.small p { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin: 0 0 12px; }
+.modal.small input, .modal.small textarea {
   width: 100%; background: var(--chrome); border: 1px solid var(--border);
   color: var(--text); border-radius: 7px; padding: 8px 10px; font-size: 13px;
   font-family: inherit;
@@ -382,6 +475,20 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .modal .actions .primary { background: var(--user); color: #0d1526; border: 0; border-radius: 7px; padding: 7px 16px; font-weight: 700; cursor: pointer; }
 .modal .actions .ghost { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 7px 14px; cursor: pointer; }
+
+/* ---------- report reader ---------- */
+.modal.doc-reader { width: min(680px, 92vw); max-height: 84vh; display: flex; flex-direction: column; }
+.doc-body { overflow-y: auto; font-size: 13px; line-height: 1.6; padding: 4px 2px; }
+.doc-body h1 { font-size: 18px; margin: 10px 0 6px; }
+.doc-body h2 { font-size: 15.5px; margin: 14px 0 5px; }
+.doc-body h3, .doc-body h4 { font-size: 13.5px; margin: 12px 0 4px; }
+.doc-body p { margin: 6px 0; max-width: 64ch; color: var(--text); }
+.doc-body table { border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+.doc-body td, .doc-body th { border: 1px solid var(--border); padding: 4px 9px; }
+.doc-body th { background: var(--chrome-3); }
+.doc-body code { background: var(--chrome-3); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.doc-body ul, .doc-body ol { margin: 6px 0 6px 20px; }
+.doc-body hr { border: 0; border-top: 1px solid var(--border); margin: 10px 0; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--chrome-3); border-radius: 6px; border: 2px solid var(--chrome); }

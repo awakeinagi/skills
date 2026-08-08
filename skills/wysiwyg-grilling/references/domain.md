@@ -7,7 +7,7 @@ THIS way?"**
 
 | Element | Spec | Meaning |
 |---|---|---|
-| Entity | `rectangle`, `role: node`, `kind: entity`, label = the term | a domain concept |
+| Entity | `rectangle`, `role: node`, `kind: entity`, label = the term; optional `attributes: ["cash, mandate", …]` renders rows beneath the term (facts: `attribute_added/removed`) | a domain concept |
 | Relationship | `arrow` with `from`/`to` + a short label ("owns", "emits") | how they relate |
 | Cluster | `frame` around related entities (sparingly) | bounded context |
 | Note | `text`, `role: annotation`, `annotates: <id>` | caveat/example |

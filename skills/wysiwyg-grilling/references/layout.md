@@ -55,13 +55,20 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
    re-routing; where two arrows must cross, bridge the less important one
    with a hop arc (`a 8,8 0 0,1 16,0`) — never bridge both.
 
-Fallbacks before the router supports a case: hand-authored elbow waypoints
-plus dashed, muted styling to de-emphasize a long run; for N parallel edges
-between two clusters, one thick low-opacity backdrop line with the real
-arrows offset ±10px along it.
+The router now avoids foreign boxes itself: it scores straight lines,
+both L-elbow orientations, and bounded Z-detours, and picks the cleanest
+(fewest crossings, then fewest bends). When it still can't find a clean
+path, the lint flags it — repair by hand with `mod points` (waypoints
+relative to the arrow's x,y; axis-aligned paths render as sharp elbows,
+the route is re-stamped as server-owned, and the change narrates as a
+`rerouted` fact). For N parallel edges between two clusters, one thick
+low-opacity `role: decoration` backdrop line with the real arrows offset
+±10px along it.
 
-**Z-order** (seeder): background → zone/cluster frames → arrows → nodes →
-labels. Arrows drawn after nodes lie on top of them and read as clutter.
+**Z-order** (now ENFORCED by a normalization pass on every apply):
+frames → decorations → arrows/lines → nodes → bound labels & pins.
+Explicit `reorder` ops survive within their band; cross-band placement
+rides `role: decoration`.
 
 ## Budgets (lint NOTE → view suggestion)
 
@@ -71,7 +78,12 @@ one that matters, because edges collide and nodes don't.) Crossing the
 *arrow* budget is the standard trigger for "propose a second view."
 
 Per-type sub-limits: 5 lifelines (sequence) · 5 lanes (flow overlay) ·
-8 entities (domain) · 2 annotation callouts per artifact.
+8 entities (domain) · 2 annotation callouts per artifact (linted at NOTE
+now, not just documented). Labels are linted against EACH OTHER too
+(label↔label collision, WARNING) — stacked labels read as one caption.
+Declared containment (`parent` on a block) exempts a nested pair from the
+overlap warning; `role: decoration` exempts furniture from connector
+lints and budgets entirely.
 
 Budgets are legibility physics, not taste — over budget, split the view,
 never shrink the font.

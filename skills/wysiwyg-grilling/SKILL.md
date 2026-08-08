@@ -81,6 +81,13 @@ your next move. In order:
    mirrored pin's `resolve_pin` (same rule as registry ops riding the
    batch). A pin left open after its question was settled in another
    channel is bookkeeping drift — sweep it in your next batch.
+   **The user can now pin questions at you** (❓ ask in the app —
+   `direction: user` in PIN_DEBT) and drop sticky notes: user pins are
+   frontier input and get answered FIRST; their notes read as
+   requirements. Every apply/status also restates the standing nags —
+   `PIN_DEBT` (open questions with age + target-edit counts) and
+   `LINT_DEBT` (cross-artifact lint drift, including artifacts your batch
+   never touched) — sweep what's aging, or say why it stays.
 2. **Remove test** (pre-narration): for each element you're about to keep or
    draw, ask "does removing this lose alignment information?" — cut what
    fails. Never narrate an artifact you haven't validated against the round's
@@ -325,6 +332,11 @@ and priority order when suggesting views.
   Exemplar: "'The app never schedules the review' is a real decision with a
   real trade-off (autonomy over adherence) and it'll get re-litigated —
   worth an ADR? Say the word and I'll draft it."
+- **Lock what's settled**: when the conversation rules on a structure,
+  lock it (`mod {"attrs": {"locked": true}}`) so a stray drag can't
+  disturb it — and narrate the lock. Unlocking is the user's right-click
+  (or your mod) and always legitimate; a lock is a guardrail, never a
+  wall. Don't lock what's still in play.
 - **Deletion conversations** (config `deletion_conversation`, default on):
   a deletion opens a short why-conversation. Per-deletion opt-out: the user
   saying "pruning X, no need to discuss" (or deleting with a note) IS the

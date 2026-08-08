@@ -9,3 +9,5 @@ frontends/*/node_modules/
 .claude/
 docs/
 project_knowledge/
+.mypy_cache/
+.ruff_cache/

@@ -85,11 +85,13 @@ export function TripwireCard({
 }
 
 export function QuestionModal({
-  kind, data, onClose, onGoto,
+  kind, data, onClose, onGoto, onAnswer,
 }: {
   kind: "pin" | "tripwire"; data: any;
   onClose: () => void; onGoto: (() => void) | null;
+  onAnswer?: ((answer: string) => void) | null;
 }) {
+  const [text, setText] = useState("");
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -139,6 +141,31 @@ export function QuestionModal({
           <div className="modal-section">
             <h4>Your answer</h4>
             <p>↳ {data.answer}</p>
+          </div>
+        )}
+        {onAnswer && (
+          <div className="modal-section">
+            <h4>Answer in place</h4>
+            {(data.choices || []).length > 0 && (
+              <div className="choice-row">
+                {(data.choices || []).map((c: string) => (
+                  <button key={c} onClick={() => onAnswer(c)}>{c}</button>
+                ))}
+              </div>
+            )}
+            <div className="answer-row">
+              <input
+                autoFocus
+                placeholder="Answer in your own words…"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && text.trim()) onAnswer(text.trim());
+                }}
+              />
+              <button disabled={!text.trim()}
+                onClick={() => onAnswer(text.trim())}>Answer</button>
+            </div>
           </div>
         )}
         <div className="modal-foot">

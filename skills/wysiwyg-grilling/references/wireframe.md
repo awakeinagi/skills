@@ -24,7 +24,9 @@ wireframe view of the same screen**, not styling on one.
 | Button | `rectangle`, `kind: button`, real label (dark fill `#1e1e1e` for primary) | action |
 | Input | `rectangle`, `kind: input`, label = field name | form field |
 | Content block | `rectangle`, `kind: block`, label = what it holds | region |
-| Image | `rectangle` with an X drawn via two `line`s, or `kind: image` | picture slot |
+| Image | `rectangle` with `kind: image` — the X-box strokes compose automatically | picture slot |
+| Body text | `line`s with `role: decoration` (never lint as connectors) | wavy stand-in |
+| Nested card | `rectangle` with `parent: <container-id>` | card in a shelf |
 | Note | `text`, `role: annotation` | interaction note |
 | Priority | small `text` number, `kind: priority` | ordering |
 

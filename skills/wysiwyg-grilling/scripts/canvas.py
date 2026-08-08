@@ -24,7 +24,6 @@ import json
 import os
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -59,6 +58,12 @@ DEFAULT_SIGNIFICANT_ATTRS = [
     "customData", "strokeColor", "backgroundColor", "fillStyle",
     "strokeWidth", "strokeStyle", "roughness", "opacity", "fontSize",
     "fontFamily", "textAlign", "arrowhead", "startArrowhead", "endArrowhead",
+    # autoResize records the client's intent flip on a deliberate text
+    # width-drag (without it the flip hits disk but never the record →
+    # replay/disk divergence); name is a frame's native label; link
+    # carries in-canvas navigation; locked is the settled-structure
+    # guard — all four must replay or catch_up mints phantom records.
+    "autoResize", "name", "link", "locked",
 ]
 STYLE_ATTRS = {
     "strokeColor", "backgroundColor", "fillStyle", "strokeWidth",
@@ -463,8 +468,20 @@ def validate_scene(doc, artifact_id):
 
 # Each entry: (name, fn(doc) -> doc). Files record applied names in
 # doc["migrations"] (artifacts: doc["wysiwyg"]["migrations"]).
+def _mig_config_0002(d):
+    """Append autoResize/name/link/locked to significant_attrs
+    (append-only — never clobber a customized list)."""
+    sig = d.get("significant_attrs")
+    if isinstance(sig, list):
+        for a in ("autoResize", "name", "link", "locked"):
+            if a not in sig:
+                sig.append(a)
+    return d
+
+
 MIGRATIONS = {
-    "config": [("0001-baseline", lambda d: d)],
+    "config": [("0001-baseline", lambda d: d),
+               ("0002-significant-attrs", _mig_config_0002)],
     "registry": [("0001-baseline", lambda d: d)],
     "save": [("0001-baseline", lambda d: d)],
     "artifact": [("0001-baseline", lambda d: d)],
@@ -516,8 +533,19 @@ def normalize_element(el):
     el["seed"] = det_seed(el.get("id", ""))
     el["updated"] = 1
     if el.get("type") == "text":
-        # originalText is derived (unwrapped source) — pin it to text so
-        # replayed state and disk state always agree
+        # The client owns `text` as the RENDERED (wrapped) string and
+        # `originalText` as the unwrapped source — the opposite of the
+        # server doctrine (store unwrapped, let the client wrap). De-wrap:
+        # when the two agree modulo whitespace, the unwrapped form wins,
+        # so wrap-inserted newlines never persist into scenes, facts, or
+        # headlines. Then pin originalText := text so replayed state and
+        # disk state always agree (this stays a pure function of the
+        # input element — the replay/scene-hash invariant depends on it).
+        orig = el.get("originalText")
+        txt = el.get("text") or ""
+        if isinstance(orig, str) and orig != txt and \
+                " ".join(orig.split()) == " ".join(txt.split()):
+            el["text"] = orig
         el["originalText"] = el.get("text", "")
     for attr in ("x", "y", "width", "height"):
         if attr in el:
@@ -572,7 +600,7 @@ def normalize_scene_doc(doc):
 # ---------------------------------------------------------------------------
 
 ELEMENT_TYPES = {"rectangle", "ellipse", "diamond", "arrow", "line", "text",
-                 "frame", "freedraw"}
+                 "frame", "freedraw", "image"}
 
 BASE_DEFAULTS = {
     "fillStyle": "solid",
@@ -690,6 +718,13 @@ def make_element(spec, existing_ids, errors, index_hint=0):
     from a terse spec. Returns a list of elements ([shape] or [shape, label]).
     Appends human/LLM-addressable strings to `errors` on invalid input."""
     etype = spec.get("type")
+    if etype == "image":
+        # images arrive from the canvas (paste/drop, with their file
+        # blob) — an op-made image element would have no fileId to render
+        errors.append("op %d: image elements arrive via the canvas "
+                      "(paste/drop an image in the browser), not ops"
+                      % index_hint)
+        return []
     if etype not in ELEMENT_TYPES:
         errors.append("op %d: unknown element type %r (allowed: %s)"
                       % (index_hint, etype, ", ".join(sorted(ELEMENT_TYPES))))
@@ -733,6 +768,19 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         custom["kind"] = spec["kind"]
     if spec.get("intent"):
         custom["intent"] = spec["intent"]
+    if spec.get("parent"):
+        # declared containment (a card inside a shelf, a chart inside a
+        # body region) — the overlap lint treats parent/child as nesting,
+        # not collision
+        custom["parent"] = spec["parent"]
+    if spec.get("document"):
+        # a readable document behind this element (report reader):
+        # project_knowledge-relative markdown path, served via /api/doc
+        custom["document"] = spec["document"]
+    if spec.get("links_to"):
+        # in-canvas navigation: clicking follows Excalidraw's native link
+        # affordance; the client intercepts artifact: URIs
+        el["link"] = "artifact:%s" % spec["links_to"]
     custom.setdefault("role", "annotation" if etype == "text" and not
                       spec.get("containerId") and spec.get("role") is None and
                       custom.get("role") is None else custom.get("role", "node"))
@@ -760,6 +808,17 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         el["autoResize"] = True
         if not spec.get("width"):
             el["width"], el["height"] = text_dims(el["text"], fs)
+        else:
+            # Server-authored fixed-width text: pin autoResize off so the
+            # client wraps INSIDE this box instead of re-measuring it out
+            # to its natural single-line width (the 200→745px note bug).
+            # `text` stays unwrapped (doctrine); height grows to hold the
+            # wrapped line count.
+            el["autoResize"] = False
+            wrapped = wrap_label_text(el["text"],
+                                      max(el["width"] - 8, 40), fs)
+            el["height"] = max(el.get("height") or 0,
+                               text_dims(wrapped, fs)[1])
     if etype == "frame":
         el["name"] = label or spec.get("name") or el_id
         label = None  # frames carry their name natively, not a bound label
@@ -809,11 +868,78 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         })
         lbl["strokeColor"] = label_color
         fit_label_in(el, lbl)
+        # Clamp the container to the client's minimum for bound text
+        # (label height + 2×5px padding) — otherwise the browser bumps
+        # it (28→30) on first load and the bump reads as a user resize.
+        if el.get("height", 0) < lbl["height"] + 10:
+            el["height"] = lbl["height"] + 10
         lbl["x"] = el["x"] + max((el["width"] - lbl["width"]) / 2, 4)
         lbl["y"] = el["y"] + max((el["height"] - lbl["height"]) / 2, 4)
         el["boundElements"] = list(el.get("boundElements") or [])
         el["boundElements"].append({"id": lbl_id, "type": "text"})
         out.append(lbl)
+    # ---- composites -----------------------------------------------------
+    if custom.get("kind") == "image" and etype == "rectangle":
+        # low-fi image slot: the X-box (wireframe.md) — one op in, a
+        # grouped rect + two decoration strokes out
+        gid = el_id + "-grp"
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+        w, h = el.get("width", 160), el.get("height", 60)
+        for n, oy, pts in (("x1", 0, [[0, 0], [w, h]]),
+                           ("x2", h, [[0, 0], [w, -h]])):
+            lid = "%s-%s" % (el_id, n)
+            existing_ids.add(lid)
+            ln = dict(BASE_DEFAULTS)
+            ln.update({
+                "id": lid, "type": "line",
+                "x": el["x"], "y": el["y"] + oy,
+                "width": w, "height": h,
+                "points": pts, "lastCommittedPoint": None,
+                "startBinding": None, "endBinding": None,
+                "startArrowhead": None, "endArrowhead": None,
+                "elbowed": False, "strokeColor": "#b8b2a5",
+                "groupIds": [gid],
+                "customData": {"role": "decoration", "x_of": el_id},
+            })
+            out.append(ln)
+    attrs_list = spec.get("attributes")
+    if isinstance(attrs_list, list) and attrs_list and \
+            etype == "rectangle" and custom.get("kind") == "entity":
+        # domain entity attribute rows (demo parity): the bound label
+        # stays the EXACT glossary term (identity anchor); rows render
+        # muted beneath it, one group with the entity
+        gid = el_id + "-grp"
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+        header_h, row_h = 32, 20
+        need = header_h + row_h * len(attrs_list) + 8
+        if el.get("height", 0) < need:
+            el["height"] = need
+        if len(out) > 1 and out[1].get("containerId") == el_id:
+            out[1]["verticalAlign"] = "top"
+            out[1]["y"] = el["y"] + 6
+        for irow, attr_text in enumerate(attrs_list):
+            rid = "%s-attr-%d" % (el_id, irow + 1)
+            n2 = 2
+            while rid in existing_ids:
+                rid = "%s-attr-%d-%d" % (el_id, irow + 1, n2)
+                n2 += 1
+            existing_ids.add(rid)
+            row = dict(BASE_DEFAULTS)
+            row.update({
+                "id": rid, "type": "text",
+                "x": el["x"] + 10,
+                "y": el["y"] + header_h + irow * row_h,
+                "width": max(el.get("width", 160) - 20, 40),
+                "height": row_h - 4,
+                "text": str(attr_text), "originalText": str(attr_text),
+                "fontSize": 12, "fontFamily": FONT_LEGIBLE,
+                "textAlign": "left", "verticalAlign": "top",
+                "lineHeight": 1.25, "containerId": None,
+                "autoResize": False, "strokeColor": "#5c584d",
+                "groupIds": [gid],
+                "customData": {"role": "decoration", "attr_of": el_id},
+            })
+            out.append(row)
     return out
 
 
@@ -879,12 +1005,11 @@ def _stamp_route(arrow):
     arrow["customData"] = cd
 
 
-def route_arrow(arrow, src, dst):
-    """Compute explicit geometry for a bound arrow (bindings do NOT route —
-    feel-prototype finding) and attach start/end bindings. Off-axis pairs
-    get a two-segment orthogonal elbow (diagram-design §6.1 — a diagonal
-    between off-axis nodes is an automatic fail); aligned pairs stay
-    straight."""
+def _route_candidates(src, dst):
+    """Candidate polylines (absolute coords) from src's edge to dst's
+    edge: straight (when roughly axis-aligned), both L-elbow
+    orientations, and bounded Z-detours whose middle segment slides past
+    an obstacle. Ordered by preference before scoring."""
     sx1, sy1 = src["x"], src["y"]
     sx2, sy2 = sx1 + src.get("width", 0), sy1 + src.get("height", 0)
     dx1, dy1 = dst["x"], dst["y"]
@@ -893,30 +1018,75 @@ def route_arrow(arrow, src, dst):
     dcx, dcy = (dx1 + dx2) / 2.0, (dy1 + dy2) / 2.0
     x_overlap = min(sx2, dx2) - max(sx1, dx1)
     y_overlap = min(sy2, dy2) - max(sy1, dy1)
+    tdx, tdy = dcx - scx, dcy - scy
+    cands = []
     if x_overlap > 12 or y_overlap > 12:
-        # roughly aligned on one axis: a straight line is honest
         x1, y1 = edge_anchor(src, dcx, dcy)
         x2, y2 = edge_anchor(dst, scx, scy)
-        pts = [[0, 0], [x2 - x1, y2 - y1]]
-        arrow["roundness"] = None
-    else:
-        # off-axis: L-elbow. Ports follow travel: dominant-horizontal
-        # exits a side port and enters top/bottom; dominant-vertical the
-        # reverse (references/layout.md port rule).
-        tdx, tdy = dcx - scx, dcy - scy
-        if abs(tdx) >= abs(tdy):
-            x1 = sx2 if tdx > 0 else sx1
-            y1 = scy
-            x2 = dcx
-            y2 = dy1 if tdy > 0 else dy2
-        else:
-            x1 = scx
-            y1 = sy2 if tdy > 0 else sy1
-            x2 = dx1 if tdx > 0 else dx2
-            y2 = dcy
-        pts = [[0, 0], [x2 - x1, 0] if abs(tdx) >= abs(tdy)
-               else [0, y2 - y1], [x2 - x1, y2 - y1]]
-        arrow["roundness"] = {"type": 2}  # rounded bend
+        cands.append([(x1, y1), (x2, y2)])
+    if abs(tdx) > 4 and abs(tdy) > 4:
+        hx = sx2 if tdx > 0 else sx1            # side exit port
+        vy = sy2 if tdy > 0 else sy1            # top/bottom exit port
+        ex = dx1 if tdx > 0 else dx2            # side entry face
+        ey = dy1 if tdy > 0 else dy2            # top/bottom entry face
+        L_h = [(hx, scy), (dcx, scy), (dcx, ey)]
+        L_v = [(scx, vy), (scx, dcy), (ex, dcy)]
+        cands += [L_h, L_v] if abs(tdx) >= abs(tdy) else [L_v, L_h]
+        for mx in ((hx + ex) / 2.0,
+                   (dx1 - 24) if tdx > 0 else (dx2 + 24),
+                   (sx2 + 24) if tdx > 0 else (sx1 - 24)):
+            cands.append([(hx, scy), (mx, scy), (mx, dcy), (ex, dcy)])
+        for my in ((vy + ey) / 2.0,
+                   (dy1 - 24) if tdy > 0 else (dy2 + 24),
+                   (sy2 + 24) if tdy > 0 else (sy1 - 24)):
+            cands.append([(scx, vy), (scx, my), (dcx, my), (dcx, ey)])
+    if not cands:  # degenerate (concentric) — straight fallback
+        x1, y1 = edge_anchor(src, dcx, dcy)
+        x2, y2 = edge_anchor(dst, scx, scy)
+        cands.append([(x1, y1), (x2, y2)])
+    # drop zero-length segments left by coincident waypoints
+    out = []
+    for path in cands:
+        clean = [path[0]]
+        for p in path[1:]:
+            if abs(p[0] - clean[-1][0]) > 0.5 or abs(p[1] - clean[-1][1]) > 0.5:
+                clean.append(p)
+        if len(clean) >= 2:
+            out.append(clean)
+    return out
+
+
+def route_arrow(arrow, src, dst, obstacles=None):
+    """Compute explicit geometry for a bound arrow (bindings do NOT route —
+    feel-prototype finding) and attach start/end bindings. Off-axis pairs
+    get orthogonal elbows (diagram-design §6.1); when the direct path
+    crosses a foreign box, alternate orientations and bounded Z-detours
+    are tried and the cleanest path wins (Phase-4 router — before this,
+    dense fan-outs routed straight through neighbors and only the lint
+    noticed)."""
+    def hits(path):
+        n = 0
+        for (ax, ay), (bx, by) in zip(path, path[1:]):
+            for ob in obstacles or []:
+                if ob.get("id") in (src.get("id"), dst.get("id")):
+                    continue
+                if _seg_hits_rect(ax, ay, bx, by, ob):
+                    n += 1
+        return n
+
+    def score(path):
+        bends = len(path) - 2
+        length = sum(abs(bx - ax) + abs(by - ay)
+                     for (ax, ay), (bx, by) in zip(path, path[1:]))
+        diag = any(abs(bx - ax) > 12 and abs(by - ay) > 12
+                   for (ax, ay), (bx, by) in zip(path, path[1:]))
+        # a true diagonal reads worse than one clean bend (layout.md §6.1)
+        return (hits(path), bends + (2 if diag else 0), length)
+
+    path = min(_route_candidates(src, dst), key=score)
+    x1, y1 = path[0]
+    pts = [[px - x1, py - y1] for px, py in path]
+    arrow["roundness"] = None if len(pts) == 2 else {"type": 2}
     gap = 6
     arrow["x"], arrow["y"] = x1, y1
     arrow["width"] = max(abs(p[0]) for p in pts)
@@ -995,11 +1165,31 @@ def fan_attach_points(els):
             else:
                 pt = (node["x"] + node.get("width", 0), node["y"] + off)
             ends[aid][which] = pt
+    # obstacle set for the crossing check below (the router avoids foreign
+    # boxes; the fan must not undo that work by sliding a segment into one)
+    fan_obstacles = [e for e in els
+                     if e.get("type") in ("rectangle", "diamond", "ellipse")
+                     and (e.get("customData") or {}).get("role")
+                     not in ("label", "pin", "decoration", "annotation")]
+
+    def _fan_hits(a, ax, ay, pts):
+        n = 0
+        keep = {(a.get("startBinding") or {}).get("elementId"),
+                (a.get("endBinding") or {}).get("elementId")}
+        for p1, p2 in zip(pts, pts[1:]):
+            for ob in fan_obstacles:
+                if ob.get("id") in keep:
+                    continue
+                if _seg_hits_rect(ax + p1[0], ay + p1[1],
+                                  ax + p2[0], ay + p2[1], ob):
+                    n += 1
+        return n
+
     for aid, e2 in ends.items():
         a = ix[aid]
         (sx, sy), (exx, exy) = e2["start"], e2["end"]
         old = a.get("points") or []
-        a["x"], a["y"] = sx, sy
+        old_x, old_y = a["x"], a["y"]
         if len(old) == 3:
             # preserve the elbow's orthogonality: the corner keeps sharing
             # its constant coordinate with whichever segment held it
@@ -1009,6 +1199,12 @@ def fan_attach_points(els):
                    [exx - sx, exy - sy]]
         else:
             pts = [[0, 0], [exx - sx, exy - sy]]
+        if _fan_hits(a, sx, sy, pts) > _fan_hits(a, old_x, old_y, old):
+            # fanning this arrow would push a segment through a foreign
+            # box — keep the routed path (a shared attach point is the
+            # lesser evil and still lints if it matters)
+            continue
+        a["x"], a["y"] = sx, sy
         a["points"] = pts
         a["width"] = max(abs(p[0]) for p in pts)
         a["height"] = max(abs(p[1]) for p in pts)
@@ -1022,6 +1218,19 @@ def fan_attach_points(els):
 # ---------------------------------------------------------------------------
 
 OP_KINDS = {"add", "mod", "del", "reorder", "pin", "resolve_pin", "registry"}
+
+# Top-level element attributes `mod` may set directly. Everything else is
+# either a special-cased attr (label, from/to, text, customData, strategic,
+# kind, role, intent, points, name) or an error — the silent
+# `el[attr] = value` catch-all was how `mod attrs.kind` no-oped with a
+# success echo (live_test_2 B1).
+MOD_ATTRS = {
+    "x", "y", "width", "height", "angle", "frameId", "groupIds",
+    "strokeColor", "backgroundColor", "fillStyle", "strokeWidth",
+    "strokeStyle", "roughness", "opacity", "fontSize", "fontFamily",
+    "textAlign", "startArrowhead", "endArrowhead", "roundness",
+    "locked", "link", "containerId", "autoResize",
+}
 
 
 def recenter_label(els, el):
@@ -1076,6 +1285,12 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                           "`canvas.py status` or the state API)" % (opi, verb, eid))
         return el
 
+    def obstacles():
+        return [e for e in els
+                if e.get("type") in ("rectangle", "diamond", "ellipse")
+                and (e.get("customData") or {}).get("role")
+                not in ("label", "pin", "decoration")]
+
     for i, op in enumerate(ops):
         kind = op.get("op")
         if kind not in OP_KINDS:
@@ -1098,7 +1313,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     src = resolve(src_id, i, "arrow from") if src_id else None
                     dst = resolve(dst_id, i, "arrow to") if dst_id else None
                     if src is not None and dst is not None:
-                        route_arrow(arrow, src, dst)
+                        route_arrow(arrow, src, dst, obstacles())
                         recenter_label(els, arrow)
         elif kind == "mod":
             el = resolve(op.get("id"), i, "mod")
@@ -1109,6 +1324,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 errors.append("op %d (mod %s): attrs must be a non-empty object "
                               "of {attribute: newValue}" % (i, op.get("id")))
                 continue
+            old_x, old_y = el.get("x"), el.get("y")
             for attr, value in attrs.items():
                 if attr == "label":
                     _set_label(els, index, existing, el, value)
@@ -1126,10 +1342,78 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 elif attr == "strategic":
                     apply_strategic(el, value, errors, i,
                                     explicit_bg="backgroundColor" in attrs)
+                elif attr in ("kind", "role", "intent", "parent",
+                              "document"):
+                    # terse customData keys, add-time parity — a top-level
+                    # write here is read by nothing (B1's silent no-op)
+                    cd = dict(el.get("customData") or {})
+                    cd[attr] = value
+                    el["customData"] = cd
+                elif attr == "links_to":
+                    el["link"] = ("artifact:%s" % value) if value else None
+                elif attr == "points":
+                    if el.get("type") not in ("arrow", "line"):
+                        errors.append("op %d (mod %s): `points` only applies "
+                                      "to arrows/lines" % (i, op.get("id")))
+                    elif not (isinstance(value, list) and len(value) >= 2 and
+                              all(isinstance(p, (list, tuple)) and
+                                  len(p) == 2 and
+                                  all(isinstance(c, (int, float)) for c in p)
+                                  for p in value)):
+                        errors.append(
+                            "op %d (mod %s): `points` must be ≥2 [x,y] "
+                            "pairs, relative to the arrow's x,y"
+                            % (i, op.get("id")))
+                    else:
+                        el["points"] = [[p[0], p[1]] for p in value]
+                        # axis-aligned hand paths render as SHARP elbows
+                        # (curved waypoints read as freehand)
+                        if all(p1[0] == p2[0] or p1[1] == p2[1]
+                               for p1, p2 in zip(el["points"],
+                                                 el["points"][1:])):
+                            el["roundness"] = None
+                        # hand-authored elbows stay server-owned: stamp the
+                        # route and move the label onto the new path
+                        _stamp_route(el)
+                        recenter_label(els, el)
+                elif attr == "name":
+                    if el.get("type") != "frame":
+                        errors.append("op %d (mod %s): `name` only applies "
+                                      "to frames — use `label` for other "
+                                      "elements" % (i, op.get("id")))
+                    else:
+                        el["name"] = value or el["id"]
+                elif attr == "text":
+                    errors.append("op %d (mod %s): `text` only applies to "
+                                  "text elements — use `label`"
+                                  % (i, op.get("id")))
+                elif attr not in MOD_ATTRS:
+                    errors.append(
+                        "op %d (mod %s): unknown attribute %r — allowed: "
+                        "label, from, to, text, customData, strategic, "
+                        "kind, role, intent, points, name, %s"
+                        % (i, op.get("id"), attr,
+                           ", ".join(sorted(MOD_ATTRS))))
                 else:
                     el[attr] = value
                     if attr in ("x", "y", "width", "height"):
                         recenter_label(els, el)
+            # composite integrity: grouped decorations (X-box strokes,
+            # attribute rows) travel with their element on x/y mods
+            dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
+                else 0
+            dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
+                else 0
+            if (dx or dy) and el.get("groupIds"):
+                gset = set(el["groupIds"])
+                for other in els:
+                    if other is el:
+                        continue
+                    if set(other.get("groupIds") or []) & gset and \
+                            (other.get("customData") or {}).get("role") == \
+                            "decoration":
+                        other["x"] = other.get("x", 0) + dx
+                        other["y"] = other.get("y", 0) + dy
             # rewires, processed jointly so one mod may set from AND to.
             # A rewire that cannot bind is a hard validation error — the
             # v0 behavior (silently accept, route nothing) burned rounds:
@@ -1162,7 +1446,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                         else:
                             dst = endpoint
                     if src is not None and dst is not None:
-                        route_arrow(el, src, dst)
+                        route_arrow(el, src, dst, obstacles())
                         recenter_label(els, el)
                     else:
                         missing = "start (`from`)" if src is None \
@@ -1189,6 +1473,17 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     continue
                 if other.get("containerId") in doomed and other["type"] == "text":
                     doomed.add(other["id"])
+            # composite cleanup: decorations grouped with the deleted
+            # element (X-box strokes, entity attribute rows) go with it
+            gids = set(el.get("groupIds") or [])
+            if gids:
+                for other in els:
+                    if other["id"] in doomed:
+                        continue
+                    if set(other.get("groupIds") or []) & gids and \
+                            (other.get("customData") or {}).get("role") == \
+                            "decoration":
+                        doomed.add(other["id"])
             els = [e for e in els if e["id"] not in doomed]
             for e in els:
                 for battr in ("startBinding", "endBinding"):
@@ -1258,12 +1553,14 @@ def apply_ops(elements, ops, errors, pin_registry=None):
         elif kind == "resolve_pin":
             # tolerant of a missing element: the registry write-through in
             # apply_batch is the durable half; a pin whose ❓ was already
-            # deleted must still be resolvable (never strand state)
+            # deleted must still be resolvable (never strand state).
+            # Resolution DELETES the ❓ element (live_test_2 B3: settled
+            # things leave the canvas; the glyph is tombstoned in the
+            # save record like any deletion).
             el = index.get(op.get("id"))
             if el is not None:
-                cd = dict(el.get("customData") or {})
-                cd["status"] = "resolved"
-                el["customData"] = cd
+                els = [e for e in els if e["id"] != el["id"]]
+                index.pop(el["id"], None)
 
     # F1 post-pass: re-route every bound arrow whose endpoint node moved or
     # resized in this batch. Without this, the agent's own layout tidying
@@ -1293,11 +1590,55 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             # geometry; the detached-endpoint lint flags it for a
             # deliberate, narrated repair instead
             if server_owns_geometry(e):
-                route_arrow(e, index[s], index[d])
+                route_arrow(e, index[s], index[d], obstacles())
                 recenter_label(els, e)
     if any(op.get("op") in ("add", "mod", "del") for op in ops):
+        # final routing pass with the COMPLETE obstacle set: an arrow
+        # added early in a batch was routed blind to nodes added after it
+        obs = obstacles()
+        ix2 = {e["id"]: e for e in els}
+        for e in els:
+            if e.get("type") != "arrow" or not server_owns_geometry(e):
+                continue
+            sN = ix2.get((e.get("startBinding") or {}).get("elementId"))
+            dN = ix2.get((e.get("endBinding") or {}).get("elementId"))
+            if sN is None or dN is None:
+                continue
+            pts = e.get("points") or []
+            hit = any(
+                _seg_hits_rect(e["x"] + p1[0], e["y"] + p1[1],
+                               e["x"] + p2[0], e["y"] + p2[1], ob)
+                for p1, p2 in zip(pts, pts[1:])
+                for ob in obs if ob.get("id") not in (sN["id"], dN["id"]))
+            if hit:
+                route_arrow(e, sN, dN, obs)
+                recenter_label(els, e)
         fan_attach_points(els)
+        els = normalize_z_order(els)
     return els
+
+
+def normalize_z_order(els):
+    """Paint order (layout.md): frames → decorations → arrows/lines →
+    nodes → bound labels & pins. Excalidraw renders array order, so an
+    arrow appended after its nodes paints ON TOP of them — every diagram
+    in the capability assessment had all arrows z-above all nodes. The
+    sort is stable: explicit `reorder` ops survive within their band;
+    cross-band placement rides `role: decoration`."""
+    def band(e):
+        role = (e.get("customData") or {}).get("role")
+        if e.get("type") == "frame":
+            return 0
+        if role == "decoration":
+            return 1
+        if e.get("type") in ("arrow", "line"):
+            return 2
+        if role == "pin":
+            return 4
+        if e.get("type") == "text" and e.get("containerId"):
+            return 4
+        return 3
+    return sorted(els, key=band)
 
 
 # ---------------------------------------------------------------------------
@@ -1330,9 +1671,16 @@ def display_label(el, labels):
     if el.get("type") == "frame":
         return el.get("name") or el["id"]
     if el.get("type") == "text":
-        t = (el.get("text") or "").strip()
+        # originalText first, whitespace-joined: legacy scenes may still
+        # carry wrap-poisoned `text` and it must never reach narration
+        t = " ".join((el.get("originalText") or el.get("text") or "").split())
         return t[:40] if t else el["id"]
     return labels.get(el["id"]) or el["id"]
+
+
+def _anno_text(el):
+    """Annotation text for facts: unwrapped source, whitespace-joined."""
+    return " ".join((el.get("originalText") or el.get("text") or "").split())
 
 
 def diff_scenes(old_els, new_els, significant_attrs=None):
@@ -1383,7 +1731,7 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
                 if attr == "points" and binding_changed:
                     continue  # rewire re-route noise
                 entry = {"attr": attr, "from": ov, "to": nv}
-                if derived_geo:
+                if derived_geo or _text_metric_derived(attr, old, new):
                     # kept for lossless replay, invisible to narration
                     entry["derived"] = True
                 attrs.append(entry)
@@ -1453,6 +1801,30 @@ def _norm_binding(b):
     if not isinstance(b, dict):
         return None
     return b.get("elementId")
+
+
+def _text_metric_derived(attr, old, new):
+    """Client font-metric churn on text elements is measurement, not
+    intent: the browser re-measures every text element on load against
+    real font metrics (the server only estimates). Height is always
+    client-computed from content; width is client-computed while
+    autoResize is on — a DELIBERATE user width-drag flips autoResize
+    off, which keeps that width change narratable. Also covers the
+    one-time min-height settle (≤12px growth) on a labeled container."""
+    if attr == "height":
+        if new.get("type") == "text" or old.get("type") == "text":
+            return True
+        ov, nv = old.get("height"), new.get("height")
+        if isinstance(ov, (int, float)) and isinstance(nv, (int, float)) \
+                and 0 <= nv - ov <= 12 and any(
+                    isinstance(b, dict) and b.get("type") == "text"
+                    for b in (new.get("boundElements") or [])):
+            return True
+    if attr == "width" and (new.get("type") == "text"
+                            or old.get("type") == "text") \
+            and old.get("autoResize", True) and new.get("autoResize", True):
+        return True
+    return False
 
 
 def _geometry_derived(el):
@@ -1629,7 +2001,11 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
                 target = tel.get("containerId") or c["id"]
                 if role_of(new_ix.get(target, tel)) == "pin":
                     continue
-                F("renamed", target, **{"from": a["from"], "to": a["to"]})
+                # facts are narration material — never carry wrap newlines
+                # (records keep the raw attrs for replay)
+                F("renamed", target,
+                  **{"from": " ".join(str(a["from"] or "").split()),
+                     "to": " ".join(str(a["to"] or "").split())})
 
     # ---- adds / deletes (skip bound labels + pins; those speak elsewhere) --
     for el in adds:
@@ -1642,8 +2018,17 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
               question=(el.get("customData") or {}).get("question", ""))
             continue
         if r == "annotation":
-            F("annotated", el["id"], text=el.get("text", ""),
+            # sticky-note rects carry their text in a bound label
+            F("annotated", el["id"],
+              text=_anno_text(el) or new_labels.get(el["id"], ""),
+              author=(el.get("customData") or {}).get("author"),
               target=_nearest_target(el, new_els))
+            continue
+        if r == "decoration":
+            # X-box strokes, attribute rows, backdrops: counted, never
+            # narrated individually (their composite parent speaks)
+            F("added", el["id"], kind=kind_of(el),
+              label=display_label(el, new_labels), low_signal=True)
             continue
         F("added", el["id"], kind=kind_of(el),
           label=display_label(el, new_labels))
@@ -1656,7 +2041,12 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             F("pin_deleted", el["id"])
             continue
         if r == "annotation":
-            F("annotation_deleted", el["id"], text=el.get("text", ""))
+            F("annotation_deleted", el["id"], text=_anno_text(el))
+            continue
+        if r == "decoration":
+            F("deleted", el["id"], low_signal=True,
+              was={"kind": kind_of(el),
+                   "label": display_label(el, old_labels)})
             continue
         F("deleted", el["id"],
           was={"kind": kind_of(el), "label": display_label(el, old_labels)})
@@ -1681,6 +2071,11 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             if el is None:
                 continue
             names = {a["attr"] for a in c["attrs"] if not a.get("derived")}
+            if "name" in names and el.get("type") == "frame":
+                for a in c["attrs"]:
+                    if a["attr"] == "name":
+                        F("renamed", c["id"],
+                          **{"from": a["from"], "to": a["to"]})
             if names & {"width", "height"}:
                 F("resized", c["id"], label=display_label(el, new_labels))
             styled = names & STYLE_ATTRS
@@ -1689,7 +2084,7 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             if "frameId" in names:
                 pass  # regrouped — handled by the wireframe table
             if "customData" in names and role_of(el) == "annotation":
-                F("annotated", c["id"], text=el.get("text", ""),
+                F("annotated", c["id"], text=_anno_text(el),
                   target=_nearest_target(el, new_els))
         elif c["op"] == "reorder":
             for eid in (c.get("moved") or
@@ -2048,6 +2443,18 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
         return role_of(el) == "node" and el.get("type") in ("rectangle",
                                                             "ellipse")
 
+    # entity attribute rows (composite decorations tagged attr_of)
+    for el in adds:
+        target = (el.get("customData") or {}).get("attr_of")
+        if target:
+            F("attribute_added", target, attribute=_anno_text(el),
+              entity=display_label(new_ix.get(target, el), new_labels))
+    for el in dels:
+        target = (el.get("customData") or {}).get("attr_of")
+        if target and target in new_ix:
+            F("attribute_removed", target, attribute=_anno_text(el),
+              entity=display_label(new_ix.get(target, el), new_labels))
+
     for el in adds:
         if el.get("type") == "arrow":
             s, e, sl, el_ = _arrow_ends(el, new_ix, new_labels)
@@ -2123,17 +2530,20 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
 # mechanical summary (verb counts, salience headline, suppression)
 # ---------------------------------------------------------------------------
 
-SALIENCE = ["rewired", "relationship_rewired", "actor_reassigned",
+SALIENCE = ["rewired", "relationship_rewired", "rerouted",
+            "actor_reassigned",
             "message_reordered", "cardinality_changed", "ownership_changed",
             "party_kind_changed", "fold_crossed", "type_changed",
             "screen_added", "screen_deleted", "entity_renamed", "renamed",
             "label_renamed", "branch_added", "step_added", "entity_added",
-            "actor_added", "lane_added", "handoff_added", "added",
+            "actor_added", "lane_added", "handoff_added",
+            "attribute_added", "attribute_removed", "added",
             "step_deleted", "entity_deleted", "actor_deleted",
             "lane_deleted", "deleted", "regrouped", "sync_changed",
             "label_added", "transition_added", "transition_deleted",
             "relationship_added", "relationship_deleted", "message_added",
-            "message_deleted", "annotated", "pin_added", "priority_changed",
+            "message_deleted", "annotated", "annotation_deleted",
+            "pin_added", "pin_deleted", "priority_changed",
             "activation_changed", "moved", "resized", "reordered",
             "restyled", "saved_no_changes"]
 
@@ -2147,6 +2557,33 @@ def headline_for(fact):
                                        fact.get("from"), fact.get("to"))
     if n in ("renamed", "entity_renamed", "label_renamed"):
         return "renamed %r → %r" % (fact.get("from"), fact.get("to"))
+    # explicit branches for facts the suffix rules would mangle — no
+    # fact may fall through to a bare verb ("resized (+3 more)")
+    if n == "added":
+        return "added %s" % (fact.get("label") or fact["element"])
+    if n == "resized":
+        return "resized %s" % (fact.get("label") or fact["element"])
+    if n == "restyled":
+        return "restyled %s (%s)" % (fact["element"],
+                                     ", ".join(fact.get("attrs") or []))
+    if n == "reordered":
+        return "reordered %s" % (fact.get("label") or fact["element"])
+    if n == "rerouted":
+        return "rerouted %s" % (fact.get("arrow") or fact["element"])
+    if n == "attribute_added":
+        return "%s gained attribute %r" % (fact.get("entity")
+                                           or fact["element"],
+                                           fact.get("attribute"))
+    if n == "attribute_removed":
+        return "%s lost attribute %r" % (fact.get("entity")
+                                         or fact["element"],
+                                         fact.get("attribute"))
+    if n == "annotation_deleted":
+        return "removed note: %r" % (fact.get("text") or "")[:60]
+    if n == "pin_added":
+        return "asked: %r" % (fact.get("question") or "")[:60]
+    if n == "pin_deleted":
+        return "removed pin %s" % fact["element"]
     if n.endswith("_added") and n != "label_added":
         return "added %s" % (fact.get("label") or fact.get("name")
                              or (fact.get("between") and
@@ -2218,8 +2655,26 @@ def mechanical_summary(facts, sentinel_suppressed):
             if extra > 0:
                 headline += " (+%d more)" % extra
             break
+    else:
+        # a fact type SALIENCE doesn't know must still headline itself
+        if visible:
+            headline = headline_for(visible[0])
+            if len(visible) > 1:
+                headline += " (+%d more)" % (len(visible) - 1)
     return {"verb_counts": verb_counts, "headline": headline,
             "suppressed": suppressed}
+
+
+def _registry_headline(reg_changes):
+    """Headline for a batch whose only recorded work was registry ops."""
+    def describe(ch):
+        action = str(ch.get("action") or "registry change").replace("_", " ")
+        ident = ch.get("id") or ch.get("concept") or ch.get("name") or ""
+        return ("%s %s" % (action, ident)).strip()
+    head = "registry: " + describe(reg_changes[0])
+    if len(reg_changes) > 1:
+        head += " (+%d more)" % (len(reg_changes) - 1)
+    return head
 
 
 # ---------------------------------------------------------------------------
@@ -2228,6 +2683,14 @@ def mechanical_summary(facts, sentinel_suppressed):
 
 def _set_label(els, index, existing, el, value):
     """Set, replace, or clear (value None/"") an element's bound label."""
+    if el.get("type") == "frame":
+        # Frames carry their name natively (make_element parity). The
+        # missing branch here was the frame-rename bug: `mod label` on a
+        # frame minted a bound text element floating over the frame's
+        # members while `name` stayed stale (capability assessment
+        # 2026-08-08, the '?' frame captioned 'Notifications').
+        el["name"] = value or el.get("name") or el["id"]
+        return
     if el.get("type") == "text":
         # `mod label` on a text element means its text — never a bound
         # label (text-in-text renders one character wide; see ART-010)
@@ -2487,6 +2950,13 @@ def intent_echo(ops, els):
         if el.get("type") in ("arrow", "line"):
             s = (el.get("startBinding") or {}).get("elementId")
             d = (el.get("endBinding") or {}).get("elementId")
+            if not s and not d and (
+                    el.get("type") == "line" or
+                    (el.get("customData") or {}).get("role") ==
+                    "decoration"):
+                return "line %s at (%d,%d), %d points" % (
+                    eid, el.get("x", 0), el.get("y", 0),
+                    len(el.get("points") or []))
             return "arrow %s binds %s → %s" % (eid, s or "∅ (unbound)",
                                                d or "∅ (unbound)")
         lbl = labels.get(eid)
@@ -2499,8 +2969,11 @@ def intent_echo(ops, els):
     for i, op in enumerate(ops):
         kind = op.get("op")
         if kind == "add":
-            spec = op.get("element") or {}
-            eid = spec.get("id") or slugify(spec.get("label", "") or "el")
+            # flat-form adds (attrs at op level) must echo like nested ones
+            spec = op.get("element") or \
+                {k: v for k, v in op.items() if k != "op"}
+            eid = spec.get("id") or slugify(spec.get("label", "")
+                                            or spec.get("text", "") or "el")
             lines.append("op %d (add): %s" % (i, describe(eid)))
         elif kind == "mod":
             lines.append("op %d (mod %s): %s"
@@ -2511,10 +2984,32 @@ def intent_echo(ops, els):
             lines.append("op %d (del): %s %s" % (
                 i, eid, "deleted (with its bound label)"
                 if eid not in ix else "STILL PRESENT"))
+        elif kind == "reorder":
+            eid = op.get("id")
+            order = [e["id"] for e in els]
+            pos = order.index(eid) if eid in order else -1
+            lines.append("op %d (reorder): %s now at z-index %d of %d"
+                         % (i, eid, pos, len(order)))
+        elif kind == "pin":
+            eid = op.get("id")
+            state = "❓ on canvas" if eid in ix else "NOT on canvas"
+            lines.append("op %d (pin): %s targets %s — %r (%s)"
+                         % (i, eid, op.get("target"),
+                            (op.get("question") or "")[:50], state))
+        elif kind == "resolve_pin":
+            eid = op.get("id")
+            glyph = "❓ glyph removed from canvas" if eid not in ix \
+                else "❓ glyph STILL on canvas"
+            lines.append("op %d (resolve_pin): %s resolved (%s)"
+                         % (i, eid, glyph))
+        elif kind == "registry":
+            ident = op.get("id") or op.get("concept") or op.get("name") or ""
+            lines.append(("op %d (registry): %s %s"
+                          % (i, op.get("action"), ident)).rstrip())
     return lines
 
 
-FLOW_KINDS = {"source", "transform", "agent", "control", "sink"}
+FLOW_KINDS = {"source", "transform", "agent", "control", "sink", "store"}
 
 
 def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
@@ -2572,9 +3067,11 @@ def lint_layout(els):
 
     shapes = [e for e in els if e.get("type") in
               ("rectangle", "diamond", "ellipse")
-              and role_of(e) not in ("label", "pin")]
+              and role_of(e) not in ("label", "pin", "decoration",
+                                     "annotation")]
     arrows = [e for e in els if e.get("type") in ("arrow", "line")
-              and e.get("points")]
+              and e.get("points")
+              and role_of(e) != "decoration"]
     nodes = [e for e in shapes if role_of(e) == "node" or
              (e.get("customData") or {}).get("kind")]
 
@@ -2631,13 +3128,13 @@ def lint_layout(els):
             if k not in FLOW_KINDS:
                 continue
             if k not in ("source",) and inbound[eid] and not outbound[eid] \
-                    and k != "sink":
+                    and k not in ("sink", "store"):
                 errors.append(
                     "%s is a black hole — flow enters and never leaves. "
                     "Every gap like this is a conversation not yet had: "
                     "ask it, don't just patch it" % name(eid))
-            if k not in ("sink",) and outbound[eid] and not inbound[eid] \
-                    and k != "source":
+            if k not in ("sink", "store") and outbound[eid] \
+                    and not inbound[eid] and k != "source":
                 errors.append(
                     "%s is a miracle — flow leaves it but nothing feeds "
                     "it. Same rule: this is a question, then a repair"
@@ -2710,6 +3207,12 @@ def lint_layout(els):
                     % (e["id"], name(n["id"])))
     for i, a in enumerate(shapes):
         for b in shapes[i + 1:]:
+            # declared containment (customData.parent) is nesting, not
+            # collision — a card inside its shelf never lints
+            pa = (a.get("customData") or {}).get("parent")
+            pb = (b.get("customData") or {}).get("parent")
+            if pa == b["id"] or pb == a["id"] or (pa and pa == pb):
+                continue
             ox = min(a["x"] + a.get("width", 0), b["x"] + b.get("width", 0)) \
                 - max(a["x"], b["x"])
             oy = min(a["y"] + a.get("height", 0),
@@ -2725,6 +3228,26 @@ def lint_layout(els):
     # demo shipped a note lying across a node for five rounds
     annos = [e for e in els if e.get("type") == "text"
              and role_of(e) == "annotation"]
+    if len(annos) > 2:
+        notes.append(
+            "%d annotation callouts (budget: 2 per artifact) — fold the "
+            "rest into chat or docs (references/layout.md)" % len(annos))
+    # label↔label collision (live_test_2 B6): a label can be clear of its
+    # own stroke and run yet sit on another arrow's label — stacked labels
+    # read as one caption
+    bound_labels = [e for e in els if e.get("type") == "text"
+                    and e.get("containerId")]
+    for i_, la in enumerate(bound_labels):
+        for lb in bound_labels[i_ + 1:]:
+            ox = min(la["x"] + la.get("width", 0),
+                     lb["x"] + lb.get("width", 0)) - max(la["x"], lb["x"])
+            oy = min(la["y"] + la.get("height", 0),
+                     lb["y"] + lb.get("height", 0)) - max(la["y"], lb["y"])
+            if ox > 6 and oy > 4:
+                warnings.append(
+                    "labels %r and %r overlap — nudge one clear"
+                    % ((la.get("text") or "")[:24],
+                       (lb.get("text") or "")[:24]))
     for t in annos:
         for n in nodes:
             ox = min(t["x"] + t.get("width", 0),
@@ -2939,7 +3462,7 @@ def parse_glossary_terms(text):
     return terms
 
 
-def lint_registry(terms, registry):
+def lint_registry(terms, registry, context_exists=False):
     """Registry-level discipline notes (NOTE tier, artifact-independent):
     settled glossary terms with no concept behind them (ADR 0007 — a term
     settling IS a concept being minted), unpaid view debt (ADR 0006 —
@@ -2963,6 +3486,24 @@ def lint_registry(terms, registry):
             "— a term settling IS a concept being minted (ADR 0007); add "
             "upsert_concept registry ops (glossary: the term) in your "
             "next revision" % (len(orphans), shown, more))
+    # reverse direction (capability assessment): a concept CLAIMING a
+    # glossary term the glossary doesn't hold is drift too
+    term_set = {t.lower() for t in terms}
+    ghosts = [c for c in concepts if c.get("glossary")
+              and str(c["glossary"]).lower() not in term_set]
+    if ghosts and (terms or context_exists):
+        shown = ", ".join(repr(c["glossary"]) for c in ghosts[:4])
+        notes.append(
+            "%d concept(s) reference glossary terms CONTEXT.md doesn't "
+            "define: %s — settle the term into the glossary or drop the "
+            "concept's glossary link" % (len(ghosts), shown))
+    # ADR 0010 residual risk: a glossary that parses to nothing must be
+    # loud, not indistinguishable from no glossary
+    if context_exists and not terms:
+        notes.append(
+            "CONTEXT.md exists but zero glossary terms parsed — use the "
+            "CONTEXT-FORMAT term shape (`**Term**:` or `**Term** — `) or "
+            "the glossary discipline is running on air")
     for c in concepts:
         if c.get("owed"):
             notes.append(
@@ -3030,9 +3571,11 @@ def project_lint(project, els, registry=None):
     lint = lint_layout(els)
     avoid, terms = {}, []
     ctx = project.pk / "CONTEXT.md"
+    ctx_exists = False
     try:
         if ctx.exists():
             text = ctx.read_text(encoding="utf-8")
+            ctx_exists = bool(text.strip())
             avoid = parse_glossary_avoid(text)
             terms = parse_glossary_terms(text)
     except OSError:
@@ -3041,7 +3584,8 @@ def project_lint(project, els, registry=None):
     extra = lint_glossary(els, avoid, has_map)
     out = {k: lint[k] + extra[k] for k in ("errors", "warnings", "notes")}
     if registry is not None:
-        out["notes"] = out["notes"] + lint_registry(terms, registry)
+        out["notes"] = out["notes"] + lint_registry(terms, registry,
+                                                    ctx_exists)
     return out
 
 
@@ -3121,6 +3665,7 @@ class Store:
         # artifacts on disk
         self.scenes = {}
         self.artifact_meta = {}
+        self.artifact_files = {}   # image blobs (fileId -> dataURL entry)
         for f in sorted(self.p.artifacts_dir.glob("*.excalidraw")):
             aid = f.stem
             try:
@@ -3141,6 +3686,8 @@ class Store:
                 self.log("repair: %s %s" % (i.code, i.msg))
             self.scenes[aid] = doc["elements"]
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
+            if doc.get("files"):
+                self.artifact_files[aid] = doc["files"]
         # heal orphaned pins: a registry pin whose ❓ element no longer
         # exists anywhere is unresolvable through ops — prune it at load so
         # corrupted state always has a repair path
@@ -3212,7 +3759,8 @@ class Store:
     # -- commit -----------------------------------------------------------
     def commit(self, author, new_scenes, base_revn=None, selection=None,
                user_note=None, fork_name=None, registry_ops=None,
-               new_meta=None, reconciliation=False):
+               new_meta=None, reconciliation=False, extra_facts=None,
+               resolved_pins=None, new_files=None):
         """The one write path. new_scenes: {artifact_id: element list}
         (only changed artifacts need be present). Returns the save record."""
         with self.lock:
@@ -3250,6 +3798,11 @@ class Store:
                     "artifact_type") or self.artifact_type(aid)
                 facts = semantic_facts(old, new_norm, diff, atype,
                                        self.tier_of(atype), consequences)
+                # intent facts the differ cannot see (e.g. `rerouted` from
+                # an explicit points mod — its attr entries are derived,
+                # so without this the batch narrates as an empty save)
+                for f in (extra_facts or {}).get(aid, []):
+                    facts.append(dict(f))
                 for f in facts:
                     if f.get("consequence_of") is None and \
                             f["fact"] != "saved_no_changes" and f["element"]:
@@ -3280,16 +3833,78 @@ class Store:
             for p in self.registry["pins"]:
                 if p.get("status") in ("open", "answered"):
                     if p["id"] in deleted_all:
-                        p["status"] = "dismissed"
+                        # resolve_pin deletes the glyph too — that deletion
+                        # is resolution, not the user's "not worth
+                        # explaining" dismissal
+                        p["status"] = "resolved" if p["id"] in \
+                            (resolved_pins or ()) else "dismissed"
                     elif p.get("element") and p["element"] in deleted_all:
                         p["status"] = "pruned"
+            # user comment pins (Phase 5): a ❓ element the USER drew that
+            # the registry doesn't know becomes a user-authored question
+            # in the agent's queue (PIN_DEBT surfaces it)
+            if author == "user":
+                known_pin_ids = {p["id"] for p in self.registry["pins"]}
+                for aid2, part in artifacts.items():
+                    for c in part["changes"]:
+                        if c["op"] != "add":
+                            continue
+                        elx = c["element"]
+                        cdx = elx.get("customData") or {}
+                        if cdx.get("role") == "pin" and \
+                                elx["id"] not in known_pin_ids:
+                            self.registry["pins"].append({
+                                "id": elx["id"], "artifact": aid2,
+                                "element": cdx.get("target"),
+                                "question": cdx.get("question") or "",
+                                "status": "open", "answer": None,
+                                "direction": "user",
+                                "asked_at_revn": revn,
+                                "round": self.registry.get("round", 0),
+                                "detail": None, "examples": []})
+            # PIN_DEBT bookkeeping: an open question whose TARGET keeps
+            # changing is aging badly — count the edits
+            for p in self.registry["pins"]:
+                if p.get("status") in ("open", "answered") and \
+                        p.get("element"):
+                    key = "%s#%s" % (p.get("artifact"), p["element"])
+                    if key in changed_elements:
+                        p["target_edits"] = p.get("target_edits", 0) + 1
+
+            # registry ops apply BEFORE the summary so a registry-only
+            # batch headlines its registry work instead of "saved without
+            # changing anything" (capability assessment finding)
+            reg_changes = []
+            if registry_ops:
+                reg_errors = []
+                reg_changes = self._apply_registry_ops(registry_ops,
+                                                       reg_errors)
+                if reg_errors:
+                    raise BatchError(reg_errors)
 
             facts_flat = [f for a in artifacts.values() for f in a["facts"]]
             if not facts_flat:
                 facts_flat = [{"fact": "saved_no_changes", "element": None}]
             sentinel = 0
             summary = mechanical_summary(facts_flat, sentinel)
-            tripwires = self._check_tripwires(changed_elements, revn)
+            if reg_changes and all(f["fact"] == "saved_no_changes"
+                                   for f in facts_flat):
+                summary["headline"] = _registry_headline(reg_changes)
+            new_map_keys = {
+                self._mapping_key(ch)
+                for ch in reg_changes
+                if ch.get("action") == "add_mapping" and ch.get("elements")}
+            # a batch that RESOLVES a tripwire and executes its answer
+            # (propagating the change to the sibling) must not re-trip the
+            # same mapping in the other direction — that's convergence,
+            # not divergence (found by the Argus acceptance run)
+            resolved_tw = {o.get("id") for o in (registry_ops or [])
+                           if o.get("action") == "resolve_tripwire"}
+            for t in self.registry["tripwires"]:
+                if t.get("id") in resolved_tw and t.get("mapping"):
+                    new_map_keys.add(t["mapping"])
+            tripwires = self._check_tripwires(changed_elements, revn,
+                                              new_map_keys)
             all_tripwires.extend(tripwires)
 
             slug = slugify(next(iter(artifacts), "empty"))
@@ -3311,20 +3926,17 @@ class Store:
                           (self.records.get(base) or {}).get("author")
                           != "agent" else 0),
                 "saved_at": now_iso(),
+                # origin stamp (live_test_2 B7): multi-session writes must
+                # stay attributable
+                "origin": {"pid": os.getpid()},
                 "selection_at_save": selection or [],
                 "user_note": user_note,
                 "reconciliation": bool(reconciliation),
                 "artifacts": artifacts,
-                "registry_changes": [],
+                "registry_changes": reg_changes,
                 "summary": summary,
                 "tripwires": all_tripwires,
             }
-            if registry_ops:
-                reg_errors = []
-                record["registry_changes"] = self._apply_registry_ops(
-                    registry_ops, reg_errors)
-                if reg_errors:
-                    raise BatchError(reg_errors)
             record["short_id"] = hashlib.sha1(
                 json.dumps(record, sort_keys=True, default=str)
                 .encode("utf-8")).hexdigest()[:7]
@@ -3333,6 +3945,11 @@ class Store:
             rec_path = self.p.saves_dir / ("%04d-%s.json" % (revn, slug))
             write_json(rec_path, record)
             self.records[revn] = record
+            for aid, fmap in (new_files or {}).items():
+                if isinstance(fmap, dict) and fmap:
+                    merged = dict(self.artifact_files.get(aid) or {})
+                    merged.update(fmap)
+                    self.artifact_files[aid] = merged
             for aid in artifacts:
                 if aid in new_scenes:
                     self._write_artifact(aid, new_scenes[aid],
@@ -3369,6 +3986,8 @@ class Store:
             "artifact_type": meta.get("artifact_type", "flow"),
             "migrations": meta.get("migrations") or ["0001-baseline"],
         }
+        if self.artifact_files.get(aid):
+            doc["files"] = self.artifact_files[aid]
         write_json(self.p.artifacts_dir / (aid + ".excalidraw"), doc)
         self.scenes[aid] = doc["elements"]
         self.artifact_meta[aid] = doc["wysiwyg"]
@@ -3407,11 +4026,16 @@ class Store:
         return list(entries.values())
 
     # -- tripwires --------------------------------------------------------
-    def _check_tripwires(self, changed_elements, revn):
+    def _check_tripwires(self, changed_elements, revn, new_mapping_keys=()):
         out = []
         if not changed_elements:
             return out
         for m in self.registry["mappings"]:
+            if self._mapping_key(m) in new_mapping_keys:
+                # a mapping declared in THIS batch cannot have diverged in
+                # it — the elements it joins usually land in the same
+                # commit (registry ops now apply before this check)
+                continue
             note = m.get("note") or ""
             members = m.get("elements") or []
             hits = [e for e in members if e in changed_elements]
@@ -3576,6 +4200,14 @@ class Store:
                                         "note": op.get("note")})
             elif action == "annotate_mapping":
                 pattern = op.get("pattern")
+                if pattern is not None and not isinstance(pattern, dict):
+                    # a string pattern used to CRASH the server
+                    # ('str' has no attribute 'get' — live_test_2 B2)
+                    errors.append(
+                        "registry op %d: `pattern` must be an object, e.g. "
+                        "{\"types\": [\"wireframe\", \"flow\"], "
+                        "\"concept\": \"checkout\"} — got %r" % (i, pattern))
+                    continue
                 if pattern:
                     # class-level ruling: ONE record covers every mapping
                     # matching the pattern, now and in the future — the demo
@@ -3758,13 +4390,25 @@ class Store:
                                      "view_types":
                                          {aid: create.get("type", "flow")}})
 
+            # explicit points mods are intent, but their diff entries are
+            # derived (bound-arrow geometry) — surface them as facts so
+            # a hand-reroute never narrates as an empty save
+            reroutes = [{"fact": "rerouted", "element": o.get("id"),
+                         "arrow": o.get("id")}
+                        for o in ops if o.get("op") == "mod"
+                        and isinstance(o.get("attrs"), dict)
+                        and "points" in o["attrs"]]
+            resolved_now = {o.get("id") for o in ops
+                            if o.get("op") == "resolve_pin"}
             record = self.commit(
                 author="agent",
                 new_scenes={aid: new_els},
                 base_revn=base_revn,
                 user_note=batch.get("note"),
                 registry_ops=registry_ops,
-                new_meta=new_meta)
+                new_meta=new_meta,
+                extra_facts={aid: reroutes} if reroutes else None,
+                resolved_pins=resolved_now)
             for p in pin_reg:
                 self.registry["pins"].append({
                     "id": p["id"], "artifact": aid, "element": p["target"],
@@ -3911,8 +4555,129 @@ class Store:
                                  new_meta=new_meta,
                                  reconciliation=True)
             self.reconciliation = record["revn"]
+            # live_test_2 B4: reconciliation passes the same lint gate as
+            # any apply — the revn-17 restart rerouted an arrow into a
+            # 45×176 diagonal with zero warnings fired
+            lint_all = {}
+            for aid in record["artifacts"]:
+                li = project_lint(self.p, self.scenes.get(aid, []),
+                                  self.registry)
+                if li["errors"] or li["warnings"] or li["notes"]:
+                    lint_all[aid] = li
+            if lint_all:
+                record["lint"] = lint_all
+                for pth in self.p.saves_dir.glob("%04d-*.json"
+                                                 % record["revn"]):
+                    write_json(pth, record)
+                for aid, li in lint_all.items():
+                    for tier, items in (("ERROR", li["errors"]),
+                                        ("WARNING", li["warnings"])):
+                        for msg in items:
+                            self.log("reconciliation lint %s [%s]: %s"
+                                     % (tier, aid, msg))
             self.log("reconciliation record %d written" % record["revn"])
             return record
+
+    def lint_debt(self):
+        """Standing cross-artifact lint summary (live_test_2 B5 — apply
+        reports only the touched artifact, so drift elsewhere stayed
+        invisible). Cached per head revn; the standing-nag principle:
+        any invariant that can drift through a side channel must be
+        recomputed on every apply, not checked at write time."""
+        with self.lock:
+            key = self.head_revn()
+            cached = getattr(self, "_lint_debt_cache", None)
+            if cached and cached[0] == key:
+                return cached[1]
+            debt = {}
+            for aid, els in sorted(self.scenes.items()):
+                li = project_lint(self.p, els)
+                counts = {k: len(li[k])
+                          for k in ("errors", "warnings", "notes")}
+                if any(counts.values()):
+                    debt[aid] = counts
+            reg = project_lint(self.p, [], self.registry)
+            if reg["notes"]:
+                debt["registry"] = {"errors": 0, "warnings": 0,
+                                    "notes": len(reg["notes"])}
+            self._lint_debt_cache = (key, debt)
+            return debt
+
+    def pin_debt(self):
+        """Open/answered pins with age in rounds and how often their
+        target changed since asking (v0.2 PIN_DEBT — clone of the
+        VIEW_DEBT standing-nag mechanism)."""
+        with self.lock:
+            rnd = self.registry.get("round", 0)
+            return [{"id": p["id"], "artifact": p.get("artifact"),
+                     "status": p.get("status"),
+                     "direction": p.get("direction", "agent"),
+                     "age_rounds": max(0, rnd - (p.get("round") or 0)),
+                     "target_edits": p.get("target_edits", 0)}
+                    for p in self.registry["pins"]
+                    if p.get("status") in ("open", "answered")]
+
+    def tidy(self, aid):
+        """One-click repair (Phase 6): snap nodes to the 4px grid,
+        re-route server-owned arrows, re-fan attach points, normalize
+        z-order — committed as an ordinary agent revision the user can
+        revert."""
+        with self.lock:
+            base = self.scenes.get(aid)
+            if base is None:
+                raise BatchError(["tidy: unknown artifact %r" % aid])
+            els = [dict(e) for e in base]
+            index = {e["id"]: e for e in els}
+            snapped = 0
+            for e in els:
+                if e.get("type") in ("rectangle", "diamond", "ellipse",
+                                     "frame") and \
+                        role_of(e) not in ("label", "pin"):
+                    nx = int(round(e.get("x", 0) / 4.0)) * 4
+                    ny = int(round(e.get("y", 0) / 4.0)) * 4
+                    if nx != e.get("x") or ny != e.get("y"):
+                        e["x"], e["y"] = nx, ny
+                        snapped += 1
+                        recenter_label(els, e)
+            obstacles = [e for e in els
+                         if e.get("type") in ("rectangle", "diamond",
+                                              "ellipse")
+                         and (e.get("customData") or {}).get("role")
+                         not in ("label", "pin", "decoration",
+                                 "annotation")]
+            rerouted = 0
+            for e in els:
+                if e.get("type") != "arrow":
+                    continue
+                s = index.get((e.get("startBinding") or {})
+                              .get("elementId"))
+                d = index.get((e.get("endBinding") or {}).get("elementId"))
+                if s is not None and d is not None and \
+                        server_owns_geometry(e):
+                    route_arrow(e, s, d, obstacles)
+                    recenter_label(els, e)
+                    rerouted += 1
+            fan_attach_points(els)
+            els = normalize_z_order(els)
+            return self.commit(
+                author="agent", new_scenes={aid: els},
+                base_revn=self.head_revn(),
+                user_note="tidy: snapped %d node(s) to grid, re-routed "
+                          "%d arrow(s), normalized z-order"
+                          % (snapped, rerouted))
+
+    def label_save(self, revn, label):
+        """Bookmark a save (Phase 6): a short human name shown in the
+        timeline and graph. Stored on the record; content-addressing
+        (short_id) is unaffected."""
+        with self.lock:
+            rec = self.records.get(revn)
+            if rec is None:
+                raise BatchError(["save-label: no revn %r" % revn])
+            rec["label"] = (label or "").strip()[:60] or None
+            for pth in self.p.saves_dir.glob("%04d-*.json" % revn):
+                write_json(pth, rec)
+            return rec
 
     def accept_rollback(self):
         """Re-anchor: commit the rolled-back disk state as a new record."""
@@ -3956,6 +4721,7 @@ class Store:
                     "short_id": r.get("short_id", ""),
                     "saved_at": r.get("saved_at", ""),
                     "headline": (r.get("summary") or {}).get("headline", ""),
+                    "label": r.get("label"),
                     "reconciliation": r.get("reconciliation", False),
                     "tripwires": len(r.get("tripwires") or []),
                     "artifacts": sorted((r.get("artifacts") or {}).keys()),
@@ -3970,6 +4736,7 @@ class Store:
                     "tier": self.tier_of(m.get("artifact_type", "flow")),
                     "concept": c["id"] if c else None,
                     "elements": els,
+                    "files": self.artifact_files.get(aid) or {},
                 }
             return {
                 "protocol_version": PROTOCOL_VERSION,
@@ -3984,6 +4751,8 @@ class Store:
                 "mappings": self.registry["mappings"],
                 "pins": self.registry["pins"],
                 "tripwires": self.registry["tripwires"],
+                "lint_debt": self.lint_debt(),
+                "pin_debt": self.pin_debt(),
                 "declined": self.registry["declined"],
                 "config": self.config,
                 "artifacts": artifacts,
@@ -4188,7 +4957,8 @@ class ServerApp:
                     base_revn=body.get("base_revn"),
                     selection=body.get("selection"),
                     user_note=body.get("note"),
-                    fork_name=body.get("fork_name"))
+                    fork_name=body.get("fork_name"),
+                    new_files=body.get("files"))
             except StaleError as e:
                 return err(409, str(e), stale=True,
                            head_revn=e.head_revn)
@@ -4254,7 +5024,9 @@ class ServerApp:
                     "intent_echo": intent_echo(body.get("ops") or [], scene),
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
-                    "layout_notes": lint["notes"]}
+                    "layout_notes": lint["notes"],
+                    "lint_debt": self.store.lint_debt(),
+                    "pin_debt": self.store.pin_debt()}
         if path == "/api/pending/resolve":
             pid = body.get("id")
             action = body.get("action")
@@ -4328,6 +5100,26 @@ class ServerApp:
             self.events.append("branch_archive", branch=b["name"],
                                archived=b["archived"])
             return {"ok": True, "branch": b}
+        if path == "/api/tidy":
+            aid = body.get("artifact")
+            try:
+                record = self.store.tidy(aid)
+            except (BatchError, StaleError) as e:
+                return err(400, str(e))
+            self.events.append("agent_revision", revn=record["revn"],
+                               short_id=record["short_id"],
+                               headline=record["summary"]["headline"],
+                               tidy=True)
+            return {"ok": True, "revn": record["revn"],
+                    "headline": record["summary"]["headline"]}
+        if path == "/api/save-label":
+            try:
+                rec = self.store.label_save(int(body.get("revn") or 0),
+                                            body.get("label"))
+            except (BatchError, ValueError) as e:
+                return err(400, str(e))
+            return {"ok": True, "revn": rec["revn"],
+                    "label": rec.get("label")}
         if path == "/api/rollback/accept":
             rec = self.store.accept_rollback()
             if rec is None:
@@ -4477,6 +5269,24 @@ def make_handler(app):
                         return self._send_json(
                             {"ok": False, "error": "no revn %d" % revn}, 404)
                     return self._send_json({"ok": True, "record": rec})
+                if path.startswith("/api/doc/"):
+                    # report reader: markdown from project_knowledge only,
+                    # path-sandboxed (never serve outside the project)
+                    rel = urllib.parse.unquote(path[len("/api/doc/"):])
+                    base = app.project.pk.resolve()
+                    target = (base / rel).resolve()
+                    if base not in target.parents and target != base:
+                        return self._send_json(
+                            {"ok": False, "error": "path escapes "
+                             "project_knowledge"}, 403)
+                    if not target.is_file() or target.suffix.lower() not in \
+                            (".md", ".txt"):
+                        return self._send_json(
+                            {"ok": False,
+                             "error": "no such document %r" % rel}, 404)
+                    return self._send_json({
+                        "ok": True, "path": rel,
+                        "content": target.read_text(encoding="utf-8")})
                 if path.startswith("/render/"):
                     # minimal rasterization surface for the snapshot CLI's
                     # headless tier: no app, no fonts race — just the SVG
@@ -4771,6 +5581,17 @@ def cmd_status(args):
                                  ",".join(c["owed"]))
                  for c in st.get("concepts") or [] if c.get("owed"))
                  or "none",
+             lint_debt="; ".join(
+                 "%s %s" % (aid, "/".join(
+                     "%d%s" % (v, k[0].upper())
+                     for k, v in c.items() if v))
+                 for aid, c in sorted(
+                     (st.get("lint_debt") or {}).items())) or "none",
+             pin_debt="; ".join(
+                 "%s(%s, age %dr, target edited %d×)"
+                 % (p["id"], p["status"], p["age_rounds"],
+                    p["target_edits"])
+                 for p in st.get("pin_debt") or []) or "none",
              checkout_revn=st.get("checkout_revn"),
              rollback=st.get("rollback"),
              events_seq=st.get("events_seq"),
@@ -4891,12 +5712,13 @@ def cmd_apply(args):
                  headline=(resp.get("summary") or {}).get("headline"))
         for line in resp.get("intent_echo") or []:
             print("ECHO=%s" % line)
-        for e in resp.get("layout_errors") or []:
-            print("LAYOUT_ERROR=%s" % e)
+        for err in resp.get("layout_errors") or []:
+            print("LAYOUT_ERROR=%s" % err)
         for w in resp.get("layout_warnings") or []:
             print("LAYOUT_WARNING=%s" % w)
         for n in resp.get("layout_notes") or []:
             print("LAYOUT_NOTE=%s" % n)
+        _print_debt(resp.get("lint_debt"), resp.get("pin_debt"))
         return 0
     # degraded path: no server — apply directly against the files
     store = Store(project)
@@ -4917,13 +5739,28 @@ def cmd_apply(args):
         print("ECHO=%s" % line)
     if aid:
         lint = project_lint(project, scene, store.registry)
-        for e in lint["errors"]:
-            print("LAYOUT_ERROR=%s" % e)
+        for err in lint["errors"]:
+            print("LAYOUT_ERROR=%s" % err)
         for w in lint["warnings"]:
             print("LAYOUT_WARNING=%s" % w)
         for n in lint["notes"]:
             print("LAYOUT_NOTE=%s" % n)
+    _print_debt(store.lint_debt(), store.pin_debt())
     return 0
+
+
+def _print_debt(lint_debt, pin_debt):
+    """Standing nags (v0.2): every apply restates cross-artifact drift."""
+    if lint_debt:
+        print("LINT_DEBT=" + "; ".join(
+            "%s %s" % (aid, "/".join("%d%s" % (v, k[0].upper())
+                                     for k, v in c.items() if v))
+            for aid, c in sorted(lint_debt.items())))
+    if pin_debt:
+        print("PIN_DEBT=" + "; ".join(
+            "%s(%s, age %dr, target edited %d×)"
+            % (p["id"], p["status"], p["age_rounds"], p["target_edits"])
+            for p in pin_debt))
 
 
 def cmd_snapshot(args):

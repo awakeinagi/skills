@@ -7,6 +7,7 @@ import { TripwireCard, gotoRefOf } from "./QuestionUI";
 export function Rail({
   state, currentArtifact, viewingRevn, onAnswerPin, onAnswerTripwire,
   onGoto, onOpenDetail, onSwitchBranch, onArchive, onViewCommit,
+  onDismissPin, onLabelSave,
 }: {
   state: any; currentArtifact: string | null; viewingRevn: number | null;
   onAnswerPin: (id: string, answer: string) => void;
@@ -16,6 +17,8 @@ export function Rail({
   onSwitchBranch: (name: string) => void;
   onArchive: (name: string, archived: boolean) => void;
   onViewCommit: (revn: number) => void;
+  onDismissPin?: (pin: any) => void;
+  onLabelSave?: (revn: number, current: string) => void;
 }) {
   const [showArchivedChips, setShowArchivedChips] = useState(false);
   const [showPinArchive, setShowPinArchive] = useState(false);
@@ -251,6 +254,12 @@ export function Rail({
               )}
               <button className="linkish"
                 onClick={() => onOpenDetail("pin", p)}>ⓘ details</button>
+              {onDismissPin && (
+                <button className="linkish dismiss"
+                  disabled={viewingRevn != null}
+                  title="delete the ❓ — reads as “not worth explaining”, never re-raised"
+                  onClick={() => onDismissPin(p)}>✕ dismiss</button>
+              )}
             </div>
           </div>
         ))}
@@ -344,8 +353,11 @@ export function Rail({
               title={`view the project at save ${s.revn}`}
             >
               <div className="dot-col"><span className={`adot ${s.author}`} /></div>
-              <div>
-                <div className="gist">{s.headline || "(no summary)"}</div>
+              <div className="tl-body">
+                <div className="gist">
+                  {s.headline || "(no summary)"}
+                  {s.label && <span className="save-label">🔖 {s.label}</span>}
+                </div>
                 <div className="meta">
                   <span className="short">{s.short_id}</span>
                   <span>#{s.revn}</span>
@@ -355,6 +367,13 @@ export function Rail({
                   {s.tripwires > 0 && <span className="tw-badge">⚠ {s.tripwires}</span>}
                 </div>
               </div>
+              {onLabelSave && (
+                <button
+                  className="bookmark-btn"
+                  title={s.label ? `bookmarked “${s.label}” — click to rename or clear` : "bookmark this save with a short name"}
+                  onClick={(e) => { e.stopPropagation(); onLabelSave(s.revn, s.label || ""); }}
+                >🔖</button>
+              )}
             </div>
           ))}
           {!shownSaves.length && <div className="map-status">No saves yet — the first Save starts the history.</div>}

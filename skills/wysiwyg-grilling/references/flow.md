@@ -24,7 +24,9 @@ and "everything freezes here" are different claims than "code runs":
 
 `source` (data enters) · `transform` (deterministic work) · **`agent`**
 (nondeterministic — a model decides) · **`control`** (gate, cutoff,
-deadline, freeze) · `sink` (leaves the system).
+deadline, freeze) · `sink` (leaves the system) · `store` (data at rest —
+a legal flow terminal like sink; draw it as a rounded rectangle via
+`roundness`).
 
 Two duties ride the kinds: **every `agent` node owes a "what does it do
 when it's unsure?" question** — its answer is a content rule the design
