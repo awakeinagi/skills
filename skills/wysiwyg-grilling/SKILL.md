@@ -291,9 +291,20 @@ first complex batch of a session):
 - **Registry ops ride the same batch** — there is no silent registry write.
   Every `model.json` change appears in that round's narration.
 - **Complexity budget: max 9 nodes AND max 12 arrows per artifact** — two
-  separate limits, and the arrow limit is the one that usually fires first
-  (edges collide, nodes don't). Over budget → propose a second view, don't
-  shrink the font.
+  separate limits (8 entities on a domain view), and the arrow limit is
+  the one that usually fires first (edges collide, nodes don't). Over
+  budget → propose a second view, don't shrink the font — or, when the
+  overage IS the design (a 5-way fan that is the point of the view),
+  record it: registry op `set_budget` with a REQUIRED reason.
+- **Composed kinds & hover detail**: `kind: kpi|checkbox|toggle|slider`
+  compose their glyphs server-side (`value`/`checked` mod them in place,
+  firing typed facts); verbose per-element detail goes in `tooltip`
+  (markdown, hover-only, user-editable via right-click) — never extra
+  visible rows. `verticalAlign: "top"` + `parent` is the titled-panel
+  pattern.
+- **Tripwires fired by your batch print as `TRIPWIRE=` lines** — name
+  them in the same round's narration, never discover them via `status`
+  rounds later.
 - Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
   (flow is the hub) — create element links **eagerly as you draw those
   pairs**. Domain↔wireframe stays inference-only.

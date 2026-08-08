@@ -2925,6 +2925,99 @@ class TestArgusAcceptance(Base):
         self.assertEqual(s.pin_debt(), [])
         self.assertIsInstance(s.lint_debt(), dict)
 
+    def test_v03_capability_round(self):
+        """The v0.3 additions, end to end on the Argus shape: composed
+        kinds, tooltips, budget override, tripwire visibility, fan focus,
+        authored waypoints."""
+        self._seed_argus()
+        s = self.store
+        # composed kinds land on the dashboard
+        rec, _ = s.apply_batch({
+            "base_revn": 4, "artifact": "dashboard-wireframe", "ops": [
+                {"op": "add", "element": {"type": "rectangle",
+                                          "id": "kpi-var", "kind": "kpi",
+                                          "label": "VaR", "value": "2.4%",
+                                          "x": 480, "y": 120, "width": 160,
+                                          "height": 80,
+                                          "frameId": "screen-dashboard"}},
+                {"op": "add", "element": {"type": "rectangle",
+                                          "id": "cb-macro",
+                                          "kind": "checkbox",
+                                          "label": "Macro calendar",
+                                          "checked": False,
+                                          "x": 60, "y": 440, "width": 200,
+                                          "height": 28,
+                                          "frameId": "screen-dashboard"}},
+                {"op": "add", "element": {"type": "rectangle",
+                                          "id": "sl-conf", "kind": "slider",
+                                          "label": "Signal confidence",
+                                          "value": 70,
+                                          "x": 280, "y": 432, "width": 240,
+                                          "height": 44,
+                                          "frameId": "screen-dashboard"}},
+            ]})
+        dash = {e["id"]: e for e in s.scenes["dashboard-wireframe"]}
+        self.assertIn("kpi-var-value", dash)
+        self.assertIn("cb-macro-box", dash)
+        self.assertIn("sl-conf-thumb", dash)
+        # value/checked mods fire typed facts with clean headlines
+        rec, _ = s.apply_batch({
+            "base_revn": 5, "artifact": "dashboard-wireframe", "ops": [
+                {"op": "mod", "id": "kpi-var", "attrs": {"value": "2.1%"}},
+                {"op": "mod", "id": "cb-macro", "attrs": {"checked": True}},
+            ]})
+        facts = [f["fact"] for f in
+                 rec["artifacts"]["dashboard-wireframe"]["facts"]]
+        self.assertIn("value_changed", facts)
+        self.assertIn("state_toggled", facts)
+        # tooltip lifecycle narrates
+        rec, _ = s.apply_batch({
+            "base_revn": 6, "artifact": "dashboard-wireframe", "ops": [
+                {"op": "mod", "id": "kpi-var",
+                 "attrs": {"tooltip": "95%, 1-day horizon."}}]})
+        self.assertIn("tooltip_added",
+                      [f["fact"] for f in
+                       rec["artifacts"]["dashboard-wireframe"]["facts"]])
+        # budget override: recorded intent, restated by the lint
+        s.apply_batch({
+            "base_revn": 7, "artifact": "pipeline-flow", "ops": [
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "pipeline-flow", "nodes": 14, "arrows": 18,
+                 "reason": "the five-way ingest fan IS this view"}]})
+        lint = canvas.project_lint(
+            self.project, s.scenes["pipeline-flow"], s.registry,
+            artifact_type="flow", aid="pipeline-flow")
+        self.assertTrue(any("budget override" in n and "ingest fan" in n
+                            for n in lint["notes"]))
+        # tripwire fired by a mapped rename is VISIBLE in the record
+        rec, _ = s.apply_batch({
+            "base_revn": 8, "artifact": "dashboard-wireframe",
+            "ops": [{"op": "mod", "id": "kpi-alpha",
+                     "attrs": {"label": "+3.1% — Excess Return"}}]})
+        self.assertTrue(rec["tripwires"])
+        self.assertTrue(rec["tripwires"][0]["id"].startswith("tw-"))
+        self.assertIn("changed but its mapped sibling",
+                      rec["tripwires"][0]["question"])
+        # the 5-way ingest fan carries real focus values
+        flow = {e["id"]: e for e in s.scenes["pipeline-flow"]}
+        fan_focus = [flow["t-%s" % n]["startBinding"].get("focus", 0)
+                     for n in ("sentiment", "fundamentals", "technical",
+                               "insider", "contrarian")]
+        self.assertTrue(any(abs(f) > 0.05 for f in fan_focus), fan_focus)
+        # authored waypoints survive the batch post-passes AND later moves
+        s.apply_batch({
+            "base_revn": 9, "artifact": "pipeline-flow", "ops": [
+                {"op": "mod", "id": "t-contrarian",
+                 "attrs": {"points": [[0, 0], [60, 0], [60, 420],
+                                      [320, 420]]}}]})
+        s.apply_batch({
+            "base_revn": 10, "artifact": "pipeline-flow", "ops": [
+                {"op": "mod", "id": "ingest", "attrs": {"x": 320}}]})
+        t = next(e for e in s.scenes["pipeline-flow"]
+                 if e["id"] == "t-contrarian")
+        self.assertEqual(t["customData"]["routed"], "authored")
+        self.assertEqual(len(t["points"]), 4)
+
 
 class TestV03ServerFixes(Base):
     """v0.3 capability-assessment bug fixes (WP1)."""

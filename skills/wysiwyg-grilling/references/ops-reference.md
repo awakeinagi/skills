@@ -112,8 +112,11 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "to": "other-node",        // arrows only: rewire end — fires REWIRED
   "points": [[0,0],[80,0],[80,-160],[320,-160]],
       // arrows/lines: hand-authored waypoints, RELATIVE to the arrow's
-      // x,y. The server re-stamps ownership, recenters the label, and
-      // renders axis-aligned paths as sharp elbows. Narrates as a
+      // x,y. v0.3: the path is marked routed:"authored" — YOURS. No
+      // later pass re-routes, re-fans, or flattens it (that's what makes
+      // `mod points` a real repair tool for shared attach points). A
+      // rewire (mod from/to) is a new path request and re-routes.
+      // Axis-aligned paths render as sharp elbows; narrates as a
       // `rerouted` fact — never an empty save.
   "kind": "sink", "role": "decoration", "intent": "…", "parent": "shelf",
   "document": "docs/x.md",   // these five fold into customData correctly
@@ -253,6 +256,13 @@ The intent echo covers EVERY op kind (add/mod/del/reorder/pin/
 resolve_pin/registry) and reflects **post-apply state** — an op that
 didn't do what it claims echoes that, not success. A registry-only batch
 headlines its registry work ("registry: upsert concept …").
+
+**Tripwires fired by your batch print as `TRIPWIRE=<id> <question>`
+lines** (and ride the apply response as `tripwires`) — read them in the
+same move; a divergence you learn about rounds later via `status` counts
+is a divergence you narrated late (v0.3). Every op-made element carries
+`customData.author: "agent"`; user-made elements carry `author: "user"`
+— annotation facts and headlines say "my note"/"your note" from it.
 
 ## Save-record shape (what you read back)
 
