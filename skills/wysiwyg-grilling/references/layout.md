@@ -20,6 +20,11 @@ multiples of 20. Compute positions from grid indices — never freehand:
 | wireframe | frame + 20px inset | 12px gutter | full-width blocks |
 | sequence | 250 (lifeline pitch) | 80 (message pitch) | header 160×60 |
 
+Wireframe frames are **declared 1:1 CSS pixels** (v0.4): phone 360×480,
+desktop 720×480 — the old tilde is retired. The declaration is what lets
+the 2.5.8 target-size check measure something real (NOTE + question only,
+never a verdict — references/wireframe.md).
+
 The domain pitch is 320, not the 260 an older revision documented: with
 180-wide entities, 260 leaves an 80px clear run — shorter than any
 cardinality label, so every by-the-book relationship arrow warned on
@@ -116,13 +121,26 @@ proposal):
 And as **LAYOUT_WARNING** (legibility): annotation overlapping any element ·
 bound label wider than its container · element stranded far outside the
 artifact's cluster · bidirectional arrow (both arrowheads — split it into
-two labeled arrows) · activation bar that never closes.
+two labeled arrows) · activation bar that never closes. Wireframe form
+warnings (v0.4): submit button preceding its inputs in reading order ·
+input with no label (3.3.2) · asterisk in an input label (GOV.UK:
+"(optional)" instead) · same label mapped to different flow steps (3.2.4
+mirror — the dangerous case).
 
 And as **LAYOUT_NOTE** (style/budget): off-grid coordinate · unlabeled
 arrow out of a decision or between services · orphan node/edge · budget
 overruns · `opacity ≠ 100` on a static element (opacity is state, not
 style) · within-group spacing ≥ between-group spacing (grouping only reads
-when internal gaps are smaller than external ones).
+when internal gaps are smaller than external ones). Wireframe question-
+NOTEs (v0.4 — questions a criterion will ask later, never verdicts):
+duplicate frame titles · ≥3 uniform-width inputs · declared sticky bar
+over inputs (2.4.11) · help missing/drifting across screens (3.2.6) ·
+targets closer than a thumb (2.5.8, needs the 1:1 px declaration) ·
+progress indicator (Q25, waivable) · redundant entry along a mapped flow
+path (3.3.7) · mapped same-function labels diverging (3.2.4) · wireframe
+label matching a domain term (Q12, waivable). One-time questions go quiet
+via the registry `waive` op (reason required) — a waived question is an
+answered one.
 
 ## Annotations (seeder + lint WARNING)
 
