@@ -108,6 +108,7 @@ DEFAULT_REGISTRY = {
     "pins": [],
     "tripwires": [],
     "divergence_policies": [],
+    "budgets": {},
 }
 
 
@@ -323,6 +324,7 @@ def validate_registry(reg):
                             "Allowed: user | agent.", True))
     for key in ("concepts", "mappings", "declined", "pins", "tripwires"):
         _require(reg, key, [], issues, "REG-007", "registry")
+    _require(reg, "budgets", {}, issues, "REG-007", "registry")
     names = set()
     for b in reg["branches"]:
         if not isinstance(b, dict) or "name" not in b:
@@ -3599,7 +3601,7 @@ def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     return any(crosses(x1, y1, x2, y2, *e) for e in edges)
 
 
-def lint_layout(els):
+def lint_layout(els, artifact_type=None, budget=None):
     """Layout lint for headless agents (who can't see their own drawing),
     tiered per references/layout.md:
       errors   — the drawing does not say what the agent meant; repair in
@@ -3609,8 +3611,27 @@ def lint_layout(els):
     Returns {"errors": [...], "warnings": [...], "notes": [...]}.
     (Sequence/lane/shell-specific checks land with the type promotion —
     task #7: time-reversal, activation-never-closes, lane-spanning,
-    app-shell drift, cardinality-token mismatch.)"""
+    app-shell drift, cardinality-token mismatch.)
+
+    Args:
+        els: The artifact's elements.
+        artifact_type: Optional type ("domain" lowers the node budget to
+            8 entities per references/domain.md).
+        budget: Optional per-artifact override
+            {"nodes": N, "arrows": M, "reason": str} from
+            registry["budgets"] — recorded intent beats the default.
+    """
     errors, warnings, notes = [], [], []
+    node_budget = 8 if artifact_type == "domain" else 9
+    node_unit = "entities" if artifact_type == "domain" else "nodes"
+    arrow_budget = 12
+    if budget:
+        node_budget = int(budget.get("nodes") or node_budget)
+        arrow_budget = int(budget.get("arrows") or arrow_budget)
+        notes.append(
+            "budget override on this artifact: %d %s / %d arrows — %s"
+            % (node_budget, node_unit, arrow_budget,
+               budget.get("reason") or "no reason recorded"))
     labels = label_map(els)
     ix = {e["id"]: e for e in els}
 
@@ -3771,6 +3792,20 @@ def lint_layout(els):
             pb = (b.get("customData") or {}).get("parent")
             if pa == b["id"] or pb == a["id"] or (pa and pa == pb):
                 continue
+            # same screen + near-full containment reads as nesting too
+            # (v0.3): a shelf and its cards inside one frame shouldn't
+            # need `parent` spelled out — but PARTIAL overlap between
+            # frame siblings is exactly the bug this lint catches
+            if a.get("frameId") and a.get("frameId") == b.get("frameId"):
+                ox2 = min(a["x"] + a.get("width", 0),
+                          b["x"] + b.get("width", 0)) - max(a["x"], b["x"])
+                oy2 = min(a["y"] + a.get("height", 0),
+                          b["y"] + b.get("height", 0)) - max(a["y"], b["y"])
+                if ox2 > 0 and oy2 > 0:
+                    inner = min(a.get("width", 1) * a.get("height", 1),
+                                b.get("width", 1) * b.get("height", 1))
+                    if ox2 * oy2 >= 0.9 * inner:
+                        continue
             ox = min(a["x"] + a.get("width", 0), b["x"] + b.get("width", 0)) \
                 - max(a["x"], b["x"])
             oy = min(a["y"] + a.get("height", 0),
@@ -3922,18 +3957,20 @@ def lint_layout(els):
             if fid:
                 per_screen[fid] = per_screen.get(fid, 0) + 1
         for fid, count in per_screen.items():
-            if count > 9:
-                notes.append("%d blocks in screen %s (budget: 9 per "
+            if count > node_budget:
+                notes.append("%d blocks in screen %s (budget: %d per "
                              "screen) — split the screen rather than "
-                             "shrink the font" % (count, name(fid)))
-    elif len(nodes) > 9:
-        notes.append("%d nodes (budget: 9) — split the view rather than "
-                     "shrink the font" % len(nodes))
+                             "shrink the font"
+                             % (count, name(fid), node_budget))
+    elif len(nodes) > node_budget:
+        notes.append("%d %s (budget: %d) — split the view rather than "
+                     "shrink the font"
+                     % (len(nodes), node_unit, node_budget))
     real_arrows = [a for a in arrows if a.get("type") == "arrow"]
-    if len(real_arrows) > 12:
-        notes.append("%d arrows (budget: 12) — the arrow budget is the "
+    if len(real_arrows) > arrow_budget:
+        notes.append("%d arrows (budget: %d) — the arrow budget is the "
                      "one that triggers a second view: edges collide, "
-                     "nodes don't" % len(real_arrows))
+                     "nodes don't" % (len(real_arrows), arrow_budget))
     return {"errors": errors, "warnings": warnings, "notes": notes}
 
 
@@ -4135,12 +4172,25 @@ def lint_registry(terms, registry, context_exists=False):
     return notes
 
 
-def project_lint(project, els, registry=None):
+def project_lint(project, els, registry=None, artifact_type=None,
+                 aid=None):
     """lint_layout + lint_glossary (+ registry discipline when the caller
     passes the registry) with the project context resolved: the
     co-authored glossary is project_knowledge/CONTEXT.md; the
-    multi-context map convention is a root-level CONTEXT-MAP.md."""
-    lint = lint_layout(els)
+    multi-context map convention is a root-level CONTEXT-MAP.md.
+
+    Args:
+        project: The Project (path context).
+        els: The artifact's elements.
+        registry: Optional registry — enables registry lints and the
+            per-artifact budget override lookup.
+        artifact_type: Optional type for type-aware budgets (v0.3).
+        aid: Optional artifact id for the budget override lookup.
+    """
+    budget = None
+    if registry is not None and aid:
+        budget = (registry.get("budgets") or {}).get(aid)
+    lint = lint_layout(els, artifact_type=artifact_type, budget=budget)
     avoid, terms = {}, []
     ctx = project.pk / "CONTEXT.md"
     ctx_exists = False
@@ -4873,12 +4923,51 @@ class Store:
                     reg["round"] = op["round"]
                 if op.get("whose_move") in ("user", "agent"):
                     reg["whose_move"] = op["whose_move"]
+            elif action == "set_budget":
+                # per-artifact complexity-budget override (v0.3): recorded
+                # intent — a raise without a reason is exactly the drift
+                # the budget exists to catch
+                aid2 = op.get("artifact")
+                if not aid2 or aid2 not in self.artifact_meta:
+                    errors.append("registry op %d: set_budget needs an "
+                                  "existing artifact (got %r)" % (i, aid2))
+                    continue
+                if op.get("clear"):
+                    reg.setdefault("budgets", {}).pop(aid2, None)
+                    applied.append({"action": "budget_cleared",
+                                    "artifact": aid2})
+                    continue
+                if not (op.get("nodes") or op.get("arrows")):
+                    errors.append("registry op %d: set_budget needs nodes "
+                                  "and/or arrows (or clear: true)" % i)
+                    continue
+                bad = False
+                for key in ("nodes", "arrows"):
+                    v = op.get(key)
+                    if v is not None and (not isinstance(v, int) or v < 1):
+                        errors.append("registry op %d: %s must be a "
+                                      "positive integer" % (i, key))
+                        bad = True
+                if bad:
+                    continue
+                if not (op.get("reason") or "").strip():
+                    errors.append(
+                        "registry op %d: set_budget requires a `reason` — "
+                        "a budget override is recorded intent, not a "
+                        "silencer" % i)
+                    continue
+                entry = {"reason": op["reason"].strip()}
+                if op.get("nodes"):
+                    entry["nodes"] = op["nodes"]
+                if op.get("arrows"):
+                    entry["arrows"] = op["arrows"]
+                reg.setdefault("budgets", {})[aid2] = entry
             else:
                 errors.append("registry op %d: unknown action %r (allowed: "
                               "upsert_concept, remove_view, add_mapping, "
                               "annotate_mapping, remove_mapping, "
                               "resolve_tripwire, annotate_tripwire, "
-                              "decline, set_round)"
+                              "decline, set_round, set_budget)"
                               % (i, action))
                 continue
             applied.append({k: v for k, v in op.items() if k != "op"})
@@ -5139,7 +5228,9 @@ class Store:
             lint_all = {}
             for aid in record["artifacts"]:
                 li = project_lint(self.p, self.scenes.get(aid, []),
-                                  self.registry)
+                                  self.registry,
+                                  artifact_type=self.artifact_type(aid),
+                                  aid=aid)
                 if li["errors"] or li["warnings"] or li["notes"]:
                     lint_all[aid] = li
             if lint_all:
@@ -5169,7 +5260,9 @@ class Store:
                 return cached[1]
             debt = {}
             for aid, els in sorted(self.scenes.items()):
-                li = project_lint(self.p, els)
+                li = project_lint(self.p, els, self.registry,
+                                  artifact_type=self.artifact_type(aid),
+                                  aid=aid)
                 counts = {k: len(li[k])
                           for k in ("errors", "warnings", "notes")}
                 if any(counts.values()):
@@ -5351,6 +5444,7 @@ class Store:
                 "tripwires": self.registry["tripwires"],
                 "lint_debt": self.lint_debt(),
                 "pin_debt": self.pin_debt(),
+                "budgets": self.registry.get("budgets") or {},
                 "declined": self.registry["declined"],
                 "config": self.config,
                 "artifacts": artifacts,
@@ -5612,8 +5706,10 @@ class ServerApp:
                                headline=record["summary"]["headline"])
             aid = body.get("artifact") or (body.get("create") or {}).get("id")
             scene = self.store.scenes.get(aid, []) if aid else []
-            lint = project_lint(self.store.p, scene,
-                                self.store.registry) if aid else \
+            lint = project_lint(
+                self.store.p, scene, self.store.registry,
+                artifact_type=self.store.artifact_type(aid),
+                aid=aid) if aid else \
                 {"errors": [], "warnings": [], "notes": []}
             return {"ok": True, "revn": record["revn"],
                     "short_id": record["short_id"],
@@ -6344,7 +6440,9 @@ def cmd_apply(args):
     for line in intent_echo(batch.get("ops") or [], scene):
         print("ECHO=%s" % line)
     if aid:
-        lint = project_lint(project, scene, store.registry)
+        lint = project_lint(project, scene, store.registry,
+                            artifact_type=store.artifact_type(aid),
+                            aid=aid)
         for err in lint["errors"]:
             print("LAYOUT_ERROR=%s" % err)
         for w in lint["warnings"]:

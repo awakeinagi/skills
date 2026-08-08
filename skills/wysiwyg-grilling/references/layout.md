@@ -16,9 +16,16 @@ multiples of 20. Compute positions from grid indices — never freehand:
 | Type | Column pitch | Row pitch | Node size |
 |---|---|---|---|
 | flow | 320 | 160 | 160×64 |
-| domain | 260 | 140 | 180×64 |
+| domain | 320 | 140 | 180×64 |
 | wireframe | frame + 20px inset | 12px gutter | full-width blocks |
 | sequence | 250 (lifeline pitch) | 80 (message pitch) | header 160×60 |
+
+The domain pitch is 320, not the 260 an older revision documented: with
+180-wide entities, 260 leaves an 80px clear run — shorter than any
+cardinality label, so every by-the-book relationship arrow warned on
+arrival (v0.3 assessment). **Labeled vertical arrows need 1.5× row pitch
+(flow: 240) or side-routing** — a 160px row pitch leaves a 64px run that
+cannot hold a label clear of both nodes.
 
 `x = startX + col * pitch`, `y = startY + row * pitch`. Off-grid coordinates
 draw fine but read as sloppiness at every zoom — the lint flags them

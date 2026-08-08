@@ -3331,5 +3331,100 @@ class TestRouterV03(Base):
         self.assertFalse(crossed)
 
 
+class TestBudgetsV03(Base):
+    """v0.3 WP4: type-aware budgets, set_budget override, frame-containment
+    overlap exemption."""
+
+    def seed_domain(self, n_entities):
+        ops = []
+        for i in range(n_entities):
+            ops.append({"op": "add", "element": {
+                "type": "rectangle", "id": "e%d" % i,
+                "label": "Entity%d" % i, "kind": "entity",
+                "x": 60 + (i % 4) * 320, "y": 60 + (i // 4) * 200,
+                "width": 180, "height": 64, "role": "node"}})
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dom",
+            "create": {"id": "dom", "name": "Dom", "type": "domain",
+                       "concept": "dom", "concept_name": "Dom"},
+            "ops": ops})
+
+    def test_domain_entity_budget_is_8(self):
+        self.seed_domain(9)
+        lint = canvas.project_lint(self.project, self.store.scenes["dom"],
+                                   self.store.registry,
+                                   artifact_type="domain", aid="dom")
+        self.assertTrue(any("9 entities (budget: 8)" in n
+                            for n in lint["notes"]))
+
+    def test_set_budget_override_and_clear(self):
+        self.seed_domain(9)
+        with self.assertRaises(canvas.BatchError):  # reason required
+            self.store.apply_batch({
+                "base_revn": 1, "artifact": "dom", "ops": [
+                    {"op": "registry", "action": "set_budget",
+                     "artifact": "dom", "nodes": 12}]})
+        with self.assertRaises(canvas.BatchError):  # unknown artifact
+            self.store.apply_batch({
+                "base_revn": 1, "artifact": "dom", "ops": [
+                    {"op": "registry", "action": "set_budget",
+                     "artifact": "nope", "nodes": 12, "reason": "x"}]})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "dom", "ops": [
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "dom", "nodes": 12,
+                 "reason": "the nine-entity core set is the point"}]})
+        self.assertEqual(self.store.registry["budgets"]["dom"]["nodes"], 12)
+        lint = canvas.project_lint(self.project, self.store.scenes["dom"],
+                                   self.store.registry,
+                                   artifact_type="domain", aid="dom")
+        self.assertFalse(any("(budget: 8)" in n for n in lint["notes"]))
+        self.assertTrue(any("budget override" in n and "nine-entity" in n
+                            for n in lint["notes"]))
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "dom", "ops": [
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "dom", "clear": True}]})
+        self.assertNotIn("dom", self.store.registry["budgets"])
+
+    def test_budgets_survive_registry_repair(self):
+        self.seed_domain(1)
+        reg = dict(self.store.registry)
+        reg.pop("budgets", None)
+        fixed, _issues = canvas.validate_registry(reg)
+        self.assertEqual(fixed["budgets"], {})
+
+    def test_frame_containment_exempts_full_overlap_only(self):
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {"type": "frame", "id": "scr",
+                                      "label": "Screen", "x": 0, "y": 0,
+                                      "width": 600, "height": 400}},
+            {"op": "add", "element": {"type": "rectangle", "id": "shelf",
+                                      "label": "", "x": 20, "y": 20,
+                                      "width": 400, "height": 200,
+                                      "frameId": "scr", "role": "node"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "card",
+                                      "label": "Card", "x": 40, "y": 60,
+                                      "width": 160, "height": 100,
+                                      "frameId": "scr", "role": "node"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "half",
+                                      "label": "Half", "x": 300, "y": 100,
+                                      "width": 200, "height": 160,
+                                      "frameId": "scr", "role": "node"}},
+        ], errors)
+        self.assertEqual(errors, [])
+        lint = canvas.lint_layout(els)
+        warns = " | ".join(lint["warnings"])
+        # card fully inside shelf, same frame → exempt
+        self.assertNotIn("'Card'", warns.replace("card", "'Card'")
+                         if "card" in warns else warns)
+        self.assertFalse(any("card" in w and "shelf" in w
+                             for w in lint["warnings"]))
+        # half only partially overlaps shelf → still lints
+        self.assertTrue(any("half" in w and "shelf" in w
+                            for w in lint["warnings"]))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

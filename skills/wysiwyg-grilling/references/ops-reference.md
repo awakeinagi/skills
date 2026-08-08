@@ -81,7 +81,10 @@ on concept `report` clears the umbrella's `wireframe` debt.
   "attributes": ["cash, mandate", "holds Positions"],
       // entities only: attribute rows rendered beneath the term label
       // (the label stays the EXACT glossary term); fires attribute_added
-  "parent": "shelf-id",       // declared containment — nesting, not collision
+  "parent": "shelf-id",       // declared containment — nesting, not collision.
+      // NOTE: frameId (screen membership) alone does NOT exempt overlap —
+      // near-full containment inside the same screen does, but partially
+      // overlapping siblings still lint; `parent` declares the intent
   "links_to": "other-artifact",  // in-canvas navigation (click follows)
   "document": "docs/brief.md",   // report reader: project_knowledge-relative
   "intent": "why this exists (customData)",
@@ -212,6 +215,13 @@ it "agent asked a question" with no Apply action.
  "examples": ["UK retail says basket; US says cart"]}
 {"op": "registry", "action": "decline", "concept": "checkout",
  "view_type": "domain", "kind": "suggestion", "reason": "user: later"}
+// per-artifact complexity-budget override (v0.3): recorded intent, not a
+// silencer — `reason` is REQUIRED and the lint restates it as a NOTE.
+// The defaults stay 9 nodes / 12 arrows (8 entities on a domain view).
+{"op": "registry", "action": "set_budget", "artifact": "pipeline-flow",
+ "nodes": 14, "arrows": 18, "reason": "the 5-way ingest fan IS this view"}
+{"op": "registry", "action": "set_budget", "artifact": "pipeline-flow",
+ "clear": true}
 ```
 
 ## Reading state back
