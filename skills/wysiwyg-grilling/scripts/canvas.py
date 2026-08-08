@@ -4480,6 +4480,187 @@ def lint_registry(terms, registry, context_exists=False):
     return notes
 
 
+def flow_reachable(els, cap=200):
+    """Forward reachability over a flow scene's bound arrows (v0.4 WP2).
+
+    Adjacency comes from startBinding/endBinding; cycles are cut by the
+    visited set; ``cap`` bounds the walk far above any real artifact so
+    a pathological scene can't stall an apply.
+
+    Args:
+        els: The flow artifact's elements.
+        cap: Max visited nodes per start node.
+
+    Returns:
+        Dict mapping node id -> set of node ids reachable from it.
+    """
+    adj = {}
+    for a in els:
+        if a.get("type") != "arrow":
+            continue
+        s = _norm_binding(a.get("startBinding"))
+        d = _norm_binding(a.get("endBinding"))
+        if s and d:
+            adj.setdefault(s, set()).add(d)
+    out = {}
+    for start in adj:
+        seen, stack = set(), [start]
+        while stack and len(seen) < cap:
+            cur = stack.pop()
+            for nxt in adj.get(cur, ()):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+        out[start] = seen
+    return out
+
+
+def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
+    """Cross-artifact lints (v0.4 WP2) — the checks that need more than
+    one scene: 3.3.7 redundant entry along a mapped flow path, 3.2.4
+    consistent identification over mapped elements, and the Q12
+    whose-word check against domain entities and the glossary. All
+    joins ride the registry mappings ("aid#element" refs); unmapped
+    elements never fire 3.3.7/3.2.4 (ruling Q29+).
+
+    Args:
+        scenes: {artifact_id: elements} for every artifact.
+        artifact_types: {artifact_id: type} (wireframe/flow/domain/...).
+        registry: The registry (mappings + waives are read).
+        glossary_terms: Optional list of settled CONTEXT.md terms.
+
+    Returns:
+        {artifact_id: {"errors": [...], "warnings": [...],
+        "notes": [...]}} — only artifacts with findings appear.
+    """
+    out = {}
+
+    def add(aid, tier, msg):
+        out.setdefault(aid, {"errors": [], "warnings": [],
+                             "notes": []})[tier].append(msg)
+
+    waives = (registry or {}).get("waives") or {}
+    label_maps = {aid: label_map(els) for aid, els in scenes.items()}
+    # mapping joins: every (wireframe member, flow member) pair
+    pairs = []
+    for m in (registry or {}).get("mappings") or []:
+        wf, fl = [], []
+        for ref in m.get("elements") or []:
+            if "#" not in ref:
+                continue
+            aid, eid = ref.split("#", 1)
+            t = artifact_types.get(aid)
+            if t == "wireframe":
+                wf.append((aid, eid))
+            elif t == "flow":
+                fl.append((aid, eid))
+        pairs.extend((wa, we, fa, fe) for wa, we in wf for fa, fe in fl)
+
+    # ---- 3.2.4 consistent identification (mapped elements only) ------
+    by_flow, by_label = {}, {}
+    for wa, we, fa, fe in pairs:
+        lbl = (label_maps.get(wa, {}).get(we) or "").strip()
+        if not lbl:
+            continue
+        by_flow.setdefault((fa, fe), set()).add((wa, we, lbl))
+        by_label.setdefault(lbl.lower(), set()).add((wa, we, fa, fe))
+    for (fa, fe), members in sorted(by_flow.items()):
+        lbls = sorted({lbl for _, _, lbl in members})
+        if len(lbls) > 1:
+            add(sorted(members)[0][0], "notes",
+                "%s all map to %s#%s — same action, %d names; pick "
+                "one? (3.2.4: one function, one label)"
+                % (" / ".join(repr(x) for x in lbls), fa, fe,
+                   len(lbls)))
+    for lbl, refs in sorted(by_label.items()):
+        flows = sorted({(fa, fe) for _, _, fa, fe in refs})
+        if len(flows) > 1:
+            add(sorted(refs)[0][0], "warnings",
+                "%r maps to different flow steps (%s) — same word, "
+                "different consequences; the more dangerous 3.2.4 "
+                "case: rename one"
+                % (lbl, ", ".join("%s#%s" % f for f in flows)))
+
+    # ---- 3.3.7 redundant entry (Q6) along reachable mapped frames ----
+    reach = {fa: flow_reachable(scenes.get(fa) or [])
+             for fa in {p[2] for p in pairs}}
+    ixs = {aid: {e["id"]: e for e in els}
+           for aid, els in scenes.items()}
+    frame_nodes = {}
+    for wa, we, fa, fe in pairs:
+        el = ixs.get(wa, {}).get(we)
+        if el is None:
+            continue
+        fid = el["id"] if el.get("type") == "frame" else el.get("frameId")
+        if fid:
+            frame_nodes.setdefault((wa, fid), set()).add((fa, fe))
+
+    def frame_inputs(wa, fid):
+        return {(label_maps[wa].get(e["id"]) or "").strip().lower()
+                for e in scenes.get(wa) or []
+                if e.get("frameId") == fid
+                and (e.get("customData") or {}).get("kind") == "input"} \
+            - {""}
+
+    seen_337 = set()
+    for (wa, fida), nodes_a in sorted(frame_nodes.items()):
+        for (wb, fidb), nodes_b in sorted(frame_nodes.items()):
+            if (wa, fida) == (wb, fidb):
+                continue
+            hops = any(fa == fb and nb in (reach.get(fa, {}).get(na)
+                                           or ())
+                       for fa, na in nodes_a for fb, nb in nodes_b)
+            if not hops:
+                continue
+            for lbl in sorted(frame_inputs(wa, fida) &
+                              frame_inputs(wb, fidb)):
+                key = (*sorted([(wa, fida), (wb, fidb)]), lbl)
+                if key in seen_337:
+                    continue
+                seen_337.add(key)
+                na = (ixs[wa].get(fida) or {}).get("name") or fida
+                nb = (ixs[wb].get(fidb) or {}).get("name") or fidb
+                add(wa, "notes",
+                    "%r is asked on %s and again on %s (same flow "
+                    "path) — why twice? (3.3.7's own exceptions — "
+                    "essential, security, stale data — are yours to "
+                    "claim)" % (lbl, na, nb))
+
+    # ---- Q12: whose word is this — yours or theirs? ------------------
+    entity_labels = set()
+    for aid, t in artifact_types.items():
+        if t == "domain":
+            lm = label_maps.get(aid) or {}
+            for e in scenes.get(aid) or []:
+                if (e.get("customData") or {}).get("kind") == "entity":
+                    lbl = (lm.get(e["id"]) or "").strip()
+                    if lbl:
+                        entity_labels.add(lbl)
+    terms = entity_labels | {t.strip() for t in (glossary_terms or [])
+                             if t and t.strip()}
+    for aid, t in sorted(artifact_types.items()):
+        if t != "wireframe":
+            continue
+        lm = label_maps.get(aid) or {}
+        for e in scenes.get(aid) or []:
+            if e.get("type") == "frame" or \
+                    role_of(e) in ("label", "pin", "annotation",
+                                   "decoration"):
+                continue
+            lbl = (lm.get(e["id"]) or "").strip()
+            if not lbl or lbl not in terms:
+                continue
+            key = "q12:%s:%s" % (aid, slugify(lbl))
+            if key in waives:
+                continue
+            add(aid, "notes",
+                "label %r on %s matches the domain term — whose word "
+                "is this, yours or theirs? Do users say %r? Settle "
+                "it, then waive with registry op {action: waive, "
+                "key: %r, reason: ...}" % (lbl, e["id"], lbl, key))
+    return out
+
+
 def project_lint(project, els, registry=None, artifact_type=None,
                  aid=None):
     """lint_layout + lint_glossary (+ registry discipline when the caller
@@ -5591,11 +5772,25 @@ class Store:
             cached = getattr(self, "_lint_debt_cache", None)
             if cached and cached[0] == key:
                 return cached[1]
-            debt = {}
+            debt, lines = {}, {}
+            types = {aid: self.artifact_type(aid) for aid in self.scenes}
+            terms = []
+            try:
+                ctx = self.p.pk / "CONTEXT.md"
+                if ctx.exists():
+                    terms = parse_glossary_terms(
+                        ctx.read_text(encoding="utf-8"))
+            except OSError:
+                pass
+            cross = cross_lint(self.scenes, types, self.registry, terms)
             for aid, els in sorted(self.scenes.items()):
                 li = project_lint(self.p, els, self.registry,
-                                  artifact_type=self.artifact_type(aid),
-                                  aid=aid)
+                                  artifact_type=types[aid], aid=aid)
+                x = cross.get(aid)
+                if x:
+                    li = {k: li[k] + x[k]
+                          for k in ("errors", "warnings", "notes")}
+                lines[aid] = li
                 counts = {k: len(li[k])
                           for k in ("errors", "warnings", "notes")}
                 if any(counts.values()):
@@ -5604,8 +5799,18 @@ class Store:
             if reg["notes"]:
                 debt["registry"] = {"errors": 0, "warnings": 0,
                                     "notes": len(reg["notes"])}
-            self._lint_debt_cache = (key, debt)
+                lines["registry"] = reg
+            self._lint_debt_cache = (key, debt, lines)
             return debt
+
+    def lint_lines(self):
+        """Per-artifact lint LINES (project + cross-artifact merged) —
+        what the debt counts count. Cached with lint_debt; the client
+        renders these in the rail (v0.4 WP4)."""
+        with self.lock:
+            self.lint_debt()
+            cached = getattr(self, "_lint_debt_cache", None)
+            return cached[2] if cached and len(cached) > 2 else {}
 
     def pin_debt(self):
         """Open/answered pins with age in rounds and how often their
@@ -5779,6 +5984,7 @@ class Store:
                 "pin_debt": self.pin_debt(),
                 "budgets": self.registry.get("budgets") or {},
                 "waives": self.registry.get("waives") or {},
+                "lint": self.lint_lines(),
                 "declined": self.registry["declined"],
                 "config": self.config,
                 "artifacts": artifacts,
@@ -6040,10 +6246,9 @@ class ServerApp:
                                headline=record["summary"]["headline"])
             aid = body.get("artifact") or (body.get("create") or {}).get("id")
             scene = self.store.scenes.get(aid, []) if aid else []
-            lint = project_lint(
-                self.store.p, scene, self.store.registry,
-                artifact_type=self.store.artifact_type(aid),
-                aid=aid) if aid else \
+            # lint_lines carries cross-artifact findings too (v0.4) —
+            # and reuses the lint_debt cache this response also ships
+            lint = (self.store.lint_lines().get(aid) if aid else None) or \
                 {"errors": [], "warnings": [], "notes": []}
             return {"ok": True, "revn": record["revn"],
                     "short_id": record["short_id"],

@@ -3744,5 +3744,167 @@ class TestUiUxLintsV04(Base):
         self.assertEqual(fixed["waives"], {})
 
 
+class TestCrossLintV04(Base):
+    """v0.4 WP2: cross-artifact lints — 3.3.7 redundant entry, 3.2.4
+    consistent identification (mapped only), Q12 whose-word check."""
+
+    def seed(self, btn_a="Continue", btn_b="Next", flow_b="n2"):
+        """Two-screen wireframe + two-step flow + mappings."""
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "frame", "id": "scr-a", "label": "Address",
+                    "x": 0, "y": 0, "width": 360, "height": 480}},
+                {"op": "add", "element": {
+                    "type": "frame", "id": "scr-b", "label": "Delivery",
+                    "x": 400, "y": 0, "width": 360, "height": 480}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "pc-a", "label": "Postcode",
+                    "kind": "input", "x": 20, "y": 100, "width": 320,
+                    "height": 40, "frameId": "scr-a", "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "pc-b", "label": "Postcode",
+                    "kind": "input", "x": 420, "y": 100, "width": 320,
+                    "height": 40, "frameId": "scr-b", "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "btn-a", "label": btn_a,
+                    "kind": "button", "x": 20, "y": 400, "width": 120,
+                    "height": 40, "frameId": "scr-a", "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "btn-b", "label": btn_b,
+                    "kind": "button", "x": 420, "y": 400, "width": 120,
+                    "height": 40, "frameId": "scr-b", "role": "node"}}]})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "fl",
+            "create": {"id": "fl", "name": "FL", "type": "flow",
+                       "concept": "checkout"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "n1", "label": "Address",
+                    "x": 60, "y": 60, "width": 160, "height": 64,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "n2", "label": "Delivery",
+                    "x": 380, "y": 60, "width": 160, "height": 64,
+                    "role": "node"}},
+                {"op": "add", "element": {"type": "arrow", "id": "t12"},
+                 "from": "n1", "to": "n2"},
+                {"op": "registry", "action": "add_mapping",
+                 "concept": "checkout", "elements": ["wf#scr-a", "fl#n1"]},
+                {"op": "registry", "action": "add_mapping",
+                 "concept": "checkout", "elements": ["wf#scr-b", "fl#n2"]},
+                {"op": "registry", "action": "add_mapping",
+                 "concept": "checkout",
+                 "elements": ["wf#btn-a", "fl#n2"]},
+                {"op": "registry", "action": "add_mapping",
+                 "concept": "checkout",
+                 "elements": ["wf#btn-b", "fl#" + flow_b]}]})
+
+    def types(self):
+        return {aid: self.store.artifact_type(aid)
+                for aid in self.store.scenes}
+
+    def test_flow_reachable_cuts_cycles(self):
+        els = []
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {"type": "rectangle", "id": i,
+                                      "label": i.upper(), "x": x, "y": 60,
+                                      "width": 160, "height": 64,
+                                      "role": "node"}}
+            for i, x in (("a", 0), ("b", 320), ("c", 640))
+        ] + [
+            {"op": "add", "element": {"type": "arrow", "id": "ab"},
+             "from": "a", "to": "b"},
+            {"op": "add", "element": {"type": "arrow", "id": "bc"},
+             "from": "b", "to": "c"},
+            {"op": "add", "element": {"type": "arrow", "id": "ca"},
+             "from": "c", "to": "a"},
+        ], errors)
+        self.assertEqual(errors, [])
+        reach = canvas.flow_reachable(els)
+        self.assertEqual(reach["a"], {"a", "b", "c"})
+
+    def test_337_redundant_entry_via_mapped_path(self):
+        self.seed()
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        notes = (x.get("wf") or {}).get("notes") or []
+        self.assertTrue(any("'postcode'" in n.lower() and "why twice" in n
+                            for n in notes))
+
+    def test_324_divergence_note_and_mirror_warn(self):
+        # btn-a 'Continue' and btn-b 'Next' both map to fl#n2 → NOTE
+        self.seed(btn_a="Continue", btn_b="Next", flow_b="n2")
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        notes = (x.get("wf") or {}).get("notes") or []
+        self.assertTrue(any("same action" in n and "pick" in n
+                            for n in notes))
+        # same label 'Save' mapped to n1 and n2 → mirror WARN
+        self.tearDown()
+        self.setUp()
+        self.seed(btn_a="Save", btn_b="Save", flow_b="n1")
+        x2 = canvas.cross_lint(self.store.scenes, self.types(),
+                               self.store.registry)
+        warns = (x2.get("wf") or {}).get("warnings") or []
+        self.assertTrue(any("different consequences" in w for w in warns))
+
+    def test_unmapped_elements_never_fire_324(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "b1", "label": "Continue",
+                "kind": "button", "x": 20, "y": 60, "width": 120,
+                "height": 40, "role": "node"}}]})
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        self.assertEqual(x, {})
+
+    def test_q12_whose_word_fires_once_waived(self):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dom",
+            "create": {"id": "dom", "name": "Dom", "type": "domain",
+                       "concept": "dom", "concept_name": "Dom"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "prov", "label": "Provider",
+                "kind": "entity", "x": 60, "y": 60, "width": 180,
+                "height": 64, "role": "node"}}]})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "dom"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "hd", "label": "Provider",
+                "x": 20, "y": 60, "width": 320, "height": 40,
+                "role": "node"}}]})
+        x = canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+        notes = (x.get("wf") or {}).get("notes") or []
+        self.assertTrue(any("whose word" in n for n in notes))
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "wf", "ops": [
+                {"op": "registry", "action": "waive",
+                 "key": "q12:wf:provider",
+                 "reason": "users say Provider too — checked in round 3"}]})
+        x2 = canvas.cross_lint(self.store.scenes, self.types(),
+                               self.store.registry)
+        self.assertFalse((x2.get("wf") or {}).get("notes"))
+
+    def test_lint_lines_merges_cross_findings(self):
+        self.seed()
+        lines = self.store.lint_lines()
+        self.assertIn("wf", lines)
+        self.assertTrue(any("why twice" in n
+                            for n in lines["wf"]["notes"]))
+        debt = self.store.lint_debt()
+        self.assertGreaterEqual(debt["wf"]["notes"], 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
