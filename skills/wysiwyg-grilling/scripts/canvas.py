@@ -511,10 +511,48 @@ def _mig_config_0002(d):
     return d
 
 
+# Registry sections that belong to the BRANCH you are standing on, not
+# to the project. Scenes have always been per-branch — `switch_branch`
+# materialises them and deletes the artifacts the target lacks — while
+# these stayed one global blob, so on a branch the registry asserted
+# views that do not exist and printed VIEW_DEBT=none: the debt mechanism
+# was branch-blind in the direction that SUPPRESSES work (v0.6
+# assessment r3-17). Everything here is keyed on something branched:
+# concepts own views, mappings and tripwires reference elements, pins ARE
+# elements, and every waive/budget key names an artifact.
+#
+# What stays project-level: migrations, revn, head, branches — the shape
+# of history itself, which no branch may disagree about.
+BRANCH_SCOPED = ("concepts", "mappings", "declined", "pins", "tripwires",
+                 "divergence_policies", "budgets", "waives")
+
+
+def _mig_registry_0002(reg):
+    """Stash the head branch's scope, so v0.6 projects open unchanged.
+
+    Lossless: the sections stay at top level as the working copy of the
+    branch you are on, and this only records them against that branch so
+    a later switch has something to come back to.
+
+    Args:
+        reg: The registry document.
+
+    Returns:
+        The same document, with the head branch carrying a `scope`.
+    """
+    head = reg.get("head") or "main"
+    for b in reg.get("branches") or []:
+        if b.get("name") == head and "scope" not in b:
+            b["scope"] = {k: copy.deepcopy(reg.get(k))
+                          for k in BRANCH_SCOPED if k in reg}
+    return reg
+
+
 MIGRATIONS = {
     "config": [("0001-baseline", lambda d: d),
                ("0002-significant-attrs", _mig_config_0002)],
-    "registry": [("0001-baseline", lambda d: d)],
+    "registry": [("0001-baseline", lambda d: d),
+                 ("0002-branch-scoped-registry", _mig_registry_0002)],
     "save": [("0001-baseline", lambda d: d)],
     "artifact": [("0001-baseline", lambda d: d)],
 }
@@ -1877,6 +1915,27 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     el["originalText"] = value
                     el["width"], el["height"] = text_dims(value,
                                                           el.get("fontSize", 16))
+                elif attr == "attributes":
+                    # a domain entity's attribute rows. Accepted on `add`
+                    # and nowhere else until v0.7, so the only way to
+                    # amend them was delete + re-add — which mints a NEW
+                    # element id and therefore drops that element's
+                    # mappings and pins, and breaks the rename-keeps-the
+                    # -id rule entity_renamed detection depends on. A
+                    # domain model's attributes are exactly what a
+                    # grilling session revises repeatedly (BUG-04).
+                    if not isinstance(value, list) or \
+                            any(not isinstance(v, str) for v in value):
+                        errors.append("op %d (mod %s): `attributes` must "
+                                      "be a list of strings"
+                                      % (i, op.get("id")))
+                        continue
+                    if (el.get("customData") or {}).get("kind") != "entity":
+                        errors.append("op %d (mod %s): `attributes` applies "
+                                      "to domain entities (kind: entity)"
+                                      % (i, op.get("id")))
+                        continue
+                    _reset_attribute_rows(els, index, existing, el, value)
                 elif attr == "customData":
                     cd = dict(el.get("customData") or {})
                     cd.update(value or {})
@@ -2176,8 +2235,8 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             anchor = index.get(target) if target else None
             pid = op.get("id") or mint_id("pin-" + (target or q[:20]), "pin",
                                           existing)
-            px = (anchor["x"] + anchor.get("width", 0) + 8) if anchor else 40
-            py = (anchor["y"] - 8) if anchor else 40
+            px, py = marker_anchor(anchor, dx=8, dy=-8,
+                                 corner="tr") if anchor else (40, 40)
             pin_el = dict(BASE_DEFAULTS)
             pin_el.update({
                 "id": pid, "type": "text", "x": px, "y": py,
@@ -3506,6 +3565,113 @@ def _registry_headline(reg_changes):
 # ---------------------------------------------------------------------------
 # label mutation helper used by the op engine
 # ---------------------------------------------------------------------------
+
+def marker_inset(etype):
+    """Fraction of the half-diagonal at which a shape's outline sits.
+
+    A rectangle fills its bounding box; a diamond and an ellipse do not,
+    so the box's corner is empty canvas for them.
+
+    Args:
+        etype: The Excalidraw element type.
+
+    Returns:
+        0 for box-filling shapes, else the inset fraction.
+    """
+    if etype == "diamond":
+        return 0.5
+    if etype == "ellipse":
+        return 1 - 0.5 ** 0.5
+    return 0.0
+
+
+def marker_anchor(el, dx=0, dy=0, corner="br"):
+    """Where a marker should sit to hug a shape's edge at one corner.
+
+    Markers hug the shape. Anchoring at the bounding-box corner puts a
+    marker 22px off a rectangle and 79px off a DIAMOND — a clearance
+    that varies threefold with shape type, which no intentional design
+    would do (v0.6 assessment r3-1). v0.6 fixed exactly this for the
+    tooltip dot in App.tsx and nobody grepped for the shape, so it was
+    still live in the pin seeder AND in the tripwire mark.
+
+    Mirrored by `markerAnchor` in App.tsx: stored geometry and canvas
+    overlay cannot share code, so they share this rule and a test.
+
+    Args:
+        el: The target element.
+        dx: Horizontal nudge applied after the inset.
+        dy: Vertical nudge applied after the inset.
+        corner: `"br"` bottom-right (the tooltip dot) or `"tr"`
+            top-right (the pin glyph and the tripwire mark).
+
+    Returns:
+        `(x, y)` for the marker.
+    """
+    w, h = el.get("width", 0), el.get("height", 0)
+    inset = marker_inset(el.get("type"))
+    x = el.get("x", 0) + w - w * inset / 2 + dx
+    if corner == "tr":
+        return (x, el.get("y", 0) + h * inset / 2 + dy)
+    return (x, el.get("y", 0) + h - h * inset / 2 + dy)
+
+
+def _reset_attribute_rows(els, index, existing, el, rows):
+    """Replace a domain entity's attribute rows, keeping the entity's id.
+
+    Mirrors the minting in the `add` seeder — same geometry, same
+    `attr_of` stamp — so the differ's existing `attribute_added` /
+    `attribute_removed` facts narrate the change without any new
+    vocabulary. The entity element itself is never re-created, which is
+    the whole point: its id carries the mappings, the pins and the
+    rename detection (BUG-04).
+
+    Args:
+        els: The scene's element list, mutated in place.
+        index: id -> element, mutated to match.
+        existing: Set of ids in use, mutated to match.
+        el: The entity element.
+        rows: The new attribute strings, in order.
+    """
+    eid = el["id"]
+    gone = [e for e in els
+            if (e.get("customData") or {}).get("attr_of") == eid]
+    for e in gone:
+        els.remove(e)
+        index.pop(e["id"], None)
+        existing.discard(e["id"])
+    gid = eid + "-grp"
+    if gid not in (el.get("groupIds") or []):
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+    header_h, row_h = 32, 20
+    el["height"] = max(el.get("height", 0),
+                       header_h + row_h * len(rows) + 8)
+    for irow, text in enumerate(rows):
+        rid = "%s-attr-%d" % (eid, irow + 1)
+        n2 = 2
+        while rid in existing:
+            rid = "%s-attr-%d-%d" % (eid, irow + 1, n2)
+            n2 += 1
+        existing.add(rid)
+        row = dict(BASE_DEFAULTS)
+        row.update({
+            "id": rid, "type": "text",
+            "x": el["x"] + 10,
+            "y": el["y"] + header_h + irow * row_h,
+            "width": max(el.get("width", 160) - 20, 40),
+            "height": row_h - 4,
+            "text": text, "originalText": text,
+            "fontSize": 12, "fontFamily": FONT_LEGIBLE,
+            "textAlign": "left", "verticalAlign": "top",
+            "lineHeight": 1.25, "containerId": None,
+            "autoResize": False, "strokeColor": "#5c584d",
+            "groupIds": [gid],
+            "customData": {"role": "decoration", "attr_of": eid,
+                           "author": "agent"},
+        })
+        els.append(row)
+        index[rid] = row
+
 
 def _set_label(els, index, existing, el, value):
     """Set, replace, or clear (value None/"") an element's bound label."""
@@ -5807,8 +5973,21 @@ class Store:
                                          artifacts[aid]["meta"])
             self.registry["revn"] = revn
             if forked:
+                # the outgoing branch keeps its own registry; the new one
+                # inherits the live sections, which are a copy of the
+                # drawing at this point (r3-17)
+                self._stash_scope(self.registry["head"])
                 self.registry["branches"].append(
-                    {"name": branch, "head": revn, "archived": False})
+                    {"name": branch, "head": revn, "archived": False,
+                     # `head` ADVANCES, so without these a branch stops
+                     # identifying where it began after one more save,
+                     # and no surface joined it to its creating record
+                     # (r3-11). The rationale is NOT copied here: it
+                     # lives on that save's headline, and a second copy
+                     # would drift from the words the user can edit.
+                     "forked_from": self.registry["head"],
+                     "forked_at_revn": base,
+                     "origin_revn": revn})
                 self.registry["head"] = branch
                 self.checkout_revn = None
             else:
@@ -6725,6 +6904,32 @@ class Store:
             return pin
 
     # -- branches ---------------------------------------------------------
+    def _stash_scope(self, name):
+        """Record the live branch-scoped sections against a branch.
+
+        Args:
+            name: The branch to stash them under.
+        """
+        for b in self.registry["branches"]:
+            if b["name"] == name:
+                b["scope"] = {k: copy.deepcopy(self.registry.get(k))
+                              for k in BRANCH_SCOPED if k in self.registry}
+                return
+
+    def _load_scope(self, b):
+        """Make a branch's stashed sections the live ones.
+
+        A branch with no stash keeps what is already live — that is the
+        first switch after the 0002 migration, and inheriting is right:
+        the alternative is silently emptying a registry.
+
+        Args:
+            b: The branch record being switched to.
+        """
+        for k, v in (b.get("scope") or {}).items():
+            if k in BRANCH_SCOPED:
+                self.registry[k] = copy.deepcopy(v)
+
     def switch_branch(self, name):
         with self.lock:
             b = next((b for b in self.registry["branches"]
@@ -6734,6 +6939,13 @@ class Store:
                                   % (name, ", ".join(
                                       x["name"] for x in
                                       self.registry["branches"]))])
+            # the registry follows the branch, like the scenes below.
+            # Without this, switching to a branch that lacks an artifact
+            # deleted its file and the load-time healer then PRUNED the
+            # pins on it — permanently, for the branch you came from
+            # (reproduced: open -> pruned -> still pruned back on main).
+            self._stash_scope(self.registry["head"])
+            self._load_scope(b)
             state = self.state_at(b["head"])
             current = set(self.scenes.keys())
             for aid, part in state.items():

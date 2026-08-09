@@ -4456,13 +4456,24 @@ class TestHeldRevisions(Base):
         return b
 
     def test_invalid_ops_rejected_at_queue_time(self):
-        # the live failure: an attribute that does not exist
+        # the live failure: an attribute that does not exist.
+        # This used to use `attributes`, which was genuinely unknown to
+        # `mod` — so the test encoded BUG-04 as intended behaviour. It is
+        # a real mod attribute since v0.7; use one that is not.
+        r = self.apply(self.batch([
+            {"op": "mod", "id": "payment",
+             "attrs": {"nonesuch": {"x": 1}}}]))
+        self.assertFalse(r.get("ok"))
+        self.assertEqual(r.get("status"), 422)
+        self.assertIn("unknown attribute", r["error"])
+        self.assertEqual(self.app.pending, [])
+
+    def test_a_bad_attributes_value_is_still_rejected_at_queue_time(self):
         r = self.apply(self.batch([
             {"op": "mod", "id": "payment",
              "attrs": {"attributes": {"x": 1}}}]))
         self.assertFalse(r.get("ok"))
-        self.assertEqual(r.get("status"), 422)
-        self.assertIn("unknown attribute", r["error"])
+        self.assertIn("must be a list of strings", r["error"])
         self.assertEqual(self.app.pending, [])
 
     def test_invalid_registry_op_rejected_at_queue_time(self):
@@ -5365,6 +5376,201 @@ class TestProgressIndicatorQuestion(Base):
         notes = self.screen("60% complete")
         self.assertTrue(any("progress indicator" in n for n in notes),
                         notes)
+
+
+class TestRegistryFollowsTheBranch(Base):
+    """The registry is branch-level, like the scenes (r3-17).
+
+    `switch_branch` has always materialised per-branch scenes and deleted
+    the artifacts the target lacks, while concepts/mappings/pins/
+    tripwires/waives/budgets stayed one global blob — so on a branch the
+    registry asserted views that do not exist and printed
+    VIEW_DEBT=none: branch-blind in the direction that SUPPRESSES work.
+
+    And it lost data. Reproduced before the fix: switching to a branch
+    without the artifact deletes its file, the load-time healer prunes
+    the pins on it, and _save_registry makes that permanent — for the
+    branch you came from.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}]})
+        self.store.checkout_revn = 0
+        self.store.commit(author="user", new_scenes={}, fork_name="alt")
+        self.store.registry["head"] = "main"
+        self.store._save_registry()
+
+    def reload(self):
+        self.store._save_registry()
+        self.store = canvas.Store(self.project)
+        return self.store
+
+    def pin_status(self):
+        return {p["id"]: p["status"] for p in self.store.registry["pins"]}
+
+    def test_mains_pin_survives_a_visit_to_a_branch_without_it(self):
+        self.store.switch_branch("alt")
+        self.reload()                       # the healer prunes on alt
+        self.store.switch_branch("main")
+        self.reload()
+        self.assertEqual(self.pin_status()["pin-pay"], "open")
+
+    def test_the_branch_carries_its_own_scope(self):
+        self.store.switch_branch("alt")
+        main = next(b for b in self.store.registry["branches"]
+                    if b["name"] == "main")
+        self.assertIn("scope", main)
+        self.assertIn("pins", main["scope"])
+
+    def test_every_scoped_section_is_stashed(self):
+        self.store.switch_branch("alt")
+        main = next(b for b in self.store.registry["branches"]
+                    if b["name"] == "main")
+        self.assertEqual(set(main["scope"]), set(canvas.BRANCH_SCOPED))
+
+    def test_a_fork_records_where_it_began(self):
+        alt = next(b for b in self.store.registry["branches"]
+                   if b["name"] == "alt")
+        self.assertEqual(alt["forked_from"], "main")
+        self.assertEqual(alt["forked_at_revn"], 0)
+        self.assertIn("origin_revn", alt)
+
+    def test_head_advances_past_the_fork_point(self):
+        # the reason the fork point had to be stored: `head` moves
+        alt = next(b for b in self.store.registry["branches"]
+                   if b["name"] == "alt")
+        self.assertNotEqual(alt["head"], alt["forked_at_revn"])
+
+    def test_a_v06_registry_is_migrated_losslessly(self):
+        reg = json.loads(json.dumps(canvas.DEFAULT_REGISTRY))
+        reg["concepts"] = [{"id": "c", "name": "C", "views": ["a"]}]
+        out = canvas._mig_registry_0002(reg)
+        main = out["branches"][0]
+        self.assertEqual(main["scope"]["concepts"], reg["concepts"])
+        # top level stays the working copy — nothing is moved out
+        self.assertEqual(out["concepts"], reg["concepts"])
+
+
+class TestModAttributes(Base):
+    """A domain entity's attribute rows are editable in place (BUG-04).
+
+    `attributes` was accepted on `add` and nowhere else, so the only way
+    to amend them was delete + re-add — which mints a new element id and
+    therefore drops that element's mappings and pins, and breaks the
+    rename-keeps-the-id rule `entity_renamed` detection depends on.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": "DM", "type": "domain",
+                       "concept": "d", "concept_name": "D"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e1", "kind": "entity",
+                "label": "Concept", "x": 100, "y": 100,
+                "attributes": ["name: str", "kind: str"]}}]})
+
+    def set_attrs(self, rows):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [{"op": "mod", "id": "e1", "attrs": {"attributes": rows}}]})
+        return sorted({f["fact"] for a in rec["artifacts"].values()
+                       for f in a["facts"]})
+
+    def rows(self):
+        return [e["text"] for e in self.store.scenes["dm"]
+                if (e.get("customData") or {}).get("attr_of") == "e1"]
+
+    def test_the_entity_id_survives(self):
+        self.set_attrs(["name: str", "scale_free: bool"])
+        self.assertTrue(any(e["id"] == "e1" for e in self.store.scenes["dm"]))
+
+    def test_the_rows_are_replaced(self):
+        self.set_attrs(["name: str", "scale_free: bool"])
+        self.assertEqual(self.rows(), ["name: str", "scale_free: bool"])
+
+    def test_adding_a_row_narrates_as_an_attribute(self):
+        self.assertIn("attribute_added",
+                      self.set_attrs(["name: str", "kind: str", "n: int"]))
+
+    def test_removing_a_row_narrates_as_an_attribute(self):
+        self.assertIn("attribute_removed", self.set_attrs(["name: str"]))
+
+    def test_a_non_entity_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "dm",
+                "ops": [{"op": "mod", "id": "e1-attr-1",
+                         "attrs": {"attributes": ["x"]}}]})
+
+    def test_a_non_list_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "dm",
+                "ops": [{"op": "mod", "id": "e1",
+                         "attrs": {"attributes": {"x": 1}}}]})
+
+
+class TestMarkerAnchor(unittest.TestCase):
+    """Markers hug the shape, not its bounding box (r3-1).
+
+    A constant bbox offset is 22px off a rectangle and 79px off a
+    DIAMOND — a clearance varying threefold with shape type, which no
+    intentional design would do. v0.6 fixed exactly this for the tooltip
+    dot in App.tsx and nobody grepped, so it was still live in the pin
+    seeder AND, found while fixing this, in the tripwire mark.
+    """
+
+    def shape(self, etype):
+        return {"id": "n", "type": etype, "x": 100, "y": 100,
+                "width": 200, "height": 100}
+
+    def test_a_rectangle_fills_its_box(self):
+        self.assertEqual(canvas.marker_inset("rectangle"), 0.0)
+        self.assertEqual(canvas.marker_anchor(self.shape("rectangle")),
+                         (300, 200))
+
+    def test_a_diamond_pulls_the_marker_in(self):
+        x, y = canvas.marker_anchor(self.shape("diamond"))
+        self.assertEqual((x, y), (250, 175))
+
+    def test_an_ellipse_pulls_in_by_the_half_diagonal(self):
+        x, _ = canvas.marker_anchor(self.shape("ellipse"))
+        self.assertLess(x, 300)
+        self.assertGreater(x, 250)
+
+    def test_the_top_right_corner_mirrors_it(self):
+        self.assertEqual(canvas.marker_anchor(self.shape("diamond"),
+                                              corner="tr"), (250, 125))
+
+    def test_the_pin_glyph_hugs_a_diamond(self):
+        els, errors = [], []
+        node = self.shape("diamond")
+        node["customData"] = {"role": "node"}
+        out = canvas.apply_ops(
+            [node],
+            [{"op": "pin", "id": "pin-1", "target": "n",
+              "question": "Which way?"}], errors, [])
+        self.assertEqual(errors, [])
+        pin = next(e for e in out if e["id"] == "pin-1")
+        # 8px clear of the STROKE, not 79px clear of the corner
+        self.assertEqual((pin["x"], pin["y"]), (258, 117))
+
+    def test_the_router_still_owns_the_name_edge_anchor(self):
+        # this helper was first written AS `edge_anchor`, which already
+        # existed with a different meaning (the point on a shape's edge
+        # facing a target). The shadow made route_arrow produce no
+        # candidates and 156 tests error at once — loudly, which is the
+        # only reason it did not ship.
+        self.assertEqual(canvas.edge_anchor(self.shape("rectangle"),
+                                            1000, 150), (300.0, 150.0))
 
 
 class TestManyToOneIsADeclaredCompression(unittest.TestCase):

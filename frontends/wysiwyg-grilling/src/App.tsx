@@ -83,6 +83,27 @@ const restoreForRender = (els: any[]) =>
     refreshDimensions: true, repairBindings: true,
   } as any);
 
+/** Where a marker sits so it hugs a shape's bottom-right EDGE.
+ *
+ * A rectangle fills its bounding box; a diamond and an ellipse do not, so
+ * the box corner is empty canvas for them and a marker anchored there
+ * floats clear and reads as a stray mark. v0.6 fixed this for the tooltip
+ * dot and nobody grepped for the shape, so it was still live in the pin
+ * seeder AND in the tripwire mark below (v0.6 assessment r3-1).
+ *
+ * Mirrors `marker_anchor` in canvas.py — stored geometry and canvas overlay
+ * cannot share code, so they share this rule.
+ */
+const markerAnchor = (e: any, dx = 0, dy = 0, corner: "br" | "tr" = "br") => {
+  const w = e.width || 0, h = e.height || 0;
+  const inset = e.type === "diamond" ? 0.5
+    : e.type === "ellipse" ? 1 - Math.SQRT1_2 : 0;
+  return {
+    x: e.x + w - (w * inset) / 2 + dx,
+    y: corner === "tr" ? e.y + (h * inset) / 2 + dy : e.y + h - (h * inset) / 2 + dy,
+  };
+};
+
 
 export default function App() {
   const [state, setState] = useState<any>(null);
@@ -536,7 +557,18 @@ export default function App() {
             buffersRef.current[cur] = replayed;
             loadScene(replayed, false);
           }
-          toast(`Applied agent revision #${r.revn}`);
+          // say WHERE it landed when that is not where you are looking:
+          // the filmstrip is concept-scoped, so an artifact applied into
+          // another concept never joins the strip you can see (r3-3)
+          const landed = r.artifact || cur;
+          const st = stateRef.current;
+          const owning = (st?.concepts || []).find(
+            (c: any) => (c.views || []).includes(cur));
+          const visible: string[] = owning
+            ? owning.views : Object.keys(st?.artifacts || {});
+          toast(landed && !visible.includes(landed)
+            ? `Applied agent revision #${r.revn} — ${st?.artifacts?.[landed]?.name || landed}, in another concept`
+            : `Applied agent revision #${r.revn}`);
         } else toast("Revision will land after your next Save.");
         refresh();
       } catch (e: any) {
@@ -602,6 +634,18 @@ export default function App() {
     const views = c ? c.views.filter((v: string) => artifacts[v]) : artifactIds;
     return views;
   }, [concepts, currentArtifact, artifactIds.join(",")]);
+
+  /** The concept the filmstrip is showing, if it is showing one.
+   *
+   * The strip is concept-scoped on purpose — grouping views by the thing
+   * they are views OF is the skill's central idea — but it never said so,
+   * so "what exists here" silently meant "what exists in this concept"
+   * and an artifact applied from the banner while you were looking
+   * elsewhere never appeared (v0.6 assessment r3-3). */
+  const currentConceptName = useMemo(() => {
+    const c = concepts.find((c: any) => (c.views || []).includes(currentArtifact));
+    return c ? c.name : null;
+  }, [concepts, currentArtifact]);
 
   const groupedArtifacts = useMemo(() => {
     const groups: { name: string; ids: string[] }[] = [];
@@ -1463,8 +1507,10 @@ export default function App() {
                 key={t.id}
                 className="trip-mark"
                 style={{
-                  left: (el.x + (el.width || 0) + camera.scrollX) * camera.zoom,
-                  top: (el.y + camera.scrollY) * camera.zoom - 10,
+                  // hug the shape, not its bounding box (r3-1) — the
+                  // third instance of that bug, found by grepping
+                  left: (markerAnchor(el, 0, 0, "tr").x + camera.scrollX) * camera.zoom,
+                  top: (markerAnchor(el, 0, 0, "tr").y + camera.scrollY) * camera.zoom - 10,
                 }}
                 onClick={() => setAnchored({ kind: "tripwire", data: t,
                   el: { x: el.x, y: el.y, width: el.width, height: el.height } })}
@@ -1480,15 +1526,12 @@ export default function App() {
                 ~40px clear of the decision node it belonged to and read
                 as a stray mark. */}
             {tooltipDots.map((e: any) => {
-              const w = e.width || 0, h = e.height || 0;
-              // fraction of the half-diagonal at which the outline sits
-              const inset = e.type === "diamond" ? 0.5
-                : e.type === "ellipse" ? 1 - Math.SQRT1_2 : 0;
+              const a = markerAnchor(e);
               return (
                 <div key={`tip-${e.id}`} className="tip-dot"
                   style={{
-                    left: (e.x + w - w * inset / 2 + camera.scrollX) * camera.zoom - 4,
-                    top: (e.y + h - h * inset / 2 + camera.scrollY) * camera.zoom - 4,
+                    left: (a.x + camera.scrollX) * camera.zoom - 4,
+                    top: (a.y + camera.scrollY) * camera.zoom - 4,
                   }}
                   title="has a tooltip — hover the element" />
               );
@@ -1660,6 +1703,11 @@ export default function App() {
             </div>
           )}
         </div>
+        {currentConceptName && (
+          <div className="strip-scope" title="the filmstrip shows one concept's views — use All artifacts for the rest">
+            {currentConceptName}
+          </div>
+        )}
         <div className="thumbs">
           {currentConceptViews.map((aid: string) => {
             const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
