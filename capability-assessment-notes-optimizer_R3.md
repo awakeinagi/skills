@@ -731,3 +731,97 @@ _Mechanisms observed doing their job. A run that found six defects across forty 
       → code fixes      14
       → docs fixes      2
       → 6 found only by LOOKING at a rendered artifact — no state query would have reached them
+
+---
+
+## Fixed — v0.7
+
+Eight commits, `main..capability_assessment`. Backend suite 342 pass (was
+272 at the start of remediation); `uvx pre-commit run --all-files` clean.
+
+Every fix carries a differential control in **both** directions — it fires
+on the defect *and* stays quiet on the legitimate case — and every check
+that could be replayed was replayed against `.scratch/argus-v06/`.
+
+| finding | sev | where it landed | control |
+|---|---|---|---|
+| r3-12 | P1 | WP1a `_sandbox()`; the guard moved to the WRITERS (`_write_artifact`, `_save_registry`) | fixture, real CLI: v0.6 renames `argus-domain` on disk, v0.7 leaves it byte-identical |
+| r3-10 | P1 | WP1a `commit` re-reads meta for the artifacts `reg_changes` says were renamed | fixture: v0.6 gives three different answers from one apply, v0.7 one |
+| r3-6 | P1 | WP2 one `_print_standing()` on all three `cmd_apply` exits; both server responses widened | live server under `pulled`: v0.6 prints no `PIN_DEBT` at all |
+| r3-2 | P1 | WP2 `effective_round()` / `effective_whose_move()`, derived from the queue | live: pin reads `age 1r` while queued, `age 0r` on v0.6; discarding reverses it |
+| r3-13 | P1 | WP3 fires on a binding whose target is gone | fixture revn 18: both named arrows, silent at 17 and 19 |
+| r3-4 | P1 | WP5 `restoreForRender` at all five sites | Excalidraw source; **not** PNG-measured — see below |
+| r3-16 | P2 | WP3 distance to the perimeter, both sides | fixture: 3 arrows into `m-downstream`, silent on the other 7 artifacts |
+| r3-7 | P2 | WP4 one tripwire per mapping per save | 4-member mapping: 1 question, not 3 |
+| r3-17 | P2 | WP6 `BRANCH_SCOPED` stash/pop + migration `0002` | pin-loss reproduced, then fixed |
+| r3-1 | P2 | WP6 shared `marker_anchor` / `markerAnchor`, three sites | pin on a diamond: 8px clear of the stroke |
+| r3-9 | P3 | WP2 `OPEN_TRIPWIRE` rides the same block | — |
+| r3-14 | P3 | WP2 `BRANCH=` on the apply response | — |
+| r3-11 | P3 | WP6 `forked_from` / `forked_at_revn` / `origin_revn` | — |
+| r3-8 | P3 | WP4 3.2.4 keyed on (flow step, mapping) | one mapping silent; three disagreeing mappings still fire |
+| r3-3 | P3 | WP6 the filmstrip names its concept; the toast says "in another concept" | — |
+| r3-15 | P3 | **not fixed, by decision** — behavioural, n=1 | round 4 watches for it |
+| ~~r3-5~~ | — | withdrawn during the run; residue shipped as r3-9 | — |
+
+Also shipped, from a second source — a real session on the
+`brownfield_handling` worktree (`docs/bug_hunt/brownfield_grilling.md`),
+whose skill code was byte-identical to v0.6:
+
+| bug | where it landed |
+|---|---|
+| BUG-01 | WP4 — compare normalized new bindings to old, so a no-op drag stops claiming `sequence_reordered` |
+| BUG-02 | WP4 — `tidy` runs to a fixed point; **reproduced first, and neither the report's mechanism nor mine survived** (see below) |
+| BUG-03 | WP1b — registry ops see the batch's own creates; third instance of one ordering fault, so it got a structural fix |
+| BUG-04 | WP6 — `attributes` is a mod attribute; delete+re-add was dropping mappings and pins |
+| BUG-05 | WP3 — the warning names what actually disqualified the arrows; **the report's diagnosis is refuted** (see below) |
+| BUG-06 | WP3 — `user_route_replaced`; **two of its claims withdrawn** (see below) |
+
+### Corrections made while fixing
+
+Recorded because a wrong mechanism with a right observation is the
+commonest shape in this project, and because the record of a wrong
+finding is what stops the next run re-filing it.
+
+- **BUG-05's stated cause is refuted.** It blamed a `role: decoration`
+  text blocking a fan slot. Reproduced at `algorithm-refinements` revns
+  56–59: deleting **all three** decorations leaves the warning standing,
+  and moving every title 400px leaves it standing. What clears it at
+  revn 60 is arrow `d3` dropping from 4 points to 3 —
+  `fan_attach_points` only moves 2- and 3-point server-routed paths. The
+  confirmed part is worse than the reported part: the warning asserted
+  "obstacles in every slot" from a check with no obstacle set in scope.
+- **BUG-02 was not what either of us thought.** `tidy` was not writing
+  no-op revisions; every press genuinely changed the drawing. Two
+  faults: `_tidy_pass` rebuilds `boundElements` in a different order
+  from `normalize_scene_doc`, defeating the existing no-op guard; and
+  routing reads the other arrows' paths while the fan then moves them,
+  so tidy **oscillated with period 2**. Five presses wrote five
+  revisions; now zero, with an honest "could not settle".
+- **BUG-06 drops to B/C.** "The next tidy silently discards it" is
+  wrong — `server_owns_geometry` returns false on a user drag, so tidy
+  and the move-repair pass already skip it. The rewrite on rewire is
+  documented design. The residue is silence, now narrated.
+- **A near-miss I caused.** `marker_anchor` was first written as
+  `edge_anchor`, a name canvas.py already used for something else
+  entirely (the point on a shape's edge facing a target, used by the
+  router). The shadow made `route_arrow` return no candidates and 156
+  tests errored at once. Caught only because it failed loudly; there is
+  now a test pinning the router's `edge_anchor`.
+- **r3-1's third instance.** Grepping for the bbox-corner shape while
+  fixing the pin glyph found it live in the tripwire mark
+  (`App.tsx`). Fixed, **not** filed: the run is closed and adding to the
+  ledger after the fact would stop the counts meaning what they meant.
+- **A test that encoded a bug as intended behaviour.** v0.6's
+  `test_invalid_ops_rejected_at_queue_time` used `attributes` as its
+  example of an unknown mod attribute — which is precisely BUG-04.
+
+### What is NOT verified
+
+**r3-4 is source-verified, not measured.** Excalidraw's `restore` calls
+`refreshTextDimensions` only inside its `repairBindings` block, and that
+calls `wrapText` when `container || !autoResize` — and `fit_label_in`
+sets `autoResize: false` exactly so the client wraps. The five call
+sites now pass both options. But taking the PNG needs a browser running
+the app, which this environment cannot drive. **Round 4 owns that
+check**, and it is already item 3 on the checklist: snapshot a wrapping
+label, confirm it matches the canvas and the SVG, then run a cold look.
