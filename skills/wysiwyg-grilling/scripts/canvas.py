@@ -5602,13 +5602,30 @@ class Store:
             # registry ops apply BEFORE the summary so a registry-only
             # batch headlines its registry work instead of "saved without
             # changing anything" (capability assessment finding)
+            # a registry op naming the artifact its OWN batch creates was
+            # rejected outright — "set_budget needs an existing artifact"
+            # — because a create does not reach artifact_meta until the
+            # write below, after the ops. So the documented "over budget
+            # → record it with a reason" workflow could not be done in
+            # the batch that drew the thing: it cost a second revision
+            # plus a false NOTE for the overrun it was in the act of
+            # justifying (brownfield BUG-03). Publish first; r3-10's
+            # re-read below still picks up what the ops then did.
+            seeded = self._seed_created_meta(new_meta)
             reg_changes = []
             if registry_ops:
                 reg_errors = []
-                reg_changes = self._apply_registry_ops(registry_ops,
-                                                       reg_errors)
-                if reg_errors:
-                    raise BatchError(reg_errors)
+                try:
+                    reg_changes = self._apply_registry_ops(registry_ops,
+                                                           reg_errors)
+                    if reg_errors:
+                        raise BatchError(reg_errors)
+                except BatchError:
+                    # a rejected batch must not leave a phantom artifact
+                    # with no scene and no file
+                    for aid2 in seeded:
+                        self.artifact_meta.pop(aid2, None)
+                    raise
                 # a registry op can change artifact META, and `meta` was
                 # snapshotted above — BEFORE these ran. A rename landing
                 # in the same batch as a drawing was therefore written
@@ -5711,6 +5728,30 @@ class Store:
                 self.registry["whose_move"] = "user"
             self._save_registry()
             return record
+
+    def _seed_created_meta(self, new_meta):
+        """Publish a batch's about-to-be-created artifacts into the cache.
+
+        Registry ops run before the artifact write, so without this a
+        `set_budget` or `rename_artifact` naming the artifact its own
+        batch creates is rejected as unknown (brownfield BUG-03).
+        `upsert_concept` has carried its own workaround for this shape
+        since v0.6 — `view_types`, which stays for back-compat but is no
+        longer the only way an op can learn a new artifact's type.
+
+        Args:
+            new_meta: `{artifact_id: meta}` for the batch, or None.
+
+        Returns:
+            The ids actually seeded, so a rejected batch can un-publish
+            them rather than leave a phantom artifact behind.
+        """
+        seeded = []
+        for aid, meta in (new_meta or {}).items():
+            if aid not in self.artifact_meta:
+                self.artifact_meta[aid] = dict(meta or {})
+                seeded.append(aid)
+        return seeded
 
     @contextlib.contextmanager
     def _sandbox(self):
@@ -6419,6 +6460,10 @@ class Store:
             saved = self.registry
             reg_errors = []
             with self._sandbox():
+                # same publish-before-ops as commit, so --check accepts
+                # exactly what apply accepts (BUG-03). No un-seeding
+                # needed: the sandbox throws the whole cache away.
+                self._seed_created_meta(checked["new_meta"])
                 try:
                     self._apply_registry_ops(checked["registry_ops"],
                                              reg_errors)

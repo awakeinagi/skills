@@ -4782,6 +4782,86 @@ class TestRenameArtifact(Base):
             self.rename(artifact="dm", name="   ")
 
 
+class TestRegistryOpsSeeTheBatchsOwnCreates(Base):
+    """A registry op may name the artifact its own batch creates (v0.7).
+
+    `set_budget` was rejected wholesale — "needs an existing artifact" —
+    because a created artifact did not reach `artifact_meta` until the
+    write at the END of commit, after the ops had run. The documented
+    workflow is "over budget → record it with a reason", so every
+    deliberate overrun cost an extra revision AND a false LAYOUT_NOTE for
+    the overrun it was in the act of justifying (brownfield BUG-03).
+
+    Third instance of one ordering: r3-10 is the same fault running the
+    other way, and `upsert_concept` already ships a workaround for this
+    shape (`view_types`).
+    """
+
+    def batch(self, *ops):
+        return {
+            "base_revn": self.store.head_revn(), "artifact": "cand",
+            "create": {"id": "cand", "name": "Candidates", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "kind": "step",
+                "label": "Ingest", "x": 100, "y": 100}}, *ops]}
+
+    def test_set_budget_rides_the_creating_batch(self):
+        rec, _ = self.store.apply_batch(self.batch(
+            {"op": "registry", "action": "set_budget", "artifact": "cand",
+             "nodes": 14, "arrows": 18,
+             "reason": "the 5-way ingest fan IS this view"}))
+        self.assertEqual(self.store.registry["budgets"]["cand"]["nodes"], 14)
+        self.assertEqual(self.store.registry["budgets"]["cand"]["reason"],
+                         "the 5-way ingest fan IS this view")
+        # set_budget records via the generic fall-through, so the entry
+        # keeps the op's own action name (unlike budget_cleared)
+        self.assertTrue(any(c.get("action") == "set_budget"
+                            for c in rec["registry_changes"]))
+
+    def test_rename_rides_the_creating_batch(self):
+        self.store.apply_batch(self.batch(
+            {"op": "registry", "action": "rename_artifact",
+             "artifact": "cand", "name": "Algorithm Candidates"}))
+        self.assertEqual(self.store.artifact_meta["cand"]["name"],
+                         "Algorithm Candidates")
+        doc = json.loads(
+            (self.store.p.artifacts_dir / "cand.excalidraw").read_text())
+        self.assertEqual(doc["wysiwyg"]["name"], "Algorithm Candidates")
+
+    def test_one_revision_not_two(self):
+        before = self.store.head_revn()
+        self.store.apply_batch(self.batch(
+            {"op": "registry", "action": "set_budget", "artifact": "cand",
+             "nodes": 14, "arrows": 18, "reason": "deliberate"}))
+        self.assertEqual(self.store.head_revn(), before + 1)
+
+    def test_an_artifact_that_exists_nowhere_is_still_rejected(self):
+        # the silent half: seeding the batch's creates must not turn the
+        # existence check off
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(self.batch(
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "ghost", "nodes": 14, "arrows": 18,
+                 "reason": "no such view"}))
+
+    def test_a_failed_registry_op_leaves_no_phantom_artifact(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(self.batch(
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "ghost", "nodes": 14, "arrows": 18,
+                 "reason": "no such view"}))
+        self.assertNotIn("cand", self.store.artifact_meta)
+        self.assertNotIn("cand", self.store.scenes)
+
+    def test_check_accepts_it_too(self):
+        r = self.store.check_batch(self.batch(
+            {"op": "registry", "action": "set_budget", "artifact": "cand",
+             "nodes": 14, "arrows": 18, "reason": "deliberate"}))
+        self.assertTrue(r["ok"], r.get("errors"))
+        self.assertNotIn("cand", self.store.artifact_meta)
+
+
 class TestVersioningBoundary(Base):
     """A dry run writes nothing; a mixed batch keeps its rename (v0.7 WP1).
 
