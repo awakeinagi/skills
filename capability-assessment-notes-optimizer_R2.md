@@ -519,3 +519,44 @@ suspicion habit.
 - Round 1's fixture is at `.scratch/argus-v05/`; round 2's is the live
   `argus2` project, which additionally carries a scoped annotation, an archived
   branch, footnoted SVG exports, and 11 resolved tripwires.
+
+---
+
+## Fixed — v0.6
+
+`13203a9` (WP1), `fd660c9` (WP2–WP5), `e5691e5` (WP6). 264 tests, full
+`pre-commit` gate green, and the round-1 fixture still reports the same 8
+findings it did before — no new check over-fires on 7 real artifacts.
+
+| # | Sev | Resolution |
+|---|---|---|
+| R2-4 | P1 | **Fixed** (WP2). Variant frames are paired by `frame_reading_order`, or by an explicit `customData.variant_of`; a divergent label warns with a `var:<aid>:<slug>` waive. The invariant that makes it sound was already written down in `wireframe.md` — sibling screens share row baselines. |
+| R2-8 | P1 | **Fixed** (WP1a), and the root cause was not what the finding looked like. Three parties placed the label: the seeder used the longest segment's midpoint + 8px lift, `render_svg` drew at the stored position and agreed, and the client discards both for the arc-length midpoint. `arrow_label_anchor()` is now the single source of truth for seeder, SVG and lints; `render_svg` paints the backing the client's stroke-break implies; and the missing label-vs-node check exists. `layout.md` rule 2 rewritten to describe what is actually enforceable. |
+| R2-10 | P2 | **Fixed** (WP1b). `_recompose_xbox` re-derives the diagonals on resize, and the decoration exemption is narrowed by exactly one case — a decoration extending past its grouped host is a NOTE. Budgets and connector routing stay exempt. |
+| R2-6 | P2 | **Fixed** (WP3). `DIVERGENCE_VERBS` gates arming; presentation-only facts no longer fire. Pinned by a test against the verbs the differ really emits — the first draft contained `kind_changed`, which does not exist, and a typo there silently disarms a real tripwire. |
+| R2-3 | P2 | **Fixed** (WP1c). `apply --check --render` draws the uncommitted scene; `cmd_snapshot`'s tier-2 rasterizer extracted as `rasterize_svg()` and shared. |
+| R2-7 | P2 | **Fixed** (WP4). `TERM_RE` refuses to swallow `**`; `TERM_ALIAS_RE` recognises the audience split; a concept linked to either name resolves. |
+| R2-1 | P2 | **Fixed** (WP4). A bare percentage no longer reads as a progress indicator; `% complete` and `step N of M` still do. |
+| R2-5 | P2 | **Fixed** (WP4). `rename_artifact` registry op, which writes the artifact file through itself because a registry-only batch never touches scenes. |
+| R2-11 | P3 | **Fixed** (WP5). The tooltip dot anchors to the shape's edge, so diamonds and ellipses keep their tell. |
+| R2-9 | P3 | **Fixed** (WP5). `view-progression.md` now says when a `dfd`/`swimlane`/`er`/`architecture`/`mindmap` beats a first-class type, and what the generic narration costs. |
+| R2-2 | P3 | **WITHDRAWN.** Guarding the reattach heuristic on "the claiming concept already holds views" broke two tests that deliberately encode the opposite behaviour — and they are right: a term with no views is the *normal* case for a correct misfile catch. The finding was filed P3 and flagged arguable at the time; it stays arguable. Same discipline as round 1's connector finding. |
+
+**What the fixes cost to get right.** Two of them were wrong on the first
+attempt, both caught by a control rather than by review:
+
+- The decoration lint flagged every *healthy* placeholder, because the X's
+  second stroke is stored at the box's bottom edge with negative points
+  and a naive bbox put it a full box-height adrift. The "silent on the
+  legitimate case" test caught it; the "fires on the defect" test could
+  not have.
+- `DIVERGENCE_VERBS` shipped a verb that does not exist. A static test
+  against the differ's real vocabulary now makes that impossible.
+
+**Also lost:** the round-2 fixture. `/tmp` was swept before it could be
+promoted, taking `argus2` and its server state — the `kinds`-scoped
+annotation, the archived branch, the 7 artifacts. The four defect replays
+became deterministic unit tests instead, which is better, but the richer
+project is gone. `.scratch/argus-v05/` survives and still does the
+over-fire job. **Promote the fixture on the day it is finished, not at
+the end of the round.**
