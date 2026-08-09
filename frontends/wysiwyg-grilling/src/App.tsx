@@ -63,6 +63,27 @@ function ghostShape(e: any) {
   return <rect key={e.id} x={e.x} y={e.y} width={w} height={h} />;
 }
 
+/** Restore stored elements the way the EDITOR does.
+ *
+ * `refreshDimensions` is what re-wraps container-bound text — and it only
+ * runs inside restore's `repairBindings` block, so the two must travel
+ * together. The server stores label text unwrapped on purpose
+ * (`fit_label_in` sizes the box for the wrapped line count and sets
+ * `autoResize: false` so the client wraps inside it), which means anything
+ * that renders stored elements WITHOUT these options draws one long line.
+ *
+ * The agent's own `snapshot` did exactly that, so the PNG it took of its
+ * work disagreed with the canvas the user was reading, and with the
+ * server's SVG, which wraps by a completely separate path. A cold
+ * observer handed those PNGs reported broken text in 4 of 6 artifacts,
+ * none of it in the drawings (v0.6 assessment r3-4).
+ */
+const restoreForRender = (els: any[]) =>
+  restoreElements(els || [], null, {
+    refreshDimensions: true, repairBindings: true,
+  } as any);
+
+
 export default function App() {
   const [state, setState] = useState<any>(null);
   const [currentArtifact, setCurrentArtifact] = useState<string | null>(null);
@@ -147,12 +168,11 @@ export default function App() {
     };
   });
 
+
   /* ---------------- scene loading ---------------- */
   const loadScene = useCallback((els: any[], viewMode: boolean) => {
     if (!apiRef.current) return [];
-    const restored = restoreElements(els || [], null, {
-      refreshDimensions: true, repairBindings: true,
-    } as any);
+    const restored = restoreForRender(els);
     apiRef.current.updateScene({
       elements: restored,
       captureUpdate: CaptureUpdateAction.NEVER,
@@ -541,12 +561,15 @@ export default function App() {
       (async () => {
         try {
           const blob = await exportToBlob({
-            elements: restoreElements(els, null) as any,
+            elements: restoreForRender(els) as any,
             appState: {
               viewBackgroundColor: "#faf8f2", exportWithDarkMode: false,
               frameRendering: { enabled: true, name: true, outline: true, clip: false },
             },
-            files: null,
+            // the user's own export passes getFiles(); this passed null,
+            // so an agent snapshot of an artifact holding an image
+            // placeholder rendered it as an empty box (v0.7 WP5)
+            files: apiRef.current?.getFiles ? apiRef.current.getFiles() : null,
             mimeType: "image/png",
             exportPadding: 40,
           } as any);
@@ -694,9 +717,7 @@ export default function App() {
     const api = apiRef.current;
     if (!api) return;
     const live = api.getSceneElements().filter((e: any) => !e.isDeleted);
-    const restored = restoreElements([...live, ...newEls], null, {
-      repairBindings: true,
-    } as any);
+    const restored = restoreForRender([...live, ...newEls]);
     api.updateScene({ elements: restored });
   }, []);
 
@@ -829,7 +850,7 @@ export default function App() {
       }
       return { ...e, ...patch, customData: cd, version: (e.version || 0) + 1 };
     });
-    api.updateScene({ elements: restoreElements(els, null) as any });
+    api.updateScene({ elements: restoreForRender(els) as any });
   }, []);
 
   const setElementTooltip = useCallback((elId: string, text: string) => {
@@ -1035,7 +1056,7 @@ export default function App() {
     if (!els.length) { toast("Nothing to export — this artifact is empty."); return; }
     try {
       const blob = await exportToBlob({
-        elements: restoreElements(els, null) as any,
+        elements: restoreForRender(els) as any,
         // clip:false — frame membership must not crop annotations that
         // spill outside their screen frame (v0.3 assessment); padding
         // keeps estimated text extents from being cut at the edge
