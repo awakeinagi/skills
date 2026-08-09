@@ -18,6 +18,7 @@ Canonical invocation:  uv run canvas.py <cmd>   (bare python3 works too)
 """
 
 import argparse
+import contextlib
 import copy
 import hashlib
 import io
@@ -5334,6 +5335,7 @@ class Store:
         self.rollback = None          # {"matches_revn": N} when git-revert seen
         self.checkout_revn = None     # detached checkout point (memory only)
         self.reconciliation = None    # last catch-up record revn
+        self._dry_run = False         # inside _sandbox(): writers are no-ops
         self.load()
 
     # -- loading ----------------------------------------------------------
@@ -5607,6 +5609,20 @@ class Store:
                                                        reg_errors)
                 if reg_errors:
                     raise BatchError(reg_errors)
+                # a registry op can change artifact META, and `meta` was
+                # snapshotted above — BEFORE these ran. A rename landing
+                # in the same batch as a drawing was therefore written
+                # back stale by the artifact write below, AND stored
+                # stale in this record, so checking out the very
+                # revision that renamed the artifact restored the old
+                # name (v0.6 assessment r3-10). Re-read what the ops
+                # actually touched; reg_changes already names it.
+                for ch in reg_changes:
+                    aid2 = ch.get("artifact")
+                    if ch.get("action") == "artifact_renamed" and \
+                            aid2 in artifacts:
+                        artifacts[aid2]["meta"] = dict(
+                            self.artifact_meta.get(aid2) or {})
 
             facts_flat = [f for a in artifacts.values() for f in a["facts"]]
             if not facts_flat:
@@ -5696,7 +5712,50 @@ class Store:
             self._save_registry()
             return record
 
+    @contextlib.contextmanager
+    def _sandbox(self):
+        """Run ops against throwaway state — nothing reaches disk.
+
+        `check_batch` used to guard `self.registry` alone, so
+        `rename_artifact` escaped it twice over: it mutates
+        `self.artifact_meta[aid]` AND calls `_write_artifact`, and both
+        live outside that guard. A dry run therefore renamed an artifact
+        on disk with no revn, no save record and nothing to revert
+        (v0.6 assessment r3-12).
+
+        The guard is on the WRITER, not the caller: `_write_artifact` is
+        a no-op while this is open, so the next registry action that
+        touches disk is safe without anyone remembering a flag.
+
+        Yields:
+            None. State is restored on the way out, including on the
+            error paths — a leaked `_dry_run` would silently swallow
+            real writes.
+        """
+        saved_reg, saved_meta = self.registry, self.artifact_meta
+        saved_scenes = self.scenes
+        self.registry = copy.deepcopy(saved_reg)
+        self.artifact_meta = copy.deepcopy(saved_meta)
+        self.scenes = dict(saved_scenes)
+        self._dry_run = True
+        try:
+            yield
+        finally:
+            self.registry, self.artifact_meta = saved_reg, saved_meta
+            self.scenes = saved_scenes
+            self._dry_run = False
+
     def _write_artifact(self, aid, els, meta):
+        """Persist one artifact's scene + meta, and refresh the caches.
+
+        Args:
+            aid: Artifact id (also the filename stem).
+            els: The scene's elements, pre-normalization.
+            meta: The artifact's `wysiwyg` block — name, type, migrations.
+        """
+        if self._dry_run:
+            # inside _sandbox(): the caller is measuring, not committing
+            return
         doc = normalize_scene_doc({
             "elements": els,
             "wysiwyg": {
@@ -6200,6 +6259,15 @@ class Store:
         return applied
 
     def _save_registry(self):
+        """Persist the registry, unless we are measuring a dry run.
+
+        The other writer `_sandbox` has to stop: it swaps `self.registry`
+        for a throwaway copy, so an unguarded save here would persist the
+        sandbox. No registry action calls this today — the guard is here
+        because enumerating what to protect is what shipped r3-12.
+        """
+        if self._dry_run:
+            return
         write_json(self.p.registry_path, self.registry)
 
     # -- the agent write path --------------------------------------------
@@ -6343,18 +6411,20 @@ class Store:
             aid = checked["artifact"]
             # registry ops are the other half of a batch and they failed
             # this way in the field (`set_budget` with arrows: 0). The
-            # dispatch mutates self.registry as it validates, so it runs
-            # here against a copy that is thrown away either way.
+            # dispatch mutates state as it validates, so it runs here
+            # inside _sandbox() — which throws away the registry, the
+            # artifact meta AND any disk write. Enumerating what to
+            # protect is what shipped r3-12: the old guard listed
+            # self.registry and rename_artifact wrote past it.
             saved = self.registry
-            self.registry = copy.deepcopy(saved)
-            try:
-                reg_errors = []
-                self._apply_registry_ops(checked["registry_ops"], reg_errors)
-                reg_after = self.registry
-            except BatchError as e:
-                reg_errors, reg_after = list(e.errors), saved
-            finally:
-                self.registry = saved
+            reg_errors = []
+            with self._sandbox():
+                try:
+                    self._apply_registry_ops(checked["registry_ops"],
+                                             reg_errors)
+                    reg_after = self.registry
+                except BatchError as e:
+                    reg_errors, reg_after = list(e.errors), saved
             if reg_errors:
                 return {"ok": False, "errors": reg_errors, "artifact": aid,
                         "intent_echo": [], "layout_errors": [],

@@ -4782,6 +4782,113 @@ class TestRenameArtifact(Base):
             self.rename(artifact="dm", name="   ")
 
 
+class TestVersioningBoundary(Base):
+    """A dry run writes nothing; a mixed batch keeps its rename (v0.7 WP1).
+
+    The two are a compensating pair (v0.6 assessment r3-12 + r3-10):
+    `--check` wrote the new name to disk with no revn, the real apply
+    reverted it from a stale meta snapshot, and "the name never changed"
+    was evidence for neither. Each control below has to hold the other
+    defect constant, which is why they are tested together.
+    """
+
+    ORIGINAL = "Argus Domain"
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": self.ORIGINAL, "type": "domain",
+                       "concept": "d", "concept_name": "D"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e1", "kind": "entity",
+                "label": "Signal", "x": 100, "y": 100}}]})
+
+    def stored_name(self):
+        doc = json.loads(
+            (self.store.p.artifacts_dir / "dm.excalidraw").read_text())
+        return doc["wysiwyg"]["name"]
+
+    def rename_op(self, name):
+        return {"op": "registry", "action": "rename_artifact",
+                "artifact": "dm", "name": name}
+
+    # ---- r3-12: the dry run is side-effect free ----------------------
+
+    def test_check_does_not_rename_on_disk(self):
+        self.store.check_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op("ZZZ-DRY-RUN-PROBE")]})
+        self.assertEqual(self.stored_name(), self.ORIGINAL)
+
+    def test_check_does_not_rename_in_memory(self):
+        self.store.check_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op("ZZZ-DRY-RUN-PROBE")]})
+        self.assertEqual(self.store.artifact_meta["dm"]["name"],
+                         self.ORIGINAL)
+
+    def test_check_commits_no_revision(self):
+        before = self.store.head_revn()
+        self.store.check_batch({
+            "base_revn": before, "artifact": "dm",
+            "ops": [self.rename_op("ZZZ-DRY-RUN-PROBE")]})
+        self.assertEqual(self.store.head_revn(), before)
+
+    def test_dry_run_flag_does_not_leak_when_the_batch_is_rejected(self):
+        # a leaked _dry_run would silently swallow every later real
+        # write — the failure mode that makes the chokepoint scary
+        self.store.check_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [{"op": "registry", "action": "rename_artifact",
+                     "artifact": "ghost", "name": "X"}]})
+        self.assertFalse(self.store._dry_run)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op("After The Rejection")]})
+        self.assertEqual(self.stored_name(), "After The Rejection")
+
+    # ---- r3-10: the rename survives a batch that also draws ----------
+
+    def mixed_rename(self, name):
+        return self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op(name),
+                    {"op": "add", "element": {
+                        "type": "rectangle", "id": "e2", "kind": "entity",
+                        "label": "Position", "x": 400, "y": 100}}]})
+
+    def test_rename_survives_a_batch_that_also_draws(self):
+        self.mixed_rename("Signal Formation")
+        self.assertEqual(self.stored_name(), "Signal Formation")
+
+    def test_the_record_does_not_contradict_its_own_registry_changes(self):
+        rec, _ = self.mixed_rename("Signal Formation")
+        renamed = [c for c in rec["registry_changes"]
+                   if c.get("action") == "artifact_renamed"]
+        self.assertEqual(renamed[0]["to"], "Signal Formation")
+        # one record, one name: it used to report the rename and store
+        # the old value, so checking out the renaming revision reverted it
+        self.assertEqual(rec["artifacts"]["dm"]["meta"]["name"],
+                         "Signal Formation")
+
+    def test_checking_out_the_renaming_revision_keeps_the_new_name(self):
+        rec, _ = self.mixed_rename("Signal Formation")
+        state = self.store.state_at(rec["revn"])
+        self.assertEqual(state["dm"]["meta"]["name"], "Signal Formation")
+
+    def test_a_drawing_batch_with_no_rename_leaves_meta_alone(self):
+        # the silent half: the re-read must not invent a meta change
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e3", "kind": "entity",
+                "label": "Book", "x": 700, "y": 100}}]})
+        self.assertEqual(rec["artifacts"]["dm"]["meta"]["name"],
+                         self.ORIGINAL)
+        self.assertEqual(self.stored_name(), self.ORIGINAL)
+
+
 class TestProgressIndicatorQuestion(Base):
     """Q25 asks about progress indicators, not about percentages (v0.6).
 
