@@ -40,6 +40,13 @@ entry that cannot apply rather than re-offering it.
 rejected. Use it when you cannot afford to be wrong — a batch you are
 about to queue, or one you cannot see the result of.
 
+**`canvas.py apply --check --render`** adds a `PNG=` line: the proposed
+scene, drawn. This is the only way to *look* at a revision before it
+lands — under `pulled` cadence a queued batch is invisible to you until
+the user applies it, and legibility is the one class of defect the
+response cannot tell you about. Read the PNG before you queue, not after
+the user complains the diagram is hard to read.
+
 ## `create` — new artifact
 
 ```jsonc
@@ -242,8 +249,17 @@ it "agent asked a question" with no Apply action.
  "note": "intentionally-divergent: three KPI tiles, one store",
  "kinds": ["cardinality_changed"]}
 // verbs worth scoping to: renamed · label_renamed · entity_renamed ·
-// moved · rewired · relationship_rewired · value_changed ·
-// state_toggled · cardinality_changed
+// rewired · relationship_rewired · value_changed · state_toggled ·
+// cardinality_changed · type_changed · the *_deleted family
+// Presentation-only facts (moved, resized, reordered, regrouped,
+// restyled, tooltip_*) no longer arm a tripwire at all (v0.6), so you
+// never need to scope one out — a 40px nudge is not a disagreement.
+// a view's SCOPE can narrow — splitting a domain model leaves one half
+// being something else. The id never moves (saves, mappings and pins are
+// keyed on it); only the title the rail shows. v0.6: before this, the
+// only way to retitle was to re-create the artifact and lose its history.
+{"op": "registry", "action": "rename_artifact", "artifact": "argus-domain",
+ "name": "Signal Formation"}
 {"op": "registry", "action": "remove_mapping", "index": 0}
 {"op": "registry", "action": "resolve_tripwire", "id": "tw-8-1"}
 // tripwires are answerable in place like pins (rail card + red ? on the

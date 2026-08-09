@@ -476,6 +476,35 @@ class TestMappingsTripwires(Base):
                               "checkout-flow#payment"]},
             ]})
 
+    def _user_edit(self, ops):
+        """Commit `ops` on the wireframe as the user; return the record."""
+        els = [dict(e) for e in self.store.scenes["checkout-wireframe"]]
+        errors = []
+        els = canvas.apply_ops(els, ops, errors)
+        self.assertEqual(errors, [])
+        return self.store.commit(author="user",
+                                 new_scenes={"checkout-wireframe": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_moving_a_mapped_element_fires_nothing(self):
+        # v0.6: a 40px nudge is not a disagreement. Every tripwire in the
+        # v0.5 assessment was this shape (R2-6).
+        rec = self._user_edit([{"op": "mod", "id": "pay-button",
+                                "attrs": {"y": 200}}])
+        self.assertEqual(rec["tripwires"], [])
+
+    def test_editing_a_tooltip_fires_nothing(self):
+        rec = self._user_edit([
+            {"op": "mod", "id": "pay-button",
+             "attrs": {"customData": {"tooltip": "staged until Rerun"}}}])
+        self.assertEqual(rec["tripwires"], [])
+
+    def test_renaming_a_mapped_element_still_fires(self):
+        # the differential control: the same mapping, a meaning change
+        rec = self._user_edit([{"op": "mod", "id": "pay-button",
+                                "attrs": {"label": "Express Pay"}}])
+        self.assertTrue(rec["tripwires"])
+
     def test_divergence_fires_tripwire(self):
         els = [dict(e) for e in self.store.scenes["checkout-wireframe"]]
         errors = []
@@ -4495,6 +4524,521 @@ class TestHeldRevisions(Base):
              "question": "Card only?"}]))
         self.assertTrue(r["ok"])
         self.assertNotIn("queued", r)
+
+
+class TestArrowLabelAnchor(Base):
+    """Where a bound arrow label is drawn, and the lints that read it.
+
+    The client re-centres a text bound to an arrow onto the path's
+    arc-length midpoint and discards the stored x/y. Until v0.6 the
+    seeder anchored on the longest segment's midpoint with an 8px
+    perpendicular lift, so stored position, exported SVG and live canvas
+    all disagreed on an elbow — and a label sitting inside a foreign box
+    linted clean (v0.5 assessment R2-8).
+    """
+
+    def elbow(self, label, pts, ax=0, ay=0):
+        """An elbow arrow carrying `label`, plus its bound text."""
+        arrow = {"id": "a1", "type": "arrow", "x": ax, "y": ay,
+                 "width": 0, "height": 0, "points": pts,
+                 "startBinding": {"elementId": "src"},
+                 "endBinding": {"elementId": "dst"}}
+        text = {"id": "a1-label", "type": "text", "x": -999, "y": -999,
+                "width": 60, "height": 20, "text": label,
+                "originalText": label, "containerId": "a1"}
+        return arrow, text
+
+    def test_anchor_is_the_arc_midpoint_not_the_longest_segment(self):
+        # long horizontal run, short vertical drop: the two rules give
+        # very different answers, which is the whole bug
+        arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 100]])
+        x, y = canvas.arrow_label_anchor(arrow, text)
+        # half of 500 total lands 250 along the horizontal run
+        self.assertAlmostEqual(x + 30, 250, delta=1)
+        self.assertAlmostEqual(y + 10, 0, delta=1)
+
+    def test_recenter_label_writes_the_drawn_position(self):
+        arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 100]])
+        canvas.recenter_label([arrow, text], arrow)
+        self.assertAlmostEqual(text["x"] + 30, 250, delta=1)
+
+    def test_straight_arrow_anchor_is_its_middle(self):
+        arrow, text = self.elbow("x", [[0, 0], [200, 0]])
+        x, _ = canvas.arrow_label_anchor(arrow, text)
+        self.assertAlmostEqual(x + 30, 100, delta=1)
+
+    def test_label_landing_on_a_foreign_box_warns(self):
+        # the R2-8 shape: the arc midpoint falls inside a box that is
+        # neither end of the arrow
+        arrow, text = self.elbow("numbers", [[0, 0], [400, 0], [400, 200]])
+        canvas.recenter_label([arrow, text], arrow)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 340, "y": 240,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "foreign", "type": "rectangle", "x": 200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertTrue(any("arrow label" in w and "neither end" in w
+                            for w in warns), warns)
+
+    def test_label_on_its_own_endpoint_is_silent(self):
+        # differential control: the same geometry, but the box under the
+        # label IS the arrow's destination — that is not a mislabel
+        arrow, text = self.elbow("numbers", [[0, 0], [400, 0]])
+        canvas.recenter_label([arrow, text], arrow)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 140, "y": -30,
+             "width": 300, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertFalse(any("arrow label" in w for w in warns), warns)
+
+    def test_label_clear_of_every_box_is_silent(self):
+        arrow, text = self.elbow("numbers", [[0, 0], [400, 0]])
+        canvas.recenter_label([arrow, text], arrow)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 420, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "far", "type": "rectangle", "x": 100, "y": 400,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertFalse(any("arrow label" in w for w in warns), warns)
+
+    def test_label_collision_measures_drawn_not_stored(self):
+        # two labels stored far apart, drawn on top of each other
+        a1, t1 = self.elbow("alpha", [[0, 0], [200, 0]])
+        a2 = {"id": "a2", "type": "arrow", "x": 0, "y": 4,
+              "width": 0, "height": 0, "points": [[0, 0], [200, 0]],
+              "startBinding": {}, "endBinding": {}}
+        t2 = {"id": "a2-label", "type": "text", "x": 9000, "y": 9000,
+              "width": 60, "height": 20, "text": "beta",
+              "originalText": "beta", "containerId": "a2"}
+        canvas.recenter_label([a1, t1], a1)
+        warns = canvas.lint_layout([a1, t1, a2, t2],
+                                   artifact_type="flow")["warnings"]
+        self.assertTrue(any("overlap" in w and "labels" in w
+                            for w in warns), warns)
+
+    def test_svg_paints_a_backing_under_an_arrow_label(self):
+        arrow, text = self.elbow("scored by", [[0, 0], [300, 0]])
+        canvas.recenter_label([arrow, text], arrow)
+        svg, _, _ = canvas.render_svg([arrow, text])
+        self.assertIn(canvas.SVG_GROUND, svg)
+        # a backing rect exists that is not the full-canvas ground
+        self.assertGreaterEqual(svg.count("fill='%s'" % canvas.SVG_GROUND), 2)
+
+
+class TestAssessorUserEdits(Base):
+    """The user-shaped elements `x-as-user` posts (v0.6).
+
+    The capability assessment rebuilt these by hand every run, and a
+    hand-rolled shape that drifts from what the client posts quietly
+    invalidates every behavioural finding built on it. Pinning them here
+    is also the point: the suite covers agent op batches heavily and
+    user-authored edits barely at all.
+    """
+
+    def commit(self, extra):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "a", "kind": "step",
+                "label": "Ingest", "x": 100, "y": 100}}]})
+        els = [dict(e) for e in self.store.scenes["f"]] + extra
+        return self.store.commit(author="user", new_scenes={"f": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_a_user_note_lands_as_a_note(self):
+        rec = self.commit(canvas._x_user_note("crowded trades", 40, 400))
+        verbs = rec["summary"]["verb_counts"]
+        self.assertIn("added", verbs)
+        note = next(e for e in self.store.scenes["f"]
+                    if (e.get("customData") or {}).get("role") == "note")
+        self.assertEqual(note["customData"]["author"], "user")
+
+    def test_a_user_pin_registers_as_a_question(self):
+        rec = self.commit([canvas._x_user_pin("a", "does this see the "
+                                              "book?", 300, 90)])
+        self.assertIn("pin_added", rec["summary"]["verb_counts"])
+        self.assertTrue(any(p.get("question", "").startswith("does this")
+                            for p in self.store.registry.get("pins") or []))
+
+    def test_user_elements_carry_the_author_stamp(self):
+        # the off-grid lint skips user elements on this stamp alone, so a
+        # missing one turns every simulated user edit into agent sloppiness
+        for el in [*canvas._x_user_note("x", 7, 9),
+                   canvas._x_user_pin("a", "q?", 3, 5)]:
+            self.assertEqual((el.get("customData") or {}).get("author"),
+                             "user", el["id"])
+
+
+class TestGlossaryAlias(Base):
+    """One concept, two names, split by audience (v0.6).
+
+    `**Excess Return** / **alpha**: …` was written as a single entry on
+    purpose — two entries would read as two metrics. TERM_RE's non-greedy
+    group backtracked through it and captured `Excess Return** / **alpha`
+    as one term, raw markdown and all, so the registry reported both
+    "settled term has no concept" and "concept references an undefined
+    term" about the same line (v0.5 assessment R2-7).
+    """
+
+    ENTRY = ("**Excess Return** / **alpha**: one number, two names, "
+             "split by audience.\n**Run**: one morning's work.\n")
+
+    def test_alias_entry_yields_one_clean_term(self):
+        self.assertEqual(canvas.parse_glossary_terms(self.ENTRY),
+                         ["Excess Return", "Run"])
+
+    def test_alias_is_recorded(self):
+        self.assertEqual(canvas.parse_glossary_aliases(self.ENTRY),
+                         {"alpha": "Excess Return"})
+
+    def test_definition_survives(self):
+        pairs = dict(canvas.parse_glossary_pairs(self.ENTRY))
+        self.assertIn("two names", pairs["Excess Return"])
+
+    def test_a_concept_linked_to_either_name_resolves(self):
+        terms = canvas.parse_glossary_terms(self.ENTRY)
+        aliases = canvas.parse_glossary_aliases(self.ENTRY)
+        for linked in ("Excess Return", "alpha"):
+            reg = {"concepts": [{"id": "er", "name": "ER",
+                                 "glossary": linked, "views": ["v"]}]}
+            notes = canvas.lint_registry(terms, reg, True, aliases)
+            self.assertFalse(any("doesn't define" in n for n in notes),
+                             (linked, notes))
+
+    def test_a_genuinely_undefined_term_still_reports(self):
+        reg = {"concepts": [{"id": "x", "name": "X",
+                             "glossary": "Sharpe", "views": ["v"]}]}
+        notes = canvas.lint_registry(
+            canvas.parse_glossary_terms(self.ENTRY), reg, True,
+            canvas.parse_glossary_aliases(self.ENTRY))
+        self.assertTrue(any("doesn't define" in n for n in notes), notes)
+
+    def test_plain_entries_are_unaffected(self):
+        self.assertEqual(canvas.parse_glossary_terms("**Run**: a day.\n"),
+                         ["Run"])
+        self.assertEqual(canvas.parse_glossary_aliases("**Run**: a day.\n"),
+                         {})
+
+
+class TestRenameArtifact(Base):
+    """A view's scope can narrow, so its name has to be able to (v0.6).
+
+    `name` was writable only inside `create`, so splitting a domain model
+    left the rail showing the old title forever and the only workaround
+    was re-creating the artifact, which discards its history (R2-5).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": "Argus Domain", "type": "domain",
+                       "concept": "d", "concept_name": "D"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e1", "kind": "entity",
+                "label": "Signal", "x": 100, "y": 100}}]})
+
+    def rename(self, **kw):
+        return self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [dict({"op": "registry",
+                          "action": "rename_artifact"}, **kw)]})
+
+    def test_rename_takes_effect(self):
+        self.rename(artifact="dm", name="Signal Formation")
+        self.assertEqual(self.store.artifact_meta["dm"]["name"],
+                         "Signal Formation")
+
+    def test_rename_persists_to_the_artifact_file(self):
+        self.rename(artifact="dm", name="Signal Formation")
+        doc = json.loads(
+            (self.store.p.artifacts_dir / "dm.excalidraw").read_text())
+        self.assertEqual(doc["wysiwyg"]["name"], "Signal Formation")
+
+    def test_rename_keeps_the_elements(self):
+        self.rename(artifact="dm", name="Signal Formation")
+        self.assertTrue(any(e["id"] == "e1"
+                            for e in self.store.scenes["dm"]))
+
+    def test_unknown_artifact_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.rename(artifact="ghost", name="X")
+
+    def test_empty_name_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.rename(artifact="dm", name="   ")
+
+
+class TestProgressIndicatorQuestion(Base):
+    """Q25 asks about progress indicators, not about percentages (v0.6).
+
+    `VaR alert 2.5%` on a threshold slider drew a GDS citation about
+    12-step wizards and cost a waive to silence (R2-1).
+    """
+
+    def screen(self, label):
+        els = [{"id": "scr", "type": "frame", "x": 0, "y": 0,
+                "width": 720, "height": 480, "name": "Console"}]
+        els.append({"id": "b", "type": "rectangle", "x": 20, "y": 60,
+                    "width": 300, "height": 40, "frameId": "scr",
+                    "customData": {"role": "node", "kind": "block"}})
+        els.append({"id": "b-l", "type": "text", "x": 24, "y": 70,
+                    "width": 200, "height": 20, "text": label,
+                    "originalText": label, "containerId": "b"})
+        return canvas.lint_layout(els, artifact_type="wireframe",
+                                  aid="w")["notes"]
+
+    def test_a_threshold_percentage_is_not_a_progress_indicator(self):
+        notes = self.screen("VaR alert  2.5%")
+        self.assertFalse(any("progress indicator" in n for n in notes),
+                         notes)
+
+    def test_a_kpi_delta_is_not_either(self):
+        notes = self.screen("Excess Return +3.1%")
+        self.assertFalse(any("progress indicator" in n for n in notes),
+                         notes)
+
+    def test_step_n_of_m_still_asks(self):
+        notes = self.screen("Step 2 of 5")
+        self.assertTrue(any("progress indicator" in n for n in notes),
+                        notes)
+
+    def test_percent_complete_still_asks(self):
+        notes = self.screen("60% complete")
+        self.assertTrue(any("progress indicator" in n for n in notes),
+                        notes)
+
+
+class TestDivergenceVerbs(Base):
+    """Only meaning-changing facts arm a divergence tripwire (v0.6).
+
+    All 20 tripwires in the v0.5 assessment session were the agent's own
+    tooltip and layout edits on mapped elements; it eventually spent two
+    `kinds` annotations scoping mappings to `moved` purely to stop the
+    recurrence. Moving a box 40px is not a disagreement (R2-6).
+    """
+
+    def test_every_listed_verb_is_a_real_fact(self):
+        # a typo here silently disarms a tripwire, which is the worst
+        # possible failure mode for this constant — so pin it against the
+        # verbs the differ actually emits
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        emitted = set(re.findall(r'F\("([a-z_]+)"', src))
+        self.assertTrue(emitted, "could not read the fact vocabulary")
+        unknown = canvas.DIVERGENCE_VERBS - emitted
+        self.assertEqual(unknown, set(),
+                         "not emitted by semantic_facts: %s" % unknown)
+
+    def test_presentation_verbs_are_excluded(self):
+        for verb in ("moved", "block_moved_within_screen", "reordered",
+                     "tooltip_changed", "tooltip_added", "resized",
+                     "restyled", "regrouped", "pin_added"):
+            self.assertNotIn(verb, canvas.DIVERGENCE_VERBS, verb)
+
+    def test_meaning_verbs_are_included(self):
+        for verb in ("renamed", "label_renamed", "entity_renamed",
+                     "rewired", "cardinality_changed", "value_changed",
+                     "state_toggled", "entity_deleted"):
+            self.assertIn(verb, canvas.DIVERGENCE_VERBS, verb)
+
+
+class TestStateVariantFrames(Base):
+    """A rename landing on one frame of a screen and not its twin (v0.6).
+
+    The demo's flagship beat. 3.2.4 joins a wireframe element to a FLOW
+    element through a mapping and tripwires compare mapped siblings
+    ACROSS artifacts, so two frames of one screen inside one artifact
+    were compared by nothing — the divergence shipped and the lint said
+    nothing about it (v0.5 assessment R2-4).
+    """
+
+    def screens(self, normal, degraded, variant_of=False):
+        """Two frames, one block each, at matching row baselines."""
+        els = []
+        for fid, lbl, fx in (("f-normal", normal, 0),
+                             ("f-degraded", degraded, 900)):
+            frame = {"id": fid, "type": "frame", "x": fx, "y": 100,
+                     "width": 720, "height": 480,
+                     "name": fid.replace("f-", "")}
+            if variant_of and fid == "f-degraded":
+                frame["customData"] = {"variant_of": "f-normal"}
+            els.append(frame)
+            els.append({"id": fid + "-kpi", "type": "rectangle",
+                        "x": fx + 20, "y": 212, "width": 160,
+                        "height": 60, "frameId": fid,
+                        "customData": {"role": "node", "kind": "block"}})
+            els.append({"id": fid + "-kpi-l", "type": "text",
+                        "x": fx + 24, "y": 228, "width": 100,
+                        "height": 20, "text": lbl, "originalText": lbl,
+                        "containerId": fid + "-kpi"})
+        return els
+
+    def test_divergent_label_across_variant_frames_warns(self):
+        warns = canvas.lint_layout(
+            self.screens("Excess Return", "Alpha"),
+            artifact_type="wireframe", aid="dash")["warnings"]
+        self.assertTrue(any("same block" in w for w in warns), warns)
+
+    def test_matching_labels_are_silent(self):
+        warns = canvas.lint_layout(
+            self.screens("Excess Return", "Excess Return"),
+            artifact_type="wireframe", aid="dash")["warnings"]
+        self.assertFalse(any("same block" in w for w in warns), warns)
+
+    def test_declared_variant_is_paired(self):
+        warns = canvas.lint_layout(
+            self.screens("Excess Return", "Alpha", variant_of=True),
+            artifact_type="wireframe", aid="dash")["warnings"]
+        self.assertTrue(any("same block" in w for w in warns), warns)
+
+    def test_a_waive_silences_it(self):
+        els = self.screens("Weekly Brief", "Weekly Brief — HELD")
+        warns = canvas.lint_layout(
+            els, artifact_type="wireframe", aid="dash")["warnings"]
+        key = next(w.split("key: ")[1].split(",")[0].strip("'\"")
+                   for w in warns if "same block" in w)
+        again = canvas.lint_layout(els, artifact_type="wireframe",
+                                   aid="dash", waives={key: "held copy"})
+        self.assertFalse(any("same block" in w
+                             for w in again["warnings"]), again)
+
+    def test_frames_of_different_shape_are_not_a_variant_set(self):
+        els = self.screens("Excess Return", "Alpha")
+        # give the degraded frame a second block: no longer diffable
+        els.append({"id": "extra", "type": "rectangle", "x": 920,
+                    "y": 300, "width": 160, "height": 60,
+                    "frameId": "f-degraded",
+                    "customData": {"role": "node", "kind": "block"}})
+        warns = canvas.lint_layout(els, artifact_type="wireframe",
+                                   aid="dash")["warnings"]
+        self.assertFalse(any("same block" in w for w in warns), warns)
+
+
+class TestCheckRender(Base):
+    """`check_batch` hands back the scene it would have drawn (v0.6).
+
+    Under `pulled` cadence the agent cannot see a queued revision, which
+    is exactly the feedback legibility needs — it said so twice in the
+    v0.5 assessment and then hand-rolled a copy-the-project workaround,
+    as the v0.4 agent had before it.
+    """
+
+    def batch(self):
+        return {"base_revn": 0, "artifact": "f",
+                "create": {"id": "f", "name": "F", "type": "flow",
+                           "concept": "f", "concept_name": "F"},
+                "ops": [{"op": "add", "element": {
+                    "type": "rectangle", "id": "a", "kind": "step",
+                    "label": "Ingest", "x": 100, "y": 100}}]}
+
+    def test_check_returns_the_would_be_elements(self):
+        r = self.store.check_batch(self.batch())
+        self.assertTrue(r["ok"])
+        self.assertTrue(any(e["id"] == "a" for e in r["elements"]))
+
+    def test_check_commits_nothing(self):
+        self.store.check_batch(self.batch())
+        self.assertNotIn("f", self.store.scenes)
+
+    def test_rejected_batch_has_no_elements_to_draw(self):
+        bad = self.batch()
+        bad["ops"] = [{"op": "mod", "id": "ghost", "attrs": {"label": "x"}}]
+        r = self.store.check_batch(bad)
+        self.assertFalse(r["ok"])
+        self.assertEqual(r.get("elements", []), [])
+
+    def test_the_would_be_scene_renders(self):
+        r = self.store.check_batch(self.batch())
+        svg, w, h = canvas.render_svg(r["elements"], title="f (proposed)")
+        self.assertIn("Ingest", svg)
+        self.assertGreater(w, 0)
+        self.assertGreater(h, 0)
+
+
+class TestDecorationFollowsItsBox(Base):
+    """An image placeholder's X strokes track its geometry (v0.6).
+
+    The `kind: image` composite derives its two diagonals from the box's
+    width/height at creation time. A later resize used to leave them at
+    the old span — the X overshot its own box into the panel below, and
+    no lint could see it because decorations are filtered out of every
+    geometry check (v0.5 assessment R2-10).
+    """
+
+    def placeholder(self, w=680, h=116):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "charts", "kind": "image",
+                "label": "Charts", "x": 120, "y": 304,
+                "width": w, "height": h}}]})
+
+    def strokes(self):
+        return {e["id"]: e for e in self.store.scenes["wf"]
+                if e["id"] in ("charts-x1", "charts-x2")}
+
+    def test_resize_re_derives_the_diagonals(self):
+        self.placeholder()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "charts",
+                     "attrs": {"height": 72}}]})
+        s = self.strokes()
+        self.assertEqual(s["charts-x1"]["height"], 72)
+        self.assertEqual(s["charts-x1"]["points"][-1], [680, 72])
+        # x2 runs bottom-left to top-right, so its origin moves too
+        self.assertEqual(s["charts-x2"]["y"], 304 + 72)
+        self.assertEqual(s["charts-x2"]["points"][-1], [680, -72])
+
+    def test_width_resize_re_derives_too(self):
+        self.placeholder()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "charts",
+                     "attrs": {"width": 400}}]})
+        self.assertEqual(self.strokes()["charts-x1"]["points"][-1],
+                         [400, 116])
+
+    def test_move_still_translates_the_diagonals(self):
+        # the pre-existing x/y behaviour must survive the width/height fix
+        self.placeholder()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "charts", "attrs": {"x": 200}}]})
+        self.assertEqual(self.strokes()["charts-x1"]["x"], 200)
+
+    def test_a_stale_decoration_is_linted(self):
+        # the state the fixture was found in: box shrunk, strokes not
+        self.placeholder()
+        for e in self.store.scenes["wf"]:
+            if e["id"] == "charts":
+                e["height"] = 72
+        warns = canvas.lint_layout(self.store.scenes["wf"],
+                                   artifact_type="wireframe")["notes"]
+        self.assertTrue(any("extends" in w and "grouped with" in w
+                            for w in warns), warns)
+
+    def test_a_decoration_that_fits_is_silent(self):
+        self.placeholder()
+        notes = canvas.lint_layout(self.store.scenes["wf"],
+                                   artifact_type="wireframe")["notes"]
+        self.assertFalse(any("extends" in n and "grouped with" in n
+                             for n in notes), notes)
 
 
 if __name__ == "__main__":

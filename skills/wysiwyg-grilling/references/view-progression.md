@@ -134,6 +134,37 @@ promoted.)
 - Abstract disagreement gets drawn, not argued: when chat loops twice on
   the same point, the next move makes it visible and lets the user edit it.
 
+## When an extended type beats a first-class one
+
+`config.json` ships six extended types — `er`, `class`, `swimlane`,
+`dfd`, `mindmap`, `architecture` — and across two capability assessments
+**not one was ever chosen**. The only thing said about them was that they
+"narrate generically", which is a reason to avoid them. The generic
+narration is a real cost (edits come back as `added`/`moved`, not as
+`entity_renamed`), so treat these as deliberate trades, not defaults:
+
+- **`dfd`** — when the audience does not want the mechanics. A DFD says
+  *what moves between what*, in numbered processes (`P1`), data stores
+  (`D1`) and labelled flows, and drops control flow entirely. The natural
+  case is the pair: a `flow` for whoever maintains the pipeline, a `dfd`
+  of the same system for whoever just needs to know what it consumes and
+  emits. One diagram that tries to be both serves neither.
+- **`swimlane`** — only when *who does it* is the question and lanes on a
+  `flow` have stopped fitting (>5 lanes, or lanes that cross artifacts).
+  Lanes on a flow are the default and keep typed narration.
+- **`er`** / **`class`** — when the deliverable is a schema or an API
+  surface rather than a shared vocabulary. If you are still arguing about
+  what a word means, that is `domain`.
+- **`architecture`** — deployment and boundaries, when the question is
+  where something runs rather than what it does.
+- **`mindmap`** — divergent early material with no structure yet. It is a
+  holding pen; expect to replace it, and say so when you draw it.
+
+Extended views still register on a concept and still pay view debt. What
+they lose is the typed fact vocabulary, so the narration contract falls
+back to shapes and counts — say that out loud when the user edits one,
+rather than letting a vague `moved` read as indifference.
+
 ---
 *Archetype/view-set framing and triggers from this project's v0 refinement
 audit. Rush-to-goal sequencing, friction split, incremental notation, and

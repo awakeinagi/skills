@@ -45,6 +45,32 @@ SOURCE_NAME = "wysiwyg-grilling"
 FONT_LEGIBLE = 6       # Nunito — the default (no cursive anywhere; ADR 0001)
 FONT_HAND = 5          # Excalifont — ships, non-default
 PAPER_GROUND = "#faf8f2"
+# render_svg's canvas ground; also the backing painted under arrow
+# labels, which ride the stroke since v0.6 (see arrow_label_anchor)
+SVG_GROUND = "#fdfcf8"
+# Facts that can put two mapped views out of agreement about MEANING,
+# and so are worth asking "divergence, or should it propagate?" about.
+# Presentation-only verbs are deliberately absent: in the v0.5
+# assessment every one of the session's 20 divergence tripwires was the
+# agent's own tooltip and layout edits, and it eventually spent two
+# `kinds` annotations scoping mappings to `moved` just to stop the
+# recurrence. Moving a box 40px is not a disagreement (R2-6).
+DIVERGENCE_VERBS = frozenset({
+    # naming
+    "renamed", "label_renamed", "entity_renamed", "relationship_relabeled",
+    # wiring
+    "rewired", "relationship_rewired", "actor_reassigned",
+    "cardinality_changed",
+    # content and state
+    "value_changed", "state_toggled", "attribute_added",
+    "attribute_removed", "type_changed", "party_kind_changed",
+    "ownership_changed", "sync_changed", "priority_changed",
+    "activation_changed",
+    # loss
+    "deleted", "entity_deleted", "relationship_deleted", "step_deleted",
+    "transition_deleted", "actor_deleted", "message_deleted",
+    "lane_deleted", "screen_deleted",
+})
 IDLE_MINUTES = float(os.environ.get("WYSIWYG_IDLE_MINUTES", "120"))
 SENTINEL_COORD = 2 ** 40   # Excalidraw parks rebinding arrows at ±2^56
 DETERMINISTIC = bool(os.environ.get("WYSIWYG_TEST_DETERMINISTIC"))
@@ -1128,6 +1154,33 @@ def _recompose_input_value(els, el, value_text):
                                     {e["id"] for e in els}))
 
 
+def _recompose_xbox(els, el):
+    """Re-derive an image placeholder's X strokes from its box (v0.6).
+
+    The `kind: image` composite mints two grouped `-x1`/`-x2` decoration
+    lines whose points come from the rectangle's width/height AT CREATION
+    TIME. A later `mod` that resizes the box left them at their old span,
+    so the X overshot the box it belonged to and crossed whatever sat
+    below — invisible to every lint, because `role: decoration` elements
+    are filtered out of the geometry checks by construction. Found in the
+    v0.5 assessment only because a human looked at a screenshot (R2-10).
+
+    Args:
+        els: The full element list.
+        el: The placeholder rectangle whose geometry just changed.
+    """
+    w, h = el.get("width", 0), el.get("height", 0)
+    for suffix, oy, pts in (("-x1", 0, [[0, 0], [w, h]]),
+                            ("-x2", h, [[0, 0], [w, -h]])):
+        ln = next((e for e in els if e["id"] == el["id"] + suffix), None)
+        if ln is None or (ln.get("customData") or {}).get("role") != \
+                "decoration":
+            continue
+        ln["x"], ln["y"] = el.get("x", 0), el.get("y", 0) + oy
+        ln["width"], ln["height"] = w, h
+        ln["points"] = pts
+
+
 def _recompose_kpi_value(els, el, value_text):
     """Retext a KPI tile's composed value row in place (id stays stable —
     a delete/re-add would narrate phantom churn).
@@ -1649,35 +1702,78 @@ MOD_ATTRS = {
 }
 
 
+def arrow_label_anchor(arrow, label):
+    """Where a bound label on an arrow actually lands, as (x, y).
+
+    The client owns this placement and we cannot argue with it: a text
+    whose `containerId` is an arrow is re-centred by Excalidraw on the
+    **arc-length midpoint** of the path, discarding whatever x/y we
+    stored. Until v0.6 the seeder anchored on the LONGEST SEGMENT's
+    midpoint and lifted the label 8px perpendicular off the stroke
+    (diagram-design §6.2). Those two rules agree on a straight arrow and
+    diverge without bound on an elbow — which is how a label came to sit
+    inside a foreign box on a canvas whose stored geometry showed no
+    overlap at all, with the lint reading the stored copy and staying
+    silent (v0.5 assessment R2-8). `render_svg` draws text at its stored
+    position, so the exported SVG and the live canvas disagreed too.
+
+    Everything that places or checks an arrow label now goes through
+    here, so stored position, SVG and canvas agree by construction. The
+    label rides the stroke: the client already breaks the arrow behind a
+    bound label, and `render_svg` paints a ground-coloured backing to
+    match — the "opaque background" half of connector rule 2, rather
+    than the perpendicular offset the client will not honour. Note that
+    a label's `backgroundColor` is NOT the lever here: it sits in
+    `significant_attrs`, so writing it would narrate a style change on
+    every reroute.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y` and `points`.
+        label: The bound text element, read for `width`/`height`.
+
+    Returns:
+        `(x, y)` for the label's top-left corner.
+    """
+    pts = arrow.get("points") or [[0, 0]]
+    segs, total = [], 0.0
+    for i in range(1, len(pts)):
+        dx = pts[i][0] - pts[i - 1][0]
+        dy = pts[i][1] - pts[i - 1][1]
+        ln = (dx * dx + dy * dy) ** 0.5
+        segs.append((pts[i - 1], pts[i], ln))
+        total += ln
+    if not segs:
+        mx, my = arrow.get("x", 0), arrow.get("y", 0)
+    else:
+        want, mx, my = total / 2, None, None
+        for (a, b, ln) in segs:
+            if want <= ln or ln <= 0:
+                t = (want / ln) if ln else 0.0
+                mx = arrow["x"] + a[0] + (b[0] - a[0]) * t
+                my = arrow["y"] + a[1] + (b[1] - a[1]) * t
+                break
+            want -= ln
+        if mx is None:                       # float drift past the end
+            mx = arrow["x"] + segs[-1][1][0]
+            my = arrow["y"] + segs[-1][1][1]
+    return (mx - label.get("width", 0) / 2,
+            my - label.get("height", 0) / 2)
+
+
 def recenter_label(els, el):
     """Keep a bound label glued to its container after geometry changes:
-    centered in shapes, at the midpoint of arrows."""
+    centered in shapes, on the arc midpoint of arrows.
+
+    Args:
+        els: The full element list (searched for the bound label).
+        el: The container whose geometry changed.
+    """
     label = next((t for t in els if t.get("type") == "text"
                   and t.get("containerId") == el["id"]), None)
     if label is None:
         return
     if el.get("type") in ("arrow", "line"):
-        pts = el.get("points") or [[0, 0]]
-        # anchor on the LONGEST segment's midpoint (matters for elbows),
-        # offset 8px perpendicular off the stroke, leaning up — a label
-        # sitting ON its arrow hides both (diagram-design §6.2)
-        best, mx, my, dx, dy = -1.0, el["x"], el["y"], 1.0, 0.0
-        for i in range(1, len(pts)):
-            sdx = pts[i][0] - pts[i - 1][0]
-            sdy = pts[i][1] - pts[i - 1][1]
-            ln = (sdx * sdx + sdy * sdy) ** 0.5
-            if ln > best:
-                best = ln
-                dx, dy = sdx, sdy
-                mx = el["x"] + (pts[i][0] + pts[i - 1][0]) / 2
-                my = el["y"] + (pts[i][1] + pts[i - 1][1]) / 2
-        run = (dx * dx + dy * dy) ** 0.5 or 1.0
-        px, py = -dy / run, dx / run
-        if py > 0:
-            px, py = -px, -py  # prefer above the stroke
-        lift = label.get("height", 16) / 2 + 8
-        label["x"] = mx + px * lift - label.get("width", 0) / 2
-        label["y"] = my + py * lift - label.get("height", 0) / 2
+        label["x"], label["y"] = arrow_label_anchor(el, label)
     else:
         label["x"] = el["x"] + max((el.get("width", 0) -
                                     label.get("width", 0)) / 2, 4)
@@ -1940,7 +2036,16 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     if attr in ("x", "y", "width", "height"):
                         recenter_label(els, el)
             # composite integrity: grouped decorations (X-box strokes,
-            # attribute rows) travel with their element on x/y mods
+            # attribute rows) travel with their element on x/y mods —
+            # and are RE-DERIVED on width/height mods, which they were
+            # not until v0.6. An image placeholder shrunk from 116 to 72
+            # high kept 116-high diagonals, so its X overshot its own box
+            # by 44px into the panel below and crossed two foreign boxes.
+            # Nothing could catch it: decorations are filtered out of the
+            # geometry lints by construction (R2-10).
+            if el.get("type") == "rectangle" and el.get("groupIds") and \
+                    ("width" in attrs or "height" in attrs):
+                _recompose_xbox(els, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
             dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
@@ -3566,8 +3671,12 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     out = ["<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d' "
            "viewBox='%f %f %f %f'>" % (int(w * scale), int(h * scale),
                                        minx, miny, w, h),
-           "<rect x='%f' y='%f' width='%f' height='%f' fill='#fdfcf8'/>"
-           % (minx, miny, w, h)]
+           "<rect x='%f' y='%f' width='%f' height='%f' fill='%s'/>"
+           % (minx, miny, w, h, SVG_GROUND)]
+    # labels bound to arrows need the stroke painted back out from under
+    # them (v0.6) — collected once rather than per text element
+    arrow_ids = {e["id"] for e in live
+                 if e.get("type") in ("arrow", "line")}
     if title:
         out.append("<text x='%f' y='%f' font-size='13' fill='#999' "
                    "font-family='sans-serif'>%s</text>"
@@ -3639,6 +3748,18 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
             lh = fs * (e.get("lineHeight") or 1.25)
+            # a label bound to an arrow rides its stroke (v0.6 — see
+            # arrow_label_anchor). The client breaks the arrow behind it;
+            # this renderer has no such notion, so paint the ground back
+            # in or the export shows a line struck through its own label.
+            if arrow_ids and e.get("containerId") in arrow_ids:
+                twid = max(text_dims(ln2, fs)[0] for ln2 in lines) \
+                    if lines else 0
+                out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                           "fill='%s' stroke='none'/>"
+                           % (tx - (twid / 2 if anchor == "middle" else 0)
+                              - 4, y - 2, twid + 8,
+                              max(len(lines), 1) * lh + 4, SVG_GROUND))
             for li, line in enumerate(lines):
                 out.append("<text x='%f' y='%f' font-size='%s' fill='%s' "
                            "text-anchor='%s' font-family='sans-serif'>"
@@ -3830,8 +3951,15 @@ INTERACTIVE_KINDS = {"button", "input", "checkbox", "toggle", "slider",
 
 # progress-indicator tells (v0.4 U5/Q25) — label evidence, plus the
 # status vocabulary the task-list archetype uses, which is exempt
+# A bare percentage is NOT a progress indicator: `VaR alert 2.5%` on a
+# threshold slider drew a GDS citation about 12-step wizards and cost the
+# agent a waive to silence (v0.5 assessment R2-1). Every KPI delta and
+# every threshold in a wireframe carries one. `% complete` still counts —
+# that is a progress bar wearing a number. The dot-row geometry tell
+# below is what actually finds unlabelled indicators.
 _PROGRESS_RE = re.compile(
-    r"\bstep\s+\d+\s+of\s+\d+\b|\bprogress\b|\b\d+\s*%", re.IGNORECASE)
+    r"\bstep\s+\d+\s+of\s+\d+\b|\bprogress\b|"
+    r"\b\d+\s*%\s*(?:complete|done|uploaded|finished)\b", re.IGNORECASE)
 _STATUS_RE = re.compile(
     r"^(in progress|not started|completed|done)$", re.IGNORECASE)
 
@@ -3922,6 +4050,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
               and role_of(e) != "decoration"]
     nodes = [e for e in shapes if role_of(e) == "node" or
              (e.get("customData") or {}).get("kind")]
+    # decorations are exempt from budgets and connector routing — that
+    # exemption is right, furniture is not a connector. But it swallowed
+    # one thing worth knowing: a decoration that has drifted OFF the
+    # element it is grouped with. An image placeholder resized without
+    # its X strokes being re-derived spilled 44px into the panel below
+    # and no check could see it (v0.5 assessment R2-10).
+    for deco in els:
+        if role_of(deco) != "decoration" or not deco.get("groupIds"):
+            continue
+        gset = set(deco["groupIds"])
+        host = next((s for s in shapes
+                     if set(s.get("groupIds") or []) & gset), None)
+        if host is None:
+            continue
+        # extent from the POINTS, not x/y/width/height: the X's second
+        # stroke is stored at the box's bottom edge with negative points
+        # (bottom-left → top-right), so a naive bbox puts it a full box
+        # height below where it is drawn
+        if deco.get("points"):
+            pxs = [deco.get("x", 0) + p[0] for p in deco["points"]]
+            pys = [deco.get("y", 0) + p[1] for p in deco["points"]]
+            dx1, dx2, dy1, dy2 = min(pxs), max(pxs), min(pys), max(pys)
+        else:
+            dx1, dy1 = deco.get("x", 0), deco.get("y", 0)
+            dx2 = dx1 + deco.get("width", 0)
+            dy2 = dy1 + deco.get("height", 0)
+        hx1, hy1 = host.get("x", 0), host.get("y", 0)
+        hx2 = hx1 + host.get("width", 0)
+        hy2 = hy1 + host.get("height", 0)
+        spill = max(hx1 - dx1, dx2 - hx2, hy1 - dy1, dy2 - hy2)
+        if spill > 4:
+            notes.append(
+                "decoration %s extends %dpx past %s, the element it is "
+                "grouped with — it was sized for an older geometry; "
+                "re-issue the shape or drop the stroke"
+                % (deco["id"], int(spill), name(host["id"])))
 
     # ---- ERROR: detached endpoints (server-routed) --------------------
     TOL = 14  # binding gap (6) + slack
@@ -4029,6 +4193,53 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "screens %s share the title %r — which one is the "
                     "user on? (GOV.UK: every question page gets its own "
                     "title)" % (", ".join(fids), t))
+        # ---- state-variant frames: the same control, two labels ------
+        # A rename that lands on one frame of a screen and not its twin
+        # was invisible to everything: 3.2.4 joins a WIREFRAME element to
+        # a FLOW element through a mapping, and tripwires compare mapped
+        # siblings ACROSS artifacts — so two frames of one screen inside
+        # one artifact were compared by nothing. That is the demo's
+        # flagship beat, and in the v0.5 assessment it passed only
+        # because the agent re-read the canvas by hand (R2-4).
+        #
+        # The pairing key already exists. references/wireframe.md: "in a
+        # variant set, sibling screens share row baselines and text
+        # alignment" — so positionally-corresponding blocks in two frames
+        # of equal shape ARE the same control. An explicit
+        # customData.variant_of wins when the author declares one.
+        orders = {f["id"]: frame_reading_order(els, f["id"])
+                  for f in frames}
+        pairs_v = []
+        declared = {f["id"]: (f.get("customData") or {}).get("variant_of")
+                    for f in frames}
+        for f in frames:
+            base = declared.get(f["id"])
+            if base and base in orders:
+                pairs_v.append((base, f["id"]))
+        if not pairs_v and len(frames) == 2:
+            a_, b_ = frames[0]["id"], frames[1]["id"]
+            if len(orders[a_]) == len(orders[b_]) and orders[a_]:
+                pairs_v.append((a_, b_))
+        for a_, b_ in pairs_v:
+            oa, ob = orders.get(a_) or [], orders.get(b_) or []
+            if len(oa) != len(ob):
+                continue          # not a variant set after all
+            for ea, eb in zip(oa, ob):
+                la = (labels.get(ea["id"]) or "").strip()
+                lb = (labels.get(eb["id"]) or "").strip()
+                if not la or not lb or la == lb:
+                    continue
+                key = "var:%s:%s" % (aid or "<artifact>", slugify(ea["id"]))
+                if waives and key in waives:
+                    continue
+                warnings.append(
+                    "%s says %r and %s says %r for the same block — "
+                    "state variants of one screen, so a rename that "
+                    "landed on one and not the other reads as two "
+                    "different controls. Same thing? Rename both. "
+                    "Deliberately different (a held state, an error "
+                    "copy)? waive {action: waive, key: %r, reason: ...}"
+                    % (fname.get(a_, a_), la, fname.get(b_, b_), lb, key))
         for f in frames:
             order = frame_reading_order(els, f["id"])
             okinds = [(e.get("customData") or {}).get("kind")
@@ -4313,20 +4524,60 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "rest into chat or docs (references/layout.md)" % len(annos))
     # label↔label collision (live_test_2 B6): a label can be clear of its
     # own stroke and run yet sit on another arrow's label — stacked labels
-    # read as one caption
+    # read as one caption.
+    #
+    # Both this and the label↔node check below measure where the label is
+    # DRAWN, not where it is stored. For a label bound to an arrow those
+    # differ: the client re-centres it on the path (arrow_label_anchor),
+    # and reading `la["x"]` instead is why a label sitting inside a
+    # foreign box linted clean in the v0.5 assessment (R2-8).
+    ix_all = {e["id"]: e for e in els}
+
+    def drawn_box(t):
+        """The label's on-canvas rect as `(x1, y1, x2, y2)`."""
+        cont = ix_all.get(t.get("containerId"))
+        lx, ly = t["x"], t["y"]
+        if cont is not None and cont.get("type") in ("arrow", "line"):
+            lx, ly = arrow_label_anchor(cont, t)
+        return (lx, ly, lx + t.get("width", 0), ly + t.get("height", 0))
+
     bound_labels = [e for e in els if e.get("type") == "text"
                     and e.get("containerId")]
+    boxes = {t["id"]: drawn_box(t) for t in bound_labels}
     for i_, la in enumerate(bound_labels):
+        ax1, ay1, ax2, ay2 = boxes[la["id"]]
         for lb in bound_labels[i_ + 1:]:
-            ox = min(la["x"] + la.get("width", 0),
-                     lb["x"] + lb.get("width", 0)) - max(la["x"], lb["x"])
-            oy = min(la["y"] + la.get("height", 0),
-                     lb["y"] + lb.get("height", 0)) - max(la["y"], lb["y"])
+            bx1, by1, bx2, by2 = boxes[lb["id"]]
+            ox = min(ax2, bx2) - max(ax1, bx1)
+            oy = min(ay2, by2) - max(ay1, by1)
             if ox > 6 and oy > 4:
                 warnings.append(
                     "labels %r and %r overlap — nudge one clear"
                     % ((la.get("text") or "")[:24],
                        (lb.get("text") or "")[:24]))
+    # label↔node: an arrow label landing on a box that is neither its
+    # source nor its destination. Nothing checked this before v0.6 —
+    # only free annotations were tested against nodes — so a connector
+    # label could sit squarely inside a foreign entity and lint clean.
+    for la in bound_labels:
+        cont = ix_all.get(la.get("containerId"))
+        if cont is None or cont.get("type") not in ("arrow", "line"):
+            continue
+        ends = {(cont.get("startBinding") or {}).get("elementId"),
+                (cont.get("endBinding") or {}).get("elementId")}
+        ax1, ay1, ax2, ay2 = boxes[la["id"]]
+        for n in nodes:
+            if n["id"] in ends:
+                continue
+            ox = min(ax2, n["x"] + n.get("width", 0)) - max(ax1, n["x"])
+            oy = min(ay2, n["y"] + n.get("height", 0)) - max(ay1, n["y"])
+            if ox > 8 and oy > 4:
+                warnings.append(
+                    "arrow label %r lands on %s, which is neither end of "
+                    "its arrow — the label reads as that box's caption. "
+                    "Re-route the arrow or shorten the label"
+                    % ((la.get("text") or "")[:24], name(n["id"])))
+                break
     for t in annos:
         for n in nodes:
             ox = min(t["x"] + t.get("width", 0),
@@ -4500,7 +4751,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
 # that parses to zero terms is indistinguishable from no glossary at all —
 # every downstream lint goes silently dark, which is how a rejected synonym
 # stayed on the domain view unflagged.
-TERM_RE = r"(?:[-*+]\s+)?\*\*(.+?)\*\*\s*(?::|—|–|-{1,2}\s)"
+# A term name cannot itself contain `**`. Without that exclusion the
+# non-greedy group backtracks straight through an alias entry —
+# `**Excess Return** / **alpha**: …` captured `Excess Return** / **alpha`
+# as ONE term, raw markdown and all, and the registry then reported both
+# "settled term has no concept" and "concept references an undefined
+# term" about the same line (v0.5 assessment R2-7). The agent had
+# written that entry deliberately, as one term with two names, so nobody
+# could read them as two metrics — exactly what the skill asks for.
+TERM_RE = r"(?:[-*+]\s+)?\*\*((?:(?!\*\*).)+)\*\*\s*(?::|—|–|-{1,2}\s)"
+# `**Term** / **alias**:` — one concept, two names, split by audience.
+TERM_ALIAS_RE = (r"(?:[-*+]\s+)?\*\*((?:(?!\*\*).)+)\*\*\s*/\s*"
+                 r"\*\*((?:(?!\*\*).)+)\*\*\s*(?::|—|–|-{1,2}\s)")
 
 
 def parse_glossary_avoid(text):
@@ -4580,12 +4842,40 @@ def lint_glossary(els, avoid_map=None, has_context_map=True):
     return {"errors": errors, "warnings": warnings, "notes": notes}
 
 
+def parse_glossary_aliases(text):
+    """CONTEXT.md → `{alias (lowercased): canonical term}`.
+
+    One concept with two names, split by audience —
+    `**Excess Return** / **alpha**: one number, two names` — is a single
+    entry on purpose: two entries would read as two metrics. Both names
+    are then legal on the canvas, and neither is an orphan term.
+
+    Args:
+        text: CONTEXT.md contents.
+
+    Returns:
+        Alias → canonical term, both stripped, the key lowercased.
+    """
+    out = {}
+    for raw in text.splitlines():
+        m = re.match(TERM_ALIAS_RE, raw.strip())
+        if m:
+            out[m.group(2).strip().lower()] = m.group(1).strip()
+    return out
+
+
 def parse_glossary_terms(text):
     """CONTEXT.md → ordered list of settled term names (canonical
-    '**Term**:', the em-dash '**Term** — …' form, and bullet lists)."""
+    '**Term**:', the em-dash '**Term** — …' form, and bullet lists).
+
+    An alias entry (`**Term** / **alias**:`) contributes its canonical
+    name only — the alias is reachable through
+    `parse_glossary_aliases`.
+    """
     terms = []
     for raw in text.splitlines():
-        m = re.match(TERM_RE, raw.strip())
+        line = raw.strip()
+        m = re.match(TERM_ALIAS_RE, line) or re.match(TERM_RE, line)
         if m:
             terms.append(m.group(1).strip())
     return terms
@@ -4607,7 +4897,8 @@ def parse_glossary_pairs(text):
     """
     pairs, term, body = [], None, []
     for raw in text.splitlines():
-        m = re.match(TERM_RE, raw.strip())
+        line_ = raw.strip()
+        m = re.match(TERM_ALIAS_RE, line_) or re.match(TERM_RE, line_)
         if m:
             if term is not None:
                 pairs.append((term, " ".join(" ".join(body).split())))
@@ -4626,13 +4917,21 @@ def parse_glossary_pairs(text):
     return pairs
 
 
-def lint_registry(terms, registry, context_exists=False):
+def lint_registry(terms, registry, context_exists=False, aliases=None):
     """Registry-level discipline notes (NOTE tier, artifact-independent):
     settled glossary terms with no concept behind them (ADR 0007 — a term
     settling IS a concept being minted), unpaid view debt (ADR 0006 —
     `owed` types recorded at archetype time, cleared as views register),
     and views filed on the wrong concept (ADR 0010 — umbrella pile-up and
-    the name-affinity misfile)."""
+    the name-affinity misfile).
+
+    Args:
+        terms: Settled glossary term names.
+        registry: The project registry (`model.json`).
+        context_exists: Whether CONTEXT.md exists and is non-empty.
+        aliases: `{alias: canonical}` from an audience-split entry, so a
+            concept linked to either name resolves (v0.6).
+    """
     notes = []
     concepts = registry.get("concepts") or []
     known = set()
@@ -4653,6 +4952,7 @@ def lint_registry(terms, registry, context_exists=False):
     # reverse direction (capability assessment): a concept CLAIMING a
     # glossary term the glossary doesn't hold is drift too
     term_set = {t.lower() for t in terms}
+    term_set |= set(aliases or {})
     ghosts = [c for c in concepts if c.get("glossary")
               and str(c["glossary"]).lower() not in term_set]
     if ghosts and (terms or context_exists):
@@ -4982,7 +5282,7 @@ def project_lint(project, els, registry=None, artifact_type=None,
         waives = registry.get("waives") or {}
     lint = lint_layout(els, artifact_type=artifact_type, budget=budget,
                        waives=waives, aid=aid)
-    avoid, terms = {}, []
+    avoid, terms, aliases = {}, [], {}
     ctx = project.pk / "CONTEXT.md"
     ctx_exists = False
     try:
@@ -4991,6 +5291,7 @@ def project_lint(project, els, registry=None, artifact_type=None,
             ctx_exists = bool(text.strip())
             avoid = parse_glossary_avoid(text)
             terms = parse_glossary_terms(text)
+            aliases = parse_glossary_aliases(text)
     except OSError:
         pass
     has_map = (project.root / "CONTEXT-MAP.md").exists()
@@ -5004,7 +5305,7 @@ def project_lint(project, els, registry=None, artifact_type=None,
     # registry-scope call is the one made without an artifact.
     if registry is not None and aid is None:
         out["notes"] = out["notes"] + lint_registry(terms, registry,
-                                                    ctx_exists)
+                                                    ctx_exists, aliases)
     return out
 
 
@@ -5224,7 +5525,8 @@ class Store:
                     facts.append(dict(f))
                 for f in facts:
                     if f.get("consequence_of") is None and \
-                            f["fact"] != "saved_no_changes" and f["element"]:
+                            f["fact"] != "saved_no_changes" and f["element"] \
+                            and f["fact"] in DIVERGENCE_VERBS:
                         # keep the VERB, not just the identity: a mapping
                         # annotated "intentionally divergent" for one kind
                         # of change used to go deaf to every other kind
@@ -5794,6 +6096,35 @@ class Store:
                     reg["round"] = op["round"]
                 if op.get("whose_move") in ("user", "agent"):
                     reg["whose_move"] = op["whose_move"]
+            elif action == "rename_artifact":
+                # a view's SCOPE legitimately narrows — splitting a domain
+                # model leaves one half being something new. Until v0.6
+                # `name` was writable only inside `create`, so the rail
+                # kept the old title forever and the only workaround was
+                # re-creating the artifact, which discards its history
+                # (v0.5 assessment R2-5). The id never moves: saves,
+                # mappings and pins are all keyed on it.
+                aid2 = op.get("artifact")
+                new_name = (op.get("name") or "").strip()
+                if not aid2 or aid2 not in self.artifact_meta:
+                    errors.append("registry op %d: rename_artifact needs "
+                                  "an existing artifact (got %r)"
+                                  % (i, aid2))
+                    continue
+                if not new_name:
+                    errors.append("registry op %d: rename_artifact needs a "
+                                  "non-empty `name`" % i)
+                    continue
+                old_name = self.artifact_meta[aid2].get("name") or aid2
+                self.artifact_meta[aid2]["name"] = new_name
+                # the name lives in the artifact FILE, and a registry-only
+                # batch never touches scenes — so write it through here or
+                # the rail keeps the old title until the next drawing
+                self._write_artifact(aid2, self.scenes.get(aid2) or [],
+                                     self.artifact_meta[aid2])
+                applied.append({"action": "artifact_renamed",
+                                "artifact": aid2, "from": old_name,
+                                "to": new_name})
             elif action == "set_budget":
                 # per-artifact complexity-budget override (v0.3): recorded
                 # intent — a raise without a reason is exactly the drift
@@ -5861,7 +6192,8 @@ class Store:
                               "upsert_concept, remove_view, add_mapping, "
                               "annotate_mapping, remove_mapping, "
                               "resolve_tripwire, annotate_tripwire, "
-                              "decline, set_round, set_budget, waive)"
+                              "decline, set_round, set_budget, waive, "
+                              "rename_artifact)"
                               % (i, action))
                 continue
             applied.append({k: v for k, v in op.items() if k != "op"})
@@ -6007,7 +6339,7 @@ class Store:
                 return {"ok": False, "errors": list(e.errors),
                         "artifact": batch.get("artifact"), "intent_echo": [],
                         "layout_errors": [], "layout_warnings": [],
-                        "layout_notes": []}
+                        "layout_notes": [], "elements": []}
             aid = checked["artifact"]
             # registry ops are the other half of a batch and they failed
             # this way in the field (`set_budget` with arrows: 0). The
@@ -6026,7 +6358,7 @@ class Store:
             if reg_errors:
                 return {"ok": False, "errors": reg_errors, "artifact": aid,
                         "intent_echo": [], "layout_errors": [],
-                        "layout_warnings": [], "layout_notes": []}
+                        "layout_warnings": [], "layout_notes": [], "elements": []}
             atype = (checked["new_meta"].get(aid) or
                      self.artifact_meta.get(aid) or {}).get("artifact_type")
             lint = project_lint(self.p, checked["new_els"], reg_after,
@@ -6036,7 +6368,10 @@ class Store:
                                                checked["new_els"]),
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
-                    "layout_notes": lint["notes"]}
+                    "layout_notes": lint["notes"],
+                    # the would-be scene, so `apply --check --render` can
+                    # draw a batch nobody has committed (v0.6)
+                    "elements": checked["new_els"]}
 
     def apply_batch(self, batch):
         """Validate-all-then-apply.
@@ -7665,6 +8000,25 @@ def cmd_apply(args):
             return 5
         print_kv(would_apply="true", artifact=result.get("artifact"))
         _print_layout(result)
+        if getattr(args, "render", False):
+            # under `pulled` cadence a queued revision is invisible to
+            # the agent that wrote it, and legibility is the one class of
+            # defect it cannot reason about from the response. Draw the
+            # uncommitted scene so it can look before it queues (v0.6).
+            aid = result.get("artifact") or "batch"
+            svg, w, h = render_svg(result.get("elements") or [],
+                                   title="%s (proposed)" % aid)
+            outdir = project.runtime_dir
+            outdir.mkdir(parents=True, exist_ok=True)
+            out_png = outdir / ("%s-check.png" % aid)
+            ok, why = rasterize_svg(svg, out_png, w, h, aid + "-check")
+            if ok:
+                print_kv(png=str(out_png), detail=why)
+            else:
+                out_svg = out_png.with_suffix(".svg")
+                out_svg.write_text(svg, encoding="utf-8")
+                print_kv(svg=str(out_svg))
+                print("NOTE=%s — SVG only" % why)
         return 0
     state = project.read_state()
     if server_alive(state):
@@ -7743,6 +8097,76 @@ def _print_debt(lint_debt, pin_debt):
             for p in pin_debt))
 
 
+def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
+    """Render an SVG to PNG with a headless system browser.
+
+    `cmd_snapshot`'s tier 2, extracted so a batch that has not been
+    committed can be looked at too (v0.6 `apply --check --render`). Under
+    `pulled` cadence a queued revision is invisible to its author — the
+    agent said so twice in the v0.5 assessment and then hand-rolled a
+    copy-the-project workaround, as the v0.4 agent had before it. Nothing
+    third-party: it drives whatever chromium/chrome/edge/brave exists.
+
+    Args:
+        svg: SVG source to rasterize.
+        out_png: Destination path.
+        want_w: Intended pixel width (clamped to a sane window).
+        want_h: Intended pixel height.
+        tag: Short slug used to name the scratch HTML file.
+        url: Render straight from this URL instead of the SVG source,
+            when a live server can serve it.
+
+    Returns:
+        `(ok, detail)` — `detail` names the browser, or why it failed.
+    """
+    browsers = find_browsers()
+    if not browsers:
+        return False, "no chromium/chrome/edge/brave found"
+    # work in $HOME so snap-confined browsers (private /tmp) can see both
+    # the input html and the output png
+    workdir = Path.home() / ".cache" / "wysiwyg-grilling"
+    workdir.mkdir(parents=True, exist_ok=True)
+    work_png = workdir / out_png.name
+    if url is None:
+        html = ("<!doctype html><html><head><meta charset='utf-8'>"
+                "<style>body{margin:0;background:%s}</style>"
+                "</head><body>%s</body></html>" % (SVG_GROUND, svg))
+        tmp_html = workdir / ("%s-render.html" % tag)
+        tmp_html.write_text(html, encoding="utf-8")
+        url = tmp_html.resolve().as_uri()
+    win_w = max(min(want_w, 3000), 320)
+    win_h = max(min(want_h, 2000), 200)
+    why = "no browser produced a file"
+    for browser in browsers:
+        if work_png.exists():
+            work_png.unlink()
+        cmd = [browser, "--headless=new", "--disable-gpu",
+               "--no-sandbox", "--disable-dev-shm-usage",
+               "--hide-scrollbars", "--force-device-scale-factor=1",
+               "--screenshot=%s" % work_png,
+               "--window-size=%d,%d" % (win_w, win_h), url]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, timeout=40)
+            if work_png.exists():
+                ok, detail = validate_png(work_png.read_bytes(),
+                                          win_w, win_h, min_bpp=0)
+                if ok:
+                    if work_png != out_png:
+                        shutil.copyfile(str(work_png), str(out_png))
+                    return True, "%s, %s" % (os.path.basename(browser),
+                                             detail)
+                why = "%s render invalid (%s)" % (
+                    os.path.basename(browser), detail)
+            else:
+                why = "%s produced no file (rc=%d%s)" % (
+                    os.path.basename(browser), proc.returncode,
+                    (", " + proc.stderr.decode("utf-8", "replace")
+                     .strip()[:120]) if proc.stderr else "")
+        except (subprocess.TimeoutExpired, OSError) as e:
+            why = "%s failed: %s" % (os.path.basename(browser), e)
+    return False, why
+
+
 def cmd_snapshot(args):
     """Tiered snapshot: connected tab → self-launched headless system
     browser → stdlib SVG. Always yields something; exit 0 only with a
@@ -7812,55 +8236,14 @@ def cmd_snapshot(args):
         print("NOTE=no valid tab export — falling back to headless render")
 
     # ---- tier 2: system browser, headless, against the SVG surface ----
-    browsers = find_browsers() if not args.no_headless else []
-    if browsers:
-        # work in $HOME so snap-confined browsers (private /tmp) can see
-        # both the input html and the output png
-        workdir = Path.home() / ".cache" / "wysiwyg-grilling"
-        workdir.mkdir(parents=True, exist_ok=True)
-        work_png = workdir / out_png.name
-        if alive:
-            url = state["url"] + "render/" + aid
-        else:
-            html = ("<!doctype html><html><head><meta charset='utf-8'>"
-                    "<style>body{margin:0;background:#fdfcf8}</style>"
-                    "</head><body>" + svg + "</body></html>")
-            tmp_html = workdir / ("%s-render.html" % aid)
-            tmp_html.write_text(html, encoding="utf-8")
-            url = tmp_html.resolve().as_uri()
-        win_w = max(min(want_w, 3000), 320)
-        win_h = max(min(want_h, 2000), 200)
-        for browser in browsers:
-            if work_png.exists():
-                work_png.unlink()
-            cmd = [browser, "--headless=new", "--disable-gpu",
-                   "--no-sandbox", "--disable-dev-shm-usage",
-                   "--hide-scrollbars", "--force-device-scale-factor=1",
-                   "--screenshot=%s" % work_png,
-                   "--window-size=%d,%d" % (win_w, win_h), url]
-            try:
-                proc = subprocess.run(cmd, capture_output=True, timeout=40)
-                if work_png.exists():
-                    data = work_png.read_bytes()
-                    ok, why = validate_png(data, win_w, win_h, min_bpp=0)
-                    if ok:
-                        if work_png != out_png:
-                            shutil.copyfile(str(work_png), str(out_png))
-                        print_kv(tier="2", png=str(out_png), valid="true",
-                                 detail=why,
-                                 browser=os.path.basename(browser))
-                        return 0
-                    print("NOTE=%s render invalid (%s)"
-                          % (os.path.basename(browser), why))
-                else:
-                    print("NOTE=%s produced no file (rc=%d%s)"
-                          % (os.path.basename(browser), proc.returncode,
-                             (", " + proc.stderr.decode("utf-8", "replace")
-                              .strip()[:120]) if proc.stderr else ""))
-            except (subprocess.TimeoutExpired, OSError) as e:
-                print("NOTE=%s failed: %s" % (os.path.basename(browser), e))
-    elif not args.no_headless:
-        print("NOTE=no chromium/chrome/edge/brave found — SVG fallback")
+    if not args.no_headless:
+        ok, why = rasterize_svg(
+            svg, out_png, want_w, want_h, aid,
+            url=(state["url"] + "render/" + aid) if alive else None)
+        if ok:
+            print_kv(tier="2", png=str(out_png), valid="true", detail=why)
+            return 0
+        print("NOTE=%s — SVG fallback" % why)
 
     # ---- tier 3: the SVG itself, honestly labeled ---------------------
     out_svg = out_png.with_suffix(".svg")
@@ -7868,6 +8251,272 @@ def cmd_snapshot(args):
     print_kv(tier="3", svg=str(out_svg), valid="true",
              note="approximate rendering (system fonts, no sketch style) — "
                   "geometry-faithful, good for legibility only")
+    return 0
+
+
+# ---------------------------------------------------------------------
+# Assessor namespace (`x-*`). Deliberately absent from `--help`, from
+# SKILL.md and from every reference file.
+#
+# The capability assessment plays a human against the agent for a whole
+# session, and its findings only mean anything if the agent behaves as it
+# would in a real one — the best signals of the v0.5 round were an agent
+# noticing a silently-flipped cadence and superseding a queued batch
+# rather than stacking one. An agent that can see the harness is an agent
+# performing for it. These commands exist so the assessor stops
+# hand-rolling the save protocol (and silently drifting from what the
+# real client posts), not to give the agent new powers: `x-pending
+# --apply` in particular must never be public, because applying a held
+# revision is the USER's decision and a self-applying agent voids the
+# whole `pulled` cadence contract.
+# ---------------------------------------------------------------------
+
+def _x_client(args):
+    """Resolve the running server for an assessor command.
+
+    Args:
+        args: Parsed CLI args carrying `project`.
+
+    Returns:
+        `(project, state)` for a live server; exits 3 otherwise.
+    """
+    project = Project(args.project)
+    state = project.read_state()
+    if not server_alive(state):
+        die("ERROR=server unreachable — run canvas.py start", 3)
+    return project, state
+
+
+def cmd_x_pending(args):
+    """Resolve a held revision the way the banner's buttons do.
+
+    `pending --discard` shipped in v0.5; Apply-now and After-I-save did
+    not, so the assessment drove them by hunting the button through a
+    real browser — the slowest and flakiest step in the loop, and one
+    where a failed click and a failed apply look identical.
+
+    Args:
+        args: Parsed CLI args — `project`, `apply`, `defer`.
+
+    Returns:
+        Process exit code.
+    """
+    _, state = _x_client(args)
+    pid = args.apply if args.apply is not None else args.defer
+    action = "apply_now" if args.apply is not None else "after_save"
+    if pid is None:
+        die("ERROR=pass --apply ID or --defer ID", 2)
+    try:
+        resp = http_json(state["url"] + "api/pending/resolve",
+                         payload={"id": pid, "action": action})
+    except urllib.error.HTTPError as e:
+        try:
+            payload = json.loads(e.read().decode("utf-8"))
+        except ValueError:
+            payload = {"error": str(e)}
+        die("ERROR=%s" % payload.get("error", str(e)), 5)
+    print_kv(resolved=pid, action=action, revn=resp.get("revn"))
+    return 0
+
+
+def cmd_x_geometry(args):
+    """Print each element's box, and where bound labels are really drawn.
+
+    Falls out of `arrow_label_anchor`. The stored position of a label
+    bound to an arrow is not where the client paints it, and measuring
+    the wrong one is how a label sitting inside a foreign box linted
+    clean for a whole session — then how the assessor's own hand-rolled
+    remeasurement produced two confident false overlaps. Derive it from
+    the same helper the renderer and the lints use, or don't derive it.
+
+    Args:
+        args: Parsed CLI args — `project`, `artifact`, `diff`.
+
+    Returns:
+        Process exit code.
+    """
+    project = Project(args.project)
+    store = Store(project)
+    aid = args.artifact or (next(iter(store.scenes))
+                            if len(store.scenes) == 1 else None)
+    if aid not in store.scenes:
+        die("ERROR=--artifact required (known: %s)"
+            % (", ".join(sorted(store.scenes)) or "none"), 2)
+    els = store.scenes[aid]
+    ix = {e["id"]: e for e in els}
+    for e in els:
+        cont = ix.get(e.get("containerId"))
+        drawn = None
+        if e.get("type") == "text" and cont is not None and \
+                cont.get("type") in ("arrow", "line"):
+            drawn = arrow_label_anchor(cont, e)
+        if args.diff and drawn is None:
+            continue
+        row = "%-24s %-10s (%d,%d) %dx%d" % (
+            e["id"][:24], e.get("type", "?"), e.get("x", 0), e.get("y", 0),
+            e.get("width", 0), e.get("height", 0))
+        if drawn is not None:
+            dx = ((e["x"] - drawn[0]) ** 2 + (e["y"] - drawn[1]) ** 2) ** 0.5
+            row += "  drawn=(%d,%d) drift=%dpx" % (drawn[0], drawn[1], dx)
+        print(row)
+    return 0
+
+
+def _x_user_note(text, x, y, w=230, h=90):
+    """A user's sticky note, shaped exactly as the client posts one.
+
+    Args:
+        text: Note body.
+        x: Left edge.
+        y: Top edge.
+        w: Width.
+        h: Height.
+
+    Returns:
+        `[rectangle, bound text]`, both stamped `author: "user"`.
+    """
+    nid = "usernote-" + hashlib.sha1(
+        text.encode("utf-8")).hexdigest()[:8]
+    rect = dict(BASE_DEFAULTS)
+    rect.update({
+        "id": nid, "type": "rectangle", "x": x, "y": y, "width": w,
+        "height": h, "strokeColor": "#b8860b",
+        "backgroundColor": "#fff8dc", "fillStyle": "solid",
+        "boundElements": [{"id": nid + "-t", "type": "text"}],
+        "customData": {"role": "note", "author": "user"}})
+    lbl = dict(BASE_DEFAULTS)
+    lbl.update({
+        "id": nid + "-t", "type": "text", "x": x + 8, "y": y + 8,
+        "width": w - 16, "height": h - 16, "text": text,
+        "originalText": text, "fontSize": 14, "fontFamily": FONT_LEGIBLE,
+        "textAlign": "left", "verticalAlign": "top", "lineHeight": 1.25,
+        "containerId": nid, "autoResize": False,
+        "customData": {"role": "note-text", "author": "user"}})
+    return [rect, lbl]
+
+
+def _x_user_pin(target, question, x, y):
+    """A user-authored `❓ ask` pin, as the rail's button posts it.
+
+    Args:
+        target: Element id the question is about.
+        question: The question text.
+        x: Left edge of the glyph.
+        y: Top edge of the glyph.
+
+    Returns:
+        A single text element carrying the pin's `customData`.
+    """
+    el = dict(BASE_DEFAULTS)
+    el.update({
+        "id": "pin-user-" + hashlib.sha1(
+            question.encode("utf-8")).hexdigest()[:8],
+        "type": "text", "x": x, "y": y, "width": 26, "height": 26,
+        "text": "❓", "originalText": "❓", "fontSize": 20,
+        "fontFamily": FONT_LEGIBLE, "textAlign": "center",
+        "strokeColor": "#b45309", "autoResize": True,
+        "customData": {"role": "pin", "author": "user", "target": target,
+                       "question": question, "status": "open",
+                       "answer": None}})
+    return el
+
+
+def cmd_x_as_user(args):
+    """Edit the canvas as the user, through the client's own save path.
+
+    The assessment has rebuilt this by hand every run: fetch the scene,
+    mutate the element list, re-post it with `base_revn`. That is fine
+    until the real client starts stamping a field the hand-rolled version
+    does not, at which point the "user edits" driving every behavioural
+    finding quietly stop being user edits and nothing says so. It is also
+    the missing test-fixture builder — the backend suite covers agent op
+    batches heavily and user-authored edits barely at all, yet every
+    interesting v0.6 result (a nudge that must not fire a tripwire, a
+    tooltip edit that must not either) is a user edit.
+
+    Args:
+        args: Parsed CLI args — `project`, `verb`, and the verb's operands.
+
+    Returns:
+        Process exit code.
+    """
+    _, state = _x_client(args)
+    url = state["url"]
+    verb = args.verb
+    if verb == "answer":
+        http_json(url + "api/pins/answer",
+                  payload={"id": args.target, "answer": args.text})
+        print_kv(answered=args.target)
+        return 0
+    if verb == "config":
+        key, _, val = (args.text or "").partition("=")
+        if not key or not val:
+            die("ERROR=config wants key=value", 2)
+        http_json(url + "api/config", payload={"patch": {key: val}})
+        print_kv(config=key, value=val)
+        return 0
+    if verb == "checkout":
+        http_json(url + "api/checkout", payload={"revn": int(args.target)})
+        print_kv(checked_out=args.target)
+        return 0
+    aid = args.artifact
+    if not aid:
+        die("ERROR=--artifact required", 2)
+    try:
+        els = http_json(url + "api/artifact/" + aid,
+                        timeout=10.0)["elements"]
+    except (OSError, ValueError, urllib.error.URLError) as e:
+        die("ERROR=could not read artifact %r (%s)" % (aid, e), 2)
+    ix = {e["id"]: e for e in els}
+    if verb == "rename":
+        lbl = next((t for t in els if t.get("type") == "text"
+                    and t.get("containerId") == args.target), None)
+        if lbl is None and ix.get(args.target, {}).get("type") == "text":
+            lbl = ix[args.target]
+        if lbl is None:
+            die("ERROR=no label on %r" % args.target, 2)
+        lbl["text"] = lbl["originalText"] = args.text
+    elif verb == "move":
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        for other in els:
+            if other is el or other.get("containerId") == el["id"] or \
+                    other.get("frameId") == el["id"]:
+                other["x"] = other.get("x", 0) + args.dx
+                other["y"] = other.get("y", 0) + args.dy
+    elif verb == "delete":
+        drop = set(args.target.split(","))
+        els = [e for e in els if e["id"] not in drop
+               and e.get("containerId") not in drop]
+    elif verb == "tooltip":
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        cd = dict(el.get("customData") or {})
+        cd["tooltip"] = args.text
+        el["customData"] = cd
+    elif verb == "note":
+        els = els + _x_user_note(args.text, args.dx or 600, args.dy or 700)
+    elif verb == "ask":
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        els = [*els, _x_user_pin(args.target, args.text,
+                                 el.get("x", 0) + el.get("width", 0) + 8,
+                                 el.get("y", 0) - 8)]
+    else:
+        die("ERROR=unknown verb %r" % verb, 2)
+    body = {"scenes": {aid: els},
+            "base_revn": http_json(url + "api/state")["head_revn"]}
+    if args.note:
+        body["note"] = args.note
+    try:
+        r = http_json(url + "api/save", payload=body, timeout=30.0)
+    except urllib.error.HTTPError as e:
+        die("ERROR=%s" % e, 5)
+    print_kv(revn=r.get("revn"), headline=(r.get("summary") or {})
+             .get("headline"), tripwires=len(r.get("tripwires") or []))
     return 0
 
 
@@ -7884,7 +8533,10 @@ def main(argv=None):
         description="WYSIWYG Grilling — local canvas server + agent CLI")
     parser.add_argument("--project", default=".",
                         help="target project root (default: cwd)")
-    sub = parser.add_subparsers(dest="cmd")
+    # metavar, not the default brace-list: argparse.SUPPRESS keeps a
+    # subcommand out of the help LISTING but still prints it in the usage
+    # line, which would advertise the assessor namespace it exists to hide
+    sub = parser.add_subparsers(dest="cmd", metavar="<command>")
 
     p = sub.add_parser("start", help="launch or reuse the detached server")
     p.add_argument("--no-browser", action="store_true")
@@ -7914,12 +8566,38 @@ def main(argv=None):
                                        "user's banner")
     p.add_argument("--discard", type=int, default=None,
                    help="drop a queued revision by id")
+    # assessor namespace. Omitting `help=` is what hides a subcommand:
+    # argparse only lists parsers that were given one, and passing
+    # argparse.SUPPRESS prints the literal "==SUPPRESS==" rather than
+    # hiding anything. See the block above cmd_x_pending for why it
+    # matters that these stay invisible.
+    p = sub.add_parser("x-pending")
+    p.add_argument("--apply", type=int, default=None)
+    p.add_argument("--defer", type=int, default=None)
+    p = sub.add_parser("x-geometry")
+    p.add_argument("--artifact")
+    p.add_argument("--diff", action="store_true")
+    p = sub.add_parser("x-as-user")
+    p.add_argument("verb", choices=["rename", "move", "delete", "note",
+                                    "ask", "tooltip", "answer", "config",
+                                    "checkout"])
+    p.add_argument("--artifact")
+    p.add_argument("--target", default="")
+    p.add_argument("--text", default="")
+    p.add_argument("--dx", type=int, default=0)
+    p.add_argument("--dy", type=int, default=0)
+    p.add_argument("--note", default=None)
+
     p = sub.add_parser("apply", help="apply a typed op batch (agent draws)")
     p.add_argument("--file", help="JSON batch file (default: stdin)")
     p.add_argument("--check", action="store_true",
                    help="dry run: would it apply, and what would it say? "
                         "Prints ECHO/LAYOUT lines, commits nothing, exits 5 "
                         "if the batch would be rejected")
+    p.add_argument("--render", action="store_true",
+                   help="with --check: also draw the proposed scene to a "
+                        "PNG and print its path — the only way to LOOK at "
+                        "a revision before it is committed or queued")
     for name, hlp in (("snapshot", "PNG/SVG of an artifact — tiered: "
                        "connected tab → headless system browser → SVG"),
                       ("screenshot", "alias of snapshot (back-compat)")):
@@ -7944,6 +8622,9 @@ def main(argv=None):
         "pending": cmd_pending, "screenshot": cmd_snapshot,
         "snapshot": cmd_snapshot,
         "serve": cmd_serve,
+        # assessor namespace, undocumented on purpose
+        "x-pending": cmd_x_pending, "x-geometry": cmd_x_geometry,
+        "x-as-user": cmd_x_as_user,
     }
     if args.cmd not in handlers:
         parser.print_help()
