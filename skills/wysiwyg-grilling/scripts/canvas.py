@@ -3290,7 +3290,8 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
 # mechanical summary (verb counts, salience headline, suppression)
 # ---------------------------------------------------------------------------
 
-SALIENCE = ["rewired", "relationship_rewired", "rerouted",
+SALIENCE = ["user_route_replaced",
+            "rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
             "message_reordered", "cardinality_changed", "ownership_changed",
             "party_kind_changed", "fold_crossed", "reading_order_changed",
@@ -3333,6 +3334,11 @@ def headline_for(fact):
         return "reordered %s" % (fact.get("label") or fact["element"])
     if n == "rerouted":
         return "rerouted %s" % (fact.get("arrow") or fact["element"])
+    if n == "user_route_replaced":
+        return ("re-routed %s, replacing the path you drew by hand — a "
+                "rewire is a new path request; say so, or re-issue "
+                "`mod points` to put your shape back"
+                % (fact.get("arrow") or fact["element"]))
     if n == "attribute_added":
         return "%s gained attribute %r" % (fact.get("entity")
                                            or fact["element"],
@@ -4095,21 +4101,44 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         for key, px, py in (("startBinding", x1, y1),
                             ("endBinding", x2, y2)):
             b = a.get(key)
+            side = "start" if key == "startBinding" else "end"
+            # a binding to an element that no longer exists. Deleting a
+            # node leaves its arrows pointing at a corpse: on screen the
+            # drawing asserts a flow out of nothing, and this loop used
+            # to `continue` past exactly the broken ones while raising an
+            # ERROR for a binding merely 26px off (r3-13). Deletion does
+            # NOT cascade — Excalidraw keeps the arrows and eating the
+            # user's geometry is the worse bug — but the silence goes.
+            if b and b.get("elementId") and b["elementId"] not in ix:
+                errors.append(
+                    "arrow %s binds %s at its %s point and that element no "
+                    "longer exists — re-target the binding, or delete the "
+                    "arrow with it" % (a["id"], b["elementId"], side))
+                continue
             tgt = ix.get((b or {}).get("elementId"))
             if tgt is None:
-                continue
-            gx1, gy1 = tgt["x"] - TOL, tgt["y"] - TOL
-            gx2 = tgt["x"] + tgt.get("width", 0) + TOL
-            gy2 = tgt["y"] + tgt.get("height", 0) + TOL
-            if not (gx1 <= px <= gx2 and gy1 <= py <= gy2):
+                continue        # genuinely unbound: nothing to check
+            gx1, gy1 = tgt["x"], tgt["y"]
+            gx2 = tgt["x"] + tgt.get("width", 0)
+            gy2 = tgt["y"] + tgt.get("height", 0)
+            # distance to the target's PERIMETER, not containment in a
+            # bbox grown by TOL — a point deep INSIDE satisfied that
+            # trivially, so three arrowheads stopping 56px in passed
+            # while one 26px out was the artifact's only ERROR (r3-16).
+            # A bound endpoint belongs ON the border; TOL is already
+            # described as "binding gap (6) + slack", a statement about
+            # the border and not about the interior.
+            outside = ((max(gx1 - px, px - gx2, 0)) ** 2 +
+                       (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
+            inside = 0 if outside else min(px - gx1, gx2 - px,
+                                           py - gy1, gy2 - py)
+            if max(outside, inside) > TOL:
                 msg = ("arrow %s claims to bind %s but its %s point ends "
-                       "%dpx away — re-route it (mod x/y on the node "
+                       "%dpx %s — re-route it (mod x/y on the node "
                        "re-routes 2-point arrows automatically)"
-                       % (a["id"], name(tgt["id"]),
-                          "start" if key == "startBinding" else "end",
-                          int(((px - max(gx1, min(px, gx2))) ** 2 +
-                               (py - max(gy1, min(py, gy2))) ** 2) ** 0.5)
-                          or TOL))
+                       % (a["id"], name(tgt["id"]), side,
+                          int(outside or inside) or TOL,
+                          "away" if outside else "inside the shape"))
                 if not server_owns_geometry(a):
                     warnings.append(
                         "user-shaped " + msg +
@@ -4653,14 +4682,34 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         for i, (id1, px1, py1) in enumerate(pts):
             for id2, px2, py2 in pts[i + 1:]:
                 if abs(px1 - px2) < 12 and abs(py1 - py2) < 12:
-                    # the apply post-pass auto-fans; this only fires when
-                    # obstacles blocked every slide slot — advice must be
-                    # something the grammar can actually do (v0.3)
+                    # the apply post-pass auto-fans, so if they are still
+                    # together the fan did not move them. It used to say
+                    # "obstacles in every slot" — a cause it never
+                    # measured and, on the one case anyone reproduced,
+                    # not the cause at all: deleting every decoration
+                    # left the warning standing, and what actually
+                    # cleared it was an arrow dropping from 4 points to
+                    # 3, because fan_attach_points only touches 2- and
+                    # 3-point server-routed paths (brownfield BUG-05).
+                    # Name what disqualified them, or nothing.
+                    why = []
+                    for aid in (id1, id2):
+                        arr = ix.get(aid) or {}
+                        npts = len(arr.get("points") or [])
+                        if not server_owns_geometry(arr):
+                            why.append("%s is user-shaped" % aid)
+                        elif npts > 3:
+                            why.append("%s has %d waypoints (the fan only "
+                                       "moves 2- and 3-point paths)"
+                                       % (aid, npts))
                     warnings.append(
                         "arrows %s and %s share an attach point on %s — "
-                        "auto-fan couldn't separate them (obstacles in "
-                        "every slot); author waypoints via `mod points`, "
-                        "or move the nodes apart" % (id1, id2, name(tgt)))
+                        "%s. Author waypoints via `mod points`, simplify "
+                        "the path, or move the nodes apart"
+                        % (id1, id2, name(tgt),
+                           "the auto-fan could not move them: "
+                           + "; ".join(why) if why else
+                           "the auto-fan ran and left them together"))
     # stranded element: far outside everything else's bounding box
     if len(shapes) > 2:
         for e in shapes:
@@ -6516,6 +6565,22 @@ class Store:
                         for o in ops if o.get("op") == "mod"
                         and isinstance(o.get("attrs"), dict)
                         and "points" in o["attrs"]]
+            # a rewire re-routes by design — "a rewire is a new path
+            # request" — but when the path being replaced is one the USER
+            # drew by hand, nothing said so. The session that found this
+            # shows one arrow re-dragged four times: to the agent that
+            # reads as indecision, when it is the user redoing work the
+            # agent keeps undoing (brownfield BUG-06). Measured against
+            # the PRE-op scene, because the ops have already re-routed it.
+            was = {e["id"]: e for e in (self.scenes.get(aid) or [])}
+            reroutes += [
+                {"fact": "user_route_replaced", "element": o.get("id"),
+                 "arrow": o.get("id")}
+                for o in ops if o.get("op") == "mod"
+                and isinstance(o.get("attrs"), dict)
+                and ({"from", "to"} & set(o["attrs"]))
+                and o.get("id") in was
+                and not server_owns_geometry(was[o["id"]])]
             resolved_now = {o.get("id") for o in ops
                             if o.get("op") == "resolve_pin"}
             record = self.commit(

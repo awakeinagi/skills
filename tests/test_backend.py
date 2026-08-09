@@ -2054,10 +2054,20 @@ class TestTearsheetFixture(unittest.TestCase):
         # through-node crossings — and v0 lint said NOTHING. v0.1 lint must
         # find it all: 22 detachment ERRORs (per-endpoint, lint threshold),
         # diagonal + through-node WARNINGs.
+        #
+        # v0.7: 26, not 22. The check tested containment in a bbox grown
+        # by TOL, which a point INSIDE satisfies trivially, so it only
+        # ever saw the outward direction (r3-16). The 4 additions are all
+        # inward and all real — e.g. t-macro-cutoff starts at (590,308)
+        # inside pull-macro-news y[260..324], 16px past the edge, and
+        # t-trigger-macro 32px inside daily-trigger. The original 22
+        # outward findings are unchanged.
         els = self.store.state_at(10)["tearsheet-pipeline"]["elements"]
         lint = canvas.lint_layout(els)
         detach = [m for m in lint["errors"] if "claims to bind" in m]
-        self.assertEqual(len(detach), 22)
+        self.assertEqual(len(detach), 26)
+        self.assertEqual(len([m for m in detach if "away" in m]), 22)
+        self.assertEqual(len([m for m in detach if "inside the shape" in m]), 4)
         self.assertEqual(len(detach), len(lint["errors"]),
                          "unexpected non-detachment ERRORs: %r"
                          % [m for m in lint["errors"]
@@ -4650,6 +4660,183 @@ class TestPulledCadenceIsNotBlind(Base):
         self.assertEqual(self.app.api_state()["round"], before)
         self.assertEqual(self.app.api_state()["round"],
                          self.store.registry["round"])
+
+
+class TestArrowBindingLints(unittest.TestCase):
+    """Both directions of "this arrow does not point where it says".
+
+    r3-13: deleting a node orphans its bound arrows, and the loop
+    `continue`d past exactly the broken ones while raising an ERROR for
+    a binding merely 26px off. r3-16: the guard tested containment in a
+    bbox grown by TOL, which a point deep INSIDE satisfies trivially, so
+    three arrowheads stopping 56px in passed while one 26px out was the
+    artifact's only ERROR.
+    """
+
+    def scene(self, ax, ay, ex, ey, drop_target=False):
+        node = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+                "width": 200, "height": 100,
+                "customData": {"role": "node"}}
+        far = {"id": "n2", "type": "rectangle", "x": 600, "y": 100,
+               "width": 200, "height": 100,
+               "customData": {"role": "node"}}
+        arrow = {"id": "a1", "type": "arrow", "x": ax, "y": ay,
+                 "width": ex - ax, "height": ey - ay,
+                 "points": [[0, 0], [ex - ax, ey - ay]],
+                 "startBinding": {"elementId": "n1", "focus": 0, "gap": 6},
+                 "endBinding": {"elementId": "n2", "focus": 0, "gap": 6},
+                 "customData": {}}
+        arrow["customData"]["routed"] = canvas._route_sig(arrow)
+        return [far, arrow] if drop_target else [node, far, arrow]
+
+    def errors(self, els):
+        return canvas.lint_layout(els)["errors"]
+
+    # ---- r3-13 -------------------------------------------------------
+
+    def test_a_binding_to_a_deleted_element_is_an_error(self):
+        errs = self.errors(self.scene(300, 150, 600, 150, drop_target=True))
+        self.assertTrue(any("no longer exists" in m for m in errs), errs)
+
+    def test_it_names_the_arrow_the_side_and_the_missing_element(self):
+        m = next(m for m in
+                 self.errors(self.scene(300, 150, 600, 150, drop_target=True))
+                 if "no longer exists" in m)
+        self.assertIn("a1", m)
+        self.assertIn("n1", m)
+        self.assertIn("start", m)
+
+    def test_a_live_binding_says_nothing(self):
+        # the silent half
+        self.assertEqual(self.errors(self.scene(300, 150, 600, 150)), [])
+
+    # ---- r3-16 -------------------------------------------------------
+
+    def test_an_endpoint_deep_inside_its_box_is_an_error(self):
+        # start at (250,150): 50px inside n1's right edge at x=300
+        errs = self.errors(self.scene(250, 150, 600, 150))
+        self.assertTrue(any("inside the shape" in m for m in errs), errs)
+
+    def test_an_endpoint_on_the_border_stays_silent(self):
+        # the silent half, and the one that matters: a bound endpoint
+        # belongs ON the border and must not now be flagged
+        self.assertEqual(self.errors(self.scene(300, 150, 600, 150)), [])
+
+    def test_inside_by_less_than_the_tolerance_stays_silent(self):
+        self.assertEqual(self.errors(self.scene(290, 150, 600, 150)), [])
+
+    def test_outside_still_fires_and_still_says_away(self):
+        errs = self.errors(self.scene(340, 150, 600, 150))
+        self.assertTrue(any("away" in m for m in errs), errs)
+
+
+class TestSharedAttachPointNamesTheRealReason(unittest.TestCase):
+    """The warning must not assert a cause it never measured.
+
+    It said "auto-fan couldn't separate them (obstacles in every slot)"
+    from a check that only tests whether two attach points are within
+    12px — no obstacle set is in scope. On the one case anyone
+    reproduced (brownfield algorithm-refinements revns 56-59) the stated
+    cause was also wrong: deleting all three decorations left the
+    warning standing, and what cleared it at revn 60 was an arrow
+    dropping from 4 points to 3, because fan_attach_points only moves
+    2- and 3-point server-routed paths (BUG-05).
+    """
+
+    def scene(self, pts_b):
+        node = {"id": "src", "type": "diamond", "x": 100, "y": 100,
+                "width": 160, "height": 80, "customData": {"role": "node"}}
+        out = [node]
+        for i, (aid, pts) in enumerate((("a1", [[0, 0], [200, 0]]),
+                                        ("a2", pts_b))):
+            dst = {"id": "d%d" % i, "type": "rectangle", "x": 500,
+                   "y": 100 + i * 200, "width": 160, "height": 80,
+                   "customData": {"role": "node"}}
+            arrow = {"id": aid, "type": "arrow", "x": 260, "y": 140,
+                     "width": 200, "height": 0, "points": pts,
+                     "startBinding": {"elementId": "src", "focus": 0,
+                                      "gap": 6},
+                     "endBinding": {"elementId": dst["id"], "focus": 0,
+                                    "gap": 6},
+                     "customData": {}}
+            arrow["customData"]["routed"] = canvas._route_sig(arrow)
+            out += [dst, arrow]
+        return out
+
+    def warning(self, els):
+        return next((w for w in canvas.lint_layout(els)["warnings"]
+                     if "share an attach point" in w), None)
+
+    def test_it_no_longer_blames_obstacles(self):
+        w = self.warning(self.scene([[0, 0], [60, 40], [140, 60], [200, 80]]))
+        self.assertIsNotNone(w)
+        self.assertNotIn("obstacles in every slot", w)
+
+    def test_it_names_the_waypoint_count_that_disqualified_the_arrow(self):
+        w = self.warning(self.scene([[0, 0], [60, 40], [140, 60], [200, 80]]))
+        self.assertIn("a2", w)
+        self.assertIn("4 waypoints", w)
+
+    def test_a_user_shaped_arrow_is_named_as_such(self):
+        els = self.scene([[0, 0], [200, 80]])
+        for e in els:
+            if e.get("id") == "a2":
+                e["customData"]["routed"] = "stale-signature"
+        w = self.warning(els)
+        self.assertIn("user-shaped", w)
+
+    def test_arrows_that_do_not_share_a_point_say_nothing(self):
+        # the silent half
+        els = self.scene([[0, 0], [200, 80]])
+        for e in els:
+            if e.get("id") == "a2":
+                e["y"] = 400
+        self.assertIsNone(self.warning(els))
+
+
+class TestRewireNarratesDiscardingUserGeometry(Base):
+    """A rewire replaces a hand-drawn path by design — say so (BUG-06).
+
+    `server_owns_geometry` returns false on a user drag, so `tidy` and
+    the move-repair pass already leave it alone; the rewrite on rewire is
+    deliberate ("a rewire is a new path request"). What was missing is
+    that nothing narrated the discard, so one arrow re-dragged four times
+    read to the agent as user indecision.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def facts(self, rec):
+        return [f["fact"] for a in rec["artifacts"].values()
+                for f in a["facts"]]
+
+    def user_shapes_t2(self):
+        for e in self.store.scenes["checkout-flow"]:
+            if e["id"] == "t2":
+                e["customData"] = dict(e.get("customData") or {},
+                                       routed="a-stale-signature")
+
+    def rewire_t2(self):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "t2",
+                     "attrs": {"from": "checkout", "to": "confirm"}}]})
+        return rec
+
+    def test_the_discard_is_narrated(self):
+        self.user_shapes_t2()
+        self.assertIn("user_route_replaced", self.facts(self.rewire_t2()))
+
+    def test_it_reaches_the_headline(self):
+        self.user_shapes_t2()
+        self.assertIn("replacing the path you drew by hand",
+                      self.rewire_t2()["summary"]["headline"])
+
+    def test_a_server_routed_arrow_is_not_narrated(self):
+        # the silent half: re-routing our own geometry discards nothing
+        self.assertNotIn("user_route_replaced", self.facts(self.rewire_t2()))
 
 
 class TestPrintStanding(unittest.TestCase):
