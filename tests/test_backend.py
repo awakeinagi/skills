@@ -2,6 +2,8 @@
 
 Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 """
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -4524,6 +4526,175 @@ class TestHeldRevisions(Base):
              "question": "Card only?"}]))
         self.assertTrue(r["ok"])
         self.assertNotIn("queued", r)
+
+
+class TestPulledCadenceIsNotBlind(Base):
+    """Under `pulled`, a queued batch still owes the standing nags, and
+    the session clock still runs (v0.7 WP2).
+
+    `cmd_apply`'s queued branch returned before the nag block — the third
+    defect on those same eight lines in three assessments, with the
+    comment above it recording v0.4 patching one of them (r3-6). The
+    server's queued response carried no debt at all, so fixing the early
+    return alone would have printed nothing.
+
+    And because `round` advances inside `commit`, a cadence where nothing
+    commits froze it, taking pin ageing with it: a question sat open
+    across turns still reading "age 0r" (r3-2).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.store = self.app.store
+        self.store.apply_batch(seed_flow_batch())
+        self.store.config["canvas_updates"] = "pulled"
+
+    def tearDown(self):
+        self.app.log_file.close()
+        super().tearDown()
+
+    def apply(self, ops, **kw):
+        b = {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ops}
+        b.update(kw)
+        try:
+            return self.app.handle_post("/api/apply", b)
+        except canvas._Err as e:
+            return dict(e.payload, status=e.status)
+
+    def queue_a_drawing(self):
+        return self.apply([{"op": "mod", "id": "payment", "attrs": {"x": 500}}])
+
+    # ---- r3-6: the queued response carries the standing nags ---------
+
+    def test_queued_response_carries_the_debt_keys(self):
+        r = self.queue_a_drawing()
+        self.assertTrue(r["queued"])
+        for k in ("lint_debt", "pin_debt", "open_tripwires", "branch"):
+            self.assertIn(k, r)
+
+    def test_the_committed_response_carries_them_too(self):
+        self.store.config["canvas_updates"] = "per-round"
+        r = self.apply([{"op": "mod", "id": "payment", "attrs": {"x": 500}}])
+        for k in ("lint_debt", "pin_debt", "open_tripwires", "branch"):
+            self.assertIn(k, r)
+
+    def test_a_queued_pin_still_shows_in_the_debt(self):
+        self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}])
+        r = self.queue_a_drawing()
+        self.assertIn("pin-pay", [p["id"] for p in r["pin_debt"]])
+
+    # ---- r3-2: the clock runs while the batch waits ------------------
+
+    def user_has_just_saved(self):
+        """The precondition: a user save leaves whose_move on the agent.
+
+        The seed batch is an AGENT revision, which already flips it to
+        the user, so there is nothing to observe from there.
+        """
+        self.store.registry["whose_move"] = "agent"
+
+    def test_whose_move_flips_when_the_batch_is_queued(self):
+        self.user_has_just_saved()
+        self.assertEqual(self.app.api_state()["whose_move"], "agent")
+        self.queue_a_drawing()
+        self.assertEqual(self.app.api_state()["whose_move"], "user")
+
+    def test_the_round_advances_when_the_batch_is_queued(self):
+        before = self.app.api_state()["round"]
+        self.queue_a_drawing()
+        self.assertEqual(self.app.api_state()["round"], before + 1)
+
+    def test_a_pin_ages_while_it_waits(self):
+        self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}])
+
+        def aged():
+            return next(p for p in self.app.api_state()["pin_debt"]
+                        if p["id"] == "pin-pay")["age_rounds"]
+
+        self.assertEqual(aged(), 0)
+        self.queue_a_drawing()
+        self.assertEqual(aged(), 1)
+
+    def test_discarding_the_queue_puts_the_clock_back(self):
+        # derived, not written: the whole reason for deriving it
+        before = self.app.api_state()
+        pid = self.queue_a_drawing()["pending_id"]
+        self.app.handle_post("/api/pending/resolve",
+                             {"id": pid, "action": "discard"})
+        after = self.app.api_state()
+        self.assertEqual(after["round"], before["round"])
+        self.assertEqual(after["whose_move"], before["whose_move"])
+
+    def test_the_committed_round_is_untouched(self):
+        # registry.json must never record a round nothing committed in
+        self.queue_a_drawing()
+        self.assertEqual(self.store.registry["round"],
+                         self.app.api_state()["committed_round"])
+        self.assertEqual(self.app.api_state()["round"],
+                         self.store.registry["round"] + 1)
+
+    def test_a_pin_only_revision_is_not_an_unanswered_turn(self):
+        # the silent half. A pin-only revision never holds behind the
+        # banner — it COMMITS — so whose_move moves for the ordinary
+        # reason and the derivation must add nothing on top.
+        self.user_has_just_saved()
+        before = self.app.api_state()["round"]
+        r = self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                         "question": "Card only?"}])
+        self.assertNotIn("queued", r)
+        self.assertFalse(self.app.queued_turn())
+        self.assertEqual(self.app.api_state()["round"], before)
+        self.assertEqual(self.app.api_state()["round"],
+                         self.store.registry["round"])
+
+
+class TestPrintStanding(unittest.TestCase):
+    """The shared apply epilogue (v0.7 WP2).
+
+    One function on every exit path, so an early return can no longer
+    take a subset of the contract with it (r3-6).
+    """
+
+    def lines(self, resp):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas._print_standing(resp)
+        return buf.getvalue().splitlines()
+
+    def test_a_non_main_branch_is_named(self):
+        # a user save toasts its branch; an agent revision named none
+        self.assertIn("BRANCH=alt-0019",
+                      self.lines({"branch": "alt-0019"}))
+
+    def test_main_is_not_named(self):
+        self.assertEqual(self.lines({"branch": "main"}), [])
+
+    def test_standing_tripwires_carry_their_question(self):
+        out = self.lines({"open_tripwires": [
+            {"id": "tw-20-1", "question": "Divergence, or propagate?"}]})
+        self.assertEqual(out, ["OPEN_TRIPWIRE=tw-20-1 "
+                               "Divergence, or propagate?"])
+
+    def test_standing_tripwires_are_capped_with_a_tail(self):
+        n = canvas.STANDING_TRIPWIRE_CAP + 3
+        out = self.lines({"open_tripwires": [
+            {"id": "tw-%d" % i, "question": "q"} for i in range(n)]})
+        self.assertEqual(len(out), canvas.STANDING_TRIPWIRE_CAP + 1)
+        self.assertIn("+3 more", out[-1])
+
+    def test_this_batchs_tripwires_are_separate_from_standing_ones(self):
+        out = self.lines({"tripwires": [{"id": "tw-1", "question": "fired"}],
+                          "open_tripwires": [{"id": "tw-0",
+                                              "question": "standing"}]})
+        self.assertEqual(out, ["TRIPWIRE=tw-1 fired",
+                               "OPEN_TRIPWIRE=tw-0 standing"])
+
+    def test_an_empty_response_prints_nothing(self):
+        self.assertEqual(self.lines({}), [])
 
 
 class TestArrowLabelAnchor(Base):

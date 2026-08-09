@@ -6749,12 +6749,63 @@ class Store:
             cached = getattr(self, "_lint_debt_cache", None)
             return cached[2] if cached and len(cached) > 2 else {}
 
-    def pin_debt(self):
+    def effective_round(self, queued=False):
+        """The round the session is actually in, queue included.
+
+        `round` advances inside `commit`, so under `pulled` cadence —
+        where nothing commits until the user applies — it froze, and
+        took pin ageing with it: `age_rounds` is `round - pin.round`, so
+        a question could sit open across four turns still reading
+        "age 0r" while the standing-nag mechanism exists precisely to
+        make an ageing question harder to ignore (v0.6 assessment r3-2).
+
+        Derived rather than written, so discarding the queue reverses it
+        with no arithmetic and `registry.json` never records a round in
+        which nothing committed.
+
+        Args:
+            queued: Whether a non-pin batch is waiting behind the banner.
+
+        Returns:
+            The committed round, plus one for an uncommitted agent turn.
+        """
+        return self.registry.get("round", 0) + (1 if queued else 0)
+
+    def effective_whose_move(self, queued=False):
+        """Whose turn it is, queue included — see `effective_round`.
+
+        Args:
+            queued: Whether a non-pin batch is waiting behind the banner.
+
+        Returns:
+            `"user"` while a revision waits on them, else the committed
+            value.
+        """
+        return "user" if queued else self.registry["whose_move"]
+
+    def open_tripwires(self):
+        """Standing unresolved tripwires, full question text.
+
+        Lint and pin debt are pushed onto every apply response and this
+        was the only nag you had to PULL, through `GET api/state`
+        (r3-9). A tripwire persists until resolved, so it is standing by
+        construction and belongs in the same block.
+
+        Returns:
+            One dict per open tripwire — id, mapping and question.
+        """
+        with self.lock:
+            return [{"id": t.get("id"), "mapping": t.get("mapping"),
+                     "question": t.get("question") or ""}
+                    for t in self.registry["tripwires"]
+                    if t.get("status") == "open"]
+
+    def pin_debt(self, queued=False):
         """Open/answered pins with age in rounds and how often their
         target changed since asking (v0.2 PIN_DEBT — clone of the
         VIEW_DEBT standing-nag mechanism)."""
         with self.lock:
-            rnd = self.registry.get("round", 0)
+            rnd = self.effective_round(queued)
             return [{"id": p["id"], "artifact": p.get("artifact"),
                      "status": p.get("status"),
                      "direction": p.get("direction", "agent"),
@@ -6875,7 +6926,7 @@ class Store:
                                user_note="revert to revn %d" % revn)
 
     # -- state for the frontend ------------------------------------------
-    def public_state(self):
+    def public_state(self, queued=False):
         with self.lock:
             saves = []
             for revn in sorted(self.records):
@@ -6911,14 +6962,17 @@ class Store:
                 "head": self.registry["head"],
                 "head_revn": self.head_revn(),
                 "branches": self.registry["branches"],
-                "round": self.registry["round"],
-                "whose_move": self.registry["whose_move"],
+                # derived, not stored: under `pulled` nothing commits, so
+                # the committed pair froze until the user applied (r3-2)
+                "round": self.effective_round(queued),
+                "whose_move": self.effective_whose_move(queued),
+                "committed_round": self.registry["round"],
                 "concepts": self.registry["concepts"],
                 "mappings": self.registry["mappings"],
                 "pins": self.registry["pins"],
                 "tripwires": self.registry["tripwires"],
                 "lint_debt": self.lint_debt(),
-                "pin_debt": self.pin_debt(),
+                "pin_debt": self.pin_debt(queued),
                 "budgets": self.registry.get("budgets") or {},
                 "waives": self.registry.get("waives") or {},
                 "lint": self.lint_lines(),
@@ -7154,8 +7208,21 @@ class ServerApp:
                 pass    # commit_pending evicted it and said so
 
     # -- request handling --------------------------------------------------
+    def queued_turn(self):
+        """Whether a drawing revision is waiting behind the banner.
+
+        The agent has moved and the user has not answered, so round and
+        whose_move should say so even though nothing has committed —
+        which under `pulled` cadence is the whole span (r3-2). Pin-only
+        revisions never hold behind the banner, so they never count.
+
+        Returns:
+            True when at least one non-pin revision is queued.
+        """
+        return any(not p["pin_only"] for p in self.pending)
+
     def api_state(self):
-        st = self.store.public_state()
+        st = self.store.public_state(queued=self.queued_turn())
         st.update({
             "pending": self.sanitize_pending(),
             "dirty": self.dirty,
@@ -7238,6 +7305,16 @@ class ServerApp:
                         "layout_errors": check["layout_errors"],
                         "layout_warnings": check["layout_warnings"],
                         "layout_notes": check["layout_notes"],
+                        # the standing nags ride EVERY apply response, as
+                        # ops-reference promises, and this one carried
+                        # none at all — so the CLI had nothing to print
+                        # even once its early return was fixed (r3-6).
+                        # Computed against current HEAD on purpose: debt
+                        # is about artifacts this batch did not touch.
+                        "branch": self.store.registry["head"],
+                        "open_tripwires": self.store.open_tripwires(),
+                        "lint_debt": self.store.lint_debt(),
+                        "pin_debt": self.store.pin_debt(self.queued_turn()),
                         "hint": "The revision will land behind the pending-"
                                 "revision banner; the user chooses when. It "
                                 "validates and lints clean against the "
@@ -7269,8 +7346,14 @@ class ServerApp:
                     # tripwires fired by THIS batch — visible at fire time,
                     # not rounds later via status (v0.3 assessment bug)
                     "tripwires": record.get("tripwires") or [],
+                    # a user save toasts its branch and an agent revision
+                    # named none, so the product already held that a
+                    # non-main write should say so and applied it to one
+                    # of the two write paths (r3-14)
+                    "branch": record.get("branch"),
+                    "open_tripwires": self.store.open_tripwires(),
                     "lint_debt": self.store.lint_debt(),
-                    "pin_debt": self.store.pin_debt()}
+                    "pin_debt": self.store.pin_debt(self.queued_turn())}
         if path == "/api/pending/resolve":
             pid = body.get("id")
             action = body.get("action")
@@ -8151,17 +8234,19 @@ def cmd_apply(args):
         if resp.get("queued"):
             # a queued revision still owes its echo — swallowing it left
             # the agent with a success line and nothing to check it
-            # against (v0.4 capability assessment)
+            # against (v0.4 capability assessment) — and it owes the
+            # standing nags too, which this branch skipped by returning
+            # early for two more versions after that (r3-6)
             print_kv(queued="true", pending_id=resp.get("pending_id"),
                      reason=resp.get("reason"), hint=resp.get("hint"))
             _print_layout(resp)
+            _print_standing(resp)
             return 0
         print_kv(revn=resp.get("revn"), short_id=resp.get("short_id"),
                  pin_only=str(resp.get("pin_only", False)).lower(),
                  headline=(resp.get("summary") or {}).get("headline"))
         _print_layout(resp)
-        _print_tripwires(resp.get("tripwires"))
-        _print_debt(resp.get("lint_debt"), resp.get("pin_debt"))
+        _print_standing(resp)
         return 0
     # degraded path: no server — apply directly against the files
     store = Store(project)
@@ -8186,20 +8271,56 @@ def cmd_apply(args):
                    "layout_errors": lint["errors"],
                    "layout_warnings": lint["warnings"],
                    "layout_notes": lint["notes"]})
-    _print_tripwires(record.get("tripwires"))
-    _print_debt(store.lint_debt(), store.pin_debt())
+    _print_standing({"branch": record.get("branch"),
+                     "tripwires": record.get("tripwires"),
+                     "open_tripwires": store.open_tripwires(),
+                     "lint_debt": store.lint_debt(),
+                     "pin_debt": store.pin_debt()})
     return 0
 
 
-def _print_tripwires(tripwires):
-    """Name tripwires fired by this batch — divergence must be visible at
-    fire time, not rounds later via a status count (v0.3 assessment)."""
-    for t in tripwires or []:
+STANDING_TRIPWIRE_CAP = 5
+
+
+def _print_standing(resp):
+    """Print everything that must ride EVERY apply response.
+
+    Split out and called from all three of `cmd_apply`'s exits because
+    the queued branch used to `return 0` before the nag block — the
+    third defect on those same eight lines in three assessments (v0.4
+    patched one; v0.6 assessment r3-6 found the rest). A shared epilogue
+    behind a single call is the point: an early return can no longer
+    take a subset of the contract with it.
+
+    What rides, and why each is here:
+
+    - `BRANCH` when it is not main. A user save toasts its branch and an
+      agent revision named none, so the product already held the
+      position and applied it to one of the two write paths (r3-14).
+    - `TRIPWIRE` — fired by THIS batch, visible at fire time rather than
+      rounds later via a status count (v0.3).
+    - `OPEN_TRIPWIRE` — standing, unresolved. Tripwire debt was the only
+      nag you had to PULL, via `GET api/state`; lint and pin debt are
+      pushed. ops-reference.md draws no such distinction, and a tripwire
+      persists until resolved, so it is standing by construction (r3-9).
+    - `LINT_DEBT` / `PIN_DEBT` — cross-artifact drift in artifacts this
+      batch did not touch, and pins ageing (v0.2).
+
+    Args:
+        resp: An apply response — server, queued or offline-shaped.
+    """
+    if resp.get("branch") and resp["branch"] != "main":
+        print_kv(branch=resp["branch"])
+    for t in resp.get("tripwires") or []:
         print("TRIPWIRE=%s %s" % (t.get("id", "?"), t.get("question", "")))
-
-
-def _print_debt(lint_debt, pin_debt):
-    """Standing nags (v0.2): every apply restates cross-artifact drift."""
+    standing = resp.get("open_tripwires") or []
+    for t in standing[:STANDING_TRIPWIRE_CAP]:
+        print("OPEN_TRIPWIRE=%s %s" % (t.get("id", "?"),
+                                       t.get("question", "")))
+    if len(standing) > STANDING_TRIPWIRE_CAP:
+        print("OPEN_TRIPWIRE=+%d more — canvas.py status, or GET api/state"
+              % (len(standing) - STANDING_TRIPWIRE_CAP))
+    lint_debt, pin_debt = resp.get("lint_debt"), resp.get("pin_debt")
     if lint_debt:
         print("LINT_DEBT=" + "; ".join(
             "%s %s" % (aid, "/".join("%d%s" % (v, k[0].upper())

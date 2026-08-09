@@ -297,10 +297,18 @@ it "agent asked a question" with no Apply action.
 - `canvas.py status` → `HEAD_REVN`, `ROUND`, `WHOSE_MOVE`, `ARTIFACTS`,
   `OPEN_PINS`, `OPEN_TRIPWIRES`, `EVENTS_LOG`, `DIRTY`, `PENDING`,
   **`LINT_DEBT`** (standing cross-artifact lint counts — drift in
-  artifacts your batch didn't touch) and **`PIN_DEBT`** (open/answered
+  artifacts your batch didn't touch), **`PIN_DEBT`** (open/answered
   pins with age in rounds + how often their target changed; entries with
   `direction: user` are the USER'S questions awaiting your move — answer
-  them first). Both also ride every apply response.
+  them first) and **`OPEN_TRIPWIRE`** (standing unresolved divergence
+  questions, with their text — not just the count).
+  **All three ride every apply response, including a queued one.**
+  Nothing is pull-only: if a nag exists you will be told without asking.
+- `ROUND` and `WHOSE_MOVE` count the pending queue. Under `pulled`
+  cadence nothing commits until the user applies, so a queued revision
+  is still your move made and their move owed — and pins age against it.
+  Discard the queue and both go back; the committed value is
+  `committed_round` in `api/state` if you need the raw one.
 - `GET <url>api/state` → everything (registry, config, scenes, saves,
   pins, tripwires, pending).
 - `GET <url>api/save-record/<revn>` → a full save record (also on disk:
