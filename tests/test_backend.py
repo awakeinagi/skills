@@ -7438,5 +7438,78 @@ class TestCrossesThroughRun(Base):
                          lint["errors"] + lint["warnings"])
 
 
+class TestDeletionConsequenceSurface(Base):
+    """v0.8 beats, beat 3: the facts existed on disk; no agent-facing
+    surface named them, and lint was blind to half-unbound arrows."""
+
+    def _delete_hub(self):
+        """Seed a 3-arrow hub and delete it; returns (record, scene)."""
+        self.store.apply_batch(seed_flow_batch())
+        record, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "del", "id": "checkout"}]})
+        return record, self.store.scenes["checkout-flow"]
+
+    def test_consequence_lines_name_the_fallout(self):
+        record, _ = self._delete_hub()
+        lines = canvas.consequence_lines(record)
+        self.assertTrue(lines, "deletion produced no consequence lines")
+        joined = "\n".join(lines)
+        self.assertIn("t1", joined)     # cart→checkout lost its end
+        self.assertIn("t2", joined)     # checkout→payment lost its start
+        # and the silent half: an ordinary add has no consequences
+        rec2, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow",
+            "ops": [{"op": "add", "element": {
+                "id": "aside", "type": "rectangle", "x": 900, "y": 40,
+                "width": 160, "height": 60, "label": "Aside",
+                "role": "node"}}]})
+        self.assertEqual(canvas.consequence_lines(rec2), [])
+
+    def test_half_unbound_arrow_draws_the_warning(self):
+        _, els = self._delete_hub()
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="checkout-flow")
+        halves = [w for w in lint["warnings"]
+                  if "lost its" in w and "endpoint" in w]
+        # t1 lost its end, t2 its start (t1/t2 are unlabeled and this is
+        # a flow view — the warning keys on the half-bound state, so it
+        # must fire regardless of label)
+        self.assertGreaterEqual(len(halves), 2, lint["warnings"])
+
+    def test_fully_bound_and_sketch_arrows_stay_quiet(self):
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        # a decoration-free unlabeled arrow with BOTH ends unbound on a
+        # flow view is sketch furniture — still quiet (unchanged rule)
+        els.append({"id": "sketch", "type": "arrow", "x": 900, "y": 400,
+                    "points": [[0, 0], [80, 0]], "startBinding": None,
+                    "endBinding": None, "customData": {"role": "edge"}})
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="checkout-flow")
+        self.assertFalse([w for w in lint["warnings"]
+                          if "lost its" in w or "binds nothing" in w],
+                         lint["warnings"])
+
+    def test_self_loop_exempt_from_shared_attach_warning(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "add",
+                     "element": {"id": "loop", "type": "arrow",
+                                 "label": "retry"},
+                     "from": "checkout", "to": "checkout"}]})
+        els = self.scene()
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="checkout-flow")
+        self.assertFalse(
+            [w for w in lint["warnings"]
+             if "share an attach point" in w and "loop" in w],
+            lint["warnings"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

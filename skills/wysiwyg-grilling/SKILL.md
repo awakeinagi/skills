@@ -376,6 +376,11 @@ first complex batch of a session):
 - **Tripwires fired by your batch print as `TRIPWIRE=` lines** — name
   them in the same round's narration, never discover them via `status`
   rounds later.
+- **A deletion's fallout prints as `CONSEQUENCE=` lines** (arrows left
+  half-bound, notes and mappings pointing at the deleted element) —
+  narrate them in the same round and resolve them (re-target with `mod
+  from/to`, or delete the wreckage); each also stands as a lint WARNING
+  until resolved.
 - Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
   (flow is the hub) — create element links **eagerly as you draw those
   pairs**. Domain↔wireframe stays inference-only.

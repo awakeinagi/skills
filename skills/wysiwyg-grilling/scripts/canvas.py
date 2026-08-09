@@ -4075,6 +4075,56 @@ def headline_for(fact):
     return n.replace("_", " ")
 
 
+def consequence_lines(record):
+    """Human lines for a revision's deletion-consequence facts.
+
+    WP2 computed and PERSISTED these (arrow_orphaned / rewired-by-
+    deletion / note_orphaned / mapping_dangling), but the summary
+    suppresses consequence facts as derived noise — right for the
+    headline, wrong as the only surface: the v0.8 confirmation beats
+    deleted a 3-arrow node and the agent-facing output named nothing
+    (the facts sat complete in the save file). These lines ride the
+    apply response so the agent can narrate what its deletion touched.
+
+    Args:
+        record: A save record from `apply_batch`/`commit`.
+
+    Returns:
+        One string per consequence fact, empty when the revision
+        orphaned nothing.
+    """
+    out = []
+    covered = set()   # arrows already narrated via their rewired fact
+    for aid, part in (record.get("artifacts") or {}).items():
+        for f in part.get("facts") or []:
+            if f.get("fact") == "rewired" and f.get("consequence_of"):
+                covered.add(f.get("arrow"))
+                out.append(
+                    "%s: %s is now %s — %s was deleted; re-target the "
+                    "arrow or delete it"
+                    % (f.get("arrow"), f.get("from"), f.get("to"),
+                       f.get("consequence_of")))
+    for aid, part in (record.get("artifacts") or {}).items():
+        for f in part.get("facts") or []:
+            kind = f.get("fact")
+            if kind == "arrow_orphaned" and \
+                    f.get("element") not in covered:
+                out.append(
+                    "arrow %s lost its %s binding — %s is gone; "
+                    "re-target it or delete it"
+                    % (f.get("element"), f.get("side"), f.get("target")))
+            if kind == "note_orphaned":
+                out.append(
+                    "note %s annotates %s, which is gone — an orphaned "
+                    "note is reported, never auto-deleted"
+                    % (f.get("element"), f.get("target")))
+            elif kind == "mapping_dangling":
+                out.append(
+                    "mapping for concept %r now references the deleted "
+                    "%s" % (f.get("concept"), f.get("ref")))
+    return out
+
+
 def mechanical_summary(facts, sentinel_suppressed):
     verb_counts = {}
     suppressed = sentinel_suppressed
@@ -4895,11 +4945,29 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # both bindings null — it rendered perfectly, followed nothing, and
     # no check named it. The agent then reported it "properly bound".
     for a in arrows:
-        if (a.get("startBinding") or {}).get("elementId") or \
-                (a.get("endBinding") or {}).get("elementId"):
+        sb = (a.get("startBinding") or {}).get("elementId")
+        eb = (a.get("endBinding") or {}).get("elementId")
+        if sb and eb:
             continue
         a_lbl = next((t for t in els if t.get("containerId") == a["id"]
                       and t.get("type") == "text"), None)
+        if sb or eb:
+            # half-unbound (v0.8 beats): EXACTLY the state deleting a
+            # bound node produces — one side nulled, the other live.
+            # The both-null rule below could never see it, so a delete's
+            # wreckage was invisible to lint forever. No label filter
+            # here: the wreckage is usually unlabeled, and the
+            # half-bound state itself is the evidence.
+            lost = "end" if sb else "start"
+            warnings.append(
+                "arrow %s%s lost its %s endpoint — it still binds %s "
+                "but points at nothing on the other side (deleting a "
+                "bound node leaves this behind). Re-target it with mod "
+                "from/to, or delete it"
+                % (a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
+                   if a_lbl is not None else "", lost,
+                   name(sb or eb)))
+            continue
         if a_lbl is None and artifact_type != "domain":
             continue  # an unlabeled sketch arrow outside a domain view
         warnings.append(
@@ -5558,6 +5626,15 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # shared attach points
     anchor_pts = {}
     for a in arrows:
+        sb_el = (a.get("startBinding") or {}).get("elementId")
+        eb_el = (a.get("endBinding") or {}).get("elementId")
+        if sb_el is not None and sb_el == eb_el:
+            # a self-loop's two feet share its node by construction, and
+            # every remedy the warning offers is inapplicable ("move the
+            # nodes apart" — from itself?). The loop path is
+            # deterministic and legible; leave it out of the fan ledger
+            # (v0.8 beats: any loop + any second arrow warned forever).
+            continue
         x1, y1, x2, y2 = bbox_pts(a)
         for key, px, py in (("startBinding", x1, y1),
                             ("endBinding", x2, y2)):
@@ -8721,6 +8798,11 @@ class ServerApp:
                     "short_id": record["short_id"],
                     "summary": record["summary"],
                     "pin_only": pin_only,
+                    # deletion fallout, spelled out (v0.8 beats): the
+                    # facts are suppressed from the headline as derived
+                    # noise, so without this line the only surface that
+                    # named them was the save file on disk
+                    "consequences": consequence_lines(record),
                     "intent_echo": intent_echo(body.get("ops") or [], scene),
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
@@ -9344,6 +9426,11 @@ def cmd_status(args):
     if not server_alive(state):
         print_kv(running="false", project=str(project.root),
                  protocol_version=PROTOCOL_VERSION)
+        # apply's dead-server error says what to do; this said nothing
+        # (v0.8 beats: an agent that resumes via `status` first got a
+        # bare failure with no next move)
+        print("NOTE=server not running — `canvas.py start` brings it up "
+              "and prints the catch-up; standing state lives there")
         return 1
     try:
         st = http_json(state["url"] + "api/state", timeout=5.0)
@@ -9627,6 +9714,10 @@ def _print_layout(resp):
     """
     for line in resp.get("intent_echo") or []:
         print("ECHO=%s" % line)
+    for line in resp.get("consequences") or []:
+        # deletion fallout (v0.8): what this revision orphaned, spelled
+        # out where the agent reads — narrate these in the same round
+        print("CONSEQUENCE=%s" % line)
     for e in resp.get("layout_errors") or []:
         print("LAYOUT_ERROR=%s" % e)
     for w in resp.get("layout_warnings") or []:
@@ -9731,6 +9822,7 @@ def cmd_apply(args):
     lint = (store.lint_lines().get(aid) if aid else None) or \
         {"errors": [], "warnings": [], "notes": []}
     _print_layout({"intent_echo": intent_echo(batch.get("ops") or [], scene),
+                   "consequences": consequence_lines(record),
                    "layout_errors": lint["errors"],
                    "layout_warnings": lint["warnings"],
                    "layout_notes": lint["notes"]})
