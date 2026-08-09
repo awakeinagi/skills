@@ -24,6 +24,7 @@ export function Rail({
   const [showArchivedChips, setShowArchivedChips] = useState(false);
   const [showPinArchive, setShowPinArchive] = useState(false);
   const [showTwArchive, setShowTwArchive] = useState(false);
+  const [showVocab, setShowVocab] = useState(false);
   const [allBranches, setAllBranches] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
@@ -40,6 +41,20 @@ export function Rail({
     if (!currentArtifact) return concepts[0];
     return concepts.find((c: any) => (c.views || []).includes(currentArtifact)) || null;
   }, [concepts, currentArtifact]);
+
+  // Concepts split the way the artifact dropdown already splits them
+  // (v0.8, assessment r4-13): a 12-round session mints ~20 settled
+  // terms and ~7 views, and a flat list buried the seven real
+  // artifacts under twenty-one "0 views" rows. View-bearing concepts
+  // are navigation; term-only concepts are VOCABULARY, collapsed.
+  const viewBearing = useMemo(
+    () => concepts.filter((c: any) =>
+      c !== currentConcept && (c.views || []).length > 0),
+    [concepts, currentConcept]);
+  const vocabOnly = useMemo(
+    () => concepts.filter((c: any) =>
+      c !== currentConcept && !(c.views || []).length),
+    [concepts, currentConcept]);
 
   const savesByRevn = useMemo(() => {
     const m: Record<number, any> = {};
@@ -112,6 +127,14 @@ export function Rail({
   const lintNotes = lintRows.filter((r) => r.tier === "note");
 
   const openPins = pins.filter((p: any) => p.status === "open");
+  // pin_debt carries age_rounds + target_edits — always on the wire,
+  // never rendered until v0.8: the agent read "age 5r" while the user's
+  // modal said only "asked at round 1" and had to subtract (r4/B1)
+  const debtById = useMemo(() => {
+    const m: Record<string, any> = {};
+    for (const d of state?.pin_debt || []) m[d.id] = d;
+    return m;
+  }, [state?.pin_debt]);
   const resolvedPins = pins.filter((p: any) => p.status !== "open").slice().reverse();
   const resolvedTripwires = (state?.tripwires || [])
     .filter((t: any) => t.status !== "open").slice().reverse();
@@ -127,7 +150,10 @@ export function Rail({
       {inspector}
       {/* -------- registry panel -------- */}
       <div className="rail-section">
-        <h3>Registry {concepts.length > 0 && <span className="count">{concepts.length} concept{concepts.length > 1 ? "s" : ""}</span>}</h3>
+        <h3>Registry {concepts.length > 0 && <span className="count">
+          {concepts.length - vocabOnly.length} concept{concepts.length - vocabOnly.length === 1 ? "" : "s"}
+          {vocabOnly.length > 0 && <> · {vocabOnly.length} term{vocabOnly.length === 1 ? "" : "s"}</>}
+        </span>}</h3>
         {!concepts.length && (
           <div className="map-status">No concepts yet — the registry fills in as the conversation draws.</div>
         )}
@@ -188,10 +214,23 @@ export function Rail({
             )}
           </div>
         )}
-        {concepts.filter((c: any) => c !== currentConcept).map((c: any) => (
+        {viewBearing.map((c: any) => (
           <div key={c.id} className="registry-concept">
             <div className="cname" style={{ color: "var(--muted)", fontWeight: 500 }}>
               {c.name} <span className="gloss">{(c.views || []).length} view{(c.views || []).length === 1 ? "" : "s"}</span>
+            </div>
+          </div>
+        ))}
+        {vocabOnly.length > 0 && (
+          <button className="show-archived" onClick={() => setShowVocab(!showVocab)}
+            title="settled glossary terms with no view yet — vocabulary, not navigation">
+            {showVocab ? "hide" : "show"} vocabulary ({vocabOnly.length})
+          </button>
+        )}
+        {showVocab && vocabOnly.map((c: any) => (
+          <div key={c.id} className="registry-concept">
+            <div className="cname" style={{ color: "var(--faint)", fontWeight: 400 }}>
+              📖 {c.name}
             </div>
           </div>
         ))}
@@ -291,6 +330,14 @@ export function Rail({
               </span>
             </div>
             {p.element && <div className="anchor">anchored to {p.artifact} › {p.element}</div>}
+            {debtById[p.id] && (debtById[p.id].age_rounds > 0 ||
+              debtById[p.id].target_edits > 0) && (
+              <div className="anchor">
+                open {debtById[p.id].age_rounds} round{debtById[p.id].age_rounds === 1 ? "" : "s"}
+                {debtById[p.id].target_edits > 0 &&
+                  <> · target edited {debtById[p.id].target_edits}×</>}
+              </div>
+            )}
             <div className="answer-row">
               <input
                 placeholder="Answer here…"

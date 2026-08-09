@@ -130,6 +130,13 @@ export default function App() {
     kind: "pin" | "tripwire"; data: any;
     el: { x: number; y: number; width?: number; height?: number };
   } | null>(null);
+  // v0.8 — a drawn control is operable (r4/B2: clicking a checkbox
+  // opened Excalidraw's stroke panel; the user could not express
+  // "uncheck" at all — the flagship gesture of the capability demo)
+  const [ctl, setCtl] = useState<{
+    hostId: string; kind: string; checked: boolean;
+    el: { x: number; y: number; width?: number; height?: number };
+  } | null>(null);
   const [tooltipEdit, setTooltipEdit] = useState<{
     elId: string; initial: string;
     el: { x: number; y: number; width?: number; height?: number };
@@ -394,6 +401,28 @@ export default function App() {
             .then((r) => setDocView({ path: r.path, content: r.content }))
             .catch((e) => toast(e.message));
         }
+        // control affordance (v0.8): selecting a checkbox/toggle host
+        // OR one of its composed parts offers the state flip
+        const cd = sel?.customData || {};
+        const hostId = ["checkbox", "toggle"].includes(cd.kind)
+          ? sel!.id
+          : (cd.box_of || cd.chk_of || cd.thumb_of || null);
+        const host = hostId ? els.find((e) =>
+          e.id === hostId && !e.isDeleted &&
+          ["checkbox", "toggle"].includes((e.customData || {}).kind))
+          : null;
+        if (host) {
+          setCtl({
+            hostId: host.id, kind: host.customData.kind,
+            checked: !!host.customData.checked,
+            el: { x: host.x, y: host.y, width: host.width,
+                  height: host.height },
+          });
+        } else {
+          setCtl(null);
+        }
+      } else if (selIds.length !== 1) {
+        setCtl(null);
       }
     }
     // Excalidraw calls onChange continuously; element versions only move on
@@ -634,6 +663,16 @@ export default function App() {
     const views = c ? c.views.filter((v: string) => artifacts[v]) : artifactIds;
     return views;
   }, [concepts, currentArtifact, artifactIds.join(",")]);
+
+  // v0.8 (r3-3/B7): the strip shows the current concept's views FIRST,
+  // then every other artifact after a divider — a 5-artifact project
+  // used to show one thumbnail, and an artifact applied into another
+  // concept was unreachable except through the dropdown.
+  const stripViews = useMemo(() => {
+    const here = new Set(currentConceptViews);
+    const rest = artifactIds.filter((a) => !here.has(a));
+    return { here: currentConceptViews, rest };
+  }, [currentConceptViews, artifactIds.join(",")]);
 
   /** The concept the filmstrip is showing, if it is showing one.
    *
@@ -896,6 +935,57 @@ export default function App() {
     });
     api.updateScene({ elements: restoreForRender(els) as any });
   }, []);
+
+  /** Flip a drawn checkbox/toggle (v0.8). State is the truth
+   * (customData.checked); the glyph mirror below is immediate visual
+   * feedback — the server re-derives parts at commit either way, so the
+   * verb and the picture cannot disagree past the next Save. */
+  const flipControl = useCallback((hostId: string) => {
+    const api = apiRef.current;
+    if (!api) return;
+    const scene = api.getSceneElements();
+    const host: any = scene.find((e: any) => e.id === hostId && !e.isDeleted);
+    if (!host) return;
+    const kind = (host.customData || {}).kind;
+    const now = !(host.customData || {}).checked;
+    const cy = host.y + (host.height || 28) / 2;
+    let els = scene.map((e: any) => {
+      if (e.id === hostId)
+        return { ...e, version: (e.version || 0) + 1,
+                 customData: { ...(e.customData || {}), checked: now } };
+      if (kind === "toggle" &&
+          (e.customData || {}).thumb_of === hostId)
+        // mirrors _toggle_thumb_x with TOGGLE_PILL_W = 36
+        return { ...e, x: host.x + (now ? 8 + 36 - 12 - 2 : 10),
+                 version: (e.version || 0) + 1 };
+      return e;
+    });
+    if (kind === "checkbox") {
+      const chkId = `${hostId}-chk`;
+      const has = els.some((e: any) => e.id === chkId && !e.isDeleted);
+      if (now && !has) {
+        els = [...els, {
+          id: chkId, type: "line", x: host.x + 11, y: cy - 1,
+          width: 10, height: 8, points: [[0, 0], [4, 4], [10, -6]],
+          strokeColor: "#1e1e1e", strokeWidth: 2, roughness: 1,
+          opacity: 100, angle: 0, roundness: null,
+          groupIds: [`${hostId}-grp`], frameId: host.frameId || null,
+          boundElements: [], backgroundColor: "transparent",
+          fillStyle: "solid", lastCommittedPoint: null,
+          startBinding: null, endBinding: null,
+          startArrowhead: null, endArrowhead: null,
+          customData: { role: "decoration", chk_of: hostId,
+                        author: "user" },
+        }];
+      } else if (!now && has) {
+        els = els.filter((e: any) => e.id !== chkId);
+      }
+    }
+    api.updateScene({ elements: restoreForRender(els) as any });
+    setCtl((c) => (c && c.hostId === hostId ? { ...c, checked: now } : c));
+    toast(now ? "Checked — Save to record it." :
+      "Unchecked — Save to record it.");
+  }, [toast]);
 
   const setElementTooltip = useCallback((elId: string, text: string) => {
     patchElement(elId, {}, { tooltip: text || null });
@@ -1537,6 +1627,18 @@ export default function App() {
               );
             })}
             {hoverTip && <TooltipCard x={hoverTip.x} y={hoverTip.y} text={hoverTip.text} />}
+            {ctl && viewingRevn == null && (
+              <AnchoredPopover
+                style={anchorStyle(ctl.el, camera,
+                  appStateRef.current?.width || 800)}
+                onClose={() => setCtl(null)}>
+                <button className="ctl-flip"
+                  title={`${ctl.kind} — click to flip; Save records it`}
+                  onClick={() => flipControl(ctl.hostId)}>
+                  {ctl.checked ? "☑ → ☐  uncheck" : "☐ → ☑  check"}
+                </button>
+              </AnchoredPopover>
+            )}
             {anchored && (
               <AnchoredPopover
                 style={anchorStyle(anchored.el, camera,
@@ -1709,30 +1811,46 @@ export default function App() {
           </div>
         )}
         <div className="thumbs">
-          {currentConceptViews.map((aid: string) => {
-            const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
-            const ld = (state?.lint_debt || {})[aid];
-            const lintN = ld ? (ld.errors || 0) + (ld.warnings || 0) + (ld.notes || 0) : 0;
-            const lintTier = ld?.errors ? "error" : ld?.warnings ? "warning" : "note";
+          {(() => {
+            const renderThumb = (aid: string, dim: boolean) => {
+              const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
+              const ld = (state?.lint_debt || {})[aid];
+              const lintN = ld ? (ld.errors || 0) + (ld.warnings || 0) + (ld.notes || 0) : 0;
+              const lintTier = ld?.errors ? "error" : ld?.warnings ? "warning" : "note";
+              return (
+                <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`}
+                  style={dim ? { opacity: 0.7 } : undefined}
+                  onClick={() => showArtifact(aid)}
+                  title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})${dim ? " — another concept" : ""}`}>
+                  <SceneThumb elements={(viewingRevn != null ? viewScenes[aid] : buffersRef.current[aid] || artifacts[aid]?.elements) || []} />
+                  <div className="tname">
+                    {artifacts[aid]?.name || aid}
+                    <span className="tkind">
+                      {artifacts[aid]?.artifact_type}
+                      {artifacts[aid]?.tier === "extended" ? " · ext" : ""}
+                    </span>
+                  </div>
+                  <div className="badges">
+                    {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
+                    {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
+                    {lintN > 0 && <span className={`badge lint ${lintTier}`} title={`${lintN} layout finding${lintN > 1 ? "s" : ""} — see the Layout rail section`}>{lintN}</span>}
+                  </div>
+                </div>
+              );
+            };
             return (
-              <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`} onClick={() => showArtifact(aid)}
-                title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})`}>
-                <SceneThumb elements={(viewingRevn != null ? viewScenes[aid] : buffersRef.current[aid] || artifacts[aid]?.elements) || []} />
-                <div className="tname">
-                  {artifacts[aid]?.name || aid}
-                  <span className="tkind">
-                    {artifacts[aid]?.artifact_type}
-                    {artifacts[aid]?.tier === "extended" ? " · ext" : ""}
-                  </span>
-                </div>
-                <div className="badges">
-                  {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
-                  {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
-                  {lintN > 0 && <span className={`badge lint ${lintTier}`} title={`${lintN} layout finding${lintN > 1 ? "s" : ""} — see the Layout rail section`}>{lintN}</span>}
-                </div>
-              </div>
+              <>
+                {stripViews.here.map((aid: string) => renderThumb(aid, false))}
+                {stripViews.rest.length > 0 && (
+                  <div className="strip-scope" style={{ alignSelf: "center", opacity: 0.6 }}
+                    title="artifacts of other concepts — every drawing is one click away">
+                    ·&nbsp;·&nbsp;·
+                  </div>
+                )}
+                {stripViews.rest.map((aid: string) => renderThumb(aid, true))}
+              </>
             );
-          })}
+          })()}
           <div className="thumb suggest" onClick={() => setSuggestOpen(true)}>+ suggest<br />a view…</div>
         </div>
       </div>
@@ -1807,6 +1925,8 @@ export default function App() {
         <QuestionModal
           kind={detailItem.kind}
           data={detailItem.data}
+          debt={(state?.pin_debt || []).find(
+            (d: any) => d.id === detailItem.data?.id)}
           onClose={() => setDetailItem(null)}
           onGoto={gotoRefOf(detailItem.data, detailItem.kind)
             ? () => gotoElement(gotoRefOf(detailItem.data, detailItem.kind)!)

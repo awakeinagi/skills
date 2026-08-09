@@ -664,3 +664,11 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   background: none; border: 0; cursor: pointer; color: var(--accent);
   font-size: 11px; padding: 0 2px;
 }
+
+/* v0.8 — the control-flip affordance (a drawn checkbox is operable) */
+.ctl-flip {
+  font: inherit; font-size: 12px; padding: 6px 10px; cursor: pointer;
+  background: var(--paper, #faf8f2); color: inherit;
+  border: 1px solid var(--bone-deep, #dfd9cb); border-radius: 6px;
+}
+.ctl-flip:hover { background: var(--bone, #ece8df); }
