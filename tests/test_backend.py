@@ -476,6 +476,35 @@ class TestMappingsTripwires(Base):
                               "checkout-flow#payment"]},
             ]})
 
+    def _user_edit(self, ops):
+        """Commit `ops` on the wireframe as the user; return the record."""
+        els = [dict(e) for e in self.store.scenes["checkout-wireframe"]]
+        errors = []
+        els = canvas.apply_ops(els, ops, errors)
+        self.assertEqual(errors, [])
+        return self.store.commit(author="user",
+                                 new_scenes={"checkout-wireframe": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_moving_a_mapped_element_fires_nothing(self):
+        # v0.6: a 40px nudge is not a disagreement. Every tripwire in the
+        # v0.5 assessment was this shape (R2-6).
+        rec = self._user_edit([{"op": "mod", "id": "pay-button",
+                                "attrs": {"y": 200}}])
+        self.assertEqual(rec["tripwires"], [])
+
+    def test_editing_a_tooltip_fires_nothing(self):
+        rec = self._user_edit([
+            {"op": "mod", "id": "pay-button",
+             "attrs": {"customData": {"tooltip": "staged until Rerun"}}}])
+        self.assertEqual(rec["tripwires"], [])
+
+    def test_renaming_a_mapped_element_still_fires(self):
+        # the differential control: the same mapping, a meaning change
+        rec = self._user_edit([{"op": "mod", "id": "pay-button",
+                                "attrs": {"label": "Express Pay"}}])
+        self.assertTrue(rec["tripwires"])
+
     def test_divergence_fires_tripwire(self):
         els = [dict(e) for e in self.store.scenes["checkout-wireframe"]]
         errors = []
@@ -4605,6 +4634,251 @@ class TestArrowLabelAnchor(Base):
         self.assertIn(canvas.SVG_GROUND, svg)
         # a backing rect exists that is not the full-canvas ground
         self.assertGreaterEqual(svg.count("fill='%s'" % canvas.SVG_GROUND), 2)
+
+
+class TestGlossaryAlias(Base):
+    """One concept, two names, split by audience (v0.6).
+
+    `**Excess Return** / **alpha**: …` was written as a single entry on
+    purpose — two entries would read as two metrics. TERM_RE's non-greedy
+    group backtracked through it and captured `Excess Return** / **alpha`
+    as one term, raw markdown and all, so the registry reported both
+    "settled term has no concept" and "concept references an undefined
+    term" about the same line (v0.5 assessment R2-7).
+    """
+
+    ENTRY = ("**Excess Return** / **alpha**: one number, two names, "
+             "split by audience.\n**Run**: one morning's work.\n")
+
+    def test_alias_entry_yields_one_clean_term(self):
+        self.assertEqual(canvas.parse_glossary_terms(self.ENTRY),
+                         ["Excess Return", "Run"])
+
+    def test_alias_is_recorded(self):
+        self.assertEqual(canvas.parse_glossary_aliases(self.ENTRY),
+                         {"alpha": "Excess Return"})
+
+    def test_definition_survives(self):
+        pairs = dict(canvas.parse_glossary_pairs(self.ENTRY))
+        self.assertIn("two names", pairs["Excess Return"])
+
+    def test_a_concept_linked_to_either_name_resolves(self):
+        terms = canvas.parse_glossary_terms(self.ENTRY)
+        aliases = canvas.parse_glossary_aliases(self.ENTRY)
+        for linked in ("Excess Return", "alpha"):
+            reg = {"concepts": [{"id": "er", "name": "ER",
+                                 "glossary": linked, "views": ["v"]}]}
+            notes = canvas.lint_registry(terms, reg, True, aliases)
+            self.assertFalse(any("doesn't define" in n for n in notes),
+                             (linked, notes))
+
+    def test_a_genuinely_undefined_term_still_reports(self):
+        reg = {"concepts": [{"id": "x", "name": "X",
+                             "glossary": "Sharpe", "views": ["v"]}]}
+        notes = canvas.lint_registry(
+            canvas.parse_glossary_terms(self.ENTRY), reg, True,
+            canvas.parse_glossary_aliases(self.ENTRY))
+        self.assertTrue(any("doesn't define" in n for n in notes), notes)
+
+    def test_plain_entries_are_unaffected(self):
+        self.assertEqual(canvas.parse_glossary_terms("**Run**: a day.\n"),
+                         ["Run"])
+        self.assertEqual(canvas.parse_glossary_aliases("**Run**: a day.\n"),
+                         {})
+
+
+class TestRenameArtifact(Base):
+    """A view's scope can narrow, so its name has to be able to (v0.6).
+
+    `name` was writable only inside `create`, so splitting a domain model
+    left the rail showing the old title forever and the only workaround
+    was re-creating the artifact, which discards its history (R2-5).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": "Argus Domain", "type": "domain",
+                       "concept": "d", "concept_name": "D"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e1", "kind": "entity",
+                "label": "Signal", "x": 100, "y": 100}}]})
+
+    def rename(self, **kw):
+        return self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [dict({"op": "registry",
+                          "action": "rename_artifact"}, **kw)]})
+
+    def test_rename_takes_effect(self):
+        self.rename(artifact="dm", name="Signal Formation")
+        self.assertEqual(self.store.artifact_meta["dm"]["name"],
+                         "Signal Formation")
+
+    def test_rename_persists_to_the_artifact_file(self):
+        self.rename(artifact="dm", name="Signal Formation")
+        doc = json.loads(
+            (self.store.p.artifacts_dir / "dm.excalidraw").read_text())
+        self.assertEqual(doc["wysiwyg"]["name"], "Signal Formation")
+
+    def test_rename_keeps_the_elements(self):
+        self.rename(artifact="dm", name="Signal Formation")
+        self.assertTrue(any(e["id"] == "e1"
+                            for e in self.store.scenes["dm"]))
+
+    def test_unknown_artifact_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.rename(artifact="ghost", name="X")
+
+    def test_empty_name_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.rename(artifact="dm", name="   ")
+
+
+class TestProgressIndicatorQuestion(Base):
+    """Q25 asks about progress indicators, not about percentages (v0.6).
+
+    `VaR alert 2.5%` on a threshold slider drew a GDS citation about
+    12-step wizards and cost a waive to silence (R2-1).
+    """
+
+    def screen(self, label):
+        els = [{"id": "scr", "type": "frame", "x": 0, "y": 0,
+                "width": 720, "height": 480, "name": "Console"}]
+        els.append({"id": "b", "type": "rectangle", "x": 20, "y": 60,
+                    "width": 300, "height": 40, "frameId": "scr",
+                    "customData": {"role": "node", "kind": "block"}})
+        els.append({"id": "b-l", "type": "text", "x": 24, "y": 70,
+                    "width": 200, "height": 20, "text": label,
+                    "originalText": label, "containerId": "b"})
+        return canvas.lint_layout(els, artifact_type="wireframe",
+                                  aid="w")["notes"]
+
+    def test_a_threshold_percentage_is_not_a_progress_indicator(self):
+        notes = self.screen("VaR alert  2.5%")
+        self.assertFalse(any("progress indicator" in n for n in notes),
+                         notes)
+
+    def test_a_kpi_delta_is_not_either(self):
+        notes = self.screen("Excess Return +3.1%")
+        self.assertFalse(any("progress indicator" in n for n in notes),
+                         notes)
+
+    def test_step_n_of_m_still_asks(self):
+        notes = self.screen("Step 2 of 5")
+        self.assertTrue(any("progress indicator" in n for n in notes),
+                        notes)
+
+    def test_percent_complete_still_asks(self):
+        notes = self.screen("60% complete")
+        self.assertTrue(any("progress indicator" in n for n in notes),
+                        notes)
+
+
+class TestDivergenceVerbs(Base):
+    """Only meaning-changing facts arm a divergence tripwire (v0.6).
+
+    All 20 tripwires in the v0.5 assessment session were the agent's own
+    tooltip and layout edits on mapped elements; it eventually spent two
+    `kinds` annotations scoping mappings to `moved` purely to stop the
+    recurrence. Moving a box 40px is not a disagreement (R2-6).
+    """
+
+    def test_every_listed_verb_is_a_real_fact(self):
+        # a typo here silently disarms a tripwire, which is the worst
+        # possible failure mode for this constant — so pin it against the
+        # verbs the differ actually emits
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        emitted = set(re.findall(r'F\("([a-z_]+)"', src))
+        self.assertTrue(emitted, "could not read the fact vocabulary")
+        unknown = canvas.DIVERGENCE_VERBS - emitted
+        self.assertEqual(unknown, set(),
+                         "not emitted by semantic_facts: %s" % unknown)
+
+    def test_presentation_verbs_are_excluded(self):
+        for verb in ("moved", "block_moved_within_screen", "reordered",
+                     "tooltip_changed", "tooltip_added", "resized",
+                     "restyled", "regrouped", "pin_added"):
+            self.assertNotIn(verb, canvas.DIVERGENCE_VERBS, verb)
+
+    def test_meaning_verbs_are_included(self):
+        for verb in ("renamed", "label_renamed", "entity_renamed",
+                     "rewired", "cardinality_changed", "value_changed",
+                     "state_toggled", "entity_deleted"):
+            self.assertIn(verb, canvas.DIVERGENCE_VERBS, verb)
+
+
+class TestStateVariantFrames(Base):
+    """A rename landing on one frame of a screen and not its twin (v0.6).
+
+    The demo's flagship beat. 3.2.4 joins a wireframe element to a FLOW
+    element through a mapping and tripwires compare mapped siblings
+    ACROSS artifacts, so two frames of one screen inside one artifact
+    were compared by nothing — the divergence shipped and the lint said
+    nothing about it (v0.5 assessment R2-4).
+    """
+
+    def screens(self, normal, degraded, variant_of=False):
+        """Two frames, one block each, at matching row baselines."""
+        els = []
+        for fid, lbl, fx in (("f-normal", normal, 0),
+                             ("f-degraded", degraded, 900)):
+            frame = {"id": fid, "type": "frame", "x": fx, "y": 100,
+                     "width": 720, "height": 480,
+                     "name": fid.replace("f-", "")}
+            if variant_of and fid == "f-degraded":
+                frame["customData"] = {"variant_of": "f-normal"}
+            els.append(frame)
+            els.append({"id": fid + "-kpi", "type": "rectangle",
+                        "x": fx + 20, "y": 212, "width": 160,
+                        "height": 60, "frameId": fid,
+                        "customData": {"role": "node", "kind": "block"}})
+            els.append({"id": fid + "-kpi-l", "type": "text",
+                        "x": fx + 24, "y": 228, "width": 100,
+                        "height": 20, "text": lbl, "originalText": lbl,
+                        "containerId": fid + "-kpi"})
+        return els
+
+    def test_divergent_label_across_variant_frames_warns(self):
+        warns = canvas.lint_layout(
+            self.screens("Excess Return", "Alpha"),
+            artifact_type="wireframe", aid="dash")["warnings"]
+        self.assertTrue(any("same block" in w for w in warns), warns)
+
+    def test_matching_labels_are_silent(self):
+        warns = canvas.lint_layout(
+            self.screens("Excess Return", "Excess Return"),
+            artifact_type="wireframe", aid="dash")["warnings"]
+        self.assertFalse(any("same block" in w for w in warns), warns)
+
+    def test_declared_variant_is_paired(self):
+        warns = canvas.lint_layout(
+            self.screens("Excess Return", "Alpha", variant_of=True),
+            artifact_type="wireframe", aid="dash")["warnings"]
+        self.assertTrue(any("same block" in w for w in warns), warns)
+
+    def test_a_waive_silences_it(self):
+        els = self.screens("Weekly Brief", "Weekly Brief — HELD")
+        warns = canvas.lint_layout(
+            els, artifact_type="wireframe", aid="dash")["warnings"]
+        key = next(w.split("key: ")[1].split(",")[0].strip("'\"")
+                   for w in warns if "same block" in w)
+        again = canvas.lint_layout(els, artifact_type="wireframe",
+                                   aid="dash", waives={key: "held copy"})
+        self.assertFalse(any("same block" in w
+                             for w in again["warnings"]), again)
+
+    def test_frames_of_different_shape_are_not_a_variant_set(self):
+        els = self.screens("Excess Return", "Alpha")
+        # give the degraded frame a second block: no longer diffable
+        els.append({"id": "extra", "type": "rectangle", "x": 920,
+                    "y": 300, "width": 160, "height": 60,
+                    "frameId": "f-degraded",
+                    "customData": {"role": "node", "kind": "block"}})
+        warns = canvas.lint_layout(els, artifact_type="wireframe",
+                                   aid="dash")["warnings"]
+        self.assertFalse(any("same block" in w for w in warns), warns)
 
 
 class TestCheckRender(Base):

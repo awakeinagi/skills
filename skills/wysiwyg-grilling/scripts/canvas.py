@@ -48,6 +48,29 @@ PAPER_GROUND = "#faf8f2"
 # render_svg's canvas ground; also the backing painted under arrow
 # labels, which ride the stroke since v0.6 (see arrow_label_anchor)
 SVG_GROUND = "#fdfcf8"
+# Facts that can put two mapped views out of agreement about MEANING,
+# and so are worth asking "divergence, or should it propagate?" about.
+# Presentation-only verbs are deliberately absent: in the v0.5
+# assessment every one of the session's 20 divergence tripwires was the
+# agent's own tooltip and layout edits, and it eventually spent two
+# `kinds` annotations scoping mappings to `moved` just to stop the
+# recurrence. Moving a box 40px is not a disagreement (R2-6).
+DIVERGENCE_VERBS = frozenset({
+    # naming
+    "renamed", "label_renamed", "entity_renamed", "relationship_relabeled",
+    # wiring
+    "rewired", "relationship_rewired", "actor_reassigned",
+    "cardinality_changed",
+    # content and state
+    "value_changed", "state_toggled", "attribute_added",
+    "attribute_removed", "type_changed", "party_kind_changed",
+    "ownership_changed", "sync_changed", "priority_changed",
+    "activation_changed",
+    # loss
+    "deleted", "entity_deleted", "relationship_deleted", "step_deleted",
+    "transition_deleted", "actor_deleted", "message_deleted",
+    "lane_deleted", "screen_deleted",
+})
 IDLE_MINUTES = float(os.environ.get("WYSIWYG_IDLE_MINUTES", "120"))
 SENTINEL_COORD = 2 ** 40   # Excalidraw parks rebinding arrows at ±2^56
 DETERMINISTIC = bool(os.environ.get("WYSIWYG_TEST_DETERMINISTIC"))
@@ -3928,8 +3951,15 @@ INTERACTIVE_KINDS = {"button", "input", "checkbox", "toggle", "slider",
 
 # progress-indicator tells (v0.4 U5/Q25) — label evidence, plus the
 # status vocabulary the task-list archetype uses, which is exempt
+# A bare percentage is NOT a progress indicator: `VaR alert 2.5%` on a
+# threshold slider drew a GDS citation about 12-step wizards and cost the
+# agent a waive to silence (v0.5 assessment R2-1). Every KPI delta and
+# every threshold in a wireframe carries one. `% complete` still counts —
+# that is a progress bar wearing a number. The dot-row geometry tell
+# below is what actually finds unlabelled indicators.
 _PROGRESS_RE = re.compile(
-    r"\bstep\s+\d+\s+of\s+\d+\b|\bprogress\b|\b\d+\s*%", re.IGNORECASE)
+    r"\bstep\s+\d+\s+of\s+\d+\b|\bprogress\b|"
+    r"\b\d+\s*%\s*(?:complete|done|uploaded|finished)\b", re.IGNORECASE)
 _STATUS_RE = re.compile(
     r"^(in progress|not started|completed|done)$", re.IGNORECASE)
 
@@ -4163,6 +4193,53 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "screens %s share the title %r — which one is the "
                     "user on? (GOV.UK: every question page gets its own "
                     "title)" % (", ".join(fids), t))
+        # ---- state-variant frames: the same control, two labels ------
+        # A rename that lands on one frame of a screen and not its twin
+        # was invisible to everything: 3.2.4 joins a WIREFRAME element to
+        # a FLOW element through a mapping, and tripwires compare mapped
+        # siblings ACROSS artifacts — so two frames of one screen inside
+        # one artifact were compared by nothing. That is the demo's
+        # flagship beat, and in the v0.5 assessment it passed only
+        # because the agent re-read the canvas by hand (R2-4).
+        #
+        # The pairing key already exists. references/wireframe.md: "in a
+        # variant set, sibling screens share row baselines and text
+        # alignment" — so positionally-corresponding blocks in two frames
+        # of equal shape ARE the same control. An explicit
+        # customData.variant_of wins when the author declares one.
+        orders = {f["id"]: frame_reading_order(els, f["id"])
+                  for f in frames}
+        pairs_v = []
+        declared = {f["id"]: (f.get("customData") or {}).get("variant_of")
+                    for f in frames}
+        for f in frames:
+            base = declared.get(f["id"])
+            if base and base in orders:
+                pairs_v.append((base, f["id"]))
+        if not pairs_v and len(frames) == 2:
+            a_, b_ = frames[0]["id"], frames[1]["id"]
+            if len(orders[a_]) == len(orders[b_]) and orders[a_]:
+                pairs_v.append((a_, b_))
+        for a_, b_ in pairs_v:
+            oa, ob = orders.get(a_) or [], orders.get(b_) or []
+            if len(oa) != len(ob):
+                continue          # not a variant set after all
+            for ea, eb in zip(oa, ob):
+                la = (labels.get(ea["id"]) or "").strip()
+                lb = (labels.get(eb["id"]) or "").strip()
+                if not la or not lb or la == lb:
+                    continue
+                key = "var:%s:%s" % (aid or "<artifact>", slugify(ea["id"]))
+                if waives and key in waives:
+                    continue
+                warnings.append(
+                    "%s says %r and %s says %r for the same block — "
+                    "state variants of one screen, so a rename that "
+                    "landed on one and not the other reads as two "
+                    "different controls. Same thing? Rename both. "
+                    "Deliberately different (a held state, an error "
+                    "copy)? waive {action: waive, key: %r, reason: ...}"
+                    % (fname.get(a_, a_), la, fname.get(b_, b_), lb, key))
         for f in frames:
             order = frame_reading_order(els, f["id"])
             okinds = [(e.get("customData") or {}).get("kind")
@@ -4674,7 +4751,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
 # that parses to zero terms is indistinguishable from no glossary at all —
 # every downstream lint goes silently dark, which is how a rejected synonym
 # stayed on the domain view unflagged.
-TERM_RE = r"(?:[-*+]\s+)?\*\*(.+?)\*\*\s*(?::|—|–|-{1,2}\s)"
+# A term name cannot itself contain `**`. Without that exclusion the
+# non-greedy group backtracks straight through an alias entry —
+# `**Excess Return** / **alpha**: …` captured `Excess Return** / **alpha`
+# as ONE term, raw markdown and all, and the registry then reported both
+# "settled term has no concept" and "concept references an undefined
+# term" about the same line (v0.5 assessment R2-7). The agent had
+# written that entry deliberately, as one term with two names, so nobody
+# could read them as two metrics — exactly what the skill asks for.
+TERM_RE = r"(?:[-*+]\s+)?\*\*((?:(?!\*\*).)+)\*\*\s*(?::|—|–|-{1,2}\s)"
+# `**Term** / **alias**:` — one concept, two names, split by audience.
+TERM_ALIAS_RE = (r"(?:[-*+]\s+)?\*\*((?:(?!\*\*).)+)\*\*\s*/\s*"
+                 r"\*\*((?:(?!\*\*).)+)\*\*\s*(?::|—|–|-{1,2}\s)")
 
 
 def parse_glossary_avoid(text):
@@ -4754,12 +4842,40 @@ def lint_glossary(els, avoid_map=None, has_context_map=True):
     return {"errors": errors, "warnings": warnings, "notes": notes}
 
 
+def parse_glossary_aliases(text):
+    """CONTEXT.md → `{alias (lowercased): canonical term}`.
+
+    One concept with two names, split by audience —
+    `**Excess Return** / **alpha**: one number, two names` — is a single
+    entry on purpose: two entries would read as two metrics. Both names
+    are then legal on the canvas, and neither is an orphan term.
+
+    Args:
+        text: CONTEXT.md contents.
+
+    Returns:
+        Alias → canonical term, both stripped, the key lowercased.
+    """
+    out = {}
+    for raw in text.splitlines():
+        m = re.match(TERM_ALIAS_RE, raw.strip())
+        if m:
+            out[m.group(2).strip().lower()] = m.group(1).strip()
+    return out
+
+
 def parse_glossary_terms(text):
     """CONTEXT.md → ordered list of settled term names (canonical
-    '**Term**:', the em-dash '**Term** — …' form, and bullet lists)."""
+    '**Term**:', the em-dash '**Term** — …' form, and bullet lists).
+
+    An alias entry (`**Term** / **alias**:`) contributes its canonical
+    name only — the alias is reachable through
+    `parse_glossary_aliases`.
+    """
     terms = []
     for raw in text.splitlines():
-        m = re.match(TERM_RE, raw.strip())
+        line = raw.strip()
+        m = re.match(TERM_ALIAS_RE, line) or re.match(TERM_RE, line)
         if m:
             terms.append(m.group(1).strip())
     return terms
@@ -4781,7 +4897,8 @@ def parse_glossary_pairs(text):
     """
     pairs, term, body = [], None, []
     for raw in text.splitlines():
-        m = re.match(TERM_RE, raw.strip())
+        line_ = raw.strip()
+        m = re.match(TERM_ALIAS_RE, line_) or re.match(TERM_RE, line_)
         if m:
             if term is not None:
                 pairs.append((term, " ".join(" ".join(body).split())))
@@ -4800,13 +4917,21 @@ def parse_glossary_pairs(text):
     return pairs
 
 
-def lint_registry(terms, registry, context_exists=False):
+def lint_registry(terms, registry, context_exists=False, aliases=None):
     """Registry-level discipline notes (NOTE tier, artifact-independent):
     settled glossary terms with no concept behind them (ADR 0007 — a term
     settling IS a concept being minted), unpaid view debt (ADR 0006 —
     `owed` types recorded at archetype time, cleared as views register),
     and views filed on the wrong concept (ADR 0010 — umbrella pile-up and
-    the name-affinity misfile)."""
+    the name-affinity misfile).
+
+    Args:
+        terms: Settled glossary term names.
+        registry: The project registry (`model.json`).
+        context_exists: Whether CONTEXT.md exists and is non-empty.
+        aliases: `{alias: canonical}` from an audience-split entry, so a
+            concept linked to either name resolves (v0.6).
+    """
     notes = []
     concepts = registry.get("concepts") or []
     known = set()
@@ -4827,6 +4952,7 @@ def lint_registry(terms, registry, context_exists=False):
     # reverse direction (capability assessment): a concept CLAIMING a
     # glossary term the glossary doesn't hold is drift too
     term_set = {t.lower() for t in terms}
+    term_set |= set(aliases or {})
     ghosts = [c for c in concepts if c.get("glossary")
               and str(c["glossary"]).lower() not in term_set]
     if ghosts and (terms or context_exists):
@@ -5156,7 +5282,7 @@ def project_lint(project, els, registry=None, artifact_type=None,
         waives = registry.get("waives") or {}
     lint = lint_layout(els, artifact_type=artifact_type, budget=budget,
                        waives=waives, aid=aid)
-    avoid, terms = {}, []
+    avoid, terms, aliases = {}, [], {}
     ctx = project.pk / "CONTEXT.md"
     ctx_exists = False
     try:
@@ -5165,6 +5291,7 @@ def project_lint(project, els, registry=None, artifact_type=None,
             ctx_exists = bool(text.strip())
             avoid = parse_glossary_avoid(text)
             terms = parse_glossary_terms(text)
+            aliases = parse_glossary_aliases(text)
     except OSError:
         pass
     has_map = (project.root / "CONTEXT-MAP.md").exists()
@@ -5178,7 +5305,7 @@ def project_lint(project, els, registry=None, artifact_type=None,
     # registry-scope call is the one made without an artifact.
     if registry is not None and aid is None:
         out["notes"] = out["notes"] + lint_registry(terms, registry,
-                                                    ctx_exists)
+                                                    ctx_exists, aliases)
     return out
 
 
@@ -5398,7 +5525,8 @@ class Store:
                     facts.append(dict(f))
                 for f in facts:
                     if f.get("consequence_of") is None and \
-                            f["fact"] != "saved_no_changes" and f["element"]:
+                            f["fact"] != "saved_no_changes" and f["element"] \
+                            and f["fact"] in DIVERGENCE_VERBS:
                         # keep the VERB, not just the identity: a mapping
                         # annotated "intentionally divergent" for one kind
                         # of change used to go deaf to every other kind
@@ -5968,6 +6096,35 @@ class Store:
                     reg["round"] = op["round"]
                 if op.get("whose_move") in ("user", "agent"):
                     reg["whose_move"] = op["whose_move"]
+            elif action == "rename_artifact":
+                # a view's SCOPE legitimately narrows — splitting a domain
+                # model leaves one half being something new. Until v0.6
+                # `name` was writable only inside `create`, so the rail
+                # kept the old title forever and the only workaround was
+                # re-creating the artifact, which discards its history
+                # (v0.5 assessment R2-5). The id never moves: saves,
+                # mappings and pins are all keyed on it.
+                aid2 = op.get("artifact")
+                new_name = (op.get("name") or "").strip()
+                if not aid2 or aid2 not in self.artifact_meta:
+                    errors.append("registry op %d: rename_artifact needs "
+                                  "an existing artifact (got %r)"
+                                  % (i, aid2))
+                    continue
+                if not new_name:
+                    errors.append("registry op %d: rename_artifact needs a "
+                                  "non-empty `name`" % i)
+                    continue
+                old_name = self.artifact_meta[aid2].get("name") or aid2
+                self.artifact_meta[aid2]["name"] = new_name
+                # the name lives in the artifact FILE, and a registry-only
+                # batch never touches scenes — so write it through here or
+                # the rail keeps the old title until the next drawing
+                self._write_artifact(aid2, self.scenes.get(aid2) or [],
+                                     self.artifact_meta[aid2])
+                applied.append({"action": "artifact_renamed",
+                                "artifact": aid2, "from": old_name,
+                                "to": new_name})
             elif action == "set_budget":
                 # per-artifact complexity-budget override (v0.3): recorded
                 # intent — a raise without a reason is exactly the drift
@@ -6035,7 +6192,8 @@ class Store:
                               "upsert_concept, remove_view, add_mapping, "
                               "annotate_mapping, remove_mapping, "
                               "resolve_tripwire, annotate_tripwire, "
-                              "decline, set_round, set_budget, waive)"
+                              "decline, set_round, set_budget, waive, "
+                              "rename_artifact)"
                               % (i, action))
                 continue
             applied.append({k: v for k, v in op.items() if k != "op"})

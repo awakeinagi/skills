@@ -60,7 +60,11 @@ against real pixels, question attached, never a verdict. Within-group gaps
 stay smaller than between-group gaps or the grouping doesn't read (lint
 NOTE). In a variant set, sibling screens share row baselines and text
 alignment — row alignment is what makes a variant pair diffable at a
-glance.
+glance. That alignment is now load-bearing, not just tidy: it is how the
+lint pairs the two screens' blocks, so a label that changed on one frame
+and not the other gets caught (v0.6). Declare the pairing explicitly with
+`customData.variant_of: <frame-id>` on the second frame when the shapes
+differ enough that inference would miss it.
 
 **Reading order is a computed fact**: a frame's content, sorted top-to-
 bottom then left-to-right (6px row tolerance), is the only sequence claim

@@ -140,7 +140,14 @@ two labeled arrows) · activation bar that never closes. Wireframe form
 warnings (v0.4): submit button preceding its inputs in reading order ·
 input with no label (3.3.2) · asterisk in an input label (GOV.UK:
 "(optional)" instead) · same label mapped to different flow steps (3.2.4
-mirror — the dangerous case).
+mirror — the dangerous case) · **state-variant frames disagreeing on the
+same block's label** (v0.6 — two frames of one screen with matching
+reading orders are the same controls twice, so a rename that landed on
+one and not the other reads as two different things. Nothing compared
+them before: 3.2.4 needs a mapping to a flow, and tripwires only compare
+across artifacts. Declare the pairing with `customData.variant_of` or
+let it be inferred from equal reading orders; a deliberate difference —
+a held state, error copy — waives with `var:<aid>:<slug>`).
 
 And as **LAYOUT_NOTE** (style/budget): off-grid coordinate · unlabeled
 arrow out of a decision or between services · orphan node/edge · budget

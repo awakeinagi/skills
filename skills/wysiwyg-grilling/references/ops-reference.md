@@ -249,8 +249,17 @@ it "agent asked a question" with no Apply action.
  "note": "intentionally-divergent: three KPI tiles, one store",
  "kinds": ["cardinality_changed"]}
 // verbs worth scoping to: renamed · label_renamed · entity_renamed ·
-// moved · rewired · relationship_rewired · value_changed ·
-// state_toggled · cardinality_changed
+// rewired · relationship_rewired · value_changed · state_toggled ·
+// cardinality_changed · type_changed · the *_deleted family
+// Presentation-only facts (moved, resized, reordered, regrouped,
+// restyled, tooltip_*) no longer arm a tripwire at all (v0.6), so you
+// never need to scope one out — a 40px nudge is not a disagreement.
+// a view's SCOPE can narrow — splitting a domain model leaves one half
+// being something else. The id never moves (saves, mappings and pins are
+// keyed on it); only the title the rail shows. v0.6: before this, the
+// only way to retitle was to re-create the artifact and lose its history.
+{"op": "registry", "action": "rename_artifact", "artifact": "argus-domain",
+ "name": "Signal Formation"}
 {"op": "registry", "action": "remove_mapping", "index": 0}
 {"op": "registry", "action": "resolve_tripwire", "id": "tw-8-1"}
 // tripwires are answerable in place like pins (rail card + red ? on the

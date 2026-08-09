@@ -1453,15 +1453,25 @@ export default function App() {
               </div>
             ))}
             {/* tooltip presence dots (v0.3) — hover-only content needs a
-                discoverable tell */}
-            {tooltipDots.map((e: any) => (
-              <div key={`tip-${e.id}`} className="tip-dot"
-                style={{
-                  left: (e.x + (e.width || 0) + camera.scrollX) * camera.zoom - 4,
-                  top: (e.y + (e.height || 0) + camera.scrollY) * camera.zoom - 4,
-                }}
-                title="has a tooltip — hover the element" />
-            ))}
+                discoverable tell. Anchored to the SHAPE's edge, not its
+                bounding box (v0.6): on a diamond or an ellipse the
+                bottom-right corner is empty canvas, so the dot floated
+                ~40px clear of the decision node it belonged to and read
+                as a stray mark. */}
+            {tooltipDots.map((e: any) => {
+              const w = e.width || 0, h = e.height || 0;
+              // fraction of the half-diagonal at which the outline sits
+              const inset = e.type === "diamond" ? 0.5
+                : e.type === "ellipse" ? 1 - Math.SQRT1_2 : 0;
+              return (
+                <div key={`tip-${e.id}`} className="tip-dot"
+                  style={{
+                    left: (e.x + w - w * inset / 2 + camera.scrollX) * camera.zoom - 4,
+                    top: (e.y + h - h * inset / 2 + camera.scrollY) * camera.zoom - 4,
+                  }}
+                  title="has a tooltip — hover the element" />
+              );
+            })}
             {hoverTip && <TooltipCard x={hoverTip.x} y={hoverTip.y} text={hoverTip.text} />}
             {anchored && (
               <AnchoredPopover
