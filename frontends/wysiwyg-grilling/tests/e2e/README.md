@@ -17,7 +17,7 @@ with the pinned `@playwright/test`; regenerate with
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
   reconciliation, composed-part invariants, metrics, mermaid mapping.
-  402 tests.
+  412 tests.
 - **e2e-dom** — React chrome: rail, cards, modals, banners, overlays.
 - **e2e-flow** — round-trips that cross the browser AND the server.
 - **e2e-visual** — canvas-rendered pixels (`toHaveScreenshot`).
