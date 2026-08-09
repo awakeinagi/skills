@@ -116,8 +116,11 @@ your next move. In order:
    nothing. One unreviewed revision out at a time — never stack a second
    *proposal*. Two things are not proposals and ride freely: **repairing the
    mechanical wreckage of the user's own edit** (dangling arrows after their
-   deletion, orphaned ❓ elements — that's executing their instruction, no
-   consent needed beyond narrating it) and **cosmetic repairs to your own
+   deletion, orphaned ❓ elements, and **orphaned notes** — that's executing
+   their instruction, no consent needed beyond narrating it; exception: a
+   note left deliberately in a deleted thing's place is a **tombstone** —
+   ask before moving it, and carry its meaning into CONTEXT.md, because
+   positional anchoring won't survive tidy) and **cosmetic repairs to your own
    still-unreviewed revision** (spacing, label legibility — fold them into
    that same move). **A user asking for a still canvas** ("don't push
    anything while I look at this", flipping cadence to `pulled`)

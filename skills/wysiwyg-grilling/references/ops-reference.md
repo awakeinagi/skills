@@ -131,6 +131,8 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // overlapping siblings still lint; `parent` declares the intent
   "links_to": "other-artifact",  // in-canvas navigation (click follows)
   "document": "docs/brief.md",   // report reader: project_knowledge-relative
+  "annotates": "node-id",     // what a note is ABOUT (v0.8) — anchors it for
+      // the orphan checks: delete the target and the note is NAMED, not lost
   "intent": "why this exists (customData)",
   "frameId": "screen-checkout",            // wireframe screen membership
   "backgroundColor": "#e9e5da", "strokeColor": "#1e1e1e",
@@ -173,7 +175,8 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
       // Axis-aligned paths render as sharp elbows; narrates as a
       // `rerouted` fact — never an empty save.
   "kind": "sink", "role": "decoration", "intent": "…", "parent": "shelf",
-  "document": "docs/x.md",   // these five fold into customData correctly
+  "document": "docs/x.md", "annotates": "node-id",
+      // these six fold into customData correctly
   "tooltip": "markdown…",    // set/replace hover detail; "" or null removes
   "verticalAlign": "top",    // on a shape: aligns its BOUND LABEL
   "value": "+3.4%",          // kpi/slider only — recomposes the glyph in

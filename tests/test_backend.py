@@ -2201,16 +2201,24 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
         self.assertEqual([i.get("code") for i in self.store.issues],
                          ["ART-011"] * 5)
 
-    def test_catchup_phantoms_a_reconciliation_from_loader_repairs(self):
-        # PINS A DEFECT (WP2 flips this): the loader's silent ART-011
-        # refits diverge the in-memory scenes from their own replayed
-        # history, and catch_up() then mints a spurious out-of-session
-        # commit blaming nobody — on a project no outside editor touched.
-        # Fourth member of the referential-integrity cluster (r4 headline).
+    def test_catchup_names_its_repairs_and_converges(self):
+        # FLIPPED BY WP2 (was: pinned the phantom). With derived noise
+        # (z-order, int/float representation, roundness) out of the
+        # comparison, this fixture's ONLY divergence is the loader's own
+        # 5 label refits — so the one reconciliation must take the
+        # repair-only attribution path, name the repairs, and CONVERGE.
+        # Pre-WP2 every load minted a fresh phantom out-of-session
+        # record here.
         rec = self.store.catch_up()
         self.assertIsNotNone(rec)
         self.assertEqual(rec["author"], "out-of-session")
         self.assertTrue(rec.get("reconciliation"))
+        self.assertEqual(len(rec.get("repairs") or []), 5)
+        self.assertIn("load-time repair", rec["summary"]["headline"])
+        self.assertIn("no outside edits", rec["summary"]["headline"])
+        store2 = canvas.Store(self.project)
+        self.assertIsNone(store2.catch_up(),
+                          "reconciliation did not converge")
 
     def test_standing_lint_is_the_arms_deliberate_record(self):
         # Arm 3 left the admin-console reading-order warnings standing on
@@ -2255,16 +2263,17 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
             "dashboard-wireframe", "enrichment-flow",
             "review-publish-flow"])
 
-    def test_catchup_phantom_says_nothing_happened(self):
-        # PINS A DEFECT (WP2 flips this): same phantom as arm 3, worse
-        # headline — the spurious reconciliation reports "saved without
-        # changing anything" while committing a revision. The live session
-        # hit this exact shape (r4b save 0028).
-        rec = self.store.catch_up()
-        self.assertIsNotNone(rec)
-        self.assertEqual(rec["author"], "out-of-session")
-        headline = (rec.get("summary") or {}).get("headline") or ""
-        self.assertIn("saved without changing anything", headline)
+    def test_catchup_finds_nothing_to_reconcile(self):
+        # FLIPPED BY WP2 (was: pinned the phantom that read "saved
+        # without changing anything" while committing — r4b save 0028's
+        # live shape). The divergences were all derived machinery
+        # (z-order, int/float representation, replayed roundness); with
+        # those canonicalized, this project needs no reconciliation, and
+        # the one real load repair reaches the agent as a REPAIR line
+        # instead of a fake out-of-session edit.
+        self.assertIsNone(self.store.catch_up())
+        self.assertEqual([i["code"] for i in self.store.scene_repairs],
+                         ["ART-011"])
 
     def test_no_lint_errors_anywhere(self):
         for aid, r in self.lint_all().items():
@@ -2277,16 +2286,20 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
 
     FIXTURE = "acceptance-tearsheet"
 
-    def test_replays_and_phantoms_like_the_others(self):
-        # Third independent instance of the load-repair → phantom
-        # reconciliation chain (REG-007 ×2 + ART-011 ×2 here). Structural,
-        # per the three-instances rule; WP2 flips all three tests at once.
+    def test_replays_and_names_repair_only_reconciliation(self):
+        # FLIPPED BY WP2. This fixture's only divergence IS the loader's
+        # repair work (ART-011 ×2), so the reconciliation must say so in
+        # its headline — the repair-only attribution path — and converge.
         self.assertEqual(self.store.head_revn(), 15)
         self.assertEqual(sorted(self.store.scenes), [
             "tearsheet-failures", "tearsheet-flow", "tearsheet-sheet"])
         rec = self.store.catch_up()
         self.assertIsNotNone(rec)
         self.assertEqual(rec["author"], "out-of-session")
+        self.assertIn("load-time repair", rec["summary"]["headline"])
+        self.assertIn("no outside edits", rec["summary"]["headline"])
+        store2 = canvas.Store(self.project)
+        self.assertIsNone(store2.catch_up())
 
 
 class TestClientRemeasure(Base):
@@ -6375,6 +6388,154 @@ class TestRouterTotalityAndSelfLoops(Base):
         self.assertFalse(result["ok"])
         self.assertTrue(any("internal routing error" in e
                             for e in result["errors"]), result["errors"])
+
+
+class TestReferentialIntegrity(Base):
+    """WP2 (the r4 headline): nothing validated a reference after the
+    thing it referred to was gone — bindings dangled on disk while the
+    lint's error was unreachable, mapping members pointed at corpses,
+    notes floated, and catch_up blamed a phantom outside editor."""
+
+    def seed(self):
+        """Two nodes, a bound arrow, a mapping, and an anchored note.
+
+        Returns:
+            The head revn after seeding.
+        """
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "artifact_type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                    "width": 100, "height": 50, "label": "A",
+                    "kind": "source", "role": "node"}},
+                {"op": "add", "element": {
+                    "id": "n2", "type": "rectangle", "x": 300, "y": 0,
+                    "width": 100, "height": 50, "label": "B",
+                    "kind": "sink", "role": "node"}},
+                {"op": "add", "element": {"id": "t1", "type": "arrow"},
+                 "from": "n1", "to": "n2"},
+            ]})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "f", "ops": [
+                {"op": "registry", "action": "add_mapping", "concept": "c",
+                 "elements": ["f#n2", "f#n1"]},
+                {"op": "add", "element": {
+                    "id": "note1", "type": "text", "text": "watch",
+                    "x": 320, "y": 80, "role": "annotation",
+                    "annotates": "n2"}},
+            ]})
+        return self.store.head_revn()
+
+    def user_delete_n2(self):
+        """Delete n2 the way the client does — binding left dangling.
+
+        Returns:
+            The commit record.
+        """
+        els = [json.loads(json.dumps(e)) for e in self.store.scenes["f"]
+               if e["id"] != "n2" and e.get("containerId") != "n2"]
+        return self.store.commit(author="user", new_scenes={"f": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_deletion_facts_name_every_broken_reference(self):
+        self.seed()
+        rec = self.user_delete_n2()
+        facts = {f["fact"] for f in rec["artifacts"]["f"]["facts"]}
+        self.assertIn("arrow_orphaned", facts)
+        self.assertIn("mapping_dangling", facts)
+        self.assertIn("note_orphaned", facts)
+
+    def test_clean_deletion_emits_no_reference_facts(self):
+        # Silent half: deleting an UNREFERENCED node breaks nothing and
+        # must say nothing about references.
+        self.seed()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "f",
+            "ops": [{"op": "add", "element": {
+                "id": "n3", "type": "rectangle", "x": 600, "y": 200,
+                "width": 100, "height": 50, "label": "C"}}]})
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "f",
+            "ops": [{"op": "del", "id": "n3"}]})
+        facts = {f["fact"] for f in rec["artifacts"]["f"]["facts"]}
+        self.assertFalse(facts & {"arrow_orphaned", "mapping_dangling",
+                                  "note_orphaned"}, facts)
+
+    def test_fresh_load_reports_raw_findings_and_lint_debt_carries_them(self):
+        # The r4-7 unreachability, both halves: the binding dangles ON
+        # DISK after a user delete; a fresh Store must (a) report it from
+        # the RAW scene even though validate_scene repairs it in memory,
+        # (b) carry it into lint_debt, and (c) name the repair.
+        self.seed()
+        self.user_delete_n2()
+        store2 = canvas.Store(self.project)
+        ref = store2.referential
+        self.assertTrue(any("t1" in m and "no longer exists" in m
+                            for m in ref.get("f", {}).get("errors", [])),
+                        ref)
+        self.assertTrue(any("f#n2" in m for m in
+                            ref.get("registry", {}).get("warnings", [])),
+                        ref)
+        debt = store2.lint_debt()
+        self.assertGreaterEqual(debt.get("f", {}).get("errors", 0), 1)
+        self.assertGreaterEqual(
+            debt.get("registry", {}).get("warnings", 0), 1)
+        self.assertTrue(any(i["code"] == "ART-005" and i.get("repaired")
+                            for i in store2.issues), store2.issues)
+
+    def test_intact_project_has_no_referential_findings(self):
+        # Silent half of the load pass.
+        self.seed()
+        store2 = canvas.Store(self.project)
+        self.assertEqual(store2.referential, {})
+
+    def test_referential_findings_unit_directions(self):
+        raw = {"a": [
+            {"id": "n1", "type": "rectangle"},
+            {"id": "ok", "type": "arrow",
+             "startBinding": {"elementId": "n1"}, "endBinding": None},
+            {"id": "bad", "type": "arrow",
+             "startBinding": {"elementId": "ghost"},
+             "endBinding": {"elementId": "n1"}},
+            {"id": "note", "type": "text",
+             "customData": {"annotates": "ghost"}},
+            {"id": "lnk", "type": "rectangle",
+             "link": "artifact:nowhere"},
+            "corrupt-non-dict",
+        ]}
+        reg = {"mappings": [
+            {"concept": "c", "elements": ["a#n1", "a#ghost"]},
+            {"concept": "c2", "elements": ["a#n1"]}]}
+        out = canvas.referential_findings(raw, reg, {"a"})
+        self.assertEqual(len(out["a"]["errors"]), 1)
+        self.assertIn("bad", out["a"]["errors"][0])
+        self.assertEqual(len(out["a"]["notes"]), 2)  # note + links_to
+        self.assertEqual(len(out["registry"]["warnings"]), 1)
+        self.assertIn("a#ghost", out["registry"]["warnings"][0])
+
+    def test_genuine_outside_edit_still_reconciles_as_one(self):
+        # Control: a real out-of-session edit keeps the classic
+        # reconciliation (author, honest content headline) and does NOT
+        # take the repair-only path.
+        self.seed()
+        p = self.tmp / "project_knowledge" / "artifacts" / "f.excalidraw"
+        doc = json.loads(p.read_text(encoding="utf-8"))
+        for e in doc["elements"]:
+            if e["id"] == "n1":
+                e["x"] = 555
+        p.write_text(json.dumps(doc), encoding="utf-8")
+        store2 = canvas.Store(self.project)
+        rec = store2.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+        self.assertNotIn("load-time repair", rec["summary"]["headline"])
+        self.assertNotIn("saved without changing anything",
+                         rec["summary"]["headline"])
+        store3 = canvas.Store(self.project)
+        self.assertIsNone(store3.catch_up())
 
 
 if __name__ == "__main__":

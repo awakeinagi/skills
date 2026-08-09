@@ -494,6 +494,137 @@ def validate_scene(doc, artifact_id):
     return doc, issues
 
 
+def content_fingerprint(els):
+    """Order-insensitive scene fingerprint for repair attribution (WP2).
+
+    ``scene_hash`` hashes elements in list order, but disk order and
+    replayed-history order legitimately differ (z-order normalization),
+    so raw-vs-history comparison needs identity by CONTENT: elements
+    sorted by id, deleted ones dropped, dumped canonically.
+
+    Args:
+        els: Scene elements (non-dicts tolerated and skipped).
+
+    Returns:
+        Hex digest, or None when the scene is too corrupt to fingerprint.
+    """
+    def canon(v):
+        # 150 vs 150.0 must fingerprint identically — the same int/float
+        # representation drift _route_sig formats away (dict equality
+        # says equal; json.dumps says different)
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, float) and v.is_integer():
+            return int(v)
+        if isinstance(v, dict):
+            return {k: canon(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [canon(x) for x in v]
+        return v
+
+    try:
+        # roundness rides with the derived set: the write path computes
+        # it from point count while replay keeps creation-time values
+        # (the re-stamp never lands in records — customData is
+        # deliberately non-significant), so disk and history disagree
+        # about it on every re-routed arrow, permanently. The system
+        # already declares it non-significant for diffs; drift detection
+        # must agree, or every such project phantoms a reconciliation.
+        skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness"}
+        live = []
+        for e in els:
+            if not isinstance(e, dict) or e.get("isDeleted"):
+                continue
+            live.append((str(e.get("id")),
+                         canon({k: v for k, v in e.items()
+                                if k not in skip})))
+        live.sort(key=lambda t: t[0])
+        blob = json.dumps([d for _, d in live], sort_keys=True,
+                          default=str)
+        return hashlib.sha1(blob.encode("utf-8")).hexdigest()
+    except Exception:  # noqa: BLE001 — corrupt raw scene
+        return None
+
+
+def referential_findings(raw_scenes, registry, artifact_ids=None):
+    """Report every reference whose target is gone — BEFORE any repair.
+
+    The r4 headline: *nothing validates a reference after the thing it
+    refers to is gone*. Three silences compounded — the dangling-binding
+    lint was unreachable because ``validate_scene`` repaired the scene in
+    memory first (r4-7), ``cross_lint`` skipped mapping members it could
+    not resolve, and orphaned notes had no check at all. This pass runs
+    on the RAW on-disk scenes at load, so the report survives the repair
+    (report-and-repair: the loader may fix, but never silently).
+
+    Args:
+        raw_scenes: {artifact_id: elements} as read from disk, un-repaired.
+            Non-dict elements are tolerated and skipped (corrupt scenes
+            still get the findings their readable parts support).
+        registry: The registry (mappings are read; may be None).
+        artifact_ids: Known artifact ids for ``links_to`` checks; defaults
+            to ``raw_scenes``' keys.
+
+    Returns:
+        {scope: {"errors": [...], "warnings": [...], "notes": [...]}} —
+        scope is an artifact id or ``"registry"``; only scopes with
+        findings appear.
+    """
+    out = {}
+    known_aids = set(artifact_ids if artifact_ids is not None
+                     else raw_scenes.keys())
+
+    def add(scope, tier, msg):
+        out.setdefault(scope, {"errors": [], "warnings": [],
+                               "notes": []})[tier].append(msg)
+
+    ids_by_aid = {}
+    for aid, els in raw_scenes.items():
+        ids_by_aid[aid] = {e.get("id") for e in els
+                           if isinstance(e, dict) and e.get("id")}
+    for aid, els in sorted(raw_scenes.items()):
+        ids = ids_by_aid[aid]
+        for e in els:
+            if not isinstance(e, dict):
+                continue
+            if e.get("type") in ("arrow", "line"):
+                for battr in ("startBinding", "endBinding"):
+                    b = e.get(battr)
+                    tgt = (b or {}).get("elementId")
+                    if tgt and tgt not in ids:
+                        side = "start" if battr == "startBinding" else "end"
+                        add(aid, "errors",
+                            "arrow %s binds %s at its %s point and that "
+                            "element no longer exists — re-target the "
+                            "binding, or delete the arrow with it"
+                            % (e.get("id"), tgt, side))
+            cd = e.get("customData") or {}
+            anchor = cd.get("annotates")
+            if anchor and anchor not in ids:
+                add(aid, "notes",
+                    "note %s annotates %s, which no longer exists — a "
+                    "tombstone left on purpose is fine; say so, or "
+                    "re-anchor/delete it (it will not survive tidy where "
+                    "it stands)" % (e.get("id"), anchor))
+            link = e.get("link") or ""
+            if link.startswith("artifact:") and \
+                    link[len("artifact:"):] not in known_aids:
+                add(aid, "notes",
+                    "%s links_to artifact %r, which does not exist"
+                    % (e.get("id"), link[len("artifact:"):]))
+    for m in (registry or {}).get("mappings") or []:
+        for ref in m.get("elements") or []:
+            if "#" not in ref:
+                continue
+            aid, eid = ref.split("#", 1)
+            if aid in ids_by_aid and eid not in ids_by_aid[aid]:
+                add("registry", "warnings",
+                    "mapping %r member %s points at a deleted element — "
+                    "re-map it, or tombstone the mapping"
+                    % (m.get("concept"), ref))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # migrations — named sets on every owned JSON kind; snapshot before migrating
 # ---------------------------------------------------------------------------
@@ -630,7 +761,15 @@ def normalize_element(el):
 
 def rebuild_bound_elements(els):
     """boundElements is derived bookkeeping — recompute it from containerId
-    and arrow bindings so it never needs diffing and always reconstructs."""
+    and arrow bindings so it never needs diffing and always reconstructs.
+
+    Since v0.8 the same rule covers a server-routed arrow's ``roundness``
+    (None for a straight 2-point path, curved otherwise — route_arrow's
+    own rule): it was derived at WRITE time but replay kept the
+    creation-time value, so the file and its own replayed history
+    disagreed permanently — every fixture with a re-routed arrow minted a
+    phantom out-of-session reconciliation at load (WP2; the r4 headline
+    shape, found in remediation)."""
     ix = {e["id"]: e for e in els}
     for e in els:
         e["boundElements"] = []
@@ -853,6 +992,10 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # a readable document behind this element (report reader):
         # project_knowledge-relative markdown path, served via /api/doc
         custom["document"] = spec["document"]
+    if spec.get("annotates"):
+        # what a note is ABOUT (WP2): the anchor the orphan checks read.
+        # The lint always advised setting it; nothing ever wrote it.
+        custom["annotates"] = spec["annotates"]
     if spec.get("tooltip"):
         # hover-only markdown detail (v0.3): rendered by the client on
         # hover, managed from the element's right-click menu or ops;
@@ -2006,7 +2149,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     apply_strategic(el, value, errors, i,
                                     explicit_bg="backgroundColor" in attrs)
                 elif attr in ("kind", "role", "intent", "parent",
-                              "document"):
+                              "document", "annotates"):
                     # terse customData keys, add-time parity — a top-level
                     # write here is read by nothing (B1's silent no-op)
                     cd = dict(el.get("customData") or {})
@@ -3454,7 +3597,8 @@ SALIENCE = ["user_route_replaced",
             "lane_deleted", "deleted", "regrouped", "sync_changed",
             "label_added", "transition_added", "transition_deleted",
             "relationship_added", "relationship_deleted", "message_added",
-            "message_deleted", "annotated", "annotation_deleted",
+            "message_deleted", "arrow_orphaned", "mapping_dangling",
+            "note_orphaned", "annotated", "annotation_deleted",
             "pin_added", "pin_deleted", "priority_changed",
             "tooltip_added", "tooltip_changed", "tooltip_removed",
             "activation_changed", "moved", "resized", "reordered",
@@ -3470,6 +3614,16 @@ def headline_for(fact):
                                        fact.get("from"), fact.get("to"))
     if n in ("renamed", "entity_renamed", "label_renamed"):
         return "renamed %r → %r" % (fact.get("from"), fact.get("to"))
+    # WP2 reference-impact facts: a deletion names what it broke
+    if n == "arrow_orphaned":
+        return "arrow %s lost its %s target %s — it points at nothing" \
+            % (fact["element"], fact.get("side"), fact.get("target"))
+    if n == "mapping_dangling":
+        return "mapping %r lost member %s" \
+            % (fact.get("concept"), fact.get("ref"))
+    if n == "note_orphaned":
+        return "the note %s lost its anchor (%s deleted)" \
+            % (fact["element"], fact.get("target"))
     # explicit branches for facts the suffix rules would mangle — no
     # fact may fall through to a bare verb ("resized (+3 more)")
     if n == "added":
@@ -5689,6 +5843,13 @@ class Store:
         self.checkout_revn = None     # detached checkout point (memory only)
         self.reconciliation = None    # last catch-up record revn
         self._dry_run = False         # inside _sandbox(): writers are no-ops
+        # WP2 (report-and-repair): findings computed on the RAW disk
+        # scenes before validate_scene repairs them, per-load and never
+        # persisted — a persisted copy would go stale the moment a commit
+        # fixes the reference
+        self.referential = {}
+        self.raw_hashes = {}          # {aid: scene_hash of the raw disk scene}
+        self.scene_repairs = []       # load-time ART-* repairs, this load
         self.load()
 
     # -- loading ----------------------------------------------------------
@@ -5741,6 +5902,10 @@ class Store:
         self.scenes = {}
         self.artifact_meta = {}
         self.artifact_files = {}   # image blobs (fileId -> dataURL entry)
+        self.referential = {}
+        self.raw_hashes = {}
+        self.scene_repairs = []
+        raw_scenes = {}
         for f in sorted(self.p.artifacts_dir.glob("*.excalidraw")):
             aid = f.stem
             try:
@@ -5751,6 +5916,16 @@ class Store:
                     "Fix or delete the file; the last committed state is "
                     "still in saves/.").to_dict())
                 continue
+            # WP2: hold the RAW scene before any repair — the referential
+            # pass reports against it, and catch_up uses its hash to tell
+            # a genuine outside edit from the loader's own repair work.
+            # Deep-copied: validate_scene repairs the SAME dicts in
+            # place, and a shared reference would silently hand the pass
+            # the repaired scene — the exact unreachability being fixed.
+            raw_els = doc.get("elements") if isinstance(doc, dict) else None
+            if isinstance(raw_els, list):
+                raw_scenes[aid] = json.loads(json.dumps(raw_els))
+                self.raw_hashes[aid] = content_fingerprint(raw_scenes[aid])
             doc, art_issues = validate_scene(doc, aid)
             if doc is None:
                 continue
@@ -5758,11 +5933,19 @@ class Store:
             doc = normalize_scene_doc(doc)
             for i in art_issues:
                 self.issues.append(i.to_dict())
+                self.scene_repairs.append(i.to_dict())
                 self.log("repair: %s %s" % (i.code, i.msg))
             self.scenes[aid] = doc["elements"]
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
             if doc.get("files"):
                 self.artifact_files[aid] = doc["files"]
+        self.referential = referential_findings(raw_scenes, reg,
+                                                set(self.scenes.keys()))
+        for scope, tiers in sorted(self.referential.items()):
+            for tier, msgs in tiers.items():
+                for msg in msgs:
+                    self.log("referential %s [%s]: %s"
+                             % (tier[:-1].upper(), scope, msg))
         # heal orphaned pins: a registry pin whose ❓ element no longer
         # exists anywhere is unresolvable through ops — prune it at load so
         # corrupted state always has a repair path
@@ -5859,10 +6042,12 @@ class Store:
             artifacts = {}
             all_tripwires = []
             changed_elements = {}
+            new_norm_by_aid = {}
             sig = self.config.get("significant_attrs")
             for aid, els in sorted(new_scenes.items()):
                 new_norm = [normalize_element(e) for e in els
                             if not e.get("isDeleted")]
+                new_norm_by_aid[aid] = new_norm
                 old = (base_state.get(aid) or {}).get("elements", [])
                 diff = diff_scenes(old, new_norm, sig)
                 if not diff["changes"] and aid in base_state and not \
@@ -5902,6 +6087,46 @@ class Store:
                 # explicit empty save — still a commit ("you saved without
                 # changing anything")
                 artifacts = {}
+
+            # WP2 (the r4 headline): a deletion must NAME what it broke.
+            # Nothing validated a reference after its target was gone —
+            # bindings dangled on disk, mapping members pointed at
+            # corpses, notes floated — and every silence compounded.
+            for aid, part in artifacts.items():
+                deleted = {c["element"]["id"] for c in part["changes"]
+                           if c["op"] == "del"}
+                if not deleted:
+                    continue
+                old_els = (base_state.get(aid) or {}).get("elements", [])
+                old_by_id = {e["id"]: e for e in old_els}
+                for e in new_norm_by_aid.get(aid, []):
+                    if e.get("type") in ("arrow", "line"):
+                        oldb = old_by_id.get(e["id"]) or {}
+                        for battr in ("startBinding", "endBinding"):
+                            was = ((oldb.get(battr) or {})
+                                   .get("elementId"))
+                            now = ((e.get(battr) or {}).get("elementId"))
+                            if was in deleted and \
+                                    (now is None or now in deleted):
+                                part["facts"].append(
+                                    {"fact": "arrow_orphaned",
+                                     "element": e["id"], "target": was,
+                                     "side": "start" if battr ==
+                                             "startBinding" else "end"})
+                    anchor = (e.get("customData") or {}).get("annotates")
+                    if anchor in deleted:
+                        part["facts"].append(
+                            {"fact": "note_orphaned", "element": e["id"],
+                             "target": anchor})
+                for m in self.registry.get("mappings") or []:
+                    for ref in m.get("elements") or []:
+                        if "#" not in ref:
+                            continue
+                        maid, meid = ref.split("#", 1)
+                        if maid == aid and meid in deleted:
+                            part["facts"].append(
+                                {"fact": "mapping_dangling", "element": None,
+                                 "concept": m.get("concept"), "ref": ref})
 
             # pin lifecycle on deletion: a deleted pin element = "not worth
             # explaining", never re-raised; a pin whose TARGET was deleted
@@ -7089,8 +7314,16 @@ class Store:
             expected = self.state_at(head) if head else {}
             exp_scenes = {aid: p["elements"] for aid, p in expected.items()}
             disk = self.scenes
+            # Content comparison, deliberately order-insensitive (WP2):
+            # z-order is derived machinery the replay cannot reconstruct
+            # (normalize_z_order runs at apply; user saves carry client
+            # order), so an order-sensitive hash here diagnosed derived
+            # noise as an outside edit and minted a fresh phantom
+            # reconciliation on EVERY load — a standing generator of
+            # "0 changes differ from history" records.
             same = (set(exp_scenes.keys()) == set(disk.keys()) and all(
-                scene_hash(exp_scenes[a]) == scene_hash(disk[a])
+                content_fingerprint(exp_scenes[a]) ==
+                content_fingerprint(disk[a])
                 for a in disk))
             if same:
                 return None
@@ -7099,7 +7332,8 @@ class Store:
                 st = self.state_at(r)
                 st_scenes = {aid: p["elements"] for aid, p in st.items()}
                 if set(st_scenes.keys()) == set(disk.keys()) and all(
-                        scene_hash(st_scenes[a]) == scene_hash(disk[a])
+                        content_fingerprint(st_scenes[a]) ==
+                        content_fingerprint(disk[a])
                         for a in disk):
                     self.rollback = {"matches_revn": r, "head_revn": head}
                     self.log("rollback detected: disk state matches revn %d"
@@ -7107,11 +7341,50 @@ class Store:
                     return None
             new_meta = {aid: dict(self.artifact_meta.get(aid) or {})
                         for aid in disk}
+            # WP2: is this divergence a genuine outside edit, or only the
+            # loader's own repair work? The raw disk hashes (captured
+            # before validate_scene touched anything) settle it: raw ==
+            # replayed history means nobody edited outside the session —
+            # every fixture with load repairs used to mint a phantom
+            # "out-of-session" record here, arm 4's reading "saved
+            # without changing anything" while committing a revision.
+            repair_only = bool(self.scene_repairs) and \
+                set(self.raw_hashes.keys()) == set(exp_scenes.keys()) and \
+                all(self.raw_hashes.get(a) is not None and
+                    self.raw_hashes[a] == content_fingerprint(
+                        exp_scenes[a])
+                    for a in exp_scenes)
             record = self.commit(author="out-of-session",
                                  new_scenes=dict(disk),
                                  new_meta=new_meta,
                                  reconciliation=True)
             self.reconciliation = record["revn"]
+            rewrite = False
+            if repair_only:
+                counts = {}
+                for i in self.scene_repairs:
+                    counts[i["code"]] = counts.get(i["code"], 0) + 1
+                record["summary"]["headline"] = (
+                    "load-time repair: %s — no outside edits" % ", ".join(
+                        "%s ×%d" % (c, n) for c, n in sorted(counts.items())))
+                rewrite = True
+            elif "saved without changing anything" in \
+                    (record["summary"].get("headline") or ""):
+                # a committed reconciliation may never claim nothing
+                # happened (arm 4's live phantom did exactly that)
+                n_changed = sum(len(p.get("changes") or [])
+                                for p in record["artifacts"].values())
+                record["summary"]["headline"] = (
+                    "out-of-session drift reconciled: %d change(s) differ "
+                    "from history" % n_changed)
+                rewrite = True
+            if self.scene_repairs:
+                record["repairs"] = list(self.scene_repairs)
+                rewrite = True
+            if rewrite:
+                for pth in self.p.saves_dir.glob("%04d-*.json"
+                                                 % record["revn"]):
+                    write_json(pth, record)
             # live_test_2 B4: reconciliation passes the same lint gate as
             # any apply — the revn-17 restart rerouted an arrow into a
             # 45×176 diagonal with zero warnings fired
@@ -7166,15 +7439,28 @@ class Store:
                 if x:
                     li = {k: li[k] + x[k]
                           for k in ("errors", "warnings", "notes")}
+                # WP2: load-time referential findings (computed on the
+                # RAW disk scene, before repairs) ride the same debt —
+                # the r4-7 unreachability was exactly these never
+                # reaching any surface the agent reads
+                r = self.referential.get(aid)
+                if r:
+                    li = {k: li[k] + r[k]
+                          for k in ("errors", "warnings", "notes")}
                 lines[aid] = li
                 counts = {k: len(li[k])
                           for k in ("errors", "warnings", "notes")}
                 if any(counts.values()):
                     debt[aid] = counts
             reg = project_lint(self.p, [], self.registry)
-            if reg["notes"]:
-                debt["registry"] = {"errors": 0, "warnings": 0,
-                                    "notes": len(reg["notes"])}
+            rref = self.referential.get("registry")
+            if rref:
+                reg = {k: reg[k] + rref[k]
+                       for k in ("errors", "warnings", "notes")}
+            if any(reg[k] for k in ("errors", "warnings", "notes")):
+                debt["registry"] = {k: len(reg[k])
+                                    for k in ("errors", "warnings",
+                                              "notes")}
                 lines["registry"] = reg
             self._lint_debt_cache = (key, debt, lines)
             return debt
@@ -8465,6 +8751,12 @@ def cmd_status(args):
              rollback=st.get("rollback"),
              events_seq=st.get("events_seq"),
              events_log=st.get("events_log"))
+    # WP2 (report-and-repair): load-time repairs used to reach exactly
+    # one surface — /api/state, which nothing in the loop reads. Silent
+    # repair is how the r4-7 lint became unreachable.
+    for i in st.get("issues") or []:
+        if i.get("repaired"):
+            print("REPAIR=%s: %s" % (i.get("code"), i.get("msg")))
     if state.get("protocol_version") != PROTOCOL_VERSION:
         print("WARNING=protocol mismatch: server v%s vs CLI v%d — restart "
               "the server (canvas.py stop && canvas.py start)"
@@ -8587,6 +8879,11 @@ def cmd_lint(args):
             for msg in li.get(tier) or []:
                 total += 1
                 print("%s=%s: %s" % (prefix, aid, msg))
+    # WP2: what the loader fixed on the way in, named — a repair the
+    # agent never hears about is a defect the next session re-inherits
+    for i in store.issues:
+        if i.get("repaired"):
+            print("REPAIR=%s: %s" % (i.get("code"), i.get("msg")))
     print_kv(artifacts=len(aids), findings=total)
     return 0
 
