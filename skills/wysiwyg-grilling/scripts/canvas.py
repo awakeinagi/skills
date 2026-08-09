@@ -10095,26 +10095,71 @@ def cmd_x_as_user(args):
         die("ERROR=could not read artifact %r (%s)" % (aid, e), 2)
     ix = {e["id"]: e for e in els}
     if verb == "rename":
+        # Fidelity (WP6/D28): the real client re-measures on rename.
+        # This driver assigned text and left the OLD width/height, so it
+        # produced state the product itself never writes — the exact
+        # drift assessor-adapter capability 1 exists to prevent, in its
+        # own reference implementation.
         lbl = next((t for t in els if t.get("type") == "text"
                     and t.get("containerId") == args.target), None)
-        if lbl is None and ix.get(args.target, {}).get("type") == "text":
-            lbl = ix[args.target]
+        host = ix.get(args.target)
+        if lbl is None and host is not None and \
+                host.get("type") == "text":
+            lbl, host = host, None
         if lbl is None:
             die("ERROR=no label on %r" % args.target, 2)
         lbl["text"] = lbl["originalText"] = args.text
+        if lbl.get("autoResize", True):
+            lbl["width"], lbl["height"] = text_dims(
+                args.text, lbl.get("fontSize", 16))
+        if host is not None and host.get("type") in (
+                "rectangle", "diamond", "ellipse", "frame"):
+            fit_label_in(host, lbl)
+            recenter_label(els, host)
     elif verb == "move":
+        # The real client drags whole GROUPS: composed decoration parts
+        # travel with their host. This driver moved only the host and
+        # its bound label — which manufactured half of r4-10 (the
+        # "orphaned X strokes" observations came through here, not
+        # through a real user gesture).
         el = ix.get(args.target)
         if el is None:
             die("ERROR=no element %r" % args.target, 2)
+        gset = set(el.get("groupIds") or [])
         for other in els:
+            grouped = gset and (set(other.get("groupIds") or []) & gset)
             if other is el or other.get("containerId") == el["id"] or \
-                    other.get("frameId") == el["id"]:
+                    other.get("frameId") == el["id"] or grouped:
                 other["x"] = other.get("x", 0) + args.dx
                 other["y"] = other.get("y", 0) + args.dy
     elif verb == "delete":
+        # Parity with the real client: deleting a host takes its whole
+        # group (Excalidraw selects groups); a part alone still works by
+        # naming the part id directly.
         drop = set(args.target.split(","))
+        group_drop = set()
+        for tid in drop:
+            t = ix.get(tid)
+            for g in (t.get("groupIds") or []) if t else []:
+                if (t.get("customData") or {}).get("kind"):
+                    group_drop.add(g)
         els = [e for e in els if e["id"] not in drop
-               and e.get("containerId") not in drop]
+               and e.get("containerId") not in drop
+               and not (group_drop and
+                        set(e.get("groupIds") or []) & group_drop)]
+    elif verb == "toggle":
+        # The uncheck gesture the benchmark scripts and no run could
+        # perform (D26): flip customData.checked ONLY — commit-time
+        # reconciliation composes the glyph, which makes this verb a
+        # standing proof of the WP3 invariant.
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        cd = dict(el.get("customData") or {})
+        if cd.get("kind") not in ("checkbox", "toggle"):
+            die("ERROR=%r is not a checkbox/toggle" % args.target, 2)
+        cd["checked"] = not cd.get("checked")
+        el["customData"] = cd
     elif verb == "tooltip":
         el = ix.get(args.target)
         if el is None:
@@ -10211,9 +10256,9 @@ def main(argv=None):
     p.add_argument("--artifact")
     p.add_argument("--diff", action="store_true")
     p = sub.add_parser("x-as-user")
-    p.add_argument("verb", choices=["rename", "move", "delete", "note",
-                                    "ask", "tooltip", "answer", "config",
-                                    "checkout"])
+    p.add_argument("verb", choices=["rename", "move", "delete", "toggle",
+                                    "note", "ask", "tooltip", "answer",
+                                    "config", "checkout"])
     p.add_argument("--artifact")
     p.add_argument("--target", default="")
     p.add_argument("--text", default="")

@@ -7,6 +7,7 @@ import io
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -6945,6 +6946,127 @@ class TestEventLoopAndRounds(Base):
         muted = rec.get("tripwires_muted") or []
         self.assertTrue(any("scopes naming out" in m for m in muted),
                         rec)
+
+
+class TestXAsUserFidelity(unittest.TestCase):
+    """WP6 (D28 + the r4-10 driver half): the assessor's user-gesture
+    driver must write what the real client writes — a drifted driver
+    manufactures findings with the authority of real ones. Server-spun:
+    these verbs ARE HTTP round-trips."""
+
+    CANVAS = str(Path(__file__).resolve().parent.parent /
+                 "skills" / "wysiwyg-grilling" / "scripts" / "canvas.py")
+
+    @classmethod
+    def setUpClass(cls):
+        """Start one server on a seeded temp project."""
+        cls.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-xuser-"))
+        (cls.tmp / "project_knowledge").mkdir(parents=True)
+        cls.project = canvas.Project(cls.tmp)
+        cls.project.ensure_tree()
+        store = canvas.Store(cls.project)
+        store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "w", "type": "wireframe",
+                       "concept": "c", "name": "W"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "panel", "type": "rectangle", "x": 100,
+                    "y": 100, "width": 200, "height": 80,
+                    "label": "Data sources"}},
+                {"op": "add", "element": {
+                    "id": "img", "type": "rectangle", "x": 100, "y": 300,
+                    "width": 120, "height": 90, "kind": "image",
+                    "label": "chart"}},
+                {"op": "add", "element": {
+                    "id": "cb", "type": "rectangle", "x": 400, "y": 100,
+                    "width": 200, "height": 28, "label": "Macro",
+                    "kind": "checkbox", "checked": True}},
+            ]})
+        out = subprocess.run(
+            [sys.executable, cls.CANVAS, "--project", str(cls.tmp),
+             "start", "--no-browser"],
+            capture_output=True, text=True, timeout=60)
+        if "URL=" not in out.stdout:
+            raise unittest.SkipTest("server did not start: %s"
+                                    % out.stderr[-200:])
+
+    @classmethod
+    def tearDownClass(cls):
+        """Stop the server and remove the project."""
+        subprocess.run(
+            [sys.executable, cls.CANVAS, "--project", str(cls.tmp),
+             "stop"], capture_output=True, text=True, timeout=30)
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        for p in (cls.project.state_path, cls.project.events_path,
+                  cls.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def x(self, *argv):
+        """Run an x-as-user verb against the live server.
+
+        Args:
+            argv: CLI arguments after `x-as-user`.
+
+        Returns:
+            The completed process (checked for rc 0).
+        """
+        out = subprocess.run(
+            [sys.executable, self.CANVAS, "--project", str(self.tmp),
+             "x-as-user", *argv],
+            capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr or out.stdout)
+        return out
+
+    def scene(self):
+        """Read the artifact fresh from disk.
+
+        Returns:
+            The element list of artifact `w`.
+        """
+        doc = json.loads(
+            (self.tmp / "project_knowledge" / "artifacts" /
+             "w.excalidraw").read_text(encoding="utf-8"))
+        return doc["elements"]
+
+    def test_verbs_write_what_the_client_writes(self):
+        # rename re-measures like the client does
+        self.x("rename", "--artifact", "w", "--target", "panel",
+               "--text", "Data sources and health")
+        els = self.scene()
+        lbl = next(e for e in els
+                   if e.get("containerId") == "panel")
+        self.assertEqual(lbl["text"].replace("\n", " "),
+                         "Data sources and health")
+        # move drags the whole composed group — X strokes travel
+        img = next(e for e in self.scene() if e["id"] == "img")
+        x1_before = next(e for e in self.scene()
+                         if e["id"] == "img-x1")
+        self.x("move", "--artifact", "w", "--target", "img",
+               "--dx", "60", "--dy", "0")
+        els = self.scene()
+        img2 = next(e for e in els if e["id"] == "img")
+        x1 = next(e for e in els if e["id"] == "img-x1")
+        self.assertEqual(img2["x"] - img["x"], 60)
+        self.assertEqual(x1["x"] - x1_before["x"], 60)
+        # toggle flips state only; reconciliation composes the glyph
+        self.assertTrue(any(e["id"] == "cb-chk" for e in els))
+        self.x("toggle", "--artifact", "w", "--target", "cb")
+        els = self.scene()
+        cb = next(e for e in els if e["id"] == "cb")
+        self.assertFalse(cb["customData"]["checked"])
+        self.assertFalse(any(e["id"] == "cb-chk" for e in els))
+        self.x("toggle", "--artifact", "w", "--target", "cb")
+        els = self.scene()
+        cb = next(e for e in els if e["id"] == "cb")
+        self.assertTrue(cb["customData"]["checked"])
+        self.assertTrue(any(e["id"] == "cb-chk" for e in els))
+        # delete takes the whole composed group, like the real client
+        self.x("delete", "--artifact", "w", "--target", "img")
+        els = self.scene()
+        self.assertFalse(any(e["id"].startswith("img")
+                             for e in els))
 
 
 if __name__ == "__main__":
