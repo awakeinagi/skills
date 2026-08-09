@@ -164,6 +164,14 @@ challenge in chat, and an accepted rejection makes `_Avoid_` the
 resolution sink for `possible_merge` questions — the losing synonym
 lands there, so it can never quietly return.
 
+`_Avoid_` has a sibling with the opposite meaning, and choosing between
+them is a decision about the WORD, not a formatting preference:
+**`**Term** / **alias**: definition`** keeps both names legitimate —
+one concept, two names, split by audience ("PipelineRun" at the desk,
+"Run" in client copy). The parser resolves the alias to the canonical
+term for every lint and mapping join. Rejected synonym → `_Avoid_`;
+audience split → the alias entry.
+
 ## Two anti-patterns in YOUR questioning
 
 - **Relational reflex**: never demand normalization, foreign keys, or

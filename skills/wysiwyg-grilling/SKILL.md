@@ -254,23 +254,62 @@ the sentence failing to complete IS the test that the reading isn't ready.
   **N tripwires with one cause is one tripwire**: narrate the cause, not
   the count.
 
-## Waiting — never block, silence is never consent
+## The event loop — watch the log, react to their moves
 
-After your move, wait for the user:
+This is standing procedure, not a fallback: **after every move of yours,
+arm a watch on the events log and react to what lands.** The log path is
+printed by `start` and `status` as `EVENTS_LOG=`; one JSON line per event.
 
-- **Tier 1**: `Monitor` the events log file (path from `start`/`status`
-  output) with `persistent: true` — one JSON line per event (save,
-  pin_answer, branch_switch, suggest_view…).
-- **Tier 2**: `AskUserQuestion` — works everywhere, no timeout.
-- **Tier 3**: `canvas.py wait --timeout 540` — bounded long-poll, exits 3 on
+- **Tier 1**: `Monitor` the file with `persistent: true` — you are
+  re-invoked per event, your turn still ends normally. **Filter to the
+  user's events or you will be woken by your own echoes** — the log
+  carries every `agent_revision` you apply (in a real session that was
+  87% of the traffic, and an unfiltered agent narrated its own drawing
+  back as the user's move). The filter that works:
+  `grep -E '"type": ?"(save|pin_answer|tripwire_answer|branch_switch|suggest_view|config_changed|reconciliation)"'`
+- **Tier 3**: `canvas.py wait --timeout 540` when no Monitor tool exists —
+  it now defaults to `--for user` (same filter, server-side); exits 3 on
   timeout, always strictly under Bash's 600s ceiling.
+- **Tier 2**: `AskUserQuestion` — pre-launch, or when the question truly
+  cannot live on the canvas (see below).
+
+**Event taxonomy** — who a type belongs to decides your reaction:
+
+| Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
+|---|---|---|
+| `save`, `pin_answer`, `tripwire_answer`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded` | `server_started`, `reconciliation` (read the record — since v0.8 it names load-time repairs vs real outside edits) |
+
+**An arriving user event IS the user's move.** Read it, narrate it, act —
+don't wait for a chat message to confirm what the log already told you.
+
+**Rounds under a chat-only user.** The round counter advances on canvas
+authorship alternation, so a user who moves **in chat alone** never
+advances it — and pin ageing (`age_rounds`, the standing nag) freezes with
+it, silently. The tool cannot see a chat turn; **you can**: when the
+user's move arrived as chat with no save, include
+`{"op": "registry", "action": "set_round", "round": <current+1>}` in your
+next batch. The apply response prints `ROUND_STALL=` when it smells this
+(several agent-side commits, open pins, no user save) — treat that line
+as this instruction firing.
+
+**Questions go to the canvas.** Once the server is up, your default
+channel for questions is a **pin on the element it is about** — `{"op":
+"pin", ...}` with `detail` (why it matters) and `examples`, answered from
+the rail or in chat, whichever the user prefers. Chat remains for
+narration and for questions with no anchor ("what's missing from this
+account?"); `AskUserQuestion` is for before the canvas exists. The
+consequence you accept: **open pins are now the question backlog**, so
+their ageing must be real — which is exactly why the round must advance
+(above). Never let politeness answer your own pins; an unanswered pin
+ageing in the rail is information.
 
 **Waiting is working time**: queue doc updates (glossary/spec/ADR rides your
 NEXT revision, narrated and veto-able — mechanics like save records are
 immediate), prep next-round questions, registry hygiene. But never a second
 canvas revision while one is unreviewed. If the user is silent for
 ~`nudge_after_minutes` (config, default 10): exactly **one** nudge, then
-indefinite patience. Chat is always a legitimate reply channel.
+indefinite patience. Chat is always a legitimate reply channel — a chat
+answer to a pinned question resolves the pin (`resolve_pin`, narrated).
 
 ## Drawing — the op batch (primer)
 
@@ -362,15 +401,37 @@ and priority order when suggesting views.
   it (narrated, veto-able) the first time the conversation settles a term —
   two rounds of settled vocabulary with no glossary is a queue you forgot to
   start.
-- **A settled glossary term IS a concept**: when a term lands in
+- **A settled glossary term IS a registry entry**: when a term lands in
   CONTEXT.md, the SAME batch carries `{"op": "registry", "action":
   "upsert_concept", "name": "<Term>", "glossary": "<Term>"}` (narrated,
   veto-able) — at settlement only, never speculatively. A glossary entry
   without its registry op is the v0.1-acceptance failure mode (15 terms,
   zero concepts) and the server now nags it at NOTE tier. This is what
   makes mappings real joins; the domain view is then simply the concept
-  set, drawn. The complexity budget applies to the domain *view*, never
-  the concept set. Use the CONTEXT-FORMAT term shape (`**Term**:`).
+  set, drawn. A term-entry **earns a rail row when it gains a view** —
+  the rail groups view-less terms as vocabulary, and that is correct: a
+  12-round session mints ~20 terms and ~7 views, and the seven must not
+  drown. The complexity budget applies to the domain *view*, never the
+  concept set. Use the CONTEXT-FORMAT term shape (`**Term**:`).
+- **Two names, one concept? The alias entry, not `_Avoid_`**:
+  `**Term** / **alias**: definition` records a term that stays
+  legitimate for a different audience ("PipelineRun" at the desk,
+  "Run" in client copy) — the parser resolves the alias to the
+  canonical term, so lints and mappings join correctly. `_Avoid_:` is
+  for a **rejected** synonym ("we don't say Alpha anymore — it claimed
+  a risk adjustment nobody makes"). Two consecutive assessed sessions
+  reached for `_Avoid_` and then wrote prose to carry the audience
+  nuance it cannot express; the alias syntax existed all along.
+- **Tooltips are load-bearing, and their facts need a canonical home**:
+  the export carries them as footnotes precisely because they hold
+  consequences ("EDGAR off costs three scorers"). But mappings and
+  tripwires join on element IDENTITY, never tooltip CONTENT — a fact
+  duplicated across three tooltips has no drift detector (a live
+  session falsified one fact in three tooltips and only the agent's
+  sweep caught it). So: a consequential fact stated in a tooltip also
+  lives in CONTEXT.md or an ADR, and the tooltip is the courtesy copy
+  you propagate FROM the canonical home — when the fact changes, grep
+  the tooltips.
 - **ADR offers stay chat-only**, gated by the three-part test (hard to
   reverse / surprising / real trade-off), citing save short-ids as evidence.
   Exemplar: "'The app never schedules the review' is a real decision with a

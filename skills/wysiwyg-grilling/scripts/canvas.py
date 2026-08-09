@@ -6172,6 +6172,36 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 "is this, yours or theirs? Do users say %r? Settle "
                 "it, then waive with registry op {action: waive, "
                 "key: %r, reason: ...}" % (lbl, e["id"], lbl, key))
+
+    # ---- unmapped KPIs (WP5/D9) --------------------------------------
+    # Tripwires are exactly as good as the mapping discipline: the
+    # flagship rename fired NOTHING in both run-4 arms because kpi-alpha
+    # was in no mapping, and nothing nagged. A KPI is a number some node
+    # computes; while a flow exists, an unmapped tile is a drift
+    # detector that was never armed.
+    if any(t == "flow" for t in artifact_types.values()):
+        mapped_refs = set()
+        for m in (registry or {}).get("mappings") or []:
+            mapped_refs.update(m.get("elements") or [])
+        for aid, t in sorted(artifact_types.items()):
+            if t != "wireframe":
+                continue
+            if "kpimap:%s" % aid in waives:
+                continue
+            lm = label_maps.get(aid) or {}
+            loose = [(e["id"], lm.get(e["id"]) or e["id"])
+                     for e in scenes.get(aid) or []
+                     if (e.get("customData") or {}).get("kind") == "kpi"
+                     and "%s#%s" % (aid, e["id"]) not in mapped_refs]
+            if loose:
+                add(aid, "notes",
+                    "%d KPI tile(s) unmapped: %s — map each to the node "
+                    "that computes it (that mapping IS the drift "
+                    "detector; a rename on either side then trips), or "
+                    "waive {action: waive, key: %r, reason: ...}"
+                    % (len(loose),
+                       ", ".join(repr(lbl) for _, lbl in loose[:4]),
+                       "kpimap:%s" % aid))
     return out
 
 
@@ -6689,6 +6719,8 @@ class Store:
                 "registry_changes": reg_changes,
                 "summary": summary,
                 "tripwires": all_tripwires,
+                "tripwires_muted": list(
+                    getattr(self, "_muted_renames", [])),
             }
             record["short_id"] = hashlib.sha1(
                 json.dumps(record, sort_keys=True, default=str)
@@ -6907,6 +6939,7 @@ class Store:
         return sorted(set(kinds))
 
     def _check_tripwires(self, changed_elements, revn, new_mapping_keys=()):
+        self._muted_renames = []
         out = []
         if not changed_elements:
             return out
@@ -6933,10 +6966,29 @@ class Store:
             fired = set()
             for e in hits:
                 fired |= set(changed_elements.get(e) or ())
+            naming = fired & {"renamed", "label_renamed", "entity_renamed",
+                              "relationship_relabeled"}
             if note.startswith("intentionally-divergent") and \
                     self._annotation_covers(m.get("kinds"), fired):
+                if naming:
+                    # WP5 (D10/E-7): a RENAME muted by a ruling made
+                    # about value/display drift is armed silence — the
+                    # scope the agent chose for "a tile's wording belongs
+                    # to the screen" is exactly the set the flagship
+                    # rename beat needs. Say it happened; the ruling
+                    # still holds.
+                    self._muted_renames.append(
+                        "%s changed (%s) but its divergence ruling %r "
+                        "scopes naming out — deliberate?"
+                        % (hits[0], "/".join(sorted(naming)),
+                           note[:60]))
                 continue
             if self._policy_covers(m, fired):
+                if naming:
+                    self._muted_renames.append(
+                        "%s changed (%s) under a divergence policy that "
+                        "scopes naming out — deliberate?"
+                        % (hits[0], "/".join(sorted(naming))))
                 continue
             # ONE question per mapping per save. This used to be a nested
             # loop over (changed × sibling), so renaming one element of a
@@ -7214,9 +7266,23 @@ class Store:
                     "reason": op.get("reason"),
                     "when": now_iso()[:10]})
             elif action == "set_round":
-                if isinstance(op.get("round"), int):
+                # WP5 (r4-3): the escape hatch for chat-only user turns —
+                # and it validated NOTHING, so a typo'd round was a
+                # silent no-op on the one mechanism keeping pin ageing
+                # alive
+                if "round" in op and not isinstance(op.get("round"), int):
+                    errors.append(
+                        "registry op %d (set_round): round must be an "
+                        "integer (got %r)" % (i, op.get("round")))
+                elif isinstance(op.get("round"), int):
                     reg["round"] = op["round"]
-                if op.get("whose_move") in ("user", "agent"):
+                if "whose_move" in op and \
+                        op.get("whose_move") not in ("user", "agent"):
+                    errors.append(
+                        "registry op %d (set_round): whose_move must be "
+                        "'user' or 'agent' (got %r)"
+                        % (i, op.get("whose_move")))
+                elif op.get("whose_move") in ("user", "agent"):
                     reg["whose_move"] = op["whose_move"]
             elif action == "rename_artifact":
                 # a view's SCOPE legitimately narrows — splitting a domain
@@ -7269,8 +7335,10 @@ class Store:
                 for key in ("nodes", "arrows"):
                     v = op.get(key)
                     if v is not None and (not isinstance(v, int) or v < 1):
-                        errors.append("registry op %d: %s must be a "
-                                      "positive integer" % (i, key))
+                        errors.append(
+                            "registry op %d: %s must be a positive "
+                            "integer — an arrow-free screen still sets "
+                            "arrows: 1, the budget floor" % (i, key))
                         bad = True
                 if bad:
                     continue
@@ -7378,6 +7446,15 @@ class Store:
                 elif aid in self.scenes:
                     errors.append("create: artifact %r already exists" % aid)
                 else:
+                    if "artifact_type" in create and "type" not in create:
+                        # WP5: the meta STORES this as artifact_type, so
+                        # the wrong spec key defaulted silently to a
+                        # flow — even this campaign's own tests made the
+                        # mistake and never noticed
+                        errors.append(
+                            "create: use `type`, not `artifact_type` — "
+                            "the artifact would silently default to a "
+                            "flow")
                     atype = create.get("type", "flow")
                     known = set((self.config.get("artifact_types") or {}))
                     if atype not in known:
@@ -7941,6 +8018,35 @@ class Store:
                     for t in self.registry["tripwires"]
                     if t.get("status") == "open"]
 
+    def round_stall(self):
+        """The chat-only round freeze, made visible (WP5, r4-3).
+
+        The round advances only on canvas authorship alternation, but the
+        user may legitimately move by chat alone — argus4 sat at round 1
+        through revn 10 while its agent hand-counted "open two rounds"
+        and every pin read age 0r. The tool cannot auto-advance (a chat
+        turn is invisible to it); it CAN notice the smell: a long run of
+        non-user commits while questions sit open.
+
+        Returns:
+            ``{"commits": n, "round": r}`` when >= 4 consecutive commits
+            landed without a user save while pins are open, else None.
+        """
+        with self.lock:
+            head = self.head_revn()
+            n = 0
+            for r in reversed(self.lineage(head)):
+                rec = self.records.get(r) or {}
+                if rec.get("author") == "user":
+                    break
+                n += 1
+            has_open = any(p.get("status") == "open"
+                           for p in self.registry["pins"])
+            if n >= 4 and has_open:
+                return {"commits": n,
+                        "round": self.registry.get("round", 0)}
+            return None
+
     def pin_debt(self, queued=False):
         """Open/answered pins with age in rounds and how often their
         target changed since asking (v0.2 PIN_DEBT — clone of the
@@ -8485,7 +8591,9 @@ class ServerApp:
                     "short_id": record["short_id"],
                     "branch": record["branch"],
                     "summary": record["summary"],
-                    "tripwires": record["tripwires"]}
+                    "tripwires": record["tripwires"],
+                    "tripwires_muted": record.get("tripwires_muted") or [],
+                    "round_stall": self.store.round_stall()}
         if path == "/api/apply":
             cadence = self.store.config.get("canvas_updates", "per-round")
             ops = body.get("ops") or []
@@ -8558,6 +8666,8 @@ class ServerApp:
                     # tripwires fired by THIS batch — visible at fire time,
                     # not rounds later via status (v0.3 assessment bug)
                     "tripwires": record.get("tripwires") or [],
+                    "tripwires_muted": record.get("tripwires_muted") or [],
+                    "round_stall": self.store.round_stall(),
                     # a user save toasts its branch and an agent revision
                     # named none, so the product already held that a
                     # non-main write should say so and applied it to one
@@ -9347,14 +9457,37 @@ def cmd_pending(args):
     return 0
 
 
+# Event types by originator (WP5/r4-6). The live log was 87.5% the
+# agent's own `agent_revision` echoes — undocumented — and an agent that
+# does not filter narrates its own drawing back as the user's move.
+USER_EVENT_TYPES = frozenset({
+    "save", "pin_answer", "tripwire_answer", "checkout", "checkout_live",
+    "branch_switch", "branch_archive", "suggest_view", "config_changed"})
+AGENT_EVENT_TYPES = frozenset({
+    "agent_revision", "agent_pending", "agent_revision_discarded",
+    "agent_revision_failed"})
+
+
 def cmd_wait(args):
     """Tier-3 bounded long-poll. Self-terminates strictly under Bash's 600s
-    ceiling. Exit 0 = events printed; exit 3 = timed out with none."""
+    ceiling. Exit 0 = events printed; exit 3 = timed out with none.
+
+    ``--for user`` (the default an agent wants) skips the agent's own
+    echoes; ``--types a,b`` pins exact types. Unfiltered, the first
+    event a fresh watch reported in run 4 was the agent's own revision.
+    """
     project = Project(args.project)
     state = project.read_state()
     if not server_alive(state):
         die("ERROR=no running server — run canvas.py start first. Grilling "
             "can continue verbally in the meantime.", 3)
+    wanted = None
+    if getattr(args, "types", None):
+        wanted = {t.strip() for t in args.types.split(",") if t.strip()}
+    elif getattr(args, "for_whom", "any") == "user":
+        wanted = set(USER_EVENT_TYPES) | {"reconciliation"}
+    elif getattr(args, "for_whom", "any") == "agent":
+        wanted = set(AGENT_EVENT_TYPES)
     since = args.since
     if since is None:
         try:
@@ -9375,8 +9508,10 @@ def cmd_wait(args):
             die("ERROR=server went away mid-wait (%s). Run canvas.py start "
                 "to relaunch; state is safe on disk." % e, 3)
         for ev in resp.get("events") or []:
-            print(json.dumps(ev, ensure_ascii=False))
             since = max(since, ev["seq"])
+            if wanted is not None and ev.get("type") not in wanted:
+                continue
+            print(json.dumps(ev, ensure_ascii=False))
             got = True
         if got:
             return 0
@@ -9503,6 +9638,8 @@ def cmd_apply(args):
                    "layout_notes": lint["notes"]})
     _print_standing({"branch": record.get("branch"),
                      "tripwires": record.get("tripwires"),
+                     "tripwires_muted": record.get("tripwires_muted"),
+                     "round_stall": store.round_stall(),
                      "open_tripwires": store.open_tripwires(),
                      "lint_debt": store.lint_debt(),
                      "pin_debt": store.pin_debt()})
@@ -9543,6 +9680,17 @@ def _print_standing(resp):
         print_kv(branch=resp["branch"])
     for t in resp.get("tripwires") or []:
         print("TRIPWIRE=%s %s" % (t.get("id", "?"), t.get("question", "")))
+    rs = resp.get("round_stall")
+    if rs:
+        print("ROUND_STALL=%d commits since the user's last canvas save, "
+              "with questions open — if their moves arrived in chat, "
+              "advance the round: {\"op\": \"registry\", \"action\": "
+              "\"set_round\", \"round\": %d}"
+              % (rs["commits"], rs["round"] + 1))
+    for msg in resp.get("tripwires_muted") or []:
+        # WP5 (D10): a rename swallowed by a divergence ruling is armed
+        # silence — visible, while the ruling still holds
+        print("TRIPWIRE_MUTED=%s" % msg)
     standing = resp.get("open_tripwires") or []
     for t in standing[:STANDING_TRIPWIRE_CAP]:
         print("OPEN_TRIPWIRE=%s %s" % (t.get("id", "?"),
@@ -10025,6 +10173,13 @@ def main(argv=None):
                    help="event seq to wait after (default: now)")
     p.add_argument("--timeout", type=int, default=540,
                    help="max seconds to wait (hard-capped at 540)")
+    p.add_argument("--for", dest="for_whom", default="user",
+                   choices=("user", "agent", "any"),
+                   help="whose events wake you (default user — your own "
+                        "agent_revision echoes are skipped)")
+    p.add_argument("--types", default=None,
+                   help="comma-separated exact event types (overrides "
+                        "--for)")
     p = sub.add_parser("export", help="write an artifact to SVG, optionally "
                                       "carrying its tooltips as footnotes")
     p.add_argument("--artifact", default=None)

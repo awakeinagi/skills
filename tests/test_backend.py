@@ -6339,7 +6339,7 @@ class TestRouterTotalityAndSelfLoops(Base):
         # whole with an ERROR naming the op — never a traceback.
         self.store.apply_batch({
             "base_revn": 0,
-            "create": {"id": "f", "artifact_type": "flow",
+            "create": {"id": "f", "type": "flow",
                        "concept": "c", "name": "F"},
             "ops": [{"op": "add", "element": {
                 "id": "n1", "type": "rectangle", "x": 0, "y": 0,
@@ -6374,7 +6374,7 @@ class TestRouterTotalityAndSelfLoops(Base):
         # enveloped message instead.
         self.store.apply_batch({
             "base_revn": 0,
-            "create": {"id": "f", "artifact_type": "flow",
+            "create": {"id": "f", "type": "flow",
                        "concept": "c", "name": "F"},
             "ops": [{"op": "add", "element": {
                 "id": "n1", "type": "rectangle", "x": 0, "y": 0,
@@ -6413,7 +6413,7 @@ class TestReferentialIntegrity(Base):
         """
         self.store.apply_batch({
             "base_revn": 0,
-            "create": {"id": "f", "artifact_type": "flow",
+            "create": {"id": "f", "type": "flow",
                        "concept": "c", "name": "F"},
             "ops": [
                 {"op": "add", "element": {
@@ -6556,7 +6556,7 @@ class TestComposedReconciliation(Base):
         """Seed a wireframe with a checked checkbox and a 70% slider."""
         self.store.apply_batch({
             "base_revn": 0,
-            "create": {"id": "w", "artifact_type": "wireframe",
+            "create": {"id": "w", "type": "wireframe",
                        "concept": "c", "name": "W"},
             "ops": [
                 {"op": "add", "element": {
@@ -6811,6 +6811,140 @@ class TestPictureIsTheTruth(Base):
         travel = canvas._toggle_thumb_x(el, True) - \
             canvas._toggle_thumb_x(el, False)
         self.assertGreaterEqual(travel, 16)
+
+
+class TestEventLoopAndRounds(Base):
+    """WP5 (r4-3, r4-6, D9, D10): the loop's substrate — event taxonomy,
+    the chat-only round stall, and the nags that arm the mechanisms."""
+
+    def test_event_taxonomy_covers_every_emitted_type(self):
+        # Self-checking against the source: every events.append("type")
+        # in canvas.py must be classified user/agent/system — an
+        # unclassified type is the r4-6 gap reopening (agent_revision
+        # was 87% of live traffic and documented nowhere).
+        src = (Path(canvas.__file__)).read_text(encoding="utf-8")
+        emitted = set(re.findall(
+            r'(?:events|self\.events)\.append\(\s*"([a-z_]+)"', src))
+        classified = set(canvas.USER_EVENT_TYPES) | \
+            set(canvas.AGENT_EVENT_TYPES) | \
+            {"server_started", "reconciliation"}
+        self.assertTrue(emitted, "taxonomy scan found no emissions")
+        unclassified = emitted - classified
+        self.assertFalse(unclassified,
+                         "event types with no owner: %r" % unclassified)
+
+    def seed_round_stall(self):
+        """One artifact, one open pin, then N agent-only commits."""
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                    "width": 100, "height": 50, "label": "A"}},
+                {"op": "pin", "target": "n1",
+                 "question": "does A really start the run?"}]})
+        for k in range(3):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "f",
+                "ops": [{"op": "mod", "id": "n1",
+                         "attrs": {"x": 10 * (k + 1)}}]})
+
+    def test_round_stall_fires_after_agent_only_run(self):
+        self.seed_round_stall()
+        rs = self.store.round_stall()
+        self.assertIsNotNone(rs)
+        self.assertGreaterEqual(rs["commits"], 4)
+
+    def test_round_stall_resets_on_user_save_and_needs_open_pins(self):
+        self.seed_round_stall()
+        els = [json.loads(json.dumps(e)) for e in self.store.scenes["f"]]
+        els.append({"id": "note-u", "type": "text", "text": "hm",
+                    "x": 300, "y": 300, "width": 40, "height": 18,
+                    "customData": {"role": "annotation",
+                                   "author": "user"}})
+        self.store.commit(author="user", new_scenes={"f": els},
+                          base_revn=self.store.head_revn())
+        self.assertIsNone(self.store.round_stall())
+
+    def test_set_round_validates_instead_of_silently_ignoring(self):
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [{"op": "add", "element": {
+                "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "A"}}]})
+        with self.assertRaises(canvas.BatchError) as ctx:
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "f",
+                "ops": [{"op": "registry", "action": "set_round",
+                         "round": "four"}]})
+        self.assertIn("must be an integer", str(ctx.exception))
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "f",
+            "ops": [{"op": "registry", "action": "set_round",
+                     "round": 7}]})
+        self.assertEqual(self.store.registry["round"], 7)
+
+    def test_unmapped_kpi_nags_and_mapped_stays_quiet(self):
+        # D9 both directions: tripwire coverage is exactly as good as
+        # the mapping discipline, so an unarmed KPI must nag while a
+        # flow exists — and go quiet once mapped.
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "flow1", "type": "flow",
+                       "concept": "c", "name": "Flow"},
+            "ops": [{"op": "add", "element": {
+                "id": "risk", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "Risk model"}}]})
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "create": {"id": "dash", "type": "wireframe",
+                       "concept": "c2", "name": "Dash"},
+            "ops": [{"op": "add", "element": {
+                "id": "kpi-var", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 90, "label": "VaR",
+                "kind": "kpi", "value": "2.4%"}}]})
+        types = {a: self.store.artifact_type(a) for a in self.store.scenes}
+        cross = canvas.cross_lint(self.store.scenes, types,
+                                  self.store.registry, [])
+        notes = (cross.get("dash") or {}).get("notes") or []
+        self.assertTrue(any("KPI tile(s) unmapped" in n for n in notes),
+                        cross)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dash",
+            "ops": [{"op": "registry", "action": "add_mapping",
+                     "concept": "c",
+                     "elements": ["dash#kpi-var", "flow1#risk"]}]})
+        cross2 = canvas.cross_lint(self.store.scenes, types,
+                                   self.store.registry, [])
+        notes2 = (cross2.get("dash") or {}).get("notes") or []
+        self.assertFalse(any("KPI tile(s) unmapped" in n for n in notes2),
+                         cross2)
+
+    def test_muted_rename_is_named_while_the_ruling_holds(self):
+        # D10: a rename swallowed by a value-scoped divergence ruling is
+        # armed silence — it must surface as tripwires_muted, with no
+        # tripwire fired and the ruling intact.
+        self.test_unmapped_kpi_nags_and_mapped_stays_quiet()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dash",
+            "ops": [{"op": "registry", "action": "annotate_mapping",
+                     "index": 0,
+                     "note": "intentionally-divergent: tile wording "
+                             "belongs to the screen",
+                     "kinds": ["label_renamed", "renamed",
+                               "value_changed"]}]})
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dash",
+            "ops": [{"op": "mod", "id": "kpi-var",
+                     "attrs": {"label": "Excess Return"}}]})
+        self.assertEqual(rec["tripwires"], [])
+        muted = rec.get("tripwires_muted") or []
+        self.assertTrue(any("scopes naming out" in m for m in muted),
+                        rec)
 
 
 if __name__ == "__main__":
