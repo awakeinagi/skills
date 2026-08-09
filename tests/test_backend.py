@@ -4636,6 +4636,52 @@ class TestArrowLabelAnchor(Base):
         self.assertGreaterEqual(svg.count("fill='%s'" % canvas.SVG_GROUND), 2)
 
 
+class TestAssessorUserEdits(Base):
+    """The user-shaped elements `x-as-user` posts (v0.6).
+
+    The capability assessment rebuilt these by hand every run, and a
+    hand-rolled shape that drifts from what the client posts quietly
+    invalidates every behavioural finding built on it. Pinning them here
+    is also the point: the suite covers agent op batches heavily and
+    user-authored edits barely at all.
+    """
+
+    def commit(self, extra):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "a", "kind": "step",
+                "label": "Ingest", "x": 100, "y": 100}}]})
+        els = [dict(e) for e in self.store.scenes["f"]] + extra
+        return self.store.commit(author="user", new_scenes={"f": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_a_user_note_lands_as_a_note(self):
+        rec = self.commit(canvas._x_user_note("crowded trades", 40, 400))
+        verbs = rec["summary"]["verb_counts"]
+        self.assertIn("added", verbs)
+        note = next(e for e in self.store.scenes["f"]
+                    if (e.get("customData") or {}).get("role") == "note")
+        self.assertEqual(note["customData"]["author"], "user")
+
+    def test_a_user_pin_registers_as_a_question(self):
+        rec = self.commit([canvas._x_user_pin("a", "does this see the "
+                                              "book?", 300, 90)])
+        self.assertIn("pin_added", rec["summary"]["verb_counts"])
+        self.assertTrue(any(p.get("question", "").startswith("does this")
+                            for p in self.store.registry.get("pins") or []))
+
+    def test_user_elements_carry_the_author_stamp(self):
+        # the off-grid lint skips user elements on this stamp alone, so a
+        # missing one turns every simulated user edit into agent sloppiness
+        for el in [*canvas._x_user_note("x", 7, 9),
+                   canvas._x_user_pin("a", "q?", 3, 5)]:
+            self.assertEqual((el.get("customData") or {}).get("author"),
+                             "user", el["id"])
+
+
 class TestGlossaryAlias(Base):
     """One concept, two names, split by audience (v0.6).
 

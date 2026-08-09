@@ -8254,6 +8254,272 @@ def cmd_snapshot(args):
     return 0
 
 
+# ---------------------------------------------------------------------
+# Assessor namespace (`x-*`). Deliberately absent from `--help`, from
+# SKILL.md and from every reference file.
+#
+# The capability assessment plays a human against the agent for a whole
+# session, and its findings only mean anything if the agent behaves as it
+# would in a real one — the best signals of the v0.5 round were an agent
+# noticing a silently-flipped cadence and superseding a queued batch
+# rather than stacking one. An agent that can see the harness is an agent
+# performing for it. These commands exist so the assessor stops
+# hand-rolling the save protocol (and silently drifting from what the
+# real client posts), not to give the agent new powers: `x-pending
+# --apply` in particular must never be public, because applying a held
+# revision is the USER's decision and a self-applying agent voids the
+# whole `pulled` cadence contract.
+# ---------------------------------------------------------------------
+
+def _x_client(args):
+    """Resolve the running server for an assessor command.
+
+    Args:
+        args: Parsed CLI args carrying `project`.
+
+    Returns:
+        `(project, state)` for a live server; exits 3 otherwise.
+    """
+    project = Project(args.project)
+    state = project.read_state()
+    if not server_alive(state):
+        die("ERROR=server unreachable — run canvas.py start", 3)
+    return project, state
+
+
+def cmd_x_pending(args):
+    """Resolve a held revision the way the banner's buttons do.
+
+    `pending --discard` shipped in v0.5; Apply-now and After-I-save did
+    not, so the assessment drove them by hunting the button through a
+    real browser — the slowest and flakiest step in the loop, and one
+    where a failed click and a failed apply look identical.
+
+    Args:
+        args: Parsed CLI args — `project`, `apply`, `defer`.
+
+    Returns:
+        Process exit code.
+    """
+    _, state = _x_client(args)
+    pid = args.apply if args.apply is not None else args.defer
+    action = "apply_now" if args.apply is not None else "after_save"
+    if pid is None:
+        die("ERROR=pass --apply ID or --defer ID", 2)
+    try:
+        resp = http_json(state["url"] + "api/pending/resolve",
+                         payload={"id": pid, "action": action})
+    except urllib.error.HTTPError as e:
+        try:
+            payload = json.loads(e.read().decode("utf-8"))
+        except ValueError:
+            payload = {"error": str(e)}
+        die("ERROR=%s" % payload.get("error", str(e)), 5)
+    print_kv(resolved=pid, action=action, revn=resp.get("revn"))
+    return 0
+
+
+def cmd_x_geometry(args):
+    """Print each element's box, and where bound labels are really drawn.
+
+    Falls out of `arrow_label_anchor`. The stored position of a label
+    bound to an arrow is not where the client paints it, and measuring
+    the wrong one is how a label sitting inside a foreign box linted
+    clean for a whole session — then how the assessor's own hand-rolled
+    remeasurement produced two confident false overlaps. Derive it from
+    the same helper the renderer and the lints use, or don't derive it.
+
+    Args:
+        args: Parsed CLI args — `project`, `artifact`, `diff`.
+
+    Returns:
+        Process exit code.
+    """
+    project = Project(args.project)
+    store = Store(project)
+    aid = args.artifact or (next(iter(store.scenes))
+                            if len(store.scenes) == 1 else None)
+    if aid not in store.scenes:
+        die("ERROR=--artifact required (known: %s)"
+            % (", ".join(sorted(store.scenes)) or "none"), 2)
+    els = store.scenes[aid]
+    ix = {e["id"]: e for e in els}
+    for e in els:
+        cont = ix.get(e.get("containerId"))
+        drawn = None
+        if e.get("type") == "text" and cont is not None and \
+                cont.get("type") in ("arrow", "line"):
+            drawn = arrow_label_anchor(cont, e)
+        if args.diff and drawn is None:
+            continue
+        row = "%-24s %-10s (%d,%d) %dx%d" % (
+            e["id"][:24], e.get("type", "?"), e.get("x", 0), e.get("y", 0),
+            e.get("width", 0), e.get("height", 0))
+        if drawn is not None:
+            dx = ((e["x"] - drawn[0]) ** 2 + (e["y"] - drawn[1]) ** 2) ** 0.5
+            row += "  drawn=(%d,%d) drift=%dpx" % (drawn[0], drawn[1], dx)
+        print(row)
+    return 0
+
+
+def _x_user_note(text, x, y, w=230, h=90):
+    """A user's sticky note, shaped exactly as the client posts one.
+
+    Args:
+        text: Note body.
+        x: Left edge.
+        y: Top edge.
+        w: Width.
+        h: Height.
+
+    Returns:
+        `[rectangle, bound text]`, both stamped `author: "user"`.
+    """
+    nid = "usernote-" + hashlib.sha1(
+        text.encode("utf-8")).hexdigest()[:8]
+    rect = dict(BASE_DEFAULTS)
+    rect.update({
+        "id": nid, "type": "rectangle", "x": x, "y": y, "width": w,
+        "height": h, "strokeColor": "#b8860b",
+        "backgroundColor": "#fff8dc", "fillStyle": "solid",
+        "boundElements": [{"id": nid + "-t", "type": "text"}],
+        "customData": {"role": "note", "author": "user"}})
+    lbl = dict(BASE_DEFAULTS)
+    lbl.update({
+        "id": nid + "-t", "type": "text", "x": x + 8, "y": y + 8,
+        "width": w - 16, "height": h - 16, "text": text,
+        "originalText": text, "fontSize": 14, "fontFamily": FONT_LEGIBLE,
+        "textAlign": "left", "verticalAlign": "top", "lineHeight": 1.25,
+        "containerId": nid, "autoResize": False,
+        "customData": {"role": "note-text", "author": "user"}})
+    return [rect, lbl]
+
+
+def _x_user_pin(target, question, x, y):
+    """A user-authored `❓ ask` pin, as the rail's button posts it.
+
+    Args:
+        target: Element id the question is about.
+        question: The question text.
+        x: Left edge of the glyph.
+        y: Top edge of the glyph.
+
+    Returns:
+        A single text element carrying the pin's `customData`.
+    """
+    el = dict(BASE_DEFAULTS)
+    el.update({
+        "id": "pin-user-" + hashlib.sha1(
+            question.encode("utf-8")).hexdigest()[:8],
+        "type": "text", "x": x, "y": y, "width": 26, "height": 26,
+        "text": "❓", "originalText": "❓", "fontSize": 20,
+        "fontFamily": FONT_LEGIBLE, "textAlign": "center",
+        "strokeColor": "#b45309", "autoResize": True,
+        "customData": {"role": "pin", "author": "user", "target": target,
+                       "question": question, "status": "open",
+                       "answer": None}})
+    return el
+
+
+def cmd_x_as_user(args):
+    """Edit the canvas as the user, through the client's own save path.
+
+    The assessment has rebuilt this by hand every run: fetch the scene,
+    mutate the element list, re-post it with `base_revn`. That is fine
+    until the real client starts stamping a field the hand-rolled version
+    does not, at which point the "user edits" driving every behavioural
+    finding quietly stop being user edits and nothing says so. It is also
+    the missing test-fixture builder — the backend suite covers agent op
+    batches heavily and user-authored edits barely at all, yet every
+    interesting v0.6 result (a nudge that must not fire a tripwire, a
+    tooltip edit that must not either) is a user edit.
+
+    Args:
+        args: Parsed CLI args — `project`, `verb`, and the verb's operands.
+
+    Returns:
+        Process exit code.
+    """
+    _, state = _x_client(args)
+    url = state["url"]
+    verb = args.verb
+    if verb == "answer":
+        http_json(url + "api/pins/answer",
+                  payload={"id": args.target, "answer": args.text})
+        print_kv(answered=args.target)
+        return 0
+    if verb == "config":
+        key, _, val = (args.text or "").partition("=")
+        if not key or not val:
+            die("ERROR=config wants key=value", 2)
+        http_json(url + "api/config", payload={"patch": {key: val}})
+        print_kv(config=key, value=val)
+        return 0
+    if verb == "checkout":
+        http_json(url + "api/checkout", payload={"revn": int(args.target)})
+        print_kv(checked_out=args.target)
+        return 0
+    aid = args.artifact
+    if not aid:
+        die("ERROR=--artifact required", 2)
+    try:
+        els = http_json(url + "api/artifact/" + aid,
+                        timeout=10.0)["elements"]
+    except (OSError, ValueError, urllib.error.URLError) as e:
+        die("ERROR=could not read artifact %r (%s)" % (aid, e), 2)
+    ix = {e["id"]: e for e in els}
+    if verb == "rename":
+        lbl = next((t for t in els if t.get("type") == "text"
+                    and t.get("containerId") == args.target), None)
+        if lbl is None and ix.get(args.target, {}).get("type") == "text":
+            lbl = ix[args.target]
+        if lbl is None:
+            die("ERROR=no label on %r" % args.target, 2)
+        lbl["text"] = lbl["originalText"] = args.text
+    elif verb == "move":
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        for other in els:
+            if other is el or other.get("containerId") == el["id"] or \
+                    other.get("frameId") == el["id"]:
+                other["x"] = other.get("x", 0) + args.dx
+                other["y"] = other.get("y", 0) + args.dy
+    elif verb == "delete":
+        drop = set(args.target.split(","))
+        els = [e for e in els if e["id"] not in drop
+               and e.get("containerId") not in drop]
+    elif verb == "tooltip":
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        cd = dict(el.get("customData") or {})
+        cd["tooltip"] = args.text
+        el["customData"] = cd
+    elif verb == "note":
+        els = els + _x_user_note(args.text, args.dx or 600, args.dy or 700)
+    elif verb == "ask":
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        els = [*els, _x_user_pin(args.target, args.text,
+                                 el.get("x", 0) + el.get("width", 0) + 8,
+                                 el.get("y", 0) - 8)]
+    else:
+        die("ERROR=unknown verb %r" % verb, 2)
+    body = {"scenes": {aid: els},
+            "base_revn": http_json(url + "api/state")["head_revn"]}
+    if args.note:
+        body["note"] = args.note
+    try:
+        r = http_json(url + "api/save", payload=body, timeout=30.0)
+    except urllib.error.HTTPError as e:
+        die("ERROR=%s" % e, 5)
+    print_kv(revn=r.get("revn"), headline=(r.get("summary") or {})
+             .get("headline"), tripwires=len(r.get("tripwires") or []))
+    return 0
+
+
 def cmd_serve(args):
     project = Project(args.project)
     project.ensure_tree()
@@ -8267,7 +8533,10 @@ def main(argv=None):
         description="WYSIWYG Grilling — local canvas server + agent CLI")
     parser.add_argument("--project", default=".",
                         help="target project root (default: cwd)")
-    sub = parser.add_subparsers(dest="cmd")
+    # metavar, not the default brace-list: argparse.SUPPRESS keeps a
+    # subcommand out of the help LISTING but still prints it in the usage
+    # line, which would advertise the assessor namespace it exists to hide
+    sub = parser.add_subparsers(dest="cmd", metavar="<command>")
 
     p = sub.add_parser("start", help="launch or reuse the detached server")
     p.add_argument("--no-browser", action="store_true")
@@ -8297,6 +8566,28 @@ def main(argv=None):
                                        "user's banner")
     p.add_argument("--discard", type=int, default=None,
                    help="drop a queued revision by id")
+    # assessor namespace. Omitting `help=` is what hides a subcommand:
+    # argparse only lists parsers that were given one, and passing
+    # argparse.SUPPRESS prints the literal "==SUPPRESS==" rather than
+    # hiding anything. See the block above cmd_x_pending for why it
+    # matters that these stay invisible.
+    p = sub.add_parser("x-pending")
+    p.add_argument("--apply", type=int, default=None)
+    p.add_argument("--defer", type=int, default=None)
+    p = sub.add_parser("x-geometry")
+    p.add_argument("--artifact")
+    p.add_argument("--diff", action="store_true")
+    p = sub.add_parser("x-as-user")
+    p.add_argument("verb", choices=["rename", "move", "delete", "note",
+                                    "ask", "tooltip", "answer", "config",
+                                    "checkout"])
+    p.add_argument("--artifact")
+    p.add_argument("--target", default="")
+    p.add_argument("--text", default="")
+    p.add_argument("--dx", type=int, default=0)
+    p.add_argument("--dy", type=int, default=0)
+    p.add_argument("--note", default=None)
+
     p = sub.add_parser("apply", help="apply a typed op batch (agent draws)")
     p.add_argument("--file", help="JSON batch file (default: stdin)")
     p.add_argument("--check", action="store_true",
@@ -8331,6 +8622,9 @@ def main(argv=None):
         "pending": cmd_pending, "screenshot": cmd_snapshot,
         "snapshot": cmd_snapshot,
         "serve": cmd_serve,
+        # assessor namespace, undocumented on purpose
+        "x-pending": cmd_x_pending, "x-geometry": cmd_x_geometry,
+        "x-as-user": cmd_x_as_user,
     }
     if args.cmd not in handlers:
         parser.print_help()
