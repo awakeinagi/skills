@@ -16,7 +16,8 @@ with the pinned `@playwright/test`; regenerate with
 ## Homes
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
-  reconciliation, composed-part invariants, metrics. 388 tests.
+  reconciliation, composed-part invariants, metrics, mermaid mapping.
+  402 tests.
 - **e2e-dom** — React chrome: rail, cards, modals, banners, overlays.
 - **e2e-flow** — round-trips that cross the browser AND the server.
 - **e2e-visual** — canvas-rendered pixels (`toHaveScreenshot`).
@@ -48,7 +49,7 @@ with the pinned `@playwright/test`; regenerate with
 | R2-11/r3-1 marker on diamond | unittest | `TestMarkerAnchor` |
 | Stale-save 409 banner | e2e-dom (planned, run 5) | needs a second browser context |
 | Branch fork/archive chips | e2e-dom (planned, run 5) | checkout → draw → Fork & Save |
-| Mermaid seed render | e2e-visual (planned with WP9) | seed → snapshot |
+| Mermaid seed (WP9) | e2e-flow | `mermaid.spec` — CLI seed through the LIVE tab handshake (`--no-headless` so a fallback can't mask it), semantic slugs + self-loop on disk; import dialog → user Save. Skeleton→op mapping itself is unittest (`TestMermaidSeeding`, captured fixture) |
 
 Rows marked *planned* are the run-5 requirements list — add the spec
 when the surface ships or the beat is scripted, and extend this table;

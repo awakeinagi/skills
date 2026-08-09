@@ -441,6 +441,14 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;
 }
 .modal-foot button:hover { border-color: var(--agent); }
+.mermaid-modal .modal-foot { gap: 8px; }
+.mermaid-input {
+  width: 100%; min-height: 220px; margin-top: 10px; resize: vertical;
+  background: var(--chrome-3); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.mermaid-input:focus { outline: none; border-color: var(--agent); }
 
 /* ---------- empty state ---------- */
 .empty-state {
