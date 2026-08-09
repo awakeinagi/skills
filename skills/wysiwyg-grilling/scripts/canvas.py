@@ -23,6 +23,7 @@ import copy
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -1886,7 +1887,25 @@ def _route_candidates(src, dst):
         if abs(ax - bx) <= 0.5 and abs(ay - by) <= 0.5:
             bx = ax + 24.0
         out.append([(ax, ay), (bx, by)])
-    return out
+
+    # A candidate whose ELBOW lands strictly inside either endpoint box
+    # draws its final approach through the box interior — the L_v shape
+    # did exactly that whenever the source centre sat within the
+    # destination's x-span (found by the first mermaid-seeded dagre
+    # layout, v0.8: the "no" branch entered its target through the top
+    # face and ran 74px inside it to reach the left face). Endpoints
+    # stay exempt: they live ON the border by construction. Straight
+    # candidates and the degenerate stub carry no intermediates, so the
+    # filter cannot empty the list for overlapping boxes; the `or out`
+    # keeps routing total regardless.
+    def interior(p, x1, y1, x2, y2):
+        return x1 + 1 < p[0] < x2 - 1 and y1 + 1 < p[1] < y2 - 1
+
+    routed = [path for path in out
+              if not any(interior(p, sx1, sy1, sx2, sy2) or
+                         interior(p, dx1, dy1, dx2, dy2)
+                         for p in path[1:-1])]
+    return routed or out
 
 
 def _segs_cross(ax, ay, bx, by, cx, cy, dx, dy):
@@ -2135,6 +2154,27 @@ def fan_attach_points(els):
                     [exx - sx, exy - sy]]
         return [[0, 0], [exx - sx, exy - sy]]
 
+    def _corner_interior(a, ax, ay, pts):
+        # v0.8: the invariant router candidates already obey — an elbow
+        # strictly inside either endpoint box draws the approach through
+        # the box. The fan could undo the router's work: sliding one end
+        # of an L along its edge drags the corner sideways, and on the
+        # argus mermaid seed that put it 16px inside the SOURCE (the
+        # `keep` exemption in _fan_hits hides endpoint boxes, rightly,
+        # so this needs its own check).
+        if len(pts) != 3:
+            return False
+        cx, cy = ax + pts[1][0], ay + pts[1][1]
+        for key in ("startBinding", "endBinding"):
+            node = ix.get((a.get(key) or {}).get("elementId"))
+            if node is None:
+                continue
+            if node["x"] + 1 < cx < node["x"] + node.get("width", 0) - 1 \
+                    and node["y"] + 1 < cy < \
+                    node["y"] + node.get("height", 0) - 1:
+                return True
+        return False
+
     for aid, e2 in ends.items():
         a = ix[aid]
         (sx, sy), (exx, exy) = e2["start"], e2["end"]
@@ -2142,7 +2182,8 @@ def fan_attach_points(els):
         old_x, old_y = a["x"], a["y"]
         pts = _elbowed_pts(a, sx, sy, exx, exy)
         base_hits = _fan_hits(a, old_x, old_y, old)
-        if _fan_hits(a, sx, sy, pts) > base_hits:
+        if _fan_hits(a, sx, sy, pts) > base_hits or \
+                _corner_interior(a, sx, sy, pts):
             # the ideal L*k/(N+1) slot pushes a segment through a foreign
             # box — slide the fanned end along its edge in 12px steps
             # toward safety before giving up (v0.3: the old bail left a
@@ -2162,7 +2203,8 @@ def fan_attach_points(els):
                     s2, e2b = ((p2, (exx, exy)) if which == "start"
                                else ((sx, sy), p2))
                     pts2 = _elbowed_pts(a, s2[0], s2[1], e2b[0], e2b[1])
-                    if _fan_hits(a, s2[0], s2[1], pts2) <= base_hits:
+                    if _fan_hits(a, s2[0], s2[1], pts2) <= base_hits and \
+                            not _corner_interior(a, s2[0], s2[1], pts2):
                         sx, sy = s2
                         exx, exy = e2b
                         pts = pts2
@@ -4910,37 +4952,51 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                        (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
             inside = 0 if outside else max(
                 min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
-            chord = 0.0
-            if not outside and inside > 2:
+            run = 0.0
+            if not outside:
+                # Interior run adjacent to the endpoint: walk the path
+                # from the bound end inward, summing each segment's
+                # STRICTLY-interior portion (1px in from the border, so
+                # fanned attach points and boundary-running approaches
+                # stay at zero — the r4-1 over-fire), stopping once the
+                # path leaves the box. The single-segment chord this
+                # replaces was blind to multi-elbow approaches and gated
+                # on a strictly-interior endpoint, so an arrow entering
+                # the top face and running 74px inside to a side-face
+                # endpoint measured clean (first mermaid-seeded dagre
+                # layout, v0.8).
                 pts = a.get("points") or []
-                if key == "startBinding":
-                    qx = a.get("x", 0) + (pts[1][0] if len(pts) > 1 else 0)
-                    qy = a.get("y", 0) + (pts[1][1] if len(pts) > 1 else 0)
-                else:
-                    qx = a.get("x", 0) + (pts[-2][0] if len(pts) > 1 else 0)
-                    qy = a.get("y", 0) + (pts[-2][1] if len(pts) > 1 else 0)
-                adx, ady = px - qx, py - qy
-                if (qx < gx1 or qx > gx2 or qy < gy1 or qy > gy2) and \
-                        (adx or ady):
-                    t_in = 0.0
-                    for lo, hi, dv, sv in ((gx1, gx2, adx, qx),
-                                           (gy1, gy2, ady, qy)):
-                        if dv > 0:
-                            t_in = max(t_in, (lo - sv) / dv)
-                        elif dv < 0:
-                            t_in = max(t_in, (hi - sv) / dv)
-                    t_in = max(0.0, min(1.0, t_in))
-                    ex_, ey_ = qx + adx * t_in, qy + ady * t_in
-                    chord = ((px - ex_) ** 2 + (py - ey_) ** 2) ** 0.5
-            if chord > TOL * 2 and inside <= TOL:
-                # crosses THROUGH: strictly interior endpoint, long
-                # interior run, yet near some far border — the r4-1
-                # silent case
+                seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
+                       for p in pts]
+                if key == "endBinding":
+                    seq = seq[::-1]
+                bx1, by1, bx2, by2 = gx1 + 1, gy1 + 1, gx2 - 1, gy2 - 1
+                for (p0x, p0y), (p1x, p1y) in zip(seq, seq[1:]):
+                    ddx, ddy = p1x - p0x, p1y - p0y
+                    t0, t1 = 0.0, 1.0
+                    for lo, hi, dv, sv in ((bx1, bx2, ddx, p0x),
+                                           (by1, by2, ddy, p0y)):
+                        if abs(dv) < 1e-9:
+                            if sv < lo or sv > hi:
+                                t0, t1 = 1.0, 0.0
+                            continue
+                        ta, tb = (lo - sv) / dv, (hi - sv) / dv
+                        if ta > tb:
+                            ta, tb = tb, ta
+                        t0, t1 = max(t0, ta), min(t1, tb)
+                    if t1 > t0:
+                        run += ((ddx * ddx + ddy * ddy) ** 0.5) * (t1 - t0)
+                    if not (bx1 <= p1x <= bx2 and by1 <= p1y <= by2):
+                        break   # the path has left the box
+            if run > TOL * 2 and inside <= TOL:
+                # crosses THROUGH: endpoint on or near the border, long
+                # interior approach — the r4-1 silent case and its
+                # multi-elbow sibling
                 msg = ("arrow %s enters %s and runs %dpx inside it "
                        "before stopping (%s point) — it reads as "
                        "crossing through the box; pull the endpoint "
                        "back to the border"
-                       % (a["id"], name(tgt["id"]), int(chord), side))
+                       % (a["id"], name(tgt["id"]), int(run), side))
                 if not server_owns_geometry(a):
                     warnings.append(
                         "user-shaped " + msg +
@@ -8407,6 +8463,8 @@ class ServerApp:
         self.lock = threading.RLock()
         self.shot_requests = {}
         self.shot_seq = 0
+        self.mermaid_requests = {}
+        self.mermaid_seq = 0
         self.httpd = None
         self.catchup_record = None
 
@@ -8549,6 +8607,10 @@ class ServerApp:
             "screenshot_requests": [
                 {"id": k, "artifact": v["artifact"]}
                 for k, v in self.shot_requests.items()
+                if v.get("status") == "waiting"],
+            "mermaid_requests": [
+                {"id": k, "definition": v["definition"]}
+                for k, v in self.mermaid_requests.items()
                 if v.get("status") == "waiting"],
         })
         return st
@@ -8840,6 +8902,42 @@ class ServerApp:
             req["status"] = "done"
             req["path"] = str(out)
             return {"ok": True, "path": str(out)}
+        if path == "/api/mermaid/request":
+            # WP9 seeding handshake — a clone of the screenshot one: the
+            # server cannot run the mermaid converter (stdlib-only), so a
+            # connected tab (or a self-launched headless one) does, and
+            # posts the element SKELETONS back for the CLI to map to ops
+            definition = (body.get("definition") or "").strip()
+            if not definition:
+                return err(400, "definition required — the mermaid text")
+            with self.lock:
+                self.mermaid_seq += 1
+                mid = self.mermaid_seq
+                self.mermaid_requests[mid] = {
+                    "definition": definition, "status": "waiting",
+                    "elements": None, "error": None}
+            return {"ok": True, "id": mid}
+        if path == "/api/mermaid/complete":
+            mid = body.get("id")
+            req = self.mermaid_requests.get(mid)
+            if req is None:
+                return err(404, "no mermaid request %r" % mid)
+            if body.get("error"):
+                req["status"] = "error"
+                req["error"] = str(body["error"])
+                return {"ok": True}
+            els = body.get("elements")
+            if not isinstance(els, list):
+                return err(400, "elements must be a skeleton list")
+            req["status"] = "done"
+            req["elements"] = els
+            return {"ok": True}
+        if path == "/api/mermaid/poll":
+            req = self.mermaid_requests.get(body.get("id"))
+            if req is None:
+                return err(404, "no mermaid request %r" % body.get("id"))
+            return {"ok": True, "status": req["status"],
+                    "elements": req["elements"], "error": req["error"]}
         if path == "/api/shutdown":
             threading.Thread(target=self._shutdown, daemon=True).start()
             return {"ok": True, "bye": True}
@@ -9781,6 +9879,714 @@ def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
     return False, why
 
 
+# ---------------------------------------------------------------------
+# Mermaid seeding (v0.8, WP9). Two mapped types, chosen semantically:
+# flowchart → flow (the library's dagre layout is the prize — the
+# connected tab, or a headless one we launch, converts the text to
+# element skeletons and the mapper turns those into ordinary ops) and
+# erDiagram → domain (a pure text parse — attributes and cardinality
+# survive as grammar, which no geometry dump could carry, and no browser
+# is needed at all). Everything else is refused by name: sequence,
+# class and state convert natively in the library, but their output is
+# dead geometry to this skill's op grammar. A seed flows through apply
+# — lints, budgets, registry, save record, narration — never a raw
+# element dump, and it is seed-ONLY: once the batch lands, the drawing
+# is the truth and the mermaid text is never re-applied over it.
+# ---------------------------------------------------------------------
+
+MERMAID_MAPPED = {"flowchart": "flow", "graph": "flow",
+                  "erdiagram": "domain"}
+
+
+def mermaid_kind(text):
+    """First significant mermaid keyword, lowercased.
+
+    Skips ``---`` frontmatter blocks, ``%%`` comments and ``%%{...}``
+    directives, then reads the first word of the first real line —
+    ``flowchart TD`` → ``flowchart``, ``erDiagram`` → ``erdiagram``.
+
+    Args:
+        text: Raw mermaid source.
+
+    Returns:
+        The keyword, or "" for empty/comment-only input.
+    """
+    in_front = False
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line == "---":
+            in_front = not in_front
+            continue
+        if in_front or line.startswith("%%"):
+            continue
+        return line.split()[0].lower()
+    return ""
+
+
+def _sk_label(sk):
+    """Bound-label text of a converted skeleton, or "".
+
+    Args:
+        sk: One skeleton dict from ``parseMermaidToExcalidraw``.
+
+    Returns:
+        The stripped label text ("" when unlabeled).
+    """
+    lbl = sk.get("label")
+    if isinstance(lbl, dict):
+        return (lbl.get("text") or "").strip()
+    return ""
+
+
+# erDiagram grammar (the symbol form): `A ||--o{ B : label`, entity
+# attribute blocks `NAME { type name PK "comment" }`, quoted and
+# `key[Display]`-aliased entity names. The verbose word form ("one to
+# many") is deliberately unparsed — an unmappable line errors by text.
+_ER_NAME = r'(?:"[^"]+"|[A-Za-z][\w-]*(?:\[[^\]]+\])?)'
+_ER_REL = re.compile(
+    r'^(?P<a>%s)\s+(?P<lc>\|o|\|\||\}o|\}\|)(?:--|\.\.)'
+    r'(?P<rc>o\||\|\||o\{|\|\{)\s+(?P<b>%s)\s*:\s*'
+    r'(?P<lbl>"[^"]*"|[^\s{]+)\s*$' % (_ER_NAME, _ER_NAME))
+_ER_HEAD = re.compile(r'^(?P<n>%s)\s*\{$' % _ER_NAME)
+_ER_BARE = re.compile(r'^(?P<n>%s)$' % _ER_NAME)
+_ER_ATTR = re.compile(
+    r'^(?P<type>[\w()\[\]<>,.]+)\s+(?P<name>[\w-]+)'
+    r'(?P<keys>(?:\s+(?:PK|FK|UK))*)\s*(?:"(?P<comment>[^"]*)")?\s*$')
+_ER_CARD_L = {"|o": "0..1", "||": "1", "}o": "0..*", "}|": "1..*"}
+_ER_CARD_R = {"o|": "0..1", "||": "1", "o{": "0..*", "|{": "1..*"}
+
+
+def _er_name(tok):
+    """Split an erDiagram entity token into (reference key, display).
+
+    Args:
+        tok: The raw token — ``CUSTOMER``, ``"Line Item"`` or
+            ``p[Person]`` (alias form: relations reference ``p``).
+
+    Returns:
+        ``(key, display)`` strings.
+    """
+    if tok.startswith('"'):
+        inner = tok.strip('"')
+        return inner, inner
+    m = re.match(r"^([A-Za-z][\w-]*)\[([^\]]+)\]$", tok)
+    if m:
+        return m.group(1), m.group(2)
+    return tok, tok
+
+
+def _parse_mermaid_er(text):
+    """Parse erDiagram text into entities + relations, stdlib-only.
+
+    Args:
+        text: Raw mermaid source (first keyword ``erDiagram``).
+
+    Returns:
+        ``{"entities": {key: {"display", "attrs"}}, "relations": [...],
+        "errors": [...]}`` — attrs are dicts (type/name/keys/comment),
+        relations carry a/b keys, lc/rc cardinality tokens and label.
+        Any line the grammar can't map lands in errors verbatim; order
+        of first mention is preserved (it becomes the layout order).
+    """
+    entities = {}
+    relations = []
+    errors = []
+
+    def ensure(tok):
+        key, display = _er_name(tok)
+        if key not in entities:
+            entities[key] = {"display": display, "attrs": []}
+        elif display != key:
+            entities[key]["display"] = display
+        return key
+
+    block = None
+    in_front = False
+    for lineno, raw in enumerate((text or "").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("%%"):
+            continue
+        if line == "---":
+            in_front = not in_front
+            continue
+        if in_front:
+            continue
+        if block is not None:
+            if line == "}":
+                block = None
+                continue
+            m = _ER_ATTR.match(line)
+            if m:
+                entities[block]["attrs"].append({
+                    "type": m.group("type"), "name": m.group("name"),
+                    "keys": " ".join(m.group("keys").split()),
+                    "comment": m.group("comment") or ""})
+            else:
+                errors.append("line %d: not an attribute row I can "
+                              "map: %r" % (lineno, line))
+            continue
+        if line.lower() == "erdiagram":
+            continue
+        m = _ER_REL.match(line)
+        if m:
+            lbl = m.group("lbl").strip('"').strip()
+            relations.append({
+                "a": ensure(m.group("a")), "b": ensure(m.group("b")),
+                "lc": _ER_CARD_L[m.group("lc")],
+                "rc": _ER_CARD_R[m.group("rc")], "label": lbl})
+            continue
+        m = _ER_HEAD.match(line)
+        if m:
+            block = ensure(m.group("n"))
+            continue
+        m = _ER_BARE.match(line)
+        if m:
+            ensure(m.group("n"))
+            continue
+        errors.append("line %d: not an erDiagram statement I can map: "
+                      "%r (supported: `A ||--o{ B : label` relations, "
+                      "attribute blocks, entity declarations)"
+                      % (lineno, line))
+    return {"entities": entities, "relations": relations,
+            "errors": errors}
+
+
+def _er_seed_ops(parsed):
+    """Map a parsed erDiagram to domain-artifact ops.
+
+    Entities land on a declaration-order grid (the drawing is the truth
+    — drag to taste); ≤3 attribute rows stay visible per domain.md's
+    budget, the full typed list moves to the entity's tooltip.
+    Cardinality follows the reference: arrowhead on the many end only,
+    the many-side token joins the label ("places 0..*"), reflexive
+    relations keep the verb alone with cardinality in the tooltip.
+
+    Args:
+        parsed: Output of `_parse_mermaid_er` (errors already empty).
+
+    Returns:
+        A list of add ops (entities first, then relations).
+    """
+    existing = set()
+    ops = []
+    slug = {}
+    display_of = {}
+    ents = parsed["entities"]
+    cols = max(1, int(math.ceil(math.sqrt(len(ents)))))
+    for i, (key, ent) in enumerate(ents.items()):
+        eid = mint_id(ent["display"], "entity", existing)
+        slug[key] = eid
+        display_of[eid] = ent["display"]
+        spec = {"id": eid, "type": "rectangle", "role": "node",
+                "kind": "entity", "label": ent["display"],
+                "x": 80 + (i % cols) * 340, "y": 80 + (i // cols) * 260,
+                "width": 220, "height": 64}
+        attrs = ent["attrs"]
+        if attrs:
+            rows = [a["name"] + (" (%s)" % a["keys"] if a["keys"]
+                                 else "") for a in attrs]
+            spec["attributes"] = rows[:3]
+            spec["tooltip"] = "attributes:\n" + "\n".join(
+                "- %s %s%s%s" % (
+                    a["type"], a["name"],
+                    " " + a["keys"] if a["keys"] else "",
+                    ' — "%s"' % a["comment"] if a["comment"] else "")
+                for a in attrs)
+        ops.append({"op": "add", "element": spec})
+    for rel in parsed["relations"]:
+        a, b = slug[rel["a"]], slug[rel["b"]]
+        label = rel["label"]
+        if a != b and rel["rc"] != "1":
+            label = ("%s %s" % (label, rel["rc"])).strip()
+        spec = {"id": mint_id("r %s %s" % (a, rel["label"] or b),
+                              "arrow", existing),
+                "type": "arrow",
+                "startArrowhead": "arrow" if "*" in rel["lc"] else None,
+                "endArrowhead": "arrow" if "*" in rel["rc"] else None,
+                "tooltip": "cardinality: %s %s — %s %s"
+                           % (display_of[a], rel["lc"], rel["rc"],
+                              display_of[b])}
+        if label:
+            spec["label"] = label
+        ops.append({"op": "add", "element": spec, "from": a, "to": b})
+    return ops
+
+
+def _flow_seed_ops(skeletons):
+    """Map converted flowchart skeletons to flow-artifact ops.
+
+    The dagre positions are the point of the exercise — node geometry
+    is kept (shifted so the diagram starts at (80, 80)); edges become
+    bound arrows and re-route through this skill's own router, whose
+    obstacle passes and self-loop path supersede the source polylines.
+    Ids are minted as semantic slugs from labels, never the mermaid
+    one-letter ids. One level of subgraphs maps to frames.
+
+    Args:
+        skeletons: Skeleton list from ``parseMermaidToExcalidraw``.
+
+    Returns:
+        ``(ops, notes, errors)`` — errors non-empty means don't seed.
+    """
+    ops, notes, errors = [], [], []
+    existing = set()
+    slug, frame_slug = {}, {}
+    frames, nodes, arrows = [], [], []
+    dropped = 0
+    for sk in skeletons or []:
+        t = sk.get("type")
+        if t == "image":
+            # the library's failure mode is not an exception but a
+            # SILENT downgrade of the whole diagram to one picture
+            errors.append(
+                "the converter degraded this diagram to a picture (its "
+                "flowchart parser threw) — simplify the mermaid text "
+                "and retry; known trigger: subgraph blocks (library "
+                "2.2.2)")
+            return ops, notes, errors
+        if t == "arrow":
+            arrows.append(sk)
+        elif t in ("rectangle", "diamond", "ellipse"):
+            if not sk.get("id"):
+                dropped += 1     # e.g. a doublecircle's inner ring
+                continue
+            gids = sk.get("groupIds") or []
+            if gids and gids[0] == "subgraph_group_%s" % sk["id"]:
+                if len(gids) > 1:
+                    errors.append(
+                        "subgraph %r is nested — v0.8 maps one level "
+                        "of subgraphs to frames; flatten the diagram "
+                        "or drop the outer grouping"
+                        % (_sk_label(sk) or sk["id"]))
+                    continue
+                frames.append(sk)
+            else:
+                nodes.append(sk)
+        else:
+            dropped += 1
+    keep = frames + nodes
+    if not keep and not errors:
+        errors.append("the diagram converted to no mappable nodes")
+    if errors:
+        return ops, notes, errors
+    dx = 80 - min(s.get("x", 0) for s in keep)
+    dy = 80 - min(s.get("y", 0) for s in keep)
+
+    def snap(v):
+        # dagre emits sub-pixel float positions; the skill's layout
+        # doctrine (and its lint) wants the 4px grid
+        return int(round(v / 4.0) * 4)
+
+    for sk in frames:
+        fid = mint_id(_sk_label(sk) or sk["id"], "frame", existing)
+        frame_slug[sk["id"]] = fid
+        ops.append({"op": "add", "element": {
+            "id": fid, "type": "frame",
+            "label": _sk_label(sk) or sk["id"],
+            "x": snap(sk.get("x", 0) + dx),
+            "y": snap(sk.get("y", 0) + dy),
+            "width": snap(sk.get("width") or 200),
+            "height": snap(sk.get("height") or 120)}})
+    for sk in nodes:
+        label = _sk_label(sk)
+        nid = mint_id(label or sk["id"], "node", existing)
+        slug[sk["id"]] = nid
+        spec = {"id": nid, "type": sk["type"], "role": "node",
+                "x": snap(sk.get("x", 0) + dx),
+                "y": snap(sk.get("y", 0) + dy),
+                "width": snap(sk.get("width") or 160),
+                "height": snap(sk.get("height") or 60)}
+        if label:
+            spec["label"] = label
+        if sk.get("roundness"):     # round/stadium vertices stay rounded
+            spec["roundness"] = sk["roundness"]
+        gids = sk.get("groupIds") or []
+        if gids and gids[0].startswith("subgraph_group_"):
+            parent = gids[0][len("subgraph_group_"):]
+            if parent in frame_slug:
+                spec["frameId"] = frame_slug[parent]
+        ops.append({"op": "add", "element": spec})
+    for sk in arrows:
+        src = slug.get((sk.get("start") or {}).get("id"))
+        dst = slug.get((sk.get("end") or {}).get("id"))
+        if not src or not dst:
+            dropped += 1
+            continue
+        spec = {"id": mint_id("%s %s" % (src, dst), "arrow", existing),
+                "type": "arrow"}
+        label = _sk_label(sk)
+        if label:
+            spec["label"] = label
+        if sk.get("strokeStyle") == "dashed":
+            spec["strokeStyle"] = "dashed"
+        ops.append({"op": "add", "element": spec,
+                    "from": src, "to": dst})
+    if dropped:
+        notes.append("%d source elements had no mapping and were "
+                     "dropped" % dropped)
+    return ops, notes, errors
+
+
+def _flow_to_mermaid(els):
+    """Render an existing flow artifact as mermaid text for re-layout.
+
+    Node ids are the element ids prefixed with ``n_`` (a bare slug like
+    ``end`` is a mermaid keyword), so the returned skeletons carry the
+    element identity and no label matching is ever needed.
+
+    Args:
+        els: The artifact's element list.
+
+    Returns:
+        ``(text, node_count)``.
+    """
+    ix = {e["id"]: e for e in els}
+    labels = {e["containerId"]: e.get("text", "") for e in els
+              if e.get("type") == "text" and e.get("containerId")}
+
+    def ref(eid):
+        e = ix[eid]
+        lbl = (labels.get(eid) or eid).replace('"', "'").replace("\n", " ")
+        shape = {"diamond": '{"%s"}', "ellipse": '(["%s"])'}.get(
+            e.get("type"), '["%s"]')
+        return "n_%s%s" % (eid, shape % lbl)
+
+    nodes = [e for e in els
+             if e.get("type") in ("rectangle", "diamond", "ellipse")
+             and (e.get("customData") or {}).get("role") == "node"]
+    node_ids = {e["id"] for e in nodes}
+    lines = ["flowchart TD"]
+    declared = set()
+
+    def side(eid):
+        out = ref(eid) if eid not in declared else "n_%s" % eid
+        declared.add(eid)
+        return out
+
+    for a in els:
+        if a.get("type") != "arrow":
+            continue
+        s = (a.get("startBinding") or {}).get("elementId")
+        d = (a.get("endBinding") or {}).get("elementId")
+        if s not in node_ids or d not in node_ids:
+            continue
+        lbl = (labels.get(a["id"]) or "").replace("|", "/").strip()
+        left = side(s)
+        lines.append("  %s -->%s %s"
+                     % (left, ("|%s|" % lbl) if lbl else "", side(d)))
+    for e in nodes:
+        if e["id"] not in declared:
+            lines.append("  %s" % ref(e["id"]))
+    return "\n".join(lines) + "\n", len(nodes)
+
+
+def _mermaid_poll(state, mid, timeout):
+    """Poll the server until a mermaid conversion settles or times out.
+
+    Args:
+        state: Live runtime-state dict (carries the server URL).
+        mid: Request id from ``/api/mermaid/request``.
+        timeout: Seconds to wait.
+
+    Returns:
+        ``{"status", "elements", "error"}`` — status stays "waiting"
+        on timeout or an unreachable server.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(0.5)
+        try:
+            st = http_json(state["url"] + "api/mermaid/poll",
+                           payload={"id": mid}, timeout=5.0)
+        except (OSError, ValueError, urllib.error.URLError):
+            break
+        if st.get("status") in ("done", "error"):
+            return {"status": st["status"],
+                    "elements": st.get("elements"),
+                    "error": st.get("error")}
+    return {"status": "waiting", "elements": None, "error": None}
+
+
+def _mermaid_convert(project, definition, tab_timeout, allow_headless):
+    """Convert mermaid text to skeletons via the web client.
+
+    Tier 1 is a connected tab (the same handshake as screenshots);
+    tier 2 launches a headless chromium-family tab of our own on the
+    app URL — its service effect performs the conversion during page
+    life and posts the result back. A conversion ERROR from either
+    tier (bad mermaid syntax) aborts rather than falling through: the
+    next tier would fail identically.
+
+    Args:
+        project: The Project.
+        definition: Mermaid source text.
+        tab_timeout: Tier-1 wait in seconds.
+        allow_headless: Whether tier 2 may launch a browser.
+
+    Returns:
+        ``(skeletons, None)`` on success, ``(None, why)`` otherwise.
+    """
+    state = project.read_state()
+    if not server_alive(state):
+        return None, ("server not running — flowchart conversion runs "
+                      "in the web client; canvas.py start first, or "
+                      "pass --from-skeletons")
+    try:
+        resp = http_json(state["url"] + "api/mermaid/request",
+                         payload={"definition": definition}, timeout=5.0)
+    except (OSError, ValueError, urllib.error.URLError) as e:
+        return None, "server unreachable (%s)" % e
+    mid = resp.get("id")
+    got = _mermaid_poll(state, mid, tab_timeout)
+    if got["status"] == "error":
+        return None, "conversion failed: %s" % got["error"]
+    if got["status"] == "done":
+        return got["elements"], None
+    if not allow_headless:
+        return None, ("no connected tab serviced the conversion in %ds "
+                      "— open the canvas, or drop --no-headless"
+                      % tab_timeout)
+    browsers = find_browsers()
+    if not browsers:
+        return None, ("no connected tab answered and no chromium-"
+                      "family browser is installed for a headless one")
+    workdir = Path.home() / ".cache" / "wysiwyg-grilling"
+    workdir.mkdir(parents=True, exist_ok=True)
+    why = "headless tab did not answer"
+    for browser in browsers:
+        cmd = [browser, "--headless=new", "--disable-gpu",
+               "--no-sandbox", "--disable-dev-shm-usage",
+               "--hide-scrollbars",
+               "--screenshot=%s" % (workdir / "mermaid-headless.png"),
+               "--virtual-time-budget=20000",
+               "--window-size=1000,700", state["url"]]
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL)
+        except OSError as e:
+            why = "%s failed: %s" % (os.path.basename(browser), e)
+            continue
+        got = _mermaid_poll(state, mid, 25)
+        if proc.poll() is None:
+            proc.kill()
+        if got["status"] == "done":
+            return got["elements"], None
+        if got["status"] == "error":
+            return None, "conversion failed: %s" % got["error"]
+        why = "%s tab did not answer" % os.path.basename(browser)
+    return None, why
+
+
+def _cmd_mermaid_relayout(args, project, store):
+    """Re-lay an existing flow with dagre, as an ordinary revision.
+
+    The artifact is rendered to mermaid text (`_flow_to_mermaid` — the
+    generated ids carry element identity, so nothing is matched by
+    label), converted in the browser, and the dagre positions come back
+    as plain ``mod x/y`` ops through apply: bound 2-point arrows
+    re-route, the revision queues behind the banner under `pulled`
+    cadence (the user's consent gate), and reverting the save restores
+    the old placement exactly. Prints the checkpoint revn it would
+    revert to.
+
+    Args:
+        args: Parsed CLI args (artifact, tab_timeout, no_headless,
+            check/render passthrough).
+        project: The Project.
+        store: A loaded Store.
+
+    Returns:
+        Process exit code (delegates to `cmd_apply`).
+    """
+    aid = args.artifact
+    if aid not in store.scenes:
+        die("ERROR=unknown artifact %r (known: %s)"
+            % (aid, ", ".join(sorted(store.scenes)) or "none"), 2)
+    if store.artifact_type(aid) != "flow":
+        die("ERROR=--relayout drives dagre over FLOW artifacts only "
+            "(%r is %s)" % (aid, store.artifact_type(aid)), 2)
+    els = store.scenes[aid]
+    text, node_count = _flow_to_mermaid(els)
+    if node_count < 3:
+        die("ERROR=%d node(s) — nothing to re-lay" % node_count, 2)
+    skeletons, why = _mermaid_convert(
+        project, text, args.tab_timeout,
+        allow_headless=not args.no_headless)
+    if skeletons is None:
+        die("ERROR=%s" % why, 3)
+    ix = {e["id"]: e for e in els}
+    # keep the drawing roughly where it lives: pin dagre's min corner to
+    # the current layout's min corner
+    cur_x = min(e["x"] for e in els
+                if e.get("type") in ("rectangle", "diamond", "ellipse"))
+    cur_y = min(e["y"] for e in els
+                if e.get("type") in ("rectangle", "diamond", "ellipse"))
+    hits = [(sk, sk["id"][2:]) for sk in skeletons
+            if sk.get("type") in ("rectangle", "diamond", "ellipse")
+            and str(sk.get("id") or "").startswith("n_")
+            and str(sk.get("id"))[2:] in ix]
+    if not hits:
+        die("ERROR=the conversion returned nothing matchable — file "
+            "this with the artifact id", 3)
+    min_sx = min(sk.get("x", 0) for sk, _ in hits)
+    min_sy = min(sk.get("y", 0) for sk, _ in hits)
+    ops = []
+    for sk, eid in hits:
+        nx = int(round((sk.get("x", 0) - min_sx + cur_x) / 4.0) * 4)
+        ny = int(round((sk.get("y", 0) - min_sy + cur_y) / 4.0) * 4)
+        if abs(nx - ix[eid]["x"]) < 2 and abs(ny - ix[eid]["y"]) < 2:
+            continue
+        ops.append({"op": "mod", "id": eid, "attrs": {"x": nx, "y": ny}})
+    if not ops:
+        print_kv(relayout="noop",
+                 note="dagre agrees with the current placement")
+        return 0
+    moved_user = [o["id"] for o in ops
+                  if (ix[o["id"]].get("customData") or {})
+                  .get("author") == "user"]
+    if moved_user:
+        print("NOTE=this would move %d user-placed node(s): %s — their "
+              "placement is theirs; under pulled cadence the banner asks "
+              "first, otherwise narrate it"
+              % (len(moved_user), ", ".join(moved_user[:5])))
+    print_kv(relayout=aid, moves=len(ops),
+             checkpoint="revert save #%d to restore the current "
+                        "placement" % store.head_revn())
+    batch = {"base_revn": store.head_revn(), "artifact": aid, "ops": ops,
+             "note": "re-layout via mermaid/dagre (%d nodes moved) — "
+                     "revert this save to restore the old placement"
+                     % len(ops)}
+    outdir = project.runtime_dir
+    outdir.mkdir(parents=True, exist_ok=True)
+    bpath = outdir / ("mermaid-relayout-%s.json" % aid)
+    bpath.write_text(json.dumps(batch, indent=1), encoding="utf-8")
+    sub = argparse.Namespace(project=args.project, file=str(bpath),
+                             check=getattr(args, "check", False),
+                             render=getattr(args, "render", False))
+    return cmd_apply(sub)
+
+
+def cmd_mermaid(args):
+    """Seed a NEW artifact from mermaid text, through apply.
+
+    flowchart/graph → a flow artifact (browser-converted, dagre
+    layout kept); erDiagram → a domain artifact (pure text parse);
+    anything else refuses by name. Prints SEED_KIND/NODES/ARROWS/BATCH
+    KEY=VALUE lines, then apply's own echo — or ERROR= lines and a
+    non-zero exit.
+    """
+    project = Project(args.project)
+    if getattr(args, "relayout", False):
+        # no input text: the artifact itself is the source
+        return _cmd_mermaid_relayout(args, project, Store(project))
+    if args.file:
+        try:
+            text = Path(args.file).read_text(encoding="utf-8")
+        except OSError as e:
+            die("ERROR=could not read %s: %s" % (args.file, e), 2)
+    else:
+        text = sys.stdin.read()
+    kind = mermaid_kind(text)
+    if kind not in MERMAID_MAPPED:
+        die("ERROR=mermaid seeding maps flowchart→flow and erDiagram→"
+            "domain (v0.8); %s isn't mappable — its converted output "
+            "would be dead geometry carrying none of this skill's "
+            "grammar (bindings, kinds, semantic facts). Draw it with "
+            "ops instead (references/ops-reference.md)."
+            % (repr(kind) if kind else "empty input"), 2)
+    target_type = MERMAID_MAPPED[kind]
+    if not args.concept:
+        die("ERROR=--concept is required when seeding (which concept "
+            "does this artifact answer for?)", 2)
+    store = Store(project)
+    aid = args.artifact
+    if aid in store.scenes:
+        die("ERROR=artifact %r already exists — mermaid seeds NEW "
+            "artifacts only; once a seed lands, the drawing is the "
+            "truth and mermaid text is never re-applied over it" % aid,
+            2)
+    notes = []
+    if target_type == "domain":
+        parsed = _parse_mermaid_er(text)
+        for line in parsed["errors"]:
+            print("ERROR=%s" % line)
+        if parsed["errors"]:
+            return 2
+        if not parsed["entities"]:
+            die("ERROR=no entities found in the erDiagram", 2)
+        ops = _er_seed_ops(parsed)
+    else:
+        if re.search(r"^\s*subgraph\b", text, re.MULTILINE):
+            # verified live, v0.8: the vendored converter (2.2.2) throws
+            # on subgraph blocks and silently degrades the WHOLE diagram
+            # to a picture — the playground's own example set carries no
+            # subgraph case. The mapper's frame support stays for the day
+            # upstream fixes it.
+            die("ERROR=this flowchart carries subgraph blocks and the "
+                "vendored converter (mermaid-to-excalidraw 2.2.2) fails "
+                "on them, degrading the whole diagram to a picture. "
+                "Seed it without the subgraphs, then add the lanes as "
+                "frames with ops (references/flow.md, Lanes).", 2)
+        if args.from_skeletons:
+            try:
+                skeletons = read_json(args.from_skeletons)
+            except (OSError, ValueError) as e:
+                die("ERROR=could not read skeletons %s: %s"
+                    % (args.from_skeletons, e), 2)
+        else:
+            skeletons, why = _mermaid_convert(
+                project, text, args.tab_timeout,
+                allow_headless=not args.no_headless)
+            if skeletons is None:
+                die("ERROR=%s" % why, 3)
+        if args.capture:
+            Path(args.capture).write_text(
+                json.dumps(skeletons, indent=1), encoding="utf-8")
+            notes.append("captured %d raw skeletons to %s"
+                         % (len(skeletons), args.capture))
+        ops, map_notes, errors = _flow_seed_ops(skeletons)
+        notes.extend(map_notes)
+        for line in errors:
+            print("ERROR=%s" % line)
+        if errors:
+            return 2
+    n_nodes = sum(1 for o in ops
+                  if (o.get("element") or {}).get("type")
+                  in ("rectangle", "diamond", "ellipse"))
+    n_arrows = sum(1 for o in ops
+                   if (o.get("element") or {}).get("type") == "arrow")
+    node_budget = 8 if target_type == "domain" else 9
+    if n_nodes > node_budget or n_arrows > 12:
+        ops.append({"op": "registry", "action": "set_budget",
+                    "artifact": aid, "nodes": max(n_nodes, node_budget),
+                    "arrows": max(n_arrows, 12),
+                    "reason": "mermaid seed: the source diagram "
+                              "carries %d nodes / %d arrows"
+                              % (n_nodes, n_arrows)})
+    batch = {"base_revn": store.head_revn(),
+             "create": {"id": aid, "type": target_type,
+                        "concept": args.concept,
+                        "name": args.name or aid.replace("-", " ")
+                        .replace("_", " ").title()},
+             "ops": ops,
+             "note": "seeded from mermaid (%s: %d nodes, %d arrows)"
+                     % (kind, n_nodes, n_arrows)}
+    for line in notes:
+        print("NOTE=%s" % line)
+    outdir = project.runtime_dir
+    outdir.mkdir(parents=True, exist_ok=True)
+    bpath = outdir / ("mermaid-seed-%s.json" % aid)
+    bpath.write_text(json.dumps(batch, indent=1), encoding="utf-8")
+    print_kv(seed_kind=kind, artifact=aid, nodes=n_nodes,
+             arrows=n_arrows, batch=str(bpath))
+    sub = argparse.Namespace(project=args.project, file=str(bpath),
+                             check=getattr(args, "check", False),
+                             render=getattr(args, "render", False))
+    return cmd_apply(sub)
+
+
 def cmd_snapshot(args):
     """Tiered snapshot: connected tab → self-launched headless system
     browser → stdlib SVG. Always yields something; exit 0 only with a
@@ -10289,6 +11095,37 @@ def main(argv=None):
                        help="skip tier 1 (deterministic headless render)")
         p.add_argument("--no-headless", action="store_true",
                        help="skip tier 2 (no browser launch)")
+    p = sub.add_parser("mermaid", help="seed a NEW flow/domain artifact "
+                       "from mermaid text (flowchart → flow, erDiagram "
+                       "→ domain; other types refused by name)")
+    p.add_argument("--file", help="mermaid text file (default: stdin)")
+    p.add_argument("--artifact", required=True,
+                   help="id for the artifact the seed creates (or, with "
+                        "--relayout, the existing flow to re-lay)")
+    p.add_argument("--concept", default=None,
+                   help="concept the artifact belongs to (seeding only)")
+    p.add_argument("--name", default=None, help="display name")
+    p.add_argument("--from-skeletons", default=None,
+                   help="pre-converted skeleton JSON (offline/CI path, "
+                        "flowcharts only — skips the browser)")
+    p.add_argument("--capture", default=None,
+                   help="also write the raw converted skeletons here "
+                        "(fixture material)")
+    p.add_argument("--tab-timeout", type=int, default=8,
+                   help="seconds to wait for a connected tab before "
+                        "launching a headless one")
+    p.add_argument("--no-headless", action="store_true",
+                   help="never launch a headless tab; require a "
+                        "connected one")
+    p.add_argument("--check", action="store_true",
+                   help="dry run: map + validate through apply --check, "
+                        "commit nothing")
+    p.add_argument("--render", action="store_true",
+                   help="with --check: draw the proposed seed to a PNG")
+    p.add_argument("--relayout", action="store_true",
+                   help="re-lay an EXISTING flow with dagre instead of "
+                        "seeding: mod x/y ops through apply, revertable, "
+                        "queued behind the banner under pulled cadence")
     p = sub.add_parser("serve", help="(internal) run server in foreground")
     p.add_argument("--port", type=int, default=0)
 
@@ -10298,7 +11135,7 @@ def main(argv=None):
         "wait": cmd_wait, "apply": cmd_apply, "lint": cmd_lint,
         "export": cmd_export,
         "pending": cmd_pending, "screenshot": cmd_snapshot,
-        "snapshot": cmd_snapshot,
+        "snapshot": cmd_snapshot, "mermaid": cmd_mermaid,
         "serve": cmd_serve,
         # assessor namespace, undocumented on purpose
         "x-pending": cmd_x_pending, "x-geometry": cmd_x_geometry,

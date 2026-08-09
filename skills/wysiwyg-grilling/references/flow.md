@@ -61,6 +61,19 @@ An **async step is three nodes, not one**: trigger → in-progress →
 (success | error). Drawing only trigger→success hides two states the
 design must eventually hold — seed all three and let the user prune.
 
+**Seeding from mermaid** (v0.8): above ~7 nodes, write `flowchart TD`
+text and `canvas.py mermaid --file d.mmd --artifact <id> --concept <c>`
+instead of hand-placing — dagre's layering beats freehand coordinate
+math at that size (verified against the hand-laid Argus run-flow: the
+seed is a clean first draft, though a careful hand layout on the
+320/160 grid still reads better — so seed, then drag). Diamonds map to
+decisions, `([stadium])` stays rounded, edge labels ride along, `A -->
+A` routes as a reflexive loop. Immediately after seeding: classify the
+kinds (`mod attrs.kind` — mermaid can't carry them) and heed any
+label-run warnings by spreading nodes. Subgraphs are refused (converter
+limitation) — seed flat, add lanes as frames after. `--relayout` runs
+the same dagre over an existing messy flow as revertable `mod x/y` ops.
+
 ## Semantic facts (what the differ gives you to narrate)
 
 | Fact | Fires when | Narrate as |

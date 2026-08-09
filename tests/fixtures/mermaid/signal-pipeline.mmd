@@ -1,0 +1,8 @@
+flowchart TD
+  ingest[Ingest market data] --> validate{Schema valid?}
+  validate -->|yes| enrich[Enrich with fundamentals]
+  validate -->|no| quarantine[Quarantine batch]
+  enrich --> score[Score signals]
+  score --> publish[Publish tearsheet]
+  score -.->|retry| score
+  quarantine --> alert[Alert data desk]

@@ -380,6 +380,29 @@ first complex batch of a session):
   (flow is the hub) — create element links **eagerly as you draw those
   pairs**. Domain↔wireframe stays inference-only.
 
+**Mermaid seeding (v0.8)** — for a first draft of a complex flow or
+domain model, write mermaid instead of coordinates:
+`canvas.py mermaid --file d.mmd --artifact <id> --concept <c>`. Two
+mapped types, chosen semantically: **flowchart → flow** (dagre lays the
+nodes out; the ops ride through apply like any revision, so lints,
+budgets and narration all apply) and **erDiagram → domain** (pure text
+parse — attributes, cardinality and reflexive relations survive as
+grammar; needs no browser at all). Everything else — sequence, class,
+state — is refused by name: their conversion is dead geometry to this
+grammar. Flowchart conversion needs the server up (a connected tab
+services it; otherwise a headless one is launched). Know the edges:
+subgraphs are refused (the vendored converter degrades them to a
+picture — seed flat, then add lanes as frames), mermaid can't carry
+node kinds, so classify `source/transform/agent/control/sink` with a
+`mod` pass right after seeding, and dense dagre output may draw
+label-run warnings — spread nodes, don't shrink labels. A seed is
+**seed-only**: once landed the drawing is the truth, and the mermaid
+text is never re-applied over user edits. To re-lay an existing messy
+flow instead, `canvas.py mermaid --relayout --artifact <id>` — plain
+`mod x/y` ops, revertable, queued behind the banner under `pulled`
+cadence; user-placed nodes are named in the output before anything
+moves.
+
 Per-type guidance (primitives, fact tables, seed archetypes):
 `references/wireframe.md` · `references/flow.md` · `references/domain.md` ·
 `references/sequence.md`. Cross-type geometry — grid, connector rules,
