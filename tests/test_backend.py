@@ -2,9 +2,12 @@
 
 Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 """
+import contextlib
+import io
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -1739,10 +1742,18 @@ class TestTermConceptViewDebt(Base):
         lbl = next(e for e in els if e["type"] == "text")
         self.assertEqual(lbl["strokeColor"], "#1e1e1e")
 
-    def test_text_dims_counts_wide_characters_as_two_cells(self):
-        narrow, _ = canvas.text_dims("ab", 16)
+    def test_text_dims_measures_real_advances(self):
+        # v0.8 (r4-12): per-char Nunito advances replace the flat 0.6-em
+        # cell model. CJK counts 1.2em; '62' at 24px must come out WIDER
+        # than the 28px box the old int() truncation produced (the live
+        # editor wrapped it while the snapshot said one line).
         wide, _ = canvas.text_dims("報告", 16)
-        self.assertEqual(wide, narrow * 2)
+        self.assertEqual(wide, int(2 * 1.2 * 16 + 0.999) + 2)
+        digits, _ = canvas.text_dims("62", 24)
+        self.assertGreaterEqual(digits, 29)  # ceil(28.8), plus pad
+        w_cap, _ = canvas.text_dims("W", 24)
+        i_cap, _ = canvas.text_dims("I", 24)
+        self.assertGreater(w_cap, i_cap * 2)  # real metrics, not cells
 
     def test_glossary_parsers_accept_bullet_and_inline_avoid(self):
         """A glossary written as a Markdown bullet list parsed to ZERO
@@ -2052,10 +2063,20 @@ class TestTearsheetFixture(unittest.TestCase):
         # through-node crossings — and v0 lint said NOTHING. v0.1 lint must
         # find it all: 22 detachment ERRORs (per-endpoint, lint threshold),
         # diagonal + through-node WARNINGs.
+        #
+        # v0.7: 26, not 22. The check tested containment in a bbox grown
+        # by TOL, which a point INSIDE satisfies trivially, so it only
+        # ever saw the outward direction (r3-16). The 4 additions are all
+        # inward and all real — e.g. t-macro-cutoff starts at (590,308)
+        # inside pull-macro-news y[260..324], 16px past the edge, and
+        # t-trigger-macro 32px inside daily-trigger. The original 22
+        # outward findings are unchanged.
         els = self.store.state_at(10)["tearsheet-pipeline"]["elements"]
         lint = canvas.lint_layout(els)
         detach = [m for m in lint["errors"] if "claims to bind" in m]
-        self.assertEqual(len(detach), 22)
+        self.assertEqual(len(detach), 26)
+        self.assertEqual(len([m for m in detach if "away" in m]), 22)
+        self.assertEqual(len([m for m in detach if "inside the shape" in m]), 4)
         self.assertEqual(len(detach), len(lint["errors"]),
                          "unexpected non-detachment ERRORs: %r"
                          % [m for m in lint["errors"]
@@ -2122,6 +2143,173 @@ class TestTearsheetFixture(unittest.TestCase):
         self.assertTrue(any("t-market-compute" in ln
                             and "agent-write-tearsheet" in ln
                             for ln in echo))
+
+
+class FixtureReplayBase(unittest.TestCase):
+    """Shared harness for frozen-project replay fixtures (v0.8 corpus).
+
+    Every remediation work package must leave these replays green: a check
+    validated only against the case that motivated it is validated against
+    one data point, and naive checks over-fire on real data (the run-1
+    lesson: 16 warnings, 13 false). Subclasses set ``FIXTURE``.
+    """
+
+    FIXTURE = ""
+
+    def setUp(self):
+        """Copy the frozen project into a temp dir and load it."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-fixture-"))
+        src = Path(__file__).resolve().parent / "fixtures" / self.FIXTURE
+        shutil.copytree(src, self.tmp / "project_knowledge")
+        self.project = canvas.Project(self.tmp)
+        self.store = canvas.Store(self.project)
+
+    def tearDown(self):
+        """Remove the temp copy and the shared runtime files."""
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def lint_all(self):
+        """Run project_lint over every artifact.
+
+        Returns:
+            {artifact_id: lint result dict} for the loaded scenes.
+        """
+        out = {}
+        for aid in sorted(self.store.scenes):
+            out[aid] = canvas.project_lint(
+                self.project, self.store.scenes[aid],
+                registry=self.store.registry,
+                artifact_type=self.store.artifact_type(aid), aid=aid)
+        return out
+
+
+class TestArgusR4Arm3Fixture(FixtureReplayBase):
+    """Assessment run 4, arm 3: 44 saves, 7 artifacts, 28 concepts.
+
+    The richest real session on record (v0.7): resolved tripwires, scoped
+    divergence rulings, deliberate standing warnings, one deliberately
+    unbound self-loop workaround (r4-11's fallout, D8).
+    """
+
+    FIXTURE = "argus-r4-arm3"
+
+    def test_replays_full_history(self):
+        self.assertEqual(self.store.head_revn(), 44)
+        self.assertEqual(sorted(self.store.scenes), [
+            "admin-console", "aggregation-flow", "argus-domain",
+            "argus-run-flow", "dashboard", "enrichment-pipeline",
+            "publication-flow"])
+
+    def test_loader_repairs_are_label_refits_only(self):
+        # Five ART-011 label-wider-than-container refits, nothing else —
+        # the load-time repair surface WP2 makes loud.
+        self.assertEqual([i.get("code") for i in self.store.issues],
+                         ["ART-011"] * 5)
+
+    def test_catchup_names_its_repairs_and_converges(self):
+        # FLIPPED BY WP2 (was: pinned the phantom). With derived noise
+        # (z-order, int/float representation, roundness) out of the
+        # comparison, this fixture's ONLY divergence is the loader's own
+        # 5 label refits — so the one reconciliation must take the
+        # repair-only attribution path, name the repairs, and CONVERGE.
+        # Pre-WP2 every load minted a fresh phantom out-of-session
+        # record here.
+        rec = self.store.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+        self.assertTrue(rec.get("reconciliation"))
+        self.assertEqual(len(rec.get("repairs") or []), 5)
+        self.assertIn("load-time repair", rec["summary"]["headline"])
+        self.assertIn("no outside edits", rec["summary"]["headline"])
+        store2 = canvas.Store(self.project)
+        self.assertIsNone(store2.catch_up(),
+                          "reconciliation did not converge")
+
+    def test_standing_lint_is_the_arms_deliberate_record(self):
+        # Arm 3 left the admin-console reading-order warnings standing on
+        # purpose ("the answer is in the lint") — they must survive replay
+        # exactly, and nothing may fire an ERROR anywhere.
+        lint = self.lint_all()
+        self.assertEqual(len(lint["admin-console"]["warnings"]), 5)
+        self.assertTrue(all("reading order" in w or "precedes" in w
+                            for w in lint["admin-console"]["warnings"]))
+        self.assertEqual(len(lint["dashboard"]["warnings"]), 2)
+        for aid, r in lint.items():
+            self.assertEqual(r["errors"], [],
+                             "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+    def test_unbound_relationship_arrow_now_warns(self):
+        # FLIPPED BY WP1 (was: pinned the defect). r-run-rerun is the
+        # hand-authored self-loop workaround for the router crash — a
+        # labeled domain relationship bound to NOTHING that rendered
+        # perfectly and followed nothing (D8). The lint must name it,
+        # exactly once, and nothing else on the artifact may fire.
+        els = self.store.scenes["argus-domain"]
+        loop = next(e for e in els if e["id"] == "r-run-rerun")
+        self.assertIsNone(loop.get("startBinding"))
+        self.assertIsNone(loop.get("endBinding"))
+        lint = self.lint_all()["argus-domain"]
+        named = [w for w in lint["warnings"] if "r-run-rerun" in w]
+        self.assertEqual(len(named), 1, lint["warnings"])
+        self.assertIn("binds nothing", named[0])
+        self.assertEqual(len(lint["warnings"]), 1,
+                         "unbound-lint over-fired: %r" % lint["warnings"])
+
+
+class TestArgusR4Arm4Fixture(FixtureReplayBase):
+    """Assessment run 4, arm 4: 28 saves, 5 artifacts, 3 ADRs, handover."""
+
+    FIXTURE = "argus-r4-arm4"
+
+    def test_replays_full_history(self):
+        self.assertEqual(self.store.head_revn(), 28)
+        self.assertEqual(sorted(self.store.scenes), [
+            "admin-console-wireframe", "daily-run-flow",
+            "dashboard-wireframe", "enrichment-flow",
+            "review-publish-flow"])
+
+    def test_catchup_finds_nothing_to_reconcile(self):
+        # FLIPPED BY WP2 (was: pinned the phantom that read "saved
+        # without changing anything" while committing — r4b save 0028's
+        # live shape). The divergences were all derived machinery
+        # (z-order, int/float representation, replayed roundness); with
+        # those canonicalized, this project needs no reconciliation, and
+        # the one real load repair reaches the agent as a REPAIR line
+        # instead of a fake out-of-session edit.
+        self.assertIsNone(self.store.catch_up())
+        self.assertEqual([i["code"] for i in self.store.scene_repairs],
+                         ["ART-011"])
+
+    def test_no_lint_errors_anywhere(self):
+        for aid, r in self.lint_all().items():
+            self.assertEqual(r["errors"], [],
+                             "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+
+class TestAcceptanceTearsheetFixture(FixtureReplayBase):
+    """The formerly-dead fixture, wired in: 15 saves, 3 artifacts."""
+
+    FIXTURE = "acceptance-tearsheet"
+
+    def test_replays_and_converges_without_reconciliation(self):
+        # FLIPPED TWICE. WP2 turned this fixture's phantom into a named
+        # repair-only reconciliation; WP4's real font metrics then made
+        # the ART-011 refits CONVERGE memory to the replayed history (the
+        # old 0.6-em estimate was what disagreed with the client), so
+        # nothing diverges at all: repairs still fire and are reported,
+        # and catch_up finds nothing to reconcile — on every load.
+        self.assertEqual(self.store.head_revn(), 15)
+        self.assertEqual(sorted(self.store.scenes), [
+            "tearsheet-failures", "tearsheet-flow", "tearsheet-sheet"])
+        self.assertEqual([i["code"] for i in self.store.scene_repairs],
+                         ["ART-011", "ART-011"])
+        self.assertIsNone(self.store.catch_up())
+        store2 = canvas.Store(self.project)
+        self.assertIsNone(store2.catch_up())
 
 
 class TestClientRemeasure(Base):
@@ -4444,13 +4632,24 @@ class TestHeldRevisions(Base):
         return b
 
     def test_invalid_ops_rejected_at_queue_time(self):
-        # the live failure: an attribute that does not exist
+        # the live failure: an attribute that does not exist.
+        # This used to use `attributes`, which was genuinely unknown to
+        # `mod` — so the test encoded BUG-04 as intended behaviour. It is
+        # a real mod attribute since v0.7; use one that is not.
+        r = self.apply(self.batch([
+            {"op": "mod", "id": "payment",
+             "attrs": {"nonesuch": {"x": 1}}}]))
+        self.assertFalse(r.get("ok"))
+        self.assertEqual(r.get("status"), 422)
+        self.assertIn("unknown attribute", r["error"])
+        self.assertEqual(self.app.pending, [])
+
+    def test_a_bad_attributes_value_is_still_rejected_at_queue_time(self):
         r = self.apply(self.batch([
             {"op": "mod", "id": "payment",
              "attrs": {"attributes": {"x": 1}}}]))
         self.assertFalse(r.get("ok"))
-        self.assertEqual(r.get("status"), 422)
-        self.assertIn("unknown attribute", r["error"])
+        self.assertIn("must be a list of strings", r["error"])
         self.assertEqual(self.app.pending, [])
 
     def test_invalid_registry_op_rejected_at_queue_time(self):
@@ -4524,6 +4723,352 @@ class TestHeldRevisions(Base):
              "question": "Card only?"}]))
         self.assertTrue(r["ok"])
         self.assertNotIn("queued", r)
+
+
+class TestPulledCadenceIsNotBlind(Base):
+    """Under `pulled`, a queued batch still owes the standing nags, and
+    the session clock still runs (v0.7 WP2).
+
+    `cmd_apply`'s queued branch returned before the nag block — the third
+    defect on those same eight lines in three assessments, with the
+    comment above it recording v0.4 patching one of them (r3-6). The
+    server's queued response carried no debt at all, so fixing the early
+    return alone would have printed nothing.
+
+    And because `round` advances inside `commit`, a cadence where nothing
+    commits froze it, taking pin ageing with it: a question sat open
+    across turns still reading "age 0r" (r3-2).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.store = self.app.store
+        self.store.apply_batch(seed_flow_batch())
+        self.store.config["canvas_updates"] = "pulled"
+
+    def tearDown(self):
+        self.app.log_file.close()
+        super().tearDown()
+
+    def apply(self, ops, **kw):
+        b = {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ops}
+        b.update(kw)
+        try:
+            return self.app.handle_post("/api/apply", b)
+        except canvas._Err as e:
+            return dict(e.payload, status=e.status)
+
+    def queue_a_drawing(self):
+        return self.apply([{"op": "mod", "id": "payment", "attrs": {"x": 500}}])
+
+    # ---- r3-6: the queued response carries the standing nags ---------
+
+    def test_queued_response_carries_the_debt_keys(self):
+        r = self.queue_a_drawing()
+        self.assertTrue(r["queued"])
+        for k in ("lint_debt", "pin_debt", "open_tripwires", "branch"):
+            self.assertIn(k, r)
+
+    def test_the_committed_response_carries_them_too(self):
+        self.store.config["canvas_updates"] = "per-round"
+        r = self.apply([{"op": "mod", "id": "payment", "attrs": {"x": 500}}])
+        for k in ("lint_debt", "pin_debt", "open_tripwires", "branch"):
+            self.assertIn(k, r)
+
+    def test_a_queued_pin_still_shows_in_the_debt(self):
+        self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}])
+        r = self.queue_a_drawing()
+        self.assertIn("pin-pay", [p["id"] for p in r["pin_debt"]])
+
+    # ---- r3-2: the clock runs while the batch waits ------------------
+
+    def user_has_just_saved(self):
+        """The precondition: a user save leaves whose_move on the agent.
+
+        The seed batch is an AGENT revision, which already flips it to
+        the user, so there is nothing to observe from there.
+        """
+        self.store.registry["whose_move"] = "agent"
+
+    def test_whose_move_flips_when_the_batch_is_queued(self):
+        self.user_has_just_saved()
+        self.assertEqual(self.app.api_state()["whose_move"], "agent")
+        self.queue_a_drawing()
+        self.assertEqual(self.app.api_state()["whose_move"], "user")
+
+    def test_the_round_advances_when_the_batch_is_queued(self):
+        before = self.app.api_state()["round"]
+        self.queue_a_drawing()
+        self.assertEqual(self.app.api_state()["round"], before + 1)
+
+    def test_a_pin_ages_while_it_waits(self):
+        self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}])
+
+        def aged():
+            return next(p for p in self.app.api_state()["pin_debt"]
+                        if p["id"] == "pin-pay")["age_rounds"]
+
+        self.assertEqual(aged(), 0)
+        self.queue_a_drawing()
+        self.assertEqual(aged(), 1)
+
+    def test_discarding_the_queue_puts_the_clock_back(self):
+        # derived, not written: the whole reason for deriving it
+        before = self.app.api_state()
+        pid = self.queue_a_drawing()["pending_id"]
+        self.app.handle_post("/api/pending/resolve",
+                             {"id": pid, "action": "discard"})
+        after = self.app.api_state()
+        self.assertEqual(after["round"], before["round"])
+        self.assertEqual(after["whose_move"], before["whose_move"])
+
+    def test_the_committed_round_is_untouched(self):
+        # registry.json must never record a round nothing committed in
+        self.queue_a_drawing()
+        self.assertEqual(self.store.registry["round"],
+                         self.app.api_state()["committed_round"])
+        self.assertEqual(self.app.api_state()["round"],
+                         self.store.registry["round"] + 1)
+
+    def test_a_pin_only_revision_is_not_an_unanswered_turn(self):
+        # the silent half. A pin-only revision never holds behind the
+        # banner — it COMMITS — so whose_move moves for the ordinary
+        # reason and the derivation must add nothing on top.
+        self.user_has_just_saved()
+        before = self.app.api_state()["round"]
+        r = self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                         "question": "Card only?"}])
+        self.assertNotIn("queued", r)
+        self.assertFalse(self.app.queued_turn())
+        self.assertEqual(self.app.api_state()["round"], before)
+        self.assertEqual(self.app.api_state()["round"],
+                         self.store.registry["round"])
+
+
+class TestArrowBindingLints(unittest.TestCase):
+    """Both directions of "this arrow does not point where it says".
+
+    r3-13: deleting a node orphans its bound arrows, and the loop
+    `continue`d past exactly the broken ones while raising an ERROR for
+    a binding merely 26px off. r3-16: the guard tested containment in a
+    bbox grown by TOL, which a point deep INSIDE satisfies trivially, so
+    three arrowheads stopping 56px in passed while one 26px out was the
+    artifact's only ERROR.
+    """
+
+    def scene(self, ax, ay, ex, ey, drop_target=False):
+        node = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+                "width": 200, "height": 100,
+                "customData": {"role": "node"}}
+        far = {"id": "n2", "type": "rectangle", "x": 600, "y": 100,
+               "width": 200, "height": 100,
+               "customData": {"role": "node"}}
+        arrow = {"id": "a1", "type": "arrow", "x": ax, "y": ay,
+                 "width": ex - ax, "height": ey - ay,
+                 "points": [[0, 0], [ex - ax, ey - ay]],
+                 "startBinding": {"elementId": "n1", "focus": 0, "gap": 6},
+                 "endBinding": {"elementId": "n2", "focus": 0, "gap": 6},
+                 "customData": {}}
+        arrow["customData"]["routed"] = canvas._route_sig(arrow)
+        return [far, arrow] if drop_target else [node, far, arrow]
+
+    def errors(self, els):
+        return canvas.lint_layout(els)["errors"]
+
+    # ---- r3-13 -------------------------------------------------------
+
+    def test_a_binding_to_a_deleted_element_is_an_error(self):
+        errs = self.errors(self.scene(300, 150, 600, 150, drop_target=True))
+        self.assertTrue(any("no longer exists" in m for m in errs), errs)
+
+    def test_it_names_the_arrow_the_side_and_the_missing_element(self):
+        m = next(m for m in
+                 self.errors(self.scene(300, 150, 600, 150, drop_target=True))
+                 if "no longer exists" in m)
+        self.assertIn("a1", m)
+        self.assertIn("n1", m)
+        self.assertIn("start", m)
+
+    def test_a_live_binding_says_nothing(self):
+        # the silent half
+        self.assertEqual(self.errors(self.scene(300, 150, 600, 150)), [])
+
+    # ---- r3-16 -------------------------------------------------------
+
+    def test_an_endpoint_deep_inside_its_box_is_an_error(self):
+        # start at (250,150): 50px inside n1's right edge at x=300
+        errs = self.errors(self.scene(250, 150, 600, 150))
+        self.assertTrue(any("inside the shape" in m for m in errs), errs)
+
+    def test_an_endpoint_on_the_border_stays_silent(self):
+        # the silent half, and the one that matters: a bound endpoint
+        # belongs ON the border and must not now be flagged
+        self.assertEqual(self.errors(self.scene(300, 150, 600, 150)), [])
+
+    def test_inside_by_less_than_the_tolerance_stays_silent(self):
+        self.assertEqual(self.errors(self.scene(290, 150, 600, 150)), [])
+
+    def test_outside_still_fires_and_still_says_away(self):
+        errs = self.errors(self.scene(340, 150, 600, 150))
+        self.assertTrue(any("away" in m for m in errs), errs)
+
+
+class TestSharedAttachPointNamesTheRealReason(unittest.TestCase):
+    """The warning must not assert a cause it never measured.
+
+    It said "auto-fan couldn't separate them (obstacles in every slot)"
+    from a check that only tests whether two attach points are within
+    12px — no obstacle set is in scope. On the one case anyone
+    reproduced (brownfield algorithm-refinements revns 56-59) the stated
+    cause was also wrong: deleting all three decorations left the
+    warning standing, and what cleared it at revn 60 was an arrow
+    dropping from 4 points to 3, because fan_attach_points only moves
+    2- and 3-point server-routed paths (BUG-05).
+    """
+
+    def scene(self, pts_b):
+        node = {"id": "src", "type": "diamond", "x": 100, "y": 100,
+                "width": 160, "height": 80, "customData": {"role": "node"}}
+        out = [node]
+        for i, (aid, pts) in enumerate((("a1", [[0, 0], [200, 0]]),
+                                        ("a2", pts_b))):
+            dst = {"id": "d%d" % i, "type": "rectangle", "x": 500,
+                   "y": 100 + i * 200, "width": 160, "height": 80,
+                   "customData": {"role": "node"}}
+            arrow = {"id": aid, "type": "arrow", "x": 260, "y": 140,
+                     "width": 200, "height": 0, "points": pts,
+                     "startBinding": {"elementId": "src", "focus": 0,
+                                      "gap": 6},
+                     "endBinding": {"elementId": dst["id"], "focus": 0,
+                                    "gap": 6},
+                     "customData": {}}
+            arrow["customData"]["routed"] = canvas._route_sig(arrow)
+            out += [dst, arrow]
+        return out
+
+    def warning(self, els):
+        return next((w for w in canvas.lint_layout(els)["warnings"]
+                     if "share an attach point" in w), None)
+
+    def test_it_no_longer_blames_obstacles(self):
+        w = self.warning(self.scene([[0, 0], [60, 40], [140, 60], [200, 80]]))
+        self.assertIsNotNone(w)
+        self.assertNotIn("obstacles in every slot", w)
+
+    def test_it_names_the_waypoint_count_that_disqualified_the_arrow(self):
+        w = self.warning(self.scene([[0, 0], [60, 40], [140, 60], [200, 80]]))
+        self.assertIn("a2", w)
+        self.assertIn("4 waypoints", w)
+
+    def test_a_user_shaped_arrow_is_named_as_such(self):
+        els = self.scene([[0, 0], [200, 80]])
+        for e in els:
+            if e.get("id") == "a2":
+                e["customData"]["routed"] = "stale-signature"
+        w = self.warning(els)
+        self.assertIn("user-shaped", w)
+
+    def test_arrows_that_do_not_share_a_point_say_nothing(self):
+        # the silent half
+        els = self.scene([[0, 0], [200, 80]])
+        for e in els:
+            if e.get("id") == "a2":
+                e["y"] = 400
+        self.assertIsNone(self.warning(els))
+
+
+class TestRewireNarratesDiscardingUserGeometry(Base):
+    """A rewire replaces a hand-drawn path by design — say so (BUG-06).
+
+    `server_owns_geometry` returns false on a user drag, so `tidy` and
+    the move-repair pass already leave it alone; the rewrite on rewire is
+    deliberate ("a rewire is a new path request"). What was missing is
+    that nothing narrated the discard, so one arrow re-dragged four times
+    read to the agent as user indecision.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def facts(self, rec):
+        return [f["fact"] for a in rec["artifacts"].values()
+                for f in a["facts"]]
+
+    def user_shapes_t2(self):
+        for e in self.store.scenes["checkout-flow"]:
+            if e["id"] == "t2":
+                e["customData"] = dict(e.get("customData") or {},
+                                       routed="a-stale-signature")
+
+    def rewire_t2(self):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "t2",
+                     "attrs": {"from": "checkout", "to": "confirm"}}]})
+        return rec
+
+    def test_the_discard_is_narrated(self):
+        self.user_shapes_t2()
+        self.assertIn("user_route_replaced", self.facts(self.rewire_t2()))
+
+    def test_it_reaches_the_headline(self):
+        self.user_shapes_t2()
+        self.assertIn("replacing the path you drew by hand",
+                      self.rewire_t2()["summary"]["headline"])
+
+    def test_a_server_routed_arrow_is_not_narrated(self):
+        # the silent half: re-routing our own geometry discards nothing
+        self.assertNotIn("user_route_replaced", self.facts(self.rewire_t2()))
+
+
+class TestPrintStanding(unittest.TestCase):
+    """The shared apply epilogue (v0.7 WP2).
+
+    One function on every exit path, so an early return can no longer
+    take a subset of the contract with it (r3-6).
+    """
+
+    def lines(self, resp):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas._print_standing(resp)
+        return buf.getvalue().splitlines()
+
+    def test_a_non_main_branch_is_named(self):
+        # a user save toasts its branch; an agent revision named none
+        self.assertIn("BRANCH=alt-0019",
+                      self.lines({"branch": "alt-0019"}))
+
+    def test_main_is_not_named(self):
+        self.assertEqual(self.lines({"branch": "main"}), [])
+
+    def test_standing_tripwires_carry_their_question(self):
+        out = self.lines({"open_tripwires": [
+            {"id": "tw-20-1", "question": "Divergence, or propagate?"}]})
+        self.assertEqual(out, ["OPEN_TRIPWIRE=tw-20-1 "
+                               "Divergence, or propagate?"])
+
+    def test_standing_tripwires_are_capped_with_a_tail(self):
+        n = canvas.STANDING_TRIPWIRE_CAP + 3
+        out = self.lines({"open_tripwires": [
+            {"id": "tw-%d" % i, "question": "q"} for i in range(n)]})
+        self.assertEqual(len(out), canvas.STANDING_TRIPWIRE_CAP + 1)
+        self.assertIn("+3 more", out[-1])
+
+    def test_this_batchs_tripwires_are_separate_from_standing_ones(self):
+        out = self.lines({"tripwires": [{"id": "tw-1", "question": "fired"}],
+                          "open_tripwires": [{"id": "tw-0",
+                                              "question": "standing"}]})
+        self.assertEqual(out, ["TRIPWIRE=tw-1 fired",
+                               "OPEN_TRIPWIRE=tw-0 standing"])
+
+    def test_an_empty_response_prints_nothing(self):
+        self.assertEqual(self.lines({}), [])
 
 
 class TestArrowLabelAnchor(Base):
@@ -4782,6 +5327,193 @@ class TestRenameArtifact(Base):
             self.rename(artifact="dm", name="   ")
 
 
+class TestRegistryOpsSeeTheBatchsOwnCreates(Base):
+    """A registry op may name the artifact its own batch creates (v0.7).
+
+    `set_budget` was rejected wholesale — "needs an existing artifact" —
+    because a created artifact did not reach `artifact_meta` until the
+    write at the END of commit, after the ops had run. The documented
+    workflow is "over budget → record it with a reason", so every
+    deliberate overrun cost an extra revision AND a false LAYOUT_NOTE for
+    the overrun it was in the act of justifying (brownfield BUG-03).
+
+    Third instance of one ordering: r3-10 is the same fault running the
+    other way, and `upsert_concept` already ships a workaround for this
+    shape (`view_types`).
+    """
+
+    def batch(self, *ops):
+        return {
+            "base_revn": self.store.head_revn(), "artifact": "cand",
+            "create": {"id": "cand", "name": "Candidates", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "kind": "step",
+                "label": "Ingest", "x": 100, "y": 100}}, *ops]}
+
+    def test_set_budget_rides_the_creating_batch(self):
+        rec, _ = self.store.apply_batch(self.batch(
+            {"op": "registry", "action": "set_budget", "artifact": "cand",
+             "nodes": 14, "arrows": 18,
+             "reason": "the 5-way ingest fan IS this view"}))
+        self.assertEqual(self.store.registry["budgets"]["cand"]["nodes"], 14)
+        self.assertEqual(self.store.registry["budgets"]["cand"]["reason"],
+                         "the 5-way ingest fan IS this view")
+        # set_budget records via the generic fall-through, so the entry
+        # keeps the op's own action name (unlike budget_cleared)
+        self.assertTrue(any(c.get("action") == "set_budget"
+                            for c in rec["registry_changes"]))
+
+    def test_rename_rides_the_creating_batch(self):
+        self.store.apply_batch(self.batch(
+            {"op": "registry", "action": "rename_artifact",
+             "artifact": "cand", "name": "Algorithm Candidates"}))
+        self.assertEqual(self.store.artifact_meta["cand"]["name"],
+                         "Algorithm Candidates")
+        doc = json.loads(
+            (self.store.p.artifacts_dir / "cand.excalidraw").read_text())
+        self.assertEqual(doc["wysiwyg"]["name"], "Algorithm Candidates")
+
+    def test_one_revision_not_two(self):
+        before = self.store.head_revn()
+        self.store.apply_batch(self.batch(
+            {"op": "registry", "action": "set_budget", "artifact": "cand",
+             "nodes": 14, "arrows": 18, "reason": "deliberate"}))
+        self.assertEqual(self.store.head_revn(), before + 1)
+
+    def test_an_artifact_that_exists_nowhere_is_still_rejected(self):
+        # the silent half: seeding the batch's creates must not turn the
+        # existence check off
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(self.batch(
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "ghost", "nodes": 14, "arrows": 18,
+                 "reason": "no such view"}))
+
+    def test_a_failed_registry_op_leaves_no_phantom_artifact(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(self.batch(
+                {"op": "registry", "action": "set_budget",
+                 "artifact": "ghost", "nodes": 14, "arrows": 18,
+                 "reason": "no such view"}))
+        self.assertNotIn("cand", self.store.artifact_meta)
+        self.assertNotIn("cand", self.store.scenes)
+
+    def test_check_accepts_it_too(self):
+        r = self.store.check_batch(self.batch(
+            {"op": "registry", "action": "set_budget", "artifact": "cand",
+             "nodes": 14, "arrows": 18, "reason": "deliberate"}))
+        self.assertTrue(r["ok"], r.get("errors"))
+        self.assertNotIn("cand", self.store.artifact_meta)
+
+
+class TestVersioningBoundary(Base):
+    """A dry run writes nothing; a mixed batch keeps its rename (v0.7 WP1).
+
+    The two are a compensating pair (v0.6 assessment r3-12 + r3-10):
+    `--check` wrote the new name to disk with no revn, the real apply
+    reverted it from a stale meta snapshot, and "the name never changed"
+    was evidence for neither. Each control below has to hold the other
+    defect constant, which is why they are tested together.
+    """
+
+    ORIGINAL = "Argus Domain"
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": self.ORIGINAL, "type": "domain",
+                       "concept": "d", "concept_name": "D"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e1", "kind": "entity",
+                "label": "Signal", "x": 100, "y": 100}}]})
+
+    def stored_name(self):
+        doc = json.loads(
+            (self.store.p.artifacts_dir / "dm.excalidraw").read_text())
+        return doc["wysiwyg"]["name"]
+
+    def rename_op(self, name):
+        return {"op": "registry", "action": "rename_artifact",
+                "artifact": "dm", "name": name}
+
+    # ---- r3-12: the dry run is side-effect free ----------------------
+
+    def test_check_does_not_rename_on_disk(self):
+        self.store.check_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op("ZZZ-DRY-RUN-PROBE")]})
+        self.assertEqual(self.stored_name(), self.ORIGINAL)
+
+    def test_check_does_not_rename_in_memory(self):
+        self.store.check_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op("ZZZ-DRY-RUN-PROBE")]})
+        self.assertEqual(self.store.artifact_meta["dm"]["name"],
+                         self.ORIGINAL)
+
+    def test_check_commits_no_revision(self):
+        before = self.store.head_revn()
+        self.store.check_batch({
+            "base_revn": before, "artifact": "dm",
+            "ops": [self.rename_op("ZZZ-DRY-RUN-PROBE")]})
+        self.assertEqual(self.store.head_revn(), before)
+
+    def test_dry_run_flag_does_not_leak_when_the_batch_is_rejected(self):
+        # a leaked _dry_run would silently swallow every later real
+        # write — the failure mode that makes the chokepoint scary
+        self.store.check_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [{"op": "registry", "action": "rename_artifact",
+                     "artifact": "ghost", "name": "X"}]})
+        self.assertFalse(self.store._dry_run)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op("After The Rejection")]})
+        self.assertEqual(self.stored_name(), "After The Rejection")
+
+    # ---- r3-10: the rename survives a batch that also draws ----------
+
+    def mixed_rename(self, name):
+        return self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [self.rename_op(name),
+                    {"op": "add", "element": {
+                        "type": "rectangle", "id": "e2", "kind": "entity",
+                        "label": "Position", "x": 400, "y": 100}}]})
+
+    def test_rename_survives_a_batch_that_also_draws(self):
+        self.mixed_rename("Signal Formation")
+        self.assertEqual(self.stored_name(), "Signal Formation")
+
+    def test_the_record_does_not_contradict_its_own_registry_changes(self):
+        rec, _ = self.mixed_rename("Signal Formation")
+        renamed = [c for c in rec["registry_changes"]
+                   if c.get("action") == "artifact_renamed"]
+        self.assertEqual(renamed[0]["to"], "Signal Formation")
+        # one record, one name: it used to report the rename and store
+        # the old value, so checking out the renaming revision reverted it
+        self.assertEqual(rec["artifacts"]["dm"]["meta"]["name"],
+                         "Signal Formation")
+
+    def test_checking_out_the_renaming_revision_keeps_the_new_name(self):
+        rec, _ = self.mixed_rename("Signal Formation")
+        state = self.store.state_at(rec["revn"])
+        self.assertEqual(state["dm"]["meta"]["name"], "Signal Formation")
+
+    def test_a_drawing_batch_with_no_rename_leaves_meta_alone(self):
+        # the silent half: the re-read must not invent a meta change
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e3", "kind": "entity",
+                "label": "Book", "x": 700, "y": 100}}]})
+        self.assertEqual(rec["artifacts"]["dm"]["meta"]["name"],
+                         self.ORIGINAL)
+        self.assertEqual(self.stored_name(), self.ORIGINAL)
+
+
 class TestProgressIndicatorQuestion(Base):
     """Q25 asks about progress indicators, not about percentages (v0.6).
 
@@ -4820,6 +5552,419 @@ class TestProgressIndicatorQuestion(Base):
         notes = self.screen("60% complete")
         self.assertTrue(any("progress indicator" in n for n in notes),
                         notes)
+
+
+class TestRegistryFollowsTheBranch(Base):
+    """The registry is branch-level, like the scenes (r3-17).
+
+    `switch_branch` has always materialised per-branch scenes and deleted
+    the artifacts the target lacks, while concepts/mappings/pins/
+    tripwires/waives/budgets stayed one global blob — so on a branch the
+    registry asserted views that do not exist and printed
+    VIEW_DEBT=none: branch-blind in the direction that SUPPRESSES work.
+
+    And it lost data. Reproduced before the fix: switching to a branch
+    without the artifact deletes its file, the load-time healer prunes
+    the pins on it, and _save_registry makes that permanent — for the
+    branch you came from.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}]})
+        self.store.checkout_revn = 0
+        self.store.commit(author="user", new_scenes={}, fork_name="alt")
+        self.store.registry["head"] = "main"
+        self.store._save_registry()
+
+    def reload(self):
+        self.store._save_registry()
+        self.store = canvas.Store(self.project)
+        return self.store
+
+    def pin_status(self):
+        return {p["id"]: p["status"] for p in self.store.registry["pins"]}
+
+    def test_mains_pin_survives_a_visit_to_a_branch_without_it(self):
+        self.store.switch_branch("alt")
+        self.reload()                       # the healer prunes on alt
+        self.store.switch_branch("main")
+        self.reload()
+        self.assertEqual(self.pin_status()["pin-pay"], "open")
+
+    def test_the_branch_carries_its_own_scope(self):
+        self.store.switch_branch("alt")
+        main = next(b for b in self.store.registry["branches"]
+                    if b["name"] == "main")
+        self.assertIn("scope", main)
+        self.assertIn("pins", main["scope"])
+
+    def test_every_scoped_section_is_stashed(self):
+        self.store.switch_branch("alt")
+        main = next(b for b in self.store.registry["branches"]
+                    if b["name"] == "main")
+        self.assertEqual(set(main["scope"]), set(canvas.BRANCH_SCOPED))
+
+    def test_a_fork_records_where_it_began(self):
+        alt = next(b for b in self.store.registry["branches"]
+                   if b["name"] == "alt")
+        self.assertEqual(alt["forked_from"], "main")
+        self.assertEqual(alt["forked_at_revn"], 0)
+        self.assertIn("origin_revn", alt)
+
+    def test_head_advances_past_the_fork_point(self):
+        # the reason the fork point had to be stored: `head` moves
+        alt = next(b for b in self.store.registry["branches"]
+                   if b["name"] == "alt")
+        self.assertNotEqual(alt["head"], alt["forked_at_revn"])
+
+    def test_a_v06_registry_is_migrated_losslessly(self):
+        reg = json.loads(json.dumps(canvas.DEFAULT_REGISTRY))
+        reg["concepts"] = [{"id": "c", "name": "C", "views": ["a"]}]
+        out = canvas._mig_registry_0002(reg)
+        main = out["branches"][0]
+        self.assertEqual(main["scope"]["concepts"], reg["concepts"])
+        # top level stays the working copy — nothing is moved out
+        self.assertEqual(out["concepts"], reg["concepts"])
+
+
+class TestModAttributes(Base):
+    """A domain entity's attribute rows are editable in place (BUG-04).
+
+    `attributes` was accepted on `add` and nowhere else, so the only way
+    to amend them was delete + re-add — which mints a new element id and
+    therefore drops that element's mappings and pins, and breaks the
+    rename-keeps-the-id rule `entity_renamed` detection depends on.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "dm",
+            "create": {"id": "dm", "name": "DM", "type": "domain",
+                       "concept": "d", "concept_name": "D"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "e1", "kind": "entity",
+                "label": "Concept", "x": 100, "y": 100,
+                "attributes": ["name: str", "kind: str"]}}]})
+
+    def set_attrs(self, rows):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dm",
+            "ops": [{"op": "mod", "id": "e1", "attrs": {"attributes": rows}}]})
+        return sorted({f["fact"] for a in rec["artifacts"].values()
+                       for f in a["facts"]})
+
+    def rows(self):
+        return [e["text"] for e in self.store.scenes["dm"]
+                if (e.get("customData") or {}).get("attr_of") == "e1"]
+
+    def test_the_entity_id_survives(self):
+        self.set_attrs(["name: str", "scale_free: bool"])
+        self.assertTrue(any(e["id"] == "e1" for e in self.store.scenes["dm"]))
+
+    def test_the_rows_are_replaced(self):
+        self.set_attrs(["name: str", "scale_free: bool"])
+        self.assertEqual(self.rows(), ["name: str", "scale_free: bool"])
+
+    def test_adding_a_row_narrates_as_an_attribute(self):
+        self.assertIn("attribute_added",
+                      self.set_attrs(["name: str", "kind: str", "n: int"]))
+
+    def test_removing_a_row_narrates_as_an_attribute(self):
+        self.assertIn("attribute_removed", self.set_attrs(["name: str"]))
+
+    def test_a_non_entity_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "dm",
+                "ops": [{"op": "mod", "id": "e1-attr-1",
+                         "attrs": {"attributes": ["x"]}}]})
+
+    def test_a_non_list_is_rejected(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "dm",
+                "ops": [{"op": "mod", "id": "e1",
+                         "attrs": {"attributes": {"x": 1}}}]})
+
+
+class TestMarkerAnchor(unittest.TestCase):
+    """Markers hug the shape, not its bounding box (r3-1).
+
+    A constant bbox offset is 22px off a rectangle and 79px off a
+    DIAMOND — a clearance varying threefold with shape type, which no
+    intentional design would do. v0.6 fixed exactly this for the tooltip
+    dot in App.tsx and nobody grepped, so it was still live in the pin
+    seeder AND, found while fixing this, in the tripwire mark.
+    """
+
+    def shape(self, etype):
+        return {"id": "n", "type": etype, "x": 100, "y": 100,
+                "width": 200, "height": 100}
+
+    def test_a_rectangle_fills_its_box(self):
+        self.assertEqual(canvas.marker_inset("rectangle"), 0.0)
+        self.assertEqual(canvas.marker_anchor(self.shape("rectangle")),
+                         (300, 200))
+
+    def test_a_diamond_pulls_the_marker_in(self):
+        x, y = canvas.marker_anchor(self.shape("diamond"))
+        self.assertEqual((x, y), (250, 175))
+
+    def test_an_ellipse_pulls_in_by_the_half_diagonal(self):
+        x, _ = canvas.marker_anchor(self.shape("ellipse"))
+        self.assertLess(x, 300)
+        self.assertGreater(x, 250)
+
+    def test_the_top_right_corner_mirrors_it(self):
+        self.assertEqual(canvas.marker_anchor(self.shape("diamond"),
+                                              corner="tr"), (250, 125))
+
+    def test_the_pin_glyph_hugs_a_diamond(self):
+        els, errors = [], []
+        node = self.shape("diamond")
+        node["customData"] = {"role": "node"}
+        out = canvas.apply_ops(
+            [node],
+            [{"op": "pin", "id": "pin-1", "target": "n",
+              "question": "Which way?"}], errors, [])
+        self.assertEqual(errors, [])
+        pin = next(e for e in out if e["id"] == "pin-1")
+        # 8px clear of the STROKE, not 79px clear of the corner
+        self.assertEqual((pin["x"], pin["y"]), (258, 117))
+
+    def test_the_router_still_owns_the_name_edge_anchor(self):
+        # this helper was first written AS `edge_anchor`, which already
+        # existed with a different meaning (the point on a shape's edge
+        # facing a target). The shadow made route_arrow produce no
+        # candidates and 156 tests error at once — loudly, which is the
+        # only reason it did not ship.
+        self.assertEqual(canvas.edge_anchor(self.shape("rectangle"),
+                                            1000, 150), (300.0, 150.0))
+
+
+class TestManyToOneIsADeclaredCompression(unittest.TestCase):
+    """3.2.4 asks once per mapping, not per cartesian pair (r3-8).
+
+    Three real toggles the user switches individually, mapped to one
+    flow box at a lower resolution, read as "same action, 3 names; pick
+    one?" — and both remedies it proposed were destructive: picking one
+    name deletes two controls, splitting into three mappings asserts
+    three steps that do not exist. When every remedy a check proposes is
+    destructive, the check's premise is wrong.
+    """
+
+    def labelled(self, eid, lbl, x):
+        """A node plus its bound label — label_map reads bound text."""
+        return [{"id": eid, "type": "rectangle", "x": x, "y": 100,
+                 "width": 160, "height": 60,
+                 "customData": {"role": "node"}},
+                {"id": eid + "-label", "type": "text", "x": x, "y": 100,
+                 "width": 140, "height": 20, "containerId": eid,
+                 "text": lbl, "originalText": lbl}]
+
+    def scenes(self):
+        wf = []
+        for i, (k, lbl) in enumerate((("market", "Market data"),
+                                      ("edgar", "EDGAR filings"),
+                                      ("news", "News stream"))):
+            wf += self.labelled("src-" + k, lbl, 100 + i * 200)
+        return {"admin-console": wf,
+                "daily-run-flow": self.labelled("ingest", "Ingest", 100)}
+
+    def notes(self, mappings):
+        out = canvas.cross_lint(
+            self.scenes(),
+            {"admin-console": "wireframe", "daily-run-flow": "flow"},
+            {"mappings": mappings, "waives": {}}, [])
+        return [m for part in out.values() for m in part["notes"]
+                if "3.2.4" in m]
+
+    def one_mapping(self):
+        return [{"concept": "argus",
+                 "elements": ["admin-console#src-market",
+                              "admin-console#src-edgar",
+                              "admin-console#src-news",
+                              "daily-run-flow#ingest"]}]
+
+    def three_mappings(self):
+        return [{"concept": "argus",
+                 "elements": ["admin-console#src-%s" % k,
+                              "daily-run-flow#ingest"]}
+                for k in ("market", "edgar", "news")]
+
+    def test_one_mapping_is_a_compression_and_says_nothing(self):
+        self.assertEqual(self.notes(self.one_mapping()), [])
+
+    def test_separate_mappings_disagreeing_still_fire(self):
+        # the silent half, inverted: two parties naming one step
+        # differently is the case worth catching, and it survives
+        notes = self.notes(self.three_mappings())
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("3 separate mappings", notes[0])
+
+
+class TestOneTripwirePerMapping(Base):
+    """A mapping asks ONE question per save, whatever its arity (r3-7).
+
+    Emission was a nested loop over (changed × sibling), so renaming one
+    element of a four-member mapping asked three questions — while every
+    suppression path above it already reasons once per mapping. The
+    agent that met it: "fired three tripwires — all one cause, so I've
+    answered the cause rather than the count", then wrote ONE annotation
+    that resolved all three.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "registry", "action": "add_mapping",
+                     "concept": "checkout",
+                     "elements": ["checkout-flow#cart",
+                                  "checkout-flow#checkout",
+                                  "checkout-flow#payment",
+                                  "checkout-flow#confirm"]}]})
+
+    def rename(self, eid, label):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": eid, "attrs": {"label": label}}]})
+        return rec
+
+    def test_one_rename_of_four_members_asks_one_question(self):
+        self.assertEqual(len(self.rename("cart", "Basket")["tripwires"]), 1)
+
+    def test_the_question_counts_the_siblings(self):
+        t = self.rename("cart", "Basket")["tripwires"][0]
+        self.assertIn("3 mapped siblings", t["question"])
+
+    def test_it_carries_both_lists(self):
+        t = self.rename("cart", "Basket")["tripwires"][0]
+        self.assertEqual(t["changed_all"], ["checkout-flow#cart"])
+        self.assertEqual(len(t["siblings"]), 3)
+
+    def test_the_singular_fields_survive_for_the_ui_anchor(self):
+        t = self.rename("cart", "Basket")["tripwires"][0]
+        self.assertEqual(t["changed"], "checkout-flow#cart")
+        self.assertIn(t["sibling"], t["siblings"])
+
+    def test_one_resolve_clears_it(self):
+        self.rename("cart", "Basket")
+        self.assertEqual(len(self.store.open_tripwires()), 1)
+
+    def test_renaming_two_members_still_asks_once(self):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "cart", "attrs": {"label": "Basket"}},
+                    {"op": "mod", "id": "checkout",
+                     "attrs": {"label": "Review"}}]})
+        self.assertEqual(len(rec["tripwires"]), 1)
+        self.assertEqual(len(rec["tripwires"][0]["changed_all"]), 2)
+
+    def test_renaming_every_member_asks_nothing(self):
+        # the silent half: a convergent edit is not a divergence
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": e, "attrs": {"label": "New " + e}}
+                    for e in ("cart", "checkout", "payment", "confirm")]})
+        self.assertEqual(rec["tripwires"], [])
+
+
+class TestTidyRunsToAFixedPoint(Base):
+    """tidy must settle, or say it cannot (BUG-02).
+
+    Routing reads the other arrows' current paths and the fan then moves
+    them, so one pass is not stable: on a real project tidy flip-flopped
+    between two states with period 2, and each of five presses wrote a
+    revision headlined "saved without changing anything".
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_an_already_tidy_artifact_is_a_noop(self):
+        self.store.tidy("checkout-flow")
+        r = self.store.tidy("checkout-flow")
+        self.assertTrue(r.get("noop"))
+        self.assertIn("already tidy", r["summary"]["headline"])
+
+    def test_repeated_presses_write_nothing(self):
+        self.store.tidy("checkout-flow")
+        head = self.store.head_revn()
+        for _ in range(4):
+            self.store.tidy("checkout-flow")
+        self.assertEqual(self.store.head_revn(), head)
+
+    def test_a_genuinely_untidy_artifact_still_commits(self):
+        # the silent half: converging to a noop must not disable tidy
+        for e in self.store.scenes["checkout-flow"]:
+            if e["id"] == "payment":
+                e["x"] = e["x"] + 3      # off the 4px grid
+        r = self.store.tidy("checkout-flow")
+        self.assertFalse(r.get("noop"), r["summary"]["headline"])
+
+    def test_an_unknown_artifact_still_raises(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.tidy("ghost")
+
+
+class TestNoOpRewireIsNotASequenceChange(Base):
+    """Dropping an endpoint back on its own node is not a re-sequence.
+
+    Excalidraw rewrites the binding OBJECT (focus, gap) on a drag, so
+    the attribute showed in the diff while nothing was re-pointed — and
+    two such facts tripped `sequence_reordered`, the one fact the flow
+    reference tells the agent to LEAD WITH (brownfield BUG-01).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def facts_after(self, mutate):
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        mutate({e["id"]: e for e in els})
+        rec = self.store.commit(author="user",
+                                new_scenes={"checkout-flow": els})
+        return [f["fact"] for a in rec["artifacts"].values()
+                for f in a["facts"]]
+
+    def jiggle(self, ix, *aids):
+        for aid in aids:
+            for key in ("startBinding", "endBinding"):
+                b = dict(ix[aid].get(key) or {})
+                if b:
+                    b["focus"] = round(b.get("focus", 0) + 0.11, 3)
+                    b["gap"] = b.get("gap", 6) + 1
+                    ix[aid][key] = b
+
+    def test_a_no_op_rewire_emits_no_rewired_fact(self):
+        self.assertNotIn("rewired", self.facts_after(
+            lambda ix: self.jiggle(ix, "t1")))
+
+    def test_two_no_op_rewires_do_not_claim_a_re_sequence(self):
+        self.assertNotIn("sequence_reordered", self.facts_after(
+            lambda ix: self.jiggle(ix, "t1", "t2")))
+
+    def test_a_real_rewire_still_fires(self):
+        # the silent half, and the one that matters
+        def repoint(ix):
+            ix["t1"]["endBinding"] = dict(ix["t1"]["endBinding"],
+                                          elementId="payment")
+        self.assertIn("rewired", self.facts_after(repoint))
 
 
 class TestDivergenceVerbs(Base):
@@ -5039,6 +6184,889 @@ class TestDecorationFollowsItsBox(Base):
                                    artifact_type="wireframe")["notes"]
         self.assertFalse(any("extends" in n and "grouped with" in n
                              for n in notes), notes)
+
+
+class TestRouterTotalityAndSelfLoops(Base):
+    """WP1 (r4-11, D8, E-8, E-9): routing is total, reflexive arrows are
+    a supported relationship class, and no failure reaches the agent as
+    a traceback."""
+
+    def flow_nodes(self):
+        """Seed a 3-node flow (source -> transform -> sink).
+
+        Returns:
+            The seeded elements list.
+        """
+        return [
+            {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+             "width": 100, "height": 50,
+             "customData": {"kind": "source", "role": "node"}},
+            {"id": "t", "type": "rectangle", "x": 300, "y": 0,
+             "width": 100, "height": 50,
+             "customData": {"kind": "transform", "role": "node"}},
+            {"id": "k", "type": "rectangle", "x": 600, "y": 0,
+             "width": 100, "height": 50,
+             "customData": {"kind": "sink", "role": "node"}},
+        ]
+
+    def test_self_loop_routes_and_binds(self):
+        # The r4-11 class: "a PipelineRun is a rerun of another
+        # PipelineRun" was undrawable — from == to raised ValueError out
+        # of min() on an empty candidate list.
+        box = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+               "width": 160, "height": 80}
+        arrow = {"id": "a1", "type": "arrow"}
+        canvas.route_arrow(arrow, box, box)
+        self.assertEqual(len(arrow["points"]), 5)
+        self.assertEqual(arrow["startBinding"]["elementId"], "n1")
+        self.assertEqual(arrow["endBinding"]["elementId"], "n1")
+        self.assertEqual(arrow["roundness"], {"type": 2})
+
+    def test_self_loop_reroute_is_idempotent(self):
+        # The F1/obstacle post-passes call route_arrow again; a loop must
+        # come back identical, never degenerate.
+        box = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+               "width": 160, "height": 80}
+        other = {"id": "n2", "type": "rectangle", "x": 130, "y": 90,
+                 "width": 80, "height": 40}
+        arrow = {"id": "a1", "type": "arrow"}
+        canvas.route_arrow(arrow, box, box)
+        before = [list(p) for p in arrow["points"]]
+        canvas.route_arrow(arrow, box, box, obstacles=[other])
+        self.assertEqual(before, arrow["points"])
+
+    def test_coincident_and_concentric_pairs_route_a_stub(self):
+        # Arm 4's live trigger: a new node placed before layout separates
+        # it shares its neighbor's spot. Both shapes must route, not raise.
+        a = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+             "width": 160, "height": 80}
+        b = {"id": "n2", "type": "rectangle", "x": 100, "y": 100,
+             "width": 160, "height": 80}
+        c = {"id": "n3", "type": "rectangle", "x": 140, "y": 120,
+             "width": 80, "height": 40}
+        for dst in (b, c):
+            arrow = {"id": "a-%s" % dst["id"], "type": "arrow"}
+            canvas.route_arrow(arrow, a, dst)
+            self.assertGreaterEqual(len(arrow["points"]), 2)
+            span = max(abs(p[0]) + abs(p[1]) for p in arrow["points"])
+            self.assertGreater(span, 0.5)
+
+    def test_offset_pair_still_routes_normally(self):
+        # Control: the totality guard must not change ordinary routing.
+        a = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+             "width": 100, "height": 50}
+        b = {"id": "n2", "type": "rectangle", "x": 300, "y": 0,
+             "width": 100, "height": 50}
+        arrow = {"id": "a1", "type": "arrow"}
+        canvas.route_arrow(arrow, a, b)
+        self.assertEqual(arrow["startBinding"]["elementId"], "n1")
+        self.assertEqual(arrow["endBinding"]["elementId"], "n2")
+        self.assertEqual(len(arrow["points"]), 2)
+
+    def test_self_loop_through_apply_batch(self):
+        # End to end through the documented write path — the exact move
+        # arm 3 could not make.
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e1", "type": "arrow"},
+             "from": "s", "to": "t"},
+            {"op": "add", "element": {"id": "e2", "type": "arrow"},
+             "from": "t", "to": "k"},
+            {"op": "add", "element": {"id": "loop", "type": "arrow",
+                                      "label": "retry"},
+             "from": "t", "to": "t"},
+        ], errors)
+        self.assertEqual(errors, [])
+        loop = next(e for e in els if e["id"] == "loop")
+        self.assertEqual(loop["startBinding"]["elementId"], "t")
+        self.assertEqual(loop["endBinding"]["elementId"], "t")
+
+    def test_self_loop_exempt_from_flow_and_label_lints(self):
+        # A looped transform is not a black hole, not a source-to-sink
+        # short circuit, and its label never draws "wider than its run".
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e1", "type": "arrow"},
+             "from": "s", "to": "t"},
+            {"op": "add", "element": {"id": "e2", "type": "arrow"},
+             "from": "t", "to": "k"},
+            {"op": "add", "element": {"id": "loop", "type": "arrow",
+                                      "label": "retry with backoff"},
+             "from": "t", "to": "t"},
+        ], errors)
+        self.assertEqual(errors, [])
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        self.assertEqual(lint["errors"], [])
+        self.assertFalse(any("wider than its arrow" in w and "loop" in w
+                             for w in lint["warnings"]), lint["warnings"])
+
+    def test_self_edge_excluded_from_reachability(self):
+        els = []
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "loop", "type": "arrow"},
+             "from": "t", "to": "t"},
+        ], errors)
+        reach = canvas.flow_reachable(els)
+        self.assertNotIn("t", reach.get("t", set()))
+
+    def test_unbound_labeled_arrow_warns_bound_stays_quiet(self):
+        # D8, both directions: the free labeled arrow draws exactly one
+        # warning; the bound arrows draw none; a decoration line is
+        # exempt entirely.
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e1", "type": "arrow"},
+             "from": "s", "to": "t"},
+        ], errors)
+        els.append({"id": "free", "type": "arrow", "x": 0, "y": 200,
+                    "width": 100, "height": 0,
+                    "points": [[0, 0], [100, 0]]})
+        els.append({"id": "free-lbl", "type": "text", "text": "informs",
+                    "containerId": "free", "x": 20, "y": 190,
+                    "width": 60, "height": 18, "fontSize": 14})
+        els.append({"id": "deco", "type": "line", "x": 0, "y": 300,
+                    "width": 80, "height": 0, "points": [[0, 0], [80, 0]],
+                    "customData": {"role": "decoration"}})
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        unbound = [w for w in lint["warnings"] if "binds nothing" in w]
+        self.assertEqual(len(unbound), 1, lint["warnings"])
+        self.assertTrue(unbound[0].startswith("arrow free"))
+        self.assertFalse(any(w.startswith("arrow deco")
+                             for w in unbound))
+
+    def test_routing_failure_is_an_error_not_a_traceback(self):
+        # E-9: monkeypatch route_arrow to raise; the batch must reject
+        # whole with an ERROR naming the op — never a traceback.
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [{"op": "add", "element": {
+                "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "A"}}]})
+        orig = canvas.route_arrow
+
+        def boom(*args, **kwargs):
+            raise ValueError("boom")
+
+        canvas.route_arrow = boom
+        try:
+            with self.assertRaises(canvas.BatchError) as ctx:
+                self.store.apply_batch({
+                    "base_revn": 1, "artifact": "f",
+                    "ops": [{"op": "add", "element": {
+                        "id": "n2", "type": "rectangle", "x": 300,
+                        "y": 0, "width": 100, "height": 50,
+                        "label": "B"}},
+                        {"op": "add", "element": {"id": "a",
+                                                  "type": "arrow"},
+                         "from": "n1", "to": "n2"}]})
+        finally:
+            canvas.route_arrow = orig
+        msg = str(ctx.exception)
+        self.assertIn("op 1", msg)
+        self.assertIn("internal routing error", msg)
+        self.assertIn("ValueError", msg)
+
+    def test_check_path_reports_the_same_error_envelope(self):
+        # The offline --check path was the barest escape route: a raw
+        # traceback to stdout. check_batch must return ok=False with the
+        # enveloped message instead.
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [{"op": "add", "element": {
+                "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "A"}}]})
+        orig = canvas.route_arrow
+
+        def boom(*args, **kwargs):
+            raise ValueError("boom")
+
+        canvas.route_arrow = boom
+        try:
+            result = self.store.check_batch({
+                "base_revn": 1, "artifact": "f",
+                "ops": [{"op": "add", "element": {"id": "a",
+                                                  "type": "arrow",
+                                                  "x": 0, "y": 0},
+                         "from": "n1", "to": "n1"}]})
+        finally:
+            canvas.route_arrow = orig
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("internal routing error" in e
+                            for e in result["errors"]), result["errors"])
+
+
+class TestReferentialIntegrity(Base):
+    """WP2 (the r4 headline): nothing validated a reference after the
+    thing it referred to was gone — bindings dangled on disk while the
+    lint's error was unreachable, mapping members pointed at corpses,
+    notes floated, and catch_up blamed a phantom outside editor."""
+
+    def seed(self):
+        """Two nodes, a bound arrow, a mapping, and an anchored note.
+
+        Returns:
+            The head revn after seeding.
+        """
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                    "width": 100, "height": 50, "label": "A",
+                    "kind": "source", "role": "node"}},
+                {"op": "add", "element": {
+                    "id": "n2", "type": "rectangle", "x": 300, "y": 0,
+                    "width": 100, "height": 50, "label": "B",
+                    "kind": "sink", "role": "node"}},
+                {"op": "add", "element": {"id": "t1", "type": "arrow"},
+                 "from": "n1", "to": "n2"},
+            ]})
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "f", "ops": [
+                {"op": "registry", "action": "add_mapping", "concept": "c",
+                 "elements": ["f#n2", "f#n1"]},
+                {"op": "add", "element": {
+                    "id": "note1", "type": "text", "text": "watch",
+                    "x": 320, "y": 80, "role": "annotation",
+                    "annotates": "n2"}},
+            ]})
+        return self.store.head_revn()
+
+    def user_delete_n2(self):
+        """Delete n2 the way the client does — binding left dangling.
+
+        Returns:
+            The commit record.
+        """
+        els = [json.loads(json.dumps(e)) for e in self.store.scenes["f"]
+               if e["id"] != "n2" and e.get("containerId") != "n2"]
+        return self.store.commit(author="user", new_scenes={"f": els},
+                                 base_revn=self.store.head_revn())
+
+    def test_deletion_facts_name_every_broken_reference(self):
+        self.seed()
+        rec = self.user_delete_n2()
+        facts = {f["fact"] for f in rec["artifacts"]["f"]["facts"]}
+        self.assertIn("arrow_orphaned", facts)
+        self.assertIn("mapping_dangling", facts)
+        self.assertIn("note_orphaned", facts)
+
+    def test_clean_deletion_emits_no_reference_facts(self):
+        # Silent half: deleting an UNREFERENCED node breaks nothing and
+        # must say nothing about references.
+        self.seed()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "f",
+            "ops": [{"op": "add", "element": {
+                "id": "n3", "type": "rectangle", "x": 600, "y": 200,
+                "width": 100, "height": 50, "label": "C"}}]})
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "f",
+            "ops": [{"op": "del", "id": "n3"}]})
+        facts = {f["fact"] for f in rec["artifacts"]["f"]["facts"]}
+        self.assertFalse(facts & {"arrow_orphaned", "mapping_dangling",
+                                  "note_orphaned"}, facts)
+
+    def test_fresh_load_reports_raw_findings_and_lint_debt_carries_them(self):
+        # The r4-7 unreachability, both halves: the binding dangles ON
+        # DISK after a user delete; a fresh Store must (a) report it from
+        # the RAW scene even though validate_scene repairs it in memory,
+        # (b) carry it into lint_debt, and (c) name the repair.
+        self.seed()
+        self.user_delete_n2()
+        store2 = canvas.Store(self.project)
+        ref = store2.referential
+        self.assertTrue(any("t1" in m and "no longer exists" in m
+                            for m in ref.get("f", {}).get("errors", [])),
+                        ref)
+        self.assertTrue(any("f#n2" in m for m in
+                            ref.get("registry", {}).get("warnings", [])),
+                        ref)
+        debt = store2.lint_debt()
+        self.assertGreaterEqual(debt.get("f", {}).get("errors", 0), 1)
+        self.assertGreaterEqual(
+            debt.get("registry", {}).get("warnings", 0), 1)
+        self.assertTrue(any(i["code"] == "ART-005" and i.get("repaired")
+                            for i in store2.issues), store2.issues)
+
+    def test_intact_project_has_no_referential_findings(self):
+        # Silent half of the load pass.
+        self.seed()
+        store2 = canvas.Store(self.project)
+        self.assertEqual(store2.referential, {})
+
+    def test_referential_findings_unit_directions(self):
+        raw = {"a": [
+            {"id": "n1", "type": "rectangle"},
+            {"id": "ok", "type": "arrow",
+             "startBinding": {"elementId": "n1"}, "endBinding": None},
+            {"id": "bad", "type": "arrow",
+             "startBinding": {"elementId": "ghost"},
+             "endBinding": {"elementId": "n1"}},
+            {"id": "note", "type": "text",
+             "customData": {"annotates": "ghost"}},
+            {"id": "lnk", "type": "rectangle",
+             "link": "artifact:nowhere"},
+            "corrupt-non-dict",
+        ]}
+        reg = {"mappings": [
+            {"concept": "c", "elements": ["a#n1", "a#ghost"]},
+            {"concept": "c2", "elements": ["a#n1"]}]}
+        out = canvas.referential_findings(raw, reg, {"a"})
+        self.assertEqual(len(out["a"]["errors"]), 1)
+        self.assertIn("bad", out["a"]["errors"][0])
+        self.assertEqual(len(out["a"]["notes"]), 2)  # note + links_to
+        self.assertEqual(len(out["registry"]["warnings"]), 1)
+        self.assertIn("a#ghost", out["registry"]["warnings"][0])
+
+    def test_genuine_outside_edit_still_reconciles_as_one(self):
+        # Control: a real out-of-session edit keeps the classic
+        # reconciliation (author, honest content headline) and does NOT
+        # take the repair-only path.
+        self.seed()
+        p = self.tmp / "project_knowledge" / "artifacts" / "f.excalidraw"
+        doc = json.loads(p.read_text(encoding="utf-8"))
+        for e in doc["elements"]:
+            if e["id"] == "n1":
+                e["x"] = 555
+        p.write_text(json.dumps(doc), encoding="utf-8")
+        store2 = canvas.Store(self.project)
+        rec = store2.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+        self.assertNotIn("load-time repair", rec["summary"]["headline"])
+        self.assertNotIn("saved without changing anything",
+                         rec["summary"]["headline"])
+        store3 = canvas.Store(self.project)
+        self.assertIsNone(store3.catch_up())
+
+
+class TestComposedReconciliation(Base):
+    """WP3 (r4-8/r4-9/r4-10): composed parts are DERIVED — geometry from
+    the host, presence from the state — on every path, and a user's
+    part edit is read as the state gesture it is."""
+
+    def seed_controls(self):
+        """Seed a wireframe with a checked checkbox and a 70% slider."""
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "w", "type": "wireframe",
+                       "concept": "c", "name": "W"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "cb", "type": "rectangle", "x": 100, "y": 100,
+                    "width": 200, "height": 28, "label": "Macro calendar",
+                    "kind": "checkbox", "checked": True}},
+                {"op": "add", "element": {
+                    "id": "sl", "type": "rectangle", "x": 100, "y": 200,
+                    "width": 160, "height": 44, "label": "Confidence",
+                    "kind": "slider", "value": 70}},
+            ]})
+
+    def user_save(self, els):
+        """Commit a user save of the given elements.
+
+        Args:
+            els: The full element list to save.
+
+        Returns:
+            The commit record.
+        """
+        return self.store.commit(author="user", new_scenes={"w": els},
+                                 base_revn=self.store.head_revn())
+
+    def scene_copy(self, drop=None):
+        """Deep-copy the live scene, optionally dropping one element id.
+
+        Args:
+            drop: Element id to omit, or None.
+
+        Returns:
+            The copied element list.
+        """
+        return [json.loads(json.dumps(e)) for e in self.store.scenes["w"]
+                if e["id"] != drop]
+
+    def test_stroke_delete_is_an_uncheck_everywhere(self):
+        # The r4-8 beat: render, record, memory and DISK must all agree.
+        self.seed_controls()
+        rec = self.user_save(self.scene_copy(drop="cb-chk"))
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("state_toggled", facts)
+        self.assertIn("switched off", rec["summary"]["headline"])
+        cb = next(e for e in self.store.scenes["w"] if e["id"] == "cb")
+        self.assertFalse(cb["customData"]["checked"])
+        self.assertFalse(any(e["id"] == "cb-chk"
+                             for e in self.store.scenes["w"]))
+        disk = json.loads(
+            (self.tmp / "project_knowledge" / "artifacts" /
+             "w.excalidraw").read_text(encoding="utf-8"))
+        dcb = next(e for e in disk["elements"] if e["id"] == "cb")
+        self.assertFalse(dcb["customData"]["checked"])
+
+    def test_stroke_restore_flips_back_with_a_fact(self):
+        self.seed_controls()
+        self.user_save(self.scene_copy(drop="cb-chk"))
+        els = self.scene_copy()
+        els.append({"id": "cb-chk", "type": "line", "x": 111, "y": 112,
+                    "width": 10, "height": 8,
+                    "points": [[0, 0], [4, 4], [10, -6]],
+                    "customData": {"chk_of": "cb", "role": "decoration"},
+                    "groupIds": ["cb-grp"]})
+        rec = self.user_save(els)
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("state_toggled", facts)
+        cb = next(e for e in self.store.scenes["w"] if e["id"] == "cb")
+        self.assertTrue(cb["customData"]["checked"])
+
+    def test_slider_thumb_drag_becomes_value_changed(self):
+        self.seed_controls()
+        els = self.scene_copy()
+        th = next(e for e in els if e["id"] == "sl-thumb")
+        th["x"] = 100 + 10 + (160 - 20 - 12) * 0.25
+        rec = self.user_save(els)
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("value_changed", facts)
+        sl = next(e for e in self.store.scenes["w"] if e["id"] == "sl")
+        self.assertAlmostEqual(sl["customData"]["value"], 25.0, delta=1.0)
+
+    def test_pasted_control_composes_without_phantom_gesture(self):
+        # Delta-based, not state-based: a NEW host arriving without parts
+        # is a paste, not an uncheck.
+        self.seed_controls()
+        els = self.scene_copy()
+        els.append({"id": "cb2", "type": "rectangle", "x": 100, "y": 300,
+                    "width": 200, "height": 28,
+                    "customData": {"kind": "checkbox", "checked": True,
+                                   "role": "node"},
+                    "groupIds": ["cb2-grp"]})
+        rec = self.user_save(els)
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertNotIn("state_toggled", facts)
+        self.assertTrue(any(e["id"] == "cb2-chk"
+                            for e in self.store.scenes["w"]))
+
+    def test_untouched_save_still_says_nothing_changed(self):
+        # Silent half: interpretation + reconciliation must be idempotent.
+        self.seed_controls()
+        rec = self.user_save(self.scene_copy())
+        self.assertEqual(rec["summary"]["headline"],
+                         "saved without changing anything")
+
+    def test_resize_rederives_every_part_kind(self):
+        # The stale-on-resize hole was xbox-only until v0.8.
+        self.seed_controls()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "mod", "id": "sl", "attrs": {"width": 320}}]})
+        sl = next(e for e in self.store.scenes["w"] if e["id"] == "sl")
+        tr = next(e for e in self.store.scenes["w"]
+                  if e["id"] == "sl-track")
+        th = next(e for e in self.store.scenes["w"]
+                  if e["id"] == "sl-thumb")
+        self.assertEqual(tr["width"], 300)
+        self.assertAlmostEqual(
+            th["x"], canvas._slider_thumb_x(sl, sl["customData"]["value"]),
+            delta=1.0)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "mod", "id": "cb",
+                     "attrs": {"height": 60}}]})
+        cb = next(e for e in self.store.scenes["w"] if e["id"] == "cb")
+        box = next(e for e in self.store.scenes["w"]
+                   if e["id"] == "cb-box")
+        self.assertAlmostEqual(box["y"],
+                               cb["y"] + cb["height"] / 2.0 - 8, delta=0.5)
+
+    def test_links_change_narrates_instead_of_no_changes(self):
+        # r4-9's second face: wiring click-throughs used to narrate as
+        # "saved without changing anything" while the links landed.
+        self.seed_controls()
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "mod", "id": "cb",
+                     "attrs": {"links_to": "w"}}]})
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("links_changed", facts)
+        self.assertIn("now links to", rec["summary"]["headline"])
+
+    def test_suppressed_only_save_says_housekeeping_not_no_changes(self):
+        # r4-9's headline face: every fact suppressed is housekeeping,
+        # never "no changes".
+        self.seed_controls()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "add", "element": {
+                "id": "deco1", "type": "line", "x": 0, "y": 400,
+                "width": 80, "height": 0, "points": [[0, 0], [80, 0]],
+                "role": "decoration"}}]})
+        els = self.scene_copy(drop="deco1")
+        rec = self.user_save(els)
+        self.assertIn("housekeeping only", rec["summary"]["headline"])
+        self.assertNotEqual(rec["summary"]["headline"], "no changes")
+
+
+class TestPictureIsTheTruth(Base):
+    """WP4 (r4-12, r4-1, D15, B6, E-4, D24): the measurements that decide
+    legibility must agree with the renderer the user actually sees."""
+
+    def test_kpi_value_width_no_longer_wraps(self):
+        # The '62' tile: stored width must be >= the real Nunito need
+        # (28.8px at fontSize 24) — the old int(0.6-em) box was 28 and
+        # the live editor wrapped it into stacked digits.
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {
+                "id": "kpi", "type": "rectangle", "x": 0, "y": 0,
+                "width": 292, "height": 120, "label": "Sentiment index",
+                "kind": "kpi", "value": "62"}}], errors)
+        self.assertEqual(errors, [])
+        val = next(e for e in els
+                   if (e.get("customData") or {}).get("value_of") == "kpi")
+        need, _ = canvas.text_dims("62", val.get("fontSize", 24))
+        self.assertGreaterEqual(val["width"], 29)
+        self.assertGreaterEqual(val["width"], need)
+
+    def test_crossing_arrow_fires_and_fan_attach_stays_legal(self):
+        # r4-1 both directions: an endpoint that crossed the whole box
+        # and stopped near the far edge fires the crosses-through check;
+        # a fanned endpoint sitting exactly ON an edge stays silent.
+        box = {"id": "b", "type": "rectangle", "x": 360, "y": 60,
+               "width": 200, "height": 60,
+               "customData": {"role": "node", "kind": "transform"}}
+        crossing = {"id": "a1", "type": "arrow", "x": 300, "y": 90,
+                    "width": 248, "height": 0,
+                    "points": [[0, 0], [248, 0]],
+                    "endBinding": {"elementId": "b", "focus": 0,
+                                   "gap": 6}}
+        fan = {"id": "a2", "type": "arrow", "x": 300, "y": 20,
+               "width": 150, "height": 40,
+               "points": [[0, 0], [150, 40]],
+               "endBinding": {"elementId": "b", "focus": 0, "gap": 6}}
+        lint = canvas.lint_layout([box, crossing, fan],
+                                  artifact_type="flow")
+        crossing_msgs = [m for tier in ("errors", "warnings")
+                        for m in lint[tier] if "a1" in m]
+        self.assertTrue(any("crossing through" in m or "runs" in m
+                            for m in crossing_msgs), lint)
+        fan_msgs = [m for tier in ("errors", "warnings")
+                    for m in lint[tier] if "a2" in m and
+                    ("inside" in m or "crossing" in m)]
+        self.assertEqual(fan_msgs, [], lint)
+
+    def test_body_kind_composes_wavy_lines_and_rederives(self):
+        # E-4 / v0.2 gap #12: the wavy stand-in exists now, and its
+        # lines follow a resize like every other composed part.
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {
+                "id": "body", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 64, "kind": "body"}}], errors)
+        self.assertEqual(errors, [])
+        lines = [e for e in els
+                 if (e.get("customData") or {}).get("body_of") == "body"]
+        self.assertGreaterEqual(len(lines), 2)
+        self.assertTrue(all(len(ln["points"]) > 5 for ln in lines))
+        els2 = canvas.apply_ops(els, [
+            {"op": "mod", "id": "body", "attrs": {"width": 400}}], errors)
+        self.assertEqual(errors, [])
+        lines2 = [e for e in els2
+                  if (e.get("customData") or {}).get("body_of") == "body"]
+        self.assertTrue(all(ln["width"] > 300 for ln in lines2[:-1]))
+
+    def test_glossary_parser_rejects_sentence_fragments(self):
+        # D24: the live false alarm — a bolded clause inside an entry
+        # body minted as a term after the agent's last lint pass.
+        text = ("**Run**: one 06:00 execution.\n"
+                "**Switched off by default since Aug 2026**: not a term.\n"
+                "**Macro Calendar** — the fifth source.\n")
+        terms = canvas.parse_glossary_terms(text)
+        self.assertIn("Run", terms)
+        self.assertIn("Macro Calendar", terms)
+        self.assertNotIn("Switched off by default since Aug 2026", terms)
+
+    def test_pin_spot_dodges_dense_neighbours_hugs_on_flows(self):
+        # D15: constant offset was layout-density-blind.
+        target = {"id": "t", "type": "rectangle", "x": 100, "y": 100,
+                  "width": 120, "height": 80}
+        neighbour = {"id": "n", "type": "rectangle", "x": 232, "y": 60,
+                     "width": 120, "height": 80}
+        px, py = canvas.pin_spot(target, [target, neighbour])
+        self.assertLessEqual(px + 26, 232)  # inside the target's column
+        far = {"id": "n2", "type": "rectangle", "x": 600, "y": 100,
+               "width": 120, "height": 80}
+        hug = canvas.pin_spot(target, [target, far])
+        self.assertEqual(hug, canvas.marker_anchor(target, dx=8, dy=-8,
+                                                   corner="tr"))
+
+    def test_toggle_travel_is_readable(self):
+        # B6 residue: 12px of travel was "merely subtle at export scale".
+        el = {"id": "tg", "x": 0, "y": 0, "width": 200, "height": 28}
+        travel = canvas._toggle_thumb_x(el, True) - \
+            canvas._toggle_thumb_x(el, False)
+        self.assertGreaterEqual(travel, 16)
+
+
+class TestEventLoopAndRounds(Base):
+    """WP5 (r4-3, r4-6, D9, D10): the loop's substrate — event taxonomy,
+    the chat-only round stall, and the nags that arm the mechanisms."""
+
+    def test_event_taxonomy_covers_every_emitted_type(self):
+        # Self-checking against the source: every events.append("type")
+        # in canvas.py must be classified user/agent/system — an
+        # unclassified type is the r4-6 gap reopening (agent_revision
+        # was 87% of live traffic and documented nowhere).
+        src = (Path(canvas.__file__)).read_text(encoding="utf-8")
+        emitted = set(re.findall(
+            r'(?:events|self\.events)\.append\(\s*"([a-z_]+)"', src))
+        classified = set(canvas.USER_EVENT_TYPES) | \
+            set(canvas.AGENT_EVENT_TYPES) | \
+            {"server_started", "reconciliation"}
+        self.assertTrue(emitted, "taxonomy scan found no emissions")
+        unclassified = emitted - classified
+        self.assertFalse(unclassified,
+                         "event types with no owner: %r" % unclassified)
+
+    def seed_round_stall(self):
+        """One artifact, one open pin, then N agent-only commits."""
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                    "width": 100, "height": 50, "label": "A"}},
+                {"op": "pin", "target": "n1",
+                 "question": "does A really start the run?"}]})
+        for k in range(3):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "f",
+                "ops": [{"op": "mod", "id": "n1",
+                         "attrs": {"x": 10 * (k + 1)}}]})
+
+    def test_round_stall_fires_after_agent_only_run(self):
+        self.seed_round_stall()
+        rs = self.store.round_stall()
+        self.assertIsNotNone(rs)
+        self.assertGreaterEqual(rs["commits"], 4)
+
+    def test_round_stall_resets_on_user_save_and_needs_open_pins(self):
+        self.seed_round_stall()
+        els = [json.loads(json.dumps(e)) for e in self.store.scenes["f"]]
+        els.append({"id": "note-u", "type": "text", "text": "hm",
+                    "x": 300, "y": 300, "width": 40, "height": 18,
+                    "customData": {"role": "annotation",
+                                   "author": "user"}})
+        self.store.commit(author="user", new_scenes={"f": els},
+                          base_revn=self.store.head_revn())
+        self.assertIsNone(self.store.round_stall())
+
+    def test_set_round_validates_instead_of_silently_ignoring(self):
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [{"op": "add", "element": {
+                "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "A"}}]})
+        with self.assertRaises(canvas.BatchError) as ctx:
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": "f",
+                "ops": [{"op": "registry", "action": "set_round",
+                         "round": "four"}]})
+        self.assertIn("must be an integer", str(ctx.exception))
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "f",
+            "ops": [{"op": "registry", "action": "set_round",
+                     "round": 7}]})
+        self.assertEqual(self.store.registry["round"], 7)
+
+    def test_unmapped_kpi_nags_and_mapped_stays_quiet(self):
+        # D9 both directions: tripwire coverage is exactly as good as
+        # the mapping discipline, so an unarmed KPI must nag while a
+        # flow exists — and go quiet once mapped.
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "flow1", "type": "flow",
+                       "concept": "c", "name": "Flow"},
+            "ops": [{"op": "add", "element": {
+                "id": "risk", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "Risk model"}}]})
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "create": {"id": "dash", "type": "wireframe",
+                       "concept": "c2", "name": "Dash"},
+            "ops": [{"op": "add", "element": {
+                "id": "kpi-var", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 90, "label": "VaR",
+                "kind": "kpi", "value": "2.4%"}}]})
+        types = {a: self.store.artifact_type(a) for a in self.store.scenes}
+        cross = canvas.cross_lint(self.store.scenes, types,
+                                  self.store.registry, [])
+        notes = (cross.get("dash") or {}).get("notes") or []
+        self.assertTrue(any("KPI tile(s) unmapped" in n for n in notes),
+                        cross)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dash",
+            "ops": [{"op": "registry", "action": "add_mapping",
+                     "concept": "c",
+                     "elements": ["dash#kpi-var", "flow1#risk"]}]})
+        cross2 = canvas.cross_lint(self.store.scenes, types,
+                                   self.store.registry, [])
+        notes2 = (cross2.get("dash") or {}).get("notes") or []
+        self.assertFalse(any("KPI tile(s) unmapped" in n for n in notes2),
+                         cross2)
+
+    def test_muted_rename_is_named_while_the_ruling_holds(self):
+        # D10: a rename swallowed by a value-scoped divergence ruling is
+        # armed silence — it must surface as tripwires_muted, with no
+        # tripwire fired and the ruling intact.
+        self.test_unmapped_kpi_nags_and_mapped_stays_quiet()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dash",
+            "ops": [{"op": "registry", "action": "annotate_mapping",
+                     "index": 0,
+                     "note": "intentionally-divergent: tile wording "
+                             "belongs to the screen",
+                     "kinds": ["label_renamed", "renamed",
+                               "value_changed"]}]})
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "dash",
+            "ops": [{"op": "mod", "id": "kpi-var",
+                     "attrs": {"label": "Excess Return"}}]})
+        self.assertEqual(rec["tripwires"], [])
+        muted = rec.get("tripwires_muted") or []
+        self.assertTrue(any("scopes naming out" in m for m in muted),
+                        rec)
+
+
+class TestXAsUserFidelity(unittest.TestCase):
+    """WP6 (D28 + the r4-10 driver half): the assessor's user-gesture
+    driver must write what the real client writes — a drifted driver
+    manufactures findings with the authority of real ones. Server-spun:
+    these verbs ARE HTTP round-trips."""
+
+    CANVAS = str(Path(__file__).resolve().parent.parent /
+                 "skills" / "wysiwyg-grilling" / "scripts" / "canvas.py")
+
+    @classmethod
+    def setUpClass(cls):
+        """Start one server on a seeded temp project."""
+        cls.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-xuser-"))
+        (cls.tmp / "project_knowledge").mkdir(parents=True)
+        cls.project = canvas.Project(cls.tmp)
+        cls.project.ensure_tree()
+        store = canvas.Store(cls.project)
+        store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "w", "type": "wireframe",
+                       "concept": "c", "name": "W"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "panel", "type": "rectangle", "x": 100,
+                    "y": 100, "width": 200, "height": 80,
+                    "label": "Data sources"}},
+                {"op": "add", "element": {
+                    "id": "img", "type": "rectangle", "x": 100, "y": 300,
+                    "width": 120, "height": 90, "kind": "image",
+                    "label": "chart"}},
+                {"op": "add", "element": {
+                    "id": "cb", "type": "rectangle", "x": 400, "y": 100,
+                    "width": 200, "height": 28, "label": "Macro",
+                    "kind": "checkbox", "checked": True}},
+            ]})
+        out = subprocess.run(
+            [sys.executable, cls.CANVAS, "--project", str(cls.tmp),
+             "start", "--no-browser"],
+            capture_output=True, text=True, timeout=60)
+        if "URL=" not in out.stdout:
+            raise unittest.SkipTest("server did not start: %s"
+                                    % out.stderr[-200:])
+
+    @classmethod
+    def tearDownClass(cls):
+        """Stop the server and remove the project."""
+        subprocess.run(
+            [sys.executable, cls.CANVAS, "--project", str(cls.tmp),
+             "stop"], capture_output=True, text=True, timeout=30)
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        for p in (cls.project.state_path, cls.project.events_path,
+                  cls.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def x(self, *argv):
+        """Run an x-as-user verb against the live server.
+
+        Args:
+            argv: CLI arguments after `x-as-user`.
+
+        Returns:
+            The completed process (checked for rc 0).
+        """
+        out = subprocess.run(
+            [sys.executable, self.CANVAS, "--project", str(self.tmp),
+             "x-as-user", *argv],
+            capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr or out.stdout)
+        return out
+
+    def scene(self):
+        """Read the artifact fresh from disk.
+
+        Returns:
+            The element list of artifact `w`.
+        """
+        doc = json.loads(
+            (self.tmp / "project_knowledge" / "artifacts" /
+             "w.excalidraw").read_text(encoding="utf-8"))
+        return doc["elements"]
+
+    def test_verbs_write_what_the_client_writes(self):
+        # rename re-measures like the client does
+        self.x("rename", "--artifact", "w", "--target", "panel",
+               "--text", "Data sources and health")
+        els = self.scene()
+        lbl = next(e for e in els
+                   if e.get("containerId") == "panel")
+        self.assertEqual(lbl["text"].replace("\n", " "),
+                         "Data sources and health")
+        # move drags the whole composed group — X strokes travel
+        img = next(e for e in self.scene() if e["id"] == "img")
+        x1_before = next(e for e in self.scene()
+                         if e["id"] == "img-x1")
+        self.x("move", "--artifact", "w", "--target", "img",
+               "--dx", "60", "--dy", "0")
+        els = self.scene()
+        img2 = next(e for e in els if e["id"] == "img")
+        x1 = next(e for e in els if e["id"] == "img-x1")
+        self.assertEqual(img2["x"] - img["x"], 60)
+        self.assertEqual(x1["x"] - x1_before["x"], 60)
+        # toggle flips state only; reconciliation composes the glyph
+        self.assertTrue(any(e["id"] == "cb-chk" for e in els))
+        self.x("toggle", "--artifact", "w", "--target", "cb")
+        els = self.scene()
+        cb = next(e for e in els if e["id"] == "cb")
+        self.assertFalse(cb["customData"]["checked"])
+        self.assertFalse(any(e["id"] == "cb-chk" for e in els))
+        self.x("toggle", "--artifact", "w", "--target", "cb")
+        els = self.scene()
+        cb = next(e for e in els if e["id"] == "cb")
+        self.assertTrue(cb["customData"]["checked"])
+        self.assertTrue(any(e["id"] == "cb-chk" for e in els))
+        # delete takes the whole composed group, like the real client
+        self.x("delete", "--artifact", "w", "--target", "img")
+        els = self.scene()
+        self.assertFalse(any(e["id"].startswith("img")
+                             for e in els))
 
 
 if __name__ == "__main__":

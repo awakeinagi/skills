@@ -1,0 +1,3841 @@
+{
+ "artifacts": {
+  "publication-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-agg-gate",
+     "kind": "arrow",
+     "label": "p-agg-gate",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "p-agg-gate"
+      },
+      "transition_added": {
+       "between": [
+        "Aggregated view",
+        "All reviewed?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-queue-gate",
+     "kind": "arrow",
+     "label": "blocks",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "blocks"
+      },
+      "transition_added": {
+       "between": [
+        "Review queue",
+        "All reviewed?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-gate-held",
+     "kind": "arrow",
+     "label": "unreviewed",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "unreviewed"
+      },
+      "transition_added": {
+       "between": [
+        "All reviewed?",
+        "Report held"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-gate-cal",
+     "kind": "arrow",
+     "label": "all clear",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "all clear"
+      },
+      "transition_added": {
+       "between": [
+        "All reviewed?",
+        "Publication calendar"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-held-cal",
+     "kind": "arrow",
+     "label": "reviewed, late",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "reviewed, late"
+      },
+      "transition_added": {
+       "between": [
+        "Report held",
+        "Publication calendar"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-cal-render",
+     "kind": "arrow",
+     "label": "on its day",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "on its day"
+      },
+      "transition_added": {
+       "between": [
+        "Publication calendar",
+        "Render PDF"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-render-pub",
+     "kind": "arrow",
+     "label": "p-render-pub",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "p-render-pub"
+      },
+      "transition_added": {
+       "between": [
+        "Render PDF",
+        "Published — frozen"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "p-pub-clients",
+     "kind": "arrow",
+     "label": "p-pub-clients",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "p-pub-clients"
+      },
+      "transition_added": {
+       "between": [
+        "Published — frozen",
+        "Clients"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "agg-view",
+     "kind": "store",
+     "label": "Aggregated view",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Aggregated view"
+      },
+      "step_added": {
+       "label": "Aggregated view"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "review-queue-p",
+     "kind": "store",
+     "label": "Review queue",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Review queue"
+      },
+      "step_added": {
+       "label": "Review queue"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "review-gate",
+     "kind": "control",
+     "label": "All reviewed?",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "All reviewed?"
+      },
+      "branch_added": {
+       "label": "All reviewed?"
+      },
+      "step_added": {
+       "label": "All reviewed?"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "held",
+     "kind": "control",
+     "label": "Report held",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Report held"
+      },
+      "step_added": {
+       "label": "Report held"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "calendar",
+     "kind": "control",
+     "label": "Publication calendar",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Publication calendar"
+      },
+      "step_added": {
+       "label": "Publication calendar"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "render",
+     "kind": "transform",
+     "label": "Render PDF",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Render PDF"
+      },
+      "step_added": {
+       "label": "Render PDF"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "published",
+     "kind": "store",
+     "label": "Published — frozen",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Published — frozen"
+      },
+      "step_added": {
+       "label": "Published — frozen"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "clients",
+     "kind": "sink",
+     "label": "Clients",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Clients"
+      },
+      "step_added": {
+       "label": "Clients"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-held-vs-shipped",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Argus has never held anything. You told me missing the open beats being stale — this gate says the opposite. Is that split deliberate?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-review-scope",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Which reports does this block, and who is doing the reviewing on a Tuesday at 06:30?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a76a0f144e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-agg-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 31639947,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agg-view",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 332
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-queue-gate-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "935ce9b53b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "p-queue-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1869909744,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-queue-p",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 500,
+      "y": 124
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-gate-held-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a735158159"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "p-gate-held",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1091826078,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 500,
+      "y": 372
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-gate-cal-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f489c088c1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-gate-cal",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1893245964,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 600,
+      "y": 332
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-held-cal-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "5080bf90e0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "p-held-cal",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        260,
+        0
+       ],
+       [
+        260,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 257047541,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 260,
+      "x": 600,
+      "y": 572
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-cal-render-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "de5dcbdd62"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "render",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-cal-render",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1877965502,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 960,
+      "y": 332
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "2a21229cdd"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "published",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-render-pub",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1613853000,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "render",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1320,
+      "y": 332
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "6587bf1f45"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "clients",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-pub-clients",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1344197520,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "published",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1680,
+      "y": 332
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "agg-view-label",
+        "type": "text"
+       },
+       {
+        "id": "p-agg-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Everything that cleared the confidence gate and came through the risk model."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "agg-view",
+      "isDeleted": false,
+      "link": "artifact:aggregation-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1147907554,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 40,
+      "y": 300
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-queue-p-label",
+        "type": "text"
+       },
+       {
+        "id": "p-queue-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Low-confidence signals waiting for a human. They do not vanish — somebody looks at them.\n\nThis box is the reason the gate below it exists."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "review-queue-p",
+      "isDeleted": false,
+      "link": "artifact:aggregation-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1241985026,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 400,
+      "y": 60
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "p-agg-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "p-queue-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "p-gate-held",
+        "type": "arrow"
+       },
+       {
+        "id": "p-gate-cal",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**Non-negotiable:** no unreviewed low-confidence signal ever reaches a client.\n\nThis is the first gate in Argus that a *person* has to clear, and the first thing in the system that can stop a report going out."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 400,
+      "y": 292
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "held-label",
+        "type": "text"
+       },
+       {
+        "id": "p-gate-held",
+        "type": "arrow"
+       },
+       {
+        "id": "p-held-cal",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The blocked state. Nothing publishes while the queue has unreviewed items in it.\n\n**This is new behaviour for Argus.** Every other deadline in this system resolves by shipping something degraded — stale data, missing sentiment, a four-of-five run. This one resolves by not shipping at all, and it waits on a human being."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "held",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 308119761,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 400,
+      "y": 540
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "calendar-label",
+        "type": "text"
+       },
+       {
+        "id": "p-gate-cal",
+        "type": "arrow"
+       },
+       {
+        "id": "p-held-cal",
+        "type": "arrow"
+       },
+       {
+        "id": "p-cal-render",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The run refreshes the data; the calendar decides what goes out.\n\n- **Signals Digest** — daily\n- **Weekly Brief** — Monday morning\n- **Risk Deep-Dive** — first business day of the month"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1856610630,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 760,
+      "y": 300
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "render-label",
+        "type": "text"
+       },
+       {
+        "id": "p-cal-render",
+        "type": "arrow"
+       },
+       {
+        "id": "p-render-pub",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "PDF today, and regretted — nobody can link to a section."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "render",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 341612906,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1120,
+      "y": 300
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "published-label",
+        "type": "text"
+       },
+       {
+        "id": "p-render-pub",
+        "type": "arrow"
+       },
+       {
+        "id": "p-pub-clients",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Once out, out. A rerun never reissues one.\n\nWhich has a consequence worth staring at: a signal approved *after* a report published has nowhere to go. The report that should have carried it is already frozen."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "published",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1748787223,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1480,
+      "y": 300
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "clients-label",
+        "type": "text"
+       },
+       {
+        "id": "p-pub-clients",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "The party the whole gate exists for. Argus's only outside audience, and the reason 'unvetted' is a word in this design."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "clients",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 13119092,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1840,
+      "y": 300
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "agg-view",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "agg-view-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregated view",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1808777102,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregated view",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 68,
+      "y": 322
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-queue-p",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-queue-p-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Review queue",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 796074524,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Review queue",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 442,
+      "y": 82
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "All reviewed?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "All reviewed?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 438,
+      "y": 322
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Report held",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1011123206,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Report held",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 448,
+      "y": 562
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "calendar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Publication calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 605683532,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Publication calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 772,
+      "y": 312
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "render",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "render-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Render PDF",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1288559061,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Render PDF",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1172,
+      "y": 322
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "published",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "published-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Published — frozen",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 967673937,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Published — frozen",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 172,
+      "x": 1494,
+      "y": 322
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "clients",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "clients-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Clients",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 533596389,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Clients",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 1906,
+      "y": 322
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-queue-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-queue-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "blocks",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2129116290,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "blocks",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 472,
+      "y": 198
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-gate-held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-gate-held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "unreviewed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 599327206,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "unreviewed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 452,
+      "y": 446
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-gate-cal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-gate-cal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "all clear",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 117510325,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "all clear",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 637,
+      "y": 322
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-held-cal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-held-cal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "reviewed, late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1521912343,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "reviewed, late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 767,
+      "y": 562
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-cal-render",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-cal-render-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "on its day",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 473974694,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "on its day",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 992,
+      "y": 322
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Argus has never held anything. You told me missing the open beats being stale — this gate says the opposite. Is that split deliberate?",
+       "role": "pin",
+       "status": "open",
+       "target": "held"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-held-vs-shipped",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1995599328,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 608,
+      "y": 532
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which reports does this block, and who is doing the reviewing on a Tuesday at 06:30?",
+       "role": "pin",
+       "status": "open",
+       "target": "review-gate"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-review-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 446384271,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 558,
+      "y": 304
+     },
+     "index": 30,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "p-agg-gate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "p-agg-gate"
+    },
+    {
+     "element": "p-queue-gate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "blocks"
+    },
+    {
+     "element": "p-gate-held",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "unreviewed"
+    },
+    {
+     "element": "p-gate-cal",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "all clear"
+    },
+    {
+     "element": "p-held-cal",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "reviewed, late"
+    },
+    {
+     "element": "p-cal-render",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "on its day"
+    },
+    {
+     "element": "p-render-pub",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "p-render-pub"
+    },
+    {
+     "element": "p-pub-clients",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "p-pub-clients"
+    },
+    {
+     "element": "agg-view",
+     "fact": "added",
+     "kind": "store",
+     "label": "Aggregated view"
+    },
+    {
+     "element": "review-queue-p",
+     "fact": "added",
+     "kind": "store",
+     "label": "Review queue"
+    },
+    {
+     "element": "review-gate",
+     "fact": "added",
+     "kind": "control",
+     "label": "All reviewed?"
+    },
+    {
+     "element": "held",
+     "fact": "added",
+     "kind": "control",
+     "label": "Report held"
+    },
+    {
+     "element": "calendar",
+     "fact": "added",
+     "kind": "control",
+     "label": "Publication calendar"
+    },
+    {
+     "element": "render",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Render PDF"
+    },
+    {
+     "element": "published",
+     "fact": "added",
+     "kind": "store",
+     "label": "Published — frozen"
+    },
+    {
+     "element": "clients",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Clients"
+    },
+    {
+     "element": "pin-held-vs-shipped",
+     "fact": "pin_added",
+     "question": "Argus has never held anything. You told me missing the open beats being stale — this gate says the opposite. Is that split deliberate?"
+    },
+    {
+     "element": "pin-review-scope",
+     "fact": "pin_added",
+     "question": "Which reports does this block, and who is doing the reviewing on a Tuesday at 06:30?"
+    },
+    {
+     "between": [
+      "Aggregated view",
+      "All reviewed?"
+     ],
+     "element": "p-agg-gate",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Review queue",
+      "All reviewed?"
+     ],
+     "element": "p-queue-gate",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "All reviewed?",
+      "Report held"
+     ],
+     "element": "p-gate-held",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "All reviewed?",
+      "Publication calendar"
+     ],
+     "element": "p-gate-cal",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Report held",
+      "Publication calendar"
+     ],
+     "element": "p-held-cal",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Publication calendar",
+      "Render PDF"
+     ],
+     "element": "p-cal-render",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Render PDF",
+      "Published — frozen"
+     ],
+     "element": "p-render-pub",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Published — frozen",
+      "Clients"
+     ],
+     "element": "p-pub-clients",
+     "fact": "transition_added"
+    },
+    {
+     "element": "agg-view",
+     "fact": "step_added",
+     "label": "Aggregated view"
+    },
+    {
+     "element": "review-queue-p",
+     "fact": "step_added",
+     "label": "Review queue"
+    },
+    {
+     "element": "review-gate",
+     "fact": "step_added",
+     "label": "All reviewed?"
+    },
+    {
+     "element": "review-gate",
+     "fact": "branch_added",
+     "label": "All reviewed?"
+    },
+    {
+     "element": "held",
+     "fact": "step_added",
+     "label": "Report held"
+    },
+    {
+     "element": "calendar",
+     "fact": "step_added",
+     "label": "Publication calendar"
+    },
+    {
+     "element": "render",
+     "fact": "step_added",
+     "label": "Render PDF"
+    },
+    {
+     "element": "published",
+     "fact": "step_added",
+     "label": "Published — frozen"
+    },
+    {
+     "element": "clients",
+     "fact": "step_added",
+     "label": "Clients"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which reports does this block, and who is doing the reviewing on a Tuesday at 06:30?",
+       "role": "pin",
+       "status": "open",
+       "target": "review-gate"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-review-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 446384271,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 558,
+      "y": 304
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Argus has never held anything. You told me missing the open beats being stale — this gate says the opposite. Is that split deliberate?",
+       "role": "pin",
+       "status": "open",
+       "target": "held"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-held-vs-shipped",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1995599328,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 608,
+      "y": 532
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-cal-render",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-cal-render-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "on its day",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 473974694,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "on its day",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 992,
+      "y": 322
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-held-cal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-held-cal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "reviewed, late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1521912343,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "reviewed, late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 767,
+      "y": 562
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-gate-cal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-gate-cal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "all clear",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 117510325,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "all clear",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 637,
+      "y": 322
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-gate-held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-gate-held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "unreviewed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 599327206,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "unreviewed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 452,
+      "y": 446
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "p-queue-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "p-queue-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "blocks",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2129116290,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "blocks",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 472,
+      "y": 198
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "clients",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "clients-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Clients",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 533596389,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Clients",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 1906,
+      "y": 322
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "published",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "published-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Published — frozen",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 967673937,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Published — frozen",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 172,
+      "x": 1494,
+      "y": 322
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "render",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "render-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Render PDF",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1288559061,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Render PDF",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1172,
+      "y": 322
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "calendar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Publication calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 605683532,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Publication calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 772,
+      "y": 312
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Report held",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1011123206,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Report held",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 448,
+      "y": 562
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "All reviewed?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "All reviewed?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 438,
+      "y": 322
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-queue-p",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-queue-p-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Review queue",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 796074524,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Review queue",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 442,
+      "y": 82
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "agg-view",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "agg-view-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregated view",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1808777102,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregated view",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 68,
+      "y": 322
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "clients-label",
+        "type": "text"
+       },
+       {
+        "id": "p-pub-clients",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "The party the whole gate exists for. Argus's only outside audience, and the reason 'unvetted' is a word in this design."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "clients",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 13119092,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1840,
+      "y": 300
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "published-label",
+        "type": "text"
+       },
+       {
+        "id": "p-render-pub",
+        "type": "arrow"
+       },
+       {
+        "id": "p-pub-clients",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Once out, out. A rerun never reissues one.\n\nWhich has a consequence worth staring at: a signal approved *after* a report published has nowhere to go. The report that should have carried it is already frozen."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "published",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1748787223,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1480,
+      "y": 300
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "render-label",
+        "type": "text"
+       },
+       {
+        "id": "p-cal-render",
+        "type": "arrow"
+       },
+       {
+        "id": "p-render-pub",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "PDF today, and regretted — nobody can link to a section."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "render",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 341612906,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1120,
+      "y": 300
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "calendar-label",
+        "type": "text"
+       },
+       {
+        "id": "p-gate-cal",
+        "type": "arrow"
+       },
+       {
+        "id": "p-held-cal",
+        "type": "arrow"
+       },
+       {
+        "id": "p-cal-render",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The run refreshes the data; the calendar decides what goes out.\n\n- **Signals Digest** — daily\n- **Weekly Brief** — Monday morning\n- **Risk Deep-Dive** — first business day of the month"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1856610630,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 760,
+      "y": 300
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "held-label",
+        "type": "text"
+       },
+       {
+        "id": "p-gate-held",
+        "type": "arrow"
+       },
+       {
+        "id": "p-held-cal",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The blocked state. Nothing publishes while the queue has unreviewed items in it.\n\n**This is new behaviour for Argus.** Every other deadline in this system resolves by shipping something degraded — stale data, missing sentiment, a four-of-five run. This one resolves by not shipping at all, and it waits on a human being."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "held",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 308119761,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 400,
+      "y": 540
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "p-agg-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "p-queue-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "p-gate-held",
+        "type": "arrow"
+       },
+       {
+        "id": "p-gate-cal",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**Non-negotiable:** no unreviewed low-confidence signal ever reaches a client.\n\nThis is the first gate in Argus that a *person* has to clear, and the first thing in the system that can stop a report going out."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 400,
+      "y": 292
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-queue-p-label",
+        "type": "text"
+       },
+       {
+        "id": "p-queue-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Low-confidence signals waiting for a human. They do not vanish — somebody looks at them.\n\nThis box is the reason the gate below it exists."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "review-queue-p",
+      "isDeleted": false,
+      "link": "artifact:aggregation-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1241985026,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 400,
+      "y": 60
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "agg-view-label",
+        "type": "text"
+       },
+       {
+        "id": "p-agg-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Everything that cleared the confidence gate and came through the risk model."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "agg-view",
+      "isDeleted": false,
+      "link": "artifact:aggregation-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1147907554,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 40,
+      "y": 300
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "6587bf1f45"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "clients",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-pub-clients",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1344197520,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "published",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1680,
+      "y": 332
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "2a21229cdd"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "published",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-render-pub",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1613853000,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "render",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1320,
+      "y": 332
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-cal-render-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "de5dcbdd62"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "render",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-cal-render",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1877965502,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 960,
+      "y": 332
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-held-cal-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "5080bf90e0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "p-held-cal",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        260,
+        0
+       ],
+       [
+        260,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 257047541,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 260,
+      "x": 600,
+      "y": 572
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-gate-cal-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f489c088c1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-gate-cal",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1893245964,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 600,
+      "y": 332
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-gate-held-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a735158159"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "p-gate-held",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1091826078,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 500,
+      "y": 372
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "p-queue-gate-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "935ce9b53b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "p-queue-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1869909744,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-queue-p",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 500,
+      "y": 124
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a76a0f144e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "p-agg-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 31639947,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "agg-view",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 332
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Publication — the review block"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 38,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "report",
+   "elements": [
+    "argus-domain#report",
+    "publication-flow#published"
+   ]
+  },
+  {
+   "action": "decline",
+   "concept": "dashboard",
+   "kind": "suggestion",
+   "reason": "user: charts stay for now — 'nobody looks at the sector heat map, but that's a different fight'",
+   "view_type": "wireframe"
+  },
+  {
+   "action": "upsert_concept",
+   "id": "publication",
+   "name": "Publication",
+   "view_types": {
+    "publication-flow": "flow"
+   },
+   "views": [
+    "publication-flow"
+   ]
+  }
+ ],
+ "revn": 39,
+ "round": 6,
+ "saved_at": "2026-08-09T11:40:55Z",
+ "selection_at_save": [],
+ "short_id": "356c595",
+ "summary": {
+  "headline": "added All reviewed? (+34 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 16,
+   "branch_added": 1,
+   "pin_added": 2,
+   "step_added": 8,
+   "transition_added": 8
+  }
+ },
+ "tripwires": [],
+ "user_note": "the review queue blocks the report: draw the gate, the held state, and the calendar behind it"
+}

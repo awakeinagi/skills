@@ -1,0 +1,812 @@
+{
+ "branches": [
+  {
+   "archived": false,
+   "head": 44,
+   "name": "main",
+   "scope": {
+    "budgets": {},
+    "concepts": [],
+    "declined": [],
+    "divergence_policies": [],
+    "mappings": [],
+    "pins": [],
+    "tripwires": [],
+    "waives": {}
+   }
+  }
+ ],
+ "budgets": {
+  "admin-console": {
+   "arrows": 1,
+   "nodes": 28,
+   "reason": "a settings console is one dense screen; splitting it into two frames would draw a product that does not exist"
+  },
+  "argus-run-flow": {
+   "arrows": 12,
+   "nodes": 11,
+   "reason": "four sources now, a cutoff and a portfolio join, all load-bearing; enrichment stays collapsed to pay for them"
+  },
+  "dashboard": {
+   "arrows": 1,
+   "nodes": 24,
+   "reason": "two screens in one artifact: the reports shelf asserts nothing unless the reader it opens is drawn beside it"
+  }
+ },
+ "concepts": [
+  {
+   "glossary": null,
+   "id": "argus",
+   "name": "Argus",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "argus-run-flow",
+    "argus-domain"
+   ]
+  },
+  {
+   "glossary": null,
+   "id": "enrichment",
+   "name": "Enrichment",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "enrichment-pipeline"
+   ]
+  },
+  {
+   "glossary": "PipelineRun",
+   "id": "run",
+   "name": "PipelineRun",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Rerun",
+   "id": "rerun",
+   "name": "Rerun",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Cutoff",
+   "id": "cutoff",
+   "name": "Cutoff",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Last-Good",
+   "id": "last-good",
+   "name": "Last-Good",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Stale",
+   "id": "stale",
+   "name": "Stale",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Watchlist",
+   "id": "watchlist",
+   "name": "Watchlist",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Portfolio",
+   "id": "portfolio",
+   "name": "Portfolio",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Confidence Threshold",
+   "id": "confidence-threshold",
+   "name": "Confidence Threshold",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Risk Alert",
+   "id": "risk-alert",
+   "name": "Risk Alert",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Weekly Brief",
+   "id": "weekly-brief",
+   "name": "Weekly Brief",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Risk Deep-Dive",
+   "id": "risk-deep-dive",
+   "name": "Risk Deep-Dive",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Signals Digest",
+   "id": "signals-digest",
+   "name": "Signals Digest",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Macro Calendar",
+   "id": "macro-calendar",
+   "name": "Macro Calendar",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Instrument",
+   "id": "instrument",
+   "name": "Instrument",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Position",
+   "id": "position",
+   "name": "Position",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Signal",
+   "id": "signal",
+   "name": "Signal",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Report",
+   "id": "report",
+   "name": "Report",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "DataSource",
+   "id": "datasource",
+   "name": "DataSource",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": null,
+   "id": "admin-console",
+   "name": "Admin Console",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "admin-console"
+   ]
+  },
+  {
+   "glossary": null,
+   "id": "dashboard",
+   "name": "Dashboard",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "dashboard"
+   ]
+  },
+  {
+   "glossary": "Partial rerun",
+   "id": "partial-rerun",
+   "name": "Partial rerun",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Reader",
+   "id": "reader",
+   "name": "Reader",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "dashboard"
+   ]
+  },
+  {
+   "glossary": "Aggregation",
+   "id": "aggregation",
+   "name": "Aggregation",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "aggregation-flow"
+   ]
+  },
+  {
+   "glossary": "Excess Return",
+   "id": "excess-return",
+   "name": "Excess Return",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Publication",
+   "id": "publication",
+   "name": "Publication",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "publication-flow"
+   ]
+  },
+  {
+   "glossary": "Review queue",
+   "id": "review-queue",
+   "name": "Review queue",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "publication-flow"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "concept": "dashboard",
+   "kind": "suggestion",
+   "reason": "user: charts stay for now — 'nobody looks at the sector heat map, but that's a different fight'",
+   "view_type": "wireframe",
+   "when": "2026-08-09"
+  }
+ ],
+ "divergence_policies": [],
+ "head": "main",
+ "mappings": [
+  {
+   "concept": "signal",
+   "elements": [
+    "argus-domain#signal",
+    "enrichment-pipeline#scored-signals"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "portfolio",
+   "elements": [
+    "argus-domain#portfolio",
+    "argus-run-flow#portfolio-db"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "run",
+   "elements": [
+    "argus-domain#pipeline-run",
+    "argus-run-flow#clock"
+   ],
+   "kinds": [
+    "attribute_added",
+    "attribute_removed"
+   ],
+   "note": "intentionally-divergent: PipelineRun is the domain entity; the flow's 06:00 box is only its trigger, so attribute rows on the entity have nothing to say to it"
+  },
+  {
+   "concept": "confidence-threshold",
+   "elements": [
+    "admin-console#sl-conf",
+    "enrichment-pipeline#sentiment"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "risk-alert",
+   "elements": [
+    "dashboard#kpi-var",
+    "admin-console#sl-var"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "run",
+   "elements": [
+    "dashboard#status-lastrun",
+    "argus-run-flow#clock"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "signal",
+   "elements": [
+    "argus-domain#signal",
+    "aggregation-flow#signals-in"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "risk-alert",
+   "elements": [
+    "aggregation-flow#alert",
+    "admin-console#sl-var"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "report",
+   "elements": [
+    "argus-domain#report",
+    "publication-flow#published"
+   ],
+   "kinds": null,
+   "note": null
+  }
+ ],
+ "migrations": [
+  "0001-baseline",
+  "0002-branch-scoped-registry"
+ ],
+ "pins": [
+  {
+   "answer": null,
+   "artifact": "argus-run-flow",
+   "asked_at_revn": 1,
+   "detail": "I collapsed four scorers into one box, so the four arrows arriving are a shortcut, not a claim. Underneath, the real wiring looks sparse to me: technical signals want only the market feed; the insider-cluster detector wants only EDGAR Form 4s; fundamentals want filings plus prices; sentiment wants headlines plus filing tone.\n\nThis matters more than it looks. It decides what a missing source actually costs you: if the news vendor is down at 06:00 and only the sentiment scorer reads it, you lose one signal. If everything reads everything, you lose the run.\n\nIt also decides whether Portfolio DB belongs on this side of the diagram at all — it may be a filter on the universe rather than an input to scoring.",
+   "element": "enrichment",
+   "examples": [
+    "Technical signals ← Market Feed only",
+    "Insider clusters ← EDGAR Form 4s only",
+    "Sentiment ← News + EDGAR (filing tone)",
+    "Or: everything reads everything, and one dead source kills the run"
+   ],
+   "id": "pin-enrich-fan",
+   "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it.",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "argus-run-flow",
+   "asked_at_revn": 1,
+   "detail": "You named three PDFs — Weekly Brief, Risk Deep-Dive, Signals Digest — as the output of a run that happens every weekday. At least one of those cannot be produced fresh each morning without contradicting its own name.\n\nSo either the run branches on the day (Monday does four things, Tuesday does three), or the reports have independent schedules and the 06:00 run just refreshes the data they draw on, or 'Weekly' describes the window it covers rather than how often it is issued.\n\nThe three are genuinely different designs and the flow can only draw one of them.",
+   "element": "reports",
+   "examples": [
+    "Weekly Brief only on Mondays — the flow needs a day-of-week branch",
+    "All three every day; 'Weekly' means it covers the trailing week",
+    "Reports are on their own schedules; the run only refreshes the data"
+   ],
+   "id": "pin-report-cadence",
+   "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "argus-run-flow",
+   "asked_at_revn": 1,
+   "detail": "I have drawn Portfolio DB as a fourth input, level with the three vendors. That is probably wrong, and the two alternatives are very different systems.\n\nIf the portfolio defines the universe, it belongs upstream of everything — it is the filter that says which tickers the other three sources are even queried for, and Argus is blind to anything you do not already own.\n\nIf it is only joined at the end, Argus scores a broad universe and the portfolio decides what to highlight — which means Argus can surface something you do not hold yet. For an investment analyst agent, that difference is close to the point of the product.",
+   "element": "portfolio-db",
+   "examples": [
+    "Universe filter: only pull EDGAR/market data for tickers we hold",
+    "Late join: score the whole watchlist, flag which ones we are exposed to",
+    "Both: hold-list drives the reports, watchlist drives the Signals Digest"
+   ],
+   "id": "pin-portfolio-role",
+   "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-pipeline",
+   "asked_at_revn": 2,
+   "detail": "I have drawn this as an agent node: something that judges rather than computes. Every judging box in a pipeline owes an answer to the same question, and nobody volunteers it — what happens at the edge of its competence.\n\nYou gave me a confidence threshold of 0.70, so the mechanism probably lives here. But a threshold can mean two very different things. As a gate, anything under 0.70 is discarded and the analyst never learns it existed — clean, and it silently hides disagreement. As a label, the signal still appears, marked low-confidence, and the analyst decides — noisier, but nothing disappears.\n\nThere is a third case worth naming: the scorer returning nothing at all, because the model failed or the text was unparseable. That is not a low score, it is an absent one, and if it silently reads as 0.0 you have a bearish signal invented out of an outage.",
+   "element": "sentiment",
+   "examples": [
+    "Gate: below 0.70 is dropped before the aggregator sees it",
+    "Label: everything is published, under-threshold ones marked weak",
+    "Gate for reports, label for the dashboard",
+    "And separately: scorer error is not a score of zero — where does that land?"
+   ],
+   "id": "pin-sentiment-unsure",
+   "question": "What does the sentiment scorer do when it is unsure — is 0.70 the gate, and does a 0.62 signal vanish or get published as weak?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-pipeline",
+   "asked_at_revn": 2,
+   "detail": "Technicals are normally a closed world: price and volume, nothing else. You listed the news stream as a second input, which means either the definition of 'technical' here is broader than the textbook one, or the news stream is doing a job that is not really sentiment.\n\nThe plausible readings differ in what breaks when news is down. If headlines are used to detect event-driven volume spikes — separating a breakout from a reaction to an announcement — then a news outage quietly degrades the technicals too, and your 'we just lose the sentiment read' answer is understated by one signal.\n\nIf instead the news stream carries corporate actions, splits or halts, then it is not news at all for this purpose, it is reference data, and it should probably be its own source box.",
+   "element": "technical",
+   "examples": [
+    "Volume spikes get attributed to a headline, not a breakout",
+    "Halts and corporate actions ride the news feed — really reference data",
+    "Nothing structural, it just annotates the chart"
+   ],
+   "id": "pin-technical-news",
+   "question": "Why do technical signals read the news stream? That is the one arrow here I would not have drawn.",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "argus-run-flow",
+   "asked_at_revn": 3,
+   "detail": "This is the one place your two answers do not fit together, and it is not a quibble — it decides what 'a source was late' even means.\n\nIf the vendors push to us continuously and 05:45 is simply the line where we stop accepting today's data, then Argus never fetches anything; it reads whatever landed. 'Late' means the vendor's own delivery slipped, we find out at 05:45, and there is nothing to retry.\n\nIf Argus pulls, then the pull must happen before 05:45 — so 06:00 is not the start of the run at all, it is the start of *scoring*, and there is an earlier ingest window with retries in it that nobody has drawn. That window is where most real pipeline failures live.\n\nI have drawn the first reading: three sources arriving on their own, a cutoff gate, then 06:00 kicking off the work. Delete the arrow from 06:00 if that is wrong.",
+   "element": "cutoff",
+   "examples": [
+    "Vendors push; 05:45 is the accept-until line; 06:00 reads what landed",
+    "Argus pulls at ~05:00 with retries until 05:45; 06:00 starts scoring",
+    "Different per source — EDGAR is polled, the market feed is streamed"
+   ],
+   "id": "pin-cutoff-vs-start",
+   "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "argus-domain",
+   "asked_at_revn": 5,
+   "detail": "This is the biggest hole I can see in the model, and it is invisible in prose because the word 'stale' fits naturally in a sentence about any of these boxes.\n\nStaleness is born at a DataSource that missed 05:45. It has to survive into the PipelineRun that used Last-Good, into every Signal derived from that source, and out into the Report that states it. Four hops, and the model has no attribute for it on any of them.\n\nThe design choice underneath: is Stale a property of the *run* (this whole run used stale news, so flag the whole thing) or of the *signal* (only the sentiment signals are stale; the insider-cluster ones are perfectly fresh)? Run-level is a one-line implementation and over-warns until analysts learn to ignore the banner. Signal-level is precise and is real work, because every scorer has to propagate it.\n\nYou have told me the Digest 'says so' — which means somebody already decided, or nobody has and the code does whichever fell out.",
+   "element": "signal",
+   "examples": [
+    "Run-level: PipelineRun.degraded_sources = ['news'], banner on everything",
+    "Signal-level: Signal.stale, precise per-scorer, propagation work in all four",
+    "Both: run-level banner, signal-level detail on hover"
+   ],
+   "id": "pin-stale-home",
+   "question": "Where does Stale live? A source missed the cutoff, but it is a Report that has to say so — and nothing on this diagram carries it between them.",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": "It's its own thing — a Rerun points at the PipelineRun it re-ran. Self-relationship, not a sibling entity.",
+   "answered_at": "2026-08-09T11:43:56Z",
+   "artifact": "argus-domain",
+   "asked_at_revn": 5,
+   "detail": "You said a Rerun is a second Run over the same day with different settings, sitting beside the original, and that comparing the two is the whole point of the settings snapshot. But comparison needs lineage, and lineage is a relationship — PipelineRun to PipelineRun — which this model does not have.\n\nWithout it, the only thing tying a rerun to its original is that they share a trading day. That is enough to *find* them and not enough to say which came first, which is canonical, or which one an analyst was looking at. And you have already told me the dashboard follows the newest run, which is a rule that needs to know what 'newest' is scoped to.\n\nThe cheap version is a self-referencing `rerun of 0..1`. The version worth considering instead: a Rerun is not a PipelineRun at all but a sibling concept, because it has something an original never has — a reason someone triggered it.",
+   "element": "pipeline-run",
+   "examples": [
+    "Self-relationship: PipelineRun rerun-of 0..1 PipelineRun",
+    "A RunSet entity that owns the original plus its reruns",
+    "Rerun is its own entity, carrying who triggered it and why"
+   ],
+   "id": "pin-rerun-lineage",
+   "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'.",
+   "round": 1,
+   "status": "resolved",
+   "target_edits": 1
+  },
+  {
+   "answer": null,
+   "artifact": "argus-domain",
+   "asked_at_revn": 5,
+   "detail": "The test that usually settles this: is it still the same thing if all its attributes change, and does anything about it need to be *true over time*?\n\nIf the Watchlist is a set someone curates — names get added and dropped, and you would ever want to ask 'what were we watching in March?' — it is an entity with identity, and it probably has an owner and a history.\n\nIf it is only ever 'the instruments we currently screen', it is a flag on Instrument and drawing a box for it is noise. Delete it and I will not re-propose it.\n\nThere is a third answer that would change more than either: more than one watchlist. Per strategy, per analyst, per mandate — at which point Signals stop being globally meaningful and start being scoped, and several other boxes on this diagram move.",
+   "element": "watchlist",
+   "examples": [
+    "One curated list, with history — an entity",
+    "Instrument.tracked = true — delete the box",
+    "Several watchlists, per strategy or per analyst"
+   ],
+   "id": "pin-watchlist-real",
+   "question": "Is Watchlist a real entity, or just Instruments with a flag? I put it on the board because your list had nowhere for the 400 names to live.",
+   "round": 1,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console",
+   "asked_at_revn": 8,
+   "detail": "This is the sharpest disagreement between two things we have drawn. Your domain model says a PipelineRun is a whole run of a whole day carrying a whole settings snapshot. This button says you can re-run one quarter of it.\n\nThree ways that resolves, and they are very different systems. It could be a full PipelineRun where only one pass's settings changed — expensive, honest, and 'rerun sentiment' is just a label on the button. It could be a partial artifact that reuses the other three passes' outputs — cheap, and it means a run's Signals can come from two different moments, which the settings snapshot then describes incorrectly. Or these four buttons are debugging tools that produce nothing publishable at all, in which case they should not sit in the same panel as the button that does.\n\nThe second analyst will press one of these on their first day. Whichever answer is true needs to be visible on the screen, because right now the four small buttons and the one big button look like the same kind of thing.",
+   "element": "btn-rerun-sentiment",
+   "examples": [
+    "Full run, one pass's settings changed — the button label is a shorthand",
+    "Partial: reuse the other three passes' output, cheaper, mixed provenance",
+    "Debug only: produces nothing a client can see",
+    "And: does a partial rerun move the dashboard, the way the big button does?"
+   ],
+   "id": "pin-partial-rerun",
+   "question": "What is a single-pipeline rerun, in the model? A PipelineRun carries a full settings snapshot and emits Signals — re-scoring only sentiment produces something that is not one of those.",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console",
+   "asked_at_revn": 8,
+   "detail": "You said the second analyst should be able to look at this and know what each control does to the run. Right now the checklist is the place where that is least true, because the rows are visually identical and the consequences are not remotely equivalent.\n\nUnchecking News costs two scorers. Unchecking EDGAR affects three. Unchecking Macro Calendar removes something that never went through enrichment or the cutoff in the first place. And unchecking Portfolio DB is not a degradation at all — no sizing, no exposure, no P&L. That is a different product, and it is one identical-looking click.\n\nI have put each consequence in a hover tooltip, which is where verbose detail belongs, but hover is where things go to be missed. The design question is whether the consequence belongs *on* the screen: a second line per row, or a live 'this run will lose: sentiment, momentum' summary that updates as you uncheck.",
+   "element": "panel-sources",
+   "examples": [
+    "Second line per row: 'affects: sentiment, technical momentum'",
+    "Live summary under the list, recomputed as boxes change",
+    "Portfolio DB is not a checkbox at all — it is not optional",
+    "Leave it; the console is for people who already know"
+   ],
+   "id": "pin-source-blast-radius",
+   "question": "Five identical-looking checkboxes with five very different consequences. Should the screen say what each one costs?",
+   "round": 1,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console",
+   "asked_at_revn": 8,
+   "detail": "Pressing it is safe in the way you designed for: nothing is overwritten, the old run stays readable, published PDFs stay frozen. But you also told me the dashboard follows the newest run — so the moment this is pressed, everyone's KPIs change, sourced from settings that one admin picked seconds ago.\n\nNobody on the dashboard side has any way to know that happened. The numbers just move. If an analyst was mid-sentence in an email about a risk alert, the alert may no longer be there.\n\nThe options are not equally cheap. A confirmation on this button is nearly free and only protects the admin. Stamping the dashboard with which run it is showing costs a little and protects the analyst. Letting the analyst stay on the run they were reading until they choose to move is the expensive one, and it is the only one that actually prevents the surprise.",
+   "element": "btn-rerun-all",
+   "examples": [
+    "Confirm dialog — protects the presser, not the reader",
+    "Dashboard stamped 'showing: 09:14 rerun' with a link back to 06:00",
+    "Dashboard pins to the run you opened; a banner offers the newer one",
+    "Nothing — it is an internal tool and everyone knows"
+   ],
+   "id": "pin-rerun-all-visibility",
+   "question": "This button silently changes what every analyst is looking at. Does anything tell them?",
+   "round": 1,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard",
+   "asked_at_revn": 10,
+   "detail": "This is the most important surface in the product by your own account and the one I have the least information about, so everything in this frame is a guess: a title, a provenance line, three sections, a download, a close.\n\nThe questions I would want answered before anyone builds it. Does the reader let you move between reports without going back to the dashboard — last week's Brief, or the Deep-Dive that a signal in this Brief refers to? Is anything in a report *live* — a signal you can click through to the instrument, a number that updates — or is it exactly the frozen PDF rendered on screen? Can two people point at the same paragraph, given that the whole point is that this is the shared artifact?\n\nAnd the one that decides the architecture: if the reader is where people spend their time, the PDF may be the wrong primary format. A frozen HTML document with a PDF export is a different system from a PDF with a viewer wrapped around it, and the difference is invisible until someone asks for a link to a section.",
+   "element": "reader-panel",
+   "examples": [
+    "Frozen PDF rendered in a viewer — the download is the same bytes",
+    "A web document; the PDF is generated on demand for sending",
+    "Navigation between reports inside the reader (prev/next, by date)",
+    "Signals in the text link back to the instrument on the dashboard"
+   ],
+   "id": "pin-reader-content",
+   "question": "You said people live in here. What is actually in it, and what can you do from it? I have drawn a stub on purpose so you can correct something concrete.",
+   "round": 1,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard",
+   "asked_at_revn": 10,
+   "detail": "Two settled decisions collide in this one small piece of chrome, and neither is visible in it.\n\nFirst: the dashboard follows the newest run. So an admin pressing 'Re-run ALL' at 09:14 changes every number above, and this label is the only thing that could possibly say so. If it silently becomes '09:14 ✓' the change is at least recorded; if it keeps saying 06:00 the screen is actively lying.\n\nSecond: staleness is run-level today. That means the flag has exactly one natural home, and this is it — a run that used Last-Good news is not a '✓' run. But the checkmark is binary, and the run it describes has at least three states: clean, degraded-but-shipped, and rerun-by-a-human-with-different-settings.\n\nA tick mark cannot carry that. What replaces it depends on which of the three you think an analyst most needs to notice mid-morning.",
+   "element": "status-lastrun",
+   "examples": [
+    "'09:14 rerun · 4/5 sources · stale: news' — verbose, honest",
+    "Keep the tick, add a warning triangle for degraded runs",
+    "'06:00 ✓' stays; a separate banner appears only when something is wrong",
+    "Clicking it opens the run's settings snapshot"
+   ],
+   "id": "pin-lastrun-truth",
+   "question": "'last run: 06:00 ✓' — after a rerun at 09:14, does this say 09:14? And where does the stale flag go, given this is the only run-shaped thing on the screen?",
+   "round": 1,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-pipeline",
+   "asked_at_revn": 26,
+   "detail": "If the reason for the cut was decorrelation — one source should not make two 'independent' signals move together, because the risk model then double-counts them — then this diagram has a much bigger version of the same problem sitting untouched.\n\nA single 10-K landing moves sentiment (filing tone), fundamentals (line items) and potentially insider clusters (if Form 4s cluster around it). Three of your four scorers, from one document. The aggregator sees three confirmations and weighs them as three opinions.\n\nThe honest counter-argument, and it may be the right one: those three read genuinely different *content* out of the same document. Tone, numbers and who-bought-what are not the same information, and calling them correlated because they share a source is a category error. The news case was different because sentiment and momentum were reading the same headlines for overlapping reasons.\n\nWhich of those two it is decides whether you have finished this pass or barely started it.",
+   "element": "src-edgar",
+   "examples": [
+    "Same problem: three signals from one filing, should be weighted as fewer",
+    "Different: same document, genuinely independent content, no change",
+    "Partly: sentiment and fundamentals overlap, insider clusters do not",
+    "The aggregator should discount by shared source, not the diagram change"
+   ],
+   "id": "pin-edgar-correlation",
+   "question": "You just cut news→technicals to stop one source moving two signals. EDGAR moves three. Does the same argument apply here, or is EDGAR different?",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "aggregation-flow",
+   "asked_at_revn": 29,
+   "detail": "Reading one, and the one I have drawn: crowding *inside Argus*. Four scorers fire on the same name and the aggregator counts four confirmations, when it may be one event seen four ways. That is the same argument that just cost news→technicals its arrow, applied one stage later — and it is why I put the box here, right after the combine.\n\nReading two: crowding *in the market*. A position that many participants already hold, where the danger is that the exit is narrow and everyone leaves at once. That is not a discount on our signals at all; it is a risk factor about the instrument, it needs data we do not currently ingest — positioning, short interest, fund flows — and it belongs on the domain model as a property of Instrument, not on this flow as a step.\n\nThey are not variations on one idea. The first is a weighting fix using data you already have. The second is a new input and a new concept, and it would be the first thing Argus knows about the world that does not come from one of the four sources.\n\nIf it is the second, delete this box and I will draw it on the domain model instead.",
+   "element": "crowding",
+   "examples": [
+    "Internal: discount signals that share a source or an event",
+    "Market: crowding as an Instrument property, needs positioning data",
+    "Both, and they are separate pieces of work",
+    "Neither — it was a note about the reports, not the pipeline"
+   ],
+   "id": "pin-crowding-meaning",
+   "question": "Your note, drawn. But 'crowded trades' means two different things and this box can only be one of them — which did you mean?",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "aggregation-flow",
+   "asked_at_revn": 29,
+   "detail": "Your opening sentence was 'everything gets weighed into a risk model and an aggregator'. Six rounds later the weighing is still the only part of Argus nobody has described, and it is the part that decides what the product says.\n\nThe candidates behave very differently at the edges. A weighted sum lets four weak agreeing signals outvote one strong contrary one. Taking the strongest signal makes confirmation worthless — a name with four hits ranks identically to a name with one. Requiring agreement across scorers makes Argus conservative and quiet, and would make the insider-cluster detector nearly useless on its own since it fires alone by design.\n\nThis also determines whether a crowding discount is even expressible. You cannot discount for correlated signals in a scheme that only ever looks at the maximum.\n\nAnd there is a smaller question underneath: what happens when two scorers **disagree** — strong positive sentiment and a bearish fundamentals read on the same name? Does that cancel to neutral, or is disagreement itself information an analyst should see?",
+   "element": "combine",
+   "examples": [
+    "Weighted sum, weights set per scorer",
+    "Max: strongest signal wins, count ignored",
+    "Requires N-of-4 agreement before publishing",
+    "Disagreement surfaces as its own flag rather than cancelling"
+   ],
+   "id": "pin-combine-mechanism",
+   "question": "How do four signals on one name actually become one view of it? This box has been in every description since the first message and has never been opened.",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "publication-flow",
+   "asked_at_revn": 39,
+   "detail": "Every deadline in this system so far resolves the same way: ship something degraded rather than nothing. Source missed the cutoff — use Last-Good and flag it. Vendor down — ship without that signal and say so. Never hold the run.\n\nThis gate reverses that, and it is the only place in Argus that can wait on a human being. A person who does not open the review queue stops a client report indefinitely.\n\nStated as a position, it is actually coherent and rather elegant: **data may be stale but never late; signals may be late but never unvetted.** Timeliness governs facts about the market, correctness governs claims we make to clients. If that is what you mean, it is worth writing down as a principle, because it explains two decisions that otherwise look contradictory.\n\nIf it is not what you mean, then one of the two rules is going to bite — most likely on the morning nobody is at their desk.",
+   "element": "held",
+   "examples": [
+    "Deliberate: stale facts are acceptable, unvetted claims are not",
+    "Held has its own deadline — auto-escalate, or publish without the queued items",
+    "The Digest can go without them; only the client-facing Brief blocks",
+    "Nobody has thought about it yet and the rule is new"
+   ],
+   "id": "pin-held-vs-shipped",
+   "question": "Argus has never held anything. You told me missing the open beats being stale — this gate says the opposite. Is that split deliberate?",
+   "round": 6,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "publication-flow",
+   "asked_at_revn": 39,
+   "detail": "'The report' is three different documents on three different clocks, and they do not have the same relationship to signals.\n\nThe Signals Digest is daily and made of signals — if anything blocks on this, it does. The Weekly Brief goes Monday morning. The Risk Deep-Dive is monthly and may not carry individual signals at all, in which case blocking it on a signal review would be pure friction.\n\nUnderneath that is an operational commitment nobody has named. If the Digest is daily and blocks on human review, someone has to clear that queue every working morning between scoring and publication. That is a rota, a holiday plan, and a person who can be ill. Argus currently runs unattended.\n\nI am deliberately **not** asking whether a Signal carries a formal approval state — you have parked that for compliance and I will wait.",
+   "element": "review-gate",
+   "examples": [
+    "All three block — simplest rule, most friction",
+    "Only the Digest and the Brief; the Deep-Dive is not signal-level",
+    "Blocks only if a queued signal is about a name in that report",
+    "One named reviewer with a rota and an escalation after N hours"
+   ],
+   "id": "pin-review-scope",
+   "question": "Which reports does this block, and who is doing the reviewing on a Tuesday at 06:30?",
+   "round": 6,
+   "status": "open"
+  }
+ ],
+ "revn": 44,
+ "round": 7,
+ "tripwires": [
+  {
+   "answer": null,
+   "changed": "argus-domain#pipeline-run",
+   "changed_all": [
+    "argus-domain#pipeline-run"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping run:argus-domain#pipeline-run+argus-run-flow#clock). At save 6, argus-domain › pipeline-run changed while argus-run-flow › clock stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into argus-run-flow › clock in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-6-1",
+   "kind": "divergence",
+   "mapping": "run:argus-domain#pipeline-run+argus-run-flow#clock",
+   "question": "argus-domain › pipeline-run changed but its mapped sibling argus-run-flow › clock didn't. Divergence, or should it propagate?",
+   "save": 6,
+   "sibling": "argus-run-flow#clock",
+   "siblings": [
+    "argus-run-flow#clock"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "argus-domain#signal",
+   "changed_all": [
+    "argus-domain#signal"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping signal:argus-domain#signal+enrichment-pipeline#scored-signals). At save 12, argus-domain › signal changed while enrichment-pipeline › scored-signals stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into enrichment-pipeline › scored-signals in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-12-1",
+   "kind": "divergence",
+   "mapping": "signal:argus-domain#signal+enrichment-pipeline#scored-signals",
+   "question": "argus-domain › signal changed but its mapped sibling enrichment-pipeline › scored-signals didn't. Divergence, or should it propagate?",
+   "save": 12,
+   "sibling": "enrichment-pipeline#scored-signals",
+   "siblings": [
+    "enrichment-pipeline#scored-signals"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "argus-run-flow#macro-calendar",
+   "changed_all": [
+    "argus-run-flow#macro-calendar"
+   ],
+   "choices": [
+    "Gone — delete the checkbox and the glossary entry too",
+    "Switched off — put the source back on the flow, leave it unchecked",
+    "Gone as it stands, but the capability comes back differently"
+   ],
+   "detail": "Those are two different acts and you did both in one breath. Unchecking the box means 'not in the next run' — an operational toggle, and the source still exists. Deleting the node from the run flow means the source is not part of Argus any more. Only one of them should survive, and the drawings currently assert both.\n\nIt matters for what I do next. If it is gone, the checkbox goes, the glossary entry goes, the DataSource tooltip on the domain model drops to four, and the fifth source that took months to bolt on gets removed in an afternoon. If it is switched off, the source belongs back on the flow with the box unchecked, and 'noisy' becomes a tuning problem rather than a decommissioning.\n\nThe third option is the one I would push for. Macro data is not obviously worthless — it is unfiltered. Routing it through enrichment as a scored signal would put it behind the same confidence gate as everything else, at which point 'noisy' has a dial instead of a switch.",
+   "examples": [
+    "Gone: nobody has looked at a Fed date in the output in months",
+    "Off for now: it is noisy in this market, not always",
+    "Rebuild it as a scored signal so the 0.70 gate applies to it"
+   ],
+   "id": "tw-16-1",
+   "kind": "divergence",
+   "mapping": "macro-calendar:admin-console#cb-macro+argus-run-flow#macro-calendar",
+   "question": "You deleted Macro Calendar from the run flow and unchecked it on the console. Is it gone from the product, or switched off for now?",
+   "save": 16,
+   "sibling": "admin-console#cb-macro",
+   "siblings": [
+    "admin-console#cb-macro"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "admin-console#cb-macro",
+   "changed_all": [
+    "admin-console#cb-macro"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping macro-calendar:admin-console#cb-macro+argus-run-flow#macro-calendar). At save 19, admin-console › cb-macro changed while argus-run-flow › macro-calendar stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into argus-run-flow › macro-calendar in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-19-1",
+   "kind": "divergence",
+   "mapping": "macro-calendar:admin-console#cb-macro+argus-run-flow#macro-calendar",
+   "question": "admin-console › cb-macro changed but its mapped sibling argus-run-flow › macro-calendar didn't. Divergence, or should it propagate?",
+   "save": 19,
+   "sibling": "argus-run-flow#macro-calendar",
+   "siblings": [
+    "argus-run-flow#macro-calendar"
+   ],
+   "status": "resolved"
+  }
+ ],
+ "waives": {
+  "q12:dashboard:dashboard": {
+   "reason": "user's own word: 'Dashboard and Admin as the two pages'",
+   "when": "2026-08-09"
+  },
+  "q12:dashboard:excess-return": {
+   "reason": "settled: it is the team's own word, chosen deliberately over 'Alpha' because Alpha overclaimed a risk adjustment this figure does not make",
+   "when": "2026-08-09"
+  }
+ },
+ "whose_move": "user"
+}

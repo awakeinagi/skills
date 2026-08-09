@@ -31,7 +31,7 @@ the same screen**, not styling on one.
 | Input | `rectangle`, `kind: input`, label = field name | form field |
 | Content block | `rectangle`, `kind: block`, label = what it holds | region |
 | Image | `rectangle` with `kind: image` — the X-box strokes compose automatically | picture slot |
-| Body text | `line`s with `role: decoration` (never lint as connectors) | wavy stand-in |
+| Body text | `rectangle` with `kind: body` — wavy stand-in lines compose automatically (v0.8) and re-derive on resize; raw `role: decoration` `line`s remain legal but render straight | wavy stand-in |
 | Nested card | `rectangle` with `parent: <container-id>` | card in a shelf |
 | Titled panel | `rectangle`, `kind: block`, `verticalAlign: "top"` label + `parent`-nested cards | shelf with a header |
 | KPI / stat tile | `rectangle`, `kind: kpi`, `label` = the metric NAME, `value` = the number (composed big row) | dashboard number |

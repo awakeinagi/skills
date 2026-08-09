@@ -63,6 +63,48 @@ function ghostShape(e: any) {
   return <rect key={e.id} x={e.x} y={e.y} width={w} height={h} />;
 }
 
+/** Restore stored elements the way the EDITOR does.
+ *
+ * `refreshDimensions` is what re-wraps container-bound text — and it only
+ * runs inside restore's `repairBindings` block, so the two must travel
+ * together. The server stores label text unwrapped on purpose
+ * (`fit_label_in` sizes the box for the wrapped line count and sets
+ * `autoResize: false` so the client wraps inside it), which means anything
+ * that renders stored elements WITHOUT these options draws one long line.
+ *
+ * The agent's own `snapshot` did exactly that, so the PNG it took of its
+ * work disagreed with the canvas the user was reading, and with the
+ * server's SVG, which wraps by a completely separate path. A cold
+ * observer handed those PNGs reported broken text in 4 of 6 artifacts,
+ * none of it in the drawings (v0.6 assessment r3-4).
+ */
+const restoreForRender = (els: any[]) =>
+  restoreElements(els || [], null, {
+    refreshDimensions: true, repairBindings: true,
+  } as any);
+
+/** Where a marker sits so it hugs a shape's bottom-right EDGE.
+ *
+ * A rectangle fills its bounding box; a diamond and an ellipse do not, so
+ * the box corner is empty canvas for them and a marker anchored there
+ * floats clear and reads as a stray mark. v0.6 fixed this for the tooltip
+ * dot and nobody grepped for the shape, so it was still live in the pin
+ * seeder AND in the tripwire mark below (v0.6 assessment r3-1).
+ *
+ * Mirrors `marker_anchor` in canvas.py — stored geometry and canvas overlay
+ * cannot share code, so they share this rule.
+ */
+const markerAnchor = (e: any, dx = 0, dy = 0, corner: "br" | "tr" = "br") => {
+  const w = e.width || 0, h = e.height || 0;
+  const inset = e.type === "diamond" ? 0.5
+    : e.type === "ellipse" ? 1 - Math.SQRT1_2 : 0;
+  return {
+    x: e.x + w - (w * inset) / 2 + dx,
+    y: corner === "tr" ? e.y + (h * inset) / 2 + dy : e.y + h - (h * inset) / 2 + dy,
+  };
+};
+
+
 export default function App() {
   const [state, setState] = useState<any>(null);
   const [currentArtifact, setCurrentArtifact] = useState<string | null>(null);
@@ -86,6 +128,13 @@ export default function App() {
   // v0.3 — anchored popovers, tooltips, inspector, revert
   const [anchored, setAnchored] = useState<{
     kind: "pin" | "tripwire"; data: any;
+    el: { x: number; y: number; width?: number; height?: number };
+  } | null>(null);
+  // v0.8 — a drawn control is operable (r4/B2: clicking a checkbox
+  // opened Excalidraw's stroke panel; the user could not express
+  // "uncheck" at all — the flagship gesture of the capability demo)
+  const [ctl, setCtl] = useState<{
+    hostId: string; kind: string; checked: boolean;
     el: { x: number; y: number; width?: number; height?: number };
   } | null>(null);
   const [tooltipEdit, setTooltipEdit] = useState<{
@@ -147,12 +196,11 @@ export default function App() {
     };
   });
 
+
   /* ---------------- scene loading ---------------- */
   const loadScene = useCallback((els: any[], viewMode: boolean) => {
     if (!apiRef.current) return [];
-    const restored = restoreElements(els || [], null, {
-      refreshDimensions: true, repairBindings: true,
-    } as any);
+    const restored = restoreForRender(els);
     apiRef.current.updateScene({
       elements: restored,
       captureUpdate: CaptureUpdateAction.NEVER,
@@ -354,6 +402,35 @@ export default function App() {
             .catch((e) => toast(e.message));
         }
       }
+      // control affordance (v0.8): selecting a checkbox/toggle host, a
+      // composed part, or the whole GROUP (a click on a grouped element
+      // selects all its members) offers the state flip
+      const hostIds = new Set<string>();
+      for (const id of selIds) {
+        const e = els.find((el2) => el2.id === id && !el2.isDeleted);
+        const cd2: any = e?.customData || {};
+        if (["checkbox", "toggle"].includes(cd2.kind)) hostIds.add(e!.id);
+        else if (cd2.box_of || cd2.chk_of || cd2.thumb_of)
+          hostIds.add(cd2.box_of || cd2.chk_of || cd2.thumb_of);
+        else if (e) hostIds.add("__not_a_control__");
+      }
+      const onlyHost = hostIds.size === 1 &&
+        !hostIds.has("__not_a_control__")
+        ? [...hostIds][0] : null;
+      const host = onlyHost ? els.find((e) =>
+        e.id === onlyHost && !e.isDeleted &&
+        ["checkbox", "toggle"].includes((e.customData || {}).kind))
+        : null;
+      if (host && selIds.length > 0) {
+        setCtl({
+          hostId: host.id, kind: host.customData.kind,
+          checked: !!host.customData.checked,
+          el: { x: host.x, y: host.y, width: host.width,
+                height: host.height },
+        });
+      } else {
+        setCtl(null);
+      }
     }
     // Excalidraw calls onChange continuously; element versions only move on
     // real mutations, so gate the (heavier) fingerprint work on them.
@@ -516,7 +593,18 @@ export default function App() {
             buffersRef.current[cur] = replayed;
             loadScene(replayed, false);
           }
-          toast(`Applied agent revision #${r.revn}`);
+          // say WHERE it landed when that is not where you are looking:
+          // the filmstrip is concept-scoped, so an artifact applied into
+          // another concept never joins the strip you can see (r3-3)
+          const landed = r.artifact || cur;
+          const st = stateRef.current;
+          const owning = (st?.concepts || []).find(
+            (c: any) => (c.views || []).includes(cur));
+          const visible: string[] = owning
+            ? owning.views : Object.keys(st?.artifacts || {});
+          toast(landed && !visible.includes(landed)
+            ? `Applied agent revision #${r.revn} — ${st?.artifacts?.[landed]?.name || landed}, in another concept`
+            : `Applied agent revision #${r.revn}`);
         } else toast("Revision will land after your next Save.");
         refresh();
       } catch (e: any) {
@@ -541,12 +629,15 @@ export default function App() {
       (async () => {
         try {
           const blob = await exportToBlob({
-            elements: restoreElements(els, null) as any,
+            elements: restoreForRender(els) as any,
             appState: {
               viewBackgroundColor: "#faf8f2", exportWithDarkMode: false,
               frameRendering: { enabled: true, name: true, outline: true, clip: false },
             },
-            files: null,
+            // the user's own export passes getFiles(); this passed null,
+            // so an agent snapshot of an artifact holding an image
+            // placeholder rendered it as an empty box (v0.7 WP5)
+            files: apiRef.current?.getFiles ? apiRef.current.getFiles() : null,
             mimeType: "image/png",
             exportPadding: 40,
           } as any);
@@ -579,6 +670,28 @@ export default function App() {
     const views = c ? c.views.filter((v: string) => artifacts[v]) : artifactIds;
     return views;
   }, [concepts, currentArtifact, artifactIds.join(",")]);
+
+  // v0.8 (r3-3/B7): the strip shows the current concept's views FIRST,
+  // then every other artifact after a divider — a 5-artifact project
+  // used to show one thumbnail, and an artifact applied into another
+  // concept was unreachable except through the dropdown.
+  const stripViews = useMemo(() => {
+    const here = new Set(currentConceptViews);
+    const rest = artifactIds.filter((a) => !here.has(a));
+    return { here: currentConceptViews, rest };
+  }, [currentConceptViews, artifactIds.join(",")]);
+
+  /** The concept the filmstrip is showing, if it is showing one.
+   *
+   * The strip is concept-scoped on purpose — grouping views by the thing
+   * they are views OF is the skill's central idea — but it never said so,
+   * so "what exists here" silently meant "what exists in this concept"
+   * and an artifact applied from the banner while you were looking
+   * elsewhere never appeared (v0.6 assessment r3-3). */
+  const currentConceptName = useMemo(() => {
+    const c = concepts.find((c: any) => (c.views || []).includes(currentArtifact));
+    return c ? c.name : null;
+  }, [concepts, currentArtifact]);
 
   const groupedArtifacts = useMemo(() => {
     const groups: { name: string; ids: string[] }[] = [];
@@ -694,9 +807,7 @@ export default function App() {
     const api = apiRef.current;
     if (!api) return;
     const live = api.getSceneElements().filter((e: any) => !e.isDeleted);
-    const restored = restoreElements([...live, ...newEls], null, {
-      repairBindings: true,
-    } as any);
+    const restored = restoreForRender([...live, ...newEls]);
     api.updateScene({ elements: restored });
   }, []);
 
@@ -829,8 +940,72 @@ export default function App() {
       }
       return { ...e, ...patch, customData: cd, version: (e.version || 0) + 1 };
     });
-    api.updateScene({ elements: restoreElements(els, null) as any });
+    api.updateScene({ elements: restoreForRender(els) as any });
   }, []);
+
+  // e2e hook (v0.8): scene→screen through the app's own camera, so
+  // browser tests click elements instead of guessing the fit transform.
+  // Read-only; invisible to any session participant.
+  useEffect(() => {
+    (window as any).__sceneToScreen = (x: number, y: number) => {
+      const a = appStateRef.current;
+      if (!a) return null;
+      const z = a.zoom?.value ?? 1;
+      return { x: (x + a.scrollX) * z + (a.offsetLeft || 0),
+               y: (y + a.scrollY) * z + (a.offsetTop || 0) };
+    };
+  }, []);
+
+  /** Flip a drawn checkbox/toggle (v0.8). State is the truth
+   * (customData.checked); the glyph mirror below is immediate visual
+   * feedback — the server re-derives parts at commit either way, so the
+   * verb and the picture cannot disagree past the next Save. */
+  const flipControl = useCallback((hostId: string) => {
+    const api = apiRef.current;
+    if (!api) return;
+    const scene = api.getSceneElements();
+    const host: any = scene.find((e: any) => e.id === hostId && !e.isDeleted);
+    if (!host) return;
+    const kind = (host.customData || {}).kind;
+    const now = !(host.customData || {}).checked;
+    const cy = host.y + (host.height || 28) / 2;
+    let els = scene.map((e: any) => {
+      if (e.id === hostId)
+        return { ...e, version: (e.version || 0) + 1,
+                 customData: { ...(e.customData || {}), checked: now } };
+      if (kind === "toggle" &&
+          (e.customData || {}).thumb_of === hostId)
+        // mirrors _toggle_thumb_x with TOGGLE_PILL_W = 36
+        return { ...e, x: host.x + (now ? 8 + 36 - 12 - 2 : 10),
+                 version: (e.version || 0) + 1 };
+      return e;
+    });
+    if (kind === "checkbox") {
+      const chkId = `${hostId}-chk`;
+      const has = els.some((e: any) => e.id === chkId && !e.isDeleted);
+      if (now && !has) {
+        els = [...els, {
+          id: chkId, type: "line", x: host.x + 11, y: cy - 1,
+          width: 10, height: 8, points: [[0, 0], [4, 4], [10, -6]],
+          strokeColor: "#1e1e1e", strokeWidth: 2, roughness: 1,
+          opacity: 100, angle: 0, roundness: null,
+          groupIds: [`${hostId}-grp`], frameId: host.frameId || null,
+          boundElements: [], backgroundColor: "transparent",
+          fillStyle: "solid", lastCommittedPoint: null,
+          startBinding: null, endBinding: null,
+          startArrowhead: null, endArrowhead: null,
+          customData: { role: "decoration", chk_of: hostId,
+                        author: "user" },
+        }];
+      } else if (!now && has) {
+        els = els.filter((e: any) => e.id !== chkId);
+      }
+    }
+    api.updateScene({ elements: restoreForRender(els) as any });
+    setCtl((c) => (c && c.hostId === hostId ? { ...c, checked: now } : c));
+    toast(now ? "Checked — Save to record it." :
+      "Unchecked — Save to record it.");
+  }, [toast]);
 
   const setElementTooltip = useCallback((elId: string, text: string) => {
     patchElement(elId, {}, { tooltip: text || null });
@@ -1035,7 +1210,7 @@ export default function App() {
     if (!els.length) { toast("Nothing to export — this artifact is empty."); return; }
     try {
       const blob = await exportToBlob({
-        elements: restoreElements(els, null) as any,
+        elements: restoreForRender(els) as any,
         // clip:false — frame membership must not crop annotations that
         // spill outside their screen frame (v0.3 assessment); padding
         // keeps estimated text extents from being cut at the edge
@@ -1442,8 +1617,10 @@ export default function App() {
                 key={t.id}
                 className="trip-mark"
                 style={{
-                  left: (el.x + (el.width || 0) + camera.scrollX) * camera.zoom,
-                  top: (el.y + camera.scrollY) * camera.zoom - 10,
+                  // hug the shape, not its bounding box (r3-1) — the
+                  // third instance of that bug, found by grepping
+                  left: (markerAnchor(el, 0, 0, "tr").x + camera.scrollX) * camera.zoom,
+                  top: (markerAnchor(el, 0, 0, "tr").y + camera.scrollY) * camera.zoom - 10,
                 }}
                 onClick={() => setAnchored({ kind: "tripwire", data: t,
                   el: { x: el.x, y: el.y, width: el.width, height: el.height } })}
@@ -1459,20 +1636,29 @@ export default function App() {
                 ~40px clear of the decision node it belonged to and read
                 as a stray mark. */}
             {tooltipDots.map((e: any) => {
-              const w = e.width || 0, h = e.height || 0;
-              // fraction of the half-diagonal at which the outline sits
-              const inset = e.type === "diamond" ? 0.5
-                : e.type === "ellipse" ? 1 - Math.SQRT1_2 : 0;
+              const a = markerAnchor(e);
               return (
                 <div key={`tip-${e.id}`} className="tip-dot"
                   style={{
-                    left: (e.x + w - w * inset / 2 + camera.scrollX) * camera.zoom - 4,
-                    top: (e.y + h - h * inset / 2 + camera.scrollY) * camera.zoom - 4,
+                    left: (a.x + camera.scrollX) * camera.zoom - 4,
+                    top: (a.y + camera.scrollY) * camera.zoom - 4,
                   }}
                   title="has a tooltip — hover the element" />
               );
             })}
             {hoverTip && <TooltipCard x={hoverTip.x} y={hoverTip.y} text={hoverTip.text} />}
+            {ctl && viewingRevn == null && (
+              <AnchoredPopover
+                style={anchorStyle(ctl.el, camera,
+                  appStateRef.current?.width || 800)}
+                onClose={() => setCtl(null)}>
+                <button className="ctl-flip"
+                  title={`${ctl.kind} — click to flip; Save records it`}
+                  onClick={() => flipControl(ctl.hostId)}>
+                  {ctl.checked ? "☑ → ☐  uncheck" : "☐ → ☑  check"}
+                </button>
+              </AnchoredPopover>
+            )}
             {anchored && (
               <AnchoredPopover
                 style={anchorStyle(anchored.el, camera,
@@ -1639,31 +1825,52 @@ export default function App() {
             </div>
           )}
         </div>
+        {currentConceptName && (
+          <div className="strip-scope" title="the filmstrip shows one concept's views — use All artifacts for the rest">
+            {currentConceptName}
+          </div>
+        )}
         <div className="thumbs">
-          {currentConceptViews.map((aid: string) => {
-            const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
-            const ld = (state?.lint_debt || {})[aid];
-            const lintN = ld ? (ld.errors || 0) + (ld.warnings || 0) + (ld.notes || 0) : 0;
-            const lintTier = ld?.errors ? "error" : ld?.warnings ? "warning" : "note";
+          {(() => {
+            const renderThumb = (aid: string, dim: boolean) => {
+              const hasTrip = openTripwires.some((t: any) => (t.changed || "").startsWith(aid + "#") || (t.sibling || "").startsWith(aid + "#"));
+              const ld = (state?.lint_debt || {})[aid];
+              const lintN = ld ? (ld.errors || 0) + (ld.warnings || 0) + (ld.notes || 0) : 0;
+              const lintTier = ld?.errors ? "error" : ld?.warnings ? "warning" : "note";
+              return (
+                <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`}
+                  style={dim ? { opacity: 0.7 } : undefined}
+                  onClick={() => showArtifact(aid)}
+                  title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})${dim ? " — another concept" : ""}`}>
+                  <SceneThumb elements={(viewingRevn != null ? viewScenes[aid] : buffersRef.current[aid] || artifacts[aid]?.elements) || []} />
+                  <div className="tname">
+                    {artifacts[aid]?.name || aid}
+                    <span className="tkind">
+                      {artifacts[aid]?.artifact_type}
+                      {artifacts[aid]?.tier === "extended" ? " · ext" : ""}
+                    </span>
+                  </div>
+                  <div className="badges">
+                    {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
+                    {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
+                    {lintN > 0 && <span className={`badge lint ${lintTier}`} title={`${lintN} layout finding${lintN > 1 ? "s" : ""} — see the Layout rail section`}>{lintN}</span>}
+                  </div>
+                </div>
+              );
+            };
             return (
-              <div key={aid} className={`thumb ${aid === currentArtifact ? "current" : ""}`} onClick={() => showArtifact(aid)}
-                title={`${artifacts[aid]?.name || aid} (${artifacts[aid]?.artifact_type})`}>
-                <SceneThumb elements={(viewingRevn != null ? viewScenes[aid] : buffersRef.current[aid] || artifacts[aid]?.elements) || []} />
-                <div className="tname">
-                  {artifacts[aid]?.name || aid}
-                  <span className="tkind">
-                    {artifacts[aid]?.artifact_type}
-                    {artifacts[aid]?.tier === "extended" ? " · ext" : ""}
-                  </span>
-                </div>
-                <div className="badges">
-                  {dirtyMap[aid] && <span className="badge dirty" title="unsaved edits" />}
-                  {hasTrip && <span className="badge trip" title="open mapping tripwire" />}
-                  {lintN > 0 && <span className={`badge lint ${lintTier}`} title={`${lintN} layout finding${lintN > 1 ? "s" : ""} — see the Layout rail section`}>{lintN}</span>}
-                </div>
-              </div>
+              <>
+                {stripViews.here.map((aid: string) => renderThumb(aid, false))}
+                {stripViews.rest.length > 0 && (
+                  <div className="strip-scope" style={{ alignSelf: "center", opacity: 0.6 }}
+                    title="artifacts of other concepts — every drawing is one click away">
+                    ·&nbsp;·&nbsp;·
+                  </div>
+                )}
+                {stripViews.rest.map((aid: string) => renderThumb(aid, true))}
+              </>
             );
-          })}
+          })()}
           <div className="thumb suggest" onClick={() => setSuggestOpen(true)}>+ suggest<br />a view…</div>
         </div>
       </div>
@@ -1738,6 +1945,8 @@ export default function App() {
         <QuestionModal
           kind={detailItem.kind}
           data={detailItem.data}
+          debt={(state?.pin_debt || []).find(
+            (d: any) => d.id === detailItem.data?.id)}
           onClose={() => setDetailItem(null)}
           onGoto={gotoRefOf(detailItem.data, detailItem.kind)
             ? () => gotoElement(gotoRefOf(detailItem.data, detailItem.kind)!)

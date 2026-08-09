@@ -1,0 +1,2266 @@
+{
+ "artifacts": {
+  "dashboard-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "screen-dashboard",
+     "kind": "frame",
+     "label": "Dashboard — as it is today",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Dashboard — as it is today"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-var-value",
+     "kind": "text",
+     "label": "2.4%",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 176,
+       "dy": 0,
+       "label": "2.4%",
+       "low_signal": true,
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-run-value",
+     "kind": "text",
+     "label": "4/5",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 80,
+       "dy": 0,
+       "label": "4/5",
+       "low_signal": true,
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest-value",
+     "kind": "text",
+     "label": "today",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "today",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-brief-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Mon 3 Aug",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-deepdive-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Mon 3 Aug",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value-value",
+     "kind": "text",
+     "label": "$4.82M",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 382,
+       "dy": 0,
+       "label": "$4.82M",
+       "low_signal": true,
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha-value",
+     "kind": "text",
+     "label": "+3.1%",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -216,
+       "dy": 0,
+       "label": "+3.1%",
+       "low_signal": true,
+       "spatial": "moved left"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment-value",
+     "kind": "text",
+     "label": "62",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 92,
+       "dy": 0,
+       "label": "62",
+       "low_signal": true,
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity-x1",
+     "kind": "line",
+     "label": "chart-equity-x1",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "chart-equity-x1",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity-x2",
+     "kind": "line",
+     "label": "chart-equity-x2",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "chart-equity-x2",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap-x1",
+     "kind": "line",
+     "label": "chart-heatmap-x1",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "chart-heatmap-x1",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap-x2",
+     "kind": "line",
+     "label": "chart-heatmap-x2",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "chart-heatmap-x2",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown-x1",
+     "kind": "line",
+     "label": "chart-drawdown-x1",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "chart-drawdown-x1",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown-x2",
+     "kind": "line",
+     "label": "chart-drawdown-x2",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "chart-drawdown-x2",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "kpi-var",
+     "kind": "kpi",
+     "label": "VaR (95%, 1-day)",
+     "ops": [
+      15,
+      16
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "VaR (95%, 1-day)",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 76,
+       "dy": 0,
+       "label": "VaR (95%, 1-day)",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "VaR (95%, 1-day)"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "kpi-run",
+     "kind": "kpi",
+     "label": "Sources in",
+     "ops": [
+      17,
+      18
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Sources in",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 28,
+       "dy": 0,
+       "label": "Sources in",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Sources in"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest",
+     "kind": "kpi",
+     "label": "Signals Digest",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Signals Digest",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Signals Digest",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-brief",
+     "kind": "kpi",
+     "label": "Weekly Brief",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Weekly Brief",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Weekly Brief",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-deepdive",
+     "kind": "kpi",
+     "label": "Risk Deep-Dive",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Risk Deep-Dive",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Risk Deep-Dive",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value",
+     "kind": "kpi",
+     "label": "Portfolio value",
+     "ops": [
+      22,
+      23
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Portfolio value",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 64,
+       "dy": 0,
+       "label": "Portfolio value",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Portfolio value"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Excess Return",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Excess Return"
+      },
+      "tooltip_changed": {
+       "label": "Excess Return",
+       "text": "**Excess Return** — your rename, carried through to the glossary. Same number, p"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width"
+     ],
+     "consequence_of": null,
+     "id": "kpi-sentiment",
+     "kind": "kpi",
+     "label": "Sentiment index",
+     "ops": [
+      25,
+      26
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Sentiment index",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 52,
+       "dy": 0,
+       "label": "Sentiment index",
+       "spatial": "moved right"
+      },
+      "resized": {
+       "label": "Sentiment index"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-run-tile",
+     "kind": "text",
+     "label": "not on the real screen — wanted",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "not on the real screen — wanted",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 28,
+       "dy": 32,
+       "label": "not on the real screen — wanted",
+       "spatial": "moved right-down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity",
+     "kind": "image",
+     "label": "Equity curve vs benchmark",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Equity curve vs benchmark",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Equity curve vs benchmark",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap",
+     "kind": "image",
+     "label": "Sector heat map",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Sector heat map",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Sector heat map",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown",
+     "kind": "image",
+     "label": "Drawdown",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Drawdown",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 32,
+       "label": "Drawdown",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-6785c522",
+     "kind": "rectangle",
+     "label": "KPI row first — the number IS the product. Charts can shrink.",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "KPI row first — the number IS the product. Charts can shrink."
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 720,
+       "to": 740
+      }
+     ],
+     "id": "screen-dashboard",
+     "op": "mod"
+    },
+    {
+     "from": [
+      650,
+      176
+     ],
+     "id": "kpi-var-value",
+     "op": "move",
+     "to": [
+      826,
+      176
+     ]
+    },
+    {
+     "from": [
+      1152,
+      176
+     ],
+     "id": "kpi-run-value",
+     "op": "move",
+     "to": [
+      1232,
+      176
+     ]
+    },
+    {
+     "from": [
+      174,
+      620
+     ],
+     "id": "card-digest-value",
+     "op": "move",
+     "to": [
+      174,
+      652
+     ]
+    },
+    {
+     "from": [
+      562,
+      620
+     ],
+     "id": "card-brief-value",
+     "op": "move",
+     "to": [
+      562,
+      652
+     ]
+    },
+    {
+     "from": [
+      978,
+      620
+     ],
+     "id": "card-deepdive-value",
+     "op": "move",
+     "to": [
+      978,
+      652
+     ]
+    },
+    {
+     "from": [
+      175,
+      176
+     ],
+     "id": "kpi-portfolio-value-value",
+     "op": "move",
+     "to": [
+      557,
+      176
+     ]
+    },
+    {
+     "from": [
+      430,
+      176
+     ],
+     "id": "kpi-alpha-value",
+     "op": "move",
+     "to": [
+      214,
+      176
+     ]
+    },
+    {
+     "from": [
+      948,
+      176
+     ],
+     "id": "kpi-sentiment-value",
+     "op": "move",
+     "to": [
+      1040,
+      176
+     ]
+    },
+    {
+     "from": [
+      100,
+      312
+     ],
+     "id": "chart-equity-x1",
+     "op": "move",
+     "to": [
+      100,
+      344
+     ]
+    },
+    {
+     "from": [
+      100,
+      592
+     ],
+     "id": "chart-equity-x2",
+     "op": "move",
+     "to": [
+      100,
+      624
+     ]
+    },
+    {
+     "from": [
+      516,
+      312
+     ],
+     "id": "chart-heatmap-x1",
+     "op": "move",
+     "to": [
+      516,
+      344
+     ]
+    },
+    {
+     "from": [
+      516,
+      592
+     ],
+     "id": "chart-heatmap-x2",
+     "op": "move",
+     "to": [
+      516,
+      624
+     ]
+    },
+    {
+     "from": [
+      932,
+      312
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "move",
+     "to": [
+      932,
+      344
+     ]
+    },
+    {
+     "from": [
+      932,
+      592
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "move",
+     "to": [
+      932,
+      624
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 212
+      }
+     ],
+     "id": "kpi-var",
+     "op": "mod"
+    },
+    {
+     "from": [
+      596,
+      168
+     ],
+     "id": "kpi-var",
+     "op": "move",
+     "to": [
+      672,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 212
+      }
+     ],
+     "id": "kpi-run",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1092,
+      168
+     ],
+     "id": "kpi-run",
+     "op": "move",
+     "to": [
+      1120,
+      168
+     ]
+    },
+    {
+     "from": [
+      100,
+      612
+     ],
+     "id": "card-digest",
+     "op": "move",
+     "to": [
+      100,
+      644
+     ]
+    },
+    {
+     "from": [
+      516,
+      612
+     ],
+     "id": "card-brief",
+     "op": "move",
+     "to": [
+      516,
+      644
+     ]
+    },
+    {
+     "from": [
+      932,
+      612
+     ],
+     "id": "card-deepdive",
+     "op": "move",
+     "to": [
+      932,
+      644
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 248
+      }
+     ],
+     "id": "kpi-portfolio-value",
+     "op": "mod"
+    },
+    {
+     "from": [
+      348,
+      168
+     ],
+     "id": "kpi-portfolio-value",
+     "op": "move",
+     "to": [
+      412,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 300
+      },
+      {
+       "attr": "height",
+       "from": 96,
+       "to": 128
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Alpha is return **against a benchmark**. There is no benchmark anywhere in the pipeline, the glossary, or the five DataSources. Something is supplying it and nothing on any of these diagrams knows what.",
+        "value": "+3.1%"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "**Excess Return** — your rename, carried through to the glossary. Same number, plainer word, because clients kept asking what alpha meant.\n\nSized bigger than its neighbours because you said the number IS the product. Worth noting: it is also the number on this screen with the least support underneath it — excess return needs a benchmark, and no DataSource supplies one.",
+        "value": "+3.1%"
+       }
+      }
+     ],
+     "id": "kpi-alpha",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 212
+      }
+     ],
+     "id": "kpi-sentiment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      844,
+      168
+     ],
+     "id": "kpi-sentiment",
+     "op": "move",
+     "to": [
+      896,
+      168
+     ]
+    },
+    {
+     "from": [
+      1092,
+      272
+     ],
+     "id": "note-run-tile",
+     "op": "move",
+     "to": [
+      1120,
+      304
+     ]
+    },
+    {
+     "from": [
+      100,
+      312
+     ],
+     "id": "chart-equity",
+     "op": "move",
+     "to": [
+      100,
+      344
+     ]
+    },
+    {
+     "from": [
+      516,
+      312
+     ],
+     "id": "chart-heatmap",
+     "op": "move",
+     "to": [
+      516,
+      344
+     ]
+    },
+    {
+     "from": [
+      932,
+      312
+     ],
+     "id": "chart-drawdown",
+     "op": "move",
+     "to": [
+      932,
+      344
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 644,
+       "to": 708
+      }
+     ],
+     "id": "kpi-var-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1162,
+       "to": 1178
+      }
+     ],
+     "id": "kpi-run-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 706,
+       "to": 738
+      }
+     ],
+     "id": "card-digest-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 706,
+       "to": 738
+      }
+     ],
+     "id": "card-brief-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 706,
+       "to": 738
+      }
+     ],
+     "id": "card-deepdive-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 394,
+       "to": 464
+      }
+     ],
+     "id": "kpi-portfolio-value-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 194,
+       "to": 226
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 238,
+       "to": 270
+      }
+     ],
+     "id": "kpi-alpha-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 890,
+       "to": 930
+      }
+     ],
+     "id": "kpi-sentiment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 442,
+       "to": 474
+      }
+     ],
+     "id": "chart-equity-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 442,
+       "to": 474
+      }
+     ],
+     "id": "chart-heatmap-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 442,
+       "to": 474
+      }
+     ],
+     "id": "chart-drawdown-label",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page",
+      "usernote-6785c522",
+      "usernote-6785c522-t"
+     ],
+     "moved": [
+      "usernote-6785c522",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "usernote-6785c522",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page",
+      "usernote-6785c522-t"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "screen-dashboard",
+     "fact": "resized",
+     "label": "Dashboard — as it is today"
+    },
+    {
+     "dx": 176,
+     "dy": 0,
+     "element": "kpi-var-value",
+     "fact": "moved",
+     "label": "2.4%",
+     "low_signal": true,
+     "spatial": "moved right"
+    },
+    {
+     "dx": 80,
+     "dy": 0,
+     "element": "kpi-run-value",
+     "fact": "moved",
+     "label": "4/5",
+     "low_signal": true,
+     "spatial": "moved right"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "card-digest-value",
+     "fact": "moved",
+     "label": "today",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "card-brief-value",
+     "fact": "moved",
+     "label": "Mon 3 Aug",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "card-deepdive-value",
+     "fact": "moved",
+     "label": "Mon 3 Aug",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 382,
+     "dy": 0,
+     "element": "kpi-portfolio-value-value",
+     "fact": "moved",
+     "label": "$4.82M",
+     "low_signal": true,
+     "spatial": "moved right"
+    },
+    {
+     "dx": -216,
+     "dy": 0,
+     "element": "kpi-alpha-value",
+     "fact": "moved",
+     "label": "+3.1%",
+     "low_signal": true,
+     "spatial": "moved left"
+    },
+    {
+     "dx": 92,
+     "dy": 0,
+     "element": "kpi-sentiment-value",
+     "fact": "moved",
+     "label": "62",
+     "low_signal": true,
+     "spatial": "moved right"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-equity-x1",
+     "fact": "moved",
+     "label": "chart-equity-x1",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-equity-x2",
+     "fact": "moved",
+     "label": "chart-equity-x2",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-heatmap-x1",
+     "fact": "moved",
+     "label": "chart-heatmap-x1",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-heatmap-x2",
+     "fact": "moved",
+     "label": "chart-heatmap-x2",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-drawdown-x1",
+     "fact": "moved",
+     "label": "chart-drawdown-x1",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-drawdown-x2",
+     "fact": "moved",
+     "label": "chart-drawdown-x2",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "resized",
+     "label": "VaR (95%, 1-day)"
+    },
+    {
+     "dx": 76,
+     "dy": 0,
+     "element": "kpi-var",
+     "fact": "moved",
+     "label": "VaR (95%, 1-day)",
+     "spatial": "moved right"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "resized",
+     "label": "Sources in"
+    },
+    {
+     "dx": 28,
+     "dy": 0,
+     "element": "kpi-run",
+     "fact": "moved",
+     "label": "Sources in",
+     "spatial": "moved right"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "card-digest",
+     "fact": "moved",
+     "label": "Signals Digest",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "card-brief",
+     "fact": "moved",
+     "label": "Weekly Brief",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "card-deepdive",
+     "fact": "moved",
+     "label": "Risk Deep-Dive",
+     "spatial": "moved down"
+    },
+    {
+     "element": "kpi-portfolio-value",
+     "fact": "resized",
+     "label": "Portfolio value"
+    },
+    {
+     "dx": 64,
+     "dy": 0,
+     "element": "kpi-portfolio-value",
+     "fact": "moved",
+     "label": "Portfolio value",
+     "spatial": "moved right"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "resized",
+     "label": "Excess Return"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "tooltip_changed",
+     "label": "Excess Return",
+     "text": "**Excess Return** — your rename, carried through to the glossary. Same number, p"
+    },
+    {
+     "element": "kpi-sentiment",
+     "fact": "resized",
+     "label": "Sentiment index"
+    },
+    {
+     "dx": 52,
+     "dy": 0,
+     "element": "kpi-sentiment",
+     "fact": "moved",
+     "label": "Sentiment index",
+     "spatial": "moved right"
+    },
+    {
+     "dx": 28,
+     "dy": 32,
+     "element": "note-run-tile",
+     "fact": "moved",
+     "label": "not on the real screen — wanted",
+     "spatial": "moved right-down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-equity",
+     "fact": "moved",
+     "label": "Equity curve vs benchmark",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-heatmap",
+     "fact": "moved",
+     "label": "Sector heat map",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 32,
+     "element": "chart-drawdown",
+     "fact": "moved",
+     "label": "Drawdown",
+     "spatial": "moved down"
+    },
+    {
+     "element": "usernote-6785c522",
+     "fact": "reordered",
+     "label": "KPI row first — the number IS the product. Charts can shrink."
+    },
+    {
+     "element": "kpi-var",
+     "fact": "block_moved_within_screen",
+     "label": "VaR (95%, 1-day)",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "block_moved_within_screen",
+     "label": "Sources in",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "card-digest",
+     "fact": "block_moved_within_screen",
+     "label": "Signals Digest",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "card-brief",
+     "fact": "block_moved_within_screen",
+     "label": "Weekly Brief",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "card-deepdive",
+     "fact": "block_moved_within_screen",
+     "label": "Risk Deep-Dive",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "kpi-portfolio-value",
+     "fact": "block_moved_within_screen",
+     "label": "Portfolio value",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "kpi-sentiment",
+     "fact": "block_moved_within_screen",
+     "label": "Sentiment index",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "note-run-tile",
+     "fact": "block_moved_within_screen",
+     "label": "not on the real screen — wanted",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "chart-equity",
+     "fact": "block_moved_within_screen",
+     "label": "Equity curve vs benchmark",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "chart-heatmap",
+     "fact": "block_moved_within_screen",
+     "label": "Sector heat map",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "block_moved_within_screen",
+     "label": "Drawdown",
+     "screen": "Dashboard — as it is today"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "usernote-6785c522",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page",
+      "usernote-6785c522-t"
+     ],
+     "moved": [
+      "usernote-6785c522",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page",
+      "usernote-6785c522",
+      "usernote-6785c522-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 474,
+       "to": 442
+      }
+     ],
+     "id": "chart-drawdown-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 474,
+       "to": 442
+      }
+     ],
+     "id": "chart-heatmap-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 474,
+       "to": 442
+      }
+     ],
+     "id": "chart-equity-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 930,
+       "to": 890
+      }
+     ],
+     "id": "kpi-sentiment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 226,
+       "to": 194
+      },
+      {
+       "attr": "y",
+       "from": 270,
+       "to": 238
+      }
+     ],
+     "id": "kpi-alpha-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 464,
+       "to": 394
+      }
+     ],
+     "id": "kpi-portfolio-value-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 738,
+       "to": 706
+      }
+     ],
+     "id": "card-deepdive-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 738,
+       "to": 706
+      }
+     ],
+     "id": "card-brief-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 738,
+       "to": 706
+      }
+     ],
+     "id": "card-digest-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1178,
+       "to": 1162
+      }
+     ],
+     "id": "kpi-run-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 708,
+       "to": 644
+      }
+     ],
+     "id": "kpi-var-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      932,
+      344
+     ],
+     "id": "chart-drawdown",
+     "op": "move",
+     "to": [
+      932,
+      312
+     ]
+    },
+    {
+     "from": [
+      516,
+      344
+     ],
+     "id": "chart-heatmap",
+     "op": "move",
+     "to": [
+      516,
+      312
+     ]
+    },
+    {
+     "from": [
+      100,
+      344
+     ],
+     "id": "chart-equity",
+     "op": "move",
+     "to": [
+      100,
+      312
+     ]
+    },
+    {
+     "from": [
+      1120,
+      304
+     ],
+     "id": "note-run-tile",
+     "op": "move",
+     "to": [
+      1092,
+      272
+     ]
+    },
+    {
+     "from": [
+      896,
+      168
+     ],
+     "id": "kpi-sentiment",
+     "op": "move",
+     "to": [
+      844,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 212,
+       "to": 236
+      }
+     ],
+     "id": "kpi-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 300,
+       "to": 236
+      },
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 96
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "**Excess Return** — your rename, carried through to the glossary. Same number, plainer word, because clients kept asking what alpha meant.\n\nSized bigger than its neighbours because you said the number IS the product. Worth noting: it is also the number on this screen with the least support underneath it — excess return needs a benchmark, and no DataSource supplies one.",
+        "value": "+3.1%"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Alpha is return **against a benchmark**. There is no benchmark anywhere in the pipeline, the glossary, or the five DataSources. Something is supplying it and nothing on any of these diagrams knows what.",
+        "value": "+3.1%"
+       }
+      }
+     ],
+     "id": "kpi-alpha",
+     "op": "mod"
+    },
+    {
+     "from": [
+      412,
+      168
+     ],
+     "id": "kpi-portfolio-value",
+     "op": "move",
+     "to": [
+      348,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 248,
+       "to": 236
+      }
+     ],
+     "id": "kpi-portfolio-value",
+     "op": "mod"
+    },
+    {
+     "from": [
+      932,
+      644
+     ],
+     "id": "card-deepdive",
+     "op": "move",
+     "to": [
+      932,
+      612
+     ]
+    },
+    {
+     "from": [
+      516,
+      644
+     ],
+     "id": "card-brief",
+     "op": "move",
+     "to": [
+      516,
+      612
+     ]
+    },
+    {
+     "from": [
+      100,
+      644
+     ],
+     "id": "card-digest",
+     "op": "move",
+     "to": [
+      100,
+      612
+     ]
+    },
+    {
+     "from": [
+      1120,
+      168
+     ],
+     "id": "kpi-run",
+     "op": "move",
+     "to": [
+      1092,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 212,
+       "to": 236
+      }
+     ],
+     "id": "kpi-run",
+     "op": "mod"
+    },
+    {
+     "from": [
+      672,
+      168
+     ],
+     "id": "kpi-var",
+     "op": "move",
+     "to": [
+      596,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 212,
+       "to": 236
+      }
+     ],
+     "id": "kpi-var",
+     "op": "mod"
+    },
+    {
+     "from": [
+      932,
+      624
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "move",
+     "to": [
+      932,
+      592
+     ]
+    },
+    {
+     "from": [
+      932,
+      344
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "move",
+     "to": [
+      932,
+      312
+     ]
+    },
+    {
+     "from": [
+      516,
+      624
+     ],
+     "id": "chart-heatmap-x2",
+     "op": "move",
+     "to": [
+      516,
+      592
+     ]
+    },
+    {
+     "from": [
+      516,
+      344
+     ],
+     "id": "chart-heatmap-x1",
+     "op": "move",
+     "to": [
+      516,
+      312
+     ]
+    },
+    {
+     "from": [
+      100,
+      624
+     ],
+     "id": "chart-equity-x2",
+     "op": "move",
+     "to": [
+      100,
+      592
+     ]
+    },
+    {
+     "from": [
+      100,
+      344
+     ],
+     "id": "chart-equity-x1",
+     "op": "move",
+     "to": [
+      100,
+      312
+     ]
+    },
+    {
+     "from": [
+      1040,
+      176
+     ],
+     "id": "kpi-sentiment-value",
+     "op": "move",
+     "to": [
+      948,
+      176
+     ]
+    },
+    {
+     "from": [
+      214,
+      176
+     ],
+     "id": "kpi-alpha-value",
+     "op": "move",
+     "to": [
+      430,
+      176
+     ]
+    },
+    {
+     "from": [
+      557,
+      176
+     ],
+     "id": "kpi-portfolio-value-value",
+     "op": "move",
+     "to": [
+      175,
+      176
+     ]
+    },
+    {
+     "from": [
+      978,
+      652
+     ],
+     "id": "card-deepdive-value",
+     "op": "move",
+     "to": [
+      978,
+      620
+     ]
+    },
+    {
+     "from": [
+      562,
+      652
+     ],
+     "id": "card-brief-value",
+     "op": "move",
+     "to": [
+      562,
+      620
+     ]
+    },
+    {
+     "from": [
+      174,
+      652
+     ],
+     "id": "card-digest-value",
+     "op": "move",
+     "to": [
+      174,
+      620
+     ]
+    },
+    {
+     "from": [
+      1232,
+      176
+     ],
+     "id": "kpi-run-value",
+     "op": "move",
+     "to": [
+      1152,
+      176
+     ]
+    },
+    {
+     "from": [
+      826,
+      176
+     ],
+     "id": "kpi-var-value",
+     "op": "move",
+     "to": [
+      650,
+      176
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 740,
+       "to": 720
+      }
+     ],
+     "id": "screen-dashboard",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 22,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Excess Return",
+   "name": "Excess Return"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Review queue",
+   "name": "Review queue"
+  }
+ ],
+ "revn": 23,
+ "round": 5,
+ "saved_at": "2026-08-09T11:40:12Z",
+ "selection_at_save": [],
+ "short_id": "f8a0844",
+ "summary": {
+  "headline": "reworded the tooltip on Excess Return (+29 more)",
+  "suppressed": 14,
+  "verb_counts": {
+   "block_moved_within_screen": 11,
+   "moved": 25,
+   "reordered": 1,
+   "resized": 6,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "you moved it first; making it look first"
+}

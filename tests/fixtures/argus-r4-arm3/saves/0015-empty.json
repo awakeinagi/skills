@@ -1,0 +1,42 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 14,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Partial rerun",
+   "name": "Partial rerun"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Reader",
+   "name": "Reader",
+   "views": [
+    "dashboard"
+   ]
+  }
+ ],
+ "revn": 15,
+ "round": 2,
+ "saved_at": "2026-08-09T11:07:59Z",
+ "selection_at_save": [],
+ "short_id": "db275f1",
+ "summary": {
+  "headline": "registry: upsert concept Partial rerun (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "registry hygiene: mint the two terms that settled this round"
+}

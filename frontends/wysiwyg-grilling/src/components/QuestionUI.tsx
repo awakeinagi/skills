@@ -85,11 +85,12 @@ export function TripwireCard({
 }
 
 export function QuestionModal({
-  kind, data, onClose, onGoto, onAnswer,
+  kind, data, onClose, onGoto, onAnswer, debt,
 }: {
   kind: "pin" | "tripwire"; data: any;
   onClose: () => void; onGoto: (() => void) | null;
   onAnswer?: ((answer: string) => void) | null;
+  debt?: any;
 }) {
   const [text, setText] = useState("");
   useEffect(() => {
@@ -103,8 +104,18 @@ export function QuestionModal({
   const anchorLine = isPin
     ? data.artifact && `anchored to ${data.artifact} › ${data.element}`
     : `between ${String(data.changed).replace("#", " › ")} and ${String(data.sibling).replace("#", " › ")}`;
+  // Age, not just origin (v0.8/B1): "asked at round 1" made the USER
+  // subtract to learn what the agent was told outright ("age 5r"). And
+  // a user-authored pin is not "asked by the agent".
+  const asker = data.direction === "user" ? "Asked by you"
+    : "Asked by the agent";
+  const age = isPin && debt && debt.age_rounds > 0
+    ? ` Open for ${debt.age_rounds} round${debt.age_rounds === 1 ? "" : "s"}` +
+      (debt.target_edits > 0
+        ? `; its target has been edited ${debt.target_edits}× since.` : ".")
+    : "";
   const what = isPin
-    ? `Asked by the agent${data.asked_at_revn != null ? ` at save ${data.asked_at_revn}` : ""}${data.round ? `, round ${data.round}` : ""}. Answer here, on the canvas, or in chat — no channel is required.`
+    ? `${asker}${data.asked_at_revn != null ? ` at save ${data.asked_at_revn}` : ""}${data.round ? `, round ${data.round}` : ""}.${age} Answer here, on the canvas, or in chat — no channel is required.`
     : `Fired at save ${data.save}: one side of a declared mapping changed and its sibling didn't. Nothing syncs without your yes.`;
   return (
     <div className="modal-backdrop" onClick={onClose}>

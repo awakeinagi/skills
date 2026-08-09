@@ -1,0 +1,610 @@
+{
+ "artifacts": {
+  "enrichment-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-edgar-correlation",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "You just cut news→technicals to stop one source moving two signals. EDGAR moves three. Does the same argument apply here, or is EDGAR different?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "src-edgar",
+     "kind": "source",
+     "label": "SEC EDGAR",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "SEC EDGAR",
+       "text": "**Three of the four scorers read this**, each for something different: filing to"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "src-news",
+     "kind": "source",
+     "label": "News Stream",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "News Stream",
+       "text": "Headlines. External vendor.\n\n**One consumer now** — the sentiment scorer, and no"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "technical",
+     "kind": "transform",
+     "label": "Technical Signals",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Technical Signals",
+       "text": "**Market feed only, as of Aug 2026.** The news read was cut as noise.\n\nWhat went"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-f1efa0e6",
+     "kind": "rectangle",
+     "label": "watch out for crowded trades",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "watch out for crowded trades"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-36da3cb3",
+     "kind": "rectangle",
+     "label": "was feeding technicals too — noise",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "was feeding technicals too — noise"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-f1efa0e6-t",
+     "kind": "text",
+     "label": "watch out for crowded trades",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "watch out for crowded trades"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "You just cut news→technicals to stop one source moving two signals. EDGAR moves three. Does the same argument apply here, or is EDGAR different?",
+       "role": "pin",
+       "status": "open",
+       "target": "src-edgar"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-edgar-correlation",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 564775068,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 228,
+      "y": 272
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "The busiest source: three of the four scorers read it, each for something different — tone, ratios, Form 4s."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Three of the four scorers read this**, each for something different: filing tone, line items, Form 4s.\n\nWhich means that after the news cut, EDGAR is by a wide margin the largest shared input left on this diagram — and shared inputs are what make signals move together."
+       }
+      }
+     ],
+     "id": "src-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "The only source whose absence is survivable in a named, specific way: no sentiment read, and the digest says so."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\n**One consumer now** — the sentiment scorer, and nothing else. That makes it the most contained source on the diagram: an outage costs exactly one signal.\n\nIt also makes it the most expensive per unit of use. A whole vendor feed for one scorer is a question somebody should ask out loud."
+       }
+      }
+     ],
+     "id": "src-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Market feed, plus the news stream — which is the one read on this diagram I did not expect."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Market feed only, as of Aug 2026.** The news read was cut as noise.\n\nWhat went with it: the momentum read can no longer tell a breakout from a knee-jerk reaction to an announcement. That was the thing it was built to do.\n\nWhat was gained: technicals are now genuinely independent of sentiment. When a headline lands, one signal moves, not two."
+       }
+      }
+     ],
+     "id": "technical",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "e-market-fund",
+      "e-market-tech",
+      "e-edgar-sent",
+      "e-edgar-fund",
+      "e-edgar-insider",
+      "e-news-sent",
+      "e-sent-out",
+      "e-fund-out",
+      "e-insider-out",
+      "e-tech-out",
+      "src-market",
+      "src-edgar",
+      "src-news",
+      "sentiment",
+      "fundamentals",
+      "insider",
+      "technical",
+      "scored-signals",
+      "src-market-label",
+      "src-edgar-label",
+      "src-news-label",
+      "sentiment-label",
+      "fundamentals-label",
+      "insider-label",
+      "technical-label",
+      "scored-signals-label",
+      "e-edgar-sent-label",
+      "e-edgar-insider-label",
+      "pin-sentiment-unsure",
+      "pin-technical-news",
+      "usernote-f1efa0e6",
+      "usernote-f1efa0e6-t",
+      "usernote-36da3cb3",
+      "usernote-36da3cb3-t"
+     ],
+     "moved": [
+      "usernote-f1efa0e6",
+      "usernote-36da3cb3",
+      "src-market-label",
+      "src-edgar-label",
+      "src-news-label",
+      "sentiment-label",
+      "fundamentals-label",
+      "insider-label",
+      "technical-label",
+      "scored-signals-label",
+      "e-edgar-sent-label",
+      "e-edgar-insider-label",
+      "pin-sentiment-unsure",
+      "pin-technical-news",
+      "usernote-f1efa0e6-t"
+     ],
+     "op": "reorder",
+     "order": [
+      "e-market-fund",
+      "e-market-tech",
+      "e-edgar-sent",
+      "e-edgar-fund",
+      "e-edgar-insider",
+      "e-news-sent",
+      "e-sent-out",
+      "e-fund-out",
+      "e-insider-out",
+      "e-tech-out",
+      "src-market",
+      "src-edgar",
+      "src-news",
+      "sentiment",
+      "fundamentals",
+      "insider",
+      "technical",
+      "scored-signals",
+      "usernote-f1efa0e6",
+      "usernote-36da3cb3",
+      "src-market-label",
+      "src-edgar-label",
+      "src-news-label",
+      "sentiment-label",
+      "fundamentals-label",
+      "insider-label",
+      "technical-label",
+      "scored-signals-label",
+      "e-edgar-sent-label",
+      "e-edgar-insider-label",
+      "pin-sentiment-unsure",
+      "pin-technical-news",
+      "usernote-f1efa0e6-t",
+      "usernote-36da3cb3-t",
+      "pin-edgar-correlation"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "pin-edgar-correlation",
+     "fact": "pin_added",
+     "question": "You just cut news→technicals to stop one source moving two signals. EDGAR moves three. Does the same argument apply here, or is EDGAR different?"
+    },
+    {
+     "element": "src-edgar",
+     "fact": "tooltip_changed",
+     "label": "SEC EDGAR",
+     "text": "**Three of the four scorers read this**, each for something different: filing to"
+    },
+    {
+     "element": "src-news",
+     "fact": "tooltip_changed",
+     "label": "News Stream",
+     "text": "Headlines. External vendor.\n\n**One consumer now** — the sentiment scorer, and no"
+    },
+    {
+     "element": "technical",
+     "fact": "tooltip_changed",
+     "label": "Technical Signals",
+     "text": "**Market feed only, as of Aug 2026.** The news read was cut as noise.\n\nWhat went"
+    },
+    {
+     "element": "usernote-f1efa0e6",
+     "fact": "reordered",
+     "label": "watch out for crowded trades"
+    },
+    {
+     "element": "usernote-36da3cb3",
+     "fact": "reordered",
+     "label": "was feeding technicals too — noise"
+    },
+    {
+     "element": "usernote-f1efa0e6-t",
+     "fact": "reordered",
+     "label": "watch out for crowded trades"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "e-market-fund",
+      "e-market-tech",
+      "e-edgar-sent",
+      "e-edgar-fund",
+      "e-edgar-insider",
+      "e-news-sent",
+      "e-sent-out",
+      "e-fund-out",
+      "e-insider-out",
+      "e-tech-out",
+      "src-market",
+      "src-edgar",
+      "src-news",
+      "sentiment",
+      "fundamentals",
+      "insider",
+      "technical",
+      "scored-signals",
+      "usernote-f1efa0e6",
+      "usernote-36da3cb3",
+      "src-market-label",
+      "src-edgar-label",
+      "src-news-label",
+      "sentiment-label",
+      "fundamentals-label",
+      "insider-label",
+      "technical-label",
+      "scored-signals-label",
+      "e-edgar-sent-label",
+      "e-edgar-insider-label",
+      "pin-sentiment-unsure",
+      "pin-technical-news",
+      "usernote-f1efa0e6-t",
+      "usernote-36da3cb3-t",
+      "pin-edgar-correlation"
+     ],
+     "moved": [
+      "usernote-f1efa0e6",
+      "usernote-36da3cb3",
+      "src-market-label",
+      "src-edgar-label",
+      "src-news-label",
+      "sentiment-label",
+      "fundamentals-label",
+      "insider-label",
+      "technical-label",
+      "scored-signals-label",
+      "e-edgar-sent-label",
+      "e-edgar-insider-label",
+      "pin-sentiment-unsure",
+      "pin-technical-news",
+      "usernote-f1efa0e6-t"
+     ],
+     "op": "reorder",
+     "order": [
+      "e-market-fund",
+      "e-market-tech",
+      "e-edgar-sent",
+      "e-edgar-fund",
+      "e-edgar-insider",
+      "e-news-sent",
+      "e-sent-out",
+      "e-fund-out",
+      "e-insider-out",
+      "e-tech-out",
+      "src-market",
+      "src-edgar",
+      "src-news",
+      "sentiment",
+      "fundamentals",
+      "insider",
+      "technical",
+      "scored-signals",
+      "src-market-label",
+      "src-edgar-label",
+      "src-news-label",
+      "sentiment-label",
+      "fundamentals-label",
+      "insider-label",
+      "technical-label",
+      "scored-signals-label",
+      "e-edgar-sent-label",
+      "e-edgar-insider-label",
+      "pin-sentiment-unsure",
+      "pin-technical-news",
+      "usernote-f1efa0e6",
+      "usernote-f1efa0e6-t",
+      "usernote-36da3cb3",
+      "usernote-36da3cb3-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Market feed only, as of Aug 2026.** The news read was cut as noise.\n\nWhat went with it: the momentum read can no longer tell a breakout from a knee-jerk reaction to an announcement. That was the thing it was built to do.\n\nWhat was gained: technicals are now genuinely independent of sentiment. When a headline lands, one signal moves, not two."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Market feed, plus the news stream — which is the one read on this diagram I did not expect."
+       }
+      }
+     ],
+     "id": "technical",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\n**One consumer now** — the sentiment scorer, and nothing else. That makes it the most contained source on the diagram: an outage costs exactly one signal.\n\nIt also makes it the most expensive per unit of use. A whole vendor feed for one scorer is a question somebody should ask out loud."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "The only source whose absence is survivable in a named, specific way: no sentiment read, and the digest says so."
+       }
+      }
+     ],
+     "id": "src-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Three of the four scorers read this**, each for something different: filing tone, line items, Form 4s.\n\nWhich means that after the news cut, EDGAR is by a wide margin the largest shared input left on this diagram — and shared inputs are what make signals move together."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "The busiest source: three of the four scorers read it, each for something different — tone, ratios, Form 4s."
+       }
+      }
+     ],
+     "id": "src-edgar",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "You just cut news→technicals to stop one source moving two signals. EDGAR moves three. Does the same argument apply here, or is EDGAR different?",
+       "role": "pin",
+       "status": "open",
+       "target": "src-edgar"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-edgar-correlation",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 564775068,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 228,
+      "y": 272
+     },
+     "index": 34,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Enrichment — who reads what"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 25,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 26,
+ "round": 4,
+ "saved_at": "2026-08-09T11:25:13Z",
+ "selection_at_save": [],
+ "short_id": "9ce70fc",
+ "summary": {
+  "headline": "asked: 'You just cut news→technicals to stop one source moving two s' (+6 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "pin_added": 1,
+   "reordered": 3,
+   "tooltip_changed": 3
+  }
+ },
+ "tripwires": [],
+ "user_note": "technicals are price-and-volume only now; ask the same question of EDGAR"
+}

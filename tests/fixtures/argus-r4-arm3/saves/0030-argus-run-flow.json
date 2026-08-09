@@ -1,0 +1,89 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "link",
+       "from": null,
+       "to": "artifact:aggregation-flow"
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "link",
+       "from": null,
+       "to": "artifact:aggregation-flow"
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "link",
+       "from": "artifact:aggregation-flow",
+       "to": null
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "link",
+       "from": "artifact:aggregation-flow",
+       "to": null
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 29,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 30,
+ "round": 4,
+ "saved_at": "2026-08-09T11:29:56Z",
+ "selection_at_save": [],
+ "short_id": "168735e",
+ "summary": {
+  "headline": "saved without changing anything",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "wire the aggregator through to the view that opens it"
+}

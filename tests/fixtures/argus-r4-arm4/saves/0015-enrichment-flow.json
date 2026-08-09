@@ -1,0 +1,238 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-36da3cb3",
+     "kind": "rectangle",
+     "label": "was feeding technicals too — noise",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "was feeding technicals too — noise"
+      }
+     },
+     "verb": "added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff8dc",
+      "boundElements": [
+       {
+        "id": "usernote-36da3cb3-t",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "user",
+       "role": "note"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 90,
+      "id": "usernote-36da3cb3",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1181313869,
+      "strokeColor": "#b8860b",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 230,
+      "x": 400,
+      "y": 480
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "usernote-36da3cb3",
+      "customData": {
+       "author": "user",
+       "role": "note-text"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 74,
+      "id": "usernote-36da3cb3-t",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "was feeding technicals too — noise",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 690795204,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "was feeding technicals too — noise",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 214,
+      "x": 408,
+      "y": 488
+     },
+     "index": 36,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "usernote-36da3cb3",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "was feeding technicals too — noise"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "usernote-36da3cb3",
+      "customData": {
+       "author": "user",
+       "role": "note-text"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 74,
+      "id": "usernote-36da3cb3-t",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "was feeding technicals too — noise",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 690795204,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "was feeding technicals too — noise",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 214,
+      "x": 408,
+      "y": 488
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff8dc",
+      "boundElements": [
+       {
+        "id": "usernote-36da3cb3-t",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "user",
+       "role": "note"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 90,
+      "id": "usernote-36da3cb3",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1181313869,
+      "strokeColor": "#b8860b",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 230,
+      "x": 400,
+      "y": 480
+     },
+     "index": 35,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 14,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 15,
+ "round": 3,
+ "saved_at": "2026-08-09T11:22:26Z",
+ "selection_at_save": [],
+ "short_id": "8ec1edd",
+ "summary": {
+  "headline": "added was feeding technicals too — noise",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

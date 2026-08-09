@@ -89,3 +89,15 @@ repos:
         pass_filenames: false
         require_serial: true
         files: ^frontends/wysiwyg-grilling/(src/.*\.(ts|tsx)|tsconfig\.json|package\.json)$
+
+  # Playwright E2E suite (WP8): starts real canvas.py servers per worker,
+  # so it runs on demand, not on every commit:
+  #   uvx pre-commit run e2e-tests --hook-stage manual
+  - repo: local
+    hooks:
+      - id: e2e-tests
+        name: playwright e2e (manual stage)
+        entry: bash -c 'cd frontends/wysiwyg-grilling && npm run test:e2e'
+        language: system
+        pass_filenames: false
+        stages: [manual]

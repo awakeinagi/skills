@@ -18,6 +18,7 @@ Canonical invocation:  uv run canvas.py <cmd>   (bare python3 works too)
 """
 
 import argparse
+import contextlib
 import copy
 import hashlib
 import io
@@ -493,6 +494,137 @@ def validate_scene(doc, artifact_id):
     return doc, issues
 
 
+def content_fingerprint(els):
+    """Order-insensitive scene fingerprint for repair attribution (WP2).
+
+    ``scene_hash`` hashes elements in list order, but disk order and
+    replayed-history order legitimately differ (z-order normalization),
+    so raw-vs-history comparison needs identity by CONTENT: elements
+    sorted by id, deleted ones dropped, dumped canonically.
+
+    Args:
+        els: Scene elements (non-dicts tolerated and skipped).
+
+    Returns:
+        Hex digest, or None when the scene is too corrupt to fingerprint.
+    """
+    def canon(v):
+        # 150 vs 150.0 must fingerprint identically — the same int/float
+        # representation drift _route_sig formats away (dict equality
+        # says equal; json.dumps says different)
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, float) and v.is_integer():
+            return int(v)
+        if isinstance(v, dict):
+            return {k: canon(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [canon(x) for x in v]
+        return v
+
+    try:
+        # roundness rides with the derived set: the write path computes
+        # it from point count while replay keeps creation-time values
+        # (the re-stamp never lands in records — customData is
+        # deliberately non-significant), so disk and history disagree
+        # about it on every re-routed arrow, permanently. The system
+        # already declares it non-significant for diffs; drift detection
+        # must agree, or every such project phantoms a reconciliation.
+        skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness"}
+        live = []
+        for e in els:
+            if not isinstance(e, dict) or e.get("isDeleted"):
+                continue
+            live.append((str(e.get("id")),
+                         canon({k: v for k, v in e.items()
+                                if k not in skip})))
+        live.sort(key=lambda t: t[0])
+        blob = json.dumps([d for _, d in live], sort_keys=True,
+                          default=str)
+        return hashlib.sha1(blob.encode("utf-8")).hexdigest()
+    except Exception:  # noqa: BLE001 — corrupt raw scene
+        return None
+
+
+def referential_findings(raw_scenes, registry, artifact_ids=None):
+    """Report every reference whose target is gone — BEFORE any repair.
+
+    The r4 headline: *nothing validates a reference after the thing it
+    refers to is gone*. Three silences compounded — the dangling-binding
+    lint was unreachable because ``validate_scene`` repaired the scene in
+    memory first (r4-7), ``cross_lint`` skipped mapping members it could
+    not resolve, and orphaned notes had no check at all. This pass runs
+    on the RAW on-disk scenes at load, so the report survives the repair
+    (report-and-repair: the loader may fix, but never silently).
+
+    Args:
+        raw_scenes: {artifact_id: elements} as read from disk, un-repaired.
+            Non-dict elements are tolerated and skipped (corrupt scenes
+            still get the findings their readable parts support).
+        registry: The registry (mappings are read; may be None).
+        artifact_ids: Known artifact ids for ``links_to`` checks; defaults
+            to ``raw_scenes``' keys.
+
+    Returns:
+        {scope: {"errors": [...], "warnings": [...], "notes": [...]}} —
+        scope is an artifact id or ``"registry"``; only scopes with
+        findings appear.
+    """
+    out = {}
+    known_aids = set(artifact_ids if artifact_ids is not None
+                     else raw_scenes.keys())
+
+    def add(scope, tier, msg):
+        out.setdefault(scope, {"errors": [], "warnings": [],
+                               "notes": []})[tier].append(msg)
+
+    ids_by_aid = {}
+    for aid, els in raw_scenes.items():
+        ids_by_aid[aid] = {e.get("id") for e in els
+                           if isinstance(e, dict) and e.get("id")}
+    for aid, els in sorted(raw_scenes.items()):
+        ids = ids_by_aid[aid]
+        for e in els:
+            if not isinstance(e, dict):
+                continue
+            if e.get("type") in ("arrow", "line"):
+                for battr in ("startBinding", "endBinding"):
+                    b = e.get(battr)
+                    tgt = (b or {}).get("elementId")
+                    if tgt and tgt not in ids:
+                        side = "start" if battr == "startBinding" else "end"
+                        add(aid, "errors",
+                            "arrow %s binds %s at its %s point and that "
+                            "element no longer exists — re-target the "
+                            "binding, or delete the arrow with it"
+                            % (e.get("id"), tgt, side))
+            cd = e.get("customData") or {}
+            anchor = cd.get("annotates")
+            if anchor and anchor not in ids:
+                add(aid, "notes",
+                    "note %s annotates %s, which no longer exists — a "
+                    "tombstone left on purpose is fine; say so, or "
+                    "re-anchor/delete it (it will not survive tidy where "
+                    "it stands)" % (e.get("id"), anchor))
+            link = e.get("link") or ""
+            if link.startswith("artifact:") and \
+                    link[len("artifact:"):] not in known_aids:
+                add(aid, "notes",
+                    "%s links_to artifact %r, which does not exist"
+                    % (e.get("id"), link[len("artifact:"):]))
+    for m in (registry or {}).get("mappings") or []:
+        for ref in m.get("elements") or []:
+            if "#" not in ref:
+                continue
+            aid, eid = ref.split("#", 1)
+            if aid in ids_by_aid and eid not in ids_by_aid[aid]:
+                add("registry", "warnings",
+                    "mapping %r member %s points at a deleted element — "
+                    "re-map it, or tombstone the mapping"
+                    % (m.get("concept"), ref))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # migrations — named sets on every owned JSON kind; snapshot before migrating
 # ---------------------------------------------------------------------------
@@ -510,10 +642,48 @@ def _mig_config_0002(d):
     return d
 
 
+# Registry sections that belong to the BRANCH you are standing on, not
+# to the project. Scenes have always been per-branch — `switch_branch`
+# materialises them and deletes the artifacts the target lacks — while
+# these stayed one global blob, so on a branch the registry asserted
+# views that do not exist and printed VIEW_DEBT=none: the debt mechanism
+# was branch-blind in the direction that SUPPRESSES work (v0.6
+# assessment r3-17). Everything here is keyed on something branched:
+# concepts own views, mappings and tripwires reference elements, pins ARE
+# elements, and every waive/budget key names an artifact.
+#
+# What stays project-level: migrations, revn, head, branches — the shape
+# of history itself, which no branch may disagree about.
+BRANCH_SCOPED = ("concepts", "mappings", "declined", "pins", "tripwires",
+                 "divergence_policies", "budgets", "waives")
+
+
+def _mig_registry_0002(reg):
+    """Stash the head branch's scope, so v0.6 projects open unchanged.
+
+    Lossless: the sections stay at top level as the working copy of the
+    branch you are on, and this only records them against that branch so
+    a later switch has something to come back to.
+
+    Args:
+        reg: The registry document.
+
+    Returns:
+        The same document, with the head branch carrying a `scope`.
+    """
+    head = reg.get("head") or "main"
+    for b in reg.get("branches") or []:
+        if b.get("name") == head and "scope" not in b:
+            b["scope"] = {k: copy.deepcopy(reg.get(k))
+                          for k in BRANCH_SCOPED if k in reg}
+    return reg
+
+
 MIGRATIONS = {
     "config": [("0001-baseline", lambda d: d),
                ("0002-significant-attrs", _mig_config_0002)],
-    "registry": [("0001-baseline", lambda d: d)],
+    "registry": [("0001-baseline", lambda d: d),
+                 ("0002-branch-scoped-registry", _mig_registry_0002)],
     "save": [("0001-baseline", lambda d: d)],
     "artifact": [("0001-baseline", lambda d: d)],
 }
@@ -591,7 +761,15 @@ def normalize_element(el):
 
 def rebuild_bound_elements(els):
     """boundElements is derived bookkeeping — recompute it from containerId
-    and arrow bindings so it never needs diffing and always reconstructs."""
+    and arrow bindings so it never needs diffing and always reconstructs.
+
+    Since v0.8 the same rule covers a server-routed arrow's ``roundness``
+    (None for a straight 2-point path, curved otherwise — route_arrow's
+    own rule): it was derived at WRITE time but replay kept the
+    creation-time value, so the file and its own replayed history
+    disagreed permanently — every fixture with a re-routed arrow minted a
+    phantom out-of-session reconciliation at load (WP2; the r4 headline
+    shape, found in remediation)."""
     ix = {e["id"]: e for e in els}
     for e in els:
         e["boundElements"] = []
@@ -664,20 +842,89 @@ def mint_id(label, kind, existing):
     return cand
 
 
+# Per-character advance widths (ems) for the canvas font, measured from
+# the vendored Nunito Latin subset with the CLIENT'S OWN engine (headless
+# Chromium canvas.measureText at 100px, 2dp). The flat 0.6-em estimate
+# this replaces truncated '62' at 24px to a 28px box the live editor
+# wraps (needs ceil(28.8)) — the agent's snapshot then showed one line
+# while the user's browser showed two, and both said VALID=true (r4-12,
+# the R3-4 recurrence). Digits are exactly 0.6; W is 1.10; lowercase
+# averages 0.51, so the flat factor was wrong in both directions.
+NUNITO_ADVANCE = {
+    " ": 0.26, "!": 0.23, '"': 0.4, "#": 0.6, "$": 0.6, "%": 0.93,
+    "&": 0.7, "'": 0.23, "(": 0.33, ")": 0.33, "*": 0.45, "+": 0.6,
+    ",": 0.23, "-": 0.43, ".": 0.23, "/": 0.29, "0": 0.6, "1": 0.6,
+    "2": 0.6, "3": 0.6, "4": 0.6, "5": 0.6, "6": 0.6, "7": 0.6,
+    "8": 0.6, "9": 0.6, ":": 0.23, ";": 0.23, "<": 0.6, "=": 0.6,
+    ">": 0.6, "?": 0.45, "@": 0.95, "A": 0.73, "B": 0.68, "C": 0.67,
+    "D": 0.75, "E": 0.59, "F": 0.55, "G": 0.73, "H": 0.76, "I": 0.26,
+    "J": 0.33, "K": 0.63, "L": 0.55, "M": 0.86, "N": 0.74, "O": 0.77,
+    "P": 0.64, "Q": 0.77, "R": 0.67, "S": 0.62, "T": 0.61, "U": 0.73,
+    "V": 0.69, "W": 1.1, "X": 0.65, "Y": 0.6, "Z": 0.59, "[": 0.32,
+    "\\": 0.29, "]": 0.32, "^": 0.6, "_": 0.5, "`": 0.36, "a": 0.53,
+    "b": 0.59, "c": 0.46, "d": 0.59, "e": 0.53, "f": 0.34, "g": 0.59,
+    "h": 0.57, "i": 0.24, "j": 0.24, "k": 0.51, "l": 0.3, "m": 0.86,
+    "n": 0.57, "o": 0.56, "p": 0.59, "q": 0.59, "r": 0.36, "s": 0.48,
+    "t": 0.36, "u": 0.56, "v": 0.52, "w": 0.84, "x": 0.53, "y": 0.52,
+    "z": 0.47, "{": 0.36, "|": 0.27, "}": 0.36, "~": 0.6,
+}
+_ADVANCE_FALLBACK = 0.62
+
+
+def _nunito_face_css(web_root):
+    """@font-face CSS for the vendored Nunito Latin subset, if present.
+
+    Args:
+        web_root: The served web bundle root (fonts live under it).
+
+    Returns:
+        A ``@font-face`` rule with a server-relative URL, or "" when the
+        bundle has no Nunito files (tier 2 then keeps sans-serif).
+    """
+    try:
+        fonts = sorted((web_root / "fonts" / "Nunito")
+                       .glob("Nunito-Regular-*.woff2"),
+                       key=lambda p: -p.stat().st_size)
+    except OSError:
+        fonts = []
+    if not fonts:
+        return ""
+    return ("@font-face{font-family:'Nunito';"
+            "src:url('/fonts/Nunito/%s') format('woff2');}"
+            % fonts[0].name)
+
+
 def _display_width(line):
-    """Character cells, not codepoints — CJK and fullwidth forms occupy
-    two. Counting them as one under-measures a label by ~half, which is
-    how bound text ends up overflowing its container."""
-    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
-               for ch in line)
+    """Advance width of a line in EMs against the vendored canvas font.
+
+    CJK and fullwidth forms count 1.2em (their old two-cell treatment at
+    the 0.6 factor — unchanged so wide scripts keep their headroom);
+    unknown characters fall back to 0.62em.
+
+    Args:
+        line: One line of text (no newlines).
+
+    Returns:
+        The line's advance width in ems.
+    """
+    w = 0.0
+    for ch in line:
+        if unicodedata.east_asian_width(ch) in ("W", "F"):
+            w += 1.2
+        else:
+            w += NUNITO_ADVANCE.get(ch, _ADVANCE_FALLBACK)
+    return w
 
 
 def text_dims(text, font_size):
     lines = (text or "").split("\n")
-    width = max((_display_width(l) for l in lines), default=1) \
-        * font_size * 0.6
+    width = max((_display_width(l) for l in lines), default=0.4) \
+        * font_size
     height = max(len(lines), 1) * font_size * 1.25
-    return (max(int(width), 10), max(int(height), int(font_size * 1.25)))
+    # ceil + 2px: int() truncation is what wrapped '62' (28 < 28.8);
+    # the pad absorbs sub-pixel rendering at autoResize:false widths
+    width_px = int(width + 0.999) + 2
+    return (max(width_px, 10), max(int(height), int(font_size * 1.25)))
 
 
 def wrap_label_text(text, inner, fs):
@@ -814,6 +1061,10 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # a readable document behind this element (report reader):
         # project_knowledge-relative markdown path, served via /api/doc
         custom["document"] = spec["document"]
+    if spec.get("annotates"):
+        # what a note is ABOUT (WP2): the anchor the orphan checks read.
+        # The lint always advised setting it; nothing ever wrote it.
+        custom["annotates"] = spec["annotates"]
     if spec.get("tooltip"):
         # hover-only markdown detail (v0.3): rendered by the client on
         # hover, managed from the element's right-click menu or ops;
@@ -1054,6 +1305,52 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         custom["value"] = max(0.0, min(100.0, v))
         out.extend(_compose_slider_glyph(el, custom["value"],
                                          existing_ids))
+    if custom.get("kind") == "body" and etype == "rectangle":
+        # wavy body-text stand-in (WP4/E-4): wireframe.md promised it in
+        # three places across three versions and nothing ever drew a
+        # wave — decoration lines rendered as ruler lines (v0.2 gap #12)
+        out.extend(_compose_body_lines(el, existing_ids))
+    return out
+
+
+def _compose_body_lines(el, existing_ids):
+    """Build a body-text block's wavy stand-in lines.
+
+    Multi-point sine polylines (amplitude 1.5px, ~14px wavelength), one
+    per ~16px of height, the last one short like a paragraph's final
+    line. They carry ``body_of`` so ``reconcile_composed`` re-derives
+    them when the block resizes.
+
+    Args:
+        el: The owner rectangle (`kind: "body"`).
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        List of decoration line elements.
+    """
+    gid = el["id"] + "-grp"
+    w = max(el.get("width", 160) - 16, 24)
+    h = max(el.get("height", 48), 16)
+    n = max(2, int(h // 16))
+    out = []
+    for i in range(n):
+        lw = w * (0.62 if i == n - 1 else 1.0)
+        pts = []
+        x = 0.0
+        k = 0
+        while x < lw:
+            pts.append([round(x, 1), 1.5 if k % 2 else -1.5])
+            x += 7.0
+            k += 1
+        pts.append([round(lw, 1), 0])
+        ly = el["y"] + 8 + (h - 16) * (i / max(n - 1, 1))
+        out.append(_deco(
+            "%s-body%d" % (el["id"], i + 1), "body_of", el["id"], gid,
+            existing_ids, type="line", x=el["x"] + 8, y=ly,
+            width=lw, height=3, points=pts, lastCommittedPoint=None,
+            startBinding=None, endBinding=None, startArrowhead=None,
+            endArrowhead=None, elbowed=False,
+            strokeColor="#b8b2a5", strokeWidth=1))
     return out
 
 
@@ -1230,7 +1527,7 @@ def _compose_control_glyph(el, kind, checked, existing_ids):
         out.append(_deco(
             el["id"] + "-box", "box_of", el["id"], gid, existing_ids,
             type="rectangle", x=el["x"] + 8, y=cy - 8,
-            width=28, height=16, roundness={"type": 3}))
+            width=TOGGLE_PILL_W, height=16, roundness={"type": 3}))
         out.append(_deco(
             el["id"] + "-thumb", "thumb_of", el["id"], gid,
             existing_ids, type="ellipse",
@@ -1253,9 +1550,15 @@ def _check_stroke(el, existing_ids):
         strokeWidth=2)
 
 
+# Toggle pill width. 28px gave the thumb 12px of travel — "merely
+# subtle at export scale" (r4b's withdrawn-to-residue P3); 36px gives
+# 20px, readable in a printed SVG.
+TOGGLE_PILL_W = 36
+
+
 def _toggle_thumb_x(el, checked):
     """X of a toggle thumb: left when off, right when on."""
-    return el["x"] + (22 if checked else 10)
+    return el["x"] + (8 + TOGGLE_PILL_W - 12 - 2 if checked else 10)
 
 
 def _compose_slider_glyph(el, value, existing_ids):
@@ -1291,6 +1594,166 @@ def _slider_thumb_x(el, value):
     """X of a slider thumb for a 0–100 value along the inset track."""
     w = el.get("width", 160)
     return el["x"] + 10 + (w - 20 - 12) * (float(value) / 100.0)
+
+
+def _interpret_user_composites(new_els, old_els):
+    """Read a user's composite-part edits as STATE, then normalize.
+
+    Delta-based, never state-based (a state-only rule would emit
+    phantom unchecks on every copy-pasted control): a part counts as a
+    gesture only when the BASE scene had it, the new scene changed it,
+    and the host persists. The live case: a user deleted a checkbox's
+    check stroke, the box rendered empty while ``checked`` stayed True,
+    and the save narrated "no changes" (r4-8) — the agent called the
+    message "actively misleading" and repaired it by hand. Now the
+    gesture becomes ``checked: False`` + the stroke stays gone, the
+    diff emits the high-signal ``state_toggled`` fact, and
+    ``reconcile_composed`` re-derives the parts. Undo round-trips: the
+    stroke restored flips ``checked`` back, with a fact.
+
+    Args:
+        new_els: The incoming normalized user scene, mutated in place.
+        old_els: The base-state elements (replayed history).
+    """
+    old_ix = {e["id"]: e for e in old_els}
+    new_ix = {e["id"]: e for e in new_els
+              if isinstance(e, dict) and not e.get("isDeleted")}
+
+    def part_of(els_ix, tag, host_id):
+        return next((t for t in els_ix.values()
+                     if (t.get("customData") or {}).get(tag) == host_id),
+                    None)
+
+    for el in list(new_els):
+        if not isinstance(el, dict) or el.get("isDeleted"):
+            continue
+        cd = el.get("customData") or {}
+        kind = cd.get("kind")
+        if el["id"] not in old_ix:
+            # a NEW host (paste, template insert, pre-compose add): parts
+            # absent in both scenes → recompose silently, no gesture
+            if kind in ("checkbox", "toggle", "slider", "kpi", "input",
+                        "image", "entity"):
+                reconcile_composed(new_els, None, None, el)
+            continue
+        if kind == "checkbox":
+            had = part_of(old_ix, "chk_of", el["id"]) is not None
+            has = part_of(new_ix, "chk_of", el["id"]) is not None
+            if had != has and bool(cd.get("checked")) == had:
+                el["customData"] = dict(cd, checked=has)
+        elif kind == "toggle":
+            thumb = part_of(new_ix, "thumb_of", el["id"])
+            old_thumb = part_of(old_ix, "thumb_of", el["id"])
+            if thumb is not None and old_thumb is not None and \
+                    thumb.get("x") != old_thumb.get("x"):
+                # flip only when the thumb centre crosses the track
+                # midpoint — a 2px sloppy drag recomposes back instead
+                # of toggling
+                mid = el["x"] + 8 + TOGGLE_PILL_W / 2.0
+                now_on = (thumb.get("x", 0) + 6) > mid
+                if now_on != bool(cd.get("checked")):
+                    el["customData"] = dict(cd, checked=now_on)
+        elif kind == "slider":
+            thumb = part_of(new_ix, "thumb_of", el["id"])
+            old_thumb = part_of(old_ix, "thumb_of", el["id"])
+            if thumb is not None and old_thumb is not None and \
+                    thumb.get("x") != old_thumb.get("x"):
+                w = el.get("width", 160)
+                span = max(w - 20 - 12, 1)
+                v = (thumb.get("x", 0) - el["x"] - 10) / span * 100.0
+                v = round(max(0.0, min(100.0, v)), 1)
+                el["customData"] = dict(cd, value=v)
+        reconcile_composed(new_els, None, None, el)
+
+
+def reconcile_composed(els, index, existing, el):
+    """Re-derive a composed host's parts from its geometry and state.
+
+    Composed elements were assembled once at creation and never
+    maintained (WP3, r4-8/r4-10): only the X-box re-derived on resize
+    and only bound labels re-centred on move — sliders, checkboxes, KPI
+    centring, input insets and attribute rows all went stale, and a
+    check stroke could contradict ``customData.checked`` with no
+    invariant anywhere. This is the one invariant: parts are DERIVED —
+    geometry from the host, presence from the state — so any path that
+    changes either (agent mod, user save, the x-as-user driver) calls
+    this and gets the same composite back.
+
+    Args:
+        els: The scene's element list, mutated in place.
+        index: id -> element, kept in sync (may be None).
+        existing: Set of ids in use, kept in sync (may be None).
+        el: The composed host whose geometry or state changed.
+    """
+    if index is None:
+        index = {e["id"]: e for e in els}
+    if existing is None:
+        existing = set(index.keys())
+    cd = el.get("customData") or {}
+    kind = cd.get("kind")
+    if el.get("type") == "rectangle" and el.get("groupIds"):
+        _recompose_xbox(els, el)
+    if kind == "kpi":
+        _recompose_kpi_value(els, el, str(cd.get("value") or ""))
+    elif kind == "input":
+        _recompose_input_value(els, el, str(cd.get("value") or ""))
+    elif kind in ("checkbox", "toggle"):
+        cy = el["y"] + el.get("height", 28) / 2.0
+        box = next((t for t in els if (t.get("customData") or {})
+                    .get("box_of") == el["id"]), None)
+        if box is not None:
+            box["x"], box["y"] = el["x"] + 8, cy - 8
+        if kind == "checkbox":
+            chk = next((t for t in els if (t.get("customData") or {})
+                        .get("chk_of") == el["id"]), None)
+            if bool(cd.get("checked")) and chk is None:
+                made = _check_stroke(el, existing)
+                els.append(made)
+                index[made["id"]] = made
+            elif not cd.get("checked") and chk is not None:
+                els.remove(chk)
+                index.pop(chk["id"], None)
+                existing.discard(chk["id"])
+            elif chk is not None:
+                chk["x"], chk["y"] = el["x"] + 11, cy - 1
+        else:
+            for t in els:
+                if (t.get("customData") or {}).get("thumb_of") == \
+                        el["id"]:
+                    t["x"] = _toggle_thumb_x(el, bool(cd.get("checked")))
+                    t["y"] = cy - 6
+    elif kind == "slider":
+        try:
+            v = max(0.0, min(100.0, float(cd.get("value") or 0)))
+        except (TypeError, ValueError):
+            v = 0.0
+        w = el.get("width", 160)
+        ty = el["y"] + el.get("height", 44) - 14
+        for t in els:
+            tcd = t.get("customData") or {}
+            if tcd.get("track_of") == el["id"]:
+                t["x"], t["y"] = el["x"] + 10, ty
+                t["width"], t["height"] = w - 20, 0
+                t["points"] = [[0, 0], [w - 20, 0]]
+            elif tcd.get("thumb_of") == el["id"]:
+                t["x"], t["y"] = _slider_thumb_x(el, v), ty - 6
+    elif kind == "entity":
+        rows = [t.get("text", "") for t in sorted(
+                    (t for t in els if (t.get("customData") or {})
+                     .get("attr_of") == el["id"]),
+                    key=lambda t: t.get("y", 0))]
+        if rows:
+            _reset_attribute_rows(els, index, existing, el, rows)
+    elif kind == "body":
+        gone = [t for t in els if (t.get("customData") or {})
+                .get("body_of") == el["id"]]
+        for t in gone:
+            els.remove(t)
+            index.pop(t["id"], None)
+            existing.discard(t["id"])
+        for t in _compose_body_lines(el, existing):
+            els.append(t)
+            index[t["id"]] = t
 
 
 def edge_anchor(el, other_cx, other_cy):
@@ -1409,6 +1872,20 @@ def _route_candidates(src, dst):
                 clean.append(p)
         if len(clean) >= 2:
             out.append(clean)
+    if not out:
+        # r4-11: coincident/concentric boxes collapse EVERY candidate —
+        # including the degenerate fallback above, whose two edge anchors
+        # resolve to the same point and get dropped by the zero-length
+        # cleanup. The guard protected `cands`; the cleanup empties `out`
+        # (a mirror-direction miss). Emit a non-degenerate stub so routing
+        # is total: two boxes sharing a spot LOOK wrong, which is the
+        # honest rendering, and the endpoint lint takes over once layout
+        # separates them.
+        ax, ay = edge_anchor(src, dcx, dcy)
+        bx, by = edge_anchor(dst, scx, scy)
+        if abs(ax - bx) <= 0.5 and abs(ay - by) <= 0.5:
+            bx = ax + 24.0
+        out.append([(ax, ay), (bx, by)])
     return out
 
 
@@ -1424,6 +1901,35 @@ def _segs_cross(ax, ay, bx, by, cx, cy, dx, dy):
     return o1 != o2 and o3 != o4 and 0 not in (o1, o2, o3, o4)
 
 
+def _self_loop_path(node):
+    """Waypoints for a reflexive arrow: out the right edge, around the
+    top-right corner, back in through the top edge.
+
+    Deterministic — no candidates, no scoring — so every routing pass
+    (add, rewire, F1, the obstacle pass, tidy) reproduces the same loop
+    instead of collapsing it: before v0.8 a ``from == to`` arrow crashed
+    apply outright (r4-11 — the straight "candidate" had zero length and
+    the cleanup dropped it, leaving ``min()`` an empty sequence), so an
+    entire relationship class ("a PipelineRun is a rerun of another
+    PipelineRun") could not be drawn through the documented write path.
+
+    Args:
+        node: The element the arrow leaves and re-enters.
+
+    Returns:
+        Absolute ``[(x, y), ...]`` waypoints, right-edge exit to
+        top-edge entry.
+    """
+    x1, y1 = node["x"], node["y"]
+    w, h = node.get("width", 0), node.get("height", 0)
+    x2 = x1 + w
+    r = 28.0
+    exit_y = y1 + max(h * 0.33, 8.0)
+    entry_x = x2 - min(24.0, max(w * 0.25, 8.0))
+    return [(x2, exit_y), (x2 + r, exit_y), (x2 + r, y1 - r),
+            (entry_x, y1 - r), (entry_x, y1)]
+
+
 def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
                 other_arrows=None):
     """Compute explicit geometry for a bound arrow (bindings do NOT route —
@@ -1432,7 +1938,9 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
     crosses a foreign box, alternate orientations and bounded Z-detours
     are tried and the cleanest path wins (Phase-4 router — before this,
     dense fan-outs routed straight through neighbors and only the lint
-    noticed).
+    noticed). Total by design since v0.8: a reflexive pair takes the
+    deterministic self-loop, and degenerate pairs route a stub rather
+    than raising (r4-11).
 
     Args:
         arrow: The arrow element to (re)route in place.
@@ -1479,7 +1987,11 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
         # a true diagonal reads worse than one clean bend (layout.md §6.1)
         return (hits(path), soft(path), bends + (2 if diag else 0), length)
 
-    path = min(_route_candidates(src, dst), key=score)
+    if src is dst or src.get("id") == dst.get("id"):
+        # reflexive relationship (v0.8) — deterministic, obstacle-blind
+        path = _self_loop_path(src)
+    else:
+        path = min(_route_candidates(src, dst), key=score)
     x1, y1 = path[0]
     pts = [[px - x1, py - y1] for px, py in path]
     arrow["roundness"] = None if len(pts) == 2 else {"type": 2}
@@ -1827,10 +2339,23 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 for e in els if e.get("type") == "arrow"
                 and len(e.get("points") or []) >= 2]
 
-    def route_ctx(arrow, src, dst):
-        route_arrow(arrow, src, dst, obstacles(),
-                    soft_obstacles=soft_obstacles(),
-                    other_arrows=arrow_paths())
+    def route_ctx(arrow, src, dst, opi=None):
+        # Envelope (v0.8, E-9): a routing failure must surface as an
+        # ERROR naming the offending op — the r4-11 crash reached the
+        # agent as a bare traceback, breaking SKILL.md's promise.
+        try:
+            route_arrow(arrow, src, dst, obstacles(),
+                        soft_obstacles=soft_obstacles(),
+                        other_arrows=arrow_paths())
+        except Exception as e:  # noqa: BLE001 — totality backstop
+            where = "op %d" % opi if opi is not None else "post-pass"
+            errors.append(
+                "%s: internal routing error on arrow %r (%s -> %s) — "
+                "%s: %s. The batch was rejected whole; file this, and "
+                "work around it by placing the endpoints apart before "
+                "connecting them."
+                % (where, arrow.get("id"), src.get("id"), dst.get("id"),
+                   type(e).__name__, e))
 
     for i, op in enumerate(ops):
         kind = op.get("op")
@@ -1854,7 +2379,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     src = resolve(src_id, i, "arrow from") if src_id else None
                     dst = resolve(dst_id, i, "arrow to") if dst_id else None
                     if src is not None and dst is not None:
-                        route_ctx(arrow, src, dst)
+                        route_ctx(arrow, src, dst, opi=i)
                         recenter_label(els, arrow)
         elif kind == "mod":
             el = resolve(op.get("id"), i, "mod")
@@ -1876,6 +2401,27 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     el["originalText"] = value
                     el["width"], el["height"] = text_dims(value,
                                                           el.get("fontSize", 16))
+                elif attr == "attributes":
+                    # a domain entity's attribute rows. Accepted on `add`
+                    # and nowhere else until v0.7, so the only way to
+                    # amend them was delete + re-add — which mints a NEW
+                    # element id and therefore drops that element's
+                    # mappings and pins, and breaks the rename-keeps-the
+                    # -id rule entity_renamed detection depends on. A
+                    # domain model's attributes are exactly what a
+                    # grilling session revises repeatedly (BUG-04).
+                    if not isinstance(value, list) or \
+                            any(not isinstance(v, str) for v in value):
+                        errors.append("op %d (mod %s): `attributes` must "
+                                      "be a list of strings"
+                                      % (i, op.get("id")))
+                        continue
+                    if (el.get("customData") or {}).get("kind") != "entity":
+                        errors.append("op %d (mod %s): `attributes` applies "
+                                      "to domain entities (kind: entity)"
+                                      % (i, op.get("id")))
+                        continue
+                    _reset_attribute_rows(els, index, existing, el, value)
                 elif attr == "customData":
                     cd = dict(el.get("customData") or {})
                     cd.update(value or {})
@@ -1884,7 +2430,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     apply_strategic(el, value, errors, i,
                                     explicit_bg="backgroundColor" in attrs)
                 elif attr in ("kind", "role", "intent", "parent",
-                              "document"):
+                              "document", "annotates"):
                     # terse customData keys, add-time parity — a top-level
                     # write here is read by nothing (B1's silent no-op)
                     cd = dict(el.get("customData") or {})
@@ -2037,15 +2583,14 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                         recenter_label(els, el)
             # composite integrity: grouped decorations (X-box strokes,
             # attribute rows) travel with their element on x/y mods —
-            # and are RE-DERIVED on width/height mods, which they were
-            # not until v0.6. An image placeholder shrunk from 116 to 72
-            # high kept 116-high diagonals, so its X overshot its own box
-            # by 44px into the panel below and crossed two foreign boxes.
-            # Nothing could catch it: decorations are filtered out of the
-            # geometry lints by construction (R2-10).
-            if el.get("type") == "rectangle" and el.get("groupIds") and \
-                    ("width" in attrs or "height" in attrs):
-                _recompose_xbox(els, el)
+            # and EVERY part kind is re-derived on width/height mods
+            # (WP3). Until v0.8 only the X-box re-derived: an image
+            # placeholder shrunk from 116 to 72 high kept 116-high
+            # diagonals and its X overshot into the panel below (R2-10)
+            # — sliders, checkboxes, KPI centring, input insets and
+            # attribute rows all had the same stale-on-resize hole.
+            if ("width" in attrs or "height" in attrs):
+                reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
             dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
@@ -2092,7 +2637,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                         else:
                             dst = endpoint
                     if src is not None and dst is not None:
-                        route_ctx(el, src, dst)
+                        route_ctx(el, src, dst, opi=i)
                         recenter_label(els, el)
                     else:
                         missing = "start (`from`)" if src is None \
@@ -2175,8 +2720,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             anchor = index.get(target) if target else None
             pid = op.get("id") or mint_id("pin-" + (target or q[:20]), "pin",
                                           existing)
-            px = (anchor["x"] + anchor.get("width", 0) + 8) if anchor else 40
-            py = (anchor["y"] - 8) if anchor else 40
+            px, py = pin_spot(anchor, els) if anchor else (40, 40)
             pin_el = dict(BASE_DEFAULTS)
             pin_el.update({
                 "id": pid, "type": "text", "x": px, "y": py,
@@ -2257,9 +2801,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 for p1, p2 in zip(pts, pts[1:])
                 for ob in obs if ob.get("id") not in (sN["id"], dN["id"]))
             if hit:
-                route_arrow(e, sN, dN, obs,
-                            soft_obstacles=soft_obstacles(),
-                            other_arrows=arrow_paths())
+                route_ctx(e, sN, dN)
                 recenter_label(els, e)
         fan_attach_points(els)
         els = normalize_z_order(els)
@@ -2745,6 +3287,17 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             styled = names & STYLE_ATTRS
             if styled and el.get("type") != "text":
                 F("restyled", c["id"], attrs=sorted(styled), low_signal=True)
+            if "link" in names:
+                # WP3 (r4-9): links_to changes produced NO fact, so a
+                # batch that only wired click-throughs narrated as
+                # "saved without changing anything" while the links
+                # landed — the agent's own advice afterward was "if it
+                # says nothing happened, check before you redo it"
+                for a in c["attrs"]:
+                    if a["attr"] == "link":
+                        F("links_changed", c["id"],
+                          label=display_label(el, new_labels),
+                          **{"from": a.get("from"), "to": a.get("to")})
             if "frameId" in names:
                 pass  # regrouped — handled by the wireframe table
             if "customData" in names and role_of(el) == "annotation":
@@ -2878,6 +3431,19 @@ def _flow_facts(old_ix, new_ix, old_labels, new_labels, changes, adds, dels,
             # an endpoint vanishing because its node was deleted in this same
             # save is a consequence of the deletion, not a re-order decision
             lost_to_deletion = any(b in deleted_ids for b in (os_, oe_) if b)
+            # Excalidraw rewrites the binding OBJECT (focus, gap) when an
+            # endpoint is dragged and dropped back on the node it came
+            # from, so the attribute shows in the diff while nothing was
+            # re-pointed. That produced `rewired` facts whose from and to
+            # are identical, and two of them tripped
+            # `sequence_reordered` — the one fact the flow reference
+            # tells the agent to LEAD WITH — so a user who nudged two
+            # arrowheads was told they had re-sequenced the process
+            # (brownfield BUG-01). Compare the normalized bindings.
+            ns_, ne_ = _norm_binding(el.get("startBinding")), \
+                _norm_binding(el.get("endBinding"))
+            if (os_, oe_) == (ns_, ne_):
+                continue
             kw = {"from": "%s→%s" % (osl, oel), "to": "%s→%s" % (nsl, nel)}
             if lost_to_deletion:
                 kw["consequence_of"] = (os_ if os_ in deleted_ids else oe_)
@@ -3289,7 +3855,25 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
 # mechanical summary (verb counts, salience headline, suppression)
 # ---------------------------------------------------------------------------
 
-SALIENCE = ["rewired", "relationship_rewired", "rerouted",
+def _tw_names(refs, cap=3):
+    """Render mapping members for a tripwire question.
+
+    Args:
+        refs: `artifact#element` refs.
+        cap: How many to name before summarising the rest.
+
+    Returns:
+        A readable list — all of them up to `cap`, else the first `cap`
+        and a count, so a wide mapping does not produce a paragraph.
+    """
+    shown = [r.replace("#", " › ") for r in refs[:cap]]
+    if len(refs) > cap:
+        shown.append("and %d more" % (len(refs) - cap))
+    return ", ".join(shown)
+
+
+SALIENCE = ["user_route_replaced",
+            "rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
             "message_reordered", "cardinality_changed", "ownership_changed",
             "party_kind_changed", "fold_crossed", "reading_order_changed",
@@ -3303,7 +3887,9 @@ SALIENCE = ["rewired", "relationship_rewired", "rerouted",
             "lane_deleted", "deleted", "regrouped", "sync_changed",
             "label_added", "transition_added", "transition_deleted",
             "relationship_added", "relationship_deleted", "message_added",
-            "message_deleted", "annotated", "annotation_deleted",
+            "message_deleted", "arrow_orphaned", "mapping_dangling",
+            "note_orphaned", "links_changed", "annotated",
+            "annotation_deleted",
             "pin_added", "pin_deleted", "priority_changed",
             "tooltip_added", "tooltip_changed", "tooltip_removed",
             "activation_changed", "moved", "resized", "reordered",
@@ -3319,6 +3905,23 @@ def headline_for(fact):
                                        fact.get("from"), fact.get("to"))
     if n in ("renamed", "entity_renamed", "label_renamed"):
         return "renamed %r → %r" % (fact.get("from"), fact.get("to"))
+    # WP2 reference-impact facts: a deletion names what it broke
+    if n == "arrow_orphaned":
+        return "arrow %s lost its %s target %s — it points at nothing" \
+            % (fact["element"], fact.get("side"), fact.get("target"))
+    if n == "mapping_dangling":
+        return "mapping %r lost member %s" \
+            % (fact.get("concept"), fact.get("ref"))
+    if n == "note_orphaned":
+        return "the note %s lost its anchor (%s deleted)" \
+            % (fact["element"], fact.get("target"))
+    if n == "links_changed":
+        to = str(fact.get("to") or "").replace("artifact:", "")
+        if to:
+            return "%s now links to %s" % (
+                fact.get("label") or fact["element"], to)
+        return "%s no longer links anywhere" % (
+            fact.get("label") or fact["element"])
     # explicit branches for facts the suffix rules would mangle — no
     # fact may fall through to a bare verb ("resized (+3 more)")
     if n == "added":
@@ -3332,6 +3935,11 @@ def headline_for(fact):
         return "reordered %s" % (fact.get("label") or fact["element"])
     if n == "rerouted":
         return "rerouted %s" % (fact.get("arrow") or fact["element"])
+    if n == "user_route_replaced":
+        return ("re-routed %s, replacing the path you drew by hand — a "
+                "rewire is a new path request; say so, or re-issue "
+                "`mod points` to put your shape back"
+                % (fact.get("arrow") or fact["element"]))
     if n == "attribute_added":
         return "%s gained attribute %r" % (fact.get("entity")
                                            or fact["element"],
@@ -3436,6 +4044,13 @@ def mechanical_summary(facts, sentinel_suppressed):
         else:
             visible.append(f)
     headline = "no changes"
+    real = [f for f in facts if f["fact"] != "saved_no_changes"]
+    if not visible and real:
+        # WP3 (r4-9): every fact suppressed is NOT "no changes" — that
+        # message taught an agent to re-issue a batch that had landed
+        # ("if it says nothing happened, check before you redo it")
+        headline = "housekeeping only (%d low-signal change%s)" % (
+            len(real), "" if len(real) == 1 else "s")
     for name in SALIENCE:
         hit = next((f for f in visible if f["fact"] == name), None)
         if hit:
@@ -3469,6 +4084,151 @@ def _registry_headline(reg_changes):
 # ---------------------------------------------------------------------------
 # label mutation helper used by the op engine
 # ---------------------------------------------------------------------------
+
+def marker_inset(etype):
+    """Fraction of the half-diagonal at which a shape's outline sits.
+
+    A rectangle fills its bounding box; a diamond and an ellipse do not,
+    so the box's corner is empty canvas for them.
+
+    Args:
+        etype: The Excalidraw element type.
+
+    Returns:
+        0 for box-filling shapes, else the inset fraction.
+    """
+    if etype == "diamond":
+        return 0.5
+    if etype == "ellipse":
+        return 1 - 0.5 ** 0.5
+    return 0.0
+
+
+def marker_anchor(el, dx=0, dy=0, corner="br"):
+    """Where a marker should sit to hug a shape's edge at one corner.
+
+    Markers hug the shape. Anchoring at the bounding-box corner puts a
+    marker 22px off a rectangle and 79px off a DIAMOND — a clearance
+    that varies threefold with shape type, which no intentional design
+    would do (v0.6 assessment r3-1). v0.6 fixed exactly this for the
+    tooltip dot in App.tsx and nobody grepped for the shape, so it was
+    still live in the pin seeder AND in the tripwire mark.
+
+    Mirrored by `markerAnchor` in App.tsx: stored geometry and canvas
+    overlay cannot share code, so they share this rule and a test.
+
+    Args:
+        el: The target element.
+        dx: Horizontal nudge applied after the inset.
+        dy: Vertical nudge applied after the inset.
+        corner: `"br"` bottom-right (the tooltip dot) or `"tr"`
+            top-right (the pin glyph and the tripwire mark).
+
+    Returns:
+        `(x, y)` for the marker.
+    """
+    w, h = el.get("width", 0), el.get("height", 0)
+    inset = marker_inset(el.get("type"))
+    x = el.get("x", 0) + w - w * inset / 2 + dx
+    if corner == "tr":
+        return (x, el.get("y", 0) + h * inset / 2 + dy)
+    return (x, el.get("y", 0) + h - h * inset / 2 + dy)
+
+
+def pin_spot(anchor, els, size=26):
+    """Where a ❓ glyph sits: hugging the target, never in a neighbour.
+
+    The constant top-right offset is layout-density-blind (r4b-3): on a
+    12px-gutter wireframe grid the glyph touched no part of its target
+    and its centre landed inside the NEXT panel's column, so three pins
+    read as belonging to the heat map, the drawdown and the Weekly
+    Brief. When the hug spot collides with a foreign element, fall back
+    to inside the target's own top-right corner — on flows (hundreds of
+    px of air) nothing changes.
+
+    Args:
+        anchor: The target element.
+        els: The scene (collision candidates).
+        size: Glyph bbox edge in px.
+
+    Returns:
+        `(x, y)` for the glyph.
+    """
+    px, py = marker_anchor(anchor, dx=8, dy=-8, corner="tr")
+    gx1, gy1, gx2, gy2 = px, py, px + size, py + size
+    for e in els:
+        if e is anchor or e.get("id") == anchor.get("id"):
+            continue
+        if e.get("type") not in ("rectangle", "diamond", "ellipse",
+                                 "frame"):
+            continue
+        if role_of(e) in ("label", "pin", "decoration", "annotation"):
+            continue
+        ex1, ey1 = e.get("x", 0), e.get("y", 0)
+        ex2 = ex1 + e.get("width", 0)
+        ey2 = ey1 + e.get("height", 0)
+        if gx1 < ex2 and gx2 > ex1 and gy1 < ey2 and gy2 > ey1:
+            return (anchor.get("x", 0) + anchor.get("width", 0) -
+                    size - 2, anchor.get("y", 0) + 2)
+    return (px, py)
+
+
+def _reset_attribute_rows(els, index, existing, el, rows):
+    """Replace a domain entity's attribute rows, keeping the entity's id.
+
+    Mirrors the minting in the `add` seeder — same geometry, same
+    `attr_of` stamp — so the differ's existing `attribute_added` /
+    `attribute_removed` facts narrate the change without any new
+    vocabulary. The entity element itself is never re-created, which is
+    the whole point: its id carries the mappings, the pins and the
+    rename detection (BUG-04).
+
+    Args:
+        els: The scene's element list, mutated in place.
+        index: id -> element, mutated to match.
+        existing: Set of ids in use, mutated to match.
+        el: The entity element.
+        rows: The new attribute strings, in order.
+    """
+    eid = el["id"]
+    gone = [e for e in els
+            if (e.get("customData") or {}).get("attr_of") == eid]
+    for e in gone:
+        els.remove(e)
+        index.pop(e["id"], None)
+        existing.discard(e["id"])
+    gid = eid + "-grp"
+    if gid not in (el.get("groupIds") or []):
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+    header_h, row_h = 32, 20
+    el["height"] = max(el.get("height", 0),
+                       header_h + row_h * len(rows) + 8)
+    for irow, text in enumerate(rows):
+        rid = "%s-attr-%d" % (eid, irow + 1)
+        n2 = 2
+        while rid in existing:
+            rid = "%s-attr-%d-%d" % (eid, irow + 1, n2)
+            n2 += 1
+        existing.add(rid)
+        row = dict(BASE_DEFAULTS)
+        row.update({
+            "id": rid, "type": "text",
+            "x": el["x"] + 10,
+            "y": el["y"] + header_h + irow * row_h,
+            "width": max(el.get("width", 160) - 20, 40),
+            "height": row_h - 4,
+            "text": text, "originalText": text,
+            "fontSize": 12, "fontFamily": FONT_LEGIBLE,
+            "textAlign": "left", "verticalAlign": "top",
+            "lineHeight": 1.25, "containerId": None,
+            "autoResize": False, "strokeColor": "#5c584d",
+            "groupIds": [gid],
+            "customData": {"role": "decoration", "attr_of": eid,
+                           "author": "agent"},
+        })
+        els.append(row)
+        index[rid] = row
+
 
 def _set_label(els, index, existing, el, value):
     """Set, replace, or clear (value None/"") an element's bound label."""
@@ -3679,7 +4439,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                  if e.get("type") in ("arrow", "line")}
     if title:
         out.append("<text x='%f' y='%f' font-size='13' fill='#999' "
-                   "font-family='sans-serif'>%s</text>"
+                   "font-family='Nunito, sans-serif'>%s</text>"
                    % (minx + 8, miny + 18, _svg_escape(title)))
 
     def paint(e):
@@ -3696,7 +4456,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                        "fill='none' stroke='#94a3b8' stroke-width='1.5' "
                        "stroke-dasharray='8 4' rx='8'/>" % (x, y, ew, eh))
             out.append("<text x='%f' y='%f' font-size='12' fill='#64748b' "
-                       "font-family='sans-serif'>%s</text>"
+                       "font-family='Nunito, sans-serif'>%s</text>"
                        % (x + 4, y - 6, _svg_escape(e.get("name") or
                                                     e.get("id", ""))))
             return
@@ -3762,7 +4522,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                               max(len(lines), 1) * lh + 4, SVG_GROUND))
             for li, line in enumerate(lines):
                 out.append("<text x='%f' y='%f' font-size='%s' fill='%s' "
-                           "text-anchor='%s' font-family='sans-serif'>"
+                           "text-anchor='%s' font-family='Nunito, sans-serif'>"
                            "%s</text>"
                            % (tx, y + fs * 0.85 + li * lh, fs, stroke,
                               anchor, _svg_escape(line)))
@@ -3785,7 +4545,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
         out.append("<circle cx='%f' cy='%f' r='8' fill='#fdfcf8' "
                    "stroke='#b45309' stroke-width='1'/>" % (mx, my))
         out.append("<text x='%f' y='%f' font-size='10' fill='#b45309' "
-                   "text-anchor='middle' font-family='sans-serif'>%d</text>"
+                   "text-anchor='middle' font-family='Nunito, sans-serif'>%d</text>"
                    % (mx, my + 3.5, n))
     if note_lines:
         fy = miny + h - foot_h + 12
@@ -3793,7 +4553,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                    "stroke-width='1'/>" % (minx + 20, fy, minx + w - 20, fy))
         for k, line in enumerate(note_lines):
             out.append("<text x='%f' y='%f' font-size='13' fill='#444' "
-                       "font-family='sans-serif'>%s</text>"
+                       "font-family='Nunito, sans-serif'>%s</text>"
                        % (minx + 24, fy + 24 + k * 19, _svg_escape(line)))
     out.append("</svg>")
     return "\n".join(out), int(w * scale), int(h * scale)
@@ -4088,27 +4848,114 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 % (deco["id"], int(spill), name(host["id"])))
 
     # ---- ERROR: detached endpoints (server-routed) --------------------
+    # An arrow that LOOKS like a relationship but binds nothing (v0.8,
+    # D8): the r4-11 workaround hand-authored a labeled domain loop with
+    # both bindings null — it rendered perfectly, followed nothing, and
+    # no check named it. The agent then reported it "properly bound".
+    for a in arrows:
+        if (a.get("startBinding") or {}).get("elementId") or \
+                (a.get("endBinding") or {}).get("elementId"):
+            continue
+        a_lbl = next((t for t in els if t.get("containerId") == a["id"]
+                      and t.get("type") == "text"), None)
+        if a_lbl is None and artifact_type != "domain":
+            continue  # an unlabeled sketch arrow outside a domain view
+        warnings.append(
+            "arrow %s%s binds nothing — it reads as a relationship but "
+            "will not follow either endpoint when they move. Bind it "
+            "with from/to (self-loops route automatically), or mark it "
+            "role: decoration if it is only furniture"
+            % (a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
+               if a_lbl is not None else ""))
+
     TOL = 14  # binding gap (6) + slack
     for a in arrows:
         x1, y1, x2, y2 = bbox_pts(a)
         for key, px, py in (("startBinding", x1, y1),
                             ("endBinding", x2, y2)):
             b = a.get(key)
+            side = "start" if key == "startBinding" else "end"
+            # a binding to an element that no longer exists. Deleting a
+            # node leaves its arrows pointing at a corpse: on screen the
+            # drawing asserts a flow out of nothing, and this loop used
+            # to `continue` past exactly the broken ones while raising an
+            # ERROR for a binding merely 26px off (r3-13). Deletion does
+            # NOT cascade — Excalidraw keeps the arrows and eating the
+            # user's geometry is the worse bug — but the silence goes.
+            if b and b.get("elementId") and b["elementId"] not in ix:
+                errors.append(
+                    "arrow %s binds %s at its %s point and that element no "
+                    "longer exists — re-target the binding, or delete the "
+                    "arrow with it" % (a["id"], b["elementId"], side))
+                continue
             tgt = ix.get((b or {}).get("elementId"))
             if tgt is None:
+                continue        # genuinely unbound: nothing to check
+            sb_el = (a.get("startBinding") or {}).get("elementId")
+            eb_el = (a.get("endBinding") or {}).get("elementId")
+            if sb_el is not None and sb_el == eb_el:
+                continue  # self-loop (v0.8): both ends live on the border
+            gx1, gy1 = tgt["x"], tgt["y"]
+            gx2 = tgt["x"] + tgt.get("width", 0)
+            gy2 = tgt["y"] + tgt.get("height", 0)
+            # Two distinct failure shapes (r4-1). Border distance says
+            # whether the endpoint sits ON the perimeter — fanned attach
+            # points land exactly on an edge and must stay legal. The
+            # CHORD says whether the arrow entered through one edge and
+            # kept going: an endpoint 12px from the FAR edge scored as
+            # barely-inside under border distance alone, so deeper
+            # penetration produced LESS warning — the opposite of a
+            # tolerance.
+            outside = ((max(gx1 - px, px - gx2, 0)) ** 2 +
+                       (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
+            inside = 0 if outside else max(
+                min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
+            chord = 0.0
+            if not outside and inside > 2:
+                pts = a.get("points") or []
+                if key == "startBinding":
+                    qx = a.get("x", 0) + (pts[1][0] if len(pts) > 1 else 0)
+                    qy = a.get("y", 0) + (pts[1][1] if len(pts) > 1 else 0)
+                else:
+                    qx = a.get("x", 0) + (pts[-2][0] if len(pts) > 1 else 0)
+                    qy = a.get("y", 0) + (pts[-2][1] if len(pts) > 1 else 0)
+                adx, ady = px - qx, py - qy
+                if (qx < gx1 or qx > gx2 or qy < gy1 or qy > gy2) and \
+                        (adx or ady):
+                    t_in = 0.0
+                    for lo, hi, dv, sv in ((gx1, gx2, adx, qx),
+                                           (gy1, gy2, ady, qy)):
+                        if dv > 0:
+                            t_in = max(t_in, (lo - sv) / dv)
+                        elif dv < 0:
+                            t_in = max(t_in, (hi - sv) / dv)
+                    t_in = max(0.0, min(1.0, t_in))
+                    ex_, ey_ = qx + adx * t_in, qy + ady * t_in
+                    chord = ((px - ex_) ** 2 + (py - ey_) ** 2) ** 0.5
+            if chord > TOL * 2 and inside <= TOL:
+                # crosses THROUGH: strictly interior endpoint, long
+                # interior run, yet near some far border — the r4-1
+                # silent case
+                msg = ("arrow %s enters %s and runs %dpx inside it "
+                       "before stopping (%s point) — it reads as "
+                       "crossing through the box; pull the endpoint "
+                       "back to the border"
+                       % (a["id"], name(tgt["id"]), int(chord), side))
+                if not server_owns_geometry(a):
+                    warnings.append(
+                        "user-shaped " + msg +
+                        " — not auto-routed (the path is the user's "
+                        "geometry); re-route deliberately and narrate it")
+                else:
+                    errors.append(msg)
                 continue
-            gx1, gy1 = tgt["x"] - TOL, tgt["y"] - TOL
-            gx2 = tgt["x"] + tgt.get("width", 0) + TOL
-            gy2 = tgt["y"] + tgt.get("height", 0) + TOL
-            if not (gx1 <= px <= gx2 and gy1 <= py <= gy2):
+            if max(outside, inside) > TOL:
                 msg = ("arrow %s claims to bind %s but its %s point ends "
-                       "%dpx away — re-route it (mod x/y on the node "
+                       "%dpx %s — re-route it (mod x/y on the node "
                        "re-routes 2-point arrows automatically)"
-                       % (a["id"], name(tgt["id"]),
-                          "start" if key == "startBinding" else "end",
-                          int(((px - max(gx1, min(px, gx2))) ** 2 +
-                               (py - max(gy1, min(py, gy2))) ** 2) ** 0.5)
-                          or TOL))
+                       % (a["id"], name(tgt["id"]), side,
+                          int(outside or inside) or TOL,
+                          "away" if outside else "inside the shape"))
                 if not server_owns_geometry(a):
                     warnings.append(
                         "user-shaped " + msg +
@@ -4126,6 +4973,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         for a in arrows:
             s = (a.get("startBinding") or {}).get("elementId")
             d = (a.get("endBinding") or {}).get("elementId")
+            if s is not None and s == d:
+                # a reflexive arrow (v0.8) is commentary on the node, not
+                # flow progress — counting it both ways made a looped node
+                # its own source AND sink
+                continue
             if s in outbound:
                 outbound[s] += 1
             if d in inbound:
@@ -4425,10 +5277,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
 
     # ---- WARNING: legibility -----------------------------------------
     for e in arrows:
+        sb_id = (e.get("startBinding") or {}).get("elementId")
+        eb_id = (e.get("endBinding") or {}).get("elementId")
+        self_loop = sb_id is not None and sb_id == eb_id
         run = (e["points"][-1][0] ** 2 + e["points"][-1][1] ** 2) ** 0.5
         lbl = next((t for t in els if t.get("containerId") == e["id"]
                     and t.get("type") == "text"), None)
-        if lbl is not None and run < lbl.get("width", 0) + 24:
+        # a self-loop has no straight run — its endpoints are close by
+        # definition, so this check would false-fire on every reflexive
+        # relationship ("rerun of" demoted its cardinality to a tooltip
+        # for exactly this reason, r4). Long labels there go in tooltips.
+        if lbl is not None and not self_loop and \
+                run < lbl.get("width", 0) + 24:
             warnings.append(
                 "label %r is wider than its arrow's %dpx run (%s) — "
                 "spread the endpoints or shorten the label"
@@ -4652,14 +5512,34 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         for i, (id1, px1, py1) in enumerate(pts):
             for id2, px2, py2 in pts[i + 1:]:
                 if abs(px1 - px2) < 12 and abs(py1 - py2) < 12:
-                    # the apply post-pass auto-fans; this only fires when
-                    # obstacles blocked every slide slot — advice must be
-                    # something the grammar can actually do (v0.3)
+                    # the apply post-pass auto-fans, so if they are still
+                    # together the fan did not move them. It used to say
+                    # "obstacles in every slot" — a cause it never
+                    # measured and, on the one case anyone reproduced,
+                    # not the cause at all: deleting every decoration
+                    # left the warning standing, and what actually
+                    # cleared it was an arrow dropping from 4 points to
+                    # 3, because fan_attach_points only touches 2- and
+                    # 3-point server-routed paths (brownfield BUG-05).
+                    # Name what disqualified them, or nothing.
+                    why = []
+                    for aid in (id1, id2):
+                        arr = ix.get(aid) or {}
+                        npts = len(arr.get("points") or [])
+                        if not server_owns_geometry(arr):
+                            why.append("%s is user-shaped" % aid)
+                        elif npts > 3:
+                            why.append("%s has %d waypoints (the fan only "
+                                       "moves 2- and 3-point paths)"
+                                       % (aid, npts))
                     warnings.append(
                         "arrows %s and %s share an attach point on %s — "
-                        "auto-fan couldn't separate them (obstacles in "
-                        "every slot); author waypoints via `mod points`, "
-                        "or move the nodes apart" % (id1, id2, name(tgt)))
+                        "%s. Author waypoints via `mod points`, simplify "
+                        "the path, or move the nodes apart"
+                        % (id1, id2, name(tgt),
+                           "the auto-fan could not move them: "
+                           + "; ".join(why) if why else
+                           "the auto-fan ran and left them together"))
     # stranded element: far outside everything else's bounding box
     if len(shapes) > 2:
         for e in shapes:
@@ -4864,6 +5744,25 @@ def parse_glossary_aliases(text):
     return out
 
 
+def _plausible_term(name):
+    """Is a harvested bold span actually a TERM, not a sentence?
+
+    A bolded clause inside an entry body ("**Switched off by default
+    since Aug 2026**:") parses identically to an entry heading, and the
+    minted "term" then nags as a concept-less glossary entry after the
+    agent's last lint pass (r4, arm 3's parting false alarm). Terms are
+    noun phrases: cap the word count.
+
+    Args:
+        name: The captured bold text.
+
+    Returns:
+        True when the span is term-shaped.
+    """
+    name = name.strip()
+    return bool(name) and len(name) <= 48 and len(name.split()) <= 6
+
+
 def parse_glossary_terms(text):
     """CONTEXT.md → ordered list of settled term names (canonical
     '**Term**:', the em-dash '**Term** — …' form, and bullet lists).
@@ -4876,7 +5775,7 @@ def parse_glossary_terms(text):
     for raw in text.splitlines():
         line = raw.strip()
         m = re.match(TERM_ALIAS_RE, line) or re.match(TERM_RE, line)
-        if m:
+        if m and _plausible_term(m.group(1)):
             terms.append(m.group(1).strip())
     return terms
 
@@ -5057,7 +5956,9 @@ def flow_reachable(els, cap=200):
             continue
         s = _norm_binding(a.get("startBinding"))
         d = _norm_binding(a.get("endBinding"))
-        if s and d:
+        if s and d and s != d:
+            # self-edges (v0.8 reflexive arrows) are excluded: a node
+            # must never count as reachable via its own loop
             adj.setdefault(s, set()).add(d)
     out = {}
     for start in adj:
@@ -5127,7 +6028,7 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
 
     # mapping joins: every (wireframe member, flow member) pair
     pairs, divergent = [], set()
-    for m in (registry or {}).get("mappings") or []:
+    for mi, m in enumerate((registry or {}).get("mappings") or []):
         wf, fl = [], []
         for ref in m.get("elements") or []:
             if "#" not in ref:
@@ -5138,32 +6039,45 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 wf.append((aid, eid))
             elif t == "flow":
                 fl.append((aid, eid))
-        mine = [(wa, we, fa, fe) for wa, we in wf for fa, fe in fl]
+        mine = [(wa, we, fa, fe, mi) for wa, we in wf for fa, fe in fl]
         pairs.extend(mine)
         if declared_divergent(m, {artifact_types.get(a.split("#", 1)[0])
                                   for a in m.get("elements") or []}):
             divergent.update(mine)
 
     # ---- 3.2.4 consistent identification (mapped elements only) ------
+    # Keyed on (flow step, MAPPING), not the flow step alone. A single
+    # mapping declaring N wireframe members against one flow step is a
+    # compression the user asserted — three real toggles switched
+    # individually, one box at a lower resolution — and asking it to
+    # "pick one name" would delete two controls while splitting it into
+    # three mappings would assert three steps that do not exist. Both
+    # remedies the check proposed were destructive, so its premise was
+    # wrong (v0.6 assessment r3-8). Disagreement ACROSS mappings is
+    # still 3.2.4 and still fires: that is two parties naming the same
+    # step differently, which is the case worth catching.
     by_flow, by_label = {}, {}
-    for wa, we, fa, fe in pairs:
+    for wa, we, fa, fe, mi in pairs:
         lbl = (label_maps.get(wa, {}).get(we) or "").strip()
-        if not lbl or (wa, we, fa, fe) in divergent:
+        if not lbl or (wa, we, fa, fe, mi) in divergent:
             continue
-        by_flow.setdefault((fa, fe), set()).add((wa, we, lbl))
+        by_flow.setdefault((fa, fe), {}).setdefault(mi, set()) \
+               .add((wa, we, lbl))
         by_label.setdefault(lbl.lower(), set()).add((wa, we, fa, fe))
-    for (fa, fe), members in sorted(by_flow.items()):
+    for (fa, fe), by_mapping in sorted(by_flow.items()):
+        members = {x for grp in by_mapping.values() for x in grp}
         lbls = sorted({lbl for _, _, lbl in members})
         aid0 = sorted(members)[0][0]
-        if len(lbls) > 1 and \
+        if len(by_mapping) > 1 and len(lbls) > 1 and \
                 "324:%s:%s" % (aid0, slugify(fe)) not in waives:
             add(aid0, "notes",
-                "%s all map to %s#%s — same action, %d names; pick "
-                "one? (3.2.4: one function, one label). Settled? "
-                "annotate the mapping intentionally-divergent, or waive "
+                "%s all map to %s#%s through %d separate mappings — same "
+                "action, %d names; pick one? (3.2.4: one function, one "
+                "label). Deliberate? annotate a mapping "
+                "intentionally-divergent, or waive "
                 "{action: waive, key: '324:%s:%s', reason: ...}"
                 % (" / ".join(repr(x) for x in lbls), fa, fe,
-                   len(lbls), aid0, slugify(fe)))
+                   len(by_mapping), len(lbls), aid0, slugify(fe)))
     for lbl, refs in sorted(by_label.items()):
         flows = sorted({(fa, fe) for _, _, fa, fe in refs})
         if len(flows) > 1:
@@ -5179,7 +6093,7 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
     ixs = {aid: {e["id"]: e for e in els}
            for aid, els in scenes.items()}
     frame_nodes = {}
-    for wa, we, fa, fe in pairs:
+    for wa, we, fa, fe, _mi in pairs:
         el = ixs.get(wa, {}).get(we)
         if el is None:
             continue
@@ -5258,6 +6172,36 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 "is this, yours or theirs? Do users say %r? Settle "
                 "it, then waive with registry op {action: waive, "
                 "key: %r, reason: ...}" % (lbl, e["id"], lbl, key))
+
+    # ---- unmapped KPIs (WP5/D9) --------------------------------------
+    # Tripwires are exactly as good as the mapping discipline: the
+    # flagship rename fired NOTHING in both run-4 arms because kpi-alpha
+    # was in no mapping, and nothing nagged. A KPI is a number some node
+    # computes; while a flow exists, an unmapped tile is a drift
+    # detector that was never armed.
+    if any(t == "flow" for t in artifact_types.values()):
+        mapped_refs = set()
+        for m in (registry or {}).get("mappings") or []:
+            mapped_refs.update(m.get("elements") or [])
+        for aid, t in sorted(artifact_types.items()):
+            if t != "wireframe":
+                continue
+            if "kpimap:%s" % aid in waives:
+                continue
+            lm = label_maps.get(aid) or {}
+            loose = [(e["id"], lm.get(e["id"]) or e["id"])
+                     for e in scenes.get(aid) or []
+                     if (e.get("customData") or {}).get("kind") == "kpi"
+                     and "%s#%s" % (aid, e["id"]) not in mapped_refs]
+            if loose:
+                add(aid, "notes",
+                    "%d KPI tile(s) unmapped: %s — map each to the node "
+                    "that computes it (that mapping IS the drift "
+                    "detector; a rename on either side then trips), or "
+                    "waive {action: waive, key: %r, reason: ...}"
+                    % (len(loose),
+                       ", ".join(repr(lbl) for _, lbl in loose[:4]),
+                       "kpimap:%s" % aid))
     return out
 
 
@@ -5334,6 +6278,14 @@ class Store:
         self.rollback = None          # {"matches_revn": N} when git-revert seen
         self.checkout_revn = None     # detached checkout point (memory only)
         self.reconciliation = None    # last catch-up record revn
+        self._dry_run = False         # inside _sandbox(): writers are no-ops
+        # WP2 (report-and-repair): findings computed on the RAW disk
+        # scenes before validate_scene repairs them, per-load and never
+        # persisted — a persisted copy would go stale the moment a commit
+        # fixes the reference
+        self.referential = {}
+        self.raw_hashes = {}          # {aid: scene_hash of the raw disk scene}
+        self.scene_repairs = []       # load-time ART-* repairs, this load
         self.load()
 
     # -- loading ----------------------------------------------------------
@@ -5386,6 +6338,10 @@ class Store:
         self.scenes = {}
         self.artifact_meta = {}
         self.artifact_files = {}   # image blobs (fileId -> dataURL entry)
+        self.referential = {}
+        self.raw_hashes = {}
+        self.scene_repairs = []
+        raw_scenes = {}
         for f in sorted(self.p.artifacts_dir.glob("*.excalidraw")):
             aid = f.stem
             try:
@@ -5396,6 +6352,16 @@ class Store:
                     "Fix or delete the file; the last committed state is "
                     "still in saves/.").to_dict())
                 continue
+            # WP2: hold the RAW scene before any repair — the referential
+            # pass reports against it, and catch_up uses its hash to tell
+            # a genuine outside edit from the loader's own repair work.
+            # Deep-copied: validate_scene repairs the SAME dicts in
+            # place, and a shared reference would silently hand the pass
+            # the repaired scene — the exact unreachability being fixed.
+            raw_els = doc.get("elements") if isinstance(doc, dict) else None
+            if isinstance(raw_els, list):
+                raw_scenes[aid] = json.loads(json.dumps(raw_els))
+                self.raw_hashes[aid] = content_fingerprint(raw_scenes[aid])
             doc, art_issues = validate_scene(doc, aid)
             if doc is None:
                 continue
@@ -5403,11 +6369,19 @@ class Store:
             doc = normalize_scene_doc(doc)
             for i in art_issues:
                 self.issues.append(i.to_dict())
+                self.scene_repairs.append(i.to_dict())
                 self.log("repair: %s %s" % (i.code, i.msg))
             self.scenes[aid] = doc["elements"]
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
             if doc.get("files"):
                 self.artifact_files[aid] = doc["files"]
+        self.referential = referential_findings(raw_scenes, reg,
+                                                set(self.scenes.keys()))
+        for scope, tiers in sorted(self.referential.items()):
+            for tier, msgs in tiers.items():
+                for msg in msgs:
+                    self.log("referential %s [%s]: %s"
+                             % (tier[:-1].upper(), scope, msg))
         # heal orphaned pins: a registry pin whose ❓ element no longer
         # exists anywhere is unresolvable through ops — prune it at load so
         # corrupted state always has a repair path
@@ -5504,11 +6478,20 @@ class Store:
             artifacts = {}
             all_tripwires = []
             changed_elements = {}
+            new_norm_by_aid = {}
+            sentinel_by_aid = {}
             sig = self.config.get("significant_attrs")
             for aid, els in sorted(new_scenes.items()):
+                old = (base_state.get(aid) or {}).get("elements", [])
+                if author == "user":
+                    # mutate the RAW scene list itself — _write_artifact
+                    # persists new_scenes[aid], and a state change that
+                    # reached only the record would be the record-vs-file
+                    # divergence this campaign kills
+                    _interpret_user_composites(els, old)
                 new_norm = [normalize_element(e) for e in els
                             if not e.get("isDeleted")]
-                old = (base_state.get(aid) or {}).get("elements", [])
+                new_norm_by_aid[aid] = new_norm
                 diff = diff_scenes(old, new_norm, sig)
                 if not diff["changes"] and aid in base_state and not \
                         (new_meta or {}).get(aid):
@@ -5535,6 +6518,7 @@ class Store:
                         ).add(f["fact"])
                 by_element = self._by_element(diff, facts, consequences,
                                               new_norm, old)
+                sentinel_by_aid[aid] = diff.get("sentinel_suppressed", 0)
                 artifacts[aid] = {
                     "changes": diff["changes"],
                     "inverse": diff["inverse"],
@@ -5547,6 +6531,46 @@ class Store:
                 # explicit empty save — still a commit ("you saved without
                 # changing anything")
                 artifacts = {}
+
+            # WP2 (the r4 headline): a deletion must NAME what it broke.
+            # Nothing validated a reference after its target was gone —
+            # bindings dangled on disk, mapping members pointed at
+            # corpses, notes floated — and every silence compounded.
+            for aid, part in artifacts.items():
+                deleted = {c["element"]["id"] for c in part["changes"]
+                           if c["op"] == "del"}
+                if not deleted:
+                    continue
+                old_els = (base_state.get(aid) or {}).get("elements", [])
+                old_by_id = {e["id"]: e for e in old_els}
+                for e in new_norm_by_aid.get(aid, []):
+                    if e.get("type") in ("arrow", "line"):
+                        oldb = old_by_id.get(e["id"]) or {}
+                        for battr in ("startBinding", "endBinding"):
+                            was = ((oldb.get(battr) or {})
+                                   .get("elementId"))
+                            now = ((e.get(battr) or {}).get("elementId"))
+                            if was in deleted and \
+                                    (now is None or now in deleted):
+                                part["facts"].append(
+                                    {"fact": "arrow_orphaned",
+                                     "element": e["id"], "target": was,
+                                     "side": "start" if battr ==
+                                             "startBinding" else "end"})
+                    anchor = (e.get("customData") or {}).get("annotates")
+                    if anchor in deleted:
+                        part["facts"].append(
+                            {"fact": "note_orphaned", "element": e["id"],
+                             "target": anchor})
+                for m in self.registry.get("mappings") or []:
+                    for ref in m.get("elements") or []:
+                        if "#" not in ref:
+                            continue
+                        maid, meid = ref.split("#", 1)
+                        if maid == aid and meid in deleted:
+                            part["facts"].append(
+                                {"fact": "mapping_dangling", "element": None,
+                                 "concept": m.get("concept"), "ref": ref})
 
             # pin lifecycle on deletion: a deleted pin element = "not worth
             # explaining", never re-raised; a pin whose TARGET was deleted
@@ -5600,18 +6624,51 @@ class Store:
             # registry ops apply BEFORE the summary so a registry-only
             # batch headlines its registry work instead of "saved without
             # changing anything" (capability assessment finding)
+            # a registry op naming the artifact its OWN batch creates was
+            # rejected outright — "set_budget needs an existing artifact"
+            # — because a create does not reach artifact_meta until the
+            # write below, after the ops. So the documented "over budget
+            # → record it with a reason" workflow could not be done in
+            # the batch that drew the thing: it cost a second revision
+            # plus a false NOTE for the overrun it was in the act of
+            # justifying (brownfield BUG-03). Publish first; r3-10's
+            # re-read below still picks up what the ops then did.
+            seeded = self._seed_created_meta(new_meta)
             reg_changes = []
             if registry_ops:
                 reg_errors = []
-                reg_changes = self._apply_registry_ops(registry_ops,
-                                                       reg_errors)
-                if reg_errors:
-                    raise BatchError(reg_errors)
+                try:
+                    reg_changes = self._apply_registry_ops(registry_ops,
+                                                           reg_errors)
+                    if reg_errors:
+                        raise BatchError(reg_errors)
+                except BatchError:
+                    # a rejected batch must not leave a phantom artifact
+                    # with no scene and no file
+                    for aid2 in seeded:
+                        self.artifact_meta.pop(aid2, None)
+                    raise
+                # a registry op can change artifact META, and `meta` was
+                # snapshotted above — BEFORE these ran. A rename landing
+                # in the same batch as a drawing was therefore written
+                # back stale by the artifact write below, AND stored
+                # stale in this record, so checking out the very
+                # revision that renamed the artifact restored the old
+                # name (v0.6 assessment r3-10). Re-read what the ops
+                # actually touched; reg_changes already names it.
+                for ch in reg_changes:
+                    aid2 = ch.get("artifact")
+                    if ch.get("action") == "artifact_renamed" and \
+                            aid2 in artifacts:
+                        artifacts[aid2]["meta"] = dict(
+                            self.artifact_meta.get(aid2) or {})
 
             facts_flat = [f for a in artifacts.values() for f in a["facts"]]
             if not facts_flat:
                 facts_flat = [{"fact": "saved_no_changes", "element": None}]
-            sentinel = 0
+            # WP3: the real sentinel count — this was hardcoded 0, so
+            # `suppressed` under-reported every sentinel-suppressed diff
+            sentinel = sum(sentinel_by_aid.get(a, 0) for a in artifacts)
             summary = mechanical_summary(facts_flat, sentinel)
             if reg_changes and all(f["fact"] == "saved_no_changes"
                                    for f in facts_flat):
@@ -5662,6 +6719,8 @@ class Store:
                 "registry_changes": reg_changes,
                 "summary": summary,
                 "tripwires": all_tripwires,
+                "tripwires_muted": list(
+                    getattr(self, "_muted_renames", [])),
             }
             record["short_id"] = hashlib.sha1(
                 json.dumps(record, sort_keys=True, default=str)
@@ -5682,8 +6741,21 @@ class Store:
                                          artifacts[aid]["meta"])
             self.registry["revn"] = revn
             if forked:
+                # the outgoing branch keeps its own registry; the new one
+                # inherits the live sections, which are a copy of the
+                # drawing at this point (r3-17)
+                self._stash_scope(self.registry["head"])
                 self.registry["branches"].append(
-                    {"name": branch, "head": revn, "archived": False})
+                    {"name": branch, "head": revn, "archived": False,
+                     # `head` ADVANCES, so without these a branch stops
+                     # identifying where it began after one more save,
+                     # and no surface joined it to its creating record
+                     # (r3-11). The rationale is NOT copied here: it
+                     # lives on that save's headline, and a second copy
+                     # would drift from the words the user can edit.
+                     "forked_from": self.registry["head"],
+                     "forked_at_revn": base,
+                     "origin_revn": revn})
                 self.registry["head"] = branch
                 self.checkout_revn = None
             else:
@@ -5696,7 +6768,74 @@ class Store:
             self._save_registry()
             return record
 
+    def _seed_created_meta(self, new_meta):
+        """Publish a batch's about-to-be-created artifacts into the cache.
+
+        Registry ops run before the artifact write, so without this a
+        `set_budget` or `rename_artifact` naming the artifact its own
+        batch creates is rejected as unknown (brownfield BUG-03).
+        `upsert_concept` has carried its own workaround for this shape
+        since v0.6 — `view_types`, which stays for back-compat but is no
+        longer the only way an op can learn a new artifact's type.
+
+        Args:
+            new_meta: `{artifact_id: meta}` for the batch, or None.
+
+        Returns:
+            The ids actually seeded, so a rejected batch can un-publish
+            them rather than leave a phantom artifact behind.
+        """
+        seeded = []
+        for aid, meta in (new_meta or {}).items():
+            if aid not in self.artifact_meta:
+                self.artifact_meta[aid] = dict(meta or {})
+                seeded.append(aid)
+        return seeded
+
+    @contextlib.contextmanager
+    def _sandbox(self):
+        """Run ops against throwaway state — nothing reaches disk.
+
+        `check_batch` used to guard `self.registry` alone, so
+        `rename_artifact` escaped it twice over: it mutates
+        `self.artifact_meta[aid]` AND calls `_write_artifact`, and both
+        live outside that guard. A dry run therefore renamed an artifact
+        on disk with no revn, no save record and nothing to revert
+        (v0.6 assessment r3-12).
+
+        The guard is on the WRITER, not the caller: `_write_artifact` is
+        a no-op while this is open, so the next registry action that
+        touches disk is safe without anyone remembering a flag.
+
+        Yields:
+            None. State is restored on the way out, including on the
+            error paths — a leaked `_dry_run` would silently swallow
+            real writes.
+        """
+        saved_reg, saved_meta = self.registry, self.artifact_meta
+        saved_scenes = self.scenes
+        self.registry = copy.deepcopy(saved_reg)
+        self.artifact_meta = copy.deepcopy(saved_meta)
+        self.scenes = dict(saved_scenes)
+        self._dry_run = True
+        try:
+            yield
+        finally:
+            self.registry, self.artifact_meta = saved_reg, saved_meta
+            self.scenes = saved_scenes
+            self._dry_run = False
+
     def _write_artifact(self, aid, els, meta):
+        """Persist one artifact's scene + meta, and refresh the caches.
+
+        Args:
+            aid: Artifact id (also the filename stem).
+            els: The scene's elements, pre-normalization.
+            meta: The artifact's `wysiwyg` block — name, type, migrations.
+        """
+        if self._dry_run:
+            # inside _sandbox(): the caller is measuring, not committing
+            return
         doc = normalize_scene_doc({
             "elements": els,
             "wysiwyg": {
@@ -5800,6 +6939,7 @@ class Store:
         return sorted(set(kinds))
 
     def _check_tripwires(self, changed_elements, revn, new_mapping_keys=()):
+        self._muted_renames = []
         out = []
         if not changed_elements:
             return out
@@ -5826,55 +6966,89 @@ class Store:
             fired = set()
             for e in hits:
                 fired |= set(changed_elements.get(e) or ())
+            naming = fired & {"renamed", "label_renamed", "entity_renamed",
+                              "relationship_relabeled"}
             if note.startswith("intentionally-divergent") and \
                     self._annotation_covers(m.get("kinds"), fired):
+                if naming:
+                    # WP5 (D10/E-7): a RENAME muted by a ruling made
+                    # about value/display drift is armed silence — the
+                    # scope the agent chose for "a tile's wording belongs
+                    # to the screen" is exactly the set the flagship
+                    # rename beat needs. Say it happened; the ruling
+                    # still holds.
+                    self._muted_renames.append(
+                        "%s changed (%s) but its divergence ruling %r "
+                        "scopes naming out — deliberate?"
+                        % (hits[0], "/".join(sorted(naming)),
+                           note[:60]))
                 continue
             if self._policy_covers(m, fired):
+                if naming:
+                    self._muted_renames.append(
+                        "%s changed (%s) under a divergence policy that "
+                        "scopes naming out — deliberate?"
+                        % (hits[0], "/".join(sorted(naming))))
                 continue
-            for h in hits:
-                for s in siblings:
-                    entry = {"mapping": self._mapping_key(m), "changed": h,
-                             "sibling": s, "kind": "divergence"}
-                    out.append(entry)
-                    reg_entry = dict(entry)
-                    ch = h.replace("#", " › ")
-                    sb = s.replace("#", " › ")
-                    reg_entry.update({
-                        "id": "tw-%d-%d" % (revn, len(out)),
-                        # a fired tripwire must be visible at fire time —
-                        # the record entry mirrors id+question so the apply
-                        # response can name it (v0.3 assessment bug: fired
-                        # silently, agent found it rounds later via status)
-                        "save": revn, "status": "open",
-                        # answerable in place (like pins) — defaults the
-                        # agent may sharpen via annotate_tripwire
-                        "question": "%s changed but its mapped sibling %s "
-                                    "didn't. Divergence, or should it "
-                                    "propagate?" % (ch, sb),
-                        "choices": ["Intentional divergence — keep both",
-                                    "Propagate to the sibling"],
-                        "detail": (
-                            "These two elements are declared views of the "
-                            "same thing (mapping %s). At save %d, %s "
-                            "changed while %s stayed put — so right now "
-                            "the two views disagree.\n\n"
-                            "• 'Intentional divergence' records the "
-                            "difference as deliberate: the mapping stays, "
-                            "annotated so this pair never trips again for "
-                            "this reason.\n"
-                            "• 'Propagate' asks the agent to carry "
-                            "the change into %s in its next revision — "
-                            "narrated, and nothing is touched until you "
-                            "answer.\n\n"
-                            "Free-text works too: name a third option, or "
-                            "explain what the two views actually mean."
-                            % (self._mapping_key(m), revn, ch, sb, sb)),
-                        "examples": [],
-                        "answer": None,
-                    })
-                    self.registry["tripwires"].append(reg_entry)
-                    entry["id"] = reg_entry["id"]
-                    entry["question"] = reg_entry["question"]
+            # ONE question per mapping per save. This used to be a nested
+            # loop over (changed × sibling), so renaming one element of a
+            # four-member mapping asked three questions — while every
+            # suppression path above (intentionally-divergent,
+            # _annotation_covers, _policy_covers) already reasons once
+            # per mapping, so the code only disagreed with itself on the
+            # emitting side. The agent that met it said so: "fired three
+            # tripwires — all one cause, so I've answered the cause
+            # rather than the count", then wrote ONE annotation that
+            # resolved all three (v0.6 assessment r3-7).
+            #
+            # `changed`/`sibling` stay singular and populated with the
+            # first of each: the UI anchors its ? mark on an element, and
+            # a v0.6 registry still reads.
+            entry = {"mapping": self._mapping_key(m), "changed": hits[0],
+                     "sibling": siblings[0], "changed_all": list(hits),
+                     "siblings": list(siblings), "kind": "divergence"}
+            out.append(entry)
+            reg_entry = dict(entry)
+            ch = _tw_names(hits)
+            sb = _tw_names(siblings)
+            reg_entry.update({
+                "id": "tw-%d-%d" % (revn, len(out)),
+                # a fired tripwire must be visible at fire time —
+                # the record entry mirrors id+question so the apply
+                # response can name it (v0.3 assessment bug: fired
+                # silently, agent found it rounds later via status)
+                "save": revn, "status": "open",
+                # answerable in place (like pins) — defaults the
+                # agent may sharpen via annotate_tripwire
+                "question": "%s changed but %s %s didn't. Divergence, or "
+                            "should it propagate?"
+                            % (ch, "its mapped sibling" if
+                               len(siblings) == 1 else "its %d mapped "
+                               "siblings" % len(siblings), sb),
+                "choices": ["Intentional divergence — keep both",
+                            "Propagate to the sibling"],
+                "detail": (
+                    "These elements are declared views of the "
+                    "same thing (mapping %s). At save %d, %s "
+                    "changed while %s stayed put — so right now "
+                    "the views disagree.\n\n"
+                    "• 'Intentional divergence' records the "
+                    "difference as deliberate: the mapping stays, "
+                    "annotated so this mapping never trips again for "
+                    "this reason.\n"
+                    "• 'Propagate' asks the agent to carry "
+                    "the change into %s in its next revision — "
+                    "narrated, and nothing is touched until you "
+                    "answer.\n\n"
+                    "Free-text works too: name a third option, or "
+                    "explain what the views actually mean."
+                    % (self._mapping_key(m), revn, ch, sb, sb)),
+                "examples": [],
+                "answer": None,
+            })
+            self.registry["tripwires"].append(reg_entry)
+            entry["id"] = reg_entry["id"]
+            entry["question"] = reg_entry["question"]
         return out
 
     def _policy_covers(self, m, verbs=()):
@@ -6092,9 +7266,23 @@ class Store:
                     "reason": op.get("reason"),
                     "when": now_iso()[:10]})
             elif action == "set_round":
-                if isinstance(op.get("round"), int):
+                # WP5 (r4-3): the escape hatch for chat-only user turns —
+                # and it validated NOTHING, so a typo'd round was a
+                # silent no-op on the one mechanism keeping pin ageing
+                # alive
+                if "round" in op and not isinstance(op.get("round"), int):
+                    errors.append(
+                        "registry op %d (set_round): round must be an "
+                        "integer (got %r)" % (i, op.get("round")))
+                elif isinstance(op.get("round"), int):
                     reg["round"] = op["round"]
-                if op.get("whose_move") in ("user", "agent"):
+                if "whose_move" in op and \
+                        op.get("whose_move") not in ("user", "agent"):
+                    errors.append(
+                        "registry op %d (set_round): whose_move must be "
+                        "'user' or 'agent' (got %r)"
+                        % (i, op.get("whose_move")))
+                elif op.get("whose_move") in ("user", "agent"):
                     reg["whose_move"] = op["whose_move"]
             elif action == "rename_artifact":
                 # a view's SCOPE legitimately narrows — splitting a domain
@@ -6147,8 +7335,10 @@ class Store:
                 for key in ("nodes", "arrows"):
                     v = op.get(key)
                     if v is not None and (not isinstance(v, int) or v < 1):
-                        errors.append("registry op %d: %s must be a "
-                                      "positive integer" % (i, key))
+                        errors.append(
+                            "registry op %d: %s must be a positive "
+                            "integer — an arrow-free screen still sets "
+                            "arrows: 1, the budget floor" % (i, key))
                         bad = True
                 if bad:
                     continue
@@ -6200,6 +7390,15 @@ class Store:
         return applied
 
     def _save_registry(self):
+        """Persist the registry, unless we are measuring a dry run.
+
+        The other writer `_sandbox` has to stop: it swaps `self.registry`
+        for a throwaway copy, so an unguarded save here would persist the
+        sandbox. No registry action calls this today — the guard is here
+        because enumerating what to protect is what shipped r3-12.
+        """
+        if self._dry_run:
+            return
         write_json(self.p.registry_path, self.registry)
 
     # -- the agent write path --------------------------------------------
@@ -6247,6 +7446,15 @@ class Store:
                 elif aid in self.scenes:
                     errors.append("create: artifact %r already exists" % aid)
                 else:
+                    if "artifact_type" in create and "type" not in create:
+                        # WP5: the meta STORES this as artifact_type, so
+                        # the wrong spec key defaulted silently to a
+                        # flow — even this campaign's own tests made the
+                        # mistake and never noticed
+                        errors.append(
+                            "create: use `type`, not `artifact_type` — "
+                            "the artifact would silently default to a "
+                            "flow")
                     atype = create.get("type", "flow")
                     known = set((self.config.get("artifact_types") or {}))
                     if atype not in known:
@@ -6286,7 +7494,16 @@ class Store:
                         % (i, o.get("id"),
                            ", ".join(sorted(known_pins)) or "none"))
             pin_reg = []
-            new_els = apply_ops(base_els, ops, errors, pin_reg)
+            try:
+                new_els = apply_ops(base_els, ops, errors, pin_reg)
+            except Exception as e:  # noqa: BLE001 — E-9 backstop
+                # No traceback ever reaches the agent: SKILL.md promises
+                # "errors name the offending op", and the r4-11 crash
+                # arrived as a raw ValueError instead.
+                raise BatchError([*errors,
+                    "internal error applying ops — %s: %s (the batch was "
+                    "rejected whole; nothing partial landed)"
+                    % (type(e).__name__, e)]) from e
             registry_ops = [o for o in ops if o.get("op") == "registry"]
             if errors:
                 raise BatchError(errors)
@@ -6343,18 +7560,24 @@ class Store:
             aid = checked["artifact"]
             # registry ops are the other half of a batch and they failed
             # this way in the field (`set_budget` with arrows: 0). The
-            # dispatch mutates self.registry as it validates, so it runs
-            # here against a copy that is thrown away either way.
+            # dispatch mutates state as it validates, so it runs here
+            # inside _sandbox() — which throws away the registry, the
+            # artifact meta AND any disk write. Enumerating what to
+            # protect is what shipped r3-12: the old guard listed
+            # self.registry and rename_artifact wrote past it.
             saved = self.registry
-            self.registry = copy.deepcopy(saved)
-            try:
-                reg_errors = []
-                self._apply_registry_ops(checked["registry_ops"], reg_errors)
-                reg_after = self.registry
-            except BatchError as e:
-                reg_errors, reg_after = list(e.errors), saved
-            finally:
-                self.registry = saved
+            reg_errors = []
+            with self._sandbox():
+                # same publish-before-ops as commit, so --check accepts
+                # exactly what apply accepts (BUG-03). No un-seeding
+                # needed: the sandbox throws the whole cache away.
+                self._seed_created_meta(checked["new_meta"])
+                try:
+                    self._apply_registry_ops(checked["registry_ops"],
+                                             reg_errors)
+                    reg_after = self.registry
+                except BatchError as e:
+                    reg_errors, reg_after = list(e.errors), saved
             if reg_errors:
                 return {"ok": False, "errors": reg_errors, "artifact": aid,
                         "intent_echo": [], "layout_errors": [],
@@ -6401,6 +7624,22 @@ class Store:
                         for o in ops if o.get("op") == "mod"
                         and isinstance(o.get("attrs"), dict)
                         and "points" in o["attrs"]]
+            # a rewire re-routes by design — "a rewire is a new path
+            # request" — but when the path being replaced is one the USER
+            # drew by hand, nothing said so. The session that found this
+            # shows one arrow re-dragged four times: to the agent that
+            # reads as indecision, when it is the user redoing work the
+            # agent keeps undoing (brownfield BUG-06). Measured against
+            # the PRE-op scene, because the ops have already re-routed it.
+            was = {e["id"]: e for e in (self.scenes.get(aid) or [])}
+            reroutes += [
+                {"fact": "user_route_replaced", "element": o.get("id"),
+                 "arrow": o.get("id")}
+                for o in ops if o.get("op") == "mod"
+                and isinstance(o.get("attrs"), dict)
+                and ({"from", "to"} & set(o["attrs"]))
+                and o.get("id") in was
+                and not server_owns_geometry(was[o["id"]])]
             resolved_now = {o.get("id") for o in ops
                             if o.get("op") == "resolve_pin"}
             record = self.commit(
@@ -6487,6 +7726,32 @@ class Store:
             return pin
 
     # -- branches ---------------------------------------------------------
+    def _stash_scope(self, name):
+        """Record the live branch-scoped sections against a branch.
+
+        Args:
+            name: The branch to stash them under.
+        """
+        for b in self.registry["branches"]:
+            if b["name"] == name:
+                b["scope"] = {k: copy.deepcopy(self.registry.get(k))
+                              for k in BRANCH_SCOPED if k in self.registry}
+                return
+
+    def _load_scope(self, b):
+        """Make a branch's stashed sections the live ones.
+
+        A branch with no stash keeps what is already live — that is the
+        first switch after the 0002 migration, and inheriting is right:
+        the alternative is silently emptying a registry.
+
+        Args:
+            b: The branch record being switched to.
+        """
+        for k, v in (b.get("scope") or {}).items():
+            if k in BRANCH_SCOPED:
+                self.registry[k] = copy.deepcopy(v)
+
     def switch_branch(self, name):
         with self.lock:
             b = next((b for b in self.registry["branches"]
@@ -6496,6 +7761,13 @@ class Store:
                                   % (name, ", ".join(
                                       x["name"] for x in
                                       self.registry["branches"]))])
+            # the registry follows the branch, like the scenes below.
+            # Without this, switching to a branch that lacks an artifact
+            # deleted its file and the load-time healer then PRUNED the
+            # pins on it — permanently, for the branch you came from
+            # (reproduced: open -> pruned -> still pruned back on main).
+            self._stash_scope(self.registry["head"])
+            self._load_scope(b)
             state = self.state_at(b["head"])
             current = set(self.scenes.keys())
             for aid, part in state.items():
@@ -6535,8 +7807,16 @@ class Store:
             expected = self.state_at(head) if head else {}
             exp_scenes = {aid: p["elements"] for aid, p in expected.items()}
             disk = self.scenes
+            # Content comparison, deliberately order-insensitive (WP2):
+            # z-order is derived machinery the replay cannot reconstruct
+            # (normalize_z_order runs at apply; user saves carry client
+            # order), so an order-sensitive hash here diagnosed derived
+            # noise as an outside edit and minted a fresh phantom
+            # reconciliation on EVERY load — a standing generator of
+            # "0 changes differ from history" records.
             same = (set(exp_scenes.keys()) == set(disk.keys()) and all(
-                scene_hash(exp_scenes[a]) == scene_hash(disk[a])
+                content_fingerprint(exp_scenes[a]) ==
+                content_fingerprint(disk[a])
                 for a in disk))
             if same:
                 return None
@@ -6545,7 +7825,8 @@ class Store:
                 st = self.state_at(r)
                 st_scenes = {aid: p["elements"] for aid, p in st.items()}
                 if set(st_scenes.keys()) == set(disk.keys()) and all(
-                        scene_hash(st_scenes[a]) == scene_hash(disk[a])
+                        content_fingerprint(st_scenes[a]) ==
+                        content_fingerprint(disk[a])
                         for a in disk):
                     self.rollback = {"matches_revn": r, "head_revn": head}
                     self.log("rollback detected: disk state matches revn %d"
@@ -6553,11 +7834,50 @@ class Store:
                     return None
             new_meta = {aid: dict(self.artifact_meta.get(aid) or {})
                         for aid in disk}
+            # WP2: is this divergence a genuine outside edit, or only the
+            # loader's own repair work? The raw disk hashes (captured
+            # before validate_scene touched anything) settle it: raw ==
+            # replayed history means nobody edited outside the session —
+            # every fixture with load repairs used to mint a phantom
+            # "out-of-session" record here, arm 4's reading "saved
+            # without changing anything" while committing a revision.
+            repair_only = bool(self.scene_repairs) and \
+                set(self.raw_hashes.keys()) == set(exp_scenes.keys()) and \
+                all(self.raw_hashes.get(a) is not None and
+                    self.raw_hashes[a] == content_fingerprint(
+                        exp_scenes[a])
+                    for a in exp_scenes)
             record = self.commit(author="out-of-session",
                                  new_scenes=dict(disk),
                                  new_meta=new_meta,
                                  reconciliation=True)
             self.reconciliation = record["revn"]
+            rewrite = False
+            if repair_only:
+                counts = {}
+                for i in self.scene_repairs:
+                    counts[i["code"]] = counts.get(i["code"], 0) + 1
+                record["summary"]["headline"] = (
+                    "load-time repair: %s — no outside edits" % ", ".join(
+                        "%s ×%d" % (c, n) for c, n in sorted(counts.items())))
+                rewrite = True
+            elif "saved without changing anything" in \
+                    (record["summary"].get("headline") or ""):
+                # a committed reconciliation may never claim nothing
+                # happened (arm 4's live phantom did exactly that)
+                n_changed = sum(len(p.get("changes") or [])
+                                for p in record["artifacts"].values())
+                record["summary"]["headline"] = (
+                    "out-of-session drift reconciled: %d change(s) differ "
+                    "from history" % n_changed)
+                rewrite = True
+            if self.scene_repairs:
+                record["repairs"] = list(self.scene_repairs)
+                rewrite = True
+            if rewrite:
+                for pth in self.p.saves_dir.glob("%04d-*.json"
+                                                 % record["revn"]):
+                    write_json(pth, record)
             # live_test_2 B4: reconciliation passes the same lint gate as
             # any apply — the revn-17 restart rerouted an arrow into a
             # 45×176 diagonal with zero warnings fired
@@ -6612,15 +7932,28 @@ class Store:
                 if x:
                     li = {k: li[k] + x[k]
                           for k in ("errors", "warnings", "notes")}
+                # WP2: load-time referential findings (computed on the
+                # RAW disk scene, before repairs) ride the same debt —
+                # the r4-7 unreachability was exactly these never
+                # reaching any surface the agent reads
+                r = self.referential.get(aid)
+                if r:
+                    li = {k: li[k] + r[k]
+                          for k in ("errors", "warnings", "notes")}
                 lines[aid] = li
                 counts = {k: len(li[k])
                           for k in ("errors", "warnings", "notes")}
                 if any(counts.values()):
                     debt[aid] = counts
             reg = project_lint(self.p, [], self.registry)
-            if reg["notes"]:
-                debt["registry"] = {"errors": 0, "warnings": 0,
-                                    "notes": len(reg["notes"])}
+            rref = self.referential.get("registry")
+            if rref:
+                reg = {k: reg[k] + rref[k]
+                       for k in ("errors", "warnings", "notes")}
+            if any(reg[k] for k in ("errors", "warnings", "notes")):
+                debt["registry"] = {k: len(reg[k])
+                                    for k in ("errors", "warnings",
+                                              "notes")}
                 lines["registry"] = reg
             self._lint_debt_cache = (key, debt, lines)
             return debt
@@ -6634,12 +7967,92 @@ class Store:
             cached = getattr(self, "_lint_debt_cache", None)
             return cached[2] if cached and len(cached) > 2 else {}
 
-    def pin_debt(self):
+    def effective_round(self, queued=False):
+        """The round the session is actually in, queue included.
+
+        `round` advances inside `commit`, so under `pulled` cadence —
+        where nothing commits until the user applies — it froze, and
+        took pin ageing with it: `age_rounds` is `round - pin.round`, so
+        a question could sit open across four turns still reading
+        "age 0r" while the standing-nag mechanism exists precisely to
+        make an ageing question harder to ignore (v0.6 assessment r3-2).
+
+        Derived rather than written, so discarding the queue reverses it
+        with no arithmetic and `registry.json` never records a round in
+        which nothing committed.
+
+        Args:
+            queued: Whether a non-pin batch is waiting behind the banner.
+
+        Returns:
+            The committed round, plus one for an uncommitted agent turn.
+        """
+        return self.registry.get("round", 0) + (1 if queued else 0)
+
+    def effective_whose_move(self, queued=False):
+        """Whose turn it is, queue included — see `effective_round`.
+
+        Args:
+            queued: Whether a non-pin batch is waiting behind the banner.
+
+        Returns:
+            `"user"` while a revision waits on them, else the committed
+            value.
+        """
+        return "user" if queued else self.registry["whose_move"]
+
+    def open_tripwires(self):
+        """Standing unresolved tripwires, full question text.
+
+        Lint and pin debt are pushed onto every apply response and this
+        was the only nag you had to PULL, through `GET api/state`
+        (r3-9). A tripwire persists until resolved, so it is standing by
+        construction and belongs in the same block.
+
+        Returns:
+            One dict per open tripwire — id, mapping and question.
+        """
+        with self.lock:
+            return [{"id": t.get("id"), "mapping": t.get("mapping"),
+                     "question": t.get("question") or ""}
+                    for t in self.registry["tripwires"]
+                    if t.get("status") == "open"]
+
+    def round_stall(self):
+        """The chat-only round freeze, made visible (WP5, r4-3).
+
+        The round advances only on canvas authorship alternation, but the
+        user may legitimately move by chat alone — argus4 sat at round 1
+        through revn 10 while its agent hand-counted "open two rounds"
+        and every pin read age 0r. The tool cannot auto-advance (a chat
+        turn is invisible to it); it CAN notice the smell: a long run of
+        non-user commits while questions sit open.
+
+        Returns:
+            ``{"commits": n, "round": r}`` when >= 4 consecutive commits
+            landed without a user save while pins are open, else None.
+        """
+        with self.lock:
+            head = self.head_revn()
+            n = 0
+            for r in reversed(self.lineage(head)):
+                rec = self.records.get(r) or {}
+                if rec.get("author") == "user":
+                    break
+                n += 1
+            has_open = any(p.get("status") == "open"
+                           for p in self.registry["pins"])
+            if n >= 4 and has_open:
+                return {"commits": n,
+                        "round": self.registry.get("round", 0)}
+            return None
+
+    def pin_debt(self, queued=False):
         """Open/answered pins with age in rounds and how often their
         target changed since asking (v0.2 PIN_DEBT — clone of the
         VIEW_DEBT standing-nag mechanism)."""
         with self.lock:
-            rnd = self.registry.get("round", 0)
+            rnd = self.effective_round(queued)
             return [{"id": p["id"], "artifact": p.get("artifact"),
                      "status": p.get("status"),
                      "direction": p.get("direction", "agent"),
@@ -6648,68 +8061,139 @@ class Store:
                     for p in self.registry["pins"]
                     if p.get("status") in ("open", "answered")]
 
+    TIDY_MAX_PASSES = 4
+
+    @staticmethod
+    def _tidy_hash(els):
+        """Identity of a scene AS IT WILL BE STORED.
+
+        `scene_hash` on raw pass output is not that: `_tidy_pass`
+        rebuilds `boundElements`, which is derived bookkeeping, in a
+        different order from the one `normalize_scene_doc` writes. So a
+        tidy that changed nothing real still hashed differently, the
+        no-op guard missed, and every press wrote a revision headlined
+        "saved without changing anything" (brownfield BUG-02).
+
+        Args:
+            els: An element list.
+
+        Returns:
+            The hash of its normalized form.
+        """
+        return scene_hash(normalize_scene_doc({"elements": els})["elements"])
+
+    def _tidy_pass(self, base):
+        """One tidy pass: snap, re-route, re-fan, normalize z-order.
+
+        Args:
+            base: The artifact's elements. Not mutated.
+
+        Returns:
+            `(elements, snapped, rerouted)` for the tidied copy.
+        """
+        els = [dict(e) for e in base]
+        index = {e["id"]: e for e in els}
+        snapped = 0
+        for e in els:
+            if e.get("type") in ("rectangle", "diamond", "ellipse",
+                                 "frame") and \
+                    role_of(e) not in ("label", "pin"):
+                nx = int(round(e.get("x", 0) / 4.0)) * 4
+                ny = int(round(e.get("y", 0) / 4.0)) * 4
+                if nx != e.get("x") or ny != e.get("y"):
+                    e["x"], e["y"] = nx, ny
+                    snapped += 1
+                    recenter_label(els, e)
+        obstacles = [e for e in els
+                     if e.get("type") in ("rectangle", "diamond",
+                                          "ellipse")
+                     and (e.get("customData") or {}).get("role")
+                     not in ("label", "pin", "decoration",
+                             "annotation")]
+        rerouted = 0
+        for e in els:
+            if e.get("type") != "arrow":
+                continue
+            s = index.get((e.get("startBinding") or {})
+                          .get("elementId"))
+            d = index.get((e.get("endBinding") or {}).get("elementId"))
+            if s is not None and d is not None and \
+                    server_owns_geometry(e):
+                route_arrow(
+                    e, s, d, obstacles,
+                    soft_obstacles=[t for t in els
+                                    if t.get("type") == "text"
+                                    and (t.get("containerId") or
+                                         role_of(t) == "annotation")],
+                    other_arrows=[(t["id"], t.get("x", 0),
+                                   t.get("y", 0),
+                                   t.get("points") or [])
+                                  for t in els
+                                  if t.get("type") == "arrow"
+                                  and len(t.get("points") or []) >= 2])
+                recenter_label(els, e)
+                rerouted += 1
+        fan_attach_points(els)
+        return normalize_z_order(els), snapped, rerouted
+
     def tidy(self, aid):
         """One-click repair (Phase 6): snap nodes to the 4px grid,
         re-route server-owned arrows, re-fan attach points, normalize
         z-order — committed as an ordinary agent revision the user can
-        revert."""
+        revert.
+
+        Run to a FIXED POINT, because one pass is not stable. Routing
+        reads the other arrows' current paths and the fan then moves
+        them, so route-then-fan hands the next pass different input and
+        can oscillate: measured on a real project, tidy flip-flopped
+        between two states with period 2 and every press wrote a
+        revision headlined "saved without changing anything". The user
+        pressed it five times, which reads as "nothing is happening"
+        (brownfield BUG-02 — whose stated cause, a no-op write, was not
+        what was happening: every press changed the drawing).
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            The save record, or a `noop: True` stand-in when there was
+            nothing to repair or when the passes would not settle.
+
+        Raises:
+            BatchError: If `aid` names no artifact.
+        """
         with self.lock:
             base = self.scenes.get(aid)
             if base is None:
                 raise BatchError(["tidy: unknown artifact %r" % aid])
-            els = [dict(e) for e in base]
-            index = {e["id"]: e for e in els}
-            snapped = 0
-            for e in els:
-                if e.get("type") in ("rectangle", "diamond", "ellipse",
-                                     "frame") and \
-                        role_of(e) not in ("label", "pin"):
-                    nx = int(round(e.get("x", 0) / 4.0)) * 4
-                    ny = int(round(e.get("y", 0) / 4.0)) * 4
-                    if nx != e.get("x") or ny != e.get("y"):
-                        e["x"], e["y"] = nx, ny
-                        snapped += 1
-                        recenter_label(els, e)
-            obstacles = [e for e in els
-                         if e.get("type") in ("rectangle", "diamond",
-                                              "ellipse")
-                         and (e.get("customData") or {}).get("role")
-                         not in ("label", "pin", "decoration",
-                                 "annotation")]
-            rerouted = 0
-            for e in els:
-                if e.get("type") != "arrow":
-                    continue
-                s = index.get((e.get("startBinding") or {})
-                              .get("elementId"))
-                d = index.get((e.get("endBinding") or {}).get("elementId"))
-                if s is not None and d is not None and \
-                        server_owns_geometry(e):
-                    route_arrow(
-                        e, s, d, obstacles,
-                        soft_obstacles=[t for t in els
-                                        if t.get("type") == "text"
-                                        and (t.get("containerId") or
-                                             role_of(t) == "annotation")],
-                        other_arrows=[(t["id"], t.get("x", 0),
-                                       t.get("y", 0),
-                                       t.get("points") or [])
-                                      for t in els
-                                      if t.get("type") == "arrow"
-                                      and len(t.get("points") or []) >= 2])
-                    recenter_label(els, e)
-                    rerouted += 1
-            fan_attach_points(els)
-            els = normalize_z_order(els)
-            if json.dumps(els, sort_keys=True, default=str) == \
-                    json.dumps(base, sort_keys=True, default=str):
+
+            def noop(headline):
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline": headline,
+                                    "verb_counts": {}, "suppressed": 0}}
+
+            els, snapped, rerouted = self._tidy_pass(base)
+            seen = {self._tidy_hash(base), self._tidy_hash(els)}
+            for _ in range(self.TIDY_MAX_PASSES - 1):
+                nxt, s2, r2 = self._tidy_pass(els)
+                h = self._tidy_hash(nxt)
+                if h == self._tidy_hash(els):
+                    break               # settled
+                if h in seen:
+                    # a cycle: every state in it is one the next press
+                    # undoes, so committing any of them just moves the
+                    # problem. Say what is happening instead.
+                    return noop(
+                        "tidy could not settle — re-routing these arrows "
+                        "keeps undoing the attach-point fan. Author the "
+                        "paths with `mod points`, or move the nodes apart")
+                seen.add(h)
+                els, snapped, rerouted = nxt, snapped + s2, rerouted + r2
+            if self._tidy_hash(els) == self._tidy_hash(base):
                 # nothing to repair — committing anyway would write an
                 # empty "saved without changing anything" revision (v0.3
                 # assessment bug)
-                return {"revn": self.head_revn(), "noop": True,
-                        "summary": {"headline":
-                                    "already tidy — nothing to change",
-                                    "verb_counts": {}, "suppressed": 0}}
+                return noop("already tidy — nothing to change")
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
@@ -6760,7 +8244,7 @@ class Store:
                                user_note="revert to revn %d" % revn)
 
     # -- state for the frontend ------------------------------------------
-    def public_state(self):
+    def public_state(self, queued=False):
         with self.lock:
             saves = []
             for revn in sorted(self.records):
@@ -6796,14 +8280,17 @@ class Store:
                 "head": self.registry["head"],
                 "head_revn": self.head_revn(),
                 "branches": self.registry["branches"],
-                "round": self.registry["round"],
-                "whose_move": self.registry["whose_move"],
+                # derived, not stored: under `pulled` nothing commits, so
+                # the committed pair froze until the user applied (r3-2)
+                "round": self.effective_round(queued),
+                "whose_move": self.effective_whose_move(queued),
+                "committed_round": self.registry["round"],
                 "concepts": self.registry["concepts"],
                 "mappings": self.registry["mappings"],
                 "pins": self.registry["pins"],
                 "tripwires": self.registry["tripwires"],
                 "lint_debt": self.lint_debt(),
-                "pin_debt": self.pin_debt(),
+                "pin_debt": self.pin_debt(queued),
                 "budgets": self.registry.get("budgets") or {},
                 "waives": self.registry.get("waives") or {},
                 "lint": self.lint_lines(),
@@ -7039,8 +8526,21 @@ class ServerApp:
                 pass    # commit_pending evicted it and said so
 
     # -- request handling --------------------------------------------------
+    def queued_turn(self):
+        """Whether a drawing revision is waiting behind the banner.
+
+        The agent has moved and the user has not answered, so round and
+        whose_move should say so even though nothing has committed —
+        which under `pulled` cadence is the whole span (r3-2). Pin-only
+        revisions never hold behind the banner, so they never count.
+
+        Returns:
+            True when at least one non-pin revision is queued.
+        """
+        return any(not p["pin_only"] for p in self.pending)
+
     def api_state(self):
-        st = self.store.public_state()
+        st = self.store.public_state(queued=self.queued_turn())
         st.update({
             "pending": self.sanitize_pending(),
             "dirty": self.dirty,
@@ -7091,7 +8591,9 @@ class ServerApp:
                     "short_id": record["short_id"],
                     "branch": record["branch"],
                     "summary": record["summary"],
-                    "tripwires": record["tripwires"]}
+                    "tripwires": record["tripwires"],
+                    "tripwires_muted": record.get("tripwires_muted") or [],
+                    "round_stall": self.store.round_stall()}
         if path == "/api/apply":
             cadence = self.store.config.get("canvas_updates", "per-round")
             ops = body.get("ops") or []
@@ -7123,6 +8625,16 @@ class ServerApp:
                         "layout_errors": check["layout_errors"],
                         "layout_warnings": check["layout_warnings"],
                         "layout_notes": check["layout_notes"],
+                        # the standing nags ride EVERY apply response, as
+                        # ops-reference promises, and this one carried
+                        # none at all — so the CLI had nothing to print
+                        # even once its early return was fixed (r3-6).
+                        # Computed against current HEAD on purpose: debt
+                        # is about artifacts this batch did not touch.
+                        "branch": self.store.registry["head"],
+                        "open_tripwires": self.store.open_tripwires(),
+                        "lint_debt": self.store.lint_debt(),
+                        "pin_debt": self.store.pin_debt(self.queued_turn()),
                         "hint": "The revision will land behind the pending-"
                                 "revision banner; the user chooses when. It "
                                 "validates and lints clean against the "
@@ -7154,8 +8666,16 @@ class ServerApp:
                     # tripwires fired by THIS batch — visible at fire time,
                     # not rounds later via status (v0.3 assessment bug)
                     "tripwires": record.get("tripwires") or [],
+                    "tripwires_muted": record.get("tripwires_muted") or [],
+                    "round_stall": self.store.round_stall(),
+                    # a user save toasts its branch and an agent revision
+                    # named none, so the product already held that a
+                    # non-main write should say so and applied it to one
+                    # of the two write paths (r3-14)
+                    "branch": record.get("branch"),
+                    "open_tripwires": self.store.open_tripwires(),
                     "lint_debt": self.store.lint_debt(),
-                    "pin_debt": self.store.pin_debt()}
+                    "pin_debt": self.store.pin_debt(self.queued_turn())}
         if path == "/api/pending/resolve":
             pid = body.get("id")
             action = body.get("action")
@@ -7468,8 +8988,15 @@ def make_handler(app):
                         self.send_response(200)
                         self.send_header("Content-Type", "image/svg+xml")
                     else:
+                        # tier parity (WP4/r4-12): the headless render
+                        # used to resolve `sans-serif` to whatever the
+                        # system had while the live tab wrapped in real
+                        # Nunito — two wrap engines, one file, both
+                        # "VALID". The fonts are already served locally.
+                        face = _nunito_face_css(app.web_root)
                         body = ("<!doctype html><html><head><meta "
-                                "charset='utf-8'><style>body{margin:0;"
+                                "charset='utf-8'><style>" + face +
+                                "body{margin:0;"
                                 "background:#fdfcf8}</style></head><body>"
                                 + svg + "</body></html>").encode("utf-8")
                         self.send_response(200)
@@ -7757,6 +9284,12 @@ def cmd_status(args):
              rollback=st.get("rollback"),
              events_seq=st.get("events_seq"),
              events_log=st.get("events_log"))
+    # WP2 (report-and-repair): load-time repairs used to reach exactly
+    # one surface — /api/state, which nothing in the loop reads. Silent
+    # repair is how the r4-7 lint became unreachable.
+    for i in st.get("issues") or []:
+        if i.get("repaired"):
+            print("REPAIR=%s: %s" % (i.get("code"), i.get("msg")))
     if state.get("protocol_version") != PROTOCOL_VERSION:
         print("WARNING=protocol mismatch: server v%s vs CLI v%d — restart "
               "the server (canvas.py stop && canvas.py start)"
@@ -7879,6 +9412,11 @@ def cmd_lint(args):
             for msg in li.get(tier) or []:
                 total += 1
                 print("%s=%s: %s" % (prefix, aid, msg))
+    # WP2: what the loader fixed on the way in, named — a repair the
+    # agent never hears about is a defect the next session re-inherits
+    for i in store.issues:
+        if i.get("repaired"):
+            print("REPAIR=%s: %s" % (i.get("code"), i.get("msg")))
     print_kv(artifacts=len(aids), findings=total)
     return 0
 
@@ -7919,14 +9457,37 @@ def cmd_pending(args):
     return 0
 
 
+# Event types by originator (WP5/r4-6). The live log was 87.5% the
+# agent's own `agent_revision` echoes — undocumented — and an agent that
+# does not filter narrates its own drawing back as the user's move.
+USER_EVENT_TYPES = frozenset({
+    "save", "pin_answer", "tripwire_answer", "checkout", "checkout_live",
+    "branch_switch", "branch_archive", "suggest_view", "config_changed"})
+AGENT_EVENT_TYPES = frozenset({
+    "agent_revision", "agent_pending", "agent_revision_discarded",
+    "agent_revision_failed"})
+
+
 def cmd_wait(args):
     """Tier-3 bounded long-poll. Self-terminates strictly under Bash's 600s
-    ceiling. Exit 0 = events printed; exit 3 = timed out with none."""
+    ceiling. Exit 0 = events printed; exit 3 = timed out with none.
+
+    ``--for user`` (the default an agent wants) skips the agent's own
+    echoes; ``--types a,b`` pins exact types. Unfiltered, the first
+    event a fresh watch reported in run 4 was the agent's own revision.
+    """
     project = Project(args.project)
     state = project.read_state()
     if not server_alive(state):
         die("ERROR=no running server — run canvas.py start first. Grilling "
             "can continue verbally in the meantime.", 3)
+    wanted = None
+    if getattr(args, "types", None):
+        wanted = {t.strip() for t in args.types.split(",") if t.strip()}
+    elif getattr(args, "for_whom", "any") == "user":
+        wanted = set(USER_EVENT_TYPES) | {"reconciliation"}
+    elif getattr(args, "for_whom", "any") == "agent":
+        wanted = set(AGENT_EVENT_TYPES)
     since = args.since
     if since is None:
         try:
@@ -7947,8 +9508,10 @@ def cmd_wait(args):
             die("ERROR=server went away mid-wait (%s). Run canvas.py start "
                 "to relaunch; state is safe on disk." % e, 3)
         for ev in resp.get("events") or []:
-            print(json.dumps(ev, ensure_ascii=False))
             since = max(since, ev["seq"])
+            if wanted is not None and ev.get("type") not in wanted:
+                continue
+            print(json.dumps(ev, ensure_ascii=False))
             got = True
         if got:
             return 0
@@ -8036,17 +9599,19 @@ def cmd_apply(args):
         if resp.get("queued"):
             # a queued revision still owes its echo — swallowing it left
             # the agent with a success line and nothing to check it
-            # against (v0.4 capability assessment)
+            # against (v0.4 capability assessment) — and it owes the
+            # standing nags too, which this branch skipped by returning
+            # early for two more versions after that (r3-6)
             print_kv(queued="true", pending_id=resp.get("pending_id"),
                      reason=resp.get("reason"), hint=resp.get("hint"))
             _print_layout(resp)
+            _print_standing(resp)
             return 0
         print_kv(revn=resp.get("revn"), short_id=resp.get("short_id"),
                  pin_only=str(resp.get("pin_only", False)).lower(),
                  headline=(resp.get("summary") or {}).get("headline"))
         _print_layout(resp)
-        _print_tripwires(resp.get("tripwires"))
-        _print_debt(resp.get("lint_debt"), resp.get("pin_debt"))
+        _print_standing(resp)
         return 0
     # degraded path: no server — apply directly against the files
     store = Store(project)
@@ -8071,20 +9636,69 @@ def cmd_apply(args):
                    "layout_errors": lint["errors"],
                    "layout_warnings": lint["warnings"],
                    "layout_notes": lint["notes"]})
-    _print_tripwires(record.get("tripwires"))
-    _print_debt(store.lint_debt(), store.pin_debt())
+    _print_standing({"branch": record.get("branch"),
+                     "tripwires": record.get("tripwires"),
+                     "tripwires_muted": record.get("tripwires_muted"),
+                     "round_stall": store.round_stall(),
+                     "open_tripwires": store.open_tripwires(),
+                     "lint_debt": store.lint_debt(),
+                     "pin_debt": store.pin_debt()})
     return 0
 
 
-def _print_tripwires(tripwires):
-    """Name tripwires fired by this batch — divergence must be visible at
-    fire time, not rounds later via a status count (v0.3 assessment)."""
-    for t in tripwires or []:
+STANDING_TRIPWIRE_CAP = 5
+
+
+def _print_standing(resp):
+    """Print everything that must ride EVERY apply response.
+
+    Split out and called from all three of `cmd_apply`'s exits because
+    the queued branch used to `return 0` before the nag block — the
+    third defect on those same eight lines in three assessments (v0.4
+    patched one; v0.6 assessment r3-6 found the rest). A shared epilogue
+    behind a single call is the point: an early return can no longer
+    take a subset of the contract with it.
+
+    What rides, and why each is here:
+
+    - `BRANCH` when it is not main. A user save toasts its branch and an
+      agent revision named none, so the product already held the
+      position and applied it to one of the two write paths (r3-14).
+    - `TRIPWIRE` — fired by THIS batch, visible at fire time rather than
+      rounds later via a status count (v0.3).
+    - `OPEN_TRIPWIRE` — standing, unresolved. Tripwire debt was the only
+      nag you had to PULL, via `GET api/state`; lint and pin debt are
+      pushed. ops-reference.md draws no such distinction, and a tripwire
+      persists until resolved, so it is standing by construction (r3-9).
+    - `LINT_DEBT` / `PIN_DEBT` — cross-artifact drift in artifacts this
+      batch did not touch, and pins ageing (v0.2).
+
+    Args:
+        resp: An apply response — server, queued or offline-shaped.
+    """
+    if resp.get("branch") and resp["branch"] != "main":
+        print_kv(branch=resp["branch"])
+    for t in resp.get("tripwires") or []:
         print("TRIPWIRE=%s %s" % (t.get("id", "?"), t.get("question", "")))
-
-
-def _print_debt(lint_debt, pin_debt):
-    """Standing nags (v0.2): every apply restates cross-artifact drift."""
+    rs = resp.get("round_stall")
+    if rs:
+        print("ROUND_STALL=%d commits since the user's last canvas save, "
+              "with questions open — if their moves arrived in chat, "
+              "advance the round: {\"op\": \"registry\", \"action\": "
+              "\"set_round\", \"round\": %d}"
+              % (rs["commits"], rs["round"] + 1))
+    for msg in resp.get("tripwires_muted") or []:
+        # WP5 (D10): a rename swallowed by a divergence ruling is armed
+        # silence — visible, while the ruling still holds
+        print("TRIPWIRE_MUTED=%s" % msg)
+    standing = resp.get("open_tripwires") or []
+    for t in standing[:STANDING_TRIPWIRE_CAP]:
+        print("OPEN_TRIPWIRE=%s %s" % (t.get("id", "?"),
+                                       t.get("question", "")))
+    if len(standing) > STANDING_TRIPWIRE_CAP:
+        print("OPEN_TRIPWIRE=+%d more — canvas.py status, or GET api/state"
+              % (len(standing) - STANDING_TRIPWIRE_CAP))
+    lint_debt, pin_debt = resp.get("lint_debt"), resp.get("pin_debt")
     if lint_debt:
         print("LINT_DEBT=" + "; ".join(
             "%s %s" % (aid, "/".join("%d%s" % (v, k[0].upper())
@@ -8347,10 +9961,20 @@ def cmd_x_geometry(args):
     for e in els:
         cont = ix.get(e.get("containerId"))
         drawn = None
+        wrap_note = None
         if e.get("type") == "text" and cont is not None and \
                 cont.get("type") in ("arrow", "line"):
             drawn = arrow_label_anchor(cont, e)
-        if args.diff and drawn is None:
+        if e.get("type") == "text" and e.get("autoResize") is False:
+            # WP4 (r4-12): composed value texts were silently out of this
+            # command's scope — x-geometry printed NOTHING about the '62'
+            # tile whose stored width the live editor wrapped. Compare
+            # stored width against the measured need.
+            need, _ = text_dims(e.get("text") or "", e.get("fontSize", 16))
+            if e.get("width", 0) + 0.5 < need:
+                wrap_note = ("stored width %d < needs %d — the editor "
+                             "WRAPS this" % (e.get("width", 0), need))
+        if args.diff and drawn is None and wrap_note is None:
             continue
         row = "%-24s %-10s (%d,%d) %dx%d" % (
             e["id"][:24], e.get("type", "?"), e.get("x", 0), e.get("y", 0),
@@ -8358,6 +9982,8 @@ def cmd_x_geometry(args):
         if drawn is not None:
             dx = ((e["x"] - drawn[0]) ** 2 + (e["y"] - drawn[1]) ** 2) ** 0.5
             row += "  drawn=(%d,%d) drift=%dpx" % (drawn[0], drawn[1], dx)
+        if wrap_note:
+            row += "  " + wrap_note
         print(row)
     return 0
 
@@ -8469,26 +10095,71 @@ def cmd_x_as_user(args):
         die("ERROR=could not read artifact %r (%s)" % (aid, e), 2)
     ix = {e["id"]: e for e in els}
     if verb == "rename":
+        # Fidelity (WP6/D28): the real client re-measures on rename.
+        # This driver assigned text and left the OLD width/height, so it
+        # produced state the product itself never writes — the exact
+        # drift assessor-adapter capability 1 exists to prevent, in its
+        # own reference implementation.
         lbl = next((t for t in els if t.get("type") == "text"
                     and t.get("containerId") == args.target), None)
-        if lbl is None and ix.get(args.target, {}).get("type") == "text":
-            lbl = ix[args.target]
+        host = ix.get(args.target)
+        if lbl is None and host is not None and \
+                host.get("type") == "text":
+            lbl, host = host, None
         if lbl is None:
             die("ERROR=no label on %r" % args.target, 2)
         lbl["text"] = lbl["originalText"] = args.text
+        if lbl.get("autoResize", True):
+            lbl["width"], lbl["height"] = text_dims(
+                args.text, lbl.get("fontSize", 16))
+        if host is not None and host.get("type") in (
+                "rectangle", "diamond", "ellipse", "frame"):
+            fit_label_in(host, lbl)
+            recenter_label(els, host)
     elif verb == "move":
+        # The real client drags whole GROUPS: composed decoration parts
+        # travel with their host. This driver moved only the host and
+        # its bound label — which manufactured half of r4-10 (the
+        # "orphaned X strokes" observations came through here, not
+        # through a real user gesture).
         el = ix.get(args.target)
         if el is None:
             die("ERROR=no element %r" % args.target, 2)
+        gset = set(el.get("groupIds") or [])
         for other in els:
+            grouped = gset and (set(other.get("groupIds") or []) & gset)
             if other is el or other.get("containerId") == el["id"] or \
-                    other.get("frameId") == el["id"]:
+                    other.get("frameId") == el["id"] or grouped:
                 other["x"] = other.get("x", 0) + args.dx
                 other["y"] = other.get("y", 0) + args.dy
     elif verb == "delete":
+        # Parity with the real client: deleting a host takes its whole
+        # group (Excalidraw selects groups); a part alone still works by
+        # naming the part id directly.
         drop = set(args.target.split(","))
+        group_drop = set()
+        for tid in drop:
+            t = ix.get(tid)
+            for g in (t.get("groupIds") or []) if t else []:
+                if (t.get("customData") or {}).get("kind"):
+                    group_drop.add(g)
         els = [e for e in els if e["id"] not in drop
-               and e.get("containerId") not in drop]
+               and e.get("containerId") not in drop
+               and not (group_drop and
+                        set(e.get("groupIds") or []) & group_drop)]
+    elif verb == "toggle":
+        # The uncheck gesture the benchmark scripts and no run could
+        # perform (D26): flip customData.checked ONLY — commit-time
+        # reconciliation composes the glyph, which makes this verb a
+        # standing proof of the WP3 invariant.
+        el = ix.get(args.target)
+        if el is None:
+            die("ERROR=no element %r" % args.target, 2)
+        cd = dict(el.get("customData") or {})
+        if cd.get("kind") not in ("checkbox", "toggle"):
+            die("ERROR=%r is not a checkbox/toggle" % args.target, 2)
+        cd["checked"] = not cd.get("checked")
+        el["customData"] = cd
     elif verb == "tooltip":
         el = ix.get(args.target)
         if el is None:
@@ -8547,6 +10218,13 @@ def main(argv=None):
                    help="event seq to wait after (default: now)")
     p.add_argument("--timeout", type=int, default=540,
                    help="max seconds to wait (hard-capped at 540)")
+    p.add_argument("--for", dest="for_whom", default="user",
+                   choices=("user", "agent", "any"),
+                   help="whose events wake you (default user — your own "
+                        "agent_revision echoes are skipped)")
+    p.add_argument("--types", default=None,
+                   help="comma-separated exact event types (overrides "
+                        "--for)")
     p = sub.add_parser("export", help="write an artifact to SVG, optionally "
                                       "carrying its tooltips as footnotes")
     p.add_argument("--artifact", default=None)
@@ -8578,9 +10256,9 @@ def main(argv=None):
     p.add_argument("--artifact")
     p.add_argument("--diff", action="store_true")
     p = sub.add_parser("x-as-user")
-    p.add_argument("verb", choices=["rename", "move", "delete", "note",
-                                    "ask", "tooltip", "answer", "config",
-                                    "checkout"])
+    p.add_argument("verb", choices=["rename", "move", "delete", "toggle",
+                                    "note", "ask", "tooltip", "answer",
+                                    "config", "checkout"])
     p.add_argument("--artifact")
     p.add_argument("--target", default="")
     p.add_argument("--text", default="")

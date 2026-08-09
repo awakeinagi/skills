@@ -1,0 +1,2645 @@
+{
+ "artifacts": {
+  "dashboard": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "chart-equity-x1",
+     "kind": "line",
+     "label": "chart-equity-x1",
+     "ops": [
+      0,
+      1
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 272,
+       "label": "chart-equity-x1",
+       "low_signal": true,
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "chart-equity-x1"
+      },
+      "resized": {
+       "label": "chart-equity-x1"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "chart-equity-x2",
+     "kind": "line",
+     "label": "chart-equity-x2",
+     "ops": [
+      2,
+      3
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 192,
+       "label": "chart-equity-x2",
+       "low_signal": true,
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "chart-equity-x2"
+      },
+      "resized": {
+       "label": "chart-equity-x2"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "chart-sector-x1",
+     "kind": "line",
+     "label": "chart-sector-x1",
+     "ops": [
+      4,
+      5
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 272,
+       "label": "chart-sector-x1",
+       "low_signal": true,
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "chart-sector-x1"
+      },
+      "resized": {
+       "label": "chart-sector-x1"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "chart-sector-x2",
+     "kind": "line",
+     "label": "chart-sector-x2",
+     "ops": [
+      6,
+      7
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 192,
+       "label": "chart-sector-x2",
+       "low_signal": true,
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "chart-sector-x2"
+      },
+      "resized": {
+       "label": "chart-sector-x2"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "chart-drawdown-x1",
+     "kind": "line",
+     "label": "chart-drawdown-x1",
+     "ops": [
+      8,
+      9
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 272,
+       "label": "chart-drawdown-x1",
+       "low_signal": true,
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "chart-drawdown-x1"
+      },
+      "resized": {
+       "label": "chart-drawdown-x1"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "chart-drawdown-x2",
+     "kind": "line",
+     "label": "chart-drawdown-x2",
+     "ops": [
+      10,
+      11
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 192,
+       "label": "chart-drawdown-x2",
+       "low_signal": true,
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "chart-drawdown-x2"
+      },
+      "resized": {
+       "label": "chart-drawdown-x2"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Excess Return",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "tooltip_added": {
+       "label": "Excess Return",
+       "text": "Renamed from **Alpha** to **Excess Return**, Aug 2026.\n\nI read that as a precisi"
+      }
+     },
+     "verb": "tooltip_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "shelf",
+     "kind": "block",
+     "label": "Reports",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Reports",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -272,
+       "label": "Reports",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Reports"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-weekly",
+     "kind": "block",
+     "label": "Weekly Brief · Mon 4 Aug",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Weekly Brief · Mon 4 Aug",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -272,
+       "label": "Weekly Brief · Mon 4 Aug",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Weekly Brief · Mon 4 Aug"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-risk",
+     "kind": "block",
+     "label": "Risk Deep-Dive · 1 Aug",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Risk Deep-Dive · 1 Aug",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -272,
+       "label": "Risk Deep-Dive · 1 Aug",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Risk Deep-Dive · 1 Aug"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest",
+     "kind": "block",
+     "label": "Signals Digest · 8 Aug",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Signals Digest · 8 Aug",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -272,
+       "label": "Signals Digest · 8 Aug",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Signals Digest · 8 Aug"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-6785c522",
+     "kind": "rectangle",
+     "label": "KPI row first — the number IS the product. Charts can shrink.",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -1300,
+       "dy": 748,
+       "label": "KPI row first — the number IS the product. Charts can shrink.",
+       "spatial": "moved left-down"
+      },
+      "reordered": {
+       "label": "KPI row first — the number IS the product. Charts can shrink."
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "chart-equity",
+     "kind": "image",
+     "label": "Equity curve vs benchmark",
+     "ops": [
+      18,
+      19
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Equity curve vs benchmark",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -48,
+       "label": "Equity curve vs benchmark",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Equity curve vs benchmark"
+      },
+      "resized": {
+       "label": "Equity curve vs benchmark"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "chart-sector",
+     "kind": "image",
+     "label": "Sector heat map",
+     "ops": [
+      20,
+      21
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Sector heat map",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -48,
+       "label": "Sector heat map",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Sector heat map"
+      },
+      "resized": {
+       "label": "Sector heat map"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "chart-drawdown",
+     "kind": "image",
+     "label": "Drawdown",
+     "ops": [
+      22,
+      23
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Drawdown",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -48,
+       "label": "Drawdown",
+       "spatial": "moved up"
+      },
+      "reordered": {
+       "label": "Drawdown"
+      },
+      "resized": {
+       "label": "Drawdown"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-backdrop",
+     "kind": "rectangle",
+     "label": "reader-backdrop",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "reader-backdrop"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-r",
+     "kind": "nav",
+     "label": "ARGUS",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "ARGUS"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-panel",
+     "kind": "block",
+     "label": "Weekly Brief — week ending 8 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Weekly Brief — week ending 8 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-close",
+     "kind": "button",
+     "label": "✕",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "✕"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-meta",
+     "kind": "block",
+     "label": "06:00 run · 5 sources ok · no stale flag",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "06:00 run · 5 sources ok · no stale flag"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-synthesis",
+     "kind": "block",
+     "label": "Synthesis",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Synthesis"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-positions",
+     "kind": "block",
+     "label": "Positions & exposure",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Positions & exposure"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-signals",
+     "kind": "block",
+     "label": "Signals this week",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Signals this week"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-download",
+     "kind": "button",
+     "label": "Download PDF",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Download PDF"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y"
+     ],
+     "consequence_of": null,
+     "id": "usernote-6785c522-t",
+     "kind": "text",
+     "label": "KPI row first — the number IS the produc",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "KPI row first — the number IS the produc"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "screen-dashboard",
+     "kind": "frame",
+     "label": "Dashboard",
+     "ops": [],
+     "semantic": {
+      "reading_order_changed": {
+       "order": [
+        "ARGUS",
+        "Dashboard",
+        "Admin",
+        "last run: 06:00 ✓",
+        "Portfolio value",
+        "Excess Return",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Reports",
+        "Weekly Brief · Mon 4 Aug",
+        "Risk Deep-Dive · 1 Aug",
+        "Signals Digest · 8 Aug",
+        "Equity curve vs benchmark",
+        "Sector heat map",
+        "Drawdown"
+       ],
+       "screen": "Dashboard",
+       "was": [
+        "ARGUS",
+        "Dashboard",
+        "Admin",
+        "last run: 06:00 ✓",
+        "Portfolio value",
+        "Excess Return",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Reports",
+        "Equity curve vs benchmark",
+        "Weekly Brief · Mon 4 Aug",
+        "Sector heat map",
+        "Risk Deep-Dive · 1 Aug",
+        "Signals Digest · 8 Aug",
+        "Drawdown"
+       ]
+      }
+     },
+     "verb": "reading_order_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b0d5d45a72",
+        "x_of": "chart-equity"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "dc042055de",
+        "x_of": "chart-equity"
+       }
+      }
+     ],
+     "id": "chart-equity-x1",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      304
+     ],
+     "id": "chart-equity-x1",
+     "op": "move",
+     "to": [
+      80,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "06fbba1bee",
+        "x_of": "chart-equity"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "e96f25d6a8",
+        "x_of": "chart-equity"
+       }
+      }
+     ],
+     "id": "chart-equity-x2",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      544
+     ],
+     "id": "chart-equity-x2",
+     "op": "move",
+     "to": [
+      80,
+      736
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "202e659c15",
+        "x_of": "chart-sector"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "e5758f0533",
+        "x_of": "chart-sector"
+       }
+      }
+     ],
+     "id": "chart-sector-x1",
+     "op": "mod"
+    },
+    {
+     "from": [
+      500,
+      304
+     ],
+     "id": "chart-sector-x1",
+     "op": "move",
+     "to": [
+      500,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b34df81dc4",
+        "x_of": "chart-sector"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "ffe7bb2b46",
+        "x_of": "chart-sector"
+       }
+      }
+     ],
+     "id": "chart-sector-x2",
+     "op": "mod"
+    },
+    {
+     "from": [
+      500,
+      544
+     ],
+     "id": "chart-sector-x2",
+     "op": "move",
+     "to": [
+      500,
+      736
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b9943573c0",
+        "x_of": "chart-drawdown"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b4d2af2476",
+        "x_of": "chart-drawdown"
+       }
+      }
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      304
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "move",
+     "to": [
+      920,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "1d870b5031",
+        "x_of": "chart-drawdown"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "9c236b23c0",
+        "x_of": "chart-drawdown"
+       }
+      }
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      544
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "move",
+     "to": [
+      920,
+      736
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "value": "+3.1%"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Renamed from **Alpha** to **Excess Return**, Aug 2026.\n\nI read that as a precision fix rather than a wording preference: *alpha* implies a risk-adjusted number — return above what the portfolio's exposure would predict — while *excess return* is just return minus benchmark. If the calculation behind this tile is beta-adjusted, the old name was the accurate one and the new one undersells it.",
+        "value": "+3.1%"
+       }
+      }
+     ],
+     "id": "kpi-alpha",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      576
+     ],
+     "id": "shelf",
+     "op": "move",
+     "to": [
+      80,
+      304
+     ]
+    },
+    {
+     "from": [
+      100,
+      624
+     ],
+     "id": "card-weekly",
+     "op": "move",
+     "to": [
+      100,
+      352
+     ]
+    },
+    {
+     "from": [
+      508,
+      624
+     ],
+     "id": "card-risk",
+     "op": "move",
+     "to": [
+      508,
+      352
+     ]
+    },
+    {
+     "from": [
+      916,
+      624
+     ],
+     "id": "card-digest",
+     "op": "move",
+     "to": [
+      916,
+      352
+     ]
+    },
+    {
+     "from": [
+      1360,
+      152
+     ],
+     "id": "usernote-6785c522",
+     "op": "move",
+     "to": [
+      60,
+      900
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      }
+     ],
+     "id": "chart-equity",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      624
+     ],
+     "id": "chart-equity",
+     "op": "move",
+     "to": [
+      80,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      }
+     ],
+     "id": "chart-sector",
+     "op": "mod"
+    },
+    {
+     "from": [
+      500,
+      624
+     ],
+     "id": "chart-sector",
+     "op": "move",
+     "to": [
+      500,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 240,
+       "to": 160
+      }
+     ],
+     "id": "chart-drawdown",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      624
+     ],
+     "id": "chart-drawdown",
+     "op": "move",
+     "to": [
+      920,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 582,
+       "to": 310
+      }
+     ],
+     "id": "shelf-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 694,
+       "to": 422
+      }
+     ],
+     "id": "card-weekly-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 694,
+       "to": 422
+      }
+     ],
+     "id": "card-risk-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 694,
+       "to": 422
+      }
+     ],
+     "id": "card-digest-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1368,
+       "to": 68
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 160,
+       "to": 906
+      }
+     ],
+     "id": "usernote-6785c522-t",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 734,
+       "to": 646
+      }
+     ],
+     "id": "chart-equity-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 734,
+       "to": 646
+      }
+     ],
+     "id": "chart-sector-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 734,
+       "to": 646
+      }
+     ],
+     "id": "chart-drawdown-label",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "screen-dashboard",
+      "screen-reader",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "reader-backdrop",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522",
+      "usernote-6785c522-t"
+     ],
+     "moved": [
+      "reader-backdrop",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "screen-reader",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "reader-backdrop",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "chart-equity-x1",
+     "fact": "resized",
+     "label": "chart-equity-x1"
+    },
+    {
+     "dx": 0,
+     "dy": 272,
+     "element": "chart-equity-x1",
+     "fact": "moved",
+     "label": "chart-equity-x1",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "chart-equity-x2",
+     "fact": "resized",
+     "label": "chart-equity-x2"
+    },
+    {
+     "dx": 0,
+     "dy": 192,
+     "element": "chart-equity-x2",
+     "fact": "moved",
+     "label": "chart-equity-x2",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "chart-sector-x1",
+     "fact": "resized",
+     "label": "chart-sector-x1"
+    },
+    {
+     "dx": 0,
+     "dy": 272,
+     "element": "chart-sector-x1",
+     "fact": "moved",
+     "label": "chart-sector-x1",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "chart-sector-x2",
+     "fact": "resized",
+     "label": "chart-sector-x2"
+    },
+    {
+     "dx": 0,
+     "dy": 192,
+     "element": "chart-sector-x2",
+     "fact": "moved",
+     "label": "chart-sector-x2",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "chart-drawdown-x1",
+     "fact": "resized",
+     "label": "chart-drawdown-x1"
+    },
+    {
+     "dx": 0,
+     "dy": 272,
+     "element": "chart-drawdown-x1",
+     "fact": "moved",
+     "label": "chart-drawdown-x1",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "chart-drawdown-x2",
+     "fact": "resized",
+     "label": "chart-drawdown-x2"
+    },
+    {
+     "dx": 0,
+     "dy": 192,
+     "element": "chart-drawdown-x2",
+     "fact": "moved",
+     "label": "chart-drawdown-x2",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "tooltip_added",
+     "label": "Excess Return",
+     "text": "Renamed from **Alpha** to **Excess Return**, Aug 2026.\n\nI read that as a precisi"
+    },
+    {
+     "dx": 0,
+     "dy": -272,
+     "element": "shelf",
+     "fact": "moved",
+     "label": "Reports",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -272,
+     "element": "card-weekly",
+     "fact": "moved",
+     "label": "Weekly Brief · Mon 4 Aug",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -272,
+     "element": "card-risk",
+     "fact": "moved",
+     "label": "Risk Deep-Dive · 1 Aug",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -272,
+     "element": "card-digest",
+     "fact": "moved",
+     "label": "Signals Digest · 8 Aug",
+     "spatial": "moved up"
+    },
+    {
+     "dx": -1300,
+     "dy": 748,
+     "element": "usernote-6785c522",
+     "fact": "moved",
+     "label": "KPI row first — the number IS the product. Charts can shrink.",
+     "spatial": "moved left-down"
+    },
+    {
+     "element": "chart-equity",
+     "fact": "resized",
+     "label": "Equity curve vs benchmark"
+    },
+    {
+     "dx": 0,
+     "dy": -48,
+     "element": "chart-equity",
+     "fact": "moved",
+     "label": "Equity curve vs benchmark",
+     "spatial": "moved up"
+    },
+    {
+     "element": "chart-sector",
+     "fact": "resized",
+     "label": "Sector heat map"
+    },
+    {
+     "dx": 0,
+     "dy": -48,
+     "element": "chart-sector",
+     "fact": "moved",
+     "label": "Sector heat map",
+     "spatial": "moved up"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "resized",
+     "label": "Drawdown"
+    },
+    {
+     "dx": 0,
+     "dy": -48,
+     "element": "chart-drawdown",
+     "fact": "moved",
+     "label": "Drawdown",
+     "spatial": "moved up"
+    },
+    {
+     "element": "reader-backdrop",
+     "fact": "reordered",
+     "label": "reader-backdrop"
+    },
+    {
+     "element": "chart-equity-x1",
+     "fact": "reordered",
+     "label": "chart-equity-x1"
+    },
+    {
+     "element": "chart-equity-x2",
+     "fact": "reordered",
+     "label": "chart-equity-x2"
+    },
+    {
+     "element": "chart-sector-x1",
+     "fact": "reordered",
+     "label": "chart-sector-x1"
+    },
+    {
+     "element": "chart-sector-x2",
+     "fact": "reordered",
+     "label": "chart-sector-x2"
+    },
+    {
+     "element": "chart-drawdown-x1",
+     "fact": "reordered",
+     "label": "chart-drawdown-x1"
+    },
+    {
+     "element": "chart-drawdown-x2",
+     "fact": "reordered",
+     "label": "chart-drawdown-x2"
+    },
+    {
+     "element": "shelf",
+     "fact": "reordered",
+     "label": "Reports"
+    },
+    {
+     "element": "card-weekly",
+     "fact": "reordered",
+     "label": "Weekly Brief · Mon 4 Aug"
+    },
+    {
+     "element": "card-risk",
+     "fact": "reordered",
+     "label": "Risk Deep-Dive · 1 Aug"
+    },
+    {
+     "element": "card-digest",
+     "fact": "reordered",
+     "label": "Signals Digest · 8 Aug"
+    },
+    {
+     "element": "nav-r",
+     "fact": "reordered",
+     "label": "ARGUS"
+    },
+    {
+     "element": "reader-panel",
+     "fact": "reordered",
+     "label": "Weekly Brief — week ending 8 Aug"
+    },
+    {
+     "element": "reader-close",
+     "fact": "reordered",
+     "label": "✕"
+    },
+    {
+     "element": "reader-meta",
+     "fact": "reordered",
+     "label": "06:00 run · 5 sources ok · no stale flag"
+    },
+    {
+     "element": "sec-synthesis",
+     "fact": "reordered",
+     "label": "Synthesis"
+    },
+    {
+     "element": "sec-positions",
+     "fact": "reordered",
+     "label": "Positions & exposure"
+    },
+    {
+     "element": "sec-signals",
+     "fact": "reordered",
+     "label": "Signals this week"
+    },
+    {
+     "element": "reader-download",
+     "fact": "reordered",
+     "label": "Download PDF"
+    },
+    {
+     "element": "usernote-6785c522",
+     "fact": "reordered",
+     "label": "KPI row first — the number IS the product. Charts can shrink."
+    },
+    {
+     "element": "chart-equity",
+     "fact": "reordered",
+     "label": "Equity curve vs benchmark"
+    },
+    {
+     "element": "chart-sector",
+     "fact": "reordered",
+     "label": "Sector heat map"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "reordered",
+     "label": "Drawdown"
+    },
+    {
+     "element": "usernote-6785c522-t",
+     "fact": "reordered",
+     "label": "KPI row first — the number IS the produc"
+    },
+    {
+     "element": "shelf",
+     "fact": "block_moved_within_screen",
+     "label": "Reports",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "card-weekly",
+     "fact": "block_moved_within_screen",
+     "label": "Weekly Brief · Mon 4 Aug",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "card-risk",
+     "fact": "block_moved_within_screen",
+     "label": "Risk Deep-Dive · 1 Aug",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "card-digest",
+     "fact": "block_moved_within_screen",
+     "label": "Signals Digest · 8 Aug",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "chart-equity",
+     "fact": "block_moved_within_screen",
+     "label": "Equity curve vs benchmark",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "chart-sector",
+     "fact": "block_moved_within_screen",
+     "label": "Sector heat map",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "block_moved_within_screen",
+     "label": "Drawdown",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "reading_order_changed",
+     "order": [
+      "ARGUS",
+      "Dashboard",
+      "Admin",
+      "last run: 06:00 ✓",
+      "Portfolio value",
+      "Excess Return",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Reports",
+      "Weekly Brief · Mon 4 Aug",
+      "Risk Deep-Dive · 1 Aug",
+      "Signals Digest · 8 Aug",
+      "Equity curve vs benchmark",
+      "Sector heat map",
+      "Drawdown"
+     ],
+     "screen": "Dashboard",
+     "was": [
+      "ARGUS",
+      "Dashboard",
+      "Admin",
+      "last run: 06:00 ✓",
+      "Portfolio value",
+      "Excess Return",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Reports",
+      "Equity curve vs benchmark",
+      "Weekly Brief · Mon 4 Aug",
+      "Sector heat map",
+      "Risk Deep-Dive · 1 Aug",
+      "Signals Digest · 8 Aug",
+      "Drawdown"
+     ]
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "screen-dashboard",
+      "screen-reader",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "reader-backdrop",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ],
+     "moved": [
+      "reader-backdrop",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "screen-reader",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "reader-backdrop",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522",
+      "usernote-6785c522-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 646,
+       "to": 734
+      }
+     ],
+     "id": "chart-drawdown-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 646,
+       "to": 734
+      }
+     ],
+     "id": "chart-sector-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 646,
+       "to": 734
+      }
+     ],
+     "id": "chart-equity-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 68,
+       "to": 1368
+      },
+      {
+       "attr": "y",
+       "from": 906,
+       "to": 160
+      }
+     ],
+     "id": "usernote-6785c522-t",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 422,
+       "to": 694
+      }
+     ],
+     "id": "card-digest-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 422,
+       "to": 694
+      }
+     ],
+     "id": "card-risk-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 422,
+       "to": 694
+      }
+     ],
+     "id": "card-weekly-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 310,
+       "to": 582
+      }
+     ],
+     "id": "shelf-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      576
+     ],
+     "id": "chart-drawdown",
+     "op": "move",
+     "to": [
+      920,
+      624
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      }
+     ],
+     "id": "chart-drawdown",
+     "op": "mod"
+    },
+    {
+     "from": [
+      500,
+      576
+     ],
+     "id": "chart-sector",
+     "op": "move",
+     "to": [
+      500,
+      624
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      }
+     ],
+     "id": "chart-sector",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      576
+     ],
+     "id": "chart-equity",
+     "op": "move",
+     "to": [
+      80,
+      624
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      }
+     ],
+     "id": "chart-equity",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      900
+     ],
+     "id": "usernote-6785c522",
+     "op": "move",
+     "to": [
+      1360,
+      152
+     ]
+    },
+    {
+     "from": [
+      916,
+      352
+     ],
+     "id": "card-digest",
+     "op": "move",
+     "to": [
+      916,
+      624
+     ]
+    },
+    {
+     "from": [
+      508,
+      352
+     ],
+     "id": "card-risk",
+     "op": "move",
+     "to": [
+      508,
+      624
+     ]
+    },
+    {
+     "from": [
+      100,
+      352
+     ],
+     "id": "card-weekly",
+     "op": "move",
+     "to": [
+      100,
+      624
+     ]
+    },
+    {
+     "from": [
+      80,
+      304
+     ],
+     "id": "shelf",
+     "op": "move",
+     "to": [
+      80,
+      576
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Renamed from **Alpha** to **Excess Return**, Aug 2026.\n\nI read that as a precision fix rather than a wording preference: *alpha* implies a risk-adjusted number — return above what the portfolio's exposure would predict — while *excess return* is just return minus benchmark. If the calculation behind this tile is beta-adjusted, the old name was the accurate one and the new one undersells it.",
+        "value": "+3.1%"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "value": "+3.1%"
+       }
+      }
+     ],
+     "id": "kpi-alpha",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      736
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "move",
+     "to": [
+      920,
+      544
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "9c236b23c0",
+        "x_of": "chart-drawdown"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "1d870b5031",
+        "x_of": "chart-drawdown"
+       }
+      }
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      576
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "move",
+     "to": [
+      920,
+      304
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b4d2af2476",
+        "x_of": "chart-drawdown"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b9943573c0",
+        "x_of": "chart-drawdown"
+       }
+      }
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "mod"
+    },
+    {
+     "from": [
+      500,
+      736
+     ],
+     "id": "chart-sector-x2",
+     "op": "move",
+     "to": [
+      500,
+      544
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "ffe7bb2b46",
+        "x_of": "chart-sector"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b34df81dc4",
+        "x_of": "chart-sector"
+       }
+      }
+     ],
+     "id": "chart-sector-x2",
+     "op": "mod"
+    },
+    {
+     "from": [
+      500,
+      576
+     ],
+     "id": "chart-sector-x1",
+     "op": "move",
+     "to": [
+      500,
+      304
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "e5758f0533",
+        "x_of": "chart-sector"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "202e659c15",
+        "x_of": "chart-sector"
+       }
+      }
+     ],
+     "id": "chart-sector-x1",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      736
+     ],
+     "id": "chart-equity-x2",
+     "op": "move",
+     "to": [
+      80,
+      544
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         -240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "e96f25d6a8",
+        "x_of": "chart-equity"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "06fbba1bee",
+        "x_of": "chart-equity"
+       }
+      }
+     ],
+     "id": "chart-equity-x2",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      576
+     ],
+     "id": "chart-equity-x1",
+     "op": "move",
+     "to": [
+      80,
+      304
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "dc042055de",
+        "x_of": "chart-equity"
+       },
+       "to": {
+        "author": "agent",
+        "role": "decoration",
+        "routed": "b0d5d45a72",
+        "x_of": "chart-equity"
+       }
+      }
+     ],
+     "id": "chart-equity-x1",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard + Reader"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 36,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Excess Return",
+   "name": "Excess Return"
+  }
+ ],
+ "revn": 37,
+ "round": 5,
+ "saved_at": "2026-08-09T11:35:44Z",
+ "selection_at_save": [],
+ "short_id": "e5000e1",
+ "summary": {
+  "headline": "screen Dashboard now reads: ARGUS / Dashboard / Admin / last run: 06:00 ✓ / Portfolio value / Excess Return… (+49 more)",
+  "suppressed": 6,
+  "verb_counts": {
+   "block_moved_within_screen": 7,
+   "moved": 14,
+   "reading_order_changed": 1,
+   "reordered": 24,
+   "resized": 9,
+   "tooltip_added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "finish your demotion: reports take the charts' place, charts shrink underneath"
+}

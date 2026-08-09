@@ -33,7 +33,7 @@ A named structural shape — defined by what the project produces (document gene
 _Avoid_: template, project type
 
 **Mapping**:
-A recorded correspondence between views of the same concept, checked at Save: the agent flags divergence and offers to propagate, never syncing without confirmation. A mapping can be annotated as intentionally divergent. Which artifacts are mapped vs. solo varies per project.
+A recorded correspondence between views of the same concept, checked at Save: the agent flags divergence and offers to propagate, never syncing without confirmation. A mapping can be annotated as intentionally divergent. Which artifacts are mapped vs. solo varies per project. A mapping over several elements and one is a *compression* — several real controls at one resolution, one box at a lower one — not a naming mistake, and it asks one question, not one per pair.
 _Avoid_: link, sync
 
 **Artifact Type**:
@@ -94,3 +94,27 @@ _Avoid_: diff file, event log
 **Project Knowledge**:
 The `project_knowledge/` directory in the target project where the ability stores its outputs — text docs, diagrams, and wireframes.
 _Avoid_: docs dir, knowledge base
+
+**Tripwire**:
+The question raised when one member of a mapping changes in a meaning-changing way and its siblings do not. One question per mapping per Save, answerable in place like a pin, and standing until resolved. Presentation-only edits — a nudge, a re-worded tooltip — never arm one.
+_Avoid_: alert, warning
+
+**Divergence Policy**:
+A standing ruling that a class of change is expected to differ across a mapping's members, so it stops asking. Broader than annotating a single mapping: the policy applies wherever the same kind of change recurs.
+_Avoid_: rule, exception
+
+**Waive**:
+A permanent answer to a one-time lint question, keyed on the artifact it is about (`q25:<artifact>`, `324:<artifact>:<step>`, `var:<artifact>:<block>`). The `reason` **is** the recorded answer, not a silencer — the op refuses without one. A waived question is an answered question.
+_Avoid_: suppression, ignore, mute
+
+**Budget**:
+The complexity ceiling for one artifact — by default 9 nodes and 12 arrows, 8 entities on a domain view, 9 blocks per screen. `set_budget` overrides it for a view whose density is the point, with a required reason the lint restates every run. Legibility physics, not taste: over budget, split the view, never shrink the font.
+_Avoid_: limit, quota
+
+**Declined**:
+The record that the user was offered a view and said no, kept so the offer is not re-made and so View Debt does not nag about something already settled.
+_Avoid_: rejected, skipped
+
+**Branch**:
+An alternative version of the project's drawings, forked from a Save the user checked out. A branch is something to *show* — this way or that way — not a line of work to integrate, so there is no merge. Scenes and the whole branch-scoped Registry (concepts, mappings, pins, tripwires, waives, budgets) follow the branch you are standing on; only the shape of history itself is shared.
+_Avoid_: version, fork, variant

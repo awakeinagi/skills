@@ -1,0 +1,121 @@
+{
+ "artifacts": {
+  "dashboard": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-6785c522",
+     "kind": "rectangle",
+     "label": "KPI row first — the number IS the product. Charts can shrink.",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -560,
+       "label": "KPI row first — the number IS the product. Charts can shrink.",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      60,
+      900
+     ],
+     "id": "usernote-6785c522",
+     "op": "move",
+     "to": [
+      60,
+      340
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 906,
+       "to": 346
+      }
+     ],
+     "id": "usernote-6785c522-t",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": 0,
+     "dy": -560,
+     "element": "usernote-6785c522",
+     "fact": "moved",
+     "label": "KPI row first — the number IS the product. Charts can shrink.",
+     "spatial": "moved up"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 346,
+       "to": 906
+      }
+     ],
+     "id": "usernote-6785c522-t",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      340
+     ],
+     "id": "usernote-6785c522",
+     "op": "move",
+     "to": [
+      60,
+      900
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard + Reader"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 42,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 43,
+ "round": 6,
+ "saved_at": "2026-08-09T11:48:36Z",
+ "selection_at_save": [],
+ "short_id": "4a0e92a",
+ "summary": {
+  "headline": "KPI row first — the number IS the product. Charts can shrink. moved up",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "moved my note up next to the reports shelf where it belongs"
+}

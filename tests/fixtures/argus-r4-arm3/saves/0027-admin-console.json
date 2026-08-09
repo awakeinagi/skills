@@ -1,0 +1,122 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "cb-news",
+     "kind": "checkbox",
+     "label": "News sentiment stream",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "News sentiment stream",
+       "text": "Off = **one** scorer. Sentiment goes, and nothing else.\n\nThis used to cost two —"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "checked": true,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "Off = **two** scorers, not one. Sentiment goes entirely, and the momentum read inside technical signals loses its way of telling a breakout from a knee-jerk."
+       },
+       "to": {
+        "author": "agent",
+        "checked": true,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "Off = **one** scorer. Sentiment goes, and nothing else.\n\nThis used to cost two — the momentum read inside technical signals also read headlines — but that feed was cut as noise in Aug 2026. Recorded because the old answer is written down in several places and this is the correction."
+       }
+      }
+     ],
+     "id": "cb-news",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "cb-news",
+     "fact": "tooltip_changed",
+     "label": "News sentiment stream",
+     "text": "Off = **one** scorer. Sentiment goes, and nothing else.\n\nThis used to cost two —"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "checked": true,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "Off = **one** scorer. Sentiment goes, and nothing else.\n\nThis used to cost two — the momentum read inside technical signals also read headlines — but that feed was cut as noise in Aug 2026. Recorded because the old answer is written down in several places and this is the correction."
+       },
+       "to": {
+        "author": "agent",
+        "checked": true,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "Off = **two** scorers, not one. Sentiment goes entirely, and the momentum read inside technical signals loses its way of telling a breakout from a knee-jerk."
+       }
+      }
+     ],
+     "id": "cb-news",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 26,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 27,
+ "round": 4,
+ "saved_at": "2026-08-09T11:25:14Z",
+ "selection_at_save": [],
+ "short_id": "ec33633",
+ "summary": {
+  "headline": "reworded the tooltip on News sentiment stream",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "correct the news blast radius: one scorer now, not two"
+}

@@ -1,0 +1,4385 @@
+{
+ "artifacts": {
+  "enrichment-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-market-fund",
+     "kind": "arrow",
+     "label": "e-market-fund",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-market-fund"
+      },
+      "rerouted": {
+       "arrow": "e-market-fund"
+      },
+      "transition_added": {
+       "between": [
+        "Market Feed",
+        "Fundamentals Ratios"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-market-tech",
+     "kind": "arrow",
+     "label": "e-market-tech",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-market-tech"
+      },
+      "rerouted": {
+       "arrow": "e-market-tech"
+      },
+      "transition_added": {
+       "between": [
+        "Market Feed",
+        "Technical Signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-edgar-sent",
+     "kind": "arrow",
+     "label": "filing tone",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "filing tone"
+      },
+      "rerouted": {
+       "arrow": "e-edgar-sent"
+      },
+      "transition_added": {
+       "between": [
+        "SEC EDGAR",
+        "Sentiment Scorer"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-edgar-fund",
+     "kind": "arrow",
+     "label": "e-edgar-fund",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-edgar-fund"
+      },
+      "rerouted": {
+       "arrow": "e-edgar-fund"
+      },
+      "transition_added": {
+       "between": [
+        "SEC EDGAR",
+        "Fundamentals Ratios"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-edgar-insider",
+     "kind": "arrow",
+     "label": "Form 4s",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "Form 4s"
+      },
+      "rerouted": {
+       "arrow": "e-edgar-insider"
+      },
+      "transition_added": {
+       "between": [
+        "SEC EDGAR",
+        "Insider Clusters"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-news-sent",
+     "kind": "arrow",
+     "label": "e-news-sent",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-news-sent"
+      },
+      "rerouted": {
+       "arrow": "e-news-sent"
+      },
+      "transition_added": {
+       "between": [
+        "News Stream",
+        "Sentiment Scorer"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-news-tech",
+     "kind": "arrow",
+     "label": "headlines",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "headlines"
+      },
+      "rerouted": {
+       "arrow": "e-news-tech"
+      },
+      "transition_added": {
+       "between": [
+        "News Stream",
+        "Technical Signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-sent-out",
+     "kind": "arrow",
+     "label": "e-sent-out",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-sent-out"
+      },
+      "rerouted": {
+       "arrow": "e-sent-out"
+      },
+      "transition_added": {
+       "between": [
+        "Sentiment Scorer",
+        "Scored Signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-fund-out",
+     "kind": "arrow",
+     "label": "e-fund-out",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-fund-out"
+      },
+      "rerouted": {
+       "arrow": "e-fund-out"
+      },
+      "transition_added": {
+       "between": [
+        "Fundamentals Ratios",
+        "Scored Signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-insider-out",
+     "kind": "arrow",
+     "label": "e-insider-out",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-insider-out"
+      },
+      "rerouted": {
+       "arrow": "e-insider-out"
+      },
+      "transition_added": {
+       "between": [
+        "Insider Clusters",
+        "Scored Signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-tech-out",
+     "kind": "arrow",
+     "label": "e-tech-out",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-tech-out"
+      },
+      "rerouted": {
+       "arrow": "e-tech-out"
+      },
+      "transition_added": {
+       "between": [
+        "Technical Signals",
+        "Scored Signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "src-market",
+     "kind": "source",
+     "label": "Market Feed",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Market Feed"
+      },
+      "step_added": {
+       "label": "Market Feed"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "src-edgar",
+     "kind": "source",
+     "label": "SEC EDGAR",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "SEC EDGAR"
+      },
+      "step_added": {
+       "label": "SEC EDGAR"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "src-news",
+     "kind": "source",
+     "label": "News Stream",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "News Stream"
+      },
+      "step_added": {
+       "label": "News Stream"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sentiment",
+     "kind": "agent",
+     "label": "Sentiment Scorer",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "agent",
+       "label": "Sentiment Scorer"
+      },
+      "step_added": {
+       "label": "Sentiment Scorer"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "fundamentals",
+     "kind": "transform",
+     "label": "Fundamentals Ratios",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Fundamentals Ratios"
+      },
+      "step_added": {
+       "label": "Fundamentals Ratios"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "insider",
+     "kind": "transform",
+     "label": "Insider Clusters",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Insider Clusters"
+      },
+      "step_added": {
+       "label": "Insider Clusters"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "technical",
+     "kind": "transform",
+     "label": "Technical Signals",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Technical Signals"
+      },
+      "step_added": {
+       "label": "Technical Signals"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "scored-signals",
+     "kind": "store",
+     "label": "Scored Signals",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Scored Signals"
+      },
+      "step_added": {
+       "label": "Scored Signals"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-sentiment-unsure",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "What does the sentiment scorer do when it is unsure — is 0.70 the gate, and does a 0.62 signal vanish or get published as weak?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-technical-news",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      31
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Why do technical signals read the news stream? That is the one arrow here I would not have drawn."
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "fundamentals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 100,
+      "id": "e-market-fund",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        20,
+        0
+       ],
+       [
+        20,
+        100
+       ],
+       [
+        240,
+        100
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1631399994,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-market",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 100
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 396,
+      "id": "e-market-tech",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        40,
+        0
+       ],
+       [
+        40,
+        396
+       ],
+       [
+        240,
+        396
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 991116856,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-market",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 124
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-edgar-sent-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 256,
+      "id": "e-edgar-sent",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        60,
+        0
+       ],
+       [
+        60,
+        -256
+       ],
+       [
+        240,
+        -256
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 599350274,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 296
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "fundamentals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 88,
+      "id": "e-edgar-fund",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        80,
+        0
+       ],
+       [
+        80,
+        -88
+       ],
+       [
+        240,
+        -88
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1173309627,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 312
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-edgar-insider-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "insider",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "e-edgar-insider",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        100,
+        0
+       ],
+       [
+        100,
+        44
+       ],
+       [
+        240,
+        44
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 574822291,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 328
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 436,
+      "id": "e-news-sent",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ],
+       [
+        120,
+        -436
+       ],
+       [
+        240,
+        -436
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2057664725,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-news",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 500
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-news-tech-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ],
+       [
+        140,
+        20
+       ],
+       [
+        240,
+        20
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1188913774,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-news",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 524
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 220,
+      "id": "e-sent-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        40,
+        0
+       ],
+       [
+        40,
+        220
+       ],
+       [
+        240,
+        220
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1995758794,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 52
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "e-fund-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        80,
+        0
+       ],
+       [
+        80,
+        76
+       ],
+       [
+        240,
+        76
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1167190217,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "fundamentals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 212
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 72,
+      "id": "e-insider-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ],
+       [
+        120,
+        -72
+       ],
+       [
+        240,
+        -72
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1210756095,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "insider",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 372
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 220,
+      "id": "e-tech-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ],
+       [
+        160,
+        -220
+       ],
+       [
+        240,
+        -220
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1707064462,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 532
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-market-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-market-tech",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Read by fundamentals (prices) and technical signals."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 180446930,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 80
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-edgar-label",
+        "type": "text"
+       },
+       {
+        "id": "e-edgar-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-insider",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "The busiest source: three of the four scorers read it, each for something different — tone, ratios, Form 4s."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 719139577,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 280
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-news-label",
+        "type": "text"
+       },
+       {
+        "id": "e-news-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-news-tech",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "The only source whose absence is survivable in a named, specific way: no sentiment read, and the digest says so."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 934041621,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 480
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sentiment-label",
+        "type": "text"
+       },
+       {
+        "id": "e-edgar-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-news-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-sent-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "Drawn as an **agent** node, not a transform, because judging tone is not deterministic work.\n\nThat is a claim, and it is the one that makes the confidence threshold matter. If this is really a lexicon or a fixed classifier, tell me and I will demote it."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "sentiment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1131609387,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 20
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "fundamentals-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-fund-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Filings for the line items, prices for anything with a market value in the denominator."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "fundamentals",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1484348777,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 180
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "insider-label",
+        "type": "text"
+       },
+       {
+        "id": "e-edgar-insider",
+        "type": "arrow"
+       },
+       {
+        "id": "e-insider-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "EDGAR only. Form 4s, nothing else — the narrowest and most self-contained of the four."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "insider",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 549418746,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 340
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "technical-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-tech",
+        "type": "arrow"
+       },
+       {
+        "id": "e-news-tech",
+        "type": "arrow"
+       },
+       {
+        "id": "e-tech-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Market feed, plus the news stream — which is the one read on this diagram I did not expect."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "technical",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 535527598,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 500
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "scored-signals-label",
+        "type": "text"
+       },
+       {
+        "id": "e-sent-out",
+        "type": "arrow"
+       },
+       {
+        "id": "e-fund-out",
+        "type": "arrow"
+       },
+       {
+        "id": "e-insider-out",
+        "type": "arrow"
+       },
+       {
+        "id": "e-tech-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "What leaves enrichment and goes to the risk model.\n\nClick through to the run flow to see where this lands."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "scored-signals",
+      "isDeleted": false,
+      "link": "artifact:argus-run-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 402076650,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 900,
+      "y": 260
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "src-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1217864642,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 88,
+      "y": 102
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "src-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 735578747,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 97,
+      "y": 302
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "src-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News Stream",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1587628468,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News Stream",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 88,
+      "y": 502
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sentiment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sentiment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sentiment Scorer",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 743451177,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sentiment Scorer",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 153,
+      "x": 484,
+      "y": 42
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "fundamentals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "fundamentals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Fundamentals Ratios",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 950062792,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Fundamentals Ratios",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 472,
+      "y": 192
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "insider",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "insider-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Insider Clusters",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 478624770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Insider Clusters",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 153,
+      "x": 484,
+      "y": 362
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "technical",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "technical-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Technical Signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 666167622,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Technical Signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 478,
+      "y": 522
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "scored-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "scored-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Scored Signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 301167079,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Scored Signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 923,
+      "y": 282
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-edgar-sent",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-edgar-sent-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "filing tone",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1226469718,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "filing tone",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 228,
+      "y": 98
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-edgar-insider",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-edgar-insider-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Form 4s",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 959404700,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Form 4s",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 286,
+      "y": 360
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-news-tech",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "headlines",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1382404367,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "headlines",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 307,
+      "y": 514
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What does the sentiment scorer do when it is unsure — is 0.70 the gate, and does a 0.62 signal vanish or get published as weak?",
+       "role": "pin",
+       "status": "open",
+       "target": "sentiment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-sentiment-unsure",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1880563195,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 668,
+      "y": 12
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Why do technical signals read the news stream? That is the one arrow here I would not have drawn.",
+       "role": "pin",
+       "status": "open",
+       "target": "technical"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-technical-news",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 844603923,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 668,
+      "y": 492
+     },
+     "index": 31,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "e-market-fund",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-market-fund"
+    },
+    {
+     "element": "e-market-tech",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-market-tech"
+    },
+    {
+     "element": "e-edgar-sent",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "filing tone"
+    },
+    {
+     "element": "e-edgar-fund",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-edgar-fund"
+    },
+    {
+     "element": "e-edgar-insider",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "Form 4s"
+    },
+    {
+     "element": "e-news-sent",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-news-sent"
+    },
+    {
+     "element": "e-news-tech",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "headlines"
+    },
+    {
+     "element": "e-sent-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-sent-out"
+    },
+    {
+     "element": "e-fund-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-fund-out"
+    },
+    {
+     "element": "e-insider-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-insider-out"
+    },
+    {
+     "element": "e-tech-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-tech-out"
+    },
+    {
+     "element": "src-market",
+     "fact": "added",
+     "kind": "source",
+     "label": "Market Feed"
+    },
+    {
+     "element": "src-edgar",
+     "fact": "added",
+     "kind": "source",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "src-news",
+     "fact": "added",
+     "kind": "source",
+     "label": "News Stream"
+    },
+    {
+     "element": "sentiment",
+     "fact": "added",
+     "kind": "agent",
+     "label": "Sentiment Scorer"
+    },
+    {
+     "element": "fundamentals",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Fundamentals Ratios"
+    },
+    {
+     "element": "insider",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Insider Clusters"
+    },
+    {
+     "element": "technical",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Technical Signals"
+    },
+    {
+     "element": "scored-signals",
+     "fact": "added",
+     "kind": "store",
+     "label": "Scored Signals"
+    },
+    {
+     "element": "pin-sentiment-unsure",
+     "fact": "pin_added",
+     "question": "What does the sentiment scorer do when it is unsure — is 0.70 the gate, and does a 0.62 signal vanish or get published as weak?"
+    },
+    {
+     "element": "pin-technical-news",
+     "fact": "pin_added",
+     "question": "Why do technical signals read the news stream? That is the one arrow here I would not have drawn."
+    },
+    {
+     "between": [
+      "Market Feed",
+      "Fundamentals Ratios"
+     ],
+     "element": "e-market-fund",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Market Feed",
+      "Technical Signals"
+     ],
+     "element": "e-market-tech",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "SEC EDGAR",
+      "Sentiment Scorer"
+     ],
+     "element": "e-edgar-sent",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "SEC EDGAR",
+      "Fundamentals Ratios"
+     ],
+     "element": "e-edgar-fund",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "SEC EDGAR",
+      "Insider Clusters"
+     ],
+     "element": "e-edgar-insider",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "News Stream",
+      "Sentiment Scorer"
+     ],
+     "element": "e-news-sent",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "News Stream",
+      "Technical Signals"
+     ],
+     "element": "e-news-tech",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Sentiment Scorer",
+      "Scored Signals"
+     ],
+     "element": "e-sent-out",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Fundamentals Ratios",
+      "Scored Signals"
+     ],
+     "element": "e-fund-out",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Insider Clusters",
+      "Scored Signals"
+     ],
+     "element": "e-insider-out",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Technical Signals",
+      "Scored Signals"
+     ],
+     "element": "e-tech-out",
+     "fact": "transition_added"
+    },
+    {
+     "element": "src-market",
+     "fact": "step_added",
+     "label": "Market Feed"
+    },
+    {
+     "element": "src-edgar",
+     "fact": "step_added",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "src-news",
+     "fact": "step_added",
+     "label": "News Stream"
+    },
+    {
+     "element": "sentiment",
+     "fact": "step_added",
+     "label": "Sentiment Scorer"
+    },
+    {
+     "element": "fundamentals",
+     "fact": "step_added",
+     "label": "Fundamentals Ratios"
+    },
+    {
+     "element": "insider",
+     "fact": "step_added",
+     "label": "Insider Clusters"
+    },
+    {
+     "element": "technical",
+     "fact": "step_added",
+     "label": "Technical Signals"
+    },
+    {
+     "element": "scored-signals",
+     "fact": "step_added",
+     "label": "Scored Signals"
+    },
+    {
+     "arrow": "e-market-fund",
+     "element": "e-market-fund",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-market-tech",
+     "element": "e-market-tech",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-edgar-sent",
+     "element": "e-edgar-sent",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-edgar-fund",
+     "element": "e-edgar-fund",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-edgar-insider",
+     "element": "e-edgar-insider",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-news-sent",
+     "element": "e-news-sent",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-news-tech",
+     "element": "e-news-tech",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-sent-out",
+     "element": "e-sent-out",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-fund-out",
+     "element": "e-fund-out",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-insider-out",
+     "element": "e-insider-out",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-tech-out",
+     "element": "e-tech-out",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Why do technical signals read the news stream? That is the one arrow here I would not have drawn.",
+       "role": "pin",
+       "status": "open",
+       "target": "technical"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-technical-news",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 844603923,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 668,
+      "y": 492
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What does the sentiment scorer do when it is unsure — is 0.70 the gate, and does a 0.62 signal vanish or get published as weak?",
+       "role": "pin",
+       "status": "open",
+       "target": "sentiment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-sentiment-unsure",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1880563195,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 668,
+      "y": 12
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-news-tech",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "headlines",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1382404367,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "headlines",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 307,
+      "y": 514
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-edgar-insider",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-edgar-insider-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Form 4s",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 959404700,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Form 4s",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 286,
+      "y": 360
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-edgar-sent",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-edgar-sent-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "filing tone",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1226469718,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "filing tone",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 228,
+      "y": 98
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "scored-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "scored-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Scored Signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 301167079,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Scored Signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 923,
+      "y": 282
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "technical",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "technical-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Technical Signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 666167622,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Technical Signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 478,
+      "y": 522
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "insider",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "insider-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Insider Clusters",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 478624770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Insider Clusters",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 153,
+      "x": 484,
+      "y": 362
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "fundamentals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "fundamentals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Fundamentals Ratios",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 950062792,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Fundamentals Ratios",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 472,
+      "y": 192
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sentiment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sentiment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sentiment Scorer",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 743451177,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sentiment Scorer",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 153,
+      "x": 484,
+      "y": 42
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "src-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News Stream",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1587628468,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News Stream",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 88,
+      "y": 502
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "src-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 735578747,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 97,
+      "y": 302
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "src-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1217864642,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 88,
+      "y": 102
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "scored-signals-label",
+        "type": "text"
+       },
+       {
+        "id": "e-sent-out",
+        "type": "arrow"
+       },
+       {
+        "id": "e-fund-out",
+        "type": "arrow"
+       },
+       {
+        "id": "e-insider-out",
+        "type": "arrow"
+       },
+       {
+        "id": "e-tech-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "What leaves enrichment and goes to the risk model.\n\nClick through to the run flow to see where this lands."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "scored-signals",
+      "isDeleted": false,
+      "link": "artifact:argus-run-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 402076650,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 900,
+      "y": 260
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "technical-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-tech",
+        "type": "arrow"
+       },
+       {
+        "id": "e-news-tech",
+        "type": "arrow"
+       },
+       {
+        "id": "e-tech-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Market feed, plus the news stream — which is the one read on this diagram I did not expect."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "technical",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 535527598,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 500
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "insider-label",
+        "type": "text"
+       },
+       {
+        "id": "e-edgar-insider",
+        "type": "arrow"
+       },
+       {
+        "id": "e-insider-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "EDGAR only. Form 4s, nothing else — the narrowest and most self-contained of the four."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "insider",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 549418746,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 340
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "fundamentals-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-fund-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Filings for the line items, prices for anything with a market value in the denominator."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "fundamentals",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1484348777,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 180
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sentiment-label",
+        "type": "text"
+       },
+       {
+        "id": "e-edgar-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-news-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-sent-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "Drawn as an **agent** node, not a transform, because judging tone is not deterministic work.\n\nThat is a claim, and it is the one that makes the confidence threshold matter. If this is really a lexicon or a fixed classifier, tell me and I will demote it."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "sentiment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1131609387,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 460,
+      "y": 20
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-news-label",
+        "type": "text"
+       },
+       {
+        "id": "e-news-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-news-tech",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "The only source whose absence is survivable in a named, specific way: no sentiment read, and the digest says so."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 934041621,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 480
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-edgar-label",
+        "type": "text"
+       },
+       {
+        "id": "e-edgar-sent",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-insider",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "The busiest source: three of the four scorers read it, each for something different — tone, ratios, Form 4s."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 719139577,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 280
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-market-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-fund",
+        "type": "arrow"
+       },
+       {
+        "id": "e-market-tech",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Read by fundamentals (prices) and technical signals."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 180446930,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 80
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 220,
+      "id": "e-tech-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ],
+       [
+        160,
+        -220
+       ],
+       [
+        240,
+        -220
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1707064462,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 532
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 72,
+      "id": "e-insider-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ],
+       [
+        120,
+        -72
+       ],
+       [
+        240,
+        -72
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1210756095,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "insider",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 372
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "e-fund-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        80,
+        0
+       ],
+       [
+        80,
+        76
+       ],
+       [
+        240,
+        76
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1167190217,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "fundamentals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 212
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 220,
+      "id": "e-sent-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        40,
+        0
+       ],
+       [
+        40,
+        220
+       ],
+       [
+        240,
+        220
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1995758794,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 660,
+      "y": 52
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-news-tech-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ],
+       [
+        140,
+        20
+       ],
+       [
+        240,
+        20
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1188913774,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-news",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 524
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 436,
+      "id": "e-news-sent",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ],
+       [
+        120,
+        -436
+       ],
+       [
+        240,
+        -436
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2057664725,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-news",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 500
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-edgar-insider-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "insider",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "e-edgar-insider",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        100,
+        0
+       ],
+       [
+        100,
+        44
+       ],
+       [
+        240,
+        44
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 574822291,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 328
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "fundamentals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 88,
+      "id": "e-edgar-fund",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        80,
+        0
+       ],
+       [
+        80,
+        -88
+       ],
+       [
+        240,
+        -88
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1173309627,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 312
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-edgar-sent-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 256,
+      "id": "e-edgar-sent",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        60,
+        0
+       ],
+       [
+        60,
+        -256
+       ],
+       [
+        240,
+        -256
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 599350274,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 296
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 396,
+      "id": "e-market-tech",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        40,
+        0
+       ],
+       [
+        40,
+        396
+       ],
+       [
+        240,
+        396
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 991116856,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-market",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 124
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "fundamentals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 100,
+      "id": "e-market-fund",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        20,
+        0
+       ],
+       [
+        20,
+        100
+       ],
+       [
+        240,
+        100
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1631399994,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-market",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 100
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Enrichment — who reads what"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 1,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "id": "enrichment",
+   "name": "Enrichment",
+   "view_types": {
+    "enrichment-pipeline": "flow"
+   },
+   "views": [
+    "enrichment-pipeline"
+   ]
+  }
+ ],
+ "revn": 2,
+ "round": 1,
+ "saved_at": "2026-08-09T10:37:32Z",
+ "selection_at_save": [],
+ "short_id": "50e1f10",
+ "summary": {
+  "headline": "rerouted e-market-fund (+50 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 19,
+   "pin_added": 2,
+   "rerouted": 11,
+   "step_added": 8,
+   "transition_added": 11
+  }
+ },
+ "tripwires": [],
+ "user_note": "expand the collapsed Enrichment box: the sparse fan you described, four scorers, seven reads"
+}

@@ -64,7 +64,10 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
 3. **No shared attach points** (seeder + lint WARNING). N arrows on one edge
    of length L attach at `L·k/(N+1)` for k=1..N, ≥12px apart — or use
    binding `focus` values (±0.5 steps) to fan them. Two connectors sharing a
-   point, or parallel runs <12px apart, are flagged.
+   point, or parallel runs <12px apart, are flagged. The auto-fan only moves
+   **server-routed paths of 2 or 3 points** — it will not re-space a path
+   you authored, or one carrying more waypoints than that, and the warning
+   names which of the two disqualified it.
 4. **Ports follow travel direction** (seeder). Use top/bottom ports when
    travel is mainly vertical, side ports only when mainly horizontal. Never
    puncture a side face to reach something above or below.
@@ -112,8 +115,16 @@ These fire as **LAYOUT_ERROR** — the drawing doesn't say what you meant.
 Repair in the same move, before narrating (cosmetic-class, never a second
 proposal):
 
-- **Detached endpoint** — an arrow's geometry doesn't reach the node its
-  binding names.
+- **Detached endpoint** — an arrow's geometry isn't on the border of the
+  node its binding names. Measured as distance to the shape's *perimeter*,
+  so it fires **in both directions**: an endpoint short of the node, and
+  one buried inside it. (Until v0.7 only the outward direction was
+  checked, so an arrowhead stopping 56px inside a box passed while one
+  26px short was an error.)
+- **Binding to nothing** — the element a binding names does not exist,
+  usually because it was deleted. Deletion does *not* cascade: the arrows
+  stay, so the drawing asserts a flow out of nothing until you re-target
+  the binding or delete the arrow with it.
 - **Black hole / miracle node** — in a flow whose kinds require
   through-flow, a node with only inbound (black hole) or only outbound
   (miracle) arrows. Every such gap is a conversation not yet had — turn it

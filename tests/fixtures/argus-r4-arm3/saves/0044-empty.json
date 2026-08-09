@@ -1,0 +1,34 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 43,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "waive",
+   "key": "q12:dashboard:excess-return",
+   "reason": "settled: it is the team's own word, chosen deliberately over 'Alpha' because Alpha overclaimed a risk adjustment this figure does not make"
+  }
+ ],
+ "revn": 44,
+ "round": 7,
+ "saved_at": "2026-08-09T11:50:03Z",
+ "selection_at_save": [],
+ "short_id": "3370a0b",
+ "summary": {
+  "headline": "registry: waive",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "settle the whose-word question on the renamed KPI"
+}

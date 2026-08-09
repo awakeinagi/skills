@@ -1,0 +1,114 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "news-sentiment",
+     "kind": "source",
+     "label": "News Stream",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "News Stream",
+       "text": "Headlines. External vendor.\n\nFeeds **one** scorer: sentiment. It used to feed th"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIt feeds **two** scorers, not one — sentiment, and the momentum read inside technical signals (Dave's, deliberately: it separates a breakout from a knee-jerk to an announcement).\n\nSo a news outage costs two signals, not one. We still ship, and the Digest says so."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nFeeds **one** scorer: sentiment. It used to feed the momentum read inside technical signals too, but that was cut as noise in Aug 2026.\n\nIf this is down at the Cutoff we still ship — without a sentiment read, and the Signals Digest says so."
+       }
+      }
+     ],
+     "id": "news-sentiment",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "news-sentiment",
+     "fact": "tooltip_changed",
+     "label": "News Stream",
+     "text": "Headlines. External vendor.\n\nFeeds **one** scorer: sentiment. It used to feed th"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nFeeds **one** scorer: sentiment. It used to feed the momentum read inside technical signals too, but that was cut as noise in Aug 2026.\n\nIf this is down at the Cutoff we still ship — without a sentiment read, and the Signals Digest says so."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIt feeds **two** scorers, not one — sentiment, and the momentum read inside technical signals (Dave's, deliberately: it separates a breakout from a knee-jerk to an announcement).\n\nSo a news outage costs two signals, not one. We still ship, and the Digest says so."
+       }
+      }
+     ],
+     "id": "news-sentiment",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 27,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 28,
+ "round": 4,
+ "saved_at": "2026-08-09T11:25:16Z",
+ "selection_at_save": [],
+ "short_id": "e099833",
+ "summary": {
+  "headline": "reworded the tooltip on News Stream",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "same correction on the run flow"
+}

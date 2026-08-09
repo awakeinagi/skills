@@ -1,0 +1,831 @@
+{
+ "artifacts": {
+  "dashboard-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest-value",
+     "kind": "text",
+     "label": "today",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "today"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-brief-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Mon 3 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-deepdive-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Mon 3 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value-value",
+     "kind": "text",
+     "label": "$4.82M",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "$4.82M"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha-value",
+     "kind": "text",
+     "label": "+3.1%",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "+3.1%"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment-value",
+     "kind": "text",
+     "label": "62",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "62"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity-x1",
+     "kind": "line",
+     "label": "chart-equity-x1",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "chart-equity-x1"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity-x2",
+     "kind": "line",
+     "label": "chart-equity-x2",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "chart-equity-x2"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap-x1",
+     "kind": "line",
+     "label": "chart-heatmap-x1",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "chart-heatmap-x1"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap-x2",
+     "kind": "line",
+     "label": "chart-heatmap-x2",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "chart-heatmap-x2"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown-x1",
+     "kind": "line",
+     "label": "chart-drawdown-x1",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "chart-drawdown-x1"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown-x2",
+     "kind": "line",
+     "label": "chart-drawdown-x2",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "chart-drawdown-x2"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "dash-header",
+     "kind": "nav",
+     "label": "Argus · Fri 7 Aug · run 06:04",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Argus · Fri 7 Aug · run 06:04"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-var",
+     "kind": "kpi",
+     "label": "VaR (95%, 1-day)",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "VaR (95%, 1-day)"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-run",
+     "kind": "kpi",
+     "label": "Sources in",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Sources in"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest",
+     "kind": "kpi",
+     "label": "Signals Digest",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Signals Digest"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-brief",
+     "kind": "kpi",
+     "label": "Weekly Brief",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Weekly Brief"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-deepdive",
+     "kind": "kpi",
+     "label": "Risk Deep-Dive",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Risk Deep-Dive"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value",
+     "kind": "kpi",
+     "label": "Portfolio value",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Portfolio value"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Alpha",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Alpha"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment",
+     "kind": "kpi",
+     "label": "Sentiment index",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Sentiment index"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-run-tile",
+     "kind": "text",
+     "label": "not on the real screen — wanted",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "not on the real screen — wanted"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity",
+     "kind": "image",
+     "label": "Equity curve vs benchmark",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Equity curve vs benchmark"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap",
+     "kind": "image",
+     "label": "Sector heat map",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Sector heat map"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown",
+     "kind": "image",
+     "label": "Drawdown",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Drawdown"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "from_order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label"
+     ],
+     "moved": [
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "card-digest-value",
+     "fact": "reordered",
+     "label": "today"
+    },
+    {
+     "element": "card-brief-value",
+     "fact": "reordered",
+     "label": "Mon 3 Aug"
+    },
+    {
+     "element": "card-deepdive-value",
+     "fact": "reordered",
+     "label": "Mon 3 Aug"
+    },
+    {
+     "element": "kpi-portfolio-value-value",
+     "fact": "reordered",
+     "label": "$4.82M"
+    },
+    {
+     "element": "kpi-alpha-value",
+     "fact": "reordered",
+     "label": "+3.1%"
+    },
+    {
+     "element": "kpi-sentiment-value",
+     "fact": "reordered",
+     "label": "62"
+    },
+    {
+     "element": "chart-equity-x1",
+     "fact": "reordered",
+     "label": "chart-equity-x1"
+    },
+    {
+     "element": "chart-equity-x2",
+     "fact": "reordered",
+     "label": "chart-equity-x2"
+    },
+    {
+     "element": "chart-heatmap-x1",
+     "fact": "reordered",
+     "label": "chart-heatmap-x1"
+    },
+    {
+     "element": "chart-heatmap-x2",
+     "fact": "reordered",
+     "label": "chart-heatmap-x2"
+    },
+    {
+     "element": "chart-drawdown-x1",
+     "fact": "reordered",
+     "label": "chart-drawdown-x1"
+    },
+    {
+     "element": "chart-drawdown-x2",
+     "fact": "reordered",
+     "label": "chart-drawdown-x2"
+    },
+    {
+     "element": "dash-header",
+     "fact": "reordered",
+     "label": "Argus · Fri 7 Aug · run 06:04"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "reordered",
+     "label": "VaR (95%, 1-day)"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "reordered",
+     "label": "Sources in"
+    },
+    {
+     "element": "card-digest",
+     "fact": "reordered",
+     "label": "Signals Digest"
+    },
+    {
+     "element": "card-brief",
+     "fact": "reordered",
+     "label": "Weekly Brief"
+    },
+    {
+     "element": "card-deepdive",
+     "fact": "reordered",
+     "label": "Risk Deep-Dive"
+    },
+    {
+     "element": "kpi-portfolio-value",
+     "fact": "reordered",
+     "label": "Portfolio value"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "reordered",
+     "label": "Alpha"
+    },
+    {
+     "element": "kpi-sentiment",
+     "fact": "reordered",
+     "label": "Sentiment index"
+    },
+    {
+     "element": "note-run-tile",
+     "fact": "reordered",
+     "label": "not on the real screen — wanted"
+    },
+    {
+     "element": "chart-equity",
+     "fact": "reordered",
+     "label": "Equity curve vs benchmark"
+    },
+    {
+     "element": "chart-heatmap",
+     "fact": "reordered",
+     "label": "Sector heat map"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "reordered",
+     "label": "Drawdown"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page"
+     ],
+     "moved": [
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "kpi-var-value",
+      "kpi-run-value",
+      "kpi-portfolio-value-value",
+      "kpi-alpha-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-heatmap-x1",
+      "chart-heatmap-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "card-digest-value",
+      "card-brief-value",
+      "card-deepdive-value",
+      "kpi-portfolio-value",
+      "kpi-alpha",
+      "kpi-sentiment",
+      "note-run-tile",
+      "chart-equity",
+      "chart-heatmap",
+      "chart-drawdown",
+      "dash-header",
+      "kpi-var",
+      "kpi-run",
+      "kpi-portfolio-value-label",
+      "kpi-alpha-label",
+      "kpi-sentiment-label",
+      "chart-equity-label",
+      "chart-heatmap-label",
+      "chart-drawdown-label",
+      "pin-benchmark",
+      "pin-instrument-sector",
+      "pin-report-page",
+      "card-digest",
+      "card-brief",
+      "card-deepdive",
+      "dash-header-label",
+      "kpi-var-label",
+      "kpi-run-label",
+      "card-digest-label",
+      "card-brief-label",
+      "card-deepdive-label"
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 12,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "annotate_mapping",
+   "index": 3,
+   "kinds": [
+    "label_renamed",
+    "renamed",
+    "value_changed"
+   ],
+   "note": "intentionally-divergent: a KPI tile displays a number a pipeline node computes — the tile's wording and value belong to the screen, the node's identity to the pipeline. Renaming the tile is not renaming the model."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 4,
+   "kinds": [
+    "label_renamed",
+    "renamed",
+    "value_changed"
+   ],
+   "note": "intentionally-divergent: same rule — a displayed count is not the stage that produces it."
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 6,
+   "kinds": [
+    "label_renamed",
+    "renamed",
+    "value_changed"
+   ],
+   "note": "intentionally-divergent: same rule — the tile displays the scorer's rolled-up output."
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-12-1"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-12-2"
+  }
+ ],
+ "revn": 13,
+ "round": 3,
+ "saved_at": "2026-08-09T11:11:40Z",
+ "selection_at_save": [],
+ "short_id": "fc8d90b",
+ "summary": {
+  "headline": "reordered today (+24 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "reordered": 25
+  }
+ },
+ "tripwires": [],
+ "user_note": "settling both tripwires: a tile's wording and value are the screen's business, the node's identity is the pipeline's"
+}

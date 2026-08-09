@@ -1,0 +1,1209 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signal-attr-3",
+     "kind": "text",
+     "label": "scored at",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "scored at",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "pipeline-run",
+     "kind": "entity",
+     "label": "PipelineRun",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "PipelineRun",
+       "text": "The settings snapshot is why a rerun can be compared to an original instead of r"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "signal",
+     "kind": "entity",
+     "label": "Signal",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "attribute_added": {
+       "attribute": "scored at",
+       "entity": "Signal"
+      },
+      "resized": {
+       "label": "Signal"
+      },
+      "tooltip_changed": {
+       "label": "Signal",
+       "text": "**'scored at' is mine, and it is a direct consequence of the partial-rerun findi"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "report-attr-1",
+     "kind": "text",
+     "label": "sections",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "sections"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "report-attr-2",
+     "kind": "text",
+     "label": "period",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "period"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pipeline-run-attr-1",
+     "kind": "text",
+     "label": "settings snapshot",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "settings snapshot"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pipeline-run-attr-2",
+     "kind": "text",
+     "label": "trading day",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "trading day"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pipeline-run-attr-3",
+     "kind": "text",
+     "label": "stale sources",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "stale sources"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signal-attr-1",
+     "kind": "text",
+     "label": "kind",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "kind"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signal-attr-2",
+     "kind": "text",
+     "label": "confidence",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "confidence"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-watchlist-instrument",
+     "kind": "arrow",
+     "label": "covers 1..*",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "relationship_rewired": {
+       "from": "Watchlist→Instrument",
+       "to": "Watchlist→Instrument"
+      }
+     },
+     "verb": "relationship_rewired"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "width",
+      "height",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-signal-instrument",
+     "kind": "arrow",
+     "label": "about 1",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "relationship_rewired": {
+       "from": "Signal→Instrument",
+       "to": "Signal→Instrument"
+      }
+     },
+     "verb": "relationship_rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "signal",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 16,
+      "id": "signal-attr-3",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "scored at",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 175039898,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "scored at",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 612
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 0,
+       "to": 33
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -33,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "instrument",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "instrument",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "22c917c181"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "817760de9a"
+       }
+      }
+     ],
+     "id": "r-watchlist-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 620,
+       "to": 640
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 140
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         140
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "dc42040a47"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "320c9ec40d"
+       }
+      }
+     ],
+     "id": "r-signal-report",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 580,
+       "to": 590
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 440,
+       "to": 507
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 30
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -440,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -507,
+         0
+        ],
+        [
+         -507,
+         30
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "instrument",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "instrument",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a6588b2a14"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7b23de1aec"
+       }
+      }
+     ],
+     "id": "r-signal-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is the load-bearing attribute — it is why a rerun can be compared to an original instead of replacing it.\n\n**stale sources** is run-level, which is today's answer, not the wanted one. You want it on the Signal (only the sentiment ones are stale; insider-cluster is perfectly fresh) and it has not been costed. Written down here so the gap is visible rather than remembered."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is why a rerun can be compared to an original instead of replacing it.\n\n**Known over-claim:** after a partial rerun the snapshot describes the whole day when it only describes a quarter of it. That is an accident of how it was built, not a design — see the scoring time now on Signal.\n\n**stale sources** is run-level, which is today's answer and not the wanted one."
+       }
+      }
+     ],
+     "id": "pipeline-run",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 80,
+       "to": 100
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "Confidence is gated at 0.70 — below it, the Signal exists internally but reaches nothing a client sees.\n\nSo 'published' is a third state this box does not yet carry."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**'scored at' is mine, and it is a direct consequence of the partial-rerun finding.**\n\nA single-pipeline rerun re-scores one pass and leaves the other three alone, so a run's Signals can come from two different moments. In the model as drawn, that situation was *unrepresentable* — which is a decent explanation of how it went unnoticed for so long.\n\nWith a scoring time on the Signal, mixed provenance becomes something the system can state instead of something it merely does."
+       }
+      }
+     ],
+     "id": "signal",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 108,
+       "to": 91
+      }
+     ],
+     "id": "r-watchlist-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 690,
+       "to": 700
+      }
+     ],
+     "id": "r-signal-report-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 446,
+       "to": 398
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 570,
+       "to": 580
+      }
+     ],
+     "id": "r-signal-instrument-label",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "position-attr-1",
+      "position-attr-2",
+      "instrument-attr-1",
+      "instrument-attr-2",
+      "signal-attr-1",
+      "signal-attr-2",
+      "report-attr-1",
+      "report-attr-2",
+      "pipeline-run-attr-1",
+      "pipeline-run-attr-2",
+      "pipeline-run-attr-3",
+      "r-portfolio-position",
+      "r-position-instrument",
+      "r-watchlist-instrument",
+      "r-source-run",
+      "r-run-signal",
+      "r-signal-report",
+      "r-signal-instrument",
+      "portfolio",
+      "position",
+      "instrument",
+      "watchlist",
+      "data-source",
+      "pipeline-run",
+      "signal",
+      "report",
+      "portfolio-label",
+      "position-label",
+      "instrument-label",
+      "watchlist-label",
+      "data-source-label",
+      "pipeline-run-label",
+      "signal-label",
+      "report-label",
+      "r-portfolio-position-label",
+      "r-position-instrument-label",
+      "r-watchlist-instrument-label",
+      "r-source-run-label",
+      "r-run-signal-label",
+      "r-signal-report-label",
+      "r-signal-instrument-label",
+      "pin-rerun-lineage",
+      "pin-watchlist-real"
+     ],
+     "moved": [
+      "report-attr-1",
+      "report-attr-2",
+      "pipeline-run-attr-1",
+      "pipeline-run-attr-2",
+      "pipeline-run-attr-3",
+      "signal-attr-1",
+      "signal-attr-2"
+     ],
+     "op": "reorder",
+     "order": [
+      "position-attr-1",
+      "position-attr-2",
+      "instrument-attr-1",
+      "instrument-attr-2",
+      "report-attr-1",
+      "report-attr-2",
+      "pipeline-run-attr-1",
+      "pipeline-run-attr-2",
+      "pipeline-run-attr-3",
+      "signal-attr-1",
+      "signal-attr-2",
+      "signal-attr-3",
+      "r-portfolio-position",
+      "r-position-instrument",
+      "r-watchlist-instrument",
+      "r-source-run",
+      "r-run-signal",
+      "r-signal-report",
+      "r-signal-instrument",
+      "portfolio",
+      "position",
+      "instrument",
+      "watchlist",
+      "data-source",
+      "pipeline-run",
+      "signal",
+      "report",
+      "portfolio-label",
+      "position-label",
+      "instrument-label",
+      "watchlist-label",
+      "data-source-label",
+      "pipeline-run-label",
+      "signal-label",
+      "report-label",
+      "r-portfolio-position-label",
+      "r-position-instrument-label",
+      "r-watchlist-instrument-label",
+      "r-source-run-label",
+      "r-run-signal-label",
+      "r-signal-report-label",
+      "r-signal-instrument-label",
+      "pin-rerun-lineage",
+      "pin-watchlist-real"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "signal-attr-3",
+     "fact": "added",
+     "kind": "text",
+     "label": "scored at",
+     "low_signal": true
+    },
+    {
+     "element": "pipeline-run",
+     "fact": "tooltip_changed",
+     "label": "PipelineRun",
+     "text": "The settings snapshot is why a rerun can be compared to an original instead of r"
+    },
+    {
+     "element": "signal",
+     "fact": "resized",
+     "label": "Signal"
+    },
+    {
+     "element": "signal",
+     "fact": "tooltip_changed",
+     "label": "Signal",
+     "text": "**'scored at' is mine, and it is a direct consequence of the partial-rerun findi"
+    },
+    {
+     "element": "report-attr-1",
+     "fact": "reordered",
+     "label": "sections"
+    },
+    {
+     "element": "report-attr-2",
+     "fact": "reordered",
+     "label": "period"
+    },
+    {
+     "element": "pipeline-run-attr-1",
+     "fact": "reordered",
+     "label": "settings snapshot"
+    },
+    {
+     "element": "pipeline-run-attr-2",
+     "fact": "reordered",
+     "label": "trading day"
+    },
+    {
+     "element": "pipeline-run-attr-3",
+     "fact": "reordered",
+     "label": "stale sources"
+    },
+    {
+     "element": "signal-attr-1",
+     "fact": "reordered",
+     "label": "kind"
+    },
+    {
+     "element": "signal-attr-2",
+     "fact": "reordered",
+     "label": "confidence"
+    },
+    {
+     "attribute": "scored at",
+     "element": "signal",
+     "entity": "Signal",
+     "fact": "attribute_added"
+    },
+    {
+     "element": "r-watchlist-instrument",
+     "fact": "relationship_rewired",
+     "from": "Watchlist→Instrument",
+     "to": "Watchlist→Instrument"
+    },
+    {
+     "element": "r-signal-instrument",
+     "fact": "relationship_rewired",
+     "from": "Signal→Instrument",
+     "to": "Signal→Instrument"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "position-attr-1",
+      "position-attr-2",
+      "instrument-attr-1",
+      "instrument-attr-2",
+      "report-attr-1",
+      "report-attr-2",
+      "pipeline-run-attr-1",
+      "pipeline-run-attr-2",
+      "pipeline-run-attr-3",
+      "signal-attr-1",
+      "signal-attr-2",
+      "signal-attr-3",
+      "r-portfolio-position",
+      "r-position-instrument",
+      "r-watchlist-instrument",
+      "r-source-run",
+      "r-run-signal",
+      "r-signal-report",
+      "r-signal-instrument",
+      "portfolio",
+      "position",
+      "instrument",
+      "watchlist",
+      "data-source",
+      "pipeline-run",
+      "signal",
+      "report",
+      "portfolio-label",
+      "position-label",
+      "instrument-label",
+      "watchlist-label",
+      "data-source-label",
+      "pipeline-run-label",
+      "signal-label",
+      "report-label",
+      "r-portfolio-position-label",
+      "r-position-instrument-label",
+      "r-watchlist-instrument-label",
+      "r-source-run-label",
+      "r-run-signal-label",
+      "r-signal-report-label",
+      "r-signal-instrument-label",
+      "pin-rerun-lineage",
+      "pin-watchlist-real"
+     ],
+     "moved": [
+      "report-attr-1",
+      "report-attr-2",
+      "pipeline-run-attr-1",
+      "pipeline-run-attr-2",
+      "pipeline-run-attr-3",
+      "signal-attr-1",
+      "signal-attr-2"
+     ],
+     "op": "reorder",
+     "order": [
+      "position-attr-1",
+      "position-attr-2",
+      "instrument-attr-1",
+      "instrument-attr-2",
+      "signal-attr-1",
+      "signal-attr-2",
+      "report-attr-1",
+      "report-attr-2",
+      "pipeline-run-attr-1",
+      "pipeline-run-attr-2",
+      "pipeline-run-attr-3",
+      "r-portfolio-position",
+      "r-position-instrument",
+      "r-watchlist-instrument",
+      "r-source-run",
+      "r-run-signal",
+      "r-signal-report",
+      "r-signal-instrument",
+      "portfolio",
+      "position",
+      "instrument",
+      "watchlist",
+      "data-source",
+      "pipeline-run",
+      "signal",
+      "report",
+      "portfolio-label",
+      "position-label",
+      "instrument-label",
+      "watchlist-label",
+      "data-source-label",
+      "pipeline-run-label",
+      "signal-label",
+      "report-label",
+      "r-portfolio-position-label",
+      "r-position-instrument-label",
+      "r-watchlist-instrument-label",
+      "r-source-run-label",
+      "r-run-signal-label",
+      "r-signal-report-label",
+      "r-signal-instrument-label",
+      "pin-rerun-lineage",
+      "pin-watchlist-real"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 398,
+       "to": 446
+      },
+      {
+       "attr": "y",
+       "from": 580,
+       "to": 570
+      }
+     ],
+     "id": "r-signal-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 700,
+       "to": 690
+      }
+     ],
+     "id": "r-signal-report-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 91,
+       "to": 108
+      }
+     ],
+     "id": "r-watchlist-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 80
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**'scored at' is mine, and it is a direct consequence of the partial-rerun finding.**\n\nA single-pipeline rerun re-scores one pass and leaves the other three alone, so a run's Signals can come from two different moments. In the model as drawn, that situation was *unrepresentable* — which is a decent explanation of how it went unnoticed for so long.\n\nWith a scoring time on the Signal, mixed provenance becomes something the system can state instead of something it merely does."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "Confidence is gated at 0.70 — below it, the Signal exists internally but reaches nothing a client sees.\n\nSo 'published' is a third state this box does not yet carry."
+       }
+      }
+     ],
+     "id": "signal",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is why a rerun can be compared to an original instead of replacing it.\n\n**Known over-claim:** after a partial rerun the snapshot describes the whole day when it only describes a quarter of it. That is an accident of how it was built, not a design — see the scoring time now on Signal.\n\n**stale sources** is run-level, which is today's answer and not the wanted one."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is the load-bearing attribute — it is why a rerun can be compared to an original instead of replacing it.\n\n**stale sources** is run-level, which is today's answer, not the wanted one. You want it on the Signal (only the sentiment ones are stale; insider-cluster is perfectly fresh) and it has not been costed. Written down here so the gap is visible rather than remembered."
+       }
+      }
+     ],
+     "id": "pipeline-run",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 590,
+       "to": 580
+      },
+      {
+       "attr": "width",
+       "from": 507,
+       "to": 440
+      },
+      {
+       "attr": "height",
+       "from": 30,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -507,
+         0
+        ],
+        [
+         -507,
+         30
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -440,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "instrument",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "instrument",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7b23de1aec"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a6588b2a14"
+       }
+      }
+     ],
+     "id": "r-signal-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 640,
+       "to": 620
+      },
+      {
+       "attr": "height",
+       "from": 140,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         140
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "320c9ec40d"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "dc42040a47"
+       }
+      }
+     ],
+     "id": "r-signal-report",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 33,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -33,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "instrument",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "instrument",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "817760de9a"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "22c917c181"
+       }
+      }
+     ],
+     "id": "r-watchlist-instrument",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "signal",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 16,
+      "id": "signal-attr-3",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "scored at",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 175039898,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "scored at",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 612
+     },
+     "index": 11,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus — domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 11,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 12,
+ "round": 2,
+ "saved_at": "2026-08-09T11:04:26Z",
+ "selection_at_save": [],
+ "short_id": "889f440",
+ "summary": {
+  "headline": "rewired Watchlist→Instrument to Watchlist→Instrument (+12 more)",
+  "suppressed": 1,
+  "verb_counts": {
+   "added": 1,
+   "attribute_added": 1,
+   "relationship_rewired": 2,
+   "reordered": 7,
+   "resized": 1,
+   "tooltip_changed": 2
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "argus-domain#signal",
+   "changed_all": [
+    "argus-domain#signal"
+   ],
+   "id": "tw-12-1",
+   "kind": "divergence",
+   "mapping": "signal:argus-domain#signal+enrichment-pipeline#scored-signals",
+   "question": "argus-domain › signal changed but its mapped sibling enrichment-pipeline › scored-signals didn't. Divergence, or should it propagate?",
+   "sibling": "enrichment-pipeline#scored-signals",
+   "siblings": [
+    "enrichment-pipeline#scored-signals"
+   ]
+  }
+ ],
+ "user_note": "make mixed provenance representable: a Signal gets its own scoring moment"
+}

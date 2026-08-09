@@ -40,6 +40,12 @@ entry that cannot apply rather than re-offering it.
 rejected. Use it when you cannot afford to be wrong — a batch you are
 about to queue, or one you cannot see the result of.
 
+It is **side-effect free**, including for registry ops. Until v0.7 that
+was not true: `--check` on a batch carrying `rename_artifact` wrote the
+new name to the artifact file with no revn, no save record and nothing
+to revert. If you are reading an old project and a name looks like it
+changed without a revision, that is why.
+
 **`canvas.py apply --check --render`** adds a `PNG=` line: the proposed
 scene, drawn. This is the only way to *look* at a revision before it
 lands — under `pulled` cadence a queued batch is invisible to you until
@@ -125,6 +131,8 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // overlapping siblings still lint; `parent` declares the intent
   "links_to": "other-artifact",  // in-canvas navigation (click follows)
   "document": "docs/brief.md",   // report reader: project_knowledge-relative
+  "annotates": "node-id",     // what a note is ABOUT (v0.8) — anchors it for
+      // the orphan checks: delete the target and the note is NAMED, not lost
   "intent": "why this exists (customData)",
   "frameId": "screen-checkout",            // wireframe screen membership
   "backgroundColor": "#e9e5da", "strokeColor": "#1e1e1e",
@@ -134,6 +142,11 @@ on concept `report` clears the umbrella's `wireframe` debt.
 // (the router avoids foreign boxes and prefers orthogonal elbows):
 {"op": "add", "element": {"type": "arrow", "id": "t-a-b", "label": "yes"},
  "from": "step-a", "to": "step-b"}
+// Reflexive (v0.8): `from` == `to` routes a self-loop off the node's
+// top-right corner — "rerun of", "manages", a retry back into the same
+// step. Keep the label short; cardinality goes in the tooltip.
+{"op": "add", "element": {"type": "arrow", "id": "r-run-rerun",
+ "label": "rerun of"}, "from": "pipeline-run", "to": "pipeline-run"}
 // `type: "image"` is rejected in ops — real images arrive via the canvas
 // (paste/drop in the browser) with their file blobs.
 ```
@@ -148,6 +161,11 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "name": "Checkout screen", // frames only: rename explicitly
   "from": "other-node",      // arrows only: rewire start (re-routes + rebinds)
   "to": "other-node",        // arrows only: rewire end — fires REWIRED
+      // A rewire IS a new path request, so it re-routes — including over
+      // a path the USER drew by hand. That is deliberate, and since v0.7
+      // it narrates: `user_route_replaced`. If their shape mattered,
+      // re-issue `mod points`. Dropping an endpoint back on the node it
+      // already bound is not a rewire and fires nothing.
   "points": [[0,0],[80,0],[80,-160],[320,-160]],
       // arrows/lines: hand-authored waypoints, RELATIVE to the arrow's
       // x,y. v0.3: the path is marked routed:"authored" — YOURS. No
@@ -157,7 +175,8 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
       // Axis-aligned paths render as sharp elbows; narrates as a
       // `rerouted` fact — never an empty save.
   "kind": "sink", "role": "decoration", "intent": "…", "parent": "shelf",
-  "document": "docs/x.md",   // these five fold into customData correctly
+  "document": "docs/x.md", "annotates": "node-id",
+      // these six fold into customData correctly
   "tooltip": "markdown…",    // set/replace hover detail; "" or null removes
   "verticalAlign": "top",    // on a shape: aligns its BOUND LABEL
   "value": "+3.4%",          // kpi/slider only — recomposes the glyph in
@@ -165,7 +184,19 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
                              //   typed facts (value_changed/state_toggled)
   "links_to": "other-artifact",  // sets the element's navigation link
   "locked": true,            // settled structure — the user can't drag it
+  "attributes": ["cash, mandate", "holds Positions"],
+      // entities only: REPLACES the attribute rows, keeping the entity's
+      // id — so its mappings, pins and rename detection all survive.
+      // Before v0.7 this was accepted on `add` only and the workaround
+      // (delete + re-add) silently dropped all three. Fires
+      // attribute_added / attribute_removed, or `renamed` for a row
+      // swapped in place.
   "x": 100, "y": 200, "width": 180,
+      // moving a node re-routes the SERVER-ROUTED arrows bound to it.
+      // It does not touch a path the user shaped by hand — theirs is
+      // theirs — so those are left behind and the detached-endpoint lint
+      // flags them. Re-issue `mod {from, to}` on each in the same batch:
+      // a rewire is a new path request, which is what you want here.
   "frameId": "screen-b",     // wireframe: regroup into another screen
   "customData": {"intent": "…"},   // merged, not replaced
   "backgroundColor": "#fde8e8" }}
@@ -276,6 +307,14 @@ it "agent asked a question" with no Apply action.
  "examples": ["UK retail says basket; US says cart"]}
 {"op": "registry", "action": "decline", "concept": "checkout",
  "view_type": "domain", "kind": "suggestion", "reason": "user: later"}
+// the session clock, for when it has drifted from the conversation —
+// e.g. several rounds happened in chat with nothing drawn. Both fields
+// are optional. Pin ages (PIN_DEBT) are measured against `round`, so
+// setting it forward ages every open question with it: say why in the
+// same turn. Under `pulled` cadence you should NOT need this — a queued
+// revision already counts as your move made (see "Reading state back").
+{"op": "registry", "action": "set_round", "round": 4,
+ "whose_move": "user"}
 // per-artifact complexity-budget override (v0.3): recorded intent, not a
 // silencer — `reason` is REQUIRED and the lint restates it as a NOTE.
 // The defaults stay 9 nodes / 12 arrows (8 entities on a domain view).
@@ -297,10 +336,18 @@ it "agent asked a question" with no Apply action.
 - `canvas.py status` → `HEAD_REVN`, `ROUND`, `WHOSE_MOVE`, `ARTIFACTS`,
   `OPEN_PINS`, `OPEN_TRIPWIRES`, `EVENTS_LOG`, `DIRTY`, `PENDING`,
   **`LINT_DEBT`** (standing cross-artifact lint counts — drift in
-  artifacts your batch didn't touch) and **`PIN_DEBT`** (open/answered
+  artifacts your batch didn't touch), **`PIN_DEBT`** (open/answered
   pins with age in rounds + how often their target changed; entries with
   `direction: user` are the USER'S questions awaiting your move — answer
-  them first). Both also ride every apply response.
+  them first) and **`OPEN_TRIPWIRE`** (standing unresolved divergence
+  questions, with their text — not just the count).
+  **All three ride every apply response, including a queued one.**
+  Nothing is pull-only: if a nag exists you will be told without asking.
+- `ROUND` and `WHOSE_MOVE` count the pending queue. Under `pulled`
+  cadence nothing commits until the user applies, so a queued revision
+  is still your move made and their move owed — and pins age against it.
+  Discard the queue and both go back; the committed value is
+  `committed_round` in `api/state` if you need the raw one.
 - `GET <url>api/state` → everything (registry, config, scenes, saves,
   pins, tripwires, pending).
 - `GET <url>api/save-record/<revn>` → a full save record (also on disk:

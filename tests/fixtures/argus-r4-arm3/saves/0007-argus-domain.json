@@ -1,0 +1,189 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 380,
+       "to": 400
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 140
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         140
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "2c33f77446"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1c835d17ca"
+       }
+      }
+     ],
+     "id": "r-run-signal",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 450,
+       "to": 460
+      }
+     ],
+     "id": "r-run-signal-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 460,
+       "to": 450
+      }
+     ],
+     "id": "r-run-signal-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 400,
+       "to": 380
+      },
+      {
+       "attr": "height",
+       "from": 140,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         140
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1c835d17ca"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "2c33f77446"
+       }
+      }
+     ],
+     "id": "r-run-signal",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus — domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 6,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "annotate_mapping",
+   "index": 2,
+   "kinds": [
+    "attribute_added",
+    "attribute_removed"
+   ],
+   "note": "intentionally-divergent: PipelineRun is the domain entity; the flow's 06:00 box is only its trigger, so attribute rows on the entity have nothing to say to it"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-6-1"
+  }
+ ],
+ "revn": 7,
+ "round": 1,
+ "saved_at": "2026-08-09T10:51:47Z",
+ "selection_at_save": [],
+ "short_id": "8822c1f",
+ "summary": {
+  "headline": "registry: annotate mapping (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "re-route the emits arrow after the entity grew a row; scope the clock mapping"
+}

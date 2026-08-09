@@ -260,6 +260,14 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   display: flex; align-items: stretch; gap: 10px;
   flex: 1; min-width: 0; overflow-x: auto;
 }
+/* the strip shows ONE concept's views — say which, or "what exists here"
+   silently means "what exists in this concept" (r3-3) */
+.strip-scope {
+  display: flex; align-items: center; flex-shrink: 0;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--faint); writing-mode: vertical-rl; transform: rotate(180deg);
+  padding: 2px 0; max-height: 80px; overflow: hidden;
+}
 .artifact-dropdown { position: relative; flex-shrink: 0; display: flex; }
 .artifact-dropdown > button {
   display: flex; flex-direction: column; justify-content: center; gap: 4px;
@@ -656,3 +664,11 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   background: none; border: 0; cursor: pointer; color: var(--accent);
   font-size: 11px; padding: 0 2px;
 }
+
+/* v0.8 — the control-flip affordance (a drawn checkbox is operable) */
+.ctl-flip {
+  font: inherit; font-size: 12px; padding: 6px 10px; cursor: pointer;
+  background: var(--paper, #faf8f2); color: inherit;
+  border: 1px solid var(--bone-deep, #dfd9cb); border-radius: 6px;
+}
+.ctl-flip:hover { background: var(--bone, #ece8df); }

@@ -1,0 +1,101 @@
+{
+ "artifacts": {
+  "dashboard": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Excess Return",
+     "ops": [],
+     "semantic": {
+      "label_renamed": {
+       "from": "Alpha",
+       "to": "Excess Return"
+      },
+      "renamed": {
+       "from": "Alpha",
+       "to": "Excess Return"
+      }
+     },
+     "verb": "renamed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "Alpha",
+       "to": "Excess Return"
+      }
+     ],
+     "id": "kpi-alpha-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "kpi-alpha",
+     "fact": "renamed",
+     "from": "Alpha",
+     "to": "Excess Return"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "label_renamed",
+     "from": "Alpha",
+     "to": "Excess Return"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "Excess Return",
+       "to": "Alpha"
+      }
+     ],
+     "id": "kpi-alpha-label",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard + Reader"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 31,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 32,
+ "round": 4,
+ "saved_at": "2026-08-09T11:33:28Z",
+ "selection_at_save": [],
+ "short_id": "5eb193c",
+ "summary": {
+  "headline": "renamed 'Alpha' → 'Excess Return' (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "label_renamed": 1,
+   "renamed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

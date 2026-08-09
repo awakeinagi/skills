@@ -1,0 +1,172 @@
+{
+ "artifacts": {
+  "admin-console-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "input-confidence",
+     "kind": "input",
+     "label": "Signal confidence",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Signal confidence",
+       "text": "**A router, not a gate.** Below 0.70 a Signal goes to the Review queue, and a no"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "input",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**A gate.** Below 0.70 a Signal never reaches the output. Lowering it does not reveal hidden signals in an existing report — it changes what the next cut contains.",
+        "value": "0.70"
+       },
+       "to": {
+        "author": "agent",
+        "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+        "kind": "input",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**A router, not a gate.** Below 0.70 a Signal goes to the Review queue, and a non-empty queue blocks publication (ADR 0003). Nothing is discarded.\n\nWhich makes this the most consequential field on the screen, in a way it wasn't before: **lowering it enlarges somebody's morning.** More signals fall below the line, more land in the queue, and every one of them has to be vetted before anything ships. The console shows the number and says nothing about the workload it creates.",
+        "value": "0.70"
+       }
+      }
+     ],
+     "id": "input-confidence",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "feedback",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**Invented.** Nothing like this is on your screen as far as I know — I have drawn the guard rather than the hole, because you said this is the screen the second analyst breaks something with.\n\nIf a Brief has already gone to clients, changing 0.70 and re-running produces a second document with the same name. That is your parked versioning problem, reached from a different direction."
+       },
+       "to": {
+        "author": "agent",
+        "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+        "kind": "feedback",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**Invented.** Nothing like this is on your screen as far as I know — I have drawn the guard rather than the hole, because you said this is the screen the second analyst breaks something with.\n\nIf a Brief has already gone to clients, changing 0.70 and re-running produces a second document with the same name. That is your parked versioning problem, reached from a different direction."
+       }
+      }
+     ],
+     "id": "warn-thresholds",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "input-confidence",
+     "fact": "tooltip_changed",
+     "label": "Signal confidence",
+     "text": "**A router, not a gate.** Below 0.70 a Signal goes to the Review queue, and a no"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+        "kind": "feedback",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**Invented.** Nothing like this is on your screen as far as I know — I have drawn the guard rather than the hole, because you said this is the screen the second analyst breaks something with.\n\nIf a Brief has already gone to clients, changing 0.70 and re-running produces a second document with the same name. That is your parked versioning problem, reached from a different direction."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "feedback",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**Invented.** Nothing like this is on your screen as far as I know — I have drawn the guard rather than the hole, because you said this is the screen the second analyst breaks something with.\n\nIf a Brief has already gone to clients, changing 0.70 and re-running produces a second document with the same name. That is your parked versioning problem, reached from a different direction."
+       }
+      }
+     ],
+     "id": "warn-thresholds",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+        "kind": "input",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**A router, not a gate.** Below 0.70 a Signal goes to the Review queue, and a non-empty queue blocks publication (ADR 0003). Nothing is discarded.\n\nWhich makes this the most consequential field on the screen, in a way it wasn't before: **lowering it enlarges somebody's morning.** More signals fall below the line, more land in the queue, and every one of them has to be vetted before anything ships. The console shows the number and says nothing about the workload it creates.",
+        "value": "0.70"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "input",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "**A gate.** Below 0.70 a Signal never reaches the output. Lowering it does not reveal hidden signals in an existing report — it changes what the next cut contains.",
+        "value": "0.70"
+       }
+      }
+     ],
+     "id": "input-confidence",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 26,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 27,
+ "round": 5,
+ "saved_at": "2026-08-09T11:43:25Z",
+ "selection_at_save": [],
+ "short_id": "53ef9c7",
+ "summary": {
+  "headline": "reworded the tooltip on Signal confidence",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "the confidence field no longer describes a filter"
+}

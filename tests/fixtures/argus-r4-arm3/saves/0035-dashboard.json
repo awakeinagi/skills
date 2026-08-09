@@ -1,0 +1,220 @@
+{
+ "artifacts": {
+  "dashboard": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown",
+     "kind": "image",
+     "label": "Drawdown",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Drawdown",
+       "screen": "Dashboard"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 320,
+       "label": "Drawdown",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "screen-dashboard",
+     "kind": "frame",
+     "label": "Dashboard",
+     "ops": [],
+     "semantic": {
+      "reading_order_changed": {
+       "order": [
+        "ARGUS",
+        "Dashboard",
+        "Admin",
+        "last run: 06:00 ✓",
+        "Portfolio value",
+        "Excess Return",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Reports",
+        "Equity curve vs benchmark",
+        "Weekly Brief · Mon 4 Aug",
+        "Sector heat map",
+        "Risk Deep-Dive · 1 Aug",
+        "Signals Digest · 8 Aug",
+        "Drawdown"
+       ],
+       "screen": "Dashboard",
+       "was": [
+        "ARGUS",
+        "Dashboard",
+        "Admin",
+        "last run: 06:00 ✓",
+        "Portfolio value",
+        "Excess Return",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Drawdown",
+        "Reports",
+        "Equity curve vs benchmark",
+        "Weekly Brief · Mon 4 Aug",
+        "Sector heat map",
+        "Risk Deep-Dive · 1 Aug",
+        "Signals Digest · 8 Aug"
+       ]
+      }
+     },
+     "verb": "reading_order_changed"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      920,
+      304
+     ],
+     "id": "chart-drawdown",
+     "op": "move",
+     "to": [
+      920,
+      624
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 414,
+       "to": 734
+      }
+     ],
+     "id": "chart-drawdown-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": 0,
+     "dy": 320,
+     "element": "chart-drawdown",
+     "fact": "moved",
+     "label": "Drawdown",
+     "spatial": "moved down"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "block_moved_within_screen",
+     "label": "Drawdown",
+     "screen": "Dashboard"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "reading_order_changed",
+     "order": [
+      "ARGUS",
+      "Dashboard",
+      "Admin",
+      "last run: 06:00 ✓",
+      "Portfolio value",
+      "Excess Return",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Reports",
+      "Equity curve vs benchmark",
+      "Weekly Brief · Mon 4 Aug",
+      "Sector heat map",
+      "Risk Deep-Dive · 1 Aug",
+      "Signals Digest · 8 Aug",
+      "Drawdown"
+     ],
+     "screen": "Dashboard",
+     "was": [
+      "ARGUS",
+      "Dashboard",
+      "Admin",
+      "last run: 06:00 ✓",
+      "Portfolio value",
+      "Excess Return",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Drawdown",
+      "Reports",
+      "Equity curve vs benchmark",
+      "Weekly Brief · Mon 4 Aug",
+      "Sector heat map",
+      "Risk Deep-Dive · 1 Aug",
+      "Signals Digest · 8 Aug"
+     ]
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 734,
+       "to": 414
+      }
+     ],
+     "id": "chart-drawdown-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      920,
+      624
+     ],
+     "id": "chart-drawdown",
+     "op": "move",
+     "to": [
+      920,
+      304
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard + Reader"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 34,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 35,
+ "round": 4,
+ "saved_at": "2026-08-09T11:33:32Z",
+ "selection_at_save": [],
+ "short_id": "9f06344",
+ "summary": {
+  "headline": "screen Dashboard now reads: ARGUS / Dashboard / Admin / last run: 06:00 ✓ / Portfolio value / Excess Return… (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "block_moved_within_screen": 1,
+   "moved": 1,
+   "reading_order_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

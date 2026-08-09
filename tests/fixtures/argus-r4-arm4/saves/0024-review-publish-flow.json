@@ -1,0 +1,4644 @@
+{
+ "artifacts": {
+  "review-publish-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-scored-gate",
+     "kind": "arrow",
+     "label": "r-scored-gate",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "r-scored-gate"
+      },
+      "transition_added": {
+       "between": [
+        "Scored signals",
+        "Confidence ≥ 0.70?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-gate-block",
+     "kind": "arrow",
+     "label": "≥ 0.70",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "≥ 0.70"
+      },
+      "transition_added": {
+       "between": [
+        "Confidence ≥ 0.70?",
+        "Queue clear?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-gate-queue",
+     "kind": "arrow",
+     "label": "< 0.70",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "< 0.70"
+      },
+      "transition_added": {
+       "between": [
+        "Confidence ≥ 0.70?",
+        "Review queue"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-queue-vets",
+     "kind": "arrow",
+     "label": "r-queue-vets",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "r-queue-vets"
+      },
+      "transition_added": {
+       "between": [
+        "Review queue",
+        "Analyst vets"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-vets-block",
+     "kind": "arrow",
+     "label": "promoted",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "promoted"
+      },
+      "rerouted": {
+       "arrow": "r-vets-block"
+      },
+      "transition_added": {
+       "between": [
+        "Analyst vets",
+        "Queue clear?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-vets-dropped",
+     "kind": "arrow",
+     "label": "rejected",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "rejected"
+      },
+      "transition_added": {
+       "between": [
+        "Analyst vets",
+        "Rejected"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-block-publish",
+     "kind": "arrow",
+     "label": "clear",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "clear"
+      },
+      "transition_added": {
+       "between": [
+        "Queue clear?",
+        "Compose & publish"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-publish-out",
+     "kind": "arrow",
+     "label": "r-publish-out",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "r-publish-out"
+      },
+      "transition_added": {
+       "between": [
+        "Compose & publish",
+        "Published"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-block-held",
+     "kind": "arrow",
+     "label": "unvetted",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "unvetted"
+      },
+      "rerouted": {
+       "arrow": "r-block-held"
+      },
+      "transition_added": {
+       "between": [
+        "Queue clear?",
+        "Reports held"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-held-vets",
+     "kind": "arrow",
+     "label": "after vetting",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "after vetting"
+      },
+      "rerouted": {
+       "arrow": "r-held-vets"
+      },
+      "transition_added": {
+       "between": [
+        "Reports held",
+        "Analyst vets"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "scored-signals",
+     "kind": "source",
+     "label": "Scored signals",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Scored signals"
+      },
+      "step_added": {
+       "label": "Scored signals"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "confidence-gate",
+     "kind": "control",
+     "label": "Confidence ≥ 0.70?",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Confidence ≥ 0.70?"
+      },
+      "step_added": {
+       "label": "Confidence ≥ 0.70?"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "review-queue",
+     "kind": "store",
+     "label": "Review queue",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Review queue"
+      },
+      "step_added": {
+       "label": "Review queue"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "analyst-vets",
+     "kind": "agent",
+     "label": "Analyst vets",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "agent",
+       "label": "Analyst vets"
+      },
+      "step_added": {
+       "label": "Analyst vets"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "publish-block",
+     "kind": "control",
+     "label": "Queue clear?",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Queue clear?"
+      },
+      "step_added": {
+       "label": "Queue clear?"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "compose-publish",
+     "kind": "agent",
+     "label": "Compose & publish",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "agent",
+       "label": "Compose & publish"
+      },
+      "step_added": {
+       "label": "Compose & publish"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "report-held",
+     "kind": "control",
+     "label": "Reports held",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Reports held"
+      },
+      "step_added": {
+       "label": "Reports held"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "dropped",
+     "kind": "sink",
+     "label": "Rejected",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Rejected"
+      },
+      "step_added": {
+       "label": "Rejected"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "published",
+     "kind": "sink",
+     "label": "Published",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Published"
+      },
+      "step_added": {
+       "label": "Published"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-deadline",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      35
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "09:28. Three signals unvetted, the open is in two minutes. What goes out?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-block-scope",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      36
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Does the block cover the Signals Digest too, or only what clients see?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d042f325ff"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "confidence-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-scored-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 153650289,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 192
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-gate-block-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d28632cc1a"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-gate-block",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        480,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 152050629,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "confidence-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 480,
+      "x": 560,
+      "y": 192
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-gate-queue-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f728a8c314"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-queue",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-gate-queue",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979118468,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "confidence-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 480,
+      "y": 224
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "54ecf90e0c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-queue-vets",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 406273304,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-queue",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 560,
+      "y": 432
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-vets-block-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "r-vets-block",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413010411,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 880,
+      "y": 432
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-vets-dropped-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "295aec97d1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "dropped",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-vets-dropped",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1594441840,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 464
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-block-publish-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "753a794ddb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-publish",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-block-publish",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 539068553,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 192
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "db3122aabf"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "published",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-publish-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1727585311,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compose-publish",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 192
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-block-held-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "report-held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-block-held",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        96
+       ],
+       [
+        280,
+        96
+       ],
+       [
+        280,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1241979559,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 1160,
+      "y": 224
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-held-vets-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "r-held-vets",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        96
+       ],
+       [
+        -600,
+        96
+       ],
+       [
+        -600,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1827648842,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "report-held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 600,
+      "x": 1440,
+      "y": 464
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "scored-signals-label",
+        "type": "text"
+       },
+       {
+        "id": "r-scored-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Everything the aggregator produced, before anything is filtered. Click through to Signal Formation."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "scored-signals",
+      "isDeleted": false,
+      "link": "artifact:enrichment-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 402076650,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 160
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "confidence-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "r-scored-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "r-gate-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-gate-queue",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**No longer a filter.** It was a gate that silently deleted; it is now a router. Above 0.70, straight through. Below, parked for a human.\n\nThe number is unchanged — what changed is that nothing disappears."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "confidence-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 268048093,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 400,
+      "y": 160
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-queue-label",
+        "type": "text"
+       },
+       {
+        "id": "r-gate-queue",
+        "type": "arrow"
+       },
+       {
+        "id": "r-queue-vets",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Sub-threshold Signals wait here. This is the first piece of **state that survives a run** anywhere in the design — everything else in Argus wakes at 06:00 and keeps nothing.\n\nWhich raises a question nobody has asked yet: does the queue empty at the end of the day, or can something sit in it for a week?"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "review-queue",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 714735538,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 400,
+      "y": 400
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "analyst-vets-label",
+        "type": "text"
+       },
+       {
+        "id": "r-queue-vets",
+        "type": "arrow"
+       },
+       {
+        "id": "r-vets-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-vets-dropped",
+        "type": "arrow"
+       },
+       {
+        "id": "r-held-vets",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "A human, on the critical path, before the open. Drawn as an agent node because the outcome is a judgement, not a computation.\n\nTwo outcomes drawn — promote or reject. If vetting can do something else (adjust the confidence, defer it to tomorrow), those are more arrows."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "analyst-vets",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 194562136,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 400
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "publish-block-label",
+        "type": "text"
+       },
+       {
+        "id": "r-gate-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-vets-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-block-publish",
+        "type": "arrow"
+       },
+       {
+        "id": "r-block-held",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**The rule you'd put your name to.** A non-empty queue blocks publication. Nothing unvetted reaches a client, ever.\n\nDrawn as blocking *everything*, which is your literal wording. Whether it should also block the internal-only Digest is pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "publish-block",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1581765180,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1040,
+      "y": 160
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "compose-publish-label",
+        "type": "text"
+       },
+       {
+        "id": "r-block-publish",
+        "type": "arrow"
+       },
+       {
+        "id": "r-publish-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "The same box as `Compose outputs` on the spine — reached only once the queue is clear."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "compose-publish",
+      "isDeleted": false,
+      "link": "artifact:daily-run-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1013043264,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 160
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "report-held-label",
+        "type": "text"
+       },
+       {
+        "id": "r-block-held",
+        "type": "arrow"
+       },
+       {
+        "id": "r-held-vets",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "A state the design did not have until now. Reports exist, are cut, and do not go out.\n\nNothing yet says what the analyst sees while this is true, or what the dashboard shows — it would currently display this morning's numbers as though everything had shipped."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "report-held",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1650710149,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 400
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "dropped-label",
+        "type": "text"
+       },
+       {
+        "id": "r-vets-dropped",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "A Signal a human looked at and said no to. Different from the old silent drop in the one way that matters: somebody decided."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "dropped",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1384516017,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 640
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "published-label",
+        "type": "text"
+       },
+       {
+        "id": "r-publish-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "The moment the rule has been satisfied. Everything on this view exists to decide whether the flow reaches this box today."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "published",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1748787223,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1680,
+      "y": 160
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "scored-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "scored-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Scored signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 301167079,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Scored signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 93,
+      "y": 182
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "confidence-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "confidence-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Confidence ≥ 0.70?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1643302035,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Confidence ≥ 0.70?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 136,
+      "x": 412,
+      "y": 172
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-queue",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-queue-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Review queue",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 713099348,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Review queue",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 422,
+      "y": 422
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "analyst-vets",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "analyst-vets-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Analyst vets",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 258744212,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Analyst vets",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 742,
+      "y": 422
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "publish-block",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "publish-block-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Queue clear?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 572102767,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Queue clear?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1062,
+      "y": 182
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "compose-publish",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "compose-publish-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Compose & publish",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 185004697,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Compose & publish",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 136,
+      "x": 1372,
+      "y": 172
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "report-held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "report-held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Reports held",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 155730703,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Reports held",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1382,
+      "y": 422
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dropped",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dropped-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rejected",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1489812134,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rejected",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 762,
+      "y": 662
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "published",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "published-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Published",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 967673937,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Published",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1717,
+      "y": 182
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-gate-block",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-gate-block-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "≥ 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 714952378,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "≥ 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 772,
+      "y": 182
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-gate-queue",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-gate-queue-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "< 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 972525373,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "< 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 452,
+      "y": 302
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-vets-block",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-vets-block-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "promoted",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2085420497,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "promoted",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1066,
+      "y": 422
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-vets-dropped",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-vets-dropped-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "rejected",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1786345649,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "rejected",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 762,
+      "y": 542
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-block-publish",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-block-publish-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "clear",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1520377926,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "clear",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1256,
+      "y": 182
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-block-held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-block-held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "unvetted",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 216436324,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "unvetted",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1254,
+      "y": 310
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-held-vets",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-held-vets-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "after vetting",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2067848698,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "after vetting",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 1078,
+      "y": 550
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "09:28. Three signals unvetted, the open is in two minutes. What goes out?",
+       "role": "pin",
+       "status": "open",
+       "target": "report-held"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 452138378,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1528,
+      "y": 392
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the block cover the Signals Digest too, or only what clients see?",
+       "role": "pin",
+       "status": "open",
+       "target": "publish-block"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-block-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1801202633,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1208,
+      "y": 152
+     },
+     "index": 36,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "r-scored-gate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "r-scored-gate"
+    },
+    {
+     "element": "r-gate-block",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "≥ 0.70"
+    },
+    {
+     "element": "r-gate-queue",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "< 0.70"
+    },
+    {
+     "element": "r-queue-vets",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "r-queue-vets"
+    },
+    {
+     "element": "r-vets-block",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "promoted"
+    },
+    {
+     "element": "r-vets-dropped",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "rejected"
+    },
+    {
+     "element": "r-block-publish",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "clear"
+    },
+    {
+     "element": "r-publish-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "r-publish-out"
+    },
+    {
+     "element": "r-block-held",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "unvetted"
+    },
+    {
+     "element": "r-held-vets",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "after vetting"
+    },
+    {
+     "element": "scored-signals",
+     "fact": "added",
+     "kind": "source",
+     "label": "Scored signals"
+    },
+    {
+     "element": "confidence-gate",
+     "fact": "added",
+     "kind": "control",
+     "label": "Confidence ≥ 0.70?"
+    },
+    {
+     "element": "review-queue",
+     "fact": "added",
+     "kind": "store",
+     "label": "Review queue"
+    },
+    {
+     "element": "analyst-vets",
+     "fact": "added",
+     "kind": "agent",
+     "label": "Analyst vets"
+    },
+    {
+     "element": "publish-block",
+     "fact": "added",
+     "kind": "control",
+     "label": "Queue clear?"
+    },
+    {
+     "element": "compose-publish",
+     "fact": "added",
+     "kind": "agent",
+     "label": "Compose & publish"
+    },
+    {
+     "element": "report-held",
+     "fact": "added",
+     "kind": "control",
+     "label": "Reports held"
+    },
+    {
+     "element": "dropped",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Rejected"
+    },
+    {
+     "element": "published",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Published"
+    },
+    {
+     "element": "pin-deadline",
+     "fact": "pin_added",
+     "question": "09:28. Three signals unvetted, the open is in two minutes. What goes out?"
+    },
+    {
+     "element": "pin-block-scope",
+     "fact": "pin_added",
+     "question": "Does the block cover the Signals Digest too, or only what clients see?"
+    },
+    {
+     "between": [
+      "Scored signals",
+      "Confidence ≥ 0.70?"
+     ],
+     "element": "r-scored-gate",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Confidence ≥ 0.70?",
+      "Queue clear?"
+     ],
+     "element": "r-gate-block",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Confidence ≥ 0.70?",
+      "Review queue"
+     ],
+     "element": "r-gate-queue",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Review queue",
+      "Analyst vets"
+     ],
+     "element": "r-queue-vets",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Analyst vets",
+      "Queue clear?"
+     ],
+     "element": "r-vets-block",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Analyst vets",
+      "Rejected"
+     ],
+     "element": "r-vets-dropped",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Queue clear?",
+      "Compose & publish"
+     ],
+     "element": "r-block-publish",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Compose & publish",
+      "Published"
+     ],
+     "element": "r-publish-out",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Queue clear?",
+      "Reports held"
+     ],
+     "element": "r-block-held",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Reports held",
+      "Analyst vets"
+     ],
+     "element": "r-held-vets",
+     "fact": "transition_added"
+    },
+    {
+     "element": "scored-signals",
+     "fact": "step_added",
+     "label": "Scored signals"
+    },
+    {
+     "element": "confidence-gate",
+     "fact": "step_added",
+     "label": "Confidence ≥ 0.70?"
+    },
+    {
+     "element": "review-queue",
+     "fact": "step_added",
+     "label": "Review queue"
+    },
+    {
+     "element": "analyst-vets",
+     "fact": "step_added",
+     "label": "Analyst vets"
+    },
+    {
+     "element": "publish-block",
+     "fact": "step_added",
+     "label": "Queue clear?"
+    },
+    {
+     "element": "compose-publish",
+     "fact": "step_added",
+     "label": "Compose & publish"
+    },
+    {
+     "element": "report-held",
+     "fact": "step_added",
+     "label": "Reports held"
+    },
+    {
+     "element": "dropped",
+     "fact": "step_added",
+     "label": "Rejected"
+    },
+    {
+     "element": "published",
+     "fact": "step_added",
+     "label": "Published"
+    },
+    {
+     "arrow": "r-vets-block",
+     "element": "r-vets-block",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-block-held",
+     "element": "r-block-held",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-held-vets",
+     "element": "r-held-vets",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the block cover the Signals Digest too, or only what clients see?",
+       "role": "pin",
+       "status": "open",
+       "target": "publish-block"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-block-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1801202633,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1208,
+      "y": 152
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "09:28. Three signals unvetted, the open is in two minutes. What goes out?",
+       "role": "pin",
+       "status": "open",
+       "target": "report-held"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 452138378,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1528,
+      "y": 392
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-held-vets",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-held-vets-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "after vetting",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2067848698,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "after vetting",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 1078,
+      "y": 550
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-block-held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-block-held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "unvetted",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 216436324,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "unvetted",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1254,
+      "y": 310
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-block-publish",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-block-publish-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "clear",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1520377926,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "clear",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1256,
+      "y": 182
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-vets-dropped",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-vets-dropped-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "rejected",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1786345649,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "rejected",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 762,
+      "y": 542
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-vets-block",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-vets-block-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "promoted",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2085420497,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "promoted",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1066,
+      "y": 422
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-gate-queue",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-gate-queue-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "< 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 972525373,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "< 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 452,
+      "y": 302
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-gate-block",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-gate-block-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "≥ 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 714952378,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "≥ 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 772,
+      "y": 182
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "published",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "published-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Published",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 967673937,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Published",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1717,
+      "y": 182
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dropped",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dropped-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rejected",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1489812134,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rejected",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 762,
+      "y": 662
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "report-held",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "report-held-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Reports held",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 155730703,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Reports held",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1382,
+      "y": 422
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "compose-publish",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "compose-publish-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Compose & publish",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 185004697,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Compose & publish",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 136,
+      "x": 1372,
+      "y": 172
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "publish-block",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "publish-block-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Queue clear?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 572102767,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Queue clear?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1062,
+      "y": 182
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "analyst-vets",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "analyst-vets-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Analyst vets",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 258744212,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Analyst vets",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 742,
+      "y": 422
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-queue",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-queue-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Review queue",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 713099348,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Review queue",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 422,
+      "y": 422
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "confidence-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "confidence-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Confidence ≥ 0.70?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1643302035,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Confidence ≥ 0.70?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 136,
+      "x": 412,
+      "y": 172
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "scored-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "scored-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Scored signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 301167079,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Scored signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 93,
+      "y": 182
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "published-label",
+        "type": "text"
+       },
+       {
+        "id": "r-publish-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "The moment the rule has been satisfied. Everything on this view exists to decide whether the flow reaches this box today."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "published",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1748787223,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1680,
+      "y": 160
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "dropped-label",
+        "type": "text"
+       },
+       {
+        "id": "r-vets-dropped",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "A Signal a human looked at and said no to. Different from the old silent drop in the one way that matters: somebody decided."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "dropped",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1384516017,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 640
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "report-held-label",
+        "type": "text"
+       },
+       {
+        "id": "r-block-held",
+        "type": "arrow"
+       },
+       {
+        "id": "r-held-vets",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "A state the design did not have until now. Reports exist, are cut, and do not go out.\n\nNothing yet says what the analyst sees while this is true, or what the dashboard shows — it would currently display this morning's numbers as though everything had shipped."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "report-held",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1650710149,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 400
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "compose-publish-label",
+        "type": "text"
+       },
+       {
+        "id": "r-block-publish",
+        "type": "arrow"
+       },
+       {
+        "id": "r-publish-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "The same box as `Compose outputs` on the spine — reached only once the queue is clear."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "compose-publish",
+      "isDeleted": false,
+      "link": "artifact:daily-run-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1013043264,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 160
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "publish-block-label",
+        "type": "text"
+       },
+       {
+        "id": "r-gate-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-vets-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-block-publish",
+        "type": "arrow"
+       },
+       {
+        "id": "r-block-held",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**The rule you'd put your name to.** A non-empty queue blocks publication. Nothing unvetted reaches a client, ever.\n\nDrawn as blocking *everything*, which is your literal wording. Whether it should also block the internal-only Digest is pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "publish-block",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1581765180,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1040,
+      "y": 160
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "analyst-vets-label",
+        "type": "text"
+       },
+       {
+        "id": "r-queue-vets",
+        "type": "arrow"
+       },
+       {
+        "id": "r-vets-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-vets-dropped",
+        "type": "arrow"
+       },
+       {
+        "id": "r-held-vets",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "A human, on the critical path, before the open. Drawn as an agent node because the outcome is a judgement, not a computation.\n\nTwo outcomes drawn — promote or reject. If vetting can do something else (adjust the confidence, defer it to tomorrow), those are more arrows."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "analyst-vets",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 194562136,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 400
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-queue-label",
+        "type": "text"
+       },
+       {
+        "id": "r-gate-queue",
+        "type": "arrow"
+       },
+       {
+        "id": "r-queue-vets",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Sub-threshold Signals wait here. This is the first piece of **state that survives a run** anywhere in the design — everything else in Argus wakes at 06:00 and keeps nothing.\n\nWhich raises a question nobody has asked yet: does the queue empty at the end of the day, or can something sit in it for a week?"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "review-queue",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 714735538,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 400,
+      "y": 400
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "confidence-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "r-scored-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "r-gate-block",
+        "type": "arrow"
+       },
+       {
+        "id": "r-gate-queue",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**No longer a filter.** It was a gate that silently deleted; it is now a router. Above 0.70, straight through. Below, parked for a human.\n\nThe number is unchanged — what changed is that nothing disappears."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "confidence-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 268048093,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 400,
+      "y": 160
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "scored-signals-label",
+        "type": "text"
+       },
+       {
+        "id": "r-scored-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Everything the aggregator produced, before anything is filtered. Click through to Signal Formation."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "scored-signals",
+      "isDeleted": false,
+      "link": "artifact:enrichment-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 402076650,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 160
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-held-vets-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 96,
+      "id": "r-held-vets",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        96
+       ],
+       [
+        -600,
+        96
+       ],
+       [
+        -600,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1827648842,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "report-held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 600,
+      "x": 1440,
+      "y": 464
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-block-held-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "report-held",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-block-held",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        96
+       ],
+       [
+        280,
+        96
+       ],
+       [
+        280,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1241979559,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 1160,
+      "y": 224
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "db3122aabf"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "published",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-publish-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1727585311,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compose-publish",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 192
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-block-publish-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "753a794ddb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-publish",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-block-publish",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 539068553,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 192
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-vets-dropped-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "295aec97d1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "dropped",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-vets-dropped",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1594441840,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 464
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-vets-block-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "r-vets-block",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413010411,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 880,
+      "y": 432
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "54ecf90e0c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "analyst-vets",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-queue-vets",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 406273304,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-queue",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 560,
+      "y": 432
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-gate-queue-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f728a8c314"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "review-queue",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-gate-queue",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979118468,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "confidence-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 480,
+      "y": 224
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-gate-block-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d28632cc1a"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "publish-block",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-gate-block",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        480,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 152050629,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "confidence-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 480,
+      "x": 560,
+      "y": 192
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d042f325ff"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "confidence-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-scored-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 153650289,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "scored-signals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 192
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Review & Publish"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 23,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "review-queue",
+   "elements": [
+    "review-publish-flow#scored-signals",
+    "enrichment-flow#to-compose"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "review-queue",
+   "elements": [
+    "review-publish-flow#compose-publish",
+    "daily-run-flow#compose-outputs"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "review-queue",
+   "elements": [
+    "review-publish-flow#confidence-gate",
+    "admin-console-wireframe#input-confidence"
+   ]
+  },
+  {
+   "action": "waive",
+   "key": "q12:dashboard-wireframe:excess-return",
+   "reason": "settled: 'Excess Return' is deliberately the client's word, adopted because clients kept asking what alpha meant. Whose-word question is answered."
+  },
+  {
+   "action": "upsert_concept",
+   "id": "review-queue",
+   "name": "Review queue",
+   "view_types": {
+    "review-publish-flow": "flow"
+   },
+   "views": [
+    "review-publish-flow"
+   ]
+  }
+ ],
+ "revn": 24,
+ "round": 5,
+ "saved_at": "2026-08-09T11:41:56Z",
+ "selection_at_save": [],
+ "short_id": "1e21cc7",
+ "summary": {
+  "headline": "rerouted r-vets-block (+42 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 19,
+   "pin_added": 2,
+   "rerouted": 3,
+   "step_added": 9,
+   "transition_added": 10
+  }
+ },
+ "tripwires": [],
+ "user_note": "the gate stops deleting and starts parking — and a human is now on the critical path"
+}

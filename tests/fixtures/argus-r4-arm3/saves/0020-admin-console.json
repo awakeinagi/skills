@@ -1,0 +1,137 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-d04517fc",
+     "kind": "rectangle",
+     "label": "off — noisy",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 1160,
+       "dy": -132,
+       "label": "off — noisy",
+       "spatial": "moved right-up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      200,
+      500
+     ],
+     "id": "usernote-d04517fc",
+     "op": "move",
+     "to": [
+      1360,
+      368
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 208,
+       "to": 1368
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 508,
+       "to": 374
+      }
+     ],
+     "id": "usernote-d04517fc-t",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": 1160,
+     "dy": -132,
+     "element": "usernote-d04517fc",
+     "fact": "moved",
+     "label": "off — noisy",
+     "spatial": "moved right-up"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1368,
+       "to": 208
+      },
+      {
+       "attr": "y",
+       "from": 374,
+       "to": 508
+      }
+     ],
+     "id": "usernote-d04517fc-t",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1360,
+      368
+     ],
+     "id": "usernote-d04517fc",
+     "op": "move",
+     "to": [
+      200,
+      500
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 19,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-19-1"
+  }
+ ],
+ "revn": 20,
+ "round": 3,
+ "saved_at": "2026-08-09T11:16:59Z",
+ "selection_at_save": [],
+ "short_id": "8be3aef",
+ "summary": {
+  "headline": "off — noisy moved right-up",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "move your note clear of the panels it was sitting on; fold the duplicate tripwire into the first"
+}

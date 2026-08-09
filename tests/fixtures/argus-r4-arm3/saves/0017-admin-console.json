@@ -1,0 +1,192 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-macro-chk",
+     "kind": "line",
+     "label": "cb-macro-chk",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "line",
+        "label": "cb-macro-chk"
+       }
+      }
+     },
+     "verb": "deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "chk_of": "cb-macro",
+       "role": "decoration"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "cb-macro-grp"
+      ],
+      "height": 8,
+      "id": "cb-macro-chk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        4,
+        4
+       ],
+       [
+        10,
+        -6
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 791959571,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 2,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 10,
+      "x": 111,
+      "y": 389
+     },
+     "index": 10,
+     "op": "del"
+    }
+   ],
+   "facts": [
+    {
+     "element": "cb-macro-chk",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "line",
+      "label": "cb-macro-chk"
+     }
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "chk_of": "cb-macro",
+       "role": "decoration"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "cb-macro-grp"
+      ],
+      "height": 8,
+      "id": "cb-macro-chk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        4,
+        4
+       ],
+       [
+        10,
+        -6
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 791959571,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 2,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 10,
+      "x": 111,
+      "y": 389
+     },
+     "index": 10,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 16,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 17,
+ "round": 2,
+ "saved_at": "2026-08-09T11:14:40Z",
+ "selection_at_save": [],
+ "short_id": "141e367",
+ "summary": {
+  "headline": "no changes",
+  "suppressed": 1,
+  "verb_counts": {
+   "deleted": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

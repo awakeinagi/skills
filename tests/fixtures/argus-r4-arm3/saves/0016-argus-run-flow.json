@@ -1,0 +1,538 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-macro-agg",
+     "kind": "arrow",
+     "label": "calendar",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "calendar"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Macro Calendar",
+        "Aggregator"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "macro-calendar",
+     "kind": "source",
+     "label": "Macro Calendar",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "source",
+        "label": "Macro Calendar"
+       }
+      },
+      "step_deleted": {
+       "label": "Macro Calendar"
+      }
+     },
+     "verb": "deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-macro-agg-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b9fde6c7ea"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-macro-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 725818218,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1460,
+      "y": 480
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-macro-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "macro-calendar-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Fed dates, CPI prints, scheduled macro events.\n\nThe fifth source — bolted on months after the original four, and the only one that does **not** pass the Cutoff or touch Enrichment. It goes straight into the aggregator."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "macro-calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413308034,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1380,
+      "y": 480
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "macro-calendar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "macro-calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 568925307,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 1393,
+      "y": 502
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-macro-agg",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-macro-agg-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1100203203,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1422,
+      "y": 382
+     },
+     "index": 39,
+     "op": "del"
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-macro-agg",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "calendar"
+     }
+    },
+    {
+     "element": "macro-calendar",
+     "fact": "deleted",
+     "was": {
+      "kind": "source",
+      "label": "Macro Calendar"
+     }
+    },
+    {
+     "between": [
+      "Macro Calendar",
+      "Aggregator"
+     ],
+     "element": "t-macro-agg",
+     "fact": "transition_deleted"
+    },
+    {
+     "element": "macro-calendar",
+     "fact": "step_deleted",
+     "label": "Macro Calendar"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-macro-agg",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-macro-agg-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1100203203,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1422,
+      "y": 382
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "macro-calendar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "macro-calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 568925307,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 1393,
+      "y": 502
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-macro-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "macro-calendar-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Fed dates, CPI prints, scheduled macro events.\n\nThe fifth source — bolted on months after the original four, and the only one that does **not** pass the Cutoff or touch Enrichment. It goes straight into the aggregator."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "macro-calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413308034,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1380,
+      "y": 480
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-macro-agg-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b9fde6c7ea"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-macro-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 725818218,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1460,
+      "y": 480
+     },
+     "index": 10,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 15,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 16,
+ "round": 2,
+ "saved_at": "2026-08-09T11:14:40Z",
+ "selection_at_save": [],
+ "short_id": "5d601fa",
+ "summary": {
+  "headline": "deleted Macro Calendar (+3 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 2,
+   "step_deleted": 1,
+   "transition_deleted": 1
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "argus-run-flow#macro-calendar",
+   "changed_all": [
+    "argus-run-flow#macro-calendar"
+   ],
+   "id": "tw-16-1",
+   "kind": "divergence",
+   "mapping": "macro-calendar:admin-console#cb-macro+argus-run-flow#macro-calendar",
+   "question": "argus-run-flow › macro-calendar changed but its mapped sibling admin-console › cb-macro didn't. Divergence, or should it propagate?",
+   "sibling": "admin-console#cb-macro",
+   "siblings": [
+    "admin-console#cb-macro"
+   ]
+  }
+ ],
+ "user_note": null
+}

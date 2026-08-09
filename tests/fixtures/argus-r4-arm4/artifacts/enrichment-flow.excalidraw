@@ -1,0 +1,2128 @@
+{
+ "appState": {
+  "gridSize": 20,
+  "viewBackgroundColor": "#faf8f2"
+ },
+ "elements": [
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "92e1e7f2c0"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "sentiment-scorer",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "e-in-sentiment",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 85342538,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "s-news",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 240,
+   "y": 112
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "12679bff9b"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "fundamentals",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "e-in-fundamentals",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1948601267,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "s-edgar",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 240,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "authored"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "insider-detector",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 140,
+   "id": "e-in-insider",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     80,
+     0
+    ],
+    [
+     80,
+     140
+    ],
+    [
+     160,
+     140
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1625273384,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "s-edgar",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 240,
+   "y": 292
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "22674161b3"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "risk-model",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 48,
+   "id": "e-sentiment-risk",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     240,
+     0
+    ],
+    [
+     240,
+     48
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1675512051,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "sentiment-scorer",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 240,
+   "x": 560,
+   "y": 112
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "2b1bec4dbc"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "risk-model",
+    "focus": -0.338,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 48,
+   "id": "e-fundamentals-risk",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     213,
+     0
+    ],
+    [
+     213,
+     -48
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1891209457,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "fundamentals",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 213,
+   "x": 560,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "authored"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "aggregator",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 76,
+   "id": "e-risk-agg",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     76
+    ],
+    [
+     240,
+     76
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1456651057,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "risk-model",
+    "focus": 0.333,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 240,
+   "x": 800,
+   "y": 224
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "authored"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "aggregator",
+    "focus": -0.338,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 192,
+   "id": "e-technicals-agg",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     80,
+     0
+    ],
+    [
+     80,
+     -192
+    ],
+    [
+     480,
+     -192
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1636082340,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "technicals",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 480,
+   "x": 560,
+   "y": 592
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "authored"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "aggregator",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 80,
+   "id": "e-insider-agg",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     400,
+     0
+    ],
+    [
+     400,
+     -80
+    ],
+    [
+     480,
+     -80
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1056880632,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "insider-detector",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 480,
+   "x": 560,
+   "y": 432
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "59374861c9"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "crowding-check",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "e-agg-compose",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1359410090,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "aggregator",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1200,
+   "y": 352
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-risk-alert-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "45f373df71"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "var-alert",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "e-risk-alert",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1171477669,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "risk-model",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 880,
+   "y": 192
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "c3d7c4ee13"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "to-compose",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "e-crowding-compose",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1561886674,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "crowding-check",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1520,
+   "y": 352
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "52d361fc10"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "technicals",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "e-market-technicals",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 172182981,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "s-market",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 240,
+   "y": 592
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "authored"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "sentiment-scorer",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 124,
+   "id": "e-edgar-sentiment",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     80,
+     0
+    ],
+    [
+     80,
+     -124
+    ],
+    [
+     160,
+     -124
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1308163831,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "s-edgar",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 240,
+   "y": 252
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-in-sentiment",
+     "type": "arrow"
+    },
+    {
+     "id": "e-sentiment-risk",
+     "type": "arrow"
+    },
+    {
+     "id": "e-edgar-sentiment",
+     "type": "arrow"
+    },
+    {
+     "id": "sentiment-scorer-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "agent",
+    "role": "node",
+    "tooltip": "Takes news headlines **and** filing tone. Two text sources, one scorer — and the only enricher with more than one input.\n\nDrawn as an agent node: still a guess that this is a model."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "sentiment-scorer",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 479593108,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 80
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-in-fundamentals",
+     "type": "arrow"
+    },
+    {
+     "id": "e-fundamentals-risk",
+     "type": "arrow"
+    },
+    {
+     "id": "fundamentals-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "Ratios. Deterministic — computed from filings, not judged."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "fundamentals",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1484348777,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 240
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-technicals-agg",
+     "type": "arrow"
+    },
+    {
+     "id": "e-market-technicals",
+     "type": "arrow"
+    },
+    {
+     "id": "technicals-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "document": "docs/adr/0002-news-never-touches-technical-signals.md",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "technicals",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 721398372,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 560
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-in-insider",
+     "type": "arrow"
+    },
+    {
+     "id": "e-insider-agg",
+     "type": "arrow"
+    },
+    {
+     "id": "insider-detector-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "3+ distinct insiders buying inside a 10 trading-day window. Size weights, does not gate.\n\nA **conviction** signal, not a risk one — it never reaches the risk model."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "insider-detector",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1496976158,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 400
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-sentiment-risk",
+     "type": "arrow"
+    },
+    {
+     "id": "e-fundamentals-risk",
+     "type": "arrow"
+    },
+    {
+     "id": "e-risk-agg",
+     "type": "arrow"
+    },
+    {
+     "id": "e-risk-alert",
+     "type": "arrow"
+    },
+    {
+     "id": "risk-model-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "document": "docs/adr/0001-risk-is-narrow-conviction-is-separate.md",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "**Settled: narrow by design.** Risk here is a fundamentals-and-tone number. Momentum and insider buying are *conviction*, not risk — that is how the desk thinks, not an accident of wiring.\n\nWhich means the Risk Deep-Dive is named after the narrow number, and that is fine.\n\n2.5% VaR is an **alert** off this box, not a filter."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "risk-model",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1612519276,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 720,
+   "y": 160
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-risk-agg",
+     "type": "arrow"
+    },
+    {
+     "id": "e-technicals-agg",
+     "type": "arrow"
+    },
+    {
+     "id": "e-insider-agg",
+     "type": "arrow"
+    },
+    {
+     "id": "e-agg-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "aggregator-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "Three inbound paths: technicals, insider clusters, and the risk score. This is the only place all four enrichers meet."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "aggregator",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 995328467,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1040,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-crowding-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "to-compose-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+    "kind": "sink",
+    "role": "node",
+    "tooltip": "**Everything leaves here now.** This used to be where the 0.70 gate dropped low-confidence Signals silently. It doesn't any more — the gate moved to its own view and became a router (ADR 0003).\n\nWhat leaves this box is every scored Signal, high and low. What happens to the low ones is a decision, and a human makes it."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "to-compose",
+   "isDeleted": false,
+   "link": "artifact:review-publish-flow",
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1319223054,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1680,
+   "y": 320
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "#fff8dc",
+   "boundElements": [
+    {
+     "id": "usernote-f1efa0e6-t",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "user",
+    "role": "note"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 90,
+   "id": "usernote-f1efa0e6",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1470206556,
+   "strokeColor": "#b8860b",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 230,
+   "x": 1040,
+   "y": 560
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-risk-alert",
+     "type": "arrow"
+    },
+    {
+     "id": "var-alert-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "sink",
+    "role": "node",
+    "tooltip": "**Correction to my last guess.** I had 2.5% drawn as a filter at the risk model. It isn't — nothing is dropped. The number comes out of the risk model and crossing 2.5% *tells you*.\n\nThat makes this the only path in the whole system that reaches a human without going through Compose, the reports, or the dashboard. It is the one thing that can wake someone up."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "var-alert",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1760258274,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1040,
+   "y": 160
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-agg-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "e-crowding-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "crowding-check-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDrawn dashed and named for what it is, because you want it sitting there looking unfinished rather than quietly reading as a stage that exists.\n\nIt is the only place in the design that could see the portfolio ending up on one side of a trade — your risk number is narrow by choice and never meets technicals or insider buying."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "crowding-check",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 340963330,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "dashed",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1360,
+   "y": 320
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "#fff8dc",
+   "boundElements": [
+    {
+     "id": "usernote-36da3cb3-t",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "user",
+    "role": "note"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 90,
+   "id": "usernote-36da3cb3",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1181313869,
+   "strokeColor": "#b8860b",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 230,
+   "x": 400,
+   "y": 660
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-in-sentiment",
+     "type": "arrow"
+    },
+    {
+     "id": "s-news-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "Headlines. Goes to the sentiment scorer and **nowhere else**."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "s-news",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 967996213,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 80,
+   "y": 80
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-in-fundamentals",
+     "type": "arrow"
+    },
+    {
+     "id": "e-in-insider",
+     "type": "arrow"
+    },
+    {
+     "id": "e-edgar-sentiment",
+     "type": "arrow"
+    },
+    {
+     "id": "s-edgar-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "The only source that feeds more than one enricher: filing **tone** to the sentiment scorer, Form-4s to the insider detector — and, as a guess, the financial statements behind the fundamentals ratios."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "s-edgar",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 289213466,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 80,
+   "y": 240
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "e-market-technicals",
+     "type": "arrow"
+    },
+    {
+     "id": "s-market-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "Prices and volumes. Momentum and breadth come off this and **nothing else** — that isolation is a design rule, not an implementation detail. Headline sentiment leaking in flipped a breadth call twice this quarter."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "s-market",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 871970094,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 80,
+   "y": 560
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "annotates": "s-market",
+    "author": "agent",
+    "role": "annotation"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 14,
+   "frameId": null,
+   "groupIds": [],
+   "height": 17,
+   "id": "note-universe",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Portfolio DB: scopes, doesn't feed",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 792399864,
+   "strokeColor": "#5c8a5f",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Portfolio DB: scopes, doesn't feed",
+   "textAlign": "left",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 285,
+   "x": 80,
+   "y": 520
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "sentiment-scorer",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "sentiment-scorer-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Sentiment scorer",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1382082663,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Sentiment scorer",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 412,
+   "y": 92
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "fundamentals",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "fundamentals-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Fundamentals",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 950062792,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Fundamentals",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 115,
+   "x": 422,
+   "y": 262
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "technicals",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "technicals-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Technical signals",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 5775106,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Technical signals",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 412,
+   "y": 572
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "insider-detector",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "insider-detector-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Insider clusters",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1887588286,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Insider clusters",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 412,
+   "y": 412
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "risk-model",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "risk-model-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Risk model",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1678953455,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Risk model",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 96,
+   "x": 752,
+   "y": 182
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "aggregator",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "aggregator-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Aggregator",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1256871584,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Aggregator",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 96,
+   "x": 1072,
+   "y": 342
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "to-compose",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "to-compose-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "→ Review & publish",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 68037409,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "→ Review & publish",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 1692,
+   "y": 332
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "usernote-f1efa0e6",
+   "customData": {
+    "author": "user",
+    "role": "note-text"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 14,
+   "frameId": null,
+   "groupIds": [],
+   "height": 35,
+   "id": "usernote-f1efa0e6-t",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "watch out for crowded trades",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1049905828,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "watch out for crowded trades",
+   "textAlign": "left",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 206,
+   "x": 1052,
+   "y": 588
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "var-alert",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "var-alert-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "VaR alert",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1996605978,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "VaR alert",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 86,
+   "x": 1077,
+   "y": 182
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "e-risk-alert",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "e-risk-alert-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "> 2.5%",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 75997364,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "> 2.5%",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 57,
+   "x": 932,
+   "y": 182
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "crowding-check",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "crowding-check-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Crowding check — not built",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 73690788,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Crowding check — not built",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 1372,
+   "y": 332
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "usernote-36da3cb3",
+   "customData": {
+    "author": "user",
+    "role": "note-text"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 14,
+   "frameId": null,
+   "groupIds": [],
+   "height": 35,
+   "id": "usernote-36da3cb3-t",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "was feeding technicals too — noise",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 690795204,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "was feeding technicals too — noise",
+   "textAlign": "left",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 206,
+   "x": 412,
+   "y": 688
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "s-news",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "s-news-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "News",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 879838385,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "News",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 38,
+   "x": 141,
+   "y": 102
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "s-edgar",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "s-edgar-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "SEC EDGAR",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1532505849,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "SEC EDGAR",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 86,
+   "x": 117,
+   "y": 262
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "s-market",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "s-market-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Market Feed",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1263616490,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Market Feed",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 105,
+   "x": 108,
+   "y": 582
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "author": "agent",
+    "question": "You routed four sources to three enrichers and never said where fundamentals gets its input. EDGAR?",
+    "role": "pin",
+    "status": "open",
+    "target": "fundamentals"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-fundamentals-source",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 978773777,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 568,
+   "y": 232
+  }
+ ],
+ "files": {},
+ "source": "wysiwyg-grilling",
+ "type": "excalidraw",
+ "version": 2,
+ "wysiwyg": {
+  "artifact": "enrichment-flow",
+  "artifact_type": "flow",
+  "migrations": [
+   "0001-baseline"
+  ],
+  "name": "Signal Formation"
+ }
+}

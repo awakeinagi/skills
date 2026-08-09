@@ -1,0 +1,3565 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-compose-analyst",
+     "kind": "arrow",
+     "label": "all three",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "label_added": {
+       "text": "all three"
+      }
+     },
+     "verb": "label_added"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "customData",
+      "link"
+     ],
+     "consequence_of": null,
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrich & score",
+     "ops": [
+      26,
+      27
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": 48,
+       "label": "Enrich & score",
+       "spatial": "moved right-down"
+      },
+      "renamed": {
+       "from": "Enrich",
+       "to": "Enrich & score"
+      },
+      "resized": {
+       "label": "Enrich & score"
+      },
+      "tooltip_changed": {
+       "label": "Enrich & score",
+       "text": "**Click through to `enrichment-flow`.** Four enrichers in parallel, and they do "
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "analyst-read",
+     "kind": "sink",
+     "label": "Analyst",
+     "ops": [
+      30,
+      31
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -240,
+       "dy": -80,
+       "label": "Analyst",
+       "spatial": "moved left-up"
+      },
+      "renamed": {
+       "from": "Analyst, pre-open",
+       "to": "Analyst"
+      },
+      "tooltip_changed": {
+       "label": "Analyst",
+       "text": "Reads all three Reports plus the dashboard."
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-normalize-enrich",
+     "kind": "arrow",
+     "label": "t-normalize-enrich",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-normalize-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "Normalize",
+        "Enrich & score"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-enrich-compose",
+     "kind": "arrow",
+     "label": "t-enrich-compose",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-enrich-compose"
+      },
+      "transition_added": {
+       "between": [
+        "Enrich & score",
+        "Compose outputs"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-compose-clients",
+     "kind": "arrow",
+     "label": "Brief + Deep-Dive",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "Brief + Deep-Dive"
+      },
+      "transition_added": {
+       "between": [
+        "Compose outputs",
+        "Clients"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "normalize",
+     "kind": "transform",
+     "label": "Normalize",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Normalize"
+      },
+      "step_added": {
+       "label": "Normalize"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "clients",
+     "kind": "sink",
+     "label": "Clients",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Clients"
+      },
+      "step_added": {
+       "label": "Clients"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-cadence-branch",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "On a Tuesday, does the run produce a Weekly Brief and hold it, or not produce one at all?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-digest-rule",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "'Never the Digest' — is that a compliance boundary or current practice?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-enrich-risk",
+     "kind": "arrow",
+     "label": "t-enrich-risk",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-enrich-risk"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Enrich",
+        "Score risk"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-risk-agg",
+     "kind": "arrow",
+     "label": "t-risk-agg",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-risk-agg"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Score risk",
+        "Aggregate"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-compose",
+     "kind": "arrow",
+     "label": "t-agg-compose",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-agg-compose"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Aggregate",
+        "Compose outputs"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Score risk",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "transform",
+        "label": "Score risk"
+       }
+      },
+      "step_deleted": {
+       "label": "Score risk"
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregate",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "transform",
+        "label": "Aggregate"
+       }
+      },
+      "step_deleted": {
+       "label": "Aggregate"
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-cluster-rule",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-three-reports",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData",
+      "locked"
+     ],
+     "consequence_of": null,
+     "id": "run-trigger",
+     "kind": "source",
+     "label": "Weekday 06:00",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Weekday 06:00",
+       "text": "**Settled.** Weekdays 06:00, before the open — never weekends. Locked because yo"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "compose-outputs",
+     "kind": "agent",
+     "label": "Compose outputs",
+     "ops": [
+      28,
+      29
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -320,
+       "dy": 0,
+       "label": "Compose outputs",
+       "spatial": "moved left"
+      },
+      "tooltip_changed": {
+       "label": "Compose outputs",
+       "text": "Prose written by a model; tables templated.\n\nCuts three Reports from one run's S"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-market-enrich",
+     "kind": "arrow",
+     "label": "t-market-enrich",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-enrich",
+       "from": "Market Feed→Enrich",
+       "to": "Market Feed→Normalize"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-edgar-enrich",
+     "kind": "arrow",
+     "label": "t-edgar-enrich",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-edgar-enrich",
+       "from": "SEC EDGAR→Enrich",
+       "to": "SEC EDGAR→Normalize"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-news-enrich",
+     "kind": "arrow",
+     "label": "t-news-enrich",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-enrich",
+       "from": "News Sentiment→Enrich",
+       "to": "News Sentiment→Normalize"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-portfolio-enrich",
+     "kind": "arrow",
+     "label": "t-portfolio-enrich",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-portfolio-enrich",
+       "from": "Portfolio DB→Enrich",
+       "to": "Portfolio DB→Normalize"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "df3f315ac9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-normalize-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 922257384,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "normalize",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 880,
+      "y": 352
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "59374861c9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-enrich-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 10246149,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 352
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-compose-clients-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "daac369ca0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "clients",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "t-compose-clients",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        48
+       ],
+       [
+        320,
+        48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 331878583,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1440,
+      "y": 384
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "normalize-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-portfolio-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-normalize-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "normalize",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1314046795,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 272
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "clients-label",
+        "type": "text"
+       },
+       {
+        "id": "t-compose-clients",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Weekly Brief and Risk Deep-Dive only. **Never the Signals Digest** — your emphasis, so it is drawn as a rule rather than a habit."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "clients",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 13119092,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1760,
+      "y": 400
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "normalize",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "normalize-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Normalize",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1936327801,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Normalize",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 757,
+      "y": 342
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "clients",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "clients-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Clients",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 533596389,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Clients",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 1806,
+      "y": 422
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-compose-analyst",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-compose-analyst-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "all three",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1169262149,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "all three",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1533,
+      "y": 262
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-compose-clients",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-compose-clients-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Brief + Deep-Dive",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 147029809,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Brief + Deep-Dive",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 1494,
+      "y": 422
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "On a Tuesday, does the run produce a Weekly Brief and hold it, or not produce one at all?",
+       "role": "pin",
+       "status": "open",
+       "target": "compose-outputs"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cadence-branch",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1858322129,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1528,
+      "y": 312
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "'Never the Digest' — is that a compliance boundary or current practice?",
+       "role": "pin",
+       "status": "open",
+       "target": "clients"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-digest-rule",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2139566188,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1905,
+      "y": 401
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "df3f315ac9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-enrich-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 856813147,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 880,
+      "y": 352
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "59374861c9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-risk-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 515789287,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 352
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c3d7c4ee13"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-agg-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 949456117,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-enrich-risk",
+        "type": "arrow"
+       },
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "risk-model-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Weighs the enriched signals into risk. The risk threshold and confidence threshold in the admin console point here."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "risk-model",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1612519276,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1040,
+      "y": 320
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "t-agg-compose",
+        "type": "arrow"
+       },
+       {
+        "id": "aggregator-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Rolls per-name scores up to portfolio level. Drawn after the risk model because you named it second — if it actually feeds the risk model, rewire it."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "aggregator",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 995328467,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 320
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-model",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "risk-model-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Score risk",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1678953455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Score risk",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1072,
+      "y": 342
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "aggregator",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "aggregator-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregate",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1256871584,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregate",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1397,
+      "y": 342
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What makes a Form-4 cluster a cluster — how many insiders, over what window, and does size matter?",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cluster-rule",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 24811694,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 888,
+      "y": 264
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Are the three PDFs three cuts of one run, or three different analyses on different clocks?",
+       "role": "pin",
+       "status": "open",
+       "target": "compose-outputs"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-three-reports",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1104480823,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1848,
+      "y": 312
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "normalize"
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "normalize"
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "normalize"
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "normalize"
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1840,
+       "to": 1440
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 320
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 160,
+       "to": 320
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 48
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -48
+        ],
+        [
+         320,
+         -48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7e5815b7b3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "91d999b70c"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Clock, not a request.** Fires every weekday at 06:00, ahead of the market open.\n\nThe open is the real deadline — 06:00 is just where we start. Whether the run *must* be done by the open, and what gives if it isn't, is unsettled."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Settled.** Weekdays 06:00, before the open — never weekends. Locked because you said it shouldn't move; right-click to unlock if that changes."
+       }
+      },
+      {
+       "attr": "locked",
+       "from": false,
+       "to": true
+      }
+     ],
+     "id": "run-trigger",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 64
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four enrichers, drawn as one box:\n\n- sentiment scorer (headlines + filing tone)\n- fundamentals ratios\n- technical signals\n- insider-cluster detector (Form-4)\n\nThey get their own view once we know which are models and which are formulas."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Click through to `enrichment-flow`.** Four enrichers in parallel, and they do not converge on one place: sentiment + fundamentals feed the risk model; technicals + insider clusters go straight to the aggregator; the risk model's output joins them there.\n\nCollapsed to one box *here* because that topology cannot share a canvas with the ingest fan and stay readable."
+       }
+      },
+      {
+       "attr": "link",
+       "from": null,
+       "to": "artifact:enrichment-flow"
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      720,
+      272
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      1040,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Produces:\n\n- the dashboard (KPIs)\n- Weekly Brief (PDF)\n- Risk Deep-Dive (PDF)\n- Signals Digest (PDF)\n\nDrawn as an **agent** node — a guess that the prose is written, not templated."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Prose written by a model; tables templated.\n\nCuts three Reports from one run's Signals:\n\n- **Signals Digest** — daily\n- **Weekly Brief** — Mondays\n- **Risk Deep-Dive** — monthly\n\nPlus the dashboard KPIs."
+       }
+      }
+     ],
+     "id": "compose-outputs",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1680,
+      320
+     ],
+     "id": "compose-outputs",
+     "op": "move",
+     "to": [
+      1360,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "The party this whole pipeline exists for. Drawn as one reader; if the Brief goes to a wider list (PMs, compliance, clients) that is a second party and this box splits."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Reads all three Reports plus the dashboard."
+       }
+      }
+     ],
+     "id": "analyst-read",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2000,
+      320
+     ],
+     "id": "analyst-read",
+     "op": "move",
+     "to": [
+      1760,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 772,
+       "to": 1053
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 57,
+       "to": 134
+      },
+      {
+       "attr": "text",
+       "from": "Enrich",
+       "to": "Enrich & score"
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1692,
+       "to": 1372
+      }
+     ],
+     "id": "compose-outputs-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2012,
+       "to": 1806
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 332,
+       "to": 262
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 136,
+       "to": 67
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 40,
+       "to": 20
+      },
+      {
+       "attr": "text",
+       "from": "Analyst, pre-open",
+       "to": "Analyst"
+      }
+     ],
+     "id": "analyst-read-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-compose-analyst",
+     "fact": "label_added",
+     "text": "all three"
+    },
+    {
+     "element": "enrichment",
+     "fact": "renamed",
+     "from": "Enrich",
+     "to": "Enrich & score"
+    },
+    {
+     "element": "analyst-read",
+     "fact": "renamed",
+     "from": "Analyst, pre-open",
+     "to": "Analyst"
+    },
+    {
+     "element": "t-normalize-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-normalize-enrich"
+    },
+    {
+     "element": "t-enrich-compose",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-enrich-compose"
+    },
+    {
+     "element": "t-compose-clients",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "Brief + Deep-Dive"
+    },
+    {
+     "element": "normalize",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Normalize"
+    },
+    {
+     "element": "clients",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Clients"
+    },
+    {
+     "element": "pin-cadence-branch",
+     "fact": "pin_added",
+     "question": "On a Tuesday, does the run produce a Weekly Brief and hold it, or not produce one at all?"
+    },
+    {
+     "element": "pin-digest-rule",
+     "fact": "pin_added",
+     "question": "'Never the Digest' — is that a compliance boundary or current practice?"
+    },
+    {
+     "element": "t-enrich-risk",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-enrich-risk"
+     }
+    },
+    {
+     "element": "t-risk-agg",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-risk-agg"
+     }
+    },
+    {
+     "element": "t-agg-compose",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-agg-compose"
+     }
+    },
+    {
+     "element": "risk-model",
+     "fact": "deleted",
+     "was": {
+      "kind": "transform",
+      "label": "Score risk"
+     }
+    },
+    {
+     "element": "aggregator",
+     "fact": "deleted",
+     "was": {
+      "kind": "transform",
+      "label": "Aggregate"
+     }
+    },
+    {
+     "element": "pin-cluster-rule",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-three-reports",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "run-trigger",
+     "fact": "tooltip_changed",
+     "label": "Weekday 06:00",
+     "text": "**Settled.** Weekdays 06:00, before the open — never weekends. Locked because yo"
+    },
+    {
+     "element": "enrichment",
+     "fact": "resized",
+     "label": "Enrich & score"
+    },
+    {
+     "element": "enrichment",
+     "fact": "tooltip_changed",
+     "label": "Enrich & score",
+     "text": "**Click through to `enrichment-flow`.** Four enrichers in parallel, and they do "
+    },
+    {
+     "dx": 320,
+     "dy": 48,
+     "element": "enrichment",
+     "fact": "moved",
+     "label": "Enrich & score",
+     "spatial": "moved right-down"
+    },
+    {
+     "element": "compose-outputs",
+     "fact": "tooltip_changed",
+     "label": "Compose outputs",
+     "text": "Prose written by a model; tables templated.\n\nCuts three Reports from one run's S"
+    },
+    {
+     "dx": -320,
+     "dy": 0,
+     "element": "compose-outputs",
+     "fact": "moved",
+     "label": "Compose outputs",
+     "spatial": "moved left"
+    },
+    {
+     "element": "analyst-read",
+     "fact": "tooltip_changed",
+     "label": "Analyst",
+     "text": "Reads all three Reports plus the dashboard."
+    },
+    {
+     "dx": -240,
+     "dy": -80,
+     "element": "analyst-read",
+     "fact": "moved",
+     "label": "Analyst",
+     "spatial": "moved left-up"
+    },
+    {
+     "between": [
+      "Normalize",
+      "Enrich & score"
+     ],
+     "element": "t-normalize-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Enrich & score",
+      "Compose outputs"
+     ],
+     "element": "t-enrich-compose",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Compose outputs",
+      "Clients"
+     ],
+     "element": "t-compose-clients",
+     "fact": "transition_added"
+    },
+    {
+     "element": "normalize",
+     "fact": "step_added",
+     "label": "Normalize"
+    },
+    {
+     "element": "clients",
+     "fact": "step_added",
+     "label": "Clients"
+    },
+    {
+     "between": [
+      "Enrich",
+      "Score risk"
+     ],
+     "element": "t-enrich-risk",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Score risk",
+      "Aggregate"
+     ],
+     "element": "t-risk-agg",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Aggregate",
+      "Compose outputs"
+     ],
+     "element": "t-agg-compose",
+     "fact": "transition_deleted"
+    },
+    {
+     "element": "risk-model",
+     "fact": "step_deleted",
+     "label": "Score risk"
+    },
+    {
+     "element": "aggregator",
+     "fact": "step_deleted",
+     "label": "Aggregate"
+    },
+    {
+     "arrow": "t-market-enrich",
+     "element": "t-market-enrich",
+     "fact": "rewired",
+     "from": "Market Feed→Enrich",
+     "to": "Market Feed→Normalize"
+    },
+    {
+     "arrow": "t-edgar-enrich",
+     "element": "t-edgar-enrich",
+     "fact": "rewired",
+     "from": "SEC EDGAR→Enrich",
+     "to": "SEC EDGAR→Normalize"
+    },
+    {
+     "arrow": "t-news-enrich",
+     "element": "t-news-enrich",
+     "fact": "rewired",
+     "from": "News Sentiment→Enrich",
+     "to": "News Sentiment→Normalize"
+    },
+    {
+     "arrow": "t-portfolio-enrich",
+     "element": "t-portfolio-enrich",
+     "fact": "rewired",
+     "from": "Portfolio DB→Enrich",
+     "to": "Portfolio DB→Normalize"
+    },
+    {
+     "arrows": [
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1806,
+       "to": 2012
+      },
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 332
+      },
+      {
+       "attr": "width",
+       "from": 67,
+       "to": 136
+      },
+      {
+       "attr": "height",
+       "from": 20,
+       "to": 40
+      },
+      {
+       "attr": "text",
+       "from": "Analyst",
+       "to": "Analyst, pre-open"
+      }
+     ],
+     "id": "analyst-read-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1372,
+       "to": 1692
+      }
+     ],
+     "id": "compose-outputs-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1053,
+       "to": 772
+      },
+      {
+       "attr": "width",
+       "from": 134,
+       "to": 57
+      },
+      {
+       "attr": "text",
+       "from": "Enrich & score",
+       "to": "Enrich"
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1760,
+      240
+     ],
+     "id": "analyst-read",
+     "op": "move",
+     "to": [
+      2000,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Reads all three Reports plus the dashboard."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "The party this whole pipeline exists for. Drawn as one reader; if the Brief goes to a wider list (PMs, compliance, clients) that is a second party and this box splits."
+       }
+      }
+     ],
+     "id": "analyst-read",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1360,
+      320
+     ],
+     "id": "compose-outputs",
+     "op": "move",
+     "to": [
+      1680,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Prose written by a model; tables templated.\n\nCuts three Reports from one run's Signals:\n\n- **Signals Digest** — daily\n- **Weekly Brief** — Mondays\n- **Risk Deep-Dive** — monthly\n\nPlus the dashboard KPIs."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Produces:\n\n- the dashboard (KPIs)\n- Weekly Brief (PDF)\n- Risk Deep-Dive (PDF)\n- Signals Digest (PDF)\n\nDrawn as an **agent** node — a guess that the prose is written, not templated."
+       }
+      }
+     ],
+     "id": "compose-outputs",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1040,
+      320
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      720,
+      272
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 64,
+       "to": 160
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Click through to `enrichment-flow`.** Four enrichers in parallel, and they do not converge on one place: sentiment + fundamentals feed the risk model; technicals + insider clusters go straight to the aggregator; the risk model's output joins them there.\n\nCollapsed to one box *here* because that topology cannot share a canvas with the ingest fan and stay readable."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four enrichers, drawn as one box:\n\n- sentiment scorer (headlines + filing tone)\n- fundamentals ratios\n- technical signals\n- insider-cluster detector (Form-4)\n\nThey get their own view once we know which are models and which are formulas."
+       }
+      },
+      {
+       "attr": "link",
+       "from": "artifact:enrichment-flow",
+       "to": null
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Settled.** Weekdays 06:00, before the open — never weekends. Locked because you said it shouldn't move; right-click to unlock if that changes."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Clock, not a request.** Fires every weekday at 06:00, ahead of the market open.\n\nThe open is the real deadline — 06:00 is just where we start. Whether the run *must* be done by the open, and what gives if it isn't, is unsettled."
+       }
+      },
+      {
+       "attr": "locked",
+       "from": true,
+       "to": false
+      }
+     ],
+     "id": "run-trigger",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1440,
+       "to": 1840
+      },
+      {
+       "attr": "y",
+       "from": 320,
+       "to": 352
+      },
+      {
+       "attr": "width",
+       "from": 320,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "from": 48,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -48
+        ],
+        [
+         320,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "91d999b70c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7e5815b7b3"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "normalize",
+       "to": "enrichment"
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "normalize",
+       "to": "enrichment"
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "normalize",
+       "to": "enrichment"
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "normalize",
+       "to": "enrichment"
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Are the three PDFs three cuts of one run, or three different analyses on different clocks?",
+       "role": "pin",
+       "status": "open",
+       "target": "compose-outputs"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-three-reports",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1104480823,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1848,
+      "y": 312
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What makes a Form-4 cluster a cluster — how many insiders, over what window, and does size matter?",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cluster-rule",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 24811694,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 888,
+      "y": 264
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "aggregator",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "aggregator-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregate",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1256871584,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregate",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1397,
+      "y": 342
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-model",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "risk-model-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Score risk",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1678953455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Score risk",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1072,
+      "y": 342
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "t-agg-compose",
+        "type": "arrow"
+       },
+       {
+        "id": "aggregator-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Rolls per-name scores up to portfolio level. Drawn after the risk model because you named it second — if it actually feeds the risk model, rewire it."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "aggregator",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 995328467,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 320
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-enrich-risk",
+        "type": "arrow"
+       },
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "risk-model-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Weighs the enriched signals into risk. The risk threshold and confidence threshold in the admin console point here."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "risk-model",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1612519276,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1040,
+      "y": 320
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c3d7c4ee13"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-agg-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 949456117,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "59374861c9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-risk-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 515789287,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 352
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "df3f315ac9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-enrich-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 856813147,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 880,
+      "y": 352
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "'Never the Digest' — is that a compliance boundary or current practice?",
+       "role": "pin",
+       "status": "open",
+       "target": "clients"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-digest-rule",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2139566188,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1905,
+      "y": 401
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "On a Tuesday, does the run produce a Weekly Brief and hold it, or not produce one at all?",
+       "role": "pin",
+       "status": "open",
+       "target": "compose-outputs"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cadence-branch",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1858322129,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1528,
+      "y": 312
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-compose-clients",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-compose-clients-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Brief + Deep-Dive",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 147029809,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Brief + Deep-Dive",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 1494,
+      "y": 422
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-compose-analyst",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-compose-analyst-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "all three",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1169262149,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "all three",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1533,
+      "y": 262
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "clients",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "clients-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Clients",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 533596389,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Clients",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 1806,
+      "y": 422
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "normalize",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "normalize-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Normalize",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1936327801,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Normalize",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 757,
+      "y": 342
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "clients-label",
+        "type": "text"
+       },
+       {
+        "id": "t-compose-clients",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Weekly Brief and Risk Deep-Dive only. **Never the Signals Digest** — your emphasis, so it is drawn as a rule rather than a habit."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "clients",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 13119092,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1760,
+      "y": 400
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "normalize-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-portfolio-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-normalize-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "normalize",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1314046795,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 272
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-compose-clients-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "daac369ca0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "clients",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "t-compose-clients",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        48
+       ],
+       [
+        320,
+        48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 331878583,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1440,
+      "y": 384
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "59374861c9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-enrich-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 10246149,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 352
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "df3f315ac9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-normalize-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 922257384,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "normalize",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 880,
+      "y": 352
+     },
+     "index": 9,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 1,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Portfolio",
+   "name": "Portfolio"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Position",
+   "name": "Position"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Instrument",
+   "name": "Instrument"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "DataSource",
+   "name": "DataSource"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "PipelineRun",
+   "name": "PipelineRun"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Signal",
+   "id": "signal",
+   "name": "Signal"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Report",
+   "name": "Report"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Insider cluster",
+   "name": "Insider cluster"
+  }
+ ],
+ "revn": 2,
+ "round": 1,
+ "saved_at": "2026-08-09T10:49:29Z",
+ "selection_at_save": [],
+ "short_id": "270eea4",
+ "summary": {
+  "headline": "rewired Market Feed→Enrich to Market Feed→Normalize (+39 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 5,
+   "deleted": 5,
+   "label_added": 1,
+   "moved": 3,
+   "pin_added": 2,
+   "pin_deleted": 2,
+   "renamed": 2,
+   "resized": 1,
+   "rewired": 4,
+   "sequence_reordered": 1,
+   "step_added": 2,
+   "step_deleted": 2,
+   "tooltip_changed": 4,
+   "transition_added": 3,
+   "transition_deleted": 3
+  }
+ },
+ "tripwires": [],
+ "user_note": "your correction: Enrich was hiding four things, so the spine drops to one altitude and the detail gets its own view; two readers, not one"
+}
