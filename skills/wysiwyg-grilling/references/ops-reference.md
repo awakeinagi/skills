@@ -140,6 +140,11 @@ on concept `report` clears the umbrella's `wireframe` debt.
 // (the router avoids foreign boxes and prefers orthogonal elbows):
 {"op": "add", "element": {"type": "arrow", "id": "t-a-b", "label": "yes"},
  "from": "step-a", "to": "step-b"}
+// Reflexive (v0.8): `from` == `to` routes a self-loop off the node's
+// top-right corner — "rerun of", "manages", a retry back into the same
+// step. Keep the label short; cardinality goes in the tooltip.
+{"op": "add", "element": {"type": "arrow", "id": "r-run-rerun",
+ "label": "rerun of"}, "from": "pipeline-run", "to": "pipeline-run"}
 // `type: "image"` is rejected in ops — real images arrive via the canvas
 // (paste/drop in the browser) with their file blobs.
 ```

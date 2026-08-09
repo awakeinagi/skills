@@ -9,6 +9,7 @@ THIS way?"**
 |---|---|---|
 | Entity | `rectangle`, `role: node`, `kind: entity`, label = the term; optional `attributes: ["cash, mandate", …]` renders rows beneath the term (facts: `attribute_added/removed`) | a domain concept |
 | Relationship | `arrow` with `from`/`to` + a short label ("owns", "emits") | how they relate |
+| Reflexive relationship | same, with `from` == `to` ("rerun of", "manages") — routes as a loop off the top-right corner automatically (v0.8) | self-reference |
 | Cluster | `frame` around related entities (sparingly) | bounded context |
 | Note | `text`, `role: annotation`, `annotates: <id>` | caveat/example |
 
@@ -18,6 +19,12 @@ that identity is what wires the glossary discipline.
 Keep visible `attributes` to ~2 rows; verbose per-entity detail (field
 lists, invariants, examples) belongs in the element's `tooltip`
 (markdown, shown on hover) where it can't collide with the drawing.
+
+A reflexive relationship ("a PipelineRun is a *rerun of* another
+PipelineRun") is an ordinary arrow with `from` and `to` naming the same
+entity — never hand-author loop geometry; unbound arrows follow nothing
+and now draw a WARNING. A loop has no straight run, so keep its label to
+the verb and put the cardinality (`0..1`) in the arrow's `tooltip`.
 
 ## Cardinality
 

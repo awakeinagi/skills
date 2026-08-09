@@ -1448,6 +1448,20 @@ def _route_candidates(src, dst):
                 clean.append(p)
         if len(clean) >= 2:
             out.append(clean)
+    if not out:
+        # r4-11: coincident/concentric boxes collapse EVERY candidate —
+        # including the degenerate fallback above, whose two edge anchors
+        # resolve to the same point and get dropped by the zero-length
+        # cleanup. The guard protected `cands`; the cleanup empties `out`
+        # (a mirror-direction miss). Emit a non-degenerate stub so routing
+        # is total: two boxes sharing a spot LOOK wrong, which is the
+        # honest rendering, and the endpoint lint takes over once layout
+        # separates them.
+        ax, ay = edge_anchor(src, dcx, dcy)
+        bx, by = edge_anchor(dst, scx, scy)
+        if abs(ax - bx) <= 0.5 and abs(ay - by) <= 0.5:
+            bx = ax + 24.0
+        out.append([(ax, ay), (bx, by)])
     return out
 
 
@@ -1463,6 +1477,35 @@ def _segs_cross(ax, ay, bx, by, cx, cy, dx, dy):
     return o1 != o2 and o3 != o4 and 0 not in (o1, o2, o3, o4)
 
 
+def _self_loop_path(node):
+    """Waypoints for a reflexive arrow: out the right edge, around the
+    top-right corner, back in through the top edge.
+
+    Deterministic — no candidates, no scoring — so every routing pass
+    (add, rewire, F1, the obstacle pass, tidy) reproduces the same loop
+    instead of collapsing it: before v0.8 a ``from == to`` arrow crashed
+    apply outright (r4-11 — the straight "candidate" had zero length and
+    the cleanup dropped it, leaving ``min()`` an empty sequence), so an
+    entire relationship class ("a PipelineRun is a rerun of another
+    PipelineRun") could not be drawn through the documented write path.
+
+    Args:
+        node: The element the arrow leaves and re-enters.
+
+    Returns:
+        Absolute ``[(x, y), ...]`` waypoints, right-edge exit to
+        top-edge entry.
+    """
+    x1, y1 = node["x"], node["y"]
+    w, h = node.get("width", 0), node.get("height", 0)
+    x2 = x1 + w
+    r = 28.0
+    exit_y = y1 + max(h * 0.33, 8.0)
+    entry_x = x2 - min(24.0, max(w * 0.25, 8.0))
+    return [(x2, exit_y), (x2 + r, exit_y), (x2 + r, y1 - r),
+            (entry_x, y1 - r), (entry_x, y1)]
+
+
 def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
                 other_arrows=None):
     """Compute explicit geometry for a bound arrow (bindings do NOT route —
@@ -1471,7 +1514,9 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
     crosses a foreign box, alternate orientations and bounded Z-detours
     are tried and the cleanest path wins (Phase-4 router — before this,
     dense fan-outs routed straight through neighbors and only the lint
-    noticed).
+    noticed). Total by design since v0.8: a reflexive pair takes the
+    deterministic self-loop, and degenerate pairs route a stub rather
+    than raising (r4-11).
 
     Args:
         arrow: The arrow element to (re)route in place.
@@ -1518,7 +1563,11 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
         # a true diagonal reads worse than one clean bend (layout.md §6.1)
         return (hits(path), soft(path), bends + (2 if diag else 0), length)
 
-    path = min(_route_candidates(src, dst), key=score)
+    if src is dst or src.get("id") == dst.get("id"):
+        # reflexive relationship (v0.8) — deterministic, obstacle-blind
+        path = _self_loop_path(src)
+    else:
+        path = min(_route_candidates(src, dst), key=score)
     x1, y1 = path[0]
     pts = [[px - x1, py - y1] for px, py in path]
     arrow["roundness"] = None if len(pts) == 2 else {"type": 2}
@@ -1866,10 +1915,23 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 for e in els if e.get("type") == "arrow"
                 and len(e.get("points") or []) >= 2]
 
-    def route_ctx(arrow, src, dst):
-        route_arrow(arrow, src, dst, obstacles(),
-                    soft_obstacles=soft_obstacles(),
-                    other_arrows=arrow_paths())
+    def route_ctx(arrow, src, dst, opi=None):
+        # Envelope (v0.8, E-9): a routing failure must surface as an
+        # ERROR naming the offending op — the r4-11 crash reached the
+        # agent as a bare traceback, breaking SKILL.md's promise.
+        try:
+            route_arrow(arrow, src, dst, obstacles(),
+                        soft_obstacles=soft_obstacles(),
+                        other_arrows=arrow_paths())
+        except Exception as e:  # noqa: BLE001 — totality backstop
+            where = "op %d" % opi if opi is not None else "post-pass"
+            errors.append(
+                "%s: internal routing error on arrow %r (%s -> %s) — "
+                "%s: %s. The batch was rejected whole; file this, and "
+                "work around it by placing the endpoints apart before "
+                "connecting them."
+                % (where, arrow.get("id"), src.get("id"), dst.get("id"),
+                   type(e).__name__, e))
 
     for i, op in enumerate(ops):
         kind = op.get("op")
@@ -1893,7 +1955,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     src = resolve(src_id, i, "arrow from") if src_id else None
                     dst = resolve(dst_id, i, "arrow to") if dst_id else None
                     if src is not None and dst is not None:
-                        route_ctx(arrow, src, dst)
+                        route_ctx(arrow, src, dst, opi=i)
                         recenter_label(els, arrow)
         elif kind == "mod":
             el = resolve(op.get("id"), i, "mod")
@@ -2152,7 +2214,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                         else:
                             dst = endpoint
                     if src is not None and dst is not None:
-                        route_ctx(el, src, dst)
+                        route_ctx(el, src, dst, opi=i)
                         recenter_label(els, el)
                     else:
                         missing = "start (`from`)" if src is None \
@@ -2317,9 +2379,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                 for p1, p2 in zip(pts, pts[1:])
                 for ob in obs if ob.get("id") not in (sN["id"], dN["id"]))
             if hit:
-                route_arrow(e, sN, dN, obs,
-                            soft_obstacles=soft_obstacles(),
-                            other_arrows=arrow_paths())
+                route_ctx(e, sN, dN)
                 recenter_label(els, e)
         fan_attach_points(els)
         els = normalize_z_order(els)
@@ -4291,6 +4351,26 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 % (deco["id"], int(spill), name(host["id"])))
 
     # ---- ERROR: detached endpoints (server-routed) --------------------
+    # An arrow that LOOKS like a relationship but binds nothing (v0.8,
+    # D8): the r4-11 workaround hand-authored a labeled domain loop with
+    # both bindings null — it rendered perfectly, followed nothing, and
+    # no check named it. The agent then reported it "properly bound".
+    for a in arrows:
+        if (a.get("startBinding") or {}).get("elementId") or \
+                (a.get("endBinding") or {}).get("elementId"):
+            continue
+        a_lbl = next((t for t in els if t.get("containerId") == a["id"]
+                      and t.get("type") == "text"), None)
+        if a_lbl is None and artifact_type != "domain":
+            continue  # an unlabeled sketch arrow outside a domain view
+        warnings.append(
+            "arrow %s%s binds nothing — it reads as a relationship but "
+            "will not follow either endpoint when they move. Bind it "
+            "with from/to (self-loops route automatically), or mark it "
+            "role: decoration if it is only furniture"
+            % (a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
+               if a_lbl is not None else ""))
+
     TOL = 14  # binding gap (6) + slack
     for a in arrows:
         x1, y1, x2, y2 = bbox_pts(a)
@@ -4352,6 +4432,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         for a in arrows:
             s = (a.get("startBinding") or {}).get("elementId")
             d = (a.get("endBinding") or {}).get("elementId")
+            if s is not None and s == d:
+                # a reflexive arrow (v0.8) is commentary on the node, not
+                # flow progress — counting it both ways made a looped node
+                # its own source AND sink
+                continue
             if s in outbound:
                 outbound[s] += 1
             if d in inbound:
@@ -4651,10 +4736,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
 
     # ---- WARNING: legibility -----------------------------------------
     for e in arrows:
+        sb_id = (e.get("startBinding") or {}).get("elementId")
+        eb_id = (e.get("endBinding") or {}).get("elementId")
+        self_loop = sb_id is not None and sb_id == eb_id
         run = (e["points"][-1][0] ** 2 + e["points"][-1][1] ** 2) ** 0.5
         lbl = next((t for t in els if t.get("containerId") == e["id"]
                     and t.get("type") == "text"), None)
-        if lbl is not None and run < lbl.get("width", 0) + 24:
+        # a self-loop has no straight run — its endpoints are close by
+        # definition, so this check would false-fire on every reflexive
+        # relationship ("rerun of" demoted its cardinality to a tooltip
+        # for exactly this reason, r4). Long labels there go in tooltips.
+        if lbl is not None and not self_loop and \
+                run < lbl.get("width", 0) + 24:
             warnings.append(
                 "label %r is wider than its arrow's %dpx run (%s) — "
                 "spread the endpoints or shorten the label"
@@ -5303,7 +5396,9 @@ def flow_reachable(els, cap=200):
             continue
         s = _norm_binding(a.get("startBinding"))
         d = _norm_binding(a.get("endBinding"))
-        if s and d:
+        if s and d and s != d:
+            # self-edges (v0.8 reflexive arrows) are excluded: a node
+            # must never count as reachable via its own loop
             adj.setdefault(s, set()).add(d)
     out = {}
     for start in adj:
@@ -6681,7 +6776,16 @@ class Store:
                         % (i, o.get("id"),
                            ", ".join(sorted(known_pins)) or "none"))
             pin_reg = []
-            new_els = apply_ops(base_els, ops, errors, pin_reg)
+            try:
+                new_els = apply_ops(base_els, ops, errors, pin_reg)
+            except Exception as e:  # noqa: BLE001 — E-9 backstop
+                # No traceback ever reaches the agent: SKILL.md promises
+                # "errors name the offending op", and the r4-11 crash
+                # arrived as a raw ValueError instead.
+                raise BatchError([*errors,
+                    "internal error applying ops — %s: %s (the batch was "
+                    "rejected whole; nothing partial landed)"
+                    % (type(e).__name__, e)]) from e
             registry_ops = [o for o in ops if o.get("op") == "registry"]
             if errors:
                 raise BatchError(errors)

@@ -2225,20 +2225,22 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
-    def test_unbound_relationship_arrow_is_present_and_unflagged(self):
-        # PINS A DEFECT (WP1 flips this): r-run-rerun is the hand-authored
-        # self-loop workaround for the router crash — a labeled domain
-        # relationship bound to NOTHING, and no lint names it (D8). After
-        # WP1 this arrow must draw a WARNING and this test flips to assert
-        # it.
+    def test_unbound_relationship_arrow_now_warns(self):
+        # FLIPPED BY WP1 (was: pinned the defect). r-run-rerun is the
+        # hand-authored self-loop workaround for the router crash — a
+        # labeled domain relationship bound to NOTHING that rendered
+        # perfectly and followed nothing (D8). The lint must name it,
+        # exactly once, and nothing else on the artifact may fire.
         els = self.store.scenes["argus-domain"]
         loop = next(e for e in els if e["id"] == "r-run-rerun")
         self.assertIsNone(loop.get("startBinding"))
         self.assertIsNone(loop.get("endBinding"))
         lint = self.lint_all()["argus-domain"]
-        self.assertFalse(any("r-run-rerun" in m
-                             for tier in ("errors", "warnings", "notes")
-                             for m in lint[tier]))
+        named = [w for w in lint["warnings"] if "r-run-rerun" in w]
+        self.assertEqual(len(named), 1, lint["warnings"])
+        self.assertIn("binds nothing", named[0])
+        self.assertEqual(len(lint["warnings"]), 1,
+                         "unbound-lint over-fired: %r" % lint["warnings"])
 
 
 class TestArgusR4Arm4Fixture(FixtureReplayBase):
@@ -6159,6 +6161,220 @@ class TestDecorationFollowsItsBox(Base):
                                    artifact_type="wireframe")["notes"]
         self.assertFalse(any("extends" in n and "grouped with" in n
                              for n in notes), notes)
+
+
+class TestRouterTotalityAndSelfLoops(Base):
+    """WP1 (r4-11, D8, E-8, E-9): routing is total, reflexive arrows are
+    a supported relationship class, and no failure reaches the agent as
+    a traceback."""
+
+    def flow_nodes(self):
+        """Seed a 3-node flow (source -> transform -> sink).
+
+        Returns:
+            The seeded elements list.
+        """
+        return [
+            {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+             "width": 100, "height": 50,
+             "customData": {"kind": "source", "role": "node"}},
+            {"id": "t", "type": "rectangle", "x": 300, "y": 0,
+             "width": 100, "height": 50,
+             "customData": {"kind": "transform", "role": "node"}},
+            {"id": "k", "type": "rectangle", "x": 600, "y": 0,
+             "width": 100, "height": 50,
+             "customData": {"kind": "sink", "role": "node"}},
+        ]
+
+    def test_self_loop_routes_and_binds(self):
+        # The r4-11 class: "a PipelineRun is a rerun of another
+        # PipelineRun" was undrawable — from == to raised ValueError out
+        # of min() on an empty candidate list.
+        box = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+               "width": 160, "height": 80}
+        arrow = {"id": "a1", "type": "arrow"}
+        canvas.route_arrow(arrow, box, box)
+        self.assertEqual(len(arrow["points"]), 5)
+        self.assertEqual(arrow["startBinding"]["elementId"], "n1")
+        self.assertEqual(arrow["endBinding"]["elementId"], "n1")
+        self.assertEqual(arrow["roundness"], {"type": 2})
+
+    def test_self_loop_reroute_is_idempotent(self):
+        # The F1/obstacle post-passes call route_arrow again; a loop must
+        # come back identical, never degenerate.
+        box = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+               "width": 160, "height": 80}
+        other = {"id": "n2", "type": "rectangle", "x": 130, "y": 90,
+                 "width": 80, "height": 40}
+        arrow = {"id": "a1", "type": "arrow"}
+        canvas.route_arrow(arrow, box, box)
+        before = [list(p) for p in arrow["points"]]
+        canvas.route_arrow(arrow, box, box, obstacles=[other])
+        self.assertEqual(before, arrow["points"])
+
+    def test_coincident_and_concentric_pairs_route_a_stub(self):
+        # Arm 4's live trigger: a new node placed before layout separates
+        # it shares its neighbor's spot. Both shapes must route, not raise.
+        a = {"id": "n1", "type": "rectangle", "x": 100, "y": 100,
+             "width": 160, "height": 80}
+        b = {"id": "n2", "type": "rectangle", "x": 100, "y": 100,
+             "width": 160, "height": 80}
+        c = {"id": "n3", "type": "rectangle", "x": 140, "y": 120,
+             "width": 80, "height": 40}
+        for dst in (b, c):
+            arrow = {"id": "a-%s" % dst["id"], "type": "arrow"}
+            canvas.route_arrow(arrow, a, dst)
+            self.assertGreaterEqual(len(arrow["points"]), 2)
+            span = max(abs(p[0]) + abs(p[1]) for p in arrow["points"])
+            self.assertGreater(span, 0.5)
+
+    def test_offset_pair_still_routes_normally(self):
+        # Control: the totality guard must not change ordinary routing.
+        a = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+             "width": 100, "height": 50}
+        b = {"id": "n2", "type": "rectangle", "x": 300, "y": 0,
+             "width": 100, "height": 50}
+        arrow = {"id": "a1", "type": "arrow"}
+        canvas.route_arrow(arrow, a, b)
+        self.assertEqual(arrow["startBinding"]["elementId"], "n1")
+        self.assertEqual(arrow["endBinding"]["elementId"], "n2")
+        self.assertEqual(len(arrow["points"]), 2)
+
+    def test_self_loop_through_apply_batch(self):
+        # End to end through the documented write path — the exact move
+        # arm 3 could not make.
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e1", "type": "arrow"},
+             "from": "s", "to": "t"},
+            {"op": "add", "element": {"id": "e2", "type": "arrow"},
+             "from": "t", "to": "k"},
+            {"op": "add", "element": {"id": "loop", "type": "arrow",
+                                      "label": "retry"},
+             "from": "t", "to": "t"},
+        ], errors)
+        self.assertEqual(errors, [])
+        loop = next(e for e in els if e["id"] == "loop")
+        self.assertEqual(loop["startBinding"]["elementId"], "t")
+        self.assertEqual(loop["endBinding"]["elementId"], "t")
+
+    def test_self_loop_exempt_from_flow_and_label_lints(self):
+        # A looped transform is not a black hole, not a source-to-sink
+        # short circuit, and its label never draws "wider than its run".
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e1", "type": "arrow"},
+             "from": "s", "to": "t"},
+            {"op": "add", "element": {"id": "e2", "type": "arrow"},
+             "from": "t", "to": "k"},
+            {"op": "add", "element": {"id": "loop", "type": "arrow",
+                                      "label": "retry with backoff"},
+             "from": "t", "to": "t"},
+        ], errors)
+        self.assertEqual(errors, [])
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        self.assertEqual(lint["errors"], [])
+        self.assertFalse(any("wider than its arrow" in w and "loop" in w
+                             for w in lint["warnings"]), lint["warnings"])
+
+    def test_self_edge_excluded_from_reachability(self):
+        els = []
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "loop", "type": "arrow"},
+             "from": "t", "to": "t"},
+        ], errors)
+        reach = canvas.flow_reachable(els)
+        self.assertNotIn("t", reach.get("t", set()))
+
+    def test_unbound_labeled_arrow_warns_bound_stays_quiet(self):
+        # D8, both directions: the free labeled arrow draws exactly one
+        # warning; the bound arrows draw none; a decoration line is
+        # exempt entirely.
+        errors = []
+        els = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e1", "type": "arrow"},
+             "from": "s", "to": "t"},
+        ], errors)
+        els.append({"id": "free", "type": "arrow", "x": 0, "y": 200,
+                    "width": 100, "height": 0,
+                    "points": [[0, 0], [100, 0]]})
+        els.append({"id": "free-lbl", "type": "text", "text": "informs",
+                    "containerId": "free", "x": 20, "y": 190,
+                    "width": 60, "height": 18, "fontSize": 14})
+        els.append({"id": "deco", "type": "line", "x": 0, "y": 300,
+                    "width": 80, "height": 0, "points": [[0, 0], [80, 0]],
+                    "customData": {"role": "decoration"}})
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        unbound = [w for w in lint["warnings"] if "binds nothing" in w]
+        self.assertEqual(len(unbound), 1, lint["warnings"])
+        self.assertTrue(unbound[0].startswith("arrow free"))
+        self.assertFalse(any(w.startswith("arrow deco")
+                             for w in unbound))
+
+    def test_routing_failure_is_an_error_not_a_traceback(self):
+        # E-9: monkeypatch route_arrow to raise; the batch must reject
+        # whole with an ERROR naming the op — never a traceback.
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "artifact_type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [{"op": "add", "element": {
+                "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "A"}}]})
+        orig = canvas.route_arrow
+
+        def boom(*args, **kwargs):
+            raise ValueError("boom")
+
+        canvas.route_arrow = boom
+        try:
+            with self.assertRaises(canvas.BatchError) as ctx:
+                self.store.apply_batch({
+                    "base_revn": 1, "artifact": "f",
+                    "ops": [{"op": "add", "element": {
+                        "id": "n2", "type": "rectangle", "x": 300,
+                        "y": 0, "width": 100, "height": 50,
+                        "label": "B"}},
+                        {"op": "add", "element": {"id": "a",
+                                                  "type": "arrow"},
+                         "from": "n1", "to": "n2"}]})
+        finally:
+            canvas.route_arrow = orig
+        msg = str(ctx.exception)
+        self.assertIn("op 1", msg)
+        self.assertIn("internal routing error", msg)
+        self.assertIn("ValueError", msg)
+
+    def test_check_path_reports_the_same_error_envelope(self):
+        # The offline --check path was the barest escape route: a raw
+        # traceback to stdout. check_batch must return ok=False with the
+        # enveloped message instead.
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "f", "artifact_type": "flow",
+                       "concept": "c", "name": "F"},
+            "ops": [{"op": "add", "element": {
+                "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 50, "label": "A"}}]})
+        orig = canvas.route_arrow
+
+        def boom(*args, **kwargs):
+            raise ValueError("boom")
+
+        canvas.route_arrow = boom
+        try:
+            result = self.store.check_batch({
+                "base_revn": 1, "artifact": "f",
+                "ops": [{"op": "add", "element": {"id": "a",
+                                                  "type": "arrow",
+                                                  "x": 0, "y": 0},
+                         "from": "n1", "to": "n1"}]})
+        finally:
+            canvas.route_arrow = orig
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("internal routing error" in e
+                            for e in result["errors"]), result["errors"])
 
 
 if __name__ == "__main__":
