@@ -40,6 +40,12 @@ entry that cannot apply rather than re-offering it.
 rejected. Use it when you cannot afford to be wrong — a batch you are
 about to queue, or one you cannot see the result of.
 
+It is **side-effect free**, including for registry ops. Until v0.7 that
+was not true: `--check` on a batch carrying `rename_artifact` wrote the
+new name to the artifact file with no revn, no save record and nothing
+to revert. If you are reading an old project and a name looks like it
+changed without a revision, that is why.
+
 **`canvas.py apply --check --render`** adds a `PNG=` line: the proposed
 scene, drawn. This is the only way to *look* at a revision before it
 lands — under `pulled` cadence a queued batch is invisible to you until
@@ -148,6 +154,11 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "name": "Checkout screen", // frames only: rename explicitly
   "from": "other-node",      // arrows only: rewire start (re-routes + rebinds)
   "to": "other-node",        // arrows only: rewire end — fires REWIRED
+      // A rewire IS a new path request, so it re-routes — including over
+      // a path the USER drew by hand. That is deliberate, and since v0.7
+      // it narrates: `user_route_replaced`. If their shape mattered,
+      // re-issue `mod points`. Dropping an endpoint back on the node it
+      // already bound is not a rewire and fires nothing.
   "points": [[0,0],[80,0],[80,-160],[320,-160]],
       // arrows/lines: hand-authored waypoints, RELATIVE to the arrow's
       // x,y. v0.3: the path is marked routed:"authored" — YOURS. No
@@ -165,7 +176,19 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
                              //   typed facts (value_changed/state_toggled)
   "links_to": "other-artifact",  // sets the element's navigation link
   "locked": true,            // settled structure — the user can't drag it
+  "attributes": ["cash, mandate", "holds Positions"],
+      // entities only: REPLACES the attribute rows, keeping the entity's
+      // id — so its mappings, pins and rename detection all survive.
+      // Before v0.7 this was accepted on `add` only and the workaround
+      // (delete + re-add) silently dropped all three. Fires
+      // attribute_added / attribute_removed, or `renamed` for a row
+      // swapped in place.
   "x": 100, "y": 200, "width": 180,
+      // moving a node re-routes the SERVER-ROUTED arrows bound to it.
+      // It does not touch a path the user shaped by hand — theirs is
+      // theirs — so those are left behind and the detached-endpoint lint
+      // flags them. Re-issue `mod {from, to}` on each in the same batch:
+      // a rewire is a new path request, which is what you want here.
   "frameId": "screen-b",     // wireframe: regroup into another screen
   "customData": {"intent": "…"},   // merged, not replaced
   "backgroundColor": "#fde8e8" }}
@@ -276,6 +299,14 @@ it "agent asked a question" with no Apply action.
  "examples": ["UK retail says basket; US says cart"]}
 {"op": "registry", "action": "decline", "concept": "checkout",
  "view_type": "domain", "kind": "suggestion", "reason": "user: later"}
+// the session clock, for when it has drifted from the conversation —
+// e.g. several rounds happened in chat with nothing drawn. Both fields
+// are optional. Pin ages (PIN_DEBT) are measured against `round`, so
+// setting it forward ages every open question with it: say why in the
+// same turn. Under `pulled` cadence you should NOT need this — a queued
+// revision already counts as your move made (see "Reading state back").
+{"op": "registry", "action": "set_round", "round": 4,
+ "whose_move": "user"}
 // per-artifact complexity-budget override (v0.3): recorded intent, not a
 // silencer — `reason` is REQUIRED and the lint restates it as a NOTE.
 // The defaults stay 9 nodes / 12 arrows (8 entities on a domain view).
