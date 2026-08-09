@@ -51,10 +51,16 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
    destination share neither axis, route a two-bend elbow (radius 8px; 6px
    when tight), never a straight diagonal. A diagonal between off-axis nodes
    is flagged.
-2. **Labels off the stroke** (seeder + lint WARNING). Arrow labels sit
-   6–10px perpendicular off their segment, or carry an opaque background. A
-   label bbox intersecting its own stroke is flagged — a label that hides
-   its arrow explains nothing.
+2. **Labels ride the arc midpoint** (seeder + lint WARNING). A label bound
+   to an arrow is placed by the *client*, at the midpoint of the path by
+   arc length — it discards any offset you store, so the old "6–10px
+   perpendicular" rule was unenforceable and is retired (v0.6). The client
+   breaks the stroke behind the label and `render_svg` paints a matching
+   backing, which is rule 2's other half: an opaque background. What IS
+   linted is where the label actually lands — a label overlapping another
+   label, or sitting on a box that is neither end of its arrow, is flagged.
+   The second case reads as that box's caption and is why a long elbow is
+   worse than a long straight run: move the bend, don't nudge the label.
 3. **No shared attach points** (seeder + lint WARNING). N arrows on one edge
    of length L attach at `L·k/(N+1)` for k=1..N, ≥12px apart — or use
    binding `focus` values (±0.5 steps) to fan them. Two connectors sharing a
@@ -119,6 +125,9 @@ proposal):
   it said (a rewire that didn't bind, a frame move that stranded members).
 
 And as **LAYOUT_WARNING** (legibility): annotation overlapping any element ·
+**arrow label landing on a box that is neither end of its arrow** (v0.6 —
+measured where the client draws it, not where it is stored; the two differ
+on every elbow) ·
 **text that does not fit the box it is drawn in** (v0.5 — measured, not
 read off the stored width, and it covers composed rows too: KPI values,
 entity attribute lines, fixed-width text. Wrapping text is judged on its

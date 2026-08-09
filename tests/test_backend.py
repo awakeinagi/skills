@@ -4497,5 +4497,229 @@ class TestHeldRevisions(Base):
         self.assertNotIn("queued", r)
 
 
+class TestArrowLabelAnchor(Base):
+    """Where a bound arrow label is drawn, and the lints that read it.
+
+    The client re-centres a text bound to an arrow onto the path's
+    arc-length midpoint and discards the stored x/y. Until v0.6 the
+    seeder anchored on the longest segment's midpoint with an 8px
+    perpendicular lift, so stored position, exported SVG and live canvas
+    all disagreed on an elbow — and a label sitting inside a foreign box
+    linted clean (v0.5 assessment R2-8).
+    """
+
+    def elbow(self, label, pts, ax=0, ay=0):
+        """An elbow arrow carrying `label`, plus its bound text."""
+        arrow = {"id": "a1", "type": "arrow", "x": ax, "y": ay,
+                 "width": 0, "height": 0, "points": pts,
+                 "startBinding": {"elementId": "src"},
+                 "endBinding": {"elementId": "dst"}}
+        text = {"id": "a1-label", "type": "text", "x": -999, "y": -999,
+                "width": 60, "height": 20, "text": label,
+                "originalText": label, "containerId": "a1"}
+        return arrow, text
+
+    def test_anchor_is_the_arc_midpoint_not_the_longest_segment(self):
+        # long horizontal run, short vertical drop: the two rules give
+        # very different answers, which is the whole bug
+        arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 100]])
+        x, y = canvas.arrow_label_anchor(arrow, text)
+        # half of 500 total lands 250 along the horizontal run
+        self.assertAlmostEqual(x + 30, 250, delta=1)
+        self.assertAlmostEqual(y + 10, 0, delta=1)
+
+    def test_recenter_label_writes_the_drawn_position(self):
+        arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 100]])
+        canvas.recenter_label([arrow, text], arrow)
+        self.assertAlmostEqual(text["x"] + 30, 250, delta=1)
+
+    def test_straight_arrow_anchor_is_its_middle(self):
+        arrow, text = self.elbow("x", [[0, 0], [200, 0]])
+        x, _ = canvas.arrow_label_anchor(arrow, text)
+        self.assertAlmostEqual(x + 30, 100, delta=1)
+
+    def test_label_landing_on_a_foreign_box_warns(self):
+        # the R2-8 shape: the arc midpoint falls inside a box that is
+        # neither end of the arrow
+        arrow, text = self.elbow("numbers", [[0, 0], [400, 0], [400, 200]])
+        canvas.recenter_label([arrow, text], arrow)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 340, "y": 240,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "foreign", "type": "rectangle", "x": 200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertTrue(any("arrow label" in w and "neither end" in w
+                            for w in warns), warns)
+
+    def test_label_on_its_own_endpoint_is_silent(self):
+        # differential control: the same geometry, but the box under the
+        # label IS the arrow's destination — that is not a mislabel
+        arrow, text = self.elbow("numbers", [[0, 0], [400, 0]])
+        canvas.recenter_label([arrow, text], arrow)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 140, "y": -30,
+             "width": 300, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertFalse(any("arrow label" in w for w in warns), warns)
+
+    def test_label_clear_of_every_box_is_silent(self):
+        arrow, text = self.elbow("numbers", [[0, 0], [400, 0]])
+        canvas.recenter_label([arrow, text], arrow)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 420, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "far", "type": "rectangle", "x": 100, "y": 400,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertFalse(any("arrow label" in w for w in warns), warns)
+
+    def test_label_collision_measures_drawn_not_stored(self):
+        # two labels stored far apart, drawn on top of each other
+        a1, t1 = self.elbow("alpha", [[0, 0], [200, 0]])
+        a2 = {"id": "a2", "type": "arrow", "x": 0, "y": 4,
+              "width": 0, "height": 0, "points": [[0, 0], [200, 0]],
+              "startBinding": {}, "endBinding": {}}
+        t2 = {"id": "a2-label", "type": "text", "x": 9000, "y": 9000,
+              "width": 60, "height": 20, "text": "beta",
+              "originalText": "beta", "containerId": "a2"}
+        canvas.recenter_label([a1, t1], a1)
+        warns = canvas.lint_layout([a1, t1, a2, t2],
+                                   artifact_type="flow")["warnings"]
+        self.assertTrue(any("overlap" in w and "labels" in w
+                            for w in warns), warns)
+
+    def test_svg_paints_a_backing_under_an_arrow_label(self):
+        arrow, text = self.elbow("scored by", [[0, 0], [300, 0]])
+        canvas.recenter_label([arrow, text], arrow)
+        svg, _, _ = canvas.render_svg([arrow, text])
+        self.assertIn(canvas.SVG_GROUND, svg)
+        # a backing rect exists that is not the full-canvas ground
+        self.assertGreaterEqual(svg.count("fill='%s'" % canvas.SVG_GROUND), 2)
+
+
+class TestCheckRender(Base):
+    """`check_batch` hands back the scene it would have drawn (v0.6).
+
+    Under `pulled` cadence the agent cannot see a queued revision, which
+    is exactly the feedback legibility needs — it said so twice in the
+    v0.5 assessment and then hand-rolled a copy-the-project workaround,
+    as the v0.4 agent had before it.
+    """
+
+    def batch(self):
+        return {"base_revn": 0, "artifact": "f",
+                "create": {"id": "f", "name": "F", "type": "flow",
+                           "concept": "f", "concept_name": "F"},
+                "ops": [{"op": "add", "element": {
+                    "type": "rectangle", "id": "a", "kind": "step",
+                    "label": "Ingest", "x": 100, "y": 100}}]}
+
+    def test_check_returns_the_would_be_elements(self):
+        r = self.store.check_batch(self.batch())
+        self.assertTrue(r["ok"])
+        self.assertTrue(any(e["id"] == "a" for e in r["elements"]))
+
+    def test_check_commits_nothing(self):
+        self.store.check_batch(self.batch())
+        self.assertNotIn("f", self.store.scenes)
+
+    def test_rejected_batch_has_no_elements_to_draw(self):
+        bad = self.batch()
+        bad["ops"] = [{"op": "mod", "id": "ghost", "attrs": {"label": "x"}}]
+        r = self.store.check_batch(bad)
+        self.assertFalse(r["ok"])
+        self.assertEqual(r.get("elements", []), [])
+
+    def test_the_would_be_scene_renders(self):
+        r = self.store.check_batch(self.batch())
+        svg, w, h = canvas.render_svg(r["elements"], title="f (proposed)")
+        self.assertIn("Ingest", svg)
+        self.assertGreater(w, 0)
+        self.assertGreater(h, 0)
+
+
+class TestDecorationFollowsItsBox(Base):
+    """An image placeholder's X strokes track its geometry (v0.6).
+
+    The `kind: image` composite derives its two diagonals from the box's
+    width/height at creation time. A later resize used to leave them at
+    the old span — the X overshot its own box into the panel below, and
+    no lint could see it because decorations are filtered out of every
+    geometry check (v0.5 assessment R2-10).
+    """
+
+    def placeholder(self, w=680, h=116):
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "wf",
+            "create": {"id": "wf", "name": "WF", "type": "wireframe",
+                       "concept": "wf", "concept_name": "WF"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "charts", "kind": "image",
+                "label": "Charts", "x": 120, "y": 304,
+                "width": w, "height": h}}]})
+
+    def strokes(self):
+        return {e["id"]: e for e in self.store.scenes["wf"]
+                if e["id"] in ("charts-x1", "charts-x2")}
+
+    def test_resize_re_derives_the_diagonals(self):
+        self.placeholder()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "charts",
+                     "attrs": {"height": 72}}]})
+        s = self.strokes()
+        self.assertEqual(s["charts-x1"]["height"], 72)
+        self.assertEqual(s["charts-x1"]["points"][-1], [680, 72])
+        # x2 runs bottom-left to top-right, so its origin moves too
+        self.assertEqual(s["charts-x2"]["y"], 304 + 72)
+        self.assertEqual(s["charts-x2"]["points"][-1], [680, -72])
+
+    def test_width_resize_re_derives_too(self):
+        self.placeholder()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "charts",
+                     "attrs": {"width": 400}}]})
+        self.assertEqual(self.strokes()["charts-x1"]["points"][-1],
+                         [400, 116])
+
+    def test_move_still_translates_the_diagonals(self):
+        # the pre-existing x/y behaviour must survive the width/height fix
+        self.placeholder()
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "wf",
+            "ops": [{"op": "mod", "id": "charts", "attrs": {"x": 200}}]})
+        self.assertEqual(self.strokes()["charts-x1"]["x"], 200)
+
+    def test_a_stale_decoration_is_linted(self):
+        # the state the fixture was found in: box shrunk, strokes not
+        self.placeholder()
+        for e in self.store.scenes["wf"]:
+            if e["id"] == "charts":
+                e["height"] = 72
+        warns = canvas.lint_layout(self.store.scenes["wf"],
+                                   artifact_type="wireframe")["notes"]
+        self.assertTrue(any("extends" in w and "grouped with" in w
+                            for w in warns), warns)
+
+    def test_a_decoration_that_fits_is_silent(self):
+        self.placeholder()
+        notes = canvas.lint_layout(self.store.scenes["wf"],
+                                   artifact_type="wireframe")["notes"]
+        self.assertFalse(any("extends" in n and "grouped with" in n
+                             for n in notes), notes)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

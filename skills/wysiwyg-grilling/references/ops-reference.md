@@ -40,6 +40,13 @@ entry that cannot apply rather than re-offering it.
 rejected. Use it when you cannot afford to be wrong — a batch you are
 about to queue, or one you cannot see the result of.
 
+**`canvas.py apply --check --render`** adds a `PNG=` line: the proposed
+scene, drawn. This is the only way to *look* at a revision before it
+lands — under `pulled` cadence a queued batch is invisible to you until
+the user applies it, and legibility is the one class of defect the
+response cannot tell you about. Read the PNG before you queue, not after
+the user complains the diagram is hard to read.
+
 ## `create` — new artifact
 
 ```jsonc

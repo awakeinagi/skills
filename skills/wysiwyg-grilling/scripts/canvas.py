@@ -45,6 +45,9 @@ SOURCE_NAME = "wysiwyg-grilling"
 FONT_LEGIBLE = 6       # Nunito — the default (no cursive anywhere; ADR 0001)
 FONT_HAND = 5          # Excalifont — ships, non-default
 PAPER_GROUND = "#faf8f2"
+# render_svg's canvas ground; also the backing painted under arrow
+# labels, which ride the stroke since v0.6 (see arrow_label_anchor)
+SVG_GROUND = "#fdfcf8"
 IDLE_MINUTES = float(os.environ.get("WYSIWYG_IDLE_MINUTES", "120"))
 SENTINEL_COORD = 2 ** 40   # Excalidraw parks rebinding arrows at ±2^56
 DETERMINISTIC = bool(os.environ.get("WYSIWYG_TEST_DETERMINISTIC"))
@@ -1128,6 +1131,33 @@ def _recompose_input_value(els, el, value_text):
                                     {e["id"] for e in els}))
 
 
+def _recompose_xbox(els, el):
+    """Re-derive an image placeholder's X strokes from its box (v0.6).
+
+    The `kind: image` composite mints two grouped `-x1`/`-x2` decoration
+    lines whose points come from the rectangle's width/height AT CREATION
+    TIME. A later `mod` that resizes the box left them at their old span,
+    so the X overshot the box it belonged to and crossed whatever sat
+    below — invisible to every lint, because `role: decoration` elements
+    are filtered out of the geometry checks by construction. Found in the
+    v0.5 assessment only because a human looked at a screenshot (R2-10).
+
+    Args:
+        els: The full element list.
+        el: The placeholder rectangle whose geometry just changed.
+    """
+    w, h = el.get("width", 0), el.get("height", 0)
+    for suffix, oy, pts in (("-x1", 0, [[0, 0], [w, h]]),
+                            ("-x2", h, [[0, 0], [w, -h]])):
+        ln = next((e for e in els if e["id"] == el["id"] + suffix), None)
+        if ln is None or (ln.get("customData") or {}).get("role") != \
+                "decoration":
+            continue
+        ln["x"], ln["y"] = el.get("x", 0), el.get("y", 0) + oy
+        ln["width"], ln["height"] = w, h
+        ln["points"] = pts
+
+
 def _recompose_kpi_value(els, el, value_text):
     """Retext a KPI tile's composed value row in place (id stays stable —
     a delete/re-add would narrate phantom churn).
@@ -1649,35 +1679,78 @@ MOD_ATTRS = {
 }
 
 
+def arrow_label_anchor(arrow, label):
+    """Where a bound label on an arrow actually lands, as (x, y).
+
+    The client owns this placement and we cannot argue with it: a text
+    whose `containerId` is an arrow is re-centred by Excalidraw on the
+    **arc-length midpoint** of the path, discarding whatever x/y we
+    stored. Until v0.6 the seeder anchored on the LONGEST SEGMENT's
+    midpoint and lifted the label 8px perpendicular off the stroke
+    (diagram-design §6.2). Those two rules agree on a straight arrow and
+    diverge without bound on an elbow — which is how a label came to sit
+    inside a foreign box on a canvas whose stored geometry showed no
+    overlap at all, with the lint reading the stored copy and staying
+    silent (v0.5 assessment R2-8). `render_svg` draws text at its stored
+    position, so the exported SVG and the live canvas disagreed too.
+
+    Everything that places or checks an arrow label now goes through
+    here, so stored position, SVG and canvas agree by construction. The
+    label rides the stroke: the client already breaks the arrow behind a
+    bound label, and `render_svg` paints a ground-coloured backing to
+    match — the "opaque background" half of connector rule 2, rather
+    than the perpendicular offset the client will not honour. Note that
+    a label's `backgroundColor` is NOT the lever here: it sits in
+    `significant_attrs`, so writing it would narrate a style change on
+    every reroute.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y` and `points`.
+        label: The bound text element, read for `width`/`height`.
+
+    Returns:
+        `(x, y)` for the label's top-left corner.
+    """
+    pts = arrow.get("points") or [[0, 0]]
+    segs, total = [], 0.0
+    for i in range(1, len(pts)):
+        dx = pts[i][0] - pts[i - 1][0]
+        dy = pts[i][1] - pts[i - 1][1]
+        ln = (dx * dx + dy * dy) ** 0.5
+        segs.append((pts[i - 1], pts[i], ln))
+        total += ln
+    if not segs:
+        mx, my = arrow.get("x", 0), arrow.get("y", 0)
+    else:
+        want, mx, my = total / 2, None, None
+        for (a, b, ln) in segs:
+            if want <= ln or ln <= 0:
+                t = (want / ln) if ln else 0.0
+                mx = arrow["x"] + a[0] + (b[0] - a[0]) * t
+                my = arrow["y"] + a[1] + (b[1] - a[1]) * t
+                break
+            want -= ln
+        if mx is None:                       # float drift past the end
+            mx = arrow["x"] + segs[-1][1][0]
+            my = arrow["y"] + segs[-1][1][1]
+    return (mx - label.get("width", 0) / 2,
+            my - label.get("height", 0) / 2)
+
+
 def recenter_label(els, el):
     """Keep a bound label glued to its container after geometry changes:
-    centered in shapes, at the midpoint of arrows."""
+    centered in shapes, on the arc midpoint of arrows.
+
+    Args:
+        els: The full element list (searched for the bound label).
+        el: The container whose geometry changed.
+    """
     label = next((t for t in els if t.get("type") == "text"
                   and t.get("containerId") == el["id"]), None)
     if label is None:
         return
     if el.get("type") in ("arrow", "line"):
-        pts = el.get("points") or [[0, 0]]
-        # anchor on the LONGEST segment's midpoint (matters for elbows),
-        # offset 8px perpendicular off the stroke, leaning up — a label
-        # sitting ON its arrow hides both (diagram-design §6.2)
-        best, mx, my, dx, dy = -1.0, el["x"], el["y"], 1.0, 0.0
-        for i in range(1, len(pts)):
-            sdx = pts[i][0] - pts[i - 1][0]
-            sdy = pts[i][1] - pts[i - 1][1]
-            ln = (sdx * sdx + sdy * sdy) ** 0.5
-            if ln > best:
-                best = ln
-                dx, dy = sdx, sdy
-                mx = el["x"] + (pts[i][0] + pts[i - 1][0]) / 2
-                my = el["y"] + (pts[i][1] + pts[i - 1][1]) / 2
-        run = (dx * dx + dy * dy) ** 0.5 or 1.0
-        px, py = -dy / run, dx / run
-        if py > 0:
-            px, py = -px, -py  # prefer above the stroke
-        lift = label.get("height", 16) / 2 + 8
-        label["x"] = mx + px * lift - label.get("width", 0) / 2
-        label["y"] = my + py * lift - label.get("height", 0) / 2
+        label["x"], label["y"] = arrow_label_anchor(el, label)
     else:
         label["x"] = el["x"] + max((el.get("width", 0) -
                                     label.get("width", 0)) / 2, 4)
@@ -1940,7 +2013,16 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                     if attr in ("x", "y", "width", "height"):
                         recenter_label(els, el)
             # composite integrity: grouped decorations (X-box strokes,
-            # attribute rows) travel with their element on x/y mods
+            # attribute rows) travel with their element on x/y mods —
+            # and are RE-DERIVED on width/height mods, which they were
+            # not until v0.6. An image placeholder shrunk from 116 to 72
+            # high kept 116-high diagonals, so its X overshot its own box
+            # by 44px into the panel below and crossed two foreign boxes.
+            # Nothing could catch it: decorations are filtered out of the
+            # geometry lints by construction (R2-10).
+            if el.get("type") == "rectangle" and el.get("groupIds") and \
+                    ("width" in attrs or "height" in attrs):
+                _recompose_xbox(els, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
             dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
@@ -3566,8 +3648,12 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     out = ["<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d' "
            "viewBox='%f %f %f %f'>" % (int(w * scale), int(h * scale),
                                        minx, miny, w, h),
-           "<rect x='%f' y='%f' width='%f' height='%f' fill='#fdfcf8'/>"
-           % (minx, miny, w, h)]
+           "<rect x='%f' y='%f' width='%f' height='%f' fill='%s'/>"
+           % (minx, miny, w, h, SVG_GROUND)]
+    # labels bound to arrows need the stroke painted back out from under
+    # them (v0.6) — collected once rather than per text element
+    arrow_ids = {e["id"] for e in live
+                 if e.get("type") in ("arrow", "line")}
     if title:
         out.append("<text x='%f' y='%f' font-size='13' fill='#999' "
                    "font-family='sans-serif'>%s</text>"
@@ -3639,6 +3725,18 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
             lh = fs * (e.get("lineHeight") or 1.25)
+            # a label bound to an arrow rides its stroke (v0.6 — see
+            # arrow_label_anchor). The client breaks the arrow behind it;
+            # this renderer has no such notion, so paint the ground back
+            # in or the export shows a line struck through its own label.
+            if arrow_ids and e.get("containerId") in arrow_ids:
+                twid = max(text_dims(ln2, fs)[0] for ln2 in lines) \
+                    if lines else 0
+                out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                           "fill='%s' stroke='none'/>"
+                           % (tx - (twid / 2 if anchor == "middle" else 0)
+                              - 4, y - 2, twid + 8,
+                              max(len(lines), 1) * lh + 4, SVG_GROUND))
             for li, line in enumerate(lines):
                 out.append("<text x='%f' y='%f' font-size='%s' fill='%s' "
                            "text-anchor='%s' font-family='sans-serif'>"
@@ -3922,6 +4020,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
               and role_of(e) != "decoration"]
     nodes = [e for e in shapes if role_of(e) == "node" or
              (e.get("customData") or {}).get("kind")]
+    # decorations are exempt from budgets and connector routing — that
+    # exemption is right, furniture is not a connector. But it swallowed
+    # one thing worth knowing: a decoration that has drifted OFF the
+    # element it is grouped with. An image placeholder resized without
+    # its X strokes being re-derived spilled 44px into the panel below
+    # and no check could see it (v0.5 assessment R2-10).
+    for deco in els:
+        if role_of(deco) != "decoration" or not deco.get("groupIds"):
+            continue
+        gset = set(deco["groupIds"])
+        host = next((s for s in shapes
+                     if set(s.get("groupIds") or []) & gset), None)
+        if host is None:
+            continue
+        # extent from the POINTS, not x/y/width/height: the X's second
+        # stroke is stored at the box's bottom edge with negative points
+        # (bottom-left → top-right), so a naive bbox puts it a full box
+        # height below where it is drawn
+        if deco.get("points"):
+            pxs = [deco.get("x", 0) + p[0] for p in deco["points"]]
+            pys = [deco.get("y", 0) + p[1] for p in deco["points"]]
+            dx1, dx2, dy1, dy2 = min(pxs), max(pxs), min(pys), max(pys)
+        else:
+            dx1, dy1 = deco.get("x", 0), deco.get("y", 0)
+            dx2 = dx1 + deco.get("width", 0)
+            dy2 = dy1 + deco.get("height", 0)
+        hx1, hy1 = host.get("x", 0), host.get("y", 0)
+        hx2 = hx1 + host.get("width", 0)
+        hy2 = hy1 + host.get("height", 0)
+        spill = max(hx1 - dx1, dx2 - hx2, hy1 - dy1, dy2 - hy2)
+        if spill > 4:
+            notes.append(
+                "decoration %s extends %dpx past %s, the element it is "
+                "grouped with — it was sized for an older geometry; "
+                "re-issue the shape or drop the stroke"
+                % (deco["id"], int(spill), name(host["id"])))
 
     # ---- ERROR: detached endpoints (server-routed) --------------------
     TOL = 14  # binding gap (6) + slack
@@ -4313,20 +4447,60 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "rest into chat or docs (references/layout.md)" % len(annos))
     # label↔label collision (live_test_2 B6): a label can be clear of its
     # own stroke and run yet sit on another arrow's label — stacked labels
-    # read as one caption
+    # read as one caption.
+    #
+    # Both this and the label↔node check below measure where the label is
+    # DRAWN, not where it is stored. For a label bound to an arrow those
+    # differ: the client re-centres it on the path (arrow_label_anchor),
+    # and reading `la["x"]` instead is why a label sitting inside a
+    # foreign box linted clean in the v0.5 assessment (R2-8).
+    ix_all = {e["id"]: e for e in els}
+
+    def drawn_box(t):
+        """The label's on-canvas rect as `(x1, y1, x2, y2)`."""
+        cont = ix_all.get(t.get("containerId"))
+        lx, ly = t["x"], t["y"]
+        if cont is not None and cont.get("type") in ("arrow", "line"):
+            lx, ly = arrow_label_anchor(cont, t)
+        return (lx, ly, lx + t.get("width", 0), ly + t.get("height", 0))
+
     bound_labels = [e for e in els if e.get("type") == "text"
                     and e.get("containerId")]
+    boxes = {t["id"]: drawn_box(t) for t in bound_labels}
     for i_, la in enumerate(bound_labels):
+        ax1, ay1, ax2, ay2 = boxes[la["id"]]
         for lb in bound_labels[i_ + 1:]:
-            ox = min(la["x"] + la.get("width", 0),
-                     lb["x"] + lb.get("width", 0)) - max(la["x"], lb["x"])
-            oy = min(la["y"] + la.get("height", 0),
-                     lb["y"] + lb.get("height", 0)) - max(la["y"], lb["y"])
+            bx1, by1, bx2, by2 = boxes[lb["id"]]
+            ox = min(ax2, bx2) - max(ax1, bx1)
+            oy = min(ay2, by2) - max(ay1, by1)
             if ox > 6 and oy > 4:
                 warnings.append(
                     "labels %r and %r overlap — nudge one clear"
                     % ((la.get("text") or "")[:24],
                        (lb.get("text") or "")[:24]))
+    # label↔node: an arrow label landing on a box that is neither its
+    # source nor its destination. Nothing checked this before v0.6 —
+    # only free annotations were tested against nodes — so a connector
+    # label could sit squarely inside a foreign entity and lint clean.
+    for la in bound_labels:
+        cont = ix_all.get(la.get("containerId"))
+        if cont is None or cont.get("type") not in ("arrow", "line"):
+            continue
+        ends = {(cont.get("startBinding") or {}).get("elementId"),
+                (cont.get("endBinding") or {}).get("elementId")}
+        ax1, ay1, ax2, ay2 = boxes[la["id"]]
+        for n in nodes:
+            if n["id"] in ends:
+                continue
+            ox = min(ax2, n["x"] + n.get("width", 0)) - max(ax1, n["x"])
+            oy = min(ay2, n["y"] + n.get("height", 0)) - max(ay1, n["y"])
+            if ox > 8 and oy > 4:
+                warnings.append(
+                    "arrow label %r lands on %s, which is neither end of "
+                    "its arrow — the label reads as that box's caption. "
+                    "Re-route the arrow or shorten the label"
+                    % ((la.get("text") or "")[:24], name(n["id"])))
+                break
     for t in annos:
         for n in nodes:
             ox = min(t["x"] + t.get("width", 0),
@@ -6007,7 +6181,7 @@ class Store:
                 return {"ok": False, "errors": list(e.errors),
                         "artifact": batch.get("artifact"), "intent_echo": [],
                         "layout_errors": [], "layout_warnings": [],
-                        "layout_notes": []}
+                        "layout_notes": [], "elements": []}
             aid = checked["artifact"]
             # registry ops are the other half of a batch and they failed
             # this way in the field (`set_budget` with arrows: 0). The
@@ -6026,7 +6200,7 @@ class Store:
             if reg_errors:
                 return {"ok": False, "errors": reg_errors, "artifact": aid,
                         "intent_echo": [], "layout_errors": [],
-                        "layout_warnings": [], "layout_notes": []}
+                        "layout_warnings": [], "layout_notes": [], "elements": []}
             atype = (checked["new_meta"].get(aid) or
                      self.artifact_meta.get(aid) or {}).get("artifact_type")
             lint = project_lint(self.p, checked["new_els"], reg_after,
@@ -6036,7 +6210,10 @@ class Store:
                                                checked["new_els"]),
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
-                    "layout_notes": lint["notes"]}
+                    "layout_notes": lint["notes"],
+                    # the would-be scene, so `apply --check --render` can
+                    # draw a batch nobody has committed (v0.6)
+                    "elements": checked["new_els"]}
 
     def apply_batch(self, batch):
         """Validate-all-then-apply.
@@ -7665,6 +7842,25 @@ def cmd_apply(args):
             return 5
         print_kv(would_apply="true", artifact=result.get("artifact"))
         _print_layout(result)
+        if getattr(args, "render", False):
+            # under `pulled` cadence a queued revision is invisible to
+            # the agent that wrote it, and legibility is the one class of
+            # defect it cannot reason about from the response. Draw the
+            # uncommitted scene so it can look before it queues (v0.6).
+            aid = result.get("artifact") or "batch"
+            svg, w, h = render_svg(result.get("elements") or [],
+                                   title="%s (proposed)" % aid)
+            outdir = project.runtime_dir
+            outdir.mkdir(parents=True, exist_ok=True)
+            out_png = outdir / ("%s-check.png" % aid)
+            ok, why = rasterize_svg(svg, out_png, w, h, aid + "-check")
+            if ok:
+                print_kv(png=str(out_png), detail=why)
+            else:
+                out_svg = out_png.with_suffix(".svg")
+                out_svg.write_text(svg, encoding="utf-8")
+                print_kv(svg=str(out_svg))
+                print("NOTE=%s — SVG only" % why)
         return 0
     state = project.read_state()
     if server_alive(state):
@@ -7743,6 +7939,76 @@ def _print_debt(lint_debt, pin_debt):
             for p in pin_debt))
 
 
+def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
+    """Render an SVG to PNG with a headless system browser.
+
+    `cmd_snapshot`'s tier 2, extracted so a batch that has not been
+    committed can be looked at too (v0.6 `apply --check --render`). Under
+    `pulled` cadence a queued revision is invisible to its author — the
+    agent said so twice in the v0.5 assessment and then hand-rolled a
+    copy-the-project workaround, as the v0.4 agent had before it. Nothing
+    third-party: it drives whatever chromium/chrome/edge/brave exists.
+
+    Args:
+        svg: SVG source to rasterize.
+        out_png: Destination path.
+        want_w: Intended pixel width (clamped to a sane window).
+        want_h: Intended pixel height.
+        tag: Short slug used to name the scratch HTML file.
+        url: Render straight from this URL instead of the SVG source,
+            when a live server can serve it.
+
+    Returns:
+        `(ok, detail)` — `detail` names the browser, or why it failed.
+    """
+    browsers = find_browsers()
+    if not browsers:
+        return False, "no chromium/chrome/edge/brave found"
+    # work in $HOME so snap-confined browsers (private /tmp) can see both
+    # the input html and the output png
+    workdir = Path.home() / ".cache" / "wysiwyg-grilling"
+    workdir.mkdir(parents=True, exist_ok=True)
+    work_png = workdir / out_png.name
+    if url is None:
+        html = ("<!doctype html><html><head><meta charset='utf-8'>"
+                "<style>body{margin:0;background:%s}</style>"
+                "</head><body>%s</body></html>" % (SVG_GROUND, svg))
+        tmp_html = workdir / ("%s-render.html" % tag)
+        tmp_html.write_text(html, encoding="utf-8")
+        url = tmp_html.resolve().as_uri()
+    win_w = max(min(want_w, 3000), 320)
+    win_h = max(min(want_h, 2000), 200)
+    why = "no browser produced a file"
+    for browser in browsers:
+        if work_png.exists():
+            work_png.unlink()
+        cmd = [browser, "--headless=new", "--disable-gpu",
+               "--no-sandbox", "--disable-dev-shm-usage",
+               "--hide-scrollbars", "--force-device-scale-factor=1",
+               "--screenshot=%s" % work_png,
+               "--window-size=%d,%d" % (win_w, win_h), url]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, timeout=40)
+            if work_png.exists():
+                ok, detail = validate_png(work_png.read_bytes(),
+                                          win_w, win_h, min_bpp=0)
+                if ok:
+                    if work_png != out_png:
+                        shutil.copyfile(str(work_png), str(out_png))
+                    return True, "%s, %s" % (os.path.basename(browser),
+                                             detail)
+                why = "%s render invalid (%s)" % (
+                    os.path.basename(browser), detail)
+            else:
+                why = "%s produced no file (rc=%d%s)" % (
+                    os.path.basename(browser), proc.returncode,
+                    (", " + proc.stderr.decode("utf-8", "replace")
+                     .strip()[:120]) if proc.stderr else "")
+        except (subprocess.TimeoutExpired, OSError) as e:
+            why = "%s failed: %s" % (os.path.basename(browser), e)
+    return False, why
+
+
 def cmd_snapshot(args):
     """Tiered snapshot: connected tab → self-launched headless system
     browser → stdlib SVG. Always yields something; exit 0 only with a
@@ -7812,55 +8078,14 @@ def cmd_snapshot(args):
         print("NOTE=no valid tab export — falling back to headless render")
 
     # ---- tier 2: system browser, headless, against the SVG surface ----
-    browsers = find_browsers() if not args.no_headless else []
-    if browsers:
-        # work in $HOME so snap-confined browsers (private /tmp) can see
-        # both the input html and the output png
-        workdir = Path.home() / ".cache" / "wysiwyg-grilling"
-        workdir.mkdir(parents=True, exist_ok=True)
-        work_png = workdir / out_png.name
-        if alive:
-            url = state["url"] + "render/" + aid
-        else:
-            html = ("<!doctype html><html><head><meta charset='utf-8'>"
-                    "<style>body{margin:0;background:#fdfcf8}</style>"
-                    "</head><body>" + svg + "</body></html>")
-            tmp_html = workdir / ("%s-render.html" % aid)
-            tmp_html.write_text(html, encoding="utf-8")
-            url = tmp_html.resolve().as_uri()
-        win_w = max(min(want_w, 3000), 320)
-        win_h = max(min(want_h, 2000), 200)
-        for browser in browsers:
-            if work_png.exists():
-                work_png.unlink()
-            cmd = [browser, "--headless=new", "--disable-gpu",
-                   "--no-sandbox", "--disable-dev-shm-usage",
-                   "--hide-scrollbars", "--force-device-scale-factor=1",
-                   "--screenshot=%s" % work_png,
-                   "--window-size=%d,%d" % (win_w, win_h), url]
-            try:
-                proc = subprocess.run(cmd, capture_output=True, timeout=40)
-                if work_png.exists():
-                    data = work_png.read_bytes()
-                    ok, why = validate_png(data, win_w, win_h, min_bpp=0)
-                    if ok:
-                        if work_png != out_png:
-                            shutil.copyfile(str(work_png), str(out_png))
-                        print_kv(tier="2", png=str(out_png), valid="true",
-                                 detail=why,
-                                 browser=os.path.basename(browser))
-                        return 0
-                    print("NOTE=%s render invalid (%s)"
-                          % (os.path.basename(browser), why))
-                else:
-                    print("NOTE=%s produced no file (rc=%d%s)"
-                          % (os.path.basename(browser), proc.returncode,
-                             (", " + proc.stderr.decode("utf-8", "replace")
-                              .strip()[:120]) if proc.stderr else ""))
-            except (subprocess.TimeoutExpired, OSError) as e:
-                print("NOTE=%s failed: %s" % (os.path.basename(browser), e))
-    elif not args.no_headless:
-        print("NOTE=no chromium/chrome/edge/brave found — SVG fallback")
+    if not args.no_headless:
+        ok, why = rasterize_svg(
+            svg, out_png, want_w, want_h, aid,
+            url=(state["url"] + "render/" + aid) if alive else None)
+        if ok:
+            print_kv(tier="2", png=str(out_png), valid="true", detail=why)
+            return 0
+        print("NOTE=%s — SVG fallback" % why)
 
     # ---- tier 3: the SVG itself, honestly labeled ---------------------
     out_svg = out_png.with_suffix(".svg")
@@ -7920,6 +8145,10 @@ def main(argv=None):
                    help="dry run: would it apply, and what would it say? "
                         "Prints ECHO/LAYOUT lines, commits nothing, exits 5 "
                         "if the batch would be rejected")
+    p.add_argument("--render", action="store_true",
+                   help="with --check: also draw the proposed scene to a "
+                        "PNG and print its path — the only way to LOOK at "
+                        "a revision before it is committed or queued")
     for name, hlp in (("snapshot", "PNG/SVG of an artifact — tiered: "
                        "connected tab → headless system browser → SVG"),
                       ("screenshot", "alias of snapshot (back-compat)")):
