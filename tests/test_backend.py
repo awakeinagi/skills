@@ -7511,5 +7511,123 @@ class TestDeletionConsequenceSurface(Base):
             lint["warnings"])
 
 
+class TestBeatsBFixes(Base):
+    """v0.8 beats B: stale toggle-pill width, set_round stacking, the
+    stall ratchet, note-id collisions, duplicate ids at the write path."""
+
+    def _toggle_scene(self):
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "w", "type": "wireframe", "concept": "c",
+                       "name": "W"},
+            "ops": [{"op": "add", "element": {
+                "id": "tg", "type": "rectangle", "x": 40, "y": 40,
+                "width": 220, "height": 28, "label": "Macro",
+                "kind": "toggle", "checked": False}}]})
+
+    def test_stale_pill_width_heals_on_reconcile(self):
+        self._toggle_scene()
+        els = self.store.scenes["w"]
+        box = next(e for e in els
+                   if (e.get("customData") or {}).get("box_of") == "tg")
+        box["width"] = 28    # a pre-v0.8 artifact under the old constant
+        self.store.commit(author="agent", new_scenes={"w": els},
+                          base_revn=1)
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "w",
+            "ops": [{"op": "mod", "id": "tg",
+                     "attrs": {"checked": True}}]})
+        els = self.store.scenes["w"]
+        box = next(e for e in els
+                   if (e.get("customData") or {}).get("box_of") == "tg")
+        thumb = next(e for e in els
+                     if (e.get("customData") or {})
+                     .get("thumb_of") == "tg")
+        self.assertEqual(box["width"], canvas.TOGGLE_PILL_W)
+        # the on-position thumb stays ON its track
+        self.assertLessEqual(thumb["x"] + thumb["width"],
+                             box["x"] + box["width"])
+
+    def test_set_round_lands_exactly_after_a_user_turn(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": self.scene()},
+                          base_revn=1)
+        start = self.store.registry.get("round", 0)
+        rec, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow",
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "n1", "type": "rectangle", "x": 900, "y": 40,
+                    "width": 160, "height": 60, "label": "N1",
+                    "role": "node"}},
+                {"op": "registry", "action": "set_round",
+                 "round": start + 3}]})
+        # asked for start+3, got start+3 — the auto-bump used to stack
+        # +1 exactly on the first agent commit after a user turn
+        self.assertEqual(self.store.registry["round"], start + 3)
+        self.assertEqual(rec["round"], start + 3)
+        # and set_round now appears in the registry narration
+        self.assertTrue(any(c.get("action") == "set_round"
+                            for c in rec["registry_changes"]))
+
+    def test_auto_bump_survives_without_set_round(self):
+        """The silent half: an ordinary agent move still opens a round."""
+        self.store.apply_batch(seed_flow_batch())
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": self.scene()},
+                          base_revn=1)
+        start = self.store.registry.get("round", 0)
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow",
+            "ops": [{"op": "add", "element": {
+                "id": "n2", "type": "rectangle", "x": 900, "y": 140,
+                "width": 160, "height": 60, "label": "N2",
+                "role": "node"}}]})
+        self.assertEqual(self.store.registry["round"], start + 1)
+
+    def test_round_stall_clears_when_advice_is_taken(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "pin", "target": "cart",
+                     "question": "still open?"}]})
+        for i in range(3):
+            self.store.apply_batch({
+                "base_revn": 2 + i, "artifact": "checkout-flow",
+                "ops": [{"op": "mod", "id": "cart",
+                         "attrs": {"x": 100 + 4 * i}}]})
+        self.assertIsNotNone(self.store.round_stall())
+        rnd = self.store.registry.get("round", 0)
+        self.store.apply_batch({
+            "base_revn": 5, "artifact": "checkout-flow",
+            "ops": [{"op": "registry", "action": "set_round",
+                     "round": rnd + 1}]})
+        # taking the nag's advice CLEARS it — it used to survive and
+        # ratchet the round on every subsequent apply
+        self.assertIsNone(self.store.round_stall())
+
+    def test_note_ids_never_collide(self):
+        first = canvas._x_user_note("same text", 0, 0)
+        ids = {e["id"] for e in first}
+        second = canvas._x_user_note("same text", 40, 40, existing=ids)
+        self.assertNotEqual(first[0]["id"], second[0]["id"])
+        self.assertTrue(second[0]["id"].startswith("usernote-"))
+
+    def test_duplicate_ids_dropped_at_the_write_moment(self):
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        els.append(dict(els[0]))    # a byte-identical duplicate id
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=1)
+        ids = [e["id"] for e in self.store.scenes["checkout-flow"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        # and a fresh load repairs nothing — the write healed it
+        store2 = canvas.Store(self.project)
+        ids2 = [e["id"] for e in store2.scenes["checkout-flow"]]
+        self.assertEqual(len(ids2), len(set(ids2)))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

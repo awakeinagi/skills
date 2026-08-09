@@ -1704,6 +1704,14 @@ def reconcile_composed(els, index, existing, el):
                     .get("box_of") == el["id"]), None)
         if box is not None:
             box["x"], box["y"] = el["x"] + 8, cy - 8
+            # dims too, not just position (v0.8 beats): TOGGLE_PILL_W
+            # widened 28→36 and the thumb derives its on-position from
+            # the constant, but a box authored under the old constant
+            # kept its width — every pre-v0.8 toggle rendered with the
+            # thumb 6px off the end of its track. The slider branch
+            # always reset dims; this one now matches it.
+            box["width"] = TOGGLE_PILL_W if kind == "toggle" else 16
+            box["height"] = 16
         if kind == "checkbox":
             chk = next((t for t in els if (t.get("customData") or {})
                         .get("chk_of") == el["id"]), None)
@@ -2564,6 +2572,18 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                                 els.remove(chk)
                                 index.pop(chk["id"], None)
                         else:
+                            box2 = next(
+                                (t for t in els
+                                 if (t.get("customData") or {})
+                                 .get("box_of") == el["id"]), None)
+                            if box2 is not None:
+                                # pill dims re-derive WITH the thumb
+                                # (v0.8 beats): the thumb's on-position
+                                # follows TOGGLE_PILL_W, so a pill
+                                # authored under the old 28px constant
+                                # left the thumb 6px off its own track
+                                box2["width"] = TOGGLE_PILL_W
+                                box2["height"] = 16
                             for t in els:
                                 if (t.get("customData") or {}) \
                                         .get("thumb_of") == el["id"]:
@@ -6616,6 +6636,24 @@ class Store:
             sig = self.config.get("significant_attrs")
             for aid, els in sorted(new_scenes.items()):
                 old = (base_state.get(aid) or {}).get("elements", [])
+                # a scene can arrive carrying duplicate ids (two
+                # identical stickies once collided — v0.8 beats, E2):
+                # the load-time ART-003 repair dropped the copy on every
+                # READ while this path persisted it forever, so the same
+                # REPAIR line re-fired verbatim on every resume. Dedupe
+                # at the one legitimate write moment, keeping the first
+                # occurrence exactly as the loader does.
+                seen_ids = set()
+                deduped = []
+                for e in els:
+                    if e.get("id") in seen_ids:
+                        self.log("commit: dropped duplicate element id "
+                                 "%r in %s" % (e.get("id"), aid))
+                        continue
+                    seen_ids.add(e.get("id"))
+                    deduped.append(e)
+                if len(deduped) != len(els):
+                    els[:] = deduped    # in place — new_scenes persists
                 if author == "user":
                     # mutate the RAW scene list itself — _write_artifact
                     # persists new_scenes[aid], and a state change that
@@ -6837,10 +6875,18 @@ class Store:
                 # "round 10" during conversational round 2). Rounds are
                 # the session's unit of time and ADRs cite them as
                 # evidence; unstamped records made that unverifiable.
+                # An explicit set_round in THIS batch is the round,
+                # verbatim — the auto-bump used to stack on it, so the
+                # chat-only escape hatch asked for 6 and got 7 exactly
+                # when it mattered: on the first agent commit after a
+                # user turn (v0.8 beats).
                 "round": self.registry.get("round", 0) +
                          (1 if author == "agent" and
                           (self.records.get(base) or {}).get("author")
-                          != "agent" else 0),
+                          != "agent" and
+                          not any(c.get("action") == "set_round" and
+                                  c.get("round") is not None
+                                  for c in reg_changes) else 0),
                 "saved_at": now_iso(),
                 # origin stamp (live_test_2 B7): multi-session writes must
                 # stay attributable
@@ -7417,6 +7463,15 @@ class Store:
                         % (i, op.get("whose_move")))
                 elif op.get("whose_move") in ("user", "agent"):
                     reg["whose_move"] = op["whose_move"]
+                # record it (v0.8 beats): set_round was the ONE registry
+                # write that never appeared in reg_changes — silently
+                # breaking the "no silent registry write" promise, and
+                # leaving commit no way to know the round was set
+                # explicitly (its auto-bump then stacked +1 on top) or
+                # round_stall any way to see its advice was taken
+                applied.append({"action": "set_round",
+                                "round": op.get("round"),
+                                "whose_move": op.get("whose_move")})
             elif action == "rename_artifact":
                 # a view's SCOPE legitimately narrows — splitting a domain
                 # model leaves one half being something new. Until v0.6
@@ -8171,6 +8226,13 @@ class Store:
             for r in reversed(self.lineage(head)):
                 rec = self.records.get(r) or {}
                 if rec.get("author") == "user":
+                    break
+                if any(c.get("action") == "set_round"
+                       for c in rec.get("registry_changes") or []):
+                    # an explicit round advance IS the acknowledgment
+                    # this nag asks for — without the reset, taking its
+                    # advice never cleared it and every subsequent apply
+                    # ratcheted the round up another notch (v0.8 beats)
                     break
                 n += 1
             has_open = any(p.get("status") == "open"
@@ -10886,7 +10948,7 @@ def cmd_x_geometry(args):
     return 0
 
 
-def _x_user_note(text, x, y, w=230, h=90):
+def _x_user_note(text, x, y, w=230, h=90, existing=None):
     """A user's sticky note, shaped exactly as the client posts one.
 
     Args:
@@ -10895,12 +10957,21 @@ def _x_user_note(text, x, y, w=230, h=90):
         y: Top edge.
         w: Width.
         h: Height.
+        existing: Live element-id set; the content-addressed id is
+            salted past collisions (two identical note texts used to
+            mint the same id and the save then carried duplicates —
+            v0.8 beats, E1).
 
     Returns:
         `[rectangle, bound text]`, both stamped `author: "user"`.
     """
     nid = "usernote-" + hashlib.sha1(
         text.encode("utf-8")).hexdigest()[:8]
+    n = 2
+    while existing and (nid in existing or nid + "-t" in existing):
+        nid = "usernote-%s-%d" % (hashlib.sha1(
+            text.encode("utf-8")).hexdigest()[:8], n)
+        n += 1
     rect = dict(BASE_DEFAULTS)
     rect.update({
         "id": nid, "type": "rectangle", "x": x, "y": y, "width": w,
@@ -11066,7 +11137,16 @@ def cmd_x_as_user(args):
         cd["tooltip"] = args.text
         el["customData"] = cd
     elif verb == "note":
-        els = els + _x_user_note(args.text, args.dx or 600, args.dy or 700)
+        # --note names the REVISION note; the body comes from --text.
+        # Passing only --note used to mint an EMPTY sticky silently —
+        # and, ids being content-addressed, every empty note hashed to
+        # the same id and collided (v0.8 beats, E1)
+        if not (args.text or "").strip():
+            die("ERROR=note needs --text for its body (--note is the "
+                "revision note, not the sticky's content)", 2)
+        els = els + _x_user_note(args.text, args.dx or 600,
+                                 args.dy or 700,
+                                 existing={e["id"] for e in els})
     elif verb == "ask":
         el = ix.get(args.target)
         if el is None:
