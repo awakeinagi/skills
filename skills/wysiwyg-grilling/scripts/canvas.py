@@ -2879,6 +2879,19 @@ def _flow_facts(old_ix, new_ix, old_labels, new_labels, changes, adds, dels,
             # an endpoint vanishing because its node was deleted in this same
             # save is a consequence of the deletion, not a re-order decision
             lost_to_deletion = any(b in deleted_ids for b in (os_, oe_) if b)
+            # Excalidraw rewrites the binding OBJECT (focus, gap) when an
+            # endpoint is dragged and dropped back on the node it came
+            # from, so the attribute shows in the diff while nothing was
+            # re-pointed. That produced `rewired` facts whose from and to
+            # are identical, and two of them tripped
+            # `sequence_reordered` — the one fact the flow reference
+            # tells the agent to LEAD WITH — so a user who nudged two
+            # arrowheads was told they had re-sequenced the process
+            # (brownfield BUG-01). Compare the normalized bindings.
+            ns_, ne_ = _norm_binding(el.get("startBinding")), \
+                _norm_binding(el.get("endBinding"))
+            if (os_, oe_) == (ns_, ne_):
+                continue
             kw = {"from": "%s→%s" % (osl, oel), "to": "%s→%s" % (nsl, nel)}
             if lost_to_deletion:
                 kw["consequence_of"] = (os_ if os_ in deleted_ids else oe_)
@@ -3289,6 +3302,23 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
 # ---------------------------------------------------------------------------
 # mechanical summary (verb counts, salience headline, suppression)
 # ---------------------------------------------------------------------------
+
+def _tw_names(refs, cap=3):
+    """Render mapping members for a tripwire question.
+
+    Args:
+        refs: `artifact#element` refs.
+        cap: How many to name before summarising the rest.
+
+    Returns:
+        A readable list — all of them up to `cap`, else the first `cap`
+        and a count, so a wide mapping does not produce a paragraph.
+    """
+    shown = [r.replace("#", " › ") for r in refs[:cap]]
+    if len(refs) > cap:
+        shown.append("and %d more" % (len(refs) - cap))
+    return ", ".join(shown)
+
 
 SALIENCE = ["user_route_replaced",
             "rewired", "relationship_rewired", "rerouted",
@@ -5177,7 +5207,7 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
 
     # mapping joins: every (wireframe member, flow member) pair
     pairs, divergent = [], set()
-    for m in (registry or {}).get("mappings") or []:
+    for mi, m in enumerate((registry or {}).get("mappings") or []):
         wf, fl = [], []
         for ref in m.get("elements") or []:
             if "#" not in ref:
@@ -5188,32 +5218,45 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 wf.append((aid, eid))
             elif t == "flow":
                 fl.append((aid, eid))
-        mine = [(wa, we, fa, fe) for wa, we in wf for fa, fe in fl]
+        mine = [(wa, we, fa, fe, mi) for wa, we in wf for fa, fe in fl]
         pairs.extend(mine)
         if declared_divergent(m, {artifact_types.get(a.split("#", 1)[0])
                                   for a in m.get("elements") or []}):
             divergent.update(mine)
 
     # ---- 3.2.4 consistent identification (mapped elements only) ------
+    # Keyed on (flow step, MAPPING), not the flow step alone. A single
+    # mapping declaring N wireframe members against one flow step is a
+    # compression the user asserted — three real toggles switched
+    # individually, one box at a lower resolution — and asking it to
+    # "pick one name" would delete two controls while splitting it into
+    # three mappings would assert three steps that do not exist. Both
+    # remedies the check proposed were destructive, so its premise was
+    # wrong (v0.6 assessment r3-8). Disagreement ACROSS mappings is
+    # still 3.2.4 and still fires: that is two parties naming the same
+    # step differently, which is the case worth catching.
     by_flow, by_label = {}, {}
-    for wa, we, fa, fe in pairs:
+    for wa, we, fa, fe, mi in pairs:
         lbl = (label_maps.get(wa, {}).get(we) or "").strip()
-        if not lbl or (wa, we, fa, fe) in divergent:
+        if not lbl or (wa, we, fa, fe, mi) in divergent:
             continue
-        by_flow.setdefault((fa, fe), set()).add((wa, we, lbl))
+        by_flow.setdefault((fa, fe), {}).setdefault(mi, set()) \
+               .add((wa, we, lbl))
         by_label.setdefault(lbl.lower(), set()).add((wa, we, fa, fe))
-    for (fa, fe), members in sorted(by_flow.items()):
+    for (fa, fe), by_mapping in sorted(by_flow.items()):
+        members = {x for grp in by_mapping.values() for x in grp}
         lbls = sorted({lbl for _, _, lbl in members})
         aid0 = sorted(members)[0][0]
-        if len(lbls) > 1 and \
+        if len(by_mapping) > 1 and len(lbls) > 1 and \
                 "324:%s:%s" % (aid0, slugify(fe)) not in waives:
             add(aid0, "notes",
-                "%s all map to %s#%s — same action, %d names; pick "
-                "one? (3.2.4: one function, one label). Settled? "
-                "annotate the mapping intentionally-divergent, or waive "
+                "%s all map to %s#%s through %d separate mappings — same "
+                "action, %d names; pick one? (3.2.4: one function, one "
+                "label). Deliberate? annotate a mapping "
+                "intentionally-divergent, or waive "
                 "{action: waive, key: '324:%s:%s', reason: ...}"
                 % (" / ".join(repr(x) for x in lbls), fa, fe,
-                   len(lbls), aid0, slugify(fe)))
+                   len(by_mapping), len(lbls), aid0, slugify(fe)))
     for lbl, refs in sorted(by_label.items()):
         flows = sorted({(fa, fe) for _, _, fa, fe in refs})
         if len(flows) > 1:
@@ -5229,7 +5272,7 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
     ixs = {aid: {e["id"]: e for e in els}
            for aid, els in scenes.items()}
     frame_nodes = {}
-    for wa, we, fa, fe in pairs:
+    for wa, we, fa, fe, _mi in pairs:
         el = ixs.get(wa, {}).get(we)
         if el is None:
             continue
@@ -5980,50 +6023,65 @@ class Store:
                 continue
             if self._policy_covers(m, fired):
                 continue
-            for h in hits:
-                for s in siblings:
-                    entry = {"mapping": self._mapping_key(m), "changed": h,
-                             "sibling": s, "kind": "divergence"}
-                    out.append(entry)
-                    reg_entry = dict(entry)
-                    ch = h.replace("#", " › ")
-                    sb = s.replace("#", " › ")
-                    reg_entry.update({
-                        "id": "tw-%d-%d" % (revn, len(out)),
-                        # a fired tripwire must be visible at fire time —
-                        # the record entry mirrors id+question so the apply
-                        # response can name it (v0.3 assessment bug: fired
-                        # silently, agent found it rounds later via status)
-                        "save": revn, "status": "open",
-                        # answerable in place (like pins) — defaults the
-                        # agent may sharpen via annotate_tripwire
-                        "question": "%s changed but its mapped sibling %s "
-                                    "didn't. Divergence, or should it "
-                                    "propagate?" % (ch, sb),
-                        "choices": ["Intentional divergence — keep both",
-                                    "Propagate to the sibling"],
-                        "detail": (
-                            "These two elements are declared views of the "
-                            "same thing (mapping %s). At save %d, %s "
-                            "changed while %s stayed put — so right now "
-                            "the two views disagree.\n\n"
-                            "• 'Intentional divergence' records the "
-                            "difference as deliberate: the mapping stays, "
-                            "annotated so this pair never trips again for "
-                            "this reason.\n"
-                            "• 'Propagate' asks the agent to carry "
-                            "the change into %s in its next revision — "
-                            "narrated, and nothing is touched until you "
-                            "answer.\n\n"
-                            "Free-text works too: name a third option, or "
-                            "explain what the two views actually mean."
-                            % (self._mapping_key(m), revn, ch, sb, sb)),
-                        "examples": [],
-                        "answer": None,
-                    })
-                    self.registry["tripwires"].append(reg_entry)
-                    entry["id"] = reg_entry["id"]
-                    entry["question"] = reg_entry["question"]
+            # ONE question per mapping per save. This used to be a nested
+            # loop over (changed × sibling), so renaming one element of a
+            # four-member mapping asked three questions — while every
+            # suppression path above (intentionally-divergent,
+            # _annotation_covers, _policy_covers) already reasons once
+            # per mapping, so the code only disagreed with itself on the
+            # emitting side. The agent that met it said so: "fired three
+            # tripwires — all one cause, so I've answered the cause
+            # rather than the count", then wrote ONE annotation that
+            # resolved all three (v0.6 assessment r3-7).
+            #
+            # `changed`/`sibling` stay singular and populated with the
+            # first of each: the UI anchors its ? mark on an element, and
+            # a v0.6 registry still reads.
+            entry = {"mapping": self._mapping_key(m), "changed": hits[0],
+                     "sibling": siblings[0], "changed_all": list(hits),
+                     "siblings": list(siblings), "kind": "divergence"}
+            out.append(entry)
+            reg_entry = dict(entry)
+            ch = _tw_names(hits)
+            sb = _tw_names(siblings)
+            reg_entry.update({
+                "id": "tw-%d-%d" % (revn, len(out)),
+                # a fired tripwire must be visible at fire time —
+                # the record entry mirrors id+question so the apply
+                # response can name it (v0.3 assessment bug: fired
+                # silently, agent found it rounds later via status)
+                "save": revn, "status": "open",
+                # answerable in place (like pins) — defaults the
+                # agent may sharpen via annotate_tripwire
+                "question": "%s changed but %s %s didn't. Divergence, or "
+                            "should it propagate?"
+                            % (ch, "its mapped sibling" if
+                               len(siblings) == 1 else "its %d mapped "
+                               "siblings" % len(siblings), sb),
+                "choices": ["Intentional divergence — keep both",
+                            "Propagate to the sibling"],
+                "detail": (
+                    "These elements are declared views of the "
+                    "same thing (mapping %s). At save %d, %s "
+                    "changed while %s stayed put — so right now "
+                    "the views disagree.\n\n"
+                    "• 'Intentional divergence' records the "
+                    "difference as deliberate: the mapping stays, "
+                    "annotated so this mapping never trips again for "
+                    "this reason.\n"
+                    "• 'Propagate' asks the agent to carry "
+                    "the change into %s in its next revision — "
+                    "narrated, and nothing is touched until you "
+                    "answer.\n\n"
+                    "Free-text works too: name a third option, or "
+                    "explain what the views actually mean."
+                    % (self._mapping_key(m), revn, ch, sb, sb)),
+                "examples": [],
+                "answer": None,
+            })
+            self.registry["tripwires"].append(reg_entry)
+            entry["id"] = reg_entry["id"]
+            entry["question"] = reg_entry["question"]
         return out
 
     def _policy_covers(self, m, verbs=()):
@@ -6879,68 +6937,139 @@ class Store:
                     for p in self.registry["pins"]
                     if p.get("status") in ("open", "answered")]
 
+    TIDY_MAX_PASSES = 4
+
+    @staticmethod
+    def _tidy_hash(els):
+        """Identity of a scene AS IT WILL BE STORED.
+
+        `scene_hash` on raw pass output is not that: `_tidy_pass`
+        rebuilds `boundElements`, which is derived bookkeeping, in a
+        different order from the one `normalize_scene_doc` writes. So a
+        tidy that changed nothing real still hashed differently, the
+        no-op guard missed, and every press wrote a revision headlined
+        "saved without changing anything" (brownfield BUG-02).
+
+        Args:
+            els: An element list.
+
+        Returns:
+            The hash of its normalized form.
+        """
+        return scene_hash(normalize_scene_doc({"elements": els})["elements"])
+
+    def _tidy_pass(self, base):
+        """One tidy pass: snap, re-route, re-fan, normalize z-order.
+
+        Args:
+            base: The artifact's elements. Not mutated.
+
+        Returns:
+            `(elements, snapped, rerouted)` for the tidied copy.
+        """
+        els = [dict(e) for e in base]
+        index = {e["id"]: e for e in els}
+        snapped = 0
+        for e in els:
+            if e.get("type") in ("rectangle", "diamond", "ellipse",
+                                 "frame") and \
+                    role_of(e) not in ("label", "pin"):
+                nx = int(round(e.get("x", 0) / 4.0)) * 4
+                ny = int(round(e.get("y", 0) / 4.0)) * 4
+                if nx != e.get("x") or ny != e.get("y"):
+                    e["x"], e["y"] = nx, ny
+                    snapped += 1
+                    recenter_label(els, e)
+        obstacles = [e for e in els
+                     if e.get("type") in ("rectangle", "diamond",
+                                          "ellipse")
+                     and (e.get("customData") or {}).get("role")
+                     not in ("label", "pin", "decoration",
+                             "annotation")]
+        rerouted = 0
+        for e in els:
+            if e.get("type") != "arrow":
+                continue
+            s = index.get((e.get("startBinding") or {})
+                          .get("elementId"))
+            d = index.get((e.get("endBinding") or {}).get("elementId"))
+            if s is not None and d is not None and \
+                    server_owns_geometry(e):
+                route_arrow(
+                    e, s, d, obstacles,
+                    soft_obstacles=[t for t in els
+                                    if t.get("type") == "text"
+                                    and (t.get("containerId") or
+                                         role_of(t) == "annotation")],
+                    other_arrows=[(t["id"], t.get("x", 0),
+                                   t.get("y", 0),
+                                   t.get("points") or [])
+                                  for t in els
+                                  if t.get("type") == "arrow"
+                                  and len(t.get("points") or []) >= 2])
+                recenter_label(els, e)
+                rerouted += 1
+        fan_attach_points(els)
+        return normalize_z_order(els), snapped, rerouted
+
     def tidy(self, aid):
         """One-click repair (Phase 6): snap nodes to the 4px grid,
         re-route server-owned arrows, re-fan attach points, normalize
         z-order — committed as an ordinary agent revision the user can
-        revert."""
+        revert.
+
+        Run to a FIXED POINT, because one pass is not stable. Routing
+        reads the other arrows' current paths and the fan then moves
+        them, so route-then-fan hands the next pass different input and
+        can oscillate: measured on a real project, tidy flip-flopped
+        between two states with period 2 and every press wrote a
+        revision headlined "saved without changing anything". The user
+        pressed it five times, which reads as "nothing is happening"
+        (brownfield BUG-02 — whose stated cause, a no-op write, was not
+        what was happening: every press changed the drawing).
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            The save record, or a `noop: True` stand-in when there was
+            nothing to repair or when the passes would not settle.
+
+        Raises:
+            BatchError: If `aid` names no artifact.
+        """
         with self.lock:
             base = self.scenes.get(aid)
             if base is None:
                 raise BatchError(["tidy: unknown artifact %r" % aid])
-            els = [dict(e) for e in base]
-            index = {e["id"]: e for e in els}
-            snapped = 0
-            for e in els:
-                if e.get("type") in ("rectangle", "diamond", "ellipse",
-                                     "frame") and \
-                        role_of(e) not in ("label", "pin"):
-                    nx = int(round(e.get("x", 0) / 4.0)) * 4
-                    ny = int(round(e.get("y", 0) / 4.0)) * 4
-                    if nx != e.get("x") or ny != e.get("y"):
-                        e["x"], e["y"] = nx, ny
-                        snapped += 1
-                        recenter_label(els, e)
-            obstacles = [e for e in els
-                         if e.get("type") in ("rectangle", "diamond",
-                                              "ellipse")
-                         and (e.get("customData") or {}).get("role")
-                         not in ("label", "pin", "decoration",
-                                 "annotation")]
-            rerouted = 0
-            for e in els:
-                if e.get("type") != "arrow":
-                    continue
-                s = index.get((e.get("startBinding") or {})
-                              .get("elementId"))
-                d = index.get((e.get("endBinding") or {}).get("elementId"))
-                if s is not None and d is not None and \
-                        server_owns_geometry(e):
-                    route_arrow(
-                        e, s, d, obstacles,
-                        soft_obstacles=[t for t in els
-                                        if t.get("type") == "text"
-                                        and (t.get("containerId") or
-                                             role_of(t) == "annotation")],
-                        other_arrows=[(t["id"], t.get("x", 0),
-                                       t.get("y", 0),
-                                       t.get("points") or [])
-                                      for t in els
-                                      if t.get("type") == "arrow"
-                                      and len(t.get("points") or []) >= 2])
-                    recenter_label(els, e)
-                    rerouted += 1
-            fan_attach_points(els)
-            els = normalize_z_order(els)
-            if json.dumps(els, sort_keys=True, default=str) == \
-                    json.dumps(base, sort_keys=True, default=str):
+
+            def noop(headline):
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline": headline,
+                                    "verb_counts": {}, "suppressed": 0}}
+
+            els, snapped, rerouted = self._tidy_pass(base)
+            seen = {self._tidy_hash(base), self._tidy_hash(els)}
+            for _ in range(self.TIDY_MAX_PASSES - 1):
+                nxt, s2, r2 = self._tidy_pass(els)
+                h = self._tidy_hash(nxt)
+                if h == self._tidy_hash(els):
+                    break               # settled
+                if h in seen:
+                    # a cycle: every state in it is one the next press
+                    # undoes, so committing any of them just moves the
+                    # problem. Say what is happening instead.
+                    return noop(
+                        "tidy could not settle — re-routing these arrows "
+                        "keeps undoing the attach-point fan. Author the "
+                        "paths with `mod points`, or move the nodes apart")
+                seen.add(h)
+                els, snapped, rerouted = nxt, snapped + s2, rerouted + r2
+            if self._tidy_hash(els) == self._tidy_hash(base):
                 # nothing to repair — committing anyway would write an
                 # empty "saved without changing anything" revision (v0.3
                 # assessment bug)
-                return {"revn": self.head_revn(), "noop": True,
-                        "summary": {"headline":
-                                    "already tidy — nothing to change",
-                                    "verb_counts": {}, "suppressed": 0}}
+                return noop("already tidy — nothing to change")
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),

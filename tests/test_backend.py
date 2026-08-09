@@ -5367,6 +5367,224 @@ class TestProgressIndicatorQuestion(Base):
                         notes)
 
 
+class TestManyToOneIsADeclaredCompression(unittest.TestCase):
+    """3.2.4 asks once per mapping, not per cartesian pair (r3-8).
+
+    Three real toggles the user switches individually, mapped to one
+    flow box at a lower resolution, read as "same action, 3 names; pick
+    one?" — and both remedies it proposed were destructive: picking one
+    name deletes two controls, splitting into three mappings asserts
+    three steps that do not exist. When every remedy a check proposes is
+    destructive, the check's premise is wrong.
+    """
+
+    def labelled(self, eid, lbl, x):
+        """A node plus its bound label — label_map reads bound text."""
+        return [{"id": eid, "type": "rectangle", "x": x, "y": 100,
+                 "width": 160, "height": 60,
+                 "customData": {"role": "node"}},
+                {"id": eid + "-label", "type": "text", "x": x, "y": 100,
+                 "width": 140, "height": 20, "containerId": eid,
+                 "text": lbl, "originalText": lbl}]
+
+    def scenes(self):
+        wf = []
+        for i, (k, lbl) in enumerate((("market", "Market data"),
+                                      ("edgar", "EDGAR filings"),
+                                      ("news", "News stream"))):
+            wf += self.labelled("src-" + k, lbl, 100 + i * 200)
+        return {"admin-console": wf,
+                "daily-run-flow": self.labelled("ingest", "Ingest", 100)}
+
+    def notes(self, mappings):
+        out = canvas.cross_lint(
+            self.scenes(),
+            {"admin-console": "wireframe", "daily-run-flow": "flow"},
+            {"mappings": mappings, "waives": {}}, [])
+        return [m for part in out.values() for m in part["notes"]
+                if "3.2.4" in m]
+
+    def one_mapping(self):
+        return [{"concept": "argus",
+                 "elements": ["admin-console#src-market",
+                              "admin-console#src-edgar",
+                              "admin-console#src-news",
+                              "daily-run-flow#ingest"]}]
+
+    def three_mappings(self):
+        return [{"concept": "argus",
+                 "elements": ["admin-console#src-%s" % k,
+                              "daily-run-flow#ingest"]}
+                for k in ("market", "edgar", "news")]
+
+    def test_one_mapping_is_a_compression_and_says_nothing(self):
+        self.assertEqual(self.notes(self.one_mapping()), [])
+
+    def test_separate_mappings_disagreeing_still_fire(self):
+        # the silent half, inverted: two parties naming one step
+        # differently is the case worth catching, and it survives
+        notes = self.notes(self.three_mappings())
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("3 separate mappings", notes[0])
+
+
+class TestOneTripwirePerMapping(Base):
+    """A mapping asks ONE question per save, whatever its arity (r3-7).
+
+    Emission was a nested loop over (changed × sibling), so renaming one
+    element of a four-member mapping asked three questions — while every
+    suppression path above it already reasons once per mapping. The
+    agent that met it: "fired three tripwires — all one cause, so I've
+    answered the cause rather than the count", then wrote ONE annotation
+    that resolved all three.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "registry", "action": "add_mapping",
+                     "concept": "checkout",
+                     "elements": ["checkout-flow#cart",
+                                  "checkout-flow#checkout",
+                                  "checkout-flow#payment",
+                                  "checkout-flow#confirm"]}]})
+
+    def rename(self, eid, label):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": eid, "attrs": {"label": label}}]})
+        return rec
+
+    def test_one_rename_of_four_members_asks_one_question(self):
+        self.assertEqual(len(self.rename("cart", "Basket")["tripwires"]), 1)
+
+    def test_the_question_counts_the_siblings(self):
+        t = self.rename("cart", "Basket")["tripwires"][0]
+        self.assertIn("3 mapped siblings", t["question"])
+
+    def test_it_carries_both_lists(self):
+        t = self.rename("cart", "Basket")["tripwires"][0]
+        self.assertEqual(t["changed_all"], ["checkout-flow#cart"])
+        self.assertEqual(len(t["siblings"]), 3)
+
+    def test_the_singular_fields_survive_for_the_ui_anchor(self):
+        t = self.rename("cart", "Basket")["tripwires"][0]
+        self.assertEqual(t["changed"], "checkout-flow#cart")
+        self.assertIn(t["sibling"], t["siblings"])
+
+    def test_one_resolve_clears_it(self):
+        self.rename("cart", "Basket")
+        self.assertEqual(len(self.store.open_tripwires()), 1)
+
+    def test_renaming_two_members_still_asks_once(self):
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "cart", "attrs": {"label": "Basket"}},
+                    {"op": "mod", "id": "checkout",
+                     "attrs": {"label": "Review"}}]})
+        self.assertEqual(len(rec["tripwires"]), 1)
+        self.assertEqual(len(rec["tripwires"][0]["changed_all"]), 2)
+
+    def test_renaming_every_member_asks_nothing(self):
+        # the silent half: a convergent edit is not a divergence
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": e, "attrs": {"label": "New " + e}}
+                    for e in ("cart", "checkout", "payment", "confirm")]})
+        self.assertEqual(rec["tripwires"], [])
+
+
+class TestTidyRunsToAFixedPoint(Base):
+    """tidy must settle, or say it cannot (BUG-02).
+
+    Routing reads the other arrows' current paths and the fan then moves
+    them, so one pass is not stable: on a real project tidy flip-flopped
+    between two states with period 2, and each of five presses wrote a
+    revision headlined "saved without changing anything".
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_an_already_tidy_artifact_is_a_noop(self):
+        self.store.tidy("checkout-flow")
+        r = self.store.tidy("checkout-flow")
+        self.assertTrue(r.get("noop"))
+        self.assertIn("already tidy", r["summary"]["headline"])
+
+    def test_repeated_presses_write_nothing(self):
+        self.store.tidy("checkout-flow")
+        head = self.store.head_revn()
+        for _ in range(4):
+            self.store.tidy("checkout-flow")
+        self.assertEqual(self.store.head_revn(), head)
+
+    def test_a_genuinely_untidy_artifact_still_commits(self):
+        # the silent half: converging to a noop must not disable tidy
+        for e in self.store.scenes["checkout-flow"]:
+            if e["id"] == "payment":
+                e["x"] = e["x"] + 3      # off the 4px grid
+        r = self.store.tidy("checkout-flow")
+        self.assertFalse(r.get("noop"), r["summary"]["headline"])
+
+    def test_an_unknown_artifact_still_raises(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.tidy("ghost")
+
+
+class TestNoOpRewireIsNotASequenceChange(Base):
+    """Dropping an endpoint back on its own node is not a re-sequence.
+
+    Excalidraw rewrites the binding OBJECT (focus, gap) on a drag, so
+    the attribute showed in the diff while nothing was re-pointed — and
+    two such facts tripped `sequence_reordered`, the one fact the flow
+    reference tells the agent to LEAD WITH (brownfield BUG-01).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def facts_after(self, mutate):
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        mutate({e["id"]: e for e in els})
+        rec = self.store.commit(author="user",
+                                new_scenes={"checkout-flow": els})
+        return [f["fact"] for a in rec["artifacts"].values()
+                for f in a["facts"]]
+
+    def jiggle(self, ix, *aids):
+        for aid in aids:
+            for key in ("startBinding", "endBinding"):
+                b = dict(ix[aid].get(key) or {})
+                if b:
+                    b["focus"] = round(b.get("focus", 0) + 0.11, 3)
+                    b["gap"] = b.get("gap", 6) + 1
+                    ix[aid][key] = b
+
+    def test_a_no_op_rewire_emits_no_rewired_fact(self):
+        self.assertNotIn("rewired", self.facts_after(
+            lambda ix: self.jiggle(ix, "t1")))
+
+    def test_two_no_op_rewires_do_not_claim_a_re_sequence(self):
+        self.assertNotIn("sequence_reordered", self.facts_after(
+            lambda ix: self.jiggle(ix, "t1", "t2")))
+
+    def test_a_real_rewire_still_fires(self):
+        # the silent half, and the one that matters
+        def repoint(ix):
+            ix["t1"]["endBinding"] = dict(ix["t1"]["endBinding"],
+                                          elementId="payment")
+        self.assertIn("rewired", self.facts_after(repoint))
+
+
 class TestDivergenceVerbs(Base):
     """Only meaning-changing facts arm a divergence tripwire (v0.6).
 
