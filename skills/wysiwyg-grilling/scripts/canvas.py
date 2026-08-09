@@ -1475,6 +1475,156 @@ def _slider_thumb_x(el, value):
     return el["x"] + 10 + (w - 20 - 12) * (float(value) / 100.0)
 
 
+def _interpret_user_composites(new_els, old_els):
+    """Read a user's composite-part edits as STATE, then normalize.
+
+    Delta-based, never state-based (a state-only rule would emit
+    phantom unchecks on every copy-pasted control): a part counts as a
+    gesture only when the BASE scene had it, the new scene changed it,
+    and the host persists. The live case: a user deleted a checkbox's
+    check stroke, the box rendered empty while ``checked`` stayed True,
+    and the save narrated "no changes" (r4-8) — the agent called the
+    message "actively misleading" and repaired it by hand. Now the
+    gesture becomes ``checked: False`` + the stroke stays gone, the
+    diff emits the high-signal ``state_toggled`` fact, and
+    ``reconcile_composed`` re-derives the parts. Undo round-trips: the
+    stroke restored flips ``checked`` back, with a fact.
+
+    Args:
+        new_els: The incoming normalized user scene, mutated in place.
+        old_els: The base-state elements (replayed history).
+    """
+    old_ix = {e["id"]: e for e in old_els}
+    new_ix = {e["id"]: e for e in new_els
+              if isinstance(e, dict) and not e.get("isDeleted")}
+
+    def part_of(els_ix, tag, host_id):
+        return next((t for t in els_ix.values()
+                     if (t.get("customData") or {}).get(tag) == host_id),
+                    None)
+
+    for el in list(new_els):
+        if not isinstance(el, dict) or el.get("isDeleted"):
+            continue
+        cd = el.get("customData") or {}
+        kind = cd.get("kind")
+        if el["id"] not in old_ix:
+            # a NEW host (paste, template insert, pre-compose add): parts
+            # absent in both scenes → recompose silently, no gesture
+            if kind in ("checkbox", "toggle", "slider", "kpi", "input",
+                        "image", "entity"):
+                reconcile_composed(new_els, None, None, el)
+            continue
+        if kind == "checkbox":
+            had = part_of(old_ix, "chk_of", el["id"]) is not None
+            has = part_of(new_ix, "chk_of", el["id"]) is not None
+            if had != has and bool(cd.get("checked")) == had:
+                el["customData"] = dict(cd, checked=has)
+        elif kind == "toggle":
+            thumb = part_of(new_ix, "thumb_of", el["id"])
+            old_thumb = part_of(old_ix, "thumb_of", el["id"])
+            if thumb is not None and old_thumb is not None and \
+                    thumb.get("x") != old_thumb.get("x"):
+                # flip only when the thumb centre crosses the track
+                # midpoint — a 2px sloppy drag recomposes back instead
+                # of toggling
+                mid = el["x"] + 8 + 14  # box x+8, pill width 28
+                now_on = (thumb.get("x", 0) + 6) > mid
+                if now_on != bool(cd.get("checked")):
+                    el["customData"] = dict(cd, checked=now_on)
+        elif kind == "slider":
+            thumb = part_of(new_ix, "thumb_of", el["id"])
+            old_thumb = part_of(old_ix, "thumb_of", el["id"])
+            if thumb is not None and old_thumb is not None and \
+                    thumb.get("x") != old_thumb.get("x"):
+                w = el.get("width", 160)
+                span = max(w - 20 - 12, 1)
+                v = (thumb.get("x", 0) - el["x"] - 10) / span * 100.0
+                v = round(max(0.0, min(100.0, v)), 1)
+                el["customData"] = dict(cd, value=v)
+        reconcile_composed(new_els, None, None, el)
+
+
+def reconcile_composed(els, index, existing, el):
+    """Re-derive a composed host's parts from its geometry and state.
+
+    Composed elements were assembled once at creation and never
+    maintained (WP3, r4-8/r4-10): only the X-box re-derived on resize
+    and only bound labels re-centred on move — sliders, checkboxes, KPI
+    centring, input insets and attribute rows all went stale, and a
+    check stroke could contradict ``customData.checked`` with no
+    invariant anywhere. This is the one invariant: parts are DERIVED —
+    geometry from the host, presence from the state — so any path that
+    changes either (agent mod, user save, the x-as-user driver) calls
+    this and gets the same composite back.
+
+    Args:
+        els: The scene's element list, mutated in place.
+        index: id -> element, kept in sync (may be None).
+        existing: Set of ids in use, kept in sync (may be None).
+        el: The composed host whose geometry or state changed.
+    """
+    if index is None:
+        index = {e["id"]: e for e in els}
+    if existing is None:
+        existing = set(index.keys())
+    cd = el.get("customData") or {}
+    kind = cd.get("kind")
+    if el.get("type") == "rectangle" and el.get("groupIds"):
+        _recompose_xbox(els, el)
+    if kind == "kpi":
+        _recompose_kpi_value(els, el, str(cd.get("value") or ""))
+    elif kind == "input":
+        _recompose_input_value(els, el, str(cd.get("value") or ""))
+    elif kind in ("checkbox", "toggle"):
+        cy = el["y"] + el.get("height", 28) / 2.0
+        box = next((t for t in els if (t.get("customData") or {})
+                    .get("box_of") == el["id"]), None)
+        if box is not None:
+            box["x"], box["y"] = el["x"] + 8, cy - 8
+        if kind == "checkbox":
+            chk = next((t for t in els if (t.get("customData") or {})
+                        .get("chk_of") == el["id"]), None)
+            if bool(cd.get("checked")) and chk is None:
+                made = _check_stroke(el, existing)
+                els.append(made)
+                index[made["id"]] = made
+            elif not cd.get("checked") and chk is not None:
+                els.remove(chk)
+                index.pop(chk["id"], None)
+                existing.discard(chk["id"])
+            elif chk is not None:
+                chk["x"], chk["y"] = el["x"] + 11, cy - 1
+        else:
+            for t in els:
+                if (t.get("customData") or {}).get("thumb_of") == \
+                        el["id"]:
+                    t["x"] = _toggle_thumb_x(el, bool(cd.get("checked")))
+                    t["y"] = cy - 6
+    elif kind == "slider":
+        try:
+            v = max(0.0, min(100.0, float(cd.get("value") or 0)))
+        except (TypeError, ValueError):
+            v = 0.0
+        w = el.get("width", 160)
+        ty = el["y"] + el.get("height", 44) - 14
+        for t in els:
+            tcd = t.get("customData") or {}
+            if tcd.get("track_of") == el["id"]:
+                t["x"], t["y"] = el["x"] + 10, ty
+                t["width"], t["height"] = w - 20, 0
+                t["points"] = [[0, 0], [w - 20, 0]]
+            elif tcd.get("thumb_of") == el["id"]:
+                t["x"], t["y"] = _slider_thumb_x(el, v), ty - 6
+    elif kind == "entity":
+        rows = [t.get("text", "") for t in sorted(
+                    (t for t in els if (t.get("customData") or {})
+                     .get("attr_of") == el["id"]),
+                    key=lambda t: t.get("y", 0))]
+        if rows:
+            _reset_attribute_rows(els, index, existing, el, rows)
+
+
 def edge_anchor(el, other_cx, other_cy):
     """Point on el's bounding box edge nearest to the other element's center."""
     cx = el["x"] + el.get("width", 0) / 2.0
@@ -2302,15 +2452,14 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                         recenter_label(els, el)
             # composite integrity: grouped decorations (X-box strokes,
             # attribute rows) travel with their element on x/y mods —
-            # and are RE-DERIVED on width/height mods, which they were
-            # not until v0.6. An image placeholder shrunk from 116 to 72
-            # high kept 116-high diagonals, so its X overshot its own box
-            # by 44px into the panel below and crossed two foreign boxes.
-            # Nothing could catch it: decorations are filtered out of the
-            # geometry lints by construction (R2-10).
-            if el.get("type") == "rectangle" and el.get("groupIds") and \
-                    ("width" in attrs or "height" in attrs):
-                _recompose_xbox(els, el)
+            # and EVERY part kind is re-derived on width/height mods
+            # (WP3). Until v0.8 only the X-box re-derived: an image
+            # placeholder shrunk from 116 to 72 high kept 116-high
+            # diagonals and its X overshot into the panel below (R2-10)
+            # — sliders, checkboxes, KPI centring, input insets and
+            # attribute rows all had the same stale-on-resize hole.
+            if ("width" in attrs or "height" in attrs):
+                reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
             dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
@@ -3008,6 +3157,17 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             styled = names & STYLE_ATTRS
             if styled and el.get("type") != "text":
                 F("restyled", c["id"], attrs=sorted(styled), low_signal=True)
+            if "link" in names:
+                # WP3 (r4-9): links_to changes produced NO fact, so a
+                # batch that only wired click-throughs narrated as
+                # "saved without changing anything" while the links
+                # landed — the agent's own advice afterward was "if it
+                # says nothing happened, check before you redo it"
+                for a in c["attrs"]:
+                    if a["attr"] == "link":
+                        F("links_changed", c["id"],
+                          label=display_label(el, new_labels),
+                          **{"from": a.get("from"), "to": a.get("to")})
             if "frameId" in names:
                 pass  # regrouped — handled by the wireframe table
             if "customData" in names and role_of(el) == "annotation":
@@ -3598,7 +3758,8 @@ SALIENCE = ["user_route_replaced",
             "label_added", "transition_added", "transition_deleted",
             "relationship_added", "relationship_deleted", "message_added",
             "message_deleted", "arrow_orphaned", "mapping_dangling",
-            "note_orphaned", "annotated", "annotation_deleted",
+            "note_orphaned", "links_changed", "annotated",
+            "annotation_deleted",
             "pin_added", "pin_deleted", "priority_changed",
             "tooltip_added", "tooltip_changed", "tooltip_removed",
             "activation_changed", "moved", "resized", "reordered",
@@ -3624,6 +3785,13 @@ def headline_for(fact):
     if n == "note_orphaned":
         return "the note %s lost its anchor (%s deleted)" \
             % (fact["element"], fact.get("target"))
+    if n == "links_changed":
+        to = str(fact.get("to") or "").replace("artifact:", "")
+        if to:
+            return "%s now links to %s" % (
+                fact.get("label") or fact["element"], to)
+        return "%s no longer links anywhere" % (
+            fact.get("label") or fact["element"])
     # explicit branches for facts the suffix rules would mangle — no
     # fact may fall through to a bare verb ("resized (+3 more)")
     if n == "added":
@@ -3746,6 +3914,13 @@ def mechanical_summary(facts, sentinel_suppressed):
         else:
             visible.append(f)
     headline = "no changes"
+    real = [f for f in facts if f["fact"] != "saved_no_changes"]
+    if not visible and real:
+        # WP3 (r4-9): every fact suppressed is NOT "no changes" — that
+        # message taught an agent to re-issue a batch that had landed
+        # ("if it says nothing happened, check before you redo it")
+        headline = "housekeeping only (%d low-signal change%s)" % (
+            len(real), "" if len(real) == 1 else "s")
     for name in SALIENCE:
         hit = next((f for f in visible if f["fact"] == name), None)
         if hit:
@@ -6043,12 +6218,19 @@ class Store:
             all_tripwires = []
             changed_elements = {}
             new_norm_by_aid = {}
+            sentinel_by_aid = {}
             sig = self.config.get("significant_attrs")
             for aid, els in sorted(new_scenes.items()):
+                old = (base_state.get(aid) or {}).get("elements", [])
+                if author == "user":
+                    # mutate the RAW scene list itself — _write_artifact
+                    # persists new_scenes[aid], and a state change that
+                    # reached only the record would be the record-vs-file
+                    # divergence this campaign kills
+                    _interpret_user_composites(els, old)
                 new_norm = [normalize_element(e) for e in els
                             if not e.get("isDeleted")]
                 new_norm_by_aid[aid] = new_norm
-                old = (base_state.get(aid) or {}).get("elements", [])
                 diff = diff_scenes(old, new_norm, sig)
                 if not diff["changes"] and aid in base_state and not \
                         (new_meta or {}).get(aid):
@@ -6075,6 +6257,7 @@ class Store:
                         ).add(f["fact"])
                 by_element = self._by_element(diff, facts, consequences,
                                               new_norm, old)
+                sentinel_by_aid[aid] = diff.get("sentinel_suppressed", 0)
                 artifacts[aid] = {
                     "changes": diff["changes"],
                     "inverse": diff["inverse"],
@@ -6222,7 +6405,9 @@ class Store:
             facts_flat = [f for a in artifacts.values() for f in a["facts"]]
             if not facts_flat:
                 facts_flat = [{"fact": "saved_no_changes", "element": None}]
-            sentinel = 0
+            # WP3: the real sentinel count — this was hardcoded 0, so
+            # `suppressed` under-reported every sentinel-suppressed diff
+            sentinel = sum(sentinel_by_aid.get(a, 0) for a in artifacts)
             summary = mechanical_summary(facts_flat, sentinel)
             if reg_changes and all(f["fact"] == "saved_no_changes"
                                    for f in facts_flat):

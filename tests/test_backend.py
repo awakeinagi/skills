@@ -6538,5 +6538,170 @@ class TestReferentialIntegrity(Base):
         self.assertIsNone(store3.catch_up())
 
 
+class TestComposedReconciliation(Base):
+    """WP3 (r4-8/r4-9/r4-10): composed parts are DERIVED — geometry from
+    the host, presence from the state — on every path, and a user's
+    part edit is read as the state gesture it is."""
+
+    def seed_controls(self):
+        """Seed a wireframe with a checked checkbox and a 70% slider."""
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "w", "artifact_type": "wireframe",
+                       "concept": "c", "name": "W"},
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "cb", "type": "rectangle", "x": 100, "y": 100,
+                    "width": 200, "height": 28, "label": "Macro calendar",
+                    "kind": "checkbox", "checked": True}},
+                {"op": "add", "element": {
+                    "id": "sl", "type": "rectangle", "x": 100, "y": 200,
+                    "width": 160, "height": 44, "label": "Confidence",
+                    "kind": "slider", "value": 70}},
+            ]})
+
+    def user_save(self, els):
+        """Commit a user save of the given elements.
+
+        Args:
+            els: The full element list to save.
+
+        Returns:
+            The commit record.
+        """
+        return self.store.commit(author="user", new_scenes={"w": els},
+                                 base_revn=self.store.head_revn())
+
+    def scene_copy(self, drop=None):
+        """Deep-copy the live scene, optionally dropping one element id.
+
+        Args:
+            drop: Element id to omit, or None.
+
+        Returns:
+            The copied element list.
+        """
+        return [json.loads(json.dumps(e)) for e in self.store.scenes["w"]
+                if e["id"] != drop]
+
+    def test_stroke_delete_is_an_uncheck_everywhere(self):
+        # The r4-8 beat: render, record, memory and DISK must all agree.
+        self.seed_controls()
+        rec = self.user_save(self.scene_copy(drop="cb-chk"))
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("state_toggled", facts)
+        self.assertIn("switched off", rec["summary"]["headline"])
+        cb = next(e for e in self.store.scenes["w"] if e["id"] == "cb")
+        self.assertFalse(cb["customData"]["checked"])
+        self.assertFalse(any(e["id"] == "cb-chk"
+                             for e in self.store.scenes["w"]))
+        disk = json.loads(
+            (self.tmp / "project_knowledge" / "artifacts" /
+             "w.excalidraw").read_text(encoding="utf-8"))
+        dcb = next(e for e in disk["elements"] if e["id"] == "cb")
+        self.assertFalse(dcb["customData"]["checked"])
+
+    def test_stroke_restore_flips_back_with_a_fact(self):
+        self.seed_controls()
+        self.user_save(self.scene_copy(drop="cb-chk"))
+        els = self.scene_copy()
+        els.append({"id": "cb-chk", "type": "line", "x": 111, "y": 112,
+                    "width": 10, "height": 8,
+                    "points": [[0, 0], [4, 4], [10, -6]],
+                    "customData": {"chk_of": "cb", "role": "decoration"},
+                    "groupIds": ["cb-grp"]})
+        rec = self.user_save(els)
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("state_toggled", facts)
+        cb = next(e for e in self.store.scenes["w"] if e["id"] == "cb")
+        self.assertTrue(cb["customData"]["checked"])
+
+    def test_slider_thumb_drag_becomes_value_changed(self):
+        self.seed_controls()
+        els = self.scene_copy()
+        th = next(e for e in els if e["id"] == "sl-thumb")
+        th["x"] = 100 + 10 + (160 - 20 - 12) * 0.25
+        rec = self.user_save(els)
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("value_changed", facts)
+        sl = next(e for e in self.store.scenes["w"] if e["id"] == "sl")
+        self.assertAlmostEqual(sl["customData"]["value"], 25.0, delta=1.0)
+
+    def test_pasted_control_composes_without_phantom_gesture(self):
+        # Delta-based, not state-based: a NEW host arriving without parts
+        # is a paste, not an uncheck.
+        self.seed_controls()
+        els = self.scene_copy()
+        els.append({"id": "cb2", "type": "rectangle", "x": 100, "y": 300,
+                    "width": 200, "height": 28,
+                    "customData": {"kind": "checkbox", "checked": True,
+                                   "role": "node"},
+                    "groupIds": ["cb2-grp"]})
+        rec = self.user_save(els)
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertNotIn("state_toggled", facts)
+        self.assertTrue(any(e["id"] == "cb2-chk"
+                            for e in self.store.scenes["w"]))
+
+    def test_untouched_save_still_says_nothing_changed(self):
+        # Silent half: interpretation + reconciliation must be idempotent.
+        self.seed_controls()
+        rec = self.user_save(self.scene_copy())
+        self.assertEqual(rec["summary"]["headline"],
+                         "saved without changing anything")
+
+    def test_resize_rederives_every_part_kind(self):
+        # The stale-on-resize hole was xbox-only until v0.8.
+        self.seed_controls()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "mod", "id": "sl", "attrs": {"width": 320}}]})
+        sl = next(e for e in self.store.scenes["w"] if e["id"] == "sl")
+        tr = next(e for e in self.store.scenes["w"]
+                  if e["id"] == "sl-track")
+        th = next(e for e in self.store.scenes["w"]
+                  if e["id"] == "sl-thumb")
+        self.assertEqual(tr["width"], 300)
+        self.assertAlmostEqual(
+            th["x"], canvas._slider_thumb_x(sl, sl["customData"]["value"]),
+            delta=1.0)
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "mod", "id": "cb",
+                     "attrs": {"height": 60}}]})
+        cb = next(e for e in self.store.scenes["w"] if e["id"] == "cb")
+        box = next(e for e in self.store.scenes["w"]
+                   if e["id"] == "cb-box")
+        self.assertAlmostEqual(box["y"],
+                               cb["y"] + cb["height"] / 2.0 - 8, delta=0.5)
+
+    def test_links_change_narrates_instead_of_no_changes(self):
+        # r4-9's second face: wiring click-throughs used to narrate as
+        # "saved without changing anything" while the links landed.
+        self.seed_controls()
+        rec, _ = self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "mod", "id": "cb",
+                     "attrs": {"links_to": "w"}}]})
+        facts = {f["fact"] for f in rec["artifacts"]["w"]["facts"]}
+        self.assertIn("links_changed", facts)
+        self.assertIn("now links to", rec["summary"]["headline"])
+
+    def test_suppressed_only_save_says_housekeeping_not_no_changes(self):
+        # r4-9's headline face: every fact suppressed is housekeeping,
+        # never "no changes".
+        self.seed_controls()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "w",
+            "ops": [{"op": "add", "element": {
+                "id": "deco1", "type": "line", "x": 0, "y": 400,
+                "width": 80, "height": 0, "points": [[0, 0], [80, 0]],
+                "role": "decoration"}}]})
+        els = self.scene_copy(drop="deco1")
+        rec = self.user_save(els)
+        self.assertIn("housekeeping only", rec["summary"]["headline"])
+        self.assertNotEqual(rec["summary"]["headline"], "no changes")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
