@@ -1,0 +1,774 @@
+{
+ "branches": [
+  {
+   "archived": false,
+   "head": 28,
+   "name": "main",
+   "scope": {
+    "budgets": {},
+    "concepts": [],
+    "declined": [],
+    "divergence_policies": [],
+    "mappings": [],
+    "pins": [],
+    "tripwires": [],
+    "waives": {}
+   }
+  }
+ ],
+ "budgets": {
+  "admin-console-wireframe": {
+   "nodes": 16,
+   "reason": "a settings screen is its controls: five toggles, two thresholds, three re-run buttons in three panels"
+  },
+  "daily-run-flow": {
+   "arrows": 13,
+   "nodes": 11,
+   "reason": "four-source fan, both terminals, and the review gate that decides whether a morning ships"
+  },
+  "dashboard-wireframe": {
+   "nodes": 13,
+   "reason": "as-is fidelity: five KPI tiles, three charts, three cards is the screen he actually looks at"
+  },
+  "enrichment-flow": {
+   "arrows": 13,
+   "nodes": 12,
+   "reason": "your words: this routing is the thing you'd want written on a wall — merging the sources back into one box is what made it wrong"
+  }
+ },
+ "concepts": [
+  {
+   "glossary": null,
+   "id": "argus",
+   "name": "Argus",
+   "owed": [
+    "domain"
+   ],
+   "unviewed": false,
+   "views": [
+    "daily-run-flow"
+   ]
+  },
+  {
+   "glossary": "Portfolio",
+   "id": "portfolio",
+   "name": "Portfolio",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Position",
+   "id": "position",
+   "name": "Position",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Instrument",
+   "id": "instrument",
+   "name": "Instrument",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "DataSource",
+   "id": "datasource",
+   "name": "DataSource",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "PipelineRun",
+   "id": "pipelinerun",
+   "name": "PipelineRun",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Signal",
+   "id": "signal",
+   "name": "Signal",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "enrichment-flow"
+   ]
+  },
+  {
+   "glossary": "Report",
+   "id": "report",
+   "name": "Report",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Insider cluster",
+   "id": "insider-cluster",
+   "name": "Insider cluster",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Conviction",
+   "id": "conviction",
+   "name": "Conviction",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": null,
+   "id": "dashboard",
+   "name": "Dashboard",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "dashboard-wireframe"
+   ]
+  },
+  {
+   "glossary": null,
+   "id": "admin-console",
+   "name": "Admin console",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "admin-console-wireframe"
+   ]
+  },
+  {
+   "glossary": "Excess Return",
+   "id": "excess-return",
+   "name": "Excess Return",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Review queue",
+   "id": "review-queue",
+   "name": "Review queue",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "review-publish-flow"
+   ]
+  }
+ ],
+ "declined": [],
+ "divergence_policies": [],
+ "head": "main",
+ "mappings": [
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#compose-outputs",
+    "enrichment-flow#to-compose"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#enrichment",
+    "enrichment-flow#aggregator"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-var",
+    "enrichment-flow#risk-model"
+   ],
+   "kinds": [
+    "label_renamed",
+    "renamed",
+    "value_changed"
+   ],
+   "note": "intentionally-divergent: a KPI tile displays a number a pipeline node computes — the tile's wording and value belong to the screen, the node's identity to the pipeline. Renaming the tile is not renaming the model."
+  },
+  {
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-run",
+    "daily-run-flow#normalize"
+   ],
+   "kinds": [
+    "label_renamed",
+    "renamed",
+    "value_changed"
+   ],
+   "note": "intentionally-divergent: same rule — a displayed count is not the stage that produces it."
+  },
+  {
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#card-digest",
+    "daily-run-flow#compose-outputs"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-sentiment",
+    "enrichment-flow#sentiment-scorer"
+   ],
+   "kinds": [
+    "label_renamed",
+    "renamed",
+    "value_changed"
+   ],
+   "note": "intentionally-divergent: same rule — the tile displays the scorer's rolled-up output."
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#market-feed",
+    "enrichment-flow#s-market"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#sec-edgar",
+    "enrichment-flow#s-edgar"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#news-stream",
+    "enrichment-flow#s-news"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "admin-console",
+   "elements": [
+    "admin-console-wireframe#toggle-market",
+    "daily-run-flow#market-feed"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "admin-console",
+   "elements": [
+    "admin-console-wireframe#toggle-edgar",
+    "daily-run-flow#sec-edgar"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "admin-console",
+   "elements": [
+    "admin-console-wireframe#toggle-news",
+    "daily-run-flow#news-stream"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "admin-console",
+   "elements": [
+    "admin-console-wireframe#toggle-portfolio",
+    "daily-run-flow#portfolio-db"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "admin-console",
+   "elements": [
+    "admin-console-wireframe#input-var",
+    "enrichment-flow#var-alert"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "review-queue",
+   "elements": [
+    "review-publish-flow#scored-signals",
+    "enrichment-flow#to-compose"
+   ],
+   "kinds": [
+    "label_renamed",
+    "renamed"
+   ],
+   "note": "intentionally-divergent: the same handoff named from both sides — the enrichment view calls it by where it goes, the review view by what arrives. Renames on either side are expected."
+  },
+  {
+   "concept": "review-queue",
+   "elements": [
+    "review-publish-flow#compose-publish",
+    "daily-run-flow#compose-outputs"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "review-queue",
+   "elements": [
+    "review-publish-flow#confidence-gate",
+    "admin-console-wireframe#input-confidence"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "review-queue",
+   "elements": [
+    "daily-run-flow#review-gate",
+    "review-publish-flow#publish-block"
+   ],
+   "kinds": null,
+   "note": null
+  }
+ ],
+ "migrations": [
+  "0001-baseline",
+  "0002-branch-scoped-registry"
+ ],
+ "pins": [
+  {
+   "answer": null,
+   "artifact": "daily-run-flow",
+   "asked_at_revn": 1,
+   "detail": "You gave me a clock and an implied deadline (the open), and four sources you don't control three of. That combination always has an answer, and it's usually never been written down.\n\nThe answer decides a lot of structure: 'wait' means the run has a timeout and someone gets paged; 'publish degraded' means every output needs a way to say which sources were in it; 'don't publish' means yesterday's dashboard is still up and must not look current.\n\nWhatever you say here is the seed for the failure view I owe you.",
+   "element": "run-trigger",
+   "examples": [
+    "Wait up to 20 min, then publish with a 'EDGAR stale' banner on the dashboard",
+    "Publish on time regardless — a missing source just drops those signals silently",
+    "Hard fail: no publish, alert the analyst, yesterday's dashboard greys out"
+   ],
+   "id": "pin-late-source",
+   "question": "It's 06:05 and EDGAR hasn't answered. Does the run wait, publish without it, or not publish?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "daily-run-flow",
+   "asked_at_revn": 1,
+   "detail": "This is the enricher that sounds most like it lives in one analyst's head. Everything else in that box has a textbook definition; 'insider cluster' doesn't.\n\nI'm asking because the answer decides whether the detector is a formula (thresholds you can put in the admin console) or a judgement (something that has to explain itself in the Signals Digest). Those are different boxes and different screens.",
+   "element": "enrichment",
+   "examples": [
+    "3+ distinct insiders buying within 10 trading days, any size",
+    "2+ buys where the combined value exceeds 0.5% of float",
+    "It's a judgement call — the analyst eyeballs the Form-4 list"
+   ],
+   "id": "pin-cluster-rule",
+   "question": "What makes a Form-4 cluster a cluster — how many insiders, over what window, and does size matter?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "daily-run-flow",
+   "asked_at_revn": 1,
+   "detail": "'Weekly Brief' has a cadence in its name, and the run is daily. So either the Brief is assembled from five daily runs, or it's a weekly-only branch of this same pipeline, or the names are looser than they look.\n\nThis decides whether I wireframe one document with three layouts, or three documents — and whether the flow needs a branch at the end.",
+   "element": "compose-outputs",
+   "examples": [
+    "All three come out of every daily run; 'Weekly' is a misnomer",
+    "Brief is Mondays, Deep-Dive is monthly, Digest is daily",
+    "Digest daily, the other two are on-demand from the admin console"
+   ],
+   "id": "pin-three-reports",
+   "question": "Are the three PDFs three cuts of one run, or three different analyses on different clocks?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "daily-run-flow",
+   "asked_at_revn": 2,
+   "detail": "You said nothing branches — same pipeline, same signals, different slices. But Brief is Mondays and Deep-Dive is monthly, and this box runs every weekday. Something has to decide what Tuesday emits.\n\nThe two answers look identical on this flow and completely different everywhere else. 'Produce and hold' means a Brief accumulates five days of signals and there is a draft sitting somewhere all week — which is state, and state needs a store. 'Only on Mondays' means this box has a condition on it, which is a branch by another name.\n\nIt also decides whether a Monday rerun from the admin console regenerates a Brief that already went to clients.",
+   "element": "compose-outputs",
+   "examples": [
+    "Monday's run cuts the Brief from the last five runs' Signals; other days it isn't produced",
+    "Every run produces all three; only distribution is on a cadence",
+    "The Brief is built incrementally all week and finalised Monday"
+   ],
+   "id": "pin-cadence-branch",
+   "question": "On a Tuesday, does the run produce a Weekly Brief and hold it, or not produce one at all?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "daily-run-flow",
+   "asked_at_revn": 2,
+   "detail": "I drew it as a rule because of how you said it. If it is a real boundary the design owes something: the Digest needs to be recognisable as internal-only wherever it can be forwarded, and the distribution step needs to be somewhere a mistake is hard to make.\n\nIf it is practice — clients just wouldn't find it useful — then it is a default, not a constraint, and the arrow can carry all three the day someone asks.",
+   "element": "clients",
+   "examples": [
+    "Compliance: raw signals are non-public research, internal only",
+    "Practice: it's noise for a client, but we'd send it if asked",
+    "Depends on the client — some mandates get it"
+   ],
+   "id": "pin-digest-rule",
+   "question": "'Never the Digest' — is that a compliance boundary or current practice?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-flow",
+   "asked_at_revn": 3,
+   "detail": "This falls straight out of the topology you dictated, and it may be exactly what you want — but it is the kind of thing that is obvious to you and invisible to your second analyst.\n\nAs drawn: a name with three insiders buying inside ten days and breaking technicals can still carry a low risk score, because neither of those signals ever reaches the risk model. They only meet at the aggregator, after risk is already decided.\n\nSo either 'risk' is a narrow, deliberately fundamental measure and the aggregate is the real judgement — in which case the Risk Deep-Dive is named after the narrow one — or the wiring is an accident of how it got built.",
+   "element": "risk-model",
+   "examples": [
+    "Deliberate: risk is a fundamentals/sentiment measure, VaR-style. The aggregate is the call",
+    "Accident: insider clusters should absolutely move risk, they just never got wired in",
+    "Neither — technicals feed risk too, I described it wrong"
+   ],
+   "id": "pin-risk-blind",
+   "question": "The risk model never sees technicals or insider clusters. Is 'risk' deliberately fundamentals + sentiment only?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-flow",
+   "asked_at_revn": 6,
+   "detail": "You dropped 'watch out for crowded trades' just under the aggregator, which is where everything meets, so I read it as being about the aggregate and drew a box for it. But there are two quite different things that phrase can mean and they land in different places.\n\nOne: crowding is *concentration*. Several Positions, same signal, same side — and because your risk number is deliberately narrow, nothing in the system can currently see it. That is a missing computation, and the box I drew is where it would go.\n\nTwo: crowding is about *signal decay*. A Form-4 cluster is public the moment it files; if you can see three insiders buying, so can everyone, so the edge is already priced. That is not a new stage — it is a caveat that belongs on the insider detector, and possibly a reason the Digest carries a warning rather than a number.\n\nThey are not exclusive. But the first one is a build and the second one is a sentence.",
+   "element": "crowding-check",
+   "examples": [
+    "Concentration: flag when >N Positions share a signal on the same side",
+    "Decay: insider clusters are public info, discount them by age since filing",
+    "Neither — it's about liquidity: can we actually get out of the position"
+   ],
+   "id": "pin-crowding",
+   "question": "Your note — is crowding a portfolio-level thing nobody computes yet, or a caution about the insider signal itself?",
+   "round": 2,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard-wireframe",
+   "asked_at_revn": 7,
+   "detail": "I invented the '5/5 sources' tile. You never mentioned it, and I want to know whether that is because it exists and was too obvious to say, or because it doesn't exist.\n\nThe reason it matters is the question you parked. Whatever you eventually decide about EDGAR at 06:05, the decision has a visible consequence *here*: if the run can publish while degraded, the screen has to be able to say so, and there is currently no place for it to. A dashboard that looks identical on a complete run and a four-source run is a dashboard that quietly launders missing data into confident numbers.\n\nSaying 'no, nothing like that' is a completely fine answer — it just means we have found one piece of the drift.",
+   "element": "kpi-run",
+   "examples": [
+    "There's a timestamp in the corner and that's it",
+    "There's a status strip that goes red — but only for a hard failure",
+    "Nothing. I'd know because the numbers would look odd"
+   ],
+   "id": "pin-run-health",
+   "question": "Is there anything on your real dashboard that tells you the run was complete?",
+   "round": 2,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard-wireframe",
+   "asked_at_revn": 7,
+   "detail": "This is my best candidate for where the screen has drifted from the pipeline, so I have drawn the version that matches the pipeline and I want you to tell me it's wrong.\n\nThe pipeline maintains a hard separation: fundamentals and tone make risk; technicals and insider buying make conviction; they meet only at the aggregator. If the dashboard shows a single ranked list by one composite score, that separation has been collapsed on the way to the screen — and every judgement you make from the screen is made on a number the pipeline never actually computes as a primary.\n\nThe other possibility is that the screen is right and the two really should be blended for a morning read, in which case the aggregator's output is the real product and 'risk' is an internal.",
+   "element": "chart-risk-conviction",
+   "examples": [
+    "Two axes, roughly like you've drawn it",
+    "One ranked table sorted by a composite score",
+    "A ranked table by conviction, with risk as a colour or a column"
+   ],
+   "id": "pin-risk-conviction-split",
+   "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?",
+   "round": 2,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard-wireframe",
+   "asked_at_revn": 12,
+   "detail": "This is the biggest hole the redraw opened, and it is structural rather than cosmetic.\n\nThree of the things on this screen — Alpha, the equity curve, drawdown — are all computed against data the pipeline has never seen. Alpha needs a benchmark. The curve and the drawdown need portfolio value stored over time. Your pipeline as we have drawn it is stateless: it wakes at 06:00, pulls, scores, emits Signals for that morning, and keeps nothing.\n\nSo either there is a sixth DataSource and a store that nobody mentioned, or there is a second system entirely — a performance/accounting layer — and the dashboard is really two products sharing one screen. That second possibility is a bigger finding than the risk/conviction one, because it means half this screen was never Argus's output at all.",
+   "element": "chart-equity",
+   "examples": [
+    "The Portfolio DB stores daily marks and a benchmark; we just never called it a source",
+    "There's a separate performance system; the dashboard pulls from both",
+    "It's computed on the fly from the market feed and a hardcoded benchmark ticker"
+   ],
+   "id": "pin-benchmark",
+   "question": "Where do the benchmark series and the portfolio-value history come from? Neither is a DataSource and neither is something a PipelineRun emits.",
+   "round": 3,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard-wireframe",
+   "asked_at_revn": 12,
+   "detail": "Your vocabulary says a Position is of an Instrument, and stops. But a sector heat map needs every Instrument classified, and once we admit sector we usually find market cap, region, asset class, liquidity — a reference-data layer that nobody lists as a source because it feels like it is just *there*.\n\nThis is the question that decides how much the domain diagram has to hold, so it is the one I would most like answered before I draw it.",
+   "element": "chart-heatmap",
+   "examples": [
+    "Just sector, and it comes off the market feed",
+    "Sector plus region and cap — from a reference-data vendor we haven't mentioned",
+    "The Portfolio DB carries all of it as columns on the position"
+   ],
+   "id": "pin-instrument-sector",
+   "question": "What does an Instrument actually carry — is sector the only attribute, or is there a whole reference-data layer here?",
+   "round": 3,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "dashboard-wireframe",
+   "asked_at_revn": 12,
+   "detail": "'I don't want to download a PDF to look at last week's brief' is a small sentence with a large consequence. It means the readable form of a Report is a page in the app, and the PDF is a rendering of it.\n\nThat matters for what I draw next. If the page is primary, the report wireframe is a screen with a fold, and the PDF is a print stylesheet. If the PDF is primary and the in-app view is a viewer wrapped around it, then the report is a document and the app is just saving you a download.\n\nIt also decides what clients get: a link that stays live and re-cuts, or a file that is frozen at the moment it was sent.",
+   "element": "card-digest",
+   "examples": [
+    "The page is the report; PDF is an export button on it",
+    "The PDF is generated and the app just embeds a viewer",
+    "Analyst reads the page, clients get the PDF — two forms of the same report"
+   ],
+   "id": "pin-report-page",
+   "question": "If reports open in place, is the PDF the artifact — or an export of a page?",
+   "round": 3,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-flow",
+   "asked_at_revn": 16,
+   "detail": "Your routing rule was precise: EDGAR to the sentiment scorer and the insider detector, news to the sentiment scorer only, market feed to technicals, Portfolio DB scopes. Fundamentals ratios weren't in the list.\n\nI've drawn EDGAR feeding them, because ratios come off financial statements and EDGAR is where the statements are. But if the ratios actually come from the market feed (anything with a price in it — P/E, yield) or from a data vendor nobody has mentioned, then this is a sixth source hiding in plain sight, which is the second time this session that has happened.\n\nWorth being sure, because the whole point of this view is that the routing is now a wall poster and a wrong line on a wall poster is worse than no poster.",
+   "element": "fundamentals",
+   "examples": [
+    "EDGAR — statements straight off the filings",
+    "Market feed for anything price-based, EDGAR for the rest — so it has two inputs",
+    "A fundamentals data vendor we haven't drawn"
+   ],
+   "id": "pin-fundamentals-source",
+   "question": "You routed four sources to three enrichers and never said where fundamentals gets its input. EDGAR?",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console-wireframe",
+   "asked_at_revn": 18,
+   "detail": "You said the console reruns individual pipelines with new settings. I've guessed the unit is the stage — ingest, enrichment, scoring — because that is what the flow actually has.\n\nBut there are two other plausible units and they make very different screens. It could be **per enricher**: re-run just the insider detector after changing its window, leaving the other three alone. Or **per name**: re-run everything for one ticker you don't believe.\n\nWhy it matters beyond button labels: if the unit is smaller than the whole run, a run's outputs can be a mixture — some Signals from 06:00, some re-scored at 09:15 — and the Signals in one report no longer share a timestamp. That is a versioning problem *inside* a single report rather than between two.",
+   "element": "btn-rerun-enrich",
+   "examples": [
+    "Stages, as drawn — ingest / enrich / score",
+    "Per enricher — re-run just the insider detector",
+    "Per name — re-run one ticker end to end"
+   ],
+   "id": "pin-rerun-unit",
+   "question": "What is an 'individual pipeline'? Everything we've drawn is one pipeline with stages.",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console-wireframe",
+   "asked_at_revn": 18,
+   "detail": "This is the concrete version of 'the screen the second analyst will break something with', and I have drawn a warning banner that doesn't exist so the hole has a shape.\n\nThe design currently has no answer. Nothing stops the change, nothing records that it happened, and nothing distinguishes the reissued Brief from the one clients already have. The dashboard would simply start showing different numbers mid-morning, under the same run stamp.\n\nThere are three families of answer and they are very different amounts of work: warn and proceed; version the outputs so both exist and are labelled; or freeze published cuts so a re-run makes a new draft rather than overwriting. Which family you want decides whether Report needs a version in the vocabulary.",
+   "element": "warn-thresholds",
+   "examples": [
+    "Warn me, then just do it — I'm the only one who touches this",
+    "Both versions exist, the client copy is frozen, mine says 'v2'",
+    "Published cuts are immutable; a re-run makes a draft I choose to send"
+   ],
+   "id": "pin-threshold-blast",
+   "question": "It's 09:15, the Brief has gone to clients, and you drop confidence to 0.65 and re-run. What should happen?",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "review-publish-flow",
+   "asked_at_revn": 24,
+   "detail": "This is now the most important unanswered question in the design, and it has absorbed the one you parked four rounds ago about EDGAR at 06:05 — I've closed that pin, not because it was answered but because it turned out to be this question wearing different clothes. Both are: *the clock arrives and the run isn't ready.*\n\nThe rule you'd put your name to is absolute — nothing unvetted goes to a client. Combined with a hard deadline, that means one of these is true, and they are very different systems:\n\n**Publish nothing.** The rule wins. Clients get nothing that day, and someone has to be told why.\n\n**Publish partial.** Reports go out carrying only vetted signals, and say so on their face — which means every report needs a way to declare what it is missing.\n\n**Publish and chase.** Reports go out, unvetted signals follow later as an addendum — which contradicts the rule unless an addendum is not 'going out'.\n\nWhatever you pick applies equally to a source that never answered.",
+   "element": "report-held",
+   "examples": [
+    "Nothing goes out. The deadline is soft, the rule isn't",
+    "Vetted only, with 'N signals pending review' printed on the report",
+    "Full report goes; anything unvetted was below 0.70 anyway and can wait for tomorrow"
+   ],
+   "id": "pin-deadline",
+   "question": "09:28. Three signals unvetted, the open is in two minutes. What goes out?",
+   "round": 5,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "review-publish-flow",
+   "asked_at_revn": 24,
+   "detail": "Your rule was 'nothing unvetted goes out to a client'. The Digest never goes to a client — it is internal, by practice.\n\nSo the block might be narrower than I have drawn it. If the Digest is exempt, you get your daily signals on time regardless of the queue, and only the Brief and the Deep-Dive wait — which makes the deadline question above much less sharp, because the thing you personally read every morning always arrives.\n\nIf the block is total, then the queue can stop you seeing your own signals, which is a strange consequence of a rule that was about clients.",
+   "element": "publish-block",
+   "examples": [
+    "Total block — if it isn't vetted, nothing publishes",
+    "Digest is exempt; it's internal and I can see the unvetted ones flagged",
+    "Digest publishes with the queue shown inside it as a section"
+   ],
+   "id": "pin-block-scope",
+   "question": "Does the block cover the Signals Digest too, or only what clients see?",
+   "round": 5,
+   "status": "open"
+  }
+ ],
+ "revn": 28,
+ "round": 5,
+ "tripwires": [
+  {
+   "answer": null,
+   "changed": "dashboard-wireframe#kpi-var",
+   "changed_all": [
+    "dashboard-wireframe#kpi-var"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping dashboard:dashboard-wireframe#kpi-var+enrichment-flow#risk-model). At save 12, dashboard-wireframe › kpi-var changed while enrichment-flow › risk-model stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into enrichment-flow › risk-model in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-12-1",
+   "kind": "divergence",
+   "mapping": "dashboard:dashboard-wireframe#kpi-var+enrichment-flow#risk-model",
+   "question": "dashboard-wireframe › kpi-var changed but its mapped sibling enrichment-flow › risk-model didn't. Divergence, or should it propagate?",
+   "save": 12,
+   "sibling": "enrichment-flow#risk-model",
+   "siblings": [
+    "enrichment-flow#risk-model"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "dashboard-wireframe#kpi-run",
+   "changed_all": [
+    "dashboard-wireframe#kpi-run"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping dashboard:dashboard-wireframe#kpi-run+daily-run-flow#normalize). At save 12, dashboard-wireframe › kpi-run changed while daily-run-flow › normalize stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into daily-run-flow › normalize in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-12-2",
+   "kind": "divergence",
+   "mapping": "dashboard:dashboard-wireframe#kpi-run+daily-run-flow#normalize",
+   "question": "dashboard-wireframe › kpi-run changed but its mapped sibling daily-run-flow › normalize didn't. Divergence, or should it propagate?",
+   "save": 12,
+   "sibling": "daily-run-flow#normalize",
+   "siblings": [
+    "daily-run-flow#normalize"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "enrichment-flow#normalized-input",
+   "changed_all": [
+    "enrichment-flow#normalized-input"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping argus:daily-run-flow#normalize+enrichment-flow#normalized-input). At save 16, enrichment-flow › normalized-input changed while daily-run-flow › normalize stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into daily-run-flow › normalize in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-16-1",
+   "kind": "divergence",
+   "mapping": "argus:daily-run-flow#normalize+enrichment-flow#normalized-input",
+   "question": "enrichment-flow › normalized-input changed but its mapped sibling daily-run-flow › normalize didn't. Divergence, or should it propagate?",
+   "save": 16,
+   "sibling": "daily-run-flow#normalize",
+   "siblings": [
+    "daily-run-flow#normalize"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "enrichment-flow#to-compose",
+   "changed_all": [
+    "enrichment-flow#to-compose"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping argus:daily-run-flow#compose-outputs+enrichment-flow#to-compose). At save 25, enrichment-flow › to-compose changed while daily-run-flow › compose-outputs stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into daily-run-flow › compose-outputs in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-25-1",
+   "kind": "divergence",
+   "mapping": "argus:daily-run-flow#compose-outputs+enrichment-flow#to-compose",
+   "question": "enrichment-flow › to-compose changed but its mapped sibling daily-run-flow › compose-outputs didn't. Divergence, or should it propagate?",
+   "save": 25,
+   "sibling": "daily-run-flow#compose-outputs",
+   "siblings": [
+    "daily-run-flow#compose-outputs"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "enrichment-flow#to-compose",
+   "changed_all": [
+    "enrichment-flow#to-compose"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping admin-console:admin-console-wireframe#input-confidence+enrichment-flow#to-compose). At save 25, enrichment-flow › to-compose changed while admin-console-wireframe › input-confidence stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into admin-console-wireframe › input-confidence in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-25-2",
+   "kind": "divergence",
+   "mapping": "admin-console:admin-console-wireframe#input-confidence+enrichment-flow#to-compose",
+   "question": "enrichment-flow › to-compose changed but its mapped sibling admin-console-wireframe › input-confidence didn't. Divergence, or should it propagate?",
+   "save": 25,
+   "sibling": "admin-console-wireframe#input-confidence",
+   "siblings": [
+    "admin-console-wireframe#input-confidence"
+   ],
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "changed": "enrichment-flow#to-compose",
+   "changed_all": [
+    "enrichment-flow#to-compose"
+   ],
+   "choices": [
+    "Intentional divergence — keep both",
+    "Propagate to the sibling"
+   ],
+   "detail": "These elements are declared views of the same thing (mapping review-queue:review-publish-flow#scored-signals+enrichment-flow#to-compose). At save 25, enrichment-flow › to-compose changed while review-publish-flow › scored-signals stayed put — so right now the views disagree.\n\n• 'Intentional divergence' records the difference as deliberate: the mapping stays, annotated so this mapping never trips again for this reason.\n• 'Propagate' asks the agent to carry the change into review-publish-flow › scored-signals in its next revision — narrated, and nothing is touched until you answer.\n\nFree-text works too: name a third option, or explain what the views actually mean.",
+   "examples": [],
+   "id": "tw-25-3",
+   "kind": "divergence",
+   "mapping": "review-queue:review-publish-flow#scored-signals+enrichment-flow#to-compose",
+   "question": "enrichment-flow › to-compose changed but its mapped sibling review-publish-flow › scored-signals didn't. Divergence, or should it propagate?",
+   "save": 25,
+   "sibling": "review-publish-flow#scored-signals",
+   "siblings": [
+    "review-publish-flow#scored-signals"
+   ],
+   "status": "resolved"
+  }
+ ],
+ "waives": {
+  "q12:dashboard-wireframe:excess-return": {
+   "reason": "settled: 'Excess Return' is deliberately the client's word, adopted because clients kept asking what alpha meant. Whose-word question is answered.",
+   "when": "2026-08-09"
+  }
+ },
+ "whose_move": "user"
+}

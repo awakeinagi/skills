@@ -1,0 +1,238 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-f1efa0e6",
+     "kind": "rectangle",
+     "label": "watch out for crowded trades",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "watch out for crowded trades"
+      }
+     },
+     "verb": "added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff8dc",
+      "boundElements": [
+       {
+        "id": "usernote-f1efa0e6-t",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "user",
+       "role": "note"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 90,
+      "id": "usernote-f1efa0e6",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1470206556,
+      "strokeColor": "#b8860b",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 230,
+      "x": 1040,
+      "y": 560
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "usernote-f1efa0e6",
+      "customData": {
+       "author": "user",
+       "role": "note-text"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 74,
+      "id": "usernote-f1efa0e6-t",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "watch out for crowded trades",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1049905828,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "watch out for crowded trades",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 214,
+      "x": 1048,
+      "y": 568
+     },
+     "index": 28,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "usernote-f1efa0e6",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "watch out for crowded trades"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "usernote-f1efa0e6",
+      "customData": {
+       "author": "user",
+       "role": "note-text"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 74,
+      "id": "usernote-f1efa0e6-t",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "watch out for crowded trades",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1049905828,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "watch out for crowded trades",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 214,
+      "x": 1048,
+      "y": 568
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fff8dc",
+      "boundElements": [
+       {
+        "id": "usernote-f1efa0e6-t",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "user",
+       "role": "note"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 90,
+      "id": "usernote-f1efa0e6",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1470206556,
+      "strokeColor": "#b8860b",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 230,
+      "x": 1040,
+      "y": 560
+     },
+     "index": 27,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 3,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 4,
+ "round": 1,
+ "saved_at": "2026-08-09T10:54:26Z",
+ "selection_at_save": [],
+ "short_id": "78425e4",
+ "summary": {
+  "headline": "added watch out for crowded trades",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

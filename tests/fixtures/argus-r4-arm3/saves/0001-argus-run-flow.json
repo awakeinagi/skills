@@ -1,0 +1,4852 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-market",
+     "kind": "arrow",
+     "label": "t-clock-market",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-clock-market"
+      },
+      "transition_added": {
+       "between": [
+        "Weekday 06:00",
+        "Market Feed"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-edgar",
+     "kind": "arrow",
+     "label": "t-clock-edgar",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-clock-edgar"
+      },
+      "transition_added": {
+       "between": [
+        "Weekday 06:00",
+        "SEC EDGAR"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-news",
+     "kind": "arrow",
+     "label": "t-clock-news",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-clock-news"
+      },
+      "transition_added": {
+       "between": [
+        "Weekday 06:00",
+        "News Stream"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-portfolio",
+     "kind": "arrow",
+     "label": "t-clock-portfolio",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-clock-portfolio"
+      },
+      "transition_added": {
+       "between": [
+        "Weekday 06:00",
+        "Portfolio DB"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-market-enrich",
+     "kind": "arrow",
+     "label": "t-market-enrich",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-market-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "Market Feed",
+        "Enrichment"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-edgar-enrich",
+     "kind": "arrow",
+     "label": "t-edgar-enrich",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-edgar-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "SEC EDGAR",
+        "Enrichment"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-news-enrich",
+     "kind": "arrow",
+     "label": "t-news-enrich",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-news-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "News Stream",
+        "Enrichment"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-portfolio-enrich",
+     "kind": "arrow",
+     "label": "t-portfolio-enrich",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-portfolio-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "Portfolio DB",
+        "Enrichment"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-enrich-risk",
+     "kind": "arrow",
+     "label": "scores",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "scores"
+      },
+      "transition_added": {
+       "between": [
+        "Enrichment",
+        "Risk Model"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-risk-agg",
+     "kind": "arrow",
+     "label": "weights",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "weights"
+      },
+      "transition_added": {
+       "between": [
+        "Risk Model",
+        "Aggregator"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-dashboard",
+     "kind": "arrow",
+     "label": "t-agg-dashboard",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-agg-dashboard"
+      },
+      "transition_added": {
+       "between": [
+        "Aggregator",
+        "Dashboard"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-reports",
+     "kind": "arrow",
+     "label": "t-agg-reports",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-agg-reports"
+      },
+      "transition_added": {
+       "between": [
+        "Aggregator",
+        "3 PDF Reports"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "clock",
+     "kind": "ellipse",
+     "label": "Weekday 06:00",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "ellipse",
+       "label": "Weekday 06:00"
+      },
+      "step_added": {
+       "label": "Weekday 06:00"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "market-feed",
+     "kind": "source",
+     "label": "Market Feed",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Market Feed"
+      },
+      "step_added": {
+       "label": "Market Feed"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-edgar",
+     "kind": "source",
+     "label": "SEC EDGAR",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "SEC EDGAR"
+      },
+      "step_added": {
+       "label": "SEC EDGAR"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "news-sentiment",
+     "kind": "source",
+     "label": "News Stream",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "News Stream"
+      },
+      "step_added": {
+       "label": "News Stream"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "portfolio-db",
+     "kind": "source",
+     "label": "Portfolio DB",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Portfolio DB"
+      },
+      "step_added": {
+       "label": "Portfolio DB"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrichment",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Enrichment"
+      },
+      "step_added": {
+       "label": "Enrichment"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk Model",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Risk Model"
+      },
+      "step_added": {
+       "label": "Risk Model"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Aggregator"
+      },
+      "step_added": {
+       "label": "Aggregator"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "dashboard",
+     "kind": "sink",
+     "label": "Dashboard",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Dashboard"
+      },
+      "step_added": {
+       "label": "Dashboard"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reports",
+     "kind": "sink",
+     "label": "3 PDF Reports",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "3 PDF Reports"
+      },
+      "step_added": {
+       "label": "3 PDF Reports"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-enrich-fan",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      34
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-report-cadence",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      35
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-portfolio-role",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      36
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f1b647b08c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "market-feed",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -208
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1873802832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 320
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d9edd74bf9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sec-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-edgar",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1955886753,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 341
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "5b4cd2c0eb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "news-sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1165411832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 363
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "007d5f26a0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-portfolio",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        208
+       ],
+       [
+        240,
+        208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1169177848,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 384
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b08fcae445"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-market-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        213,
+        0
+       ],
+       [
+        213,
+        208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 825894903,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "market-feed",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 213,
+      "x": 540,
+      "y": 112
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d8085cef40"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "t-edgar-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ],
+       [
+        267,
+        48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1264110236,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sec-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 540,
+      "y": 272
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "6a0e2cb944"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "t-news-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        213,
+        0
+       ],
+       [
+        213,
+        -48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 722372300,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "news-sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 213,
+      "x": 540,
+      "y": 432
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d7490cb18b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-portfolio-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ],
+       [
+        267,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1276233049,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 540,
+      "y": 592
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-enrich-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "1435a6aee3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-enrich-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        200,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 856813147,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 860,
+      "y": 352
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-risk-agg-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "19d400afad"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-risk-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        180,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 515789287,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 1220,
+      "y": 352
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "077152f8bd"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "dashboard",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-agg-dashboard",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        260,
+        0
+       ],
+       [
+        260,
+        -37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1460916858,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 260,
+      "x": 1560,
+      "y": 341
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "505dedfac2"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "reports",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-agg-reports",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        260,
+        0
+       ],
+       [
+        260,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1740914598,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 260,
+      "x": 1560,
+      "y": 363
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "clock-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-clock-edgar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-clock-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-clock-portfolio",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "tooltip": "Every weekday at 06:00, ahead of the open.\n\nMy reading: **06:00 is the start, the open is the deadline.** That gap is the whole failure budget of this system."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "clock",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1048297106,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 320
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "market-feed-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "External vendor. Prices and volumes."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "market-feed",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1868435124,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 80
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sec-edgar-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-edgar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Filings, including Form 4s (the insider-cluster detector's raw material)."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "sec-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1554189003,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 240
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "news-sentiment-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Headlines. External vendor.\n\nNote: you called this a *news sentiment stream* — I have split the stream (a source) from the sentiment scorer (enrichment). If sentiment arrives pre-scored from the vendor, that split is wrong."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "news-sentiment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 770438991,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 400
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "portfolio-db-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-portfolio",
+        "type": "arrow"
+       },
+       {
+        "id": "t-portfolio-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Ours, not a vendor. What we actually hold.\n\nDrawn rounded because it is the one source we own and the one that is also written to."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "portfolio-db",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 852701445,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 560
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "enrichment-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-portfolio-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-enrich-risk",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**Collapsed on purpose.** Four scorers live in here:\n\n- sentiment (headlines + filing tone)\n- fundamentals ratios\n- technical signals\n- insider-cluster detector (Form-4 clusters)\n\nExpanding this into its own pipeline flow is the obvious next view."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "enrichment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1020982990,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 700,
+      "y": 320
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "risk-model-label",
+        "type": "text"
+       },
+       {
+        "id": "t-enrich-risk",
+        "type": "arrow"
+       },
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Weighs the enriched signals. Has a threshold the admin can set."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "risk-model",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1612519276,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1060,
+      "y": 320
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "aggregator-label",
+        "type": "text"
+       },
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "t-agg-dashboard",
+        "type": "arrow"
+       },
+       {
+        "id": "t-agg-reports",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Combines everything into the one thing the dashboard and the reports both read from.\n\nI have drawn this as a single fan-out point. If the reports are built from something different than the dashboard, this box is a lie."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "aggregator",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 995328467,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1400,
+      "y": 320
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "dashboard-label",
+        "type": "text"
+       },
+       {
+        "id": "t-agg-dashboard",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "KPIs. Live surface — presumably still there at 14:00, unlike the PDFs."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "dashboard",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1553268728,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1740,
+      "y": 240
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "reports-label",
+        "type": "text"
+       },
+       {
+        "id": "t-agg-reports",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Weekly Brief · Risk Deep-Dive · Signals Digest.\n\nThree documents, one daily run — the cadences cannot all be daily."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "reports",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1897899845,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1740,
+      "y": 400
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "clock",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "clock-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Weekday 06:00",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1322444036,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Weekday 06:00",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 78,
+      "y": 342
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "market-feed",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "market-feed-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1970409648,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 408,
+      "y": 102
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sec-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sec-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 682073303,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 417,
+      "y": 262
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "news-sentiment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "news-sentiment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News Stream",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 380709952,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News Stream",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 408,
+      "y": 422
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "portfolio-db",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "portfolio-db-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio DB",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2093100082,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio DB",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 402,
+      "y": 582
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "enrichment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "enrichment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Enrichment",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 726569998,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Enrichment",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 732,
+      "y": 342
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-model",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "risk-model-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk Model",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1678953455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk Model",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1092,
+      "y": 342
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "aggregator",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "aggregator-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregator",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1256871584,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregator",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1432,
+      "y": 342
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dashboard",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dashboard-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Dashboard",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 643100001,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Dashboard",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1777,
+      "y": 262
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "reports",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "reports-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3 PDF Reports",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1671141065,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3 PDF Reports",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 1758,
+      "y": 422
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-enrich-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-enrich-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "scores",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2102458887,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "scores",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 932,
+      "y": 342
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-risk-agg",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-risk-agg-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "weights",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 659712556,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "weights",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 1276,
+      "y": 342
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it.",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-enrich-fan",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 35781275,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 868,
+      "y": 312
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?",
+       "role": "pin",
+       "status": "open",
+       "target": "reports"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-report-cadence",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1005512094,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1908,
+      "y": 392
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?",
+       "role": "pin",
+       "status": "open",
+       "target": "portfolio-db"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-portfolio-role",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1691990160,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 552
+     },
+     "index": 36,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-clock-market",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-clock-market"
+    },
+    {
+     "element": "t-clock-edgar",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-clock-edgar"
+    },
+    {
+     "element": "t-clock-news",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-clock-news"
+    },
+    {
+     "element": "t-clock-portfolio",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-clock-portfolio"
+    },
+    {
+     "element": "t-market-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-market-enrich"
+    },
+    {
+     "element": "t-edgar-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-edgar-enrich"
+    },
+    {
+     "element": "t-news-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-news-enrich"
+    },
+    {
+     "element": "t-portfolio-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-portfolio-enrich"
+    },
+    {
+     "element": "t-enrich-risk",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "scores"
+    },
+    {
+     "element": "t-risk-agg",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "weights"
+    },
+    {
+     "element": "t-agg-dashboard",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-agg-dashboard"
+    },
+    {
+     "element": "t-agg-reports",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-agg-reports"
+    },
+    {
+     "element": "clock",
+     "fact": "added",
+     "kind": "ellipse",
+     "label": "Weekday 06:00"
+    },
+    {
+     "element": "market-feed",
+     "fact": "added",
+     "kind": "source",
+     "label": "Market Feed"
+    },
+    {
+     "element": "sec-edgar",
+     "fact": "added",
+     "kind": "source",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "news-sentiment",
+     "fact": "added",
+     "kind": "source",
+     "label": "News Stream"
+    },
+    {
+     "element": "portfolio-db",
+     "fact": "added",
+     "kind": "source",
+     "label": "Portfolio DB"
+    },
+    {
+     "element": "enrichment",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Enrichment"
+    },
+    {
+     "element": "risk-model",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Risk Model"
+    },
+    {
+     "element": "aggregator",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Aggregator"
+    },
+    {
+     "element": "dashboard",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Dashboard"
+    },
+    {
+     "element": "reports",
+     "fact": "added",
+     "kind": "sink",
+     "label": "3 PDF Reports"
+    },
+    {
+     "element": "pin-enrich-fan",
+     "fact": "pin_added",
+     "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it."
+    },
+    {
+     "element": "pin-report-cadence",
+     "fact": "pin_added",
+     "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?"
+    },
+    {
+     "element": "pin-portfolio-role",
+     "fact": "pin_added",
+     "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "Market Feed"
+     ],
+     "element": "t-clock-market",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "SEC EDGAR"
+     ],
+     "element": "t-clock-edgar",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "News Stream"
+     ],
+     "element": "t-clock-news",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "Portfolio DB"
+     ],
+     "element": "t-clock-portfolio",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Market Feed",
+      "Enrichment"
+     ],
+     "element": "t-market-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "SEC EDGAR",
+      "Enrichment"
+     ],
+     "element": "t-edgar-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "News Stream",
+      "Enrichment"
+     ],
+     "element": "t-news-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Portfolio DB",
+      "Enrichment"
+     ],
+     "element": "t-portfolio-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Enrichment",
+      "Risk Model"
+     ],
+     "element": "t-enrich-risk",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Risk Model",
+      "Aggregator"
+     ],
+     "element": "t-risk-agg",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Aggregator",
+      "Dashboard"
+     ],
+     "element": "t-agg-dashboard",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Aggregator",
+      "3 PDF Reports"
+     ],
+     "element": "t-agg-reports",
+     "fact": "transition_added"
+    },
+    {
+     "element": "clock",
+     "fact": "step_added",
+     "label": "Weekday 06:00"
+    },
+    {
+     "element": "market-feed",
+     "fact": "step_added",
+     "label": "Market Feed"
+    },
+    {
+     "element": "sec-edgar",
+     "fact": "step_added",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "news-sentiment",
+     "fact": "step_added",
+     "label": "News Stream"
+    },
+    {
+     "element": "portfolio-db",
+     "fact": "step_added",
+     "label": "Portfolio DB"
+    },
+    {
+     "element": "enrichment",
+     "fact": "step_added",
+     "label": "Enrichment"
+    },
+    {
+     "element": "risk-model",
+     "fact": "step_added",
+     "label": "Risk Model"
+    },
+    {
+     "element": "aggregator",
+     "fact": "step_added",
+     "label": "Aggregator"
+    },
+    {
+     "element": "dashboard",
+     "fact": "step_added",
+     "label": "Dashboard"
+    },
+    {
+     "element": "reports",
+     "fact": "step_added",
+     "label": "3 PDF Reports"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?",
+       "role": "pin",
+       "status": "open",
+       "target": "portfolio-db"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-portfolio-role",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1691990160,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 552
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?",
+       "role": "pin",
+       "status": "open",
+       "target": "reports"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-report-cadence",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1005512094,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1908,
+      "y": 392
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it.",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-enrich-fan",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 35781275,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 868,
+      "y": 312
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-risk-agg",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-risk-agg-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "weights",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 659712556,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "weights",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 1276,
+      "y": 342
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-enrich-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-enrich-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "scores",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2102458887,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "scores",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 932,
+      "y": 342
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "reports",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "reports-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3 PDF Reports",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1671141065,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3 PDF Reports",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 1758,
+      "y": 422
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dashboard",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dashboard-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Dashboard",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 643100001,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Dashboard",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1777,
+      "y": 262
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "aggregator",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "aggregator-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregator",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1256871584,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregator",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1432,
+      "y": 342
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-model",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "risk-model-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk Model",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1678953455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk Model",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1092,
+      "y": 342
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "enrichment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "enrichment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Enrichment",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 726569998,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Enrichment",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 732,
+      "y": 342
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "portfolio-db",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "portfolio-db-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio DB",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2093100082,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio DB",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 402,
+      "y": 582
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "news-sentiment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "news-sentiment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News Stream",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 380709952,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News Stream",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 408,
+      "y": 422
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sec-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sec-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 682073303,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 417,
+      "y": 262
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "market-feed",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "market-feed-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1970409648,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 408,
+      "y": 102
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "clock",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "clock-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Weekday 06:00",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1322444036,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Weekday 06:00",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 124,
+      "x": 78,
+      "y": 342
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "reports-label",
+        "type": "text"
+       },
+       {
+        "id": "t-agg-reports",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Weekly Brief · Risk Deep-Dive · Signals Digest.\n\nThree documents, one daily run — the cadences cannot all be daily."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "reports",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1897899845,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1740,
+      "y": 400
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "dashboard-label",
+        "type": "text"
+       },
+       {
+        "id": "t-agg-dashboard",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "KPIs. Live surface — presumably still there at 14:00, unlike the PDFs."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "dashboard",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1553268728,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1740,
+      "y": 240
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "aggregator-label",
+        "type": "text"
+       },
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       },
+       {
+        "id": "t-agg-dashboard",
+        "type": "arrow"
+       },
+       {
+        "id": "t-agg-reports",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Combines everything into the one thing the dashboard and the reports both read from.\n\nI have drawn this as a single fan-out point. If the reports are built from something different than the dashboard, this box is a lie."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "aggregator",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 995328467,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1400,
+      "y": 320
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "risk-model-label",
+        "type": "text"
+       },
+       {
+        "id": "t-enrich-risk",
+        "type": "arrow"
+       },
+       {
+        "id": "t-risk-agg",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Weighs the enriched signals. Has a threshold the admin can set."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "risk-model",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1612519276,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1060,
+      "y": 320
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "enrichment-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-portfolio-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-enrich-risk",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**Collapsed on purpose.** Four scorers live in here:\n\n- sentiment (headlines + filing tone)\n- fundamentals ratios\n- technical signals\n- insider-cluster detector (Form-4 clusters)\n\nExpanding this into its own pipeline flow is the obvious next view."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "enrichment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1020982990,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 700,
+      "y": 320
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "portfolio-db-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-portfolio",
+        "type": "arrow"
+       },
+       {
+        "id": "t-portfolio-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Ours, not a vendor. What we actually hold.\n\nDrawn rounded because it is the one source we own and the one that is also written to."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "portfolio-db",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 852701445,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 560
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "news-sentiment-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Headlines. External vendor.\n\nNote: you called this a *news sentiment stream* — I have split the stream (a source) from the sentiment scorer (enrichment). If sentiment arrives pre-scored from the vendor, that split is wrong."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "news-sentiment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 770438991,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 400
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sec-edgar-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-edgar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Filings, including Form 4s (the insider-cluster detector's raw material)."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "sec-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1554189003,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 240
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "market-feed-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "External vendor. Prices and volumes."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "market-feed",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1868435124,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 80
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "clock-label",
+        "type": "text"
+       },
+       {
+        "id": "t-clock-market",
+        "type": "arrow"
+       },
+       {
+        "id": "t-clock-edgar",
+        "type": "arrow"
+       },
+       {
+        "id": "t-clock-news",
+        "type": "arrow"
+       },
+       {
+        "id": "t-clock-portfolio",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "tooltip": "Every weekday at 06:00, ahead of the open.\n\nMy reading: **06:00 is the start, the open is the deadline.** That gap is the whole failure budget of this system."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "clock",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1048297106,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 60,
+      "y": 320
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "505dedfac2"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "reports",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-agg-reports",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        260,
+        0
+       ],
+       [
+        260,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1740914598,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 260,
+      "x": 1560,
+      "y": 363
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "077152f8bd"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "dashboard",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-agg-dashboard",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        260,
+        0
+       ],
+       [
+        260,
+        -37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1460916858,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 260,
+      "x": 1560,
+      "y": 341
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-risk-agg-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "19d400afad"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-risk-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        180,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 515789287,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 1220,
+      "y": 352
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-enrich-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "1435a6aee3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-enrich-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        200,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 856813147,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 860,
+      "y": 352
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d7490cb18b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-portfolio-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ],
+       [
+        267,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1276233049,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 540,
+      "y": 592
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "6a0e2cb944"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "t-news-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        213,
+        0
+       ],
+       [
+        213,
+        -48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 722372300,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "news-sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 213,
+      "x": 540,
+      "y": 432
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d8085cef40"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 48,
+      "id": "t-edgar-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ],
+       [
+        267,
+        48
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1264110236,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sec-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 540,
+      "y": 272
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b08fcae445"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-market-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        213,
+        0
+       ],
+       [
+        213,
+        208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 825894903,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "market-feed",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 213,
+      "x": 540,
+      "y": 112
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "007d5f26a0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-portfolio",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        208
+       ],
+       [
+        240,
+        208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1169177848,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 384
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "5b4cd2c0eb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "news-sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1165411832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 363
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d9edd74bf9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sec-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-edgar",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1955886753,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 341
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f1b647b08c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "market-feed",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -208
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1873802832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 320
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 0,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 12,
+   "artifact": "argus-run-flow",
+   "nodes": 10,
+   "reason": "the four-source ingest fan IS this view; enrichment stays collapsed to pay for it"
+  },
+  {
+   "action": "upsert_concept",
+   "id": "argus",
+   "name": "Argus",
+   "owed": [
+    "wireframe",
+    "domain"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "id": "argus",
+   "name": "Argus",
+   "view_types": {
+    "argus-run-flow": "flow"
+   },
+   "views": [
+    "argus-run-flow"
+   ]
+  }
+ ],
+ "revn": 1,
+ "round": 1,
+ "saved_at": "2026-08-09T10:23:06Z",
+ "selection_at_save": [],
+ "short_id": "677bf2e",
+ "summary": {
+  "headline": "added Weekday 06:00 (+46 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 22,
+   "pin_added": 3,
+   "step_added": 10,
+   "transition_added": 12
+  }
+ },
+ "tripwires": [],
+ "user_note": "seed the end-to-end weekday run: four sources in, enrichment collapsed, dashboard + PDFs out"
+}

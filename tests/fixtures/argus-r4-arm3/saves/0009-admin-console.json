@@ -1,0 +1,268 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "sl-var",
+     "kind": "slider",
+     "label": "Risk alert VaR",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Risk alert VaR",
+       "text": "1-day 95% VaR. Crossing it fires a Risk Alert, which surfaces on the dashboard t"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "sl-conf",
+     "kind": "slider",
+     "label": "Signal confidence",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Signal confidence",
+       "text": "A **gate**, not a label. Below this, a Signal exists internally and reaches noth"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "run-today",
+     "kind": "block",
+     "label": "Today 06:00 — 4/4 ok — 3m12s",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Today 06:00 — 4/4 ok — 3m12s",
+       "text": "**Confirmed bug.** Five sources on the checklist above, four counted here. This "
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "1-day 95% VaR. Crossing it fires a Risk Alert, which surfaces on the dashboard the same day.",
+        "value": 25.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "1-day 95% VaR. Crossing it fires a Risk Alert, which surfaces on the dashboard the same day.\n\n**Agreed, not built:** this should be a number field. You cannot hit 2.5 rather than 2.4 by dragging, and this is a number people negotiate. Drawn as a slider because that is what exists.",
+        "value": 25.0
+       }
+      }
+     ],
+     "id": "sl-var",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **gate**, not a label. Below this, a Signal exists internally and reaches nothing a client sees.\n\nSo dragging this leftward does not dim anything — it publishes signals that were previously invisible.",
+        "value": 70.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **gate**, not a label. Below this, a Signal exists internally and reaches nothing a client sees — so dragging leftward publishes signals that were previously invisible.\n\n**Agreed, not built:** should be a number field. 0.70 is not a draggable quantity.",
+        "value": 70.0
+       }
+      }
+     ],
+     "id": "sl-conf",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "panel-lastruns",
+        "role": "node",
+        "tooltip": "There are five sources on the checklist above and this says 4/4. Either the macro calendar has no health check at all, or this panel predates it."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "panel-lastruns",
+        "role": "node",
+        "tooltip": "**Confirmed bug.** Five sources on the checklist above, four counted here. This panel predates the macro calendar and nobody has noticed in months.\n\nLeft on the drawing as-is: this is the screen that exists."
+       }
+      }
+     ],
+     "id": "run-today",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "sl-var",
+     "fact": "tooltip_changed",
+     "label": "Risk alert VaR",
+     "text": "1-day 95% VaR. Crossing it fires a Risk Alert, which surfaces on the dashboard t"
+    },
+    {
+     "element": "sl-conf",
+     "fact": "tooltip_changed",
+     "label": "Signal confidence",
+     "text": "A **gate**, not a label. Below this, a Signal exists internally and reaches noth"
+    },
+    {
+     "element": "run-today",
+     "fact": "tooltip_changed",
+     "label": "Today 06:00 — 4/4 ok — 3m12s",
+     "text": "**Confirmed bug.** Five sources on the checklist above, four counted here. This "
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "panel-lastruns",
+        "role": "node",
+        "tooltip": "**Confirmed bug.** Five sources on the checklist above, four counted here. This panel predates the macro calendar and nobody has noticed in months.\n\nLeft on the drawing as-is: this is the screen that exists."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "panel-lastruns",
+        "role": "node",
+        "tooltip": "There are five sources on the checklist above and this says 4/4. Either the macro calendar has no health check at all, or this panel predates it."
+       }
+      }
+     ],
+     "id": "run-today",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **gate**, not a label. Below this, a Signal exists internally and reaches nothing a client sees — so dragging leftward publishes signals that were previously invisible.\n\n**Agreed, not built:** should be a number field. 0.70 is not a draggable quantity.",
+        "value": 70.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **gate**, not a label. Below this, a Signal exists internally and reaches nothing a client sees.\n\nSo dragging this leftward does not dim anything — it publishes signals that were previously invisible.",
+        "value": 70.0
+       }
+      }
+     ],
+     "id": "sl-conf",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "1-day 95% VaR. Crossing it fires a Risk Alert, which surfaces on the dashboard the same day.\n\n**Agreed, not built:** this should be a number field. You cannot hit 2.5 rather than 2.4 by dragging, and this is a number people negotiate. Drawn as a slider because that is what exists.",
+        "value": 25.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "1-day 95% VaR. Crossing it fires a Risk Alert, which surfaces on the dashboard the same day.",
+        "value": 25.0
+       }
+      }
+     ],
+     "id": "sl-var",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 8,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 9,
+ "round": 1,
+ "saved_at": "2026-08-09T10:58:16Z",
+ "selection_at_save": [],
+ "short_id": "fde6859",
+ "summary": {
+  "headline": "reworded the tooltip on Risk alert VaR (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 3
+  }
+ },
+ "tripwires": [],
+ "user_note": "record two rulings: sliders should be number fields, 4/4 is a confirmed bug — screen stays as-is"
+}

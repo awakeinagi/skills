@@ -1,0 +1,726 @@
+{
+ "artifacts": {
+  "aggregation-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData",
+      "link"
+     ],
+     "consequence_of": null,
+     "id": "dropped",
+     "kind": "store",
+     "label": "Review queue",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "Never published",
+       "to": "Review queue"
+      },
+      "tooltip_changed": {
+       "label": "Review queue",
+       "text": "**Not a dead end after all.** Low-confidence signals sit here and somebody looks"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-review-combine",
+     "kind": "arrow",
+     "label": "approved",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "approved"
+      },
+      "transition_added": {
+       "between": [
+        "Review queue",
+        "Combine per instrument"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "gate-conf",
+     "kind": "control",
+     "label": "≥ 0.70?",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "≥ 0.70?",
+       "text": "The confidence gate. Below 0.70 a signal does not vanish — it goes to the review"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-2a2b9b3a",
+     "kind": "rectangle",
+     "label": "review queue must BLOCK the report — no unreviewed low-confidence signals reaching clients",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "review queue must BLOCK the report — no unreviewed low-confidence signals reaching clients"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-review-combine-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c6f2070a67"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "combine",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "a-review-combine",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 80010144,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "dropped",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 560,
+      "y": 572
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-review-combine",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-review-combine-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "approved",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1533714069,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "approved",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 746,
+      "y": 562
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "The confidence gate. Settled: it is a **gate, not a label** — below 0.70 a Signal still exists internally and reaches nothing a client sees.\n\nSet from the console. Dragging it down does not dim anything; it publishes signals that were previously invisible."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "The confidence gate. Below 0.70 a signal does not vanish — it goes to the review queue and waits for a person.\n\nSet from the console. Dragging it down publishes signals that were previously invisible; dragging it up does not silence them, it makes more work for whoever clears the queue."
+       }
+      }
+     ],
+     "id": "gate-conf",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Below-threshold signals. They exist, they are stored, and no client ever sees them.\n\nWorth noticing: nothing on the dashboard or in any report says how many landed here. An analyst cannot tell a quiet day from a day where forty signals fell just short."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "store",
+        "role": "node",
+        "tooltip": "**Not a dead end after all.** Low-confidence signals sit here and somebody looks at them; approved ones rejoin the pipeline.\n\nAnd this queue reaches forward: no unreviewed signal in it may reach a client, so a full queue blocks publication. Click through to see that gate.\n\nStill true, and still unreported anywhere: nothing tells an analyst how many signals landed here today."
+       }
+      },
+      {
+       "attr": "link",
+       "from": null,
+       "to": "artifact:publication-flow"
+      }
+     ],
+     "id": "dropped",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 388,
+       "to": 402
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 144,
+       "to": 115
+      },
+      {
+       "attr": "text",
+       "from": "Never published",
+       "to": "Review queue"
+      }
+     ],
+     "id": "dropped-label",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "a-in-gate",
+      "a-gate-drop",
+      "a-gate-combine",
+      "a-combine-crowd",
+      "a-crowd-risk",
+      "a-risk-alertgate",
+      "a-alertgate-alert",
+      "a-alertgate-out",
+      "signals-in",
+      "gate-conf",
+      "dropped",
+      "combine",
+      "crowding",
+      "risk-model",
+      "alert-gate",
+      "alert",
+      "aggregate-out",
+      "signals-in-label",
+      "gate-conf-label",
+      "dropped-label",
+      "combine-label",
+      "crowding-label",
+      "risk-model-label",
+      "alert-gate-label",
+      "alert-label",
+      "aggregate-out-label",
+      "a-gate-drop-label",
+      "a-gate-combine-label",
+      "a-alertgate-alert-label",
+      "a-alertgate-out-label",
+      "pin-crowding-meaning",
+      "pin-combine-mechanism",
+      "usernote-2a2b9b3a",
+      "usernote-2a2b9b3a-t"
+     ],
+     "moved": [
+      "usernote-2a2b9b3a",
+      "signals-in-label",
+      "gate-conf-label",
+      "dropped-label",
+      "combine-label",
+      "crowding-label",
+      "risk-model-label",
+      "alert-gate-label",
+      "alert-label",
+      "aggregate-out-label",
+      "a-gate-drop-label",
+      "a-gate-combine-label",
+      "a-alertgate-alert-label",
+      "a-alertgate-out-label",
+      "pin-crowding-meaning",
+      "pin-combine-mechanism"
+     ],
+     "op": "reorder",
+     "order": [
+      "a-in-gate",
+      "a-gate-drop",
+      "a-gate-combine",
+      "a-combine-crowd",
+      "a-crowd-risk",
+      "a-risk-alertgate",
+      "a-alertgate-alert",
+      "a-alertgate-out",
+      "a-review-combine",
+      "signals-in",
+      "gate-conf",
+      "dropped",
+      "combine",
+      "crowding",
+      "risk-model",
+      "alert-gate",
+      "alert",
+      "aggregate-out",
+      "usernote-2a2b9b3a",
+      "signals-in-label",
+      "gate-conf-label",
+      "dropped-label",
+      "combine-label",
+      "crowding-label",
+      "risk-model-label",
+      "alert-gate-label",
+      "alert-label",
+      "aggregate-out-label",
+      "a-gate-drop-label",
+      "a-gate-combine-label",
+      "a-alertgate-alert-label",
+      "a-alertgate-out-label",
+      "pin-crowding-meaning",
+      "pin-combine-mechanism",
+      "usernote-2a2b9b3a-t",
+      "a-review-combine-label"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "dropped",
+     "fact": "renamed",
+     "from": "Never published",
+     "to": "Review queue"
+    },
+    {
+     "element": "a-review-combine",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "approved"
+    },
+    {
+     "element": "gate-conf",
+     "fact": "tooltip_changed",
+     "label": "≥ 0.70?",
+     "text": "The confidence gate. Below 0.70 a signal does not vanish — it goes to the review"
+    },
+    {
+     "element": "dropped",
+     "fact": "tooltip_changed",
+     "label": "Review queue",
+     "text": "**Not a dead end after all.** Low-confidence signals sit here and somebody looks"
+    },
+    {
+     "element": "usernote-2a2b9b3a",
+     "fact": "reordered",
+     "label": "review queue must BLOCK the report — no unreviewed low-confidence signals reaching clients"
+    },
+    {
+     "between": [
+      "Review queue",
+      "Combine per instrument"
+     ],
+     "element": "a-review-combine",
+     "fact": "transition_added"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "a-in-gate",
+      "a-gate-drop",
+      "a-gate-combine",
+      "a-combine-crowd",
+      "a-crowd-risk",
+      "a-risk-alertgate",
+      "a-alertgate-alert",
+      "a-alertgate-out",
+      "a-review-combine",
+      "signals-in",
+      "gate-conf",
+      "dropped",
+      "combine",
+      "crowding",
+      "risk-model",
+      "alert-gate",
+      "alert",
+      "aggregate-out",
+      "usernote-2a2b9b3a",
+      "signals-in-label",
+      "gate-conf-label",
+      "dropped-label",
+      "combine-label",
+      "crowding-label",
+      "risk-model-label",
+      "alert-gate-label",
+      "alert-label",
+      "aggregate-out-label",
+      "a-gate-drop-label",
+      "a-gate-combine-label",
+      "a-alertgate-alert-label",
+      "a-alertgate-out-label",
+      "pin-crowding-meaning",
+      "pin-combine-mechanism",
+      "usernote-2a2b9b3a-t",
+      "a-review-combine-label"
+     ],
+     "moved": [
+      "usernote-2a2b9b3a",
+      "signals-in-label",
+      "gate-conf-label",
+      "dropped-label",
+      "combine-label",
+      "crowding-label",
+      "risk-model-label",
+      "alert-gate-label",
+      "alert-label",
+      "aggregate-out-label",
+      "a-gate-drop-label",
+      "a-gate-combine-label",
+      "a-alertgate-alert-label",
+      "a-alertgate-out-label",
+      "pin-crowding-meaning",
+      "pin-combine-mechanism"
+     ],
+     "op": "reorder",
+     "order": [
+      "a-in-gate",
+      "a-gate-drop",
+      "a-gate-combine",
+      "a-combine-crowd",
+      "a-crowd-risk",
+      "a-risk-alertgate",
+      "a-alertgate-alert",
+      "a-alertgate-out",
+      "signals-in",
+      "gate-conf",
+      "dropped",
+      "combine",
+      "crowding",
+      "risk-model",
+      "alert-gate",
+      "alert",
+      "aggregate-out",
+      "signals-in-label",
+      "gate-conf-label",
+      "dropped-label",
+      "combine-label",
+      "crowding-label",
+      "risk-model-label",
+      "alert-gate-label",
+      "alert-label",
+      "aggregate-out-label",
+      "a-gate-drop-label",
+      "a-gate-combine-label",
+      "a-alertgate-alert-label",
+      "a-alertgate-out-label",
+      "pin-crowding-meaning",
+      "pin-combine-mechanism",
+      "usernote-2a2b9b3a",
+      "usernote-2a2b9b3a-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 402,
+       "to": 388
+      },
+      {
+       "attr": "width",
+       "from": 115,
+       "to": 144
+      },
+      {
+       "attr": "text",
+       "from": "Review queue",
+       "to": "Never published"
+      }
+     ],
+     "id": "dropped-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "store",
+        "role": "node",
+        "tooltip": "**Not a dead end after all.** Low-confidence signals sit here and somebody looks at them; approved ones rejoin the pipeline.\n\nAnd this queue reaches forward: no unreviewed signal in it may reach a client, so a full queue blocks publication. Click through to see that gate.\n\nStill true, and still unreported anywhere: nothing tells an analyst how many signals landed here today."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Below-threshold signals. They exist, they are stored, and no client ever sees them.\n\nWorth noticing: nothing on the dashboard or in any report says how many landed here. An analyst cannot tell a quiet day from a day where forty signals fell just short."
+       }
+      },
+      {
+       "attr": "link",
+       "from": "artifact:publication-flow",
+       "to": null
+      }
+     ],
+     "id": "dropped",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "The confidence gate. Below 0.70 a signal does not vanish — it goes to the review queue and waits for a person.\n\nSet from the console. Dragging it down publishes signals that were previously invisible; dragging it up does not silence them, it makes more work for whoever clears the queue."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "The confidence gate. Settled: it is a **gate, not a label** — below 0.70 a Signal still exists internally and reaches nothing a client sees.\n\nSet from the console. Dragging it down does not dim anything; it publishes signals that were previously invisible."
+       }
+      }
+     ],
+     "id": "gate-conf",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-review-combine",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-review-combine-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "approved",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1533714069,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "approved",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 746,
+      "y": 562
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-review-combine-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c6f2070a67"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "combine",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "a-review-combine",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 80010144,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "dropped",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 560,
+      "y": 572
+     },
+     "index": 8,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "aggregation-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "From signals to risk"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 39,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 40,
+ "round": 6,
+ "saved_at": "2026-08-09T11:40:55Z",
+ "selection_at_save": [],
+ "short_id": "27d0ab1",
+ "summary": {
+  "headline": "renamed 'Never published' → 'Review queue' (+5 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 1,
+   "renamed": 1,
+   "reordered": 1,
+   "tooltip_changed": 2,
+   "transition_added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "the dead end was never dead: low-confidence signals go to a review queue"
+}

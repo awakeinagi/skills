@@ -1,0 +1,135 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Aggregator",
+       "text": "Combines everything into the one thing the dashboard and the reports both read f"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Combines everything into the one thing the dashboard and the reports both read from.\n\nI have drawn this as a single fan-out point. If the reports are built from something different than the dashboard, this box is a lie."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Combines everything into the one thing the dashboard and the reports both read from.\n\n**Not drawn, but real:** a fifth source, the **Macro Calendar** (Fed dates, CPI prints), is still wired in as a config option and fed straight into this box, bypassing the Cutoff and enrichment. It is **off by default** as of Aug 2026 — mostly noise outside Fed weeks — and deliberately left off this drawing to keep the flow readable.\n\nIf someone re-ticks it on the console, this is where it lands."
+       }
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "aggregator",
+     "fact": "tooltip_changed",
+     "label": "Aggregator",
+     "text": "Combines everything into the one thing the dashboard and the reports both read f"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Combines everything into the one thing the dashboard and the reports both read from.\n\n**Not drawn, but real:** a fifth source, the **Macro Calendar** (Fed dates, CPI prints), is still wired in as a config option and fed straight into this box, bypassing the Cutoff and enrichment. It is **off by default** as of Aug 2026 — mostly noise outside Fed weeks — and deliberately left off this drawing to keep the flow readable.\n\nIf someone re-ticks it on the console, this is where it lands."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Combines everything into the one thing the dashboard and the reports both read from.\n\nI have drawn this as a single fan-out point. If the reports are built from something different than the dashboard, this box is a lie."
+       }
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 20,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-16-1"
+  },
+  {
+   "action": "mapping_tombstoned",
+   "mapping": {
+    "concept": "macro-calendar",
+    "elements": [
+     "admin-console#cb-macro",
+     "argus-run-flow#macro-calendar"
+    ],
+    "kinds": null,
+    "note": null
+   }
+  },
+  {
+   "action": "remove_mapping",
+   "index": 5
+  }
+ ],
+ "revn": 21,
+ "round": 3,
+ "saved_at": "2026-08-09T11:20:40Z",
+ "selection_at_save": [],
+ "short_id": "f5ee7f9",
+ "summary": {
+  "headline": "reworded the tooltip on Aggregator",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "macro calendar stays off the drawing; the aggregator records that it exists and is off"
+}

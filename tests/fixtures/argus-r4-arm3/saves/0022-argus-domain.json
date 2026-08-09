@@ -1,0 +1,114 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "data-source",
+     "kind": "entity",
+     "label": "DataSource",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "DataSource",
+       "text": "**Four active:** Market Feed, SEC EDGAR, News Stream, Portfolio DB.\n\n**One wired"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "Market Feed, SEC EDGAR, News Stream, Portfolio DB, Macro Calendar.\n\nFive of them now, and they are not interchangeable: one is ours, one bypasses the Cutoff entirely."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**Four active:** Market Feed, SEC EDGAR, News Stream, Portfolio DB.\n\n**One wired but off:** Macro Calendar — a config option, off by default since Aug 2026, kept in case a Fed week wants it back.\n\nThey are not interchangeable: one is ours, and the off one is the only one that ever bypassed both the Cutoff and enrichment."
+       }
+      }
+     ],
+     "id": "data-source",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "data-source",
+     "fact": "tooltip_changed",
+     "label": "DataSource",
+     "text": "**Four active:** Market Feed, SEC EDGAR, News Stream, Portfolio DB.\n\n**One wired"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**Four active:** Market Feed, SEC EDGAR, News Stream, Portfolio DB.\n\n**One wired but off:** Macro Calendar — a config option, off by default since Aug 2026, kept in case a Fed week wants it back.\n\nThey are not interchangeable: one is ours, and the off one is the only one that ever bypassed both the Cutoff and enrichment."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "Market Feed, SEC EDGAR, News Stream, Portfolio DB, Macro Calendar.\n\nFive of them now, and they are not interchangeable: one is ours, one bypasses the Cutoff entirely."
+       }
+      }
+     ],
+     "id": "data-source",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus — domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 21,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 22,
+ "round": 3,
+ "saved_at": "2026-08-09T11:20:42Z",
+ "selection_at_save": [],
+ "short_id": "e382e0a",
+ "summary": {
+  "headline": "reworded the tooltip on DataSource",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "DataSource: four active, one off by default"
+}

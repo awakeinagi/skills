@@ -1,0 +1,122 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "cb-macro",
+     "kind": "checkbox",
+     "label": "Macro calendar",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Macro calendar",
+       "text": "**Off by default, not removed.** Settled Aug 2026: mostly noise outside Fed week"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "checked": false,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "Unchecked, per your edit.\n\n**Why this one is noisy is structural.** The Macro Calendar is the only input that feeds the aggregator directly — it never passes enrichment, so it never gets a confidence score, so the 0.70 gate cannot touch it. Every other source's contribution can be turned down. This one can only be on or off."
+       },
+       "to": {
+        "author": "agent",
+        "checked": false,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "**Off by default, not removed.** Settled Aug 2026: mostly noise outside Fed weeks, kept as a config option in case a Fed week wants it back. It is the only unticked box on this list, and this checkbox is now the only place in the whole product where the Macro Calendar appears.\n\n**Parked, not answered:** it is also the only input that never passes a confidence gate — it bypasses enrichment, so the 0.70 threshold cannot touch it. Rebuilding it as a scored signal would give 'noisy' a dial instead of a switch. Not this quarter."
+       }
+      }
+     ],
+     "id": "cb-macro",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "cb-macro",
+     "fact": "tooltip_changed",
+     "label": "Macro calendar",
+     "text": "**Off by default, not removed.** Settled Aug 2026: mostly noise outside Fed week"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "checked": false,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "**Off by default, not removed.** Settled Aug 2026: mostly noise outside Fed weeks, kept as a config option in case a Fed week wants it back. It is the only unticked box on this list, and this checkbox is now the only place in the whole product where the Macro Calendar appears.\n\n**Parked, not answered:** it is also the only input that never passes a confidence gate — it bypasses enrichment, so the 0.70 threshold cannot touch it. Rebuilding it as a scored signal would give 'noisy' a dial instead of a switch. Not this quarter."
+       },
+       "to": {
+        "author": "agent",
+        "checked": false,
+        "kind": "checkbox",
+        "parent": "panel-sources",
+        "role": "node",
+        "tooltip": "Unchecked, per your edit.\n\n**Why this one is noisy is structural.** The Macro Calendar is the only input that feeds the aggregator directly — it never passes enrichment, so it never gets a confidence score, so the 0.70 gate cannot touch it. Every other source's contribution can be turned down. This one can only be on or off."
+       }
+      }
+     ],
+     "id": "cb-macro",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 22,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 23,
+ "round": 3,
+ "saved_at": "2026-08-09T11:20:43Z",
+ "selection_at_save": [],
+ "short_id": "ca7fef3",
+ "summary": {
+  "headline": "reworded the tooltip on Macro calendar",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "record the ruling on the checkbox that survives it"
+}

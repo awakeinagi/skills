@@ -1,0 +1,1565 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "clock",
+     "kind": "ellipse",
+     "label": "06:00 Scoring",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "Weekday 06:00",
+       "to": "06:00 Scoring"
+      },
+      "tooltip_changed": {
+       "label": "06:00 Scoring",
+       "text": "**06:00 starts the scoring, not the fetching.**\n\nThe real sequence you described"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-macro-agg",
+     "kind": "arrow",
+     "label": "calendar",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "calendar"
+      },
+      "transition_added": {
+       "between": [
+        "Macro Calendar",
+        "Aggregator"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "macro-calendar",
+     "kind": "source",
+     "label": "Macro Calendar",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Macro Calendar"
+      },
+      "step_added": {
+       "label": "Macro Calendar"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-cutoff-vs-start",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "news-sentiment",
+     "kind": "source",
+     "label": "News Stream",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "News Stream",
+       "text": "Headlines. External vendor.\n\nIt feeds **two** scorers, not one — sentiment, and "
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "cutoff",
+     "kind": "control",
+     "label": "05:45 Cutoff",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "05:45 Cutoff"
+      },
+      "tooltip_changed": {
+       "label": "05:45 Cutoff",
+       "text": "**The freshness line, 05:45.** Fetching starts at 05:30 and retries inside that "
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-enrich-risk",
+     "kind": "arrow",
+     "label": "scores",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "scores"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-risk-agg",
+     "kind": "arrow",
+     "label": "weights",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "weights"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-dashboard",
+     "kind": "arrow",
+     "label": "t-agg-dashboard",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "t-agg-dashboard"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-reports",
+     "kind": "arrow",
+     "label": "per calendar",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "per calendar"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-cutoff-enrich",
+     "kind": "arrow",
+     "label": "t-cutoff-enrich",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "t-cutoff-enrich"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-enrich",
+     "kind": "arrow",
+     "label": "t-clock-enrich",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "t-clock-enrich"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk Model",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Risk Model"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Aggregator"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "dashboard",
+     "kind": "sink",
+     "label": "Dashboard",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Dashboard"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reports",
+     "kind": "sink",
+     "label": "Reports",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Reports"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-macro-agg-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b9fde6c7ea"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-macro-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 725818218,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1460,
+      "y": 480
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "macro-calendar-label",
+        "type": "text"
+       },
+       {
+        "id": "t-macro-agg",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Fed dates, CPI prints, scheduled macro events.\n\nThe fifth source — bolted on months after the original four, and the only one that does **not** pass the Cutoff or touch Enrichment. It goes straight into the aggregator."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "macro-calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413308034,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1380,
+      "y": 480
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "macro-calendar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "macro-calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 568925307,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 1393,
+      "y": 502
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-macro-agg",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-macro-agg-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1100203203,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1422,
+      "y": 382
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?",
+       "role": "pin",
+       "status": "open",
+       "target": "cutoff"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cutoff-vs-start",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1313772258,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 232
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         208
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         128
+        ]
+       ]
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -128
+        ]
+       ]
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         -208
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -176
+        ]
+       ]
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "06:00 starts the work. 05:45 already closed the door on the data.\n\nThat ordering is my reading, not your words — see the pin on the Cutoff."
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "**06:00 starts the scoring, not the fetching.**\n\nThe real sequence you described: fetches begin 05:30, retries run inside that window, 05:45 closes the door, 06:00 works with whatever made it.\n\nThe 05:30–05:45 fetch window with its retry loop is not on any drawing yet. It is the obvious next view."
+       }
+      }
+     ],
+     "id": "clock",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIf this is down at the Cutoff we still ship — without a sentiment read, and the Signals Digest says so."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIt feeds **two** scorers, not one — sentiment, and the momentum read inside technical signals (Dave's, deliberately: it separates a breakout from a knee-jerk to an announcement).\n\nSo a news outage costs two signals, not one. We still ship, and the Digest says so."
+       }
+      }
+     ],
+     "id": "news-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "**The freshness line.** Anything a source has not delivered by 05:45 is not used; Last-Good stands in and everything downstream of it is marked Stale.\n\nThe run is never held. Missing the open is worse than being slightly stale, and the analyst can see the flag."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "**The freshness line, 05:45.** Fetching starts at 05:30 and retries inside that window; whatever has not arrived by 05:45 is not used for this Run. Last-Good stands in, and everything derived from it is Stale.\n\nThe run is never held — missing the open is worse than being slightly stale.\n\nNote what is *not* behind this gate: the Macro Calendar."
+       }
+      }
+     ],
+     "id": "cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "Weekday 06:00",
+       "to": "06:00 Scoring"
+      }
+     ],
+     "id": "clock-label",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-cutoff-enrich",
+      "t-clock-enrich",
+      "t-enrich-risk",
+      "t-risk-agg",
+      "t-agg-dashboard",
+      "t-agg-reports",
+      "clock",
+      "market-feed",
+      "sec-edgar",
+      "news-sentiment",
+      "portfolio-db",
+      "enrichment",
+      "cutoff",
+      "risk-model",
+      "aggregator",
+      "dashboard",
+      "reports",
+      "clock-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-sentiment-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "cutoff-label",
+      "t-portfolio-enrich-label",
+      "t-agg-reports-label",
+      "pin-cutoff-vs-start",
+      "dashboard-label",
+      "reports-label",
+      "t-enrich-risk-label",
+      "t-risk-agg-label"
+     ],
+     "moved": [
+      "t-enrich-risk",
+      "t-risk-agg",
+      "t-agg-dashboard",
+      "t-agg-reports",
+      "t-cutoff-enrich",
+      "t-clock-enrich",
+      "risk-model",
+      "aggregator",
+      "dashboard",
+      "reports",
+      "cutoff",
+      "dashboard-label",
+      "reports-label",
+      "t-enrich-risk-label",
+      "t-risk-agg-label",
+      "cutoff-label",
+      "t-portfolio-enrich-label",
+      "t-agg-reports-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-enrich-risk",
+      "t-risk-agg",
+      "t-agg-dashboard",
+      "t-agg-reports",
+      "t-cutoff-enrich",
+      "t-clock-enrich",
+      "t-macro-agg",
+      "clock",
+      "market-feed",
+      "sec-edgar",
+      "news-sentiment",
+      "portfolio-db",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "dashboard",
+      "reports",
+      "cutoff",
+      "macro-calendar",
+      "clock-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-sentiment-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "dashboard-label",
+      "reports-label",
+      "t-enrich-risk-label",
+      "t-risk-agg-label",
+      "cutoff-label",
+      "t-portfolio-enrich-label",
+      "t-agg-reports-label",
+      "macro-calendar-label",
+      "t-macro-agg-label"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "clock",
+     "fact": "renamed",
+     "from": "Weekday 06:00",
+     "to": "06:00 Scoring"
+    },
+    {
+     "element": "t-macro-agg",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "calendar"
+    },
+    {
+     "element": "macro-calendar",
+     "fact": "added",
+     "kind": "source",
+     "label": "Macro Calendar"
+    },
+    {
+     "element": "pin-cutoff-vs-start",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "clock",
+     "fact": "tooltip_changed",
+     "label": "06:00 Scoring",
+     "text": "**06:00 starts the scoring, not the fetching.**\n\nThe real sequence you described"
+    },
+    {
+     "element": "news-sentiment",
+     "fact": "tooltip_changed",
+     "label": "News Stream",
+     "text": "Headlines. External vendor.\n\nIt feeds **two** scorers, not one — sentiment, and "
+    },
+    {
+     "element": "cutoff",
+     "fact": "tooltip_changed",
+     "label": "05:45 Cutoff",
+     "text": "**The freshness line, 05:45.** Fetching starts at 05:30 and retries inside that "
+    },
+    {
+     "element": "t-enrich-risk",
+     "fact": "reordered",
+     "label": "scores"
+    },
+    {
+     "element": "t-risk-agg",
+     "fact": "reordered",
+     "label": "weights"
+    },
+    {
+     "element": "t-agg-dashboard",
+     "fact": "reordered",
+     "label": "t-agg-dashboard"
+    },
+    {
+     "element": "t-agg-reports",
+     "fact": "reordered",
+     "label": "per calendar"
+    },
+    {
+     "element": "t-cutoff-enrich",
+     "fact": "reordered",
+     "label": "t-cutoff-enrich"
+    },
+    {
+     "element": "t-clock-enrich",
+     "fact": "reordered",
+     "label": "t-clock-enrich"
+    },
+    {
+     "element": "risk-model",
+     "fact": "reordered",
+     "label": "Risk Model"
+    },
+    {
+     "element": "aggregator",
+     "fact": "reordered",
+     "label": "Aggregator"
+    },
+    {
+     "element": "dashboard",
+     "fact": "reordered",
+     "label": "Dashboard"
+    },
+    {
+     "element": "reports",
+     "fact": "reordered",
+     "label": "Reports"
+    },
+    {
+     "element": "cutoff",
+     "fact": "reordered",
+     "label": "05:45 Cutoff"
+    },
+    {
+     "between": [
+      "Macro Calendar",
+      "Aggregator"
+     ],
+     "element": "t-macro-agg",
+     "fact": "transition_added"
+    },
+    {
+     "element": "macro-calendar",
+     "fact": "step_added",
+     "label": "Macro Calendar"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-enrich-risk",
+      "t-risk-agg",
+      "t-agg-dashboard",
+      "t-agg-reports",
+      "t-cutoff-enrich",
+      "t-clock-enrich",
+      "t-macro-agg",
+      "clock",
+      "market-feed",
+      "sec-edgar",
+      "news-sentiment",
+      "portfolio-db",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "dashboard",
+      "reports",
+      "cutoff",
+      "macro-calendar",
+      "clock-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-sentiment-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "dashboard-label",
+      "reports-label",
+      "t-enrich-risk-label",
+      "t-risk-agg-label",
+      "cutoff-label",
+      "t-portfolio-enrich-label",
+      "t-agg-reports-label",
+      "macro-calendar-label",
+      "t-macro-agg-label"
+     ],
+     "moved": [
+      "t-enrich-risk",
+      "t-risk-agg",
+      "t-agg-dashboard",
+      "t-agg-reports",
+      "t-cutoff-enrich",
+      "t-clock-enrich",
+      "risk-model",
+      "aggregator",
+      "dashboard",
+      "reports",
+      "cutoff",
+      "dashboard-label",
+      "reports-label",
+      "t-enrich-risk-label",
+      "t-risk-agg-label",
+      "cutoff-label",
+      "t-portfolio-enrich-label",
+      "t-agg-reports-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-cutoff-enrich",
+      "t-clock-enrich",
+      "t-enrich-risk",
+      "t-risk-agg",
+      "t-agg-dashboard",
+      "t-agg-reports",
+      "clock",
+      "market-feed",
+      "sec-edgar",
+      "news-sentiment",
+      "portfolio-db",
+      "enrichment",
+      "cutoff",
+      "risk-model",
+      "aggregator",
+      "dashboard",
+      "reports",
+      "clock-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-sentiment-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "cutoff-label",
+      "t-portfolio-enrich-label",
+      "t-agg-reports-label",
+      "pin-cutoff-vs-start",
+      "dashboard-label",
+      "reports-label",
+      "t-enrich-risk-label",
+      "t-risk-agg-label"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "06:00 Scoring",
+       "to": "Weekday 06:00"
+      }
+     ],
+     "id": "clock-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "**The freshness line, 05:45.** Fetching starts at 05:30 and retries inside that window; whatever has not arrived by 05:45 is not used for this Run. Last-Good stands in, and everything derived from it is Stale.\n\nThe run is never held — missing the open is worse than being slightly stale.\n\nNote what is *not* behind this gate: the Macro Calendar."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "**The freshness line.** Anything a source has not delivered by 05:45 is not used; Last-Good stands in and everything downstream of it is marked Stale.\n\nThe run is never held. Missing the open is worse than being slightly stale, and the analyst can see the flag."
+       }
+      }
+     ],
+     "id": "cutoff",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIt feeds **two** scorers, not one — sentiment, and the momentum read inside technical signals (Dave's, deliberately: it separates a breakout from a knee-jerk to an announcement).\n\nSo a news outage costs two signals, not one. We still ship, and the Digest says so."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIf this is down at the Cutoff we still ship — without a sentiment read, and the Signals Digest says so."
+       }
+      }
+     ],
+     "id": "news-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "**06:00 starts the scoring, not the fetching.**\n\nThe real sequence you described: fetches begin 05:30, retries run inside that window, 05:45 closes the door, 06:00 works with whatever made it.\n\nThe 05:30–05:45 fetch window with its retry loop is not on any drawing yet. It is the obvious next view."
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "06:00 starts the work. 05:45 already closed the door on the data.\n\nThat ordering is my reading, not your words — see the pin on the Cutoff."
+       }
+      }
+     ],
+     "id": "clock",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -176
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         -208
+        ]
+       ]
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -128
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         -48
+        ]
+       ]
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         48
+        ]
+       ]
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         128
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         208
+        ]
+       ]
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?",
+       "role": "pin",
+       "status": "open",
+       "target": "cutoff"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cutoff-vs-start",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1313772258,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 232
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-macro-agg",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-macro-agg-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1100203203,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1422,
+      "y": 382
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "macro-calendar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "macro-calendar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Macro Calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 568925307,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Macro Calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 1393,
+      "y": 502
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "macro-calendar-label",
+        "type": "text"
+       },
+       {
+        "id": "t-macro-agg",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Fed dates, CPI prints, scheduled macro events.\n\nThe fifth source — bolted on months after the original four, and the only one that does **not** pass the Cutoff or touch Enrichment. It goes straight into the aggregator."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "macro-calendar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413308034,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1380,
+      "y": 480
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-macro-agg-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b9fde6c7ea"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-macro-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 725818218,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1460,
+      "y": 480
+     },
+     "index": 10,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 3,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 12,
+   "artifact": "argus-run-flow",
+   "nodes": 12,
+   "reason": "five sources, a cutoff and a portfolio join are all load-bearing here; enrichment stays collapsed to pay for them"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Macro Calendar",
+   "name": "Macro Calendar"
+  }
+ ],
+ "revn": 4,
+ "round": 1,
+ "saved_at": "2026-08-09T10:43:44Z",
+ "selection_at_save": [],
+ "short_id": "2d3b30c",
+ "summary": {
+  "headline": "renamed 'Weekday 06:00' → '06:00 Scoring' (+19 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 2,
+   "pin_deleted": 1,
+   "renamed": 1,
+   "reordered": 11,
+   "step_added": 1,
+   "tooltip_changed": 3,
+   "transition_added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "the fifth source: macro calendar, straight into the aggregator; 06:00 is scoring, not fetching"
+}

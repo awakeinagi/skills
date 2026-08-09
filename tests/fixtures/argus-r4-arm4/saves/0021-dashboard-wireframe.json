@@ -1,0 +1,208 @@
+{
+ "artifacts": {
+  "dashboard-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value",
+     "kind": "kpi",
+     "label": "Portfolio value",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Portfolio value",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 248,
+       "dy": 0,
+       "label": "Portfolio value",
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "screen-dashboard",
+     "kind": "frame",
+     "label": "Dashboard — as it is today",
+     "ops": [],
+     "semantic": {
+      "reading_order_changed": {
+       "order": [
+        "Argus · Fri 7 Aug · run 06:04",
+        "Excess Return",
+        "Portfolio value",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Sources in",
+        "Equity curve vs benchmark",
+        "Sector heat map",
+        "Drawdown",
+        "Signals Digest",
+        "Weekly Brief",
+        "Risk Deep-Dive"
+       ],
+       "screen": "Dashboard — as it is today",
+       "was": [
+        "Argus · Fri 7 Aug · run 06:04",
+        "Portfolio value",
+        "Excess Return",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Sources in",
+        "Equity curve vs benchmark",
+        "Sector heat map",
+        "Drawdown",
+        "Signals Digest",
+        "Weekly Brief",
+        "Risk Deep-Dive"
+       ]
+      }
+     },
+     "verb": "reading_order_changed"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      100,
+      168
+     ],
+     "id": "kpi-portfolio-value",
+     "op": "move",
+     "to": [
+      348,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 146,
+       "to": 394
+      }
+     ],
+     "id": "kpi-portfolio-value-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": 248,
+     "dy": 0,
+     "element": "kpi-portfolio-value",
+     "fact": "moved",
+     "label": "Portfolio value",
+     "spatial": "moved right"
+    },
+    {
+     "element": "kpi-portfolio-value",
+     "fact": "block_moved_within_screen",
+     "label": "Portfolio value",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "reading_order_changed",
+     "order": [
+      "Argus · Fri 7 Aug · run 06:04",
+      "Excess Return",
+      "Portfolio value",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Sources in",
+      "Equity curve vs benchmark",
+      "Sector heat map",
+      "Drawdown",
+      "Signals Digest",
+      "Weekly Brief",
+      "Risk Deep-Dive"
+     ],
+     "screen": "Dashboard — as it is today",
+     "was": [
+      "Argus · Fri 7 Aug · run 06:04",
+      "Portfolio value",
+      "Excess Return",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Sources in",
+      "Equity curve vs benchmark",
+      "Sector heat map",
+      "Drawdown",
+      "Signals Digest",
+      "Weekly Brief",
+      "Risk Deep-Dive"
+     ]
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 394,
+       "to": 146
+      }
+     ],
+     "id": "kpi-portfolio-value-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      348,
+      168
+     ],
+     "id": "kpi-portfolio-value",
+     "op": "move",
+     "to": [
+      100,
+      168
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 20,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 21,
+ "round": 4,
+ "saved_at": "2026-08-09T11:34:33Z",
+ "selection_at_save": [],
+ "short_id": "5cf495d",
+ "summary": {
+  "headline": "screen Dashboard — as it is today now reads: Argus · Fri 7 Aug · run 06:04 / Excess Return / Portfolio value / VaR (95%, 1-day) / Sentiment index / Sources in… (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "block_moved_within_screen": 1,
+   "moved": 1,
+   "reading_order_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

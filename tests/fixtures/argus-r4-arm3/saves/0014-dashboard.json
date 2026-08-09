@@ -1,0 +1,195 @@
+{
+ "artifacts": {
+  "dashboard": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "reader-panel",
+     "kind": "block",
+     "label": "Weekly Brief — week ending 8 Aug",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Weekly Brief — week ending 8 Aug",
+       "text": "**Settled: it is a PDF today, and that is regretted — nobody can link to a secti"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "reader-download",
+     "kind": "button",
+     "label": "Download PDF",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Download PDF",
+       "text": "Today this is the same bytes as what you are reading, because the reader IS the "
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "reader-backdrop",
+        "role": "node",
+        "tooltip": "**This frame is a stub and I know it.** You told me people spend more time here than on the dashboard, and it is the surface I have the least detail on.\n\nWhat I have drawn is the minimum a reader must have: which report, which run produced it, its sections, and the way out. Everything else is a guess waiting to be corrected."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "reader-backdrop",
+        "role": "node",
+        "tooltip": "**Settled: it is a PDF today, and that is regretted — nobody can link to a section.**\n\nThat one sentence decides more than it looks. A PDF in a viewer cannot carry a deep link, cannot let a signal in the text click through to the instrument, and cannot be pointed at in an email or a ticket. Every one of those is a thing people try to do in the surface they spend the most time in.\n\nWhat is *in* the reader is still open — the sections here are still a guess."
+       }
+      }
+     ],
+     "id": "reader-panel",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "reader-panel",
+        "role": "node",
+        "tooltip": "The escape hatch, not the main path — you download to *send* it to someone, not to read it."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "reader-panel",
+        "role": "node",
+        "tooltip": "Today this is the same bytes as what you are reading, because the reader IS the PDF.\n\nIf reports ever become web documents, this button changes meaning: it becomes an export, generated on demand for sending."
+       }
+      }
+     ],
+     "id": "reader-download",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "reader-panel",
+     "fact": "tooltip_changed",
+     "label": "Weekly Brief — week ending 8 Aug",
+     "text": "**Settled: it is a PDF today, and that is regretted — nobody can link to a secti"
+    },
+    {
+     "element": "reader-download",
+     "fact": "tooltip_changed",
+     "label": "Download PDF",
+     "text": "Today this is the same bytes as what you are reading, because the reader IS the "
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "reader-panel",
+        "role": "node",
+        "tooltip": "Today this is the same bytes as what you are reading, because the reader IS the PDF.\n\nIf reports ever become web documents, this button changes meaning: it becomes an export, generated on demand for sending."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "reader-panel",
+        "role": "node",
+        "tooltip": "The escape hatch, not the main path — you download to *send* it to someone, not to read it."
+       }
+      }
+     ],
+     "id": "reader-download",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "reader-backdrop",
+        "role": "node",
+        "tooltip": "**Settled: it is a PDF today, and that is regretted — nobody can link to a section.**\n\nThat one sentence decides more than it looks. A PDF in a viewer cannot carry a deep link, cannot let a signal in the text click through to the instrument, and cannot be pointed at in an email or a ticket. Every one of those is a thing people try to do in the surface they spend the most time in.\n\nWhat is *in* the reader is still open — the sections here are still a guess."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "parent": "reader-backdrop",
+        "role": "node",
+        "tooltip": "**This frame is a stub and I know it.** You told me people spend more time here than on the dashboard, and it is the surface I have the least detail on.\n\nWhat I have drawn is the minimum a reader must have: which report, which run produced it, its sections, and the way out. Everything else is a guess waiting to be corrected."
+       }
+      }
+     ],
+     "id": "reader-panel",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard + Reader"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 13,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "waive",
+   "key": "q12:dashboard:dashboard",
+   "reason": "user's own word: 'Dashboard and Admin as the two pages'"
+  }
+ ],
+ "revn": 14,
+ "round": 2,
+ "saved_at": "2026-08-09T11:04:55Z",
+ "selection_at_save": [],
+ "short_id": "a75ca02",
+ "summary": {
+  "headline": "reworded the tooltip on Weekly Brief — week ending 8 Aug (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 2
+  }
+ },
+ "tripwires": [],
+ "user_note": "record the format ruling on the reader; settle the whose-word question on the nav"
+}

@@ -1,0 +1,43 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 40,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Review queue",
+   "name": "Review queue",
+   "views": [
+    "publication-flow"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Publication",
+   "id": "publication",
+   "name": "Publication"
+  }
+ ],
+ "revn": 41,
+ "round": 6,
+ "saved_at": "2026-08-09T11:41:18Z",
+ "selection_at_save": [],
+ "short_id": "1c53733",
+ "summary": {
+  "headline": "registry: upsert concept Review queue (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "mint the terms that settled this round"
+}

@@ -1,0 +1,323 @@
+{
+ "artifacts": {
+  "enrichment-pipeline": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-news-tech",
+     "kind": "arrow",
+     "label": "headlines",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "headlines"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "News Stream",
+        "Technical Signals"
+       ]
+      }
+     },
+     "verb": "deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-news-tech-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ],
+       [
+        140,
+        20
+       ],
+       [
+        240,
+        20
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1188913774,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-news",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 524
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-news-tech",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "headlines",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1382404367,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "headlines",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 307,
+      "y": 514
+     },
+     "index": 29,
+     "op": "del"
+    }
+   ],
+   "facts": [
+    {
+     "element": "e-news-tech",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "headlines"
+     }
+    },
+    {
+     "between": [
+      "News Stream",
+      "Technical Signals"
+     ],
+     "element": "e-news-tech",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "e-news-tech",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "headlines",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1382404367,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "headlines",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 307,
+      "y": 514
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-news-tech-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technical",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "e-news-tech",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ],
+       [
+        140,
+        20
+       ],
+       [
+        240,
+        20
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1188913774,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-news",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 524
+     },
+     "index": 6,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-pipeline",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Enrichment — who reads what"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 23,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 24,
+ "round": 3,
+ "saved_at": "2026-08-09T11:23:54Z",
+ "selection_at_save": [],
+ "short_id": "af42577",
+ "summary": {
+  "headline": "deleted headlines (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 1,
+   "transition_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

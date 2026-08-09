@@ -1,0 +1,811 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-run-rerun",
+     "kind": "arrow",
+     "label": "rerun of",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "rerun of"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-rerun-lineage",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "pipeline-run",
+     "kind": "entity",
+     "label": "PipelineRun",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "PipelineRun",
+       "text": "The settings snapshot is why a rerun can be compared to an original instead of r"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-signal-instrument",
+     "kind": "arrow",
+     "label": "about 1",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-signal-instrument"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-watchlist-instrument",
+     "kind": "arrow",
+     "label": "covers 1..*",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-watchlist-instrument"
+      }
+     },
+     "verb": "rerouted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-run-rerun-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "tooltip": "**0..1** — an original PipelineRun points at nothing; a rerun points at exactly one.\n\nCardinality lives here rather than in the label because a self-loop has nowhere to put a long one."
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 60,
+      "id": "r-run-rerun",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ],
+       [
+        120,
+        110
+       ],
+       [
+        -100,
+        110
+       ],
+       [
+        -100,
+        80
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 233393669,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 900,
+      "y": 320
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-run-rerun",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-run-rerun-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "rerun of",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1456798404,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "rerun of",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 942,
+      "y": 340
+     },
+     "index": 44,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'.",
+       "role": "pin",
+       "status": "open",
+       "target": "pipeline-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-lineage",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 561106100,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 292
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 33,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -33,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "817760de9a"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "r-watchlist-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 590,
+       "to": 580
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 507,
+       "to": 440
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 30,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -507,
+         0
+        ],
+        [
+         -507,
+         30
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -440,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7b23de1aec"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "r-signal-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is why a rerun can be compared to an original instead of replacing it.\n\n**Known over-claim:** after a partial rerun the snapshot describes the whole day when it only describes a quarter of it. That is an accident of how it was built, not a design — see the scoring time now on Signal.\n\n**stale sources** is run-level, which is today's answer and not the wanted one."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is why a rerun can be compared to an original instead of replacing it.\n\n**A Rerun is a PipelineRun** that points at the one it re-ran — a self-relationship, not a separate entity. That is what finally makes 'the dashboard follows the newest run' answerable: newest *within a lineage*.\n\n**Known over-claim:** after a partial rerun the snapshot describes the whole day when it only describes a quarter of it. An accident of how it was built, not a design.\n\n**stale sources** is run-level, which is today's answer and not the wanted one."
+       }
+      }
+     ],
+     "id": "pipeline-run",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 91,
+       "to": 108
+      }
+     ],
+     "id": "r-watchlist-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 398,
+       "to": 446
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 580,
+       "to": 570
+      }
+     ],
+     "id": "r-signal-instrument-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "r-run-rerun",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "rerun of"
+    },
+    {
+     "element": "pin-rerun-lineage",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pipeline-run",
+     "fact": "tooltip_changed",
+     "label": "PipelineRun",
+     "text": "The settings snapshot is why a rerun can be compared to an original instead of r"
+    },
+    {
+     "arrow": "r-signal-instrument",
+     "element": "r-signal-instrument",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-watchlist-instrument",
+     "element": "r-watchlist-instrument",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 446,
+       "to": 398
+      },
+      {
+       "attr": "y",
+       "from": 570,
+       "to": 580
+      }
+     ],
+     "id": "r-signal-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 108,
+       "to": 91
+      }
+     ],
+     "id": "r-watchlist-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is why a rerun can be compared to an original instead of replacing it.\n\n**A Rerun is a PipelineRun** that points at the one it re-ran — a self-relationship, not a separate entity. That is what finally makes 'the dashboard follows the newest run' answerable: newest *within a lineage*.\n\n**Known over-claim:** after a partial rerun the snapshot describes the whole day when it only describes a quarter of it. An accident of how it was built, not a design.\n\n**stale sources** is run-level, which is today's answer and not the wanted one."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "The settings snapshot is why a rerun can be compared to an original instead of replacing it.\n\n**Known over-claim:** after a partial rerun the snapshot describes the whole day when it only describes a quarter of it. That is an accident of how it was built, not a design — see the scoring time now on Signal.\n\n**stale sources** is run-level, which is today's answer and not the wanted one."
+       }
+      }
+     ],
+     "id": "pipeline-run",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 580,
+       "to": 590
+      },
+      {
+       "attr": "width",
+       "from": 440,
+       "to": 507
+      },
+      {
+       "attr": "height",
+       "from": 0,
+       "to": 30
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -440,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -507,
+         0
+        ],
+        [
+         -507,
+         30
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7b23de1aec"
+       }
+      }
+     ],
+     "id": "r-signal-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 0,
+       "to": 33
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -33,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "817760de9a"
+       }
+      }
+     ],
+     "id": "r-watchlist-instrument",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'.",
+       "role": "pin",
+       "status": "open",
+       "target": "pipeline-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-lineage",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 561106100,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 292
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-run-rerun",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-run-rerun-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "rerun of",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1456798404,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "rerun of",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 942,
+      "y": 340
+     },
+     "index": 44,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-run-rerun-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "tooltip": "**0..1** — an original PipelineRun points at nothing; a rerun points at exactly one.\n\nCardinality lives here rather than in the label because a self-loop has nowhere to put a long one."
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 60,
+      "id": "r-run-rerun",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ],
+       [
+        120,
+        110
+       ],
+       [
+        -100,
+        110
+       ],
+       [
+        -100,
+        80
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 233393669,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 900,
+      "y": 320
+     },
+     "index": 19,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus — domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 41,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 42,
+ "round": 6,
+ "saved_at": "2026-08-09T11:46:25Z",
+ "selection_at_save": [],
+ "short_id": "8bab6ca",
+ "summary": {
+  "headline": "rerouted r-signal-instrument (+4 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 1,
+   "pin_deleted": 1,
+   "rerouted": 2,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "your ruling: a PipelineRun points at the run it re-ran; straighten two arrows that had drifted"
+}

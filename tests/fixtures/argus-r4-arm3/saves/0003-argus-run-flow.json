@@ -1,0 +1,4086 @@
+{
+ "artifacts": {
+  "argus-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-portfolio-enrich",
+     "kind": "arrow",
+     "label": "positions",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "label_added": {
+       "text": "positions"
+      },
+      "rewired": {
+       "arrow": "t-portfolio-enrich",
+       "from": "Portfolio DB→Enrichment",
+       "to": "Portfolio DB→Risk Model"
+      }
+     },
+     "verb": "label_added"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-agg-reports",
+     "kind": "arrow",
+     "label": "per calendar",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "label_added": {
+       "text": "per calendar"
+      }
+     },
+     "verb": "label_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "reports",
+     "kind": "sink",
+     "label": "Reports",
+     "ops": [
+      37,
+      38
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -20,
+       "dy": -80,
+       "label": "Reports",
+       "spatial": "moved left-up"
+      },
+      "renamed": {
+       "from": "3 PDF Reports",
+       "to": "Reports"
+      },
+      "tooltip_changed": {
+       "label": "Reports",
+       "text": "All three exist all the time, on their own clocks:\n\n- **Signals Digest** — daily"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-cutoff-enrich",
+     "kind": "arrow",
+     "label": "t-cutoff-enrich",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-cutoff-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "05:45 Cutoff",
+        "Enrichment"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-enrich",
+     "kind": "arrow",
+     "label": "t-clock-enrich",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-clock-enrich"
+      },
+      "transition_added": {
+       "between": [
+        "Weekday 06:00",
+        "Enrichment"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cutoff",
+     "kind": "control",
+     "label": "05:45 Cutoff",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "05:45 Cutoff"
+      },
+      "step_added": {
+       "label": "05:45 Cutoff"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-cutoff-vs-start",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-market",
+     "kind": "arrow",
+     "label": "t-clock-market",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-clock-market"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Weekday 06:00",
+        "Market Feed"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-edgar",
+     "kind": "arrow",
+     "label": "t-clock-edgar",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-clock-edgar"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Weekday 06:00",
+        "SEC EDGAR"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-news",
+     "kind": "arrow",
+     "label": "t-clock-news",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-clock-news"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Weekday 06:00",
+        "News Stream"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-clock-portfolio",
+     "kind": "arrow",
+     "label": "t-clock-portfolio",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-clock-portfolio"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Weekday 06:00",
+        "Portfolio DB"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-enrich-fan",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-report-cadence",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-portfolio-role",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "clock",
+     "kind": "ellipse",
+     "label": "Weekday 06:00",
+     "ops": [
+      22,
+      23
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 640,
+       "dy": -300,
+       "label": "Weekday 06:00",
+       "spatial": "moved right-up"
+      },
+      "tooltip_changed": {
+       "label": "Weekday 06:00",
+       "text": "06:00 starts the work. 05:45 already closed the door on the data.\n\nThat ordering"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-cutoff-enrich",
+     "id": "market-feed",
+     "kind": "source",
+     "label": "Market Feed",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-cutoff-enrich",
+       "dx": -320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-cutoff-enrich",
+     "id": "sec-edgar",
+     "kind": "source",
+     "label": "SEC EDGAR",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-cutoff-enrich",
+       "dx": -320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "news-sentiment",
+     "kind": "source",
+     "label": "News Stream",
+     "ops": [
+      26,
+      27
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -320,
+       "dy": 0,
+       "label": "News Stream",
+       "spatial": "moved left"
+      },
+      "tooltip_changed": {
+       "label": "News Stream",
+       "text": "Headlines. External vendor.\n\nIf this is down at the Cutoff we still ship — witho"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "portfolio-db",
+     "kind": "source",
+     "label": "Portfolio DB",
+     "ops": [
+      28,
+      29
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 660,
+       "dy": -80,
+       "label": "Portfolio DB",
+       "spatial": "moved right-up"
+      },
+      "tooltip_changed": {
+       "label": "Portfolio DB",
+       "text": "**Not a filter.** The Watchlist (~400 names) defines the universe whether we hol"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData",
+      "link"
+     ],
+     "consequence_of": null,
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrichment",
+     "ops": [
+      30,
+      31
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -80,
+       "label": "Enrichment",
+       "spatial": "moved up"
+      },
+      "tooltip_changed": {
+       "label": "Enrichment",
+       "text": "Four scorers, seven reads, sparse — click through to see who reads what.\n\nNo sin"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk Model",
+     "ops": [
+      32,
+      33
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -20,
+       "dy": -80,
+       "label": "Risk Model",
+       "spatial": "moved left-up"
+      },
+      "tooltip_changed": {
+       "label": "Risk Model",
+       "text": "Weighs the scored signals against the Portfolio.\n\nTwo settings live here: confid"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [
+      34
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -20,
+       "dy": -80,
+       "label": "Aggregator",
+       "spatial": "moved left-up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "dashboard",
+     "kind": "sink",
+     "label": "Dashboard",
+     "ops": [
+      35,
+      36
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -20,
+       "dy": -80,
+       "label": "Dashboard",
+       "spatial": "moved left-up"
+      },
+      "tooltip_changed": {
+       "label": "Dashboard",
+       "text": "KPIs, and where the Stale flag surfaces.\n\nOpen question I have not drawn: with r"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-market-enrich",
+     "kind": "arrow",
+     "label": "t-market-enrich",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-market-enrich",
+       "from": "Market Feed→Enrichment",
+       "to": "Market Feed→05:45 Cutoff"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-edgar-enrich",
+     "kind": "arrow",
+     "label": "t-edgar-enrich",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-edgar-enrich",
+       "from": "SEC EDGAR→Enrichment",
+       "to": "SEC EDGAR→05:45 Cutoff"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-news-enrich",
+     "kind": "arrow",
+     "label": "t-news-enrich",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-news-enrich",
+       "from": "News Stream→Enrichment",
+       "to": "News Stream→05:45 Cutoff"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "217cb21451"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-cutoff-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 579837294,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "cutoff",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 540,
+      "y": 272
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "3dc156f450"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 156,
+      "id": "t-clock-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        156
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1081330763,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 780,
+      "y": 84
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cutoff-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**The freshness line.** Anything a source has not delivered by 05:45 is not used; Last-Good stands in and everything downstream of it is marked Stale.\n\nThe run is never held. Missing the open is worse than being slightly stale, and the analyst can see the flag."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "cutoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1043333234,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 240
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cutoff",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cutoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "05:45 Cutoff",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1514245199,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "05:45 Cutoff",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 402,
+      "y": 262
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-portfolio-enrich",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-portfolio-enrich-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "positions",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1495558772,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "positions",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1077,
+      "y": 382
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-agg-reports",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-agg-reports-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "per calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 452356590,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "per calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1631,
+      "y": 273
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?",
+       "role": "pin",
+       "status": "open",
+       "target": "cutoff"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cutoff-vs-start",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1313772258,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 232
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f1b647b08c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "market-feed",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -208
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1873802832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 320
+     },
+     "index": 0,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d9edd74bf9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sec-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-edgar",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1955886753,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 341
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "5b4cd2c0eb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "news-sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1165411832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 363
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "007d5f26a0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-portfolio",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        208
+       ],
+       [
+        240,
+        208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1169177848,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 384
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it.",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-enrich-fan",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 35781275,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 868,
+      "y": 312
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?",
+       "role": "pin",
+       "status": "open",
+       "target": "reports"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-report-cadence",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1005512094,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1908,
+      "y": 392
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?",
+       "role": "pin",
+       "status": "open",
+       "target": "portfolio-db"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-portfolio-role",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1691990160,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 552
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 540,
+       "to": 220
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 208,
+       "to": 128
+      },
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "cutoff"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "b08fcae445"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "669ddebb48"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 540,
+       "to": 220
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 48,
+       "to": 0
+      },
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "cutoff"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d8085cef40"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e54cca7e9d"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 540,
+       "to": 220
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 48,
+       "to": 128
+      },
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "cutoff"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6a0e2cb944"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "67e5126736"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 540,
+       "to": 1120
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 592,
+       "to": 480
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 208,
+       "to": 176
+      },
+      {
+       "attr": "endBinding",
+       "from": "enrichment",
+       "to": "risk-model"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d7490cb18b"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a3fe9493c4"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 200,
+       "to": 180
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         200,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         180,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1435a6aee3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "462f1c7215"
+       }
+      }
+     ],
+     "id": "t-enrich-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1220,
+       "to": 1200
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 272
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "19d400afad"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "5618eaa107"
+       }
+      }
+     ],
+     "id": "t-risk-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1560,
+       "to": 1540
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 341,
+       "to": 261
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "077152f8bd"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9c10c39c79"
+       }
+      }
+     ],
+     "id": "t-agg-dashboard",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1560,
+       "to": 1540
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 363,
+       "to": 283
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "505dedfac2"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "0b7854e7f3"
+       }
+      }
+     ],
+     "id": "t-agg-reports",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "Every weekday at 06:00, ahead of the open.\n\nMy reading: **06:00 is the start, the open is the deadline.** That gap is the whole failure budget of this system."
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "06:00 starts the work. 05:45 already closed the door on the data.\n\nThat ordering is my reading, not your words — see the pin on the Cutoff."
+       }
+      }
+     ],
+     "id": "clock",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      320
+     ],
+     "id": "clock",
+     "op": "move",
+     "to": [
+      700,
+      20
+     ]
+    },
+    {
+     "from": [
+      380,
+      80
+     ],
+     "id": "market-feed",
+     "op": "move",
+     "to": [
+      60,
+      80
+     ]
+    },
+    {
+     "from": [
+      380,
+      240
+     ],
+     "id": "sec-edgar",
+     "op": "move",
+     "to": [
+      60,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nNote: you called this a *news sentiment stream* — I have split the stream (a source) from the sentiment scorer (enrichment). If sentiment arrives pre-scored from the vendor, that split is wrong."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIf this is down at the Cutoff we still ship — without a sentiment read, and the Signals Digest says so."
+       }
+      }
+     ],
+     "id": "news-sentiment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      380,
+      400
+     ],
+     "id": "news-sentiment",
+     "op": "move",
+     "to": [
+      60,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Ours, not a vendor. What we actually hold.\n\nDrawn rounded because it is the one source we own and the one that is also written to."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Not a filter.** The Watchlist (~400 names) defines the universe whether we hold them or not — catching something before we are in it is the point.\n\nThe portfolio joins here, at the risk model, for position sizing, exposure and P&L."
+       }
+      }
+     ],
+     "id": "portfolio-db",
+     "op": "mod"
+    },
+    {
+     "from": [
+      380,
+      560
+     ],
+     "id": "portfolio-db",
+     "op": "move",
+     "to": [
+      1040,
+      480
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Collapsed on purpose.** Four scorers live in here:\n\n- sentiment (headlines + filing tone)\n- fundamentals ratios\n- technical signals\n- insider-cluster detector (Form-4 clusters)\n\nExpanding this into its own pipeline flow is the obvious next view."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers, seven reads, sparse — click through to see who reads what.\n\nNo single source is load-bearing for all four, which is why a dead vendor costs specific signals rather than the run."
+       }
+      },
+      {
+       "attr": "link",
+       "from": null,
+       "to": "artifact:enrichment-pipeline"
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      700,
+      320
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      700,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Weighs the enriched signals. Has a threshold the admin can set."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Weighs the scored signals against the Portfolio.\n\nTwo settings live here: confidence threshold **0.70**, and the risk alert at **1-day 95% VaR > 2.5%**."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1060,
+      320
+     ],
+     "id": "risk-model",
+     "op": "move",
+     "to": [
+      1040,
+      240
+     ]
+    },
+    {
+     "from": [
+      1400,
+      320
+     ],
+     "id": "aggregator",
+     "op": "move",
+     "to": [
+      1380,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "KPIs. Live surface — presumably still there at 14:00, unlike the PDFs."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "KPIs, and where the Stale flag surfaces.\n\nOpen question I have not drawn: with reruns sitting beside originals, which run does this show?"
+       }
+      }
+     ],
+     "id": "dashboard",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1740,
+      240
+     ],
+     "id": "dashboard",
+     "op": "move",
+     "to": [
+      1720,
+      160
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Weekly Brief · Risk Deep-Dive · Signals Digest.\n\nThree documents, one daily run — the cadences cannot all be daily."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "All three exist all the time, on their own clocks:\n\n- **Signals Digest** — daily\n- **Weekly Brief** — Monday morning\n- **Risk Deep-Dive** — first business day of the month\n\nThe run refreshes the data. The calendar decides what gets published."
+       }
+      }
+     ],
+     "id": "reports",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1740,
+      400
+     ],
+     "id": "reports",
+     "op": "move",
+     "to": [
+      1720,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 78,
+       "to": 718
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 42
+      }
+     ],
+     "id": "clock-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 408,
+       "to": 88
+      }
+     ],
+     "id": "market-feed-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 417,
+       "to": 97
+      }
+     ],
+     "id": "sec-edgar-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 408,
+       "to": 88
+      }
+     ],
+     "id": "news-sentiment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 402,
+       "to": 1062
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 582,
+       "to": 502
+      }
+     ],
+     "id": "portfolio-db-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1092,
+       "to": 1072
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "risk-model-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1432,
+       "to": 1412
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "aggregator-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1777,
+       "to": 1757
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 262,
+       "to": 182
+      }
+     ],
+     "id": "dashboard-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1758,
+       "to": 1766
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 342
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 124,
+       "to": 67
+      },
+      {
+       "attr": "text",
+       "from": "3 PDF Reports",
+       "to": "Reports"
+      }
+     ],
+     "id": "reports-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 932,
+       "to": 922
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "t-enrich-risk-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1276,
+       "to": 1256
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "t-risk-agg-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-portfolio-enrich",
+     "fact": "label_added",
+     "text": "positions"
+    },
+    {
+     "element": "t-agg-reports",
+     "fact": "label_added",
+     "text": "per calendar"
+    },
+    {
+     "element": "reports",
+     "fact": "renamed",
+     "from": "3 PDF Reports",
+     "to": "Reports"
+    },
+    {
+     "element": "t-cutoff-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-cutoff-enrich"
+    },
+    {
+     "element": "t-clock-enrich",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-clock-enrich"
+    },
+    {
+     "element": "cutoff",
+     "fact": "added",
+     "kind": "control",
+     "label": "05:45 Cutoff"
+    },
+    {
+     "element": "pin-cutoff-vs-start",
+     "fact": "pin_added",
+     "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?"
+    },
+    {
+     "element": "t-clock-market",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-clock-market"
+     }
+    },
+    {
+     "element": "t-clock-edgar",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-clock-edgar"
+     }
+    },
+    {
+     "element": "t-clock-news",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-clock-news"
+     }
+    },
+    {
+     "element": "t-clock-portfolio",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-clock-portfolio"
+     }
+    },
+    {
+     "element": "pin-enrich-fan",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-report-cadence",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-portfolio-role",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "clock",
+     "fact": "tooltip_changed",
+     "label": "Weekday 06:00",
+     "text": "06:00 starts the work. 05:45 already closed the door on the data.\n\nThat ordering"
+    },
+    {
+     "dx": 640,
+     "dy": -300,
+     "element": "clock",
+     "fact": "moved",
+     "label": "Weekday 06:00",
+     "spatial": "moved right-up"
+    },
+    {
+     "consequence_of": "t-cutoff-enrich",
+     "dx": -320,
+     "dy": 0,
+     "element": "market-feed",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "t-cutoff-enrich",
+     "dx": -320,
+     "dy": 0,
+     "element": "sec-edgar",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "news-sentiment",
+     "fact": "tooltip_changed",
+     "label": "News Stream",
+     "text": "Headlines. External vendor.\n\nIf this is down at the Cutoff we still ship — witho"
+    },
+    {
+     "dx": -320,
+     "dy": 0,
+     "element": "news-sentiment",
+     "fact": "moved",
+     "label": "News Stream",
+     "spatial": "moved left"
+    },
+    {
+     "element": "portfolio-db",
+     "fact": "tooltip_changed",
+     "label": "Portfolio DB",
+     "text": "**Not a filter.** The Watchlist (~400 names) defines the universe whether we hol"
+    },
+    {
+     "dx": 660,
+     "dy": -80,
+     "element": "portfolio-db",
+     "fact": "moved",
+     "label": "Portfolio DB",
+     "spatial": "moved right-up"
+    },
+    {
+     "element": "enrichment",
+     "fact": "tooltip_changed",
+     "label": "Enrichment",
+     "text": "Four scorers, seven reads, sparse — click through to see who reads what.\n\nNo sin"
+    },
+    {
+     "dx": 0,
+     "dy": -80,
+     "element": "enrichment",
+     "fact": "moved",
+     "label": "Enrichment",
+     "spatial": "moved up"
+    },
+    {
+     "element": "risk-model",
+     "fact": "tooltip_changed",
+     "label": "Risk Model",
+     "text": "Weighs the scored signals against the Portfolio.\n\nTwo settings live here: confid"
+    },
+    {
+     "dx": -20,
+     "dy": -80,
+     "element": "risk-model",
+     "fact": "moved",
+     "label": "Risk Model",
+     "spatial": "moved left-up"
+    },
+    {
+     "dx": -20,
+     "dy": -80,
+     "element": "aggregator",
+     "fact": "moved",
+     "label": "Aggregator",
+     "spatial": "moved left-up"
+    },
+    {
+     "element": "dashboard",
+     "fact": "tooltip_changed",
+     "label": "Dashboard",
+     "text": "KPIs, and where the Stale flag surfaces.\n\nOpen question I have not drawn: with r"
+    },
+    {
+     "dx": -20,
+     "dy": -80,
+     "element": "dashboard",
+     "fact": "moved",
+     "label": "Dashboard",
+     "spatial": "moved left-up"
+    },
+    {
+     "element": "reports",
+     "fact": "tooltip_changed",
+     "label": "Reports",
+     "text": "All three exist all the time, on their own clocks:\n\n- **Signals Digest** — daily"
+    },
+    {
+     "dx": -20,
+     "dy": -80,
+     "element": "reports",
+     "fact": "moved",
+     "label": "Reports",
+     "spatial": "moved left-up"
+    },
+    {
+     "between": [
+      "05:45 Cutoff",
+      "Enrichment"
+     ],
+     "element": "t-cutoff-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "Enrichment"
+     ],
+     "element": "t-clock-enrich",
+     "fact": "transition_added"
+    },
+    {
+     "element": "cutoff",
+     "fact": "step_added",
+     "label": "05:45 Cutoff"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "Market Feed"
+     ],
+     "element": "t-clock-market",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "SEC EDGAR"
+     ],
+     "element": "t-clock-edgar",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "News Stream"
+     ],
+     "element": "t-clock-news",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "Portfolio DB"
+     ],
+     "element": "t-clock-portfolio",
+     "fact": "transition_deleted"
+    },
+    {
+     "arrow": "t-market-enrich",
+     "element": "t-market-enrich",
+     "fact": "rewired",
+     "from": "Market Feed→Enrichment",
+     "to": "Market Feed→05:45 Cutoff"
+    },
+    {
+     "arrow": "t-edgar-enrich",
+     "element": "t-edgar-enrich",
+     "fact": "rewired",
+     "from": "SEC EDGAR→Enrichment",
+     "to": "SEC EDGAR→05:45 Cutoff"
+    },
+    {
+     "arrow": "t-news-enrich",
+     "element": "t-news-enrich",
+     "fact": "rewired",
+     "from": "News Stream→Enrichment",
+     "to": "News Stream→05:45 Cutoff"
+    },
+    {
+     "arrow": "t-portfolio-enrich",
+     "element": "t-portfolio-enrich",
+     "fact": "rewired",
+     "from": "Portfolio DB→Enrichment",
+     "to": "Portfolio DB→Risk Model"
+    },
+    {
+     "arrows": [
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich"
+     ],
+     "element": null,
+     "fact": "sequence_reordered"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1256,
+       "to": 1276
+      },
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "t-risk-agg-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 922,
+       "to": 932
+      },
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "t-enrich-risk-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1766,
+       "to": 1758
+      },
+      {
+       "attr": "y",
+       "from": 342,
+       "to": 422
+      },
+      {
+       "attr": "width",
+       "from": 67,
+       "to": 124
+      },
+      {
+       "attr": "text",
+       "from": "Reports",
+       "to": "3 PDF Reports"
+      }
+     ],
+     "id": "reports-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1757,
+       "to": 1777
+      },
+      {
+       "attr": "y",
+       "from": 182,
+       "to": 262
+      }
+     ],
+     "id": "dashboard-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1412,
+       "to": 1432
+      },
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "aggregator-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1072,
+       "to": 1092
+      },
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "risk-model-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1062,
+       "to": 402
+      },
+      {
+       "attr": "y",
+       "from": 502,
+       "to": 582
+      }
+     ],
+     "id": "portfolio-db-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 88,
+       "to": 408
+      }
+     ],
+     "id": "news-sentiment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 97,
+       "to": 417
+      }
+     ],
+     "id": "sec-edgar-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 88,
+       "to": 408
+      }
+     ],
+     "id": "market-feed-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 718,
+       "to": 78
+      },
+      {
+       "attr": "y",
+       "from": 42,
+       "to": 342
+      }
+     ],
+     "id": "clock-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1720,
+      320
+     ],
+     "id": "reports",
+     "op": "move",
+     "to": [
+      1740,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "All three exist all the time, on their own clocks:\n\n- **Signals Digest** — daily\n- **Weekly Brief** — Monday morning\n- **Risk Deep-Dive** — first business day of the month\n\nThe run refreshes the data. The calendar decides what gets published."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Weekly Brief · Risk Deep-Dive · Signals Digest.\n\nThree documents, one daily run — the cadences cannot all be daily."
+       }
+      }
+     ],
+     "id": "reports",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1720,
+      160
+     ],
+     "id": "dashboard",
+     "op": "move",
+     "to": [
+      1740,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "KPIs, and where the Stale flag surfaces.\n\nOpen question I have not drawn: with reruns sitting beside originals, which run does this show?"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "KPIs. Live surface — presumably still there at 14:00, unlike the PDFs."
+       }
+      }
+     ],
+     "id": "dashboard",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1380,
+      240
+     ],
+     "id": "aggregator",
+     "op": "move",
+     "to": [
+      1400,
+      320
+     ]
+    },
+    {
+     "from": [
+      1040,
+      240
+     ],
+     "id": "risk-model",
+     "op": "move",
+     "to": [
+      1060,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Weighs the scored signals against the Portfolio.\n\nTwo settings live here: confidence threshold **0.70**, and the risk alert at **1-day 95% VaR > 2.5%**."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Weighs the enriched signals. Has a threshold the admin can set."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "from": [
+      700,
+      240
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      700,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers, seven reads, sparse — click through to see who reads what.\n\nNo single source is load-bearing for all four, which is why a dead vendor costs specific signals rather than the run."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Collapsed on purpose.** Four scorers live in here:\n\n- sentiment (headlines + filing tone)\n- fundamentals ratios\n- technical signals\n- insider-cluster detector (Form-4 clusters)\n\nExpanding this into its own pipeline flow is the obvious next view."
+       }
+      },
+      {
+       "attr": "link",
+       "from": "artifact:enrichment-pipeline",
+       "to": null
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1040,
+      480
+     ],
+     "id": "portfolio-db",
+     "op": "move",
+     "to": [
+      380,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "**Not a filter.** The Watchlist (~400 names) defines the universe whether we hold them or not — catching something before we are in it is the point.\n\nThe portfolio joins here, at the risk model, for position sizing, exposure and P&L."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Ours, not a vendor. What we actually hold.\n\nDrawn rounded because it is the one source we own and the one that is also written to."
+       }
+      }
+     ],
+     "id": "portfolio-db",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      400
+     ],
+     "id": "news-sentiment",
+     "op": "move",
+     "to": [
+      380,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nIf this is down at the Cutoff we still ship — without a sentiment read, and the Signals Digest says so."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Headlines. External vendor.\n\nNote: you called this a *news sentiment stream* — I have split the stream (a source) from the sentiment scorer (enrichment). If sentiment arrives pre-scored from the vendor, that split is wrong."
+       }
+      }
+     ],
+     "id": "news-sentiment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      60,
+      240
+     ],
+     "id": "sec-edgar",
+     "op": "move",
+     "to": [
+      380,
+      240
+     ]
+    },
+    {
+     "from": [
+      60,
+      80
+     ],
+     "id": "market-feed",
+     "op": "move",
+     "to": [
+      380,
+      80
+     ]
+    },
+    {
+     "from": [
+      700,
+      20
+     ],
+     "id": "clock",
+     "op": "move",
+     "to": [
+      60,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "06:00 starts the work. 05:45 already closed the door on the data.\n\nThat ordering is my reading, not your words — see the pin on the Cutoff."
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "tooltip": "Every weekday at 06:00, ahead of the open.\n\nMy reading: **06:00 is the start, the open is the deadline.** That gap is the whole failure budget of this system."
+       }
+      }
+     ],
+     "id": "clock",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1540,
+       "to": 1560
+      },
+      {
+       "attr": "y",
+       "from": 283,
+       "to": 363
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "0b7854e7f3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "505dedfac2"
+       }
+      }
+     ],
+     "id": "t-agg-reports",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1540,
+       "to": 1560
+      },
+      {
+       "attr": "y",
+       "from": 261,
+       "to": 341
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9c10c39c79"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "077152f8bd"
+       }
+      }
+     ],
+     "id": "t-agg-dashboard",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1200,
+       "to": 1220
+      },
+      {
+       "attr": "y",
+       "from": 272,
+       "to": 352
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "5618eaa107"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "19d400afad"
+       }
+      }
+     ],
+     "id": "t-risk-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 272,
+       "to": 352
+      },
+      {
+       "attr": "width",
+       "from": 180,
+       "to": 200
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         180,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         200,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "462f1c7215"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1435a6aee3"
+       }
+      }
+     ],
+     "id": "t-enrich-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1120,
+       "to": 540
+      },
+      {
+       "attr": "y",
+       "from": 480,
+       "to": 592
+      },
+      {
+       "attr": "width",
+       "from": 0,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "from": 176,
+       "to": 208
+      },
+      {
+       "attr": "endBinding",
+       "from": "risk-model",
+       "to": "enrichment"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a3fe9493c4"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d7490cb18b"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 220,
+       "to": 540
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 48
+      },
+      {
+       "attr": "endBinding",
+       "from": "cutoff",
+       "to": "enrichment"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "67e5126736"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6a0e2cb944"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 220,
+       "to": 540
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "from": 0,
+       "to": 48
+      },
+      {
+       "attr": "endBinding",
+       "from": "cutoff",
+       "to": "enrichment"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e54cca7e9d"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d8085cef40"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 220,
+       "to": 540
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 128,
+       "to": 208
+      },
+      {
+       "attr": "endBinding",
+       "from": "cutoff",
+       "to": "enrichment"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "669ddebb48"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "b08fcae445"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the portfolio decide WHICH securities get analysed, or only get annotated with the results?",
+       "role": "pin",
+       "status": "open",
+       "target": "portfolio-db"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-portfolio-role",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1691990160,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 552
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The run is daily and one of the reports is Weekly. What happens on the other four mornings?",
+       "role": "pin",
+       "status": "open",
+       "target": "reports"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-report-cadence",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1005512094,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1908,
+      "y": 392
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which sources actually feed which scorer? I have drawn all four going in, and I do not believe it.",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-enrich-fan",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 35781275,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 868,
+      "y": 312
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "007d5f26a0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-portfolio",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        208
+       ],
+       [
+        240,
+        208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1169177848,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 384
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "5b4cd2c0eb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "news-sentiment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-news",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1165411832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 363
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d9edd74bf9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sec-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 37,
+      "id": "t-clock-edgar",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -37
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1955886753,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 220,
+      "y": 341
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "f1b647b08c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "market-feed",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 208,
+      "id": "t-clock-market",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -208
+       ],
+       [
+        240,
+        -208
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1873802832,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 140,
+      "y": 320
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "The cutoff is 05:45 but you told me Argus pulls at 06:00. It cannot do both — does the data land on its own before 05:45, or does Argus fetch it?",
+       "role": "pin",
+       "status": "open",
+       "target": "cutoff"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-cutoff-vs-start",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1313772258,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 548,
+      "y": 232
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-agg-reports",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-agg-reports-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "per calendar",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 452356590,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "per calendar",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 1631,
+      "y": 273
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-portfolio-enrich",
+      "customData": {
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-portfolio-enrich-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "positions",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1495558772,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "positions",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1077,
+      "y": 382
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "cutoff",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "cutoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "05:45 Cutoff",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1514245199,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "05:45 Cutoff",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 402,
+      "y": 262
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "cutoff-label",
+        "type": "text"
+       },
+       {
+        "id": "t-market-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-edgar-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-news-enrich",
+        "type": "arrow"
+       },
+       {
+        "id": "t-cutoff-enrich",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**The freshness line.** Anything a source has not delivered by 05:45 is not used; Last-Good stands in and everything downstream of it is marked Stale.\n\nThe run is never held. Missing the open is worse than being slightly stale, and the analyst can see the flag."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "cutoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1043333234,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 380,
+      "y": 240
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "3dc156f450"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 156,
+      "id": "t-clock-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        156
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1081330763,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "clock",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 780,
+      "y": 84
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "217cb21451"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-cutoff-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 579837294,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "cutoff",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 540,
+      "y": 272
+     },
+     "index": 8,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "The 06:00 Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 2,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 12,
+   "artifact": "argus-run-flow",
+   "nodes": 11,
+   "reason": "three vendors, a cutoff and a portfolio join are all load-bearing on this view; enrichment stays collapsed to pay for them"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Run",
+   "name": "Run"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Rerun",
+   "name": "Rerun"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Cutoff",
+   "name": "Cutoff"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Last-Good",
+   "name": "Last-Good"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Stale",
+   "name": "Stale"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Watchlist",
+   "name": "Watchlist"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Portfolio",
+   "name": "Portfolio"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Confidence Threshold",
+   "name": "Confidence Threshold"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Risk Alert",
+   "name": "Risk Alert"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Weekly Brief",
+   "name": "Weekly Brief"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Risk Deep-Dive",
+   "name": "Risk Deep-Dive"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Signals Digest",
+   "name": "Signals Digest"
+  }
+ ],
+ "revn": 3,
+ "round": 1,
+ "saved_at": "2026-08-09T10:38:48Z",
+ "selection_at_save": [],
+ "short_id": "893ccd9",
+ "summary": {
+  "headline": "rewired Market Feed→Enrichment to Market Feed→05:45 Cutoff (+40 more)",
+  "suppressed": 2,
+  "verb_counts": {
+   "added": 3,
+   "deleted": 4,
+   "label_added": 2,
+   "moved": 10,
+   "pin_added": 1,
+   "pin_deleted": 3,
+   "renamed": 1,
+   "rewired": 4,
+   "sequence_reordered": 1,
+   "step_added": 1,
+   "tooltip_changed": 7,
+   "transition_added": 2,
+   "transition_deleted": 4
+  }
+ },
+ "tripwires": [],
+ "user_note": "your rulings: 05:45 cutoff enters the flow, Portfolio DB moves to the risk model, the calendar publishes"
+}

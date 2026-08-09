@@ -1,0 +1,5273 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "position-attr-1",
+     "kind": "text",
+     "label": "quantity",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "quantity",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "position-attr-2",
+     "kind": "text",
+     "label": "cost basis",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "cost basis",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "instrument-attr-1",
+     "kind": "text",
+     "label": "ticker",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "ticker",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "instrument-attr-2",
+     "kind": "text",
+     "label": "asset class",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "asset class",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pipeline-run-attr-1",
+     "kind": "text",
+     "label": "settings snapshot",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "settings snapshot",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pipeline-run-attr-2",
+     "kind": "text",
+     "label": "trading day",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "trading day",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signal-attr-1",
+     "kind": "text",
+     "label": "kind",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "kind",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signal-attr-2",
+     "kind": "text",
+     "label": "confidence",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "confidence",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "report-attr-1",
+     "kind": "text",
+     "label": "sections",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "sections",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "report-attr-2",
+     "kind": "text",
+     "label": "period",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "period",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-portfolio-position",
+     "kind": "arrow",
+     "label": "holds 1..*",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "holds 1..*"
+      },
+      "relationship_added": {
+       "between": [
+        "Portfolio",
+        "Position"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-position-instrument",
+     "kind": "arrow",
+     "label": "of 1",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "of 1"
+      },
+      "relationship_added": {
+       "between": [
+        "Position",
+        "Instrument"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-watchlist-instrument",
+     "kind": "arrow",
+     "label": "covers 1..*",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "covers 1..*"
+      },
+      "relationship_added": {
+       "between": [
+        "Watchlist",
+        "Instrument"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-source-run",
+     "kind": "arrow",
+     "label": "feeds *",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "feeds *"
+      },
+      "relationship_added": {
+       "between": [
+        "DataSource",
+        "PipelineRun"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-run-signal",
+     "kind": "arrow",
+     "label": "emits 1..*",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "emits 1..*"
+      },
+      "relationship_added": {
+       "between": [
+        "PipelineRun",
+        "Signal"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-signal-report",
+     "kind": "arrow",
+     "label": "informs *",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "informs *"
+      },
+      "relationship_added": {
+       "between": [
+        "Signal",
+        "Report"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-signal-instrument",
+     "kind": "arrow",
+     "label": "about 1",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "about 1"
+      },
+      "relationship_added": {
+       "between": [
+        "Signal",
+        "Instrument"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "portfolio",
+     "kind": "entity",
+     "label": "Portfolio",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "Portfolio"
+      },
+      "entity_added": {
+       "label": "Portfolio"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "position",
+     "kind": "entity",
+     "label": "Position",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "Position"
+      },
+      "attribute_added": {
+       "attribute": "cost basis",
+       "entity": "Position"
+      },
+      "entity_added": {
+       "label": "Position"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "instrument",
+     "kind": "entity",
+     "label": "Instrument",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "Instrument"
+      },
+      "attribute_added": {
+       "attribute": "asset class",
+       "entity": "Instrument"
+      },
+      "entity_added": {
+       "label": "Instrument"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "watchlist",
+     "kind": "entity",
+     "label": "Watchlist",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "Watchlist"
+      },
+      "entity_added": {
+       "label": "Watchlist"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "data-source",
+     "kind": "entity",
+     "label": "DataSource",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "DataSource"
+      },
+      "entity_added": {
+       "label": "DataSource"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pipeline-run",
+     "kind": "entity",
+     "label": "PipelineRun",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "PipelineRun"
+      },
+      "attribute_added": {
+       "attribute": "trading day",
+       "entity": "PipelineRun"
+      },
+      "entity_added": {
+       "label": "PipelineRun"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signal",
+     "kind": "entity",
+     "label": "Signal",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "Signal"
+      },
+      "attribute_added": {
+       "attribute": "confidence",
+       "entity": "Signal"
+      },
+      "entity_added": {
+       "label": "Signal"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "report",
+     "kind": "entity",
+     "label": "Report",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "added": {
+       "kind": "entity",
+       "label": "Report"
+      },
+      "attribute_added": {
+       "attribute": "period",
+       "entity": "Report"
+      },
+      "entity_added": {
+       "label": "Report"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-stale-home",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      40
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Where does Stale live? A source missed the cutoff, but it is a Report that has to say so — and nothing on this diagram carries it between them."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-rerun-lineage",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      41
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-watchlist-real",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      42
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Is Watchlist a real entity, or just Instruments with a flag? I put it on the board because your list had nowhere for the 400 names to live."
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "position",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "position-grp"
+      ],
+      "height": 16,
+      "id": "position-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "quantity",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1073563132,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "quantity",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 332
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "position",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "position-grp"
+      ],
+      "height": 16,
+      "id": "position-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "cost basis",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 653530182,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "cost basis",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 352
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "instrument",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "instrument-grp"
+      ],
+      "height": 16,
+      "id": "instrument-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "ticker",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1940203577,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "ticker",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 572
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "instrument",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "instrument-grp"
+      ],
+      "height": 16,
+      "id": "instrument-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "asset class",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1789688195,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "asset class",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 592
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "pipeline-run",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "pipeline-run-grp"
+      ],
+      "height": 16,
+      "id": "pipeline-run-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "settings snapshot",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413910900,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "settings snapshot",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 332
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "pipeline-run",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "pipeline-run-grp"
+      ],
+      "height": 16,
+      "id": "pipeline-run-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "trading day",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 27432654,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "trading day",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 352
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "signal",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 16,
+      "id": "signal-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "kind",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1684047030,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "kind",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 572
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "signal",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 16,
+      "id": "signal-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "confidence",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2104087820,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "confidence",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 592
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "report",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "report-grp"
+      ],
+      "height": 16,
+      "id": "report-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "sections",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1860239086,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "sections",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 812
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "report",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "report-grp"
+      ],
+      "height": 16,
+      "id": "report-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "period",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2011803476,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "period",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 832
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-portfolio-position-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "9703e324d2"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "position",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-portfolio-position",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413059681,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 160,
+      "y": 124
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-position-instrument-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "637bdd537e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "instrument",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-position-instrument",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1337495445,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "position",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 160,
+      "y": 380
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-watchlist-instrument-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "22c917c181"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "instrument",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-watchlist-instrument",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2135713721,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "watchlist",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 160,
+      "y": 780
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-source-run-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "22d40b502b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pipeline-run",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-source-run",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1569897012,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "data-source",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 124
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-run-signal-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "2c33f77446"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "signal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-run-signal",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 417404520,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pipeline-run",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 380
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-signal-report-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "dc42040a47"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "report",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-signal-report",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 273170330,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "signal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 620
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-signal-instrument-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a6588b2a14"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "instrument",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-signal-instrument",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -440,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1509064356,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "signal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 440,
+      "x": 700,
+      "y": 580
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "portfolio-label",
+        "type": "text"
+       },
+       {
+        "id": "r-portfolio-position",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "What we actually hold. Joined at the risk model for sizing, exposure and P&L.\n\nNot the universe — that is the Watchlist."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "portfolio",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 703402082,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 60
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "position-label",
+        "type": "text"
+       },
+       {
+        "id": "r-portfolio-position",
+        "type": "arrow"
+       },
+       {
+        "id": "r-position-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Our holding in one Instrument. Quantity and cost basis are ours; ticker and asset class are the Instrument's.\n\nThat split is the one piece of this model I would defend hardest — it is what lets you talk about a name you do not own."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "position-grp"
+      ],
+      "height": 80,
+      "id": "position",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1177347317,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 300
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "instrument-label",
+        "type": "text"
+       },
+       {
+        "id": "r-position-instrument",
+        "type": "arrow"
+       },
+       {
+        "id": "r-watchlist-instrument",
+        "type": "arrow"
+       },
+       {
+        "id": "r-signal-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "The tradable thing itself, held or not. Everything else in this model points at it."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "instrument-grp"
+      ],
+      "height": 80,
+      "id": "instrument",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1019177437,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 540
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fdf0e0",
+      "boundElements": [
+       {
+        "id": "watchlist-label",
+        "type": "text"
+       },
+       {
+        "id": "r-watchlist-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "**My addition, not yours — shaded so you can find it and delete it.**\n\nYou told me the Watchlist (~400 names) defines the universe, and your entity list had nowhere to put that. Either it is a real thing with an identity, or it is just Instruments with a flag set."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "watchlist",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 872646867,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 780
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "data-source-label",
+        "type": "text"
+       },
+       {
+        "id": "r-source-run",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Market Feed, SEC EDGAR, News Stream, Portfolio DB, Macro Calendar.\n\nFive of them now, and they are not interchangeable: one is ours, one bypasses the Cutoff entirely."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "data-source",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1149472616,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 60
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pipeline-run-label",
+        "type": "text"
+       },
+       {
+        "id": "r-source-run",
+        "type": "arrow"
+       },
+       {
+        "id": "r-run-signal",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "The settings snapshot is yours and it is the load-bearing attribute here — it is the whole reason a rerun can be compared to an original instead of replacing it.\n\n'trading day' is mine: reruns are *over the same day*, so the day has to be on the run for that sentence to mean anything."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "pipeline-run-grp"
+      ],
+      "height": 80,
+      "id": "pipeline-run",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 328371889,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 300
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "signal-label",
+        "type": "text"
+       },
+       {
+        "id": "r-run-signal",
+        "type": "arrow"
+       },
+       {
+        "id": "r-signal-report",
+        "type": "arrow"
+       },
+       {
+        "id": "r-signal-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Confidence is gated at 0.70 — below it, the Signal exists internally but reaches nothing a client sees.\n\nSo 'published' is a third state this box does not yet carry."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 80,
+      "id": "signal",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1946981877,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 540
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "report-label",
+        "type": "text"
+       },
+       {
+        "id": "r-signal-report",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Weekly Brief, Risk Deep-Dive, Signals Digest.\n\nOnce published, frozen — a rerun never reissues one."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "report-grp"
+      ],
+      "height": 80,
+      "id": "report",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1143961476,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 780
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "portfolio",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "portfolio-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 353752679,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 117,
+      "y": 82
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "position",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "position-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Position",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1150097663,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Position",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 76,
+      "x": 122,
+      "y": 306
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Instrument",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 278349899,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Instrument",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 96,
+      "x": 112,
+      "y": 546
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "watchlist",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "watchlist-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Watchlist",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1721657294,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Watchlist",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 117,
+      "y": 802
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "data-source",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "data-source-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "DataSource",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 488343043,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "DataSource",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 752,
+      "y": 82
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pipeline-run",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pipeline-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "PipelineRun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1965682971,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "PipelineRun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 105,
+      "x": 748,
+      "y": 306
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "signal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "signal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signal",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 132271936,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signal",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 57,
+      "x": 772,
+      "y": 546
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "report",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "report-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Report",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1649539931,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Report",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 57,
+      "x": 772,
+      "y": 786
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-portfolio-position",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-portfolio-position-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "holds 1..*",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 216482788,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "holds 1..*",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 112,
+      "y": 202
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-position-instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-position-instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "of 1",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 526916741,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "of 1",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 141,
+      "y": 450
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-watchlist-instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-watchlist-instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "covers 1..*",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1006119478,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "covers 1..*",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 108,
+      "y": 690
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-source-run",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-source-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "feeds *",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 368167676,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "feeds *",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 766,
+      "y": 202
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-run-signal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-run-signal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "emits 1..*",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 897854270,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "emits 1..*",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 752,
+      "y": 450
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-signal-report",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-signal-report-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "informs *",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 528472430,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "informs *",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 757,
+      "y": 690
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-signal-instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-signal-instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "about 1",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1226364667,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "about 1",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 446,
+      "y": 570
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Where does Stale live? A source missed the cutoff, but it is a Report that has to say so — and nothing on this diagram carries it between them.",
+       "role": "pin",
+       "status": "open",
+       "target": "signal"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-stale-home",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1866853268,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 532
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'.",
+       "role": "pin",
+       "status": "open",
+       "target": "pipeline-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-lineage",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 561106100,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 292
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is Watchlist a real entity, or just Instruments with a flag? I put it on the board because your list had nowhere for the 400 names to live.",
+       "role": "pin",
+       "status": "open",
+       "target": "watchlist"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-watchlist-real",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 402397885,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 268,
+      "y": 772
+     },
+     "index": 42,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "position-attr-1",
+     "fact": "added",
+     "kind": "text",
+     "label": "quantity",
+     "low_signal": true
+    },
+    {
+     "element": "position-attr-2",
+     "fact": "added",
+     "kind": "text",
+     "label": "cost basis",
+     "low_signal": true
+    },
+    {
+     "element": "instrument-attr-1",
+     "fact": "added",
+     "kind": "text",
+     "label": "ticker",
+     "low_signal": true
+    },
+    {
+     "element": "instrument-attr-2",
+     "fact": "added",
+     "kind": "text",
+     "label": "asset class",
+     "low_signal": true
+    },
+    {
+     "element": "pipeline-run-attr-1",
+     "fact": "added",
+     "kind": "text",
+     "label": "settings snapshot",
+     "low_signal": true
+    },
+    {
+     "element": "pipeline-run-attr-2",
+     "fact": "added",
+     "kind": "text",
+     "label": "trading day",
+     "low_signal": true
+    },
+    {
+     "element": "signal-attr-1",
+     "fact": "added",
+     "kind": "text",
+     "label": "kind",
+     "low_signal": true
+    },
+    {
+     "element": "signal-attr-2",
+     "fact": "added",
+     "kind": "text",
+     "label": "confidence",
+     "low_signal": true
+    },
+    {
+     "element": "report-attr-1",
+     "fact": "added",
+     "kind": "text",
+     "label": "sections",
+     "low_signal": true
+    },
+    {
+     "element": "report-attr-2",
+     "fact": "added",
+     "kind": "text",
+     "label": "period",
+     "low_signal": true
+    },
+    {
+     "element": "r-portfolio-position",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "holds 1..*"
+    },
+    {
+     "element": "r-position-instrument",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "of 1"
+    },
+    {
+     "element": "r-watchlist-instrument",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "covers 1..*"
+    },
+    {
+     "element": "r-source-run",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "feeds *"
+    },
+    {
+     "element": "r-run-signal",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "emits 1..*"
+    },
+    {
+     "element": "r-signal-report",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "informs *"
+    },
+    {
+     "element": "r-signal-instrument",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "about 1"
+    },
+    {
+     "element": "portfolio",
+     "fact": "added",
+     "kind": "entity",
+     "label": "Portfolio"
+    },
+    {
+     "element": "position",
+     "fact": "added",
+     "kind": "entity",
+     "label": "Position"
+    },
+    {
+     "element": "instrument",
+     "fact": "added",
+     "kind": "entity",
+     "label": "Instrument"
+    },
+    {
+     "element": "watchlist",
+     "fact": "added",
+     "kind": "entity",
+     "label": "Watchlist"
+    },
+    {
+     "element": "data-source",
+     "fact": "added",
+     "kind": "entity",
+     "label": "DataSource"
+    },
+    {
+     "element": "pipeline-run",
+     "fact": "added",
+     "kind": "entity",
+     "label": "PipelineRun"
+    },
+    {
+     "element": "signal",
+     "fact": "added",
+     "kind": "entity",
+     "label": "Signal"
+    },
+    {
+     "element": "report",
+     "fact": "added",
+     "kind": "entity",
+     "label": "Report"
+    },
+    {
+     "element": "pin-stale-home",
+     "fact": "pin_added",
+     "question": "Where does Stale live? A source missed the cutoff, but it is a Report that has to say so — and nothing on this diagram carries it between them."
+    },
+    {
+     "element": "pin-rerun-lineage",
+     "fact": "pin_added",
+     "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'."
+    },
+    {
+     "element": "pin-watchlist-real",
+     "fact": "pin_added",
+     "question": "Is Watchlist a real entity, or just Instruments with a flag? I put it on the board because your list had nowhere for the 400 names to live."
+    },
+    {
+     "attribute": "quantity",
+     "element": "position",
+     "entity": "Position",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "cost basis",
+     "element": "position",
+     "entity": "Position",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "ticker",
+     "element": "instrument",
+     "entity": "Instrument",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "asset class",
+     "element": "instrument",
+     "entity": "Instrument",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "settings snapshot",
+     "element": "pipeline-run",
+     "entity": "PipelineRun",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "trading day",
+     "element": "pipeline-run",
+     "entity": "PipelineRun",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "kind",
+     "element": "signal",
+     "entity": "Signal",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "confidence",
+     "element": "signal",
+     "entity": "Signal",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "sections",
+     "element": "report",
+     "entity": "Report",
+     "fact": "attribute_added"
+    },
+    {
+     "attribute": "period",
+     "element": "report",
+     "entity": "Report",
+     "fact": "attribute_added"
+    },
+    {
+     "between": [
+      "Portfolio",
+      "Position"
+     ],
+     "element": "r-portfolio-position",
+     "fact": "relationship_added"
+    },
+    {
+     "between": [
+      "Position",
+      "Instrument"
+     ],
+     "element": "r-position-instrument",
+     "fact": "relationship_added"
+    },
+    {
+     "between": [
+      "Watchlist",
+      "Instrument"
+     ],
+     "element": "r-watchlist-instrument",
+     "fact": "relationship_added"
+    },
+    {
+     "between": [
+      "DataSource",
+      "PipelineRun"
+     ],
+     "element": "r-source-run",
+     "fact": "relationship_added"
+    },
+    {
+     "between": [
+      "PipelineRun",
+      "Signal"
+     ],
+     "element": "r-run-signal",
+     "fact": "relationship_added"
+    },
+    {
+     "between": [
+      "Signal",
+      "Report"
+     ],
+     "element": "r-signal-report",
+     "fact": "relationship_added"
+    },
+    {
+     "between": [
+      "Signal",
+      "Instrument"
+     ],
+     "element": "r-signal-instrument",
+     "fact": "relationship_added"
+    },
+    {
+     "element": "portfolio",
+     "fact": "entity_added",
+     "label": "Portfolio"
+    },
+    {
+     "element": "position",
+     "fact": "entity_added",
+     "label": "Position"
+    },
+    {
+     "element": "instrument",
+     "fact": "entity_added",
+     "label": "Instrument"
+    },
+    {
+     "element": "watchlist",
+     "fact": "entity_added",
+     "label": "Watchlist"
+    },
+    {
+     "element": "data-source",
+     "fact": "entity_added",
+     "label": "DataSource"
+    },
+    {
+     "element": "pipeline-run",
+     "fact": "entity_added",
+     "label": "PipelineRun"
+    },
+    {
+     "element": "signal",
+     "fact": "entity_added",
+     "label": "Signal"
+    },
+    {
+     "element": "report",
+     "fact": "entity_added",
+     "label": "Report"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is Watchlist a real entity, or just Instruments with a flag? I put it on the board because your list had nowhere for the 400 names to live.",
+       "role": "pin",
+       "status": "open",
+       "target": "watchlist"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-watchlist-real",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 402397885,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 268,
+      "y": 772
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is a Rerun a PipelineRun? If so this box needs an arrow to itself, because nothing here can express 'this run is a rerun of that one'.",
+       "role": "pin",
+       "status": "open",
+       "target": "pipeline-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-lineage",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 561106100,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 292
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Where does Stale live? A source missed the cutoff, but it is a Report that has to say so — and nothing on this diagram carries it between them.",
+       "role": "pin",
+       "status": "open",
+       "target": "signal"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-stale-home",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1866853268,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 532
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-signal-instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-signal-instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "about 1",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1226364667,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "about 1",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 446,
+      "y": 570
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-signal-report",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-signal-report-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "informs *",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 528472430,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "informs *",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 757,
+      "y": 690
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-run-signal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-run-signal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "emits 1..*",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 897854270,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "emits 1..*",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 752,
+      "y": 450
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-source-run",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-source-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "feeds *",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 368167676,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "feeds *",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 766,
+      "y": 202
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-watchlist-instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-watchlist-instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "covers 1..*",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1006119478,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "covers 1..*",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 108,
+      "y": 690
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-position-instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-position-instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "of 1",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 526916741,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "of 1",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 141,
+      "y": 450
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "r-portfolio-position",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "r-portfolio-position-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "holds 1..*",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 216482788,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "holds 1..*",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 112,
+      "y": 202
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "report",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "report-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Report",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1649539931,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Report",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 57,
+      "x": 772,
+      "y": 786
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "signal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "signal-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signal",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 132271936,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signal",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 57,
+      "x": 772,
+      "y": 546
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "pipeline-run",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "pipeline-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "PipelineRun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1965682971,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "PipelineRun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 105,
+      "x": 748,
+      "y": 306
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "data-source",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "data-source-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "DataSource",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 488343043,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "DataSource",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 752,
+      "y": 82
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "watchlist",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "watchlist-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Watchlist",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1721657294,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Watchlist",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 117,
+      "y": 802
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "instrument",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "instrument-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Instrument",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 278349899,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Instrument",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 96,
+      "x": 112,
+      "y": 546
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "position",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "position-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Position",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1150097663,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Position",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 76,
+      "x": 122,
+      "y": 306
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "portfolio",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "portfolio-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 353752679,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 117,
+      "y": 82
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "report-label",
+        "type": "text"
+       },
+       {
+        "id": "r-signal-report",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Weekly Brief, Risk Deep-Dive, Signals Digest.\n\nOnce published, frozen — a rerun never reissues one."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "report-grp"
+      ],
+      "height": 80,
+      "id": "report",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1143961476,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 780
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "signal-label",
+        "type": "text"
+       },
+       {
+        "id": "r-run-signal",
+        "type": "arrow"
+       },
+       {
+        "id": "r-signal-report",
+        "type": "arrow"
+       },
+       {
+        "id": "r-signal-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Confidence is gated at 0.70 — below it, the Signal exists internally but reaches nothing a client sees.\n\nSo 'published' is a third state this box does not yet carry."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 80,
+      "id": "signal",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1946981877,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 540
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "pipeline-run-label",
+        "type": "text"
+       },
+       {
+        "id": "r-source-run",
+        "type": "arrow"
+       },
+       {
+        "id": "r-run-signal",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "The settings snapshot is yours and it is the load-bearing attribute here — it is the whole reason a rerun can be compared to an original instead of replacing it.\n\n'trading day' is mine: reruns are *over the same day*, so the day has to be on the run for that sentence to mean anything."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "pipeline-run-grp"
+      ],
+      "height": 80,
+      "id": "pipeline-run",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 328371889,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 300
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "data-source-label",
+        "type": "text"
+       },
+       {
+        "id": "r-source-run",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Market Feed, SEC EDGAR, News Stream, Portfolio DB, Macro Calendar.\n\nFive of them now, and they are not interchangeable: one is ours, one bypasses the Cutoff entirely."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "data-source",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1149472616,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 60
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fdf0e0",
+      "boundElements": [
+       {
+        "id": "watchlist-label",
+        "type": "text"
+       },
+       {
+        "id": "r-watchlist-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "**My addition, not yours — shaded so you can find it and delete it.**\n\nYou told me the Watchlist (~400 names) defines the universe, and your entity list had nowhere to put that. Either it is a real thing with an identity, or it is just Instruments with a flag set."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "watchlist",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 872646867,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 780
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "instrument-label",
+        "type": "text"
+       },
+       {
+        "id": "r-position-instrument",
+        "type": "arrow"
+       },
+       {
+        "id": "r-watchlist-instrument",
+        "type": "arrow"
+       },
+       {
+        "id": "r-signal-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "The tradable thing itself, held or not. Everything else in this model points at it."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "instrument-grp"
+      ],
+      "height": 80,
+      "id": "instrument",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1019177437,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 540
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "position-label",
+        "type": "text"
+       },
+       {
+        "id": "r-portfolio-position",
+        "type": "arrow"
+       },
+       {
+        "id": "r-position-instrument",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "Our holding in one Instrument. Quantity and cost basis are ours; ticker and asset class are the Instrument's.\n\nThat split is the one piece of this model I would defend hardest — it is what lets you talk about a name you do not own."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "position-grp"
+      ],
+      "height": 80,
+      "id": "position",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1177347317,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 300
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "portfolio-label",
+        "type": "text"
+       },
+       {
+        "id": "r-portfolio-position",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "entity",
+       "role": "node",
+       "tooltip": "What we actually hold. Joined at the risk model for sizing, exposure and P&L.\n\nNot the universe — that is the Watchlist."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "portfolio",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 703402082,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 60,
+      "y": 60
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-signal-instrument-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a6588b2a14"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "instrument",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "r-signal-instrument",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -440,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1509064356,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "signal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 440,
+      "x": 700,
+      "y": 580
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-signal-report-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "dc42040a47"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "report",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-signal-report",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 273170330,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "signal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 620
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-run-signal-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "2c33f77446"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "signal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-run-signal",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 417404520,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "pipeline-run",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 380
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-source-run-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "22d40b502b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "pipeline-run",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-source-run",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1569897012,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "data-source",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 800,
+      "y": 124
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-watchlist-instrument-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "22c917c181"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "instrument",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-watchlist-instrument",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2135713721,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "watchlist",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 160,
+      "y": 780
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-position-instrument-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "637bdd537e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "instrument",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "r-position-instrument",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1337495445,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "position",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 160,
+      "y": 380
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "r-portfolio-position-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "9703e324d2"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "position",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "r-portfolio-position",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413059681,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 160,
+      "y": 124
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "report",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "report-grp"
+      ],
+      "height": 16,
+      "id": "report-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "period",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2011803476,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "period",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 832
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "report",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "report-grp"
+      ],
+      "height": 16,
+      "id": "report-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "sections",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1860239086,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "sections",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 812
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "signal",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 16,
+      "id": "signal-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "confidence",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2104087820,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "confidence",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 592
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "signal",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "signal-grp"
+      ],
+      "height": 16,
+      "id": "signal-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "kind",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1684047030,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "kind",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 572
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "pipeline-run",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "pipeline-run-grp"
+      ],
+      "height": 16,
+      "id": "pipeline-run-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "trading day",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 27432654,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "trading day",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 352
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "pipeline-run",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "pipeline-run-grp"
+      ],
+      "height": 16,
+      "id": "pipeline-run-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "settings snapshot",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 413910900,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "settings snapshot",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 710,
+      "y": 332
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "instrument",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "instrument-grp"
+      ],
+      "height": 16,
+      "id": "instrument-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "asset class",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1789688195,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "asset class",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 592
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "instrument",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "instrument-grp"
+      ],
+      "height": 16,
+      "id": "instrument-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "ticker",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1940203577,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "ticker",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 572
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "position",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "position-grp"
+      ],
+      "height": 16,
+      "id": "position-attr-2",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "cost basis",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 653530182,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "cost basis",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 352
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "attr_of": "position",
+       "author": "agent",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 12,
+      "frameId": null,
+      "groupIds": [
+       "position-grp"
+      ],
+      "height": 16,
+      "id": "position-attr-1",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "quantity",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1073563132,
+      "strokeColor": "#5c584d",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "quantity",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 180,
+      "x": 70,
+      "y": 332
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus — domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 4,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Instrument",
+   "name": "Instrument"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Position",
+   "name": "Position"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Signal",
+   "name": "Signal"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Report",
+   "name": "Report"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "DataSource",
+   "name": "DataSource"
+  },
+  {
+   "action": "add_mapping",
+   "concept": "signal",
+   "elements": [
+    "argus-domain#signal",
+    "enrichment-pipeline#scored-signals"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "portfolio",
+   "elements": [
+    "argus-domain#portfolio",
+    "argus-run-flow#portfolio-db"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "run",
+   "elements": [
+    "argus-domain#pipeline-run",
+    "argus-run-flow#clock"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "id": "argus",
+   "name": "Argus",
+   "view_types": {
+    "argus-domain": "domain"
+   },
+   "views": [
+    "argus-domain"
+   ]
+  }
+ ],
+ "revn": 5,
+ "round": 1,
+ "saved_at": "2026-08-09T10:45:01Z",
+ "selection_at_save": [],
+ "short_id": "bf96583",
+ "summary": {
+  "headline": "added Portfolio (+42 more)",
+  "suppressed": 10,
+  "verb_counts": {
+   "added": 25,
+   "attribute_added": 10,
+   "entity_added": 8,
+   "pin_added": 3,
+   "relationship_added": 7
+  }
+ },
+ "tripwires": [],
+ "user_note": "the shape you argued yourselves into, drawn — plus one entity and one relationship I added"
+}

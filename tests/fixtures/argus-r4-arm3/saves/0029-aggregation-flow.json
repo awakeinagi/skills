@@ -1,0 +1,3939 @@
+{
+ "artifacts": {
+  "aggregation-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-in-gate",
+     "kind": "arrow",
+     "label": "a-in-gate",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-in-gate"
+      },
+      "transition_added": {
+       "between": [
+        "Scored Signals",
+        "≥ 0.70?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-gate-drop",
+     "kind": "arrow",
+     "label": "no",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "no"
+      },
+      "transition_added": {
+       "between": [
+        "≥ 0.70?",
+        "Never published"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-gate-combine",
+     "kind": "arrow",
+     "label": "yes",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "yes"
+      },
+      "transition_added": {
+       "between": [
+        "≥ 0.70?",
+        "Combine per instrument"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-combine-crowd",
+     "kind": "arrow",
+     "label": "a-combine-crowd",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-combine-crowd"
+      },
+      "transition_added": {
+       "between": [
+        "Combine per instrument",
+        "Crowding discount"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-crowd-risk",
+     "kind": "arrow",
+     "label": "a-crowd-risk",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-crowd-risk"
+      },
+      "transition_added": {
+       "between": [
+        "Crowding discount",
+        "Risk model + portfolio"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-risk-alertgate",
+     "kind": "arrow",
+     "label": "a-risk-alertgate",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-risk-alertgate"
+      },
+      "transition_added": {
+       "between": [
+        "Risk model + portfolio",
+        "VaR > 2.5%?"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-alertgate-alert",
+     "kind": "arrow",
+     "label": "yes",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "yes"
+      },
+      "transition_added": {
+       "between": [
+        "VaR > 2.5%?",
+        "Risk Alert"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-alertgate-out",
+     "kind": "arrow",
+     "label": "all names",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "all names"
+      },
+      "transition_added": {
+       "between": [
+        "VaR > 2.5%?",
+        "Aggregated view"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "signals-in",
+     "kind": "store",
+     "label": "Scored Signals",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Scored Signals"
+      },
+      "step_added": {
+       "label": "Scored Signals"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "gate-conf",
+     "kind": "control",
+     "label": "≥ 0.70?",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "≥ 0.70?"
+      },
+      "branch_added": {
+       "label": "≥ 0.70?"
+      },
+      "step_added": {
+       "label": "≥ 0.70?"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "dropped",
+     "kind": "sink",
+     "label": "Never published",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Never published"
+      },
+      "step_added": {
+       "label": "Never published"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "combine",
+     "kind": "transform",
+     "label": "Combine per instrument",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Combine per instrument"
+      },
+      "step_added": {
+       "label": "Combine per instrument"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "crowding",
+     "kind": "transform",
+     "label": "Crowding discount",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Crowding discount"
+      },
+      "step_added": {
+       "label": "Crowding discount"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk model + portfolio",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Risk model + portfolio"
+      },
+      "step_added": {
+       "label": "Risk model + portfolio"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "alert-gate",
+     "kind": "control",
+     "label": "VaR > 2.5%?",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "VaR > 2.5%?"
+      },
+      "branch_added": {
+       "label": "VaR > 2.5%?"
+      },
+      "step_added": {
+       "label": "VaR > 2.5%?"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "alert",
+     "kind": "sink",
+     "label": "Risk Alert",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Risk Alert"
+      },
+      "step_added": {
+       "label": "Risk Alert"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "aggregate-out",
+     "kind": "store",
+     "label": "Aggregated view",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Aggregated view"
+      },
+      "step_added": {
+       "label": "Aggregated view"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-crowding-meaning",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Your note, drawn. But 'crowded trades' means two different things and this box can only be one of them — which did you mean?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-combine-mechanism",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      31
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "How do four signals on one name actually become one view of it? This box has been in every description since the first message and has never been opened."
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "73110f0dfd"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "gate-conf",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-in-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1133264367,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "signals-in",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 140,
+      "x": 220,
+      "y": 332
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-gate-drop-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a208f2d3e7"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "dropped",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "a-gate-drop",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1277388646,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "gate-conf",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 460,
+      "y": 372
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-gate-combine-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "075d4540e8"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "combine",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-gate-combine",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1079976496,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "gate-conf",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 140,
+      "x": 560,
+      "y": 332
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "28d4a122d7"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "crowding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-combine-crowd",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1354140879,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "combine",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 900,
+      "y": 332
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "989bb190b3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-crowd-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 870154478,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "crowding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 1220,
+      "y": 332
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "ef9e2f1e6c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "alert-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-risk-alertgate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1371117707,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 1540,
+      "y": 332
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-alertgate-alert-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "11ac351ed1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "alert",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "a-alertgate-alert",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 137908862,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "alert-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1760,
+      "y": 292
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-alertgate-out-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "faa7266e73"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregate-out",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-alertgate-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1958269002,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "alert-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 140,
+      "x": 1860,
+      "y": 332
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "signals-in-label",
+        "type": "text"
+       },
+       {
+        "id": "a-in-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Everything the four scorers emitted, each with a kind, a confidence and a scoring time.\n\nClick through to see who read what."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "signals-in",
+      "isDeleted": false,
+      "link": "artifact:enrichment-pipeline",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1205075915,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 40,
+      "y": 300
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "gate-conf-label",
+        "type": "text"
+       },
+       {
+        "id": "a-in-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "a-gate-drop",
+        "type": "arrow"
+       },
+       {
+        "id": "a-gate-combine",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The confidence gate. Settled: it is a **gate, not a label** — below 0.70 a Signal still exists internally and reaches nothing a client sees.\n\nSet from the console. Dragging it down does not dim anything; it publishes signals that were previously invisible."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "gate-conf",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 246583094,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 360,
+      "y": 292
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "dropped-label",
+        "type": "text"
+       },
+       {
+        "id": "a-gate-drop",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Below-threshold signals. They exist, they are stored, and no client ever sees them.\n\nWorth noticing: nothing on the dashboard or in any report says how many landed here. An analyst cannot tell a quiet day from a day where forty signals fell just short."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "dropped",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1384516017,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 360,
+      "y": 540
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "combine-label",
+        "type": "text"
+       },
+       {
+        "id": "a-gate-combine",
+        "type": "arrow"
+       },
+       {
+        "id": "a-combine-crowd",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**A black box, and the oldest one in the project.** Your first description was 'everything gets weighed into a risk model and an aggregator' — this is the weighing, and nobody has ever said how it works.\n\nFour scorers can all fire on one name. Something turns four numbers into one view of that instrument, and whatever it is decides what the whole product says."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "combine",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 800955308,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 300
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fdf0e0",
+      "boundElements": [
+       {
+        "id": "crowding-label",
+        "type": "text"
+       },
+       {
+        "id": "a-combine-crowd",
+        "type": "arrow"
+       },
+       {
+        "id": "a-crowd-risk",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**Mine, shaded so you can delete it.** This is your 'watch out for crowded trades' note, drawn as the smallest thing that could satisfy it.\n\nIt sits here because this is the only place it can sit: after signals are combined per name, before that combination is turned into risk. Anywhere earlier and there is nothing to discount; anywhere later and the risk numbers are already wrong."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "crowding",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 688593482,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1020,
+      "y": 300
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "risk-model-label",
+        "type": "text"
+       },
+       {
+        "id": "a-crowd-risk",
+        "type": "arrow"
+       },
+       {
+        "id": "a-risk-alertgate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Where the Portfolio joins: position sizing, exposure, P&L. Produces the 1-day 95% VaR.\n\nThe Macro Calendar also fed in around here — off by default since Aug 2026, so not drawn."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "risk-model",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1612519276,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1340,
+      "y": 300
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "alert-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "a-risk-alertgate",
+        "type": "arrow"
+       },
+       {
+        "id": "a-alertgate-alert",
+        "type": "arrow"
+       },
+       {
+        "id": "a-alertgate-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The risk alert threshold, set from the console.\n\nThe dashboard currently reads 2.4%, which is one tenth of a point below this line."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "alert-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 881457599,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1660,
+      "y": 292
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "alert-label",
+        "type": "text"
+       },
+       {
+        "id": "a-alertgate-alert",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Surfaces on the dashboard the same day. It does not wait for the monthly Risk Deep-Dive.\n\nStill unmodelled: whether a Risk Alert is a Signal with a kind, or its own concept. Parked by you, deliberately."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "alert",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 402474689,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1660,
+      "y": 60
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "aggregate-out-label",
+        "type": "text"
+       },
+       {
+        "id": "a-alertgate-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "The one thing the dashboard and all three reports read from."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "aggregate-out",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1057048666,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 2000,
+      "y": 300
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "signals-in",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "signals-in-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Scored Signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1396682743,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Scored Signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 63,
+      "y": 322
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "gate-conf",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "gate-conf-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "≥ 0.70?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2133877718,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "≥ 0.70?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 426,
+      "y": 322
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dropped",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dropped-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Never published",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1489812134,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Never published",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 388,
+      "y": 562
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "combine",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "combine-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Combine per instrument",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927030064,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Combine per instrument",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 712,
+      "y": 312
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "crowding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "crowding-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Crowding discount",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 645614841,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Crowding discount",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 1038,
+      "y": 322
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-model",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "risk-model-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk model + portfolio",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1678953455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk model + portfolio",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 1352,
+      "y": 312
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "alert-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "alert-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "VaR > 2.5%?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1053502543,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "VaR > 2.5%?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 1708,
+      "y": 322
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "alert",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "alert-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk Alert",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 571935689,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk Alert",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1712,
+      "y": 82
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "aggregate-out",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "aggregate-out-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregated view",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 275311983,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregated view",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 2028,
+      "y": 322
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-gate-drop",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-gate-drop-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "no",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2093818832,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "no",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 19,
+      "x": 450,
+      "y": 446
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-gate-combine",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-gate-combine-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "yes",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 519764291,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "yes",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 28,
+      "x": 616,
+      "y": 322
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-alertgate-alert",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-alertgate-alert-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "yes",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 167928146,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "yes",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 28,
+      "x": 1746,
+      "y": 198
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-alertgate-out",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-alertgate-out-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "all names",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 256441236,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "all names",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1887,
+      "y": 322
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Your note, drawn. But 'crowded trades' means two different things and this box can only be one of them — which did you mean?",
+       "role": "pin",
+       "status": "open",
+       "target": "crowding"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-crowding-meaning",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 594665649,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1228,
+      "y": 292
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "How do four signals on one name actually become one view of it? This box has been in every description since the first message and has never been opened.",
+       "role": "pin",
+       "status": "open",
+       "target": "combine"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-combine-mechanism",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 477959393,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 292
+     },
+     "index": 31,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "a-in-gate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-in-gate"
+    },
+    {
+     "element": "a-gate-drop",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "no"
+    },
+    {
+     "element": "a-gate-combine",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "yes"
+    },
+    {
+     "element": "a-combine-crowd",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-combine-crowd"
+    },
+    {
+     "element": "a-crowd-risk",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-crowd-risk"
+    },
+    {
+     "element": "a-risk-alertgate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-risk-alertgate"
+    },
+    {
+     "element": "a-alertgate-alert",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "yes"
+    },
+    {
+     "element": "a-alertgate-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "all names"
+    },
+    {
+     "element": "signals-in",
+     "fact": "added",
+     "kind": "store",
+     "label": "Scored Signals"
+    },
+    {
+     "element": "gate-conf",
+     "fact": "added",
+     "kind": "control",
+     "label": "≥ 0.70?"
+    },
+    {
+     "element": "dropped",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Never published"
+    },
+    {
+     "element": "combine",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Combine per instrument"
+    },
+    {
+     "element": "crowding",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Crowding discount"
+    },
+    {
+     "element": "risk-model",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Risk model + portfolio"
+    },
+    {
+     "element": "alert-gate",
+     "fact": "added",
+     "kind": "control",
+     "label": "VaR > 2.5%?"
+    },
+    {
+     "element": "alert",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Risk Alert"
+    },
+    {
+     "element": "aggregate-out",
+     "fact": "added",
+     "kind": "store",
+     "label": "Aggregated view"
+    },
+    {
+     "element": "pin-crowding-meaning",
+     "fact": "pin_added",
+     "question": "Your note, drawn. But 'crowded trades' means two different things and this box can only be one of them — which did you mean?"
+    },
+    {
+     "element": "pin-combine-mechanism",
+     "fact": "pin_added",
+     "question": "How do four signals on one name actually become one view of it? This box has been in every description since the first message and has never been opened."
+    },
+    {
+     "between": [
+      "Scored Signals",
+      "≥ 0.70?"
+     ],
+     "element": "a-in-gate",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "≥ 0.70?",
+      "Never published"
+     ],
+     "element": "a-gate-drop",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "≥ 0.70?",
+      "Combine per instrument"
+     ],
+     "element": "a-gate-combine",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Combine per instrument",
+      "Crowding discount"
+     ],
+     "element": "a-combine-crowd",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Crowding discount",
+      "Risk model + portfolio"
+     ],
+     "element": "a-crowd-risk",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Risk model + portfolio",
+      "VaR > 2.5%?"
+     ],
+     "element": "a-risk-alertgate",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "VaR > 2.5%?",
+      "Risk Alert"
+     ],
+     "element": "a-alertgate-alert",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "VaR > 2.5%?",
+      "Aggregated view"
+     ],
+     "element": "a-alertgate-out",
+     "fact": "transition_added"
+    },
+    {
+     "element": "signals-in",
+     "fact": "step_added",
+     "label": "Scored Signals"
+    },
+    {
+     "element": "gate-conf",
+     "fact": "step_added",
+     "label": "≥ 0.70?"
+    },
+    {
+     "element": "gate-conf",
+     "fact": "branch_added",
+     "label": "≥ 0.70?"
+    },
+    {
+     "element": "dropped",
+     "fact": "step_added",
+     "label": "Never published"
+    },
+    {
+     "element": "combine",
+     "fact": "step_added",
+     "label": "Combine per instrument"
+    },
+    {
+     "element": "crowding",
+     "fact": "step_added",
+     "label": "Crowding discount"
+    },
+    {
+     "element": "risk-model",
+     "fact": "step_added",
+     "label": "Risk model + portfolio"
+    },
+    {
+     "element": "alert-gate",
+     "fact": "step_added",
+     "label": "VaR > 2.5%?"
+    },
+    {
+     "element": "alert-gate",
+     "fact": "branch_added",
+     "label": "VaR > 2.5%?"
+    },
+    {
+     "element": "alert",
+     "fact": "step_added",
+     "label": "Risk Alert"
+    },
+    {
+     "element": "aggregate-out",
+     "fact": "step_added",
+     "label": "Aggregated view"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "How do four signals on one name actually become one view of it? This box has been in every description since the first message and has never been opened.",
+       "role": "pin",
+       "status": "open",
+       "target": "combine"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-combine-mechanism",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 477959393,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 292
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Your note, drawn. But 'crowded trades' means two different things and this box can only be one of them — which did you mean?",
+       "role": "pin",
+       "status": "open",
+       "target": "crowding"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-crowding-meaning",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 594665649,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1228,
+      "y": 292
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-alertgate-out",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-alertgate-out-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "all names",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 256441236,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "all names",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 1887,
+      "y": 322
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-alertgate-alert",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-alertgate-alert-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "yes",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 167928146,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "yes",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 28,
+      "x": 1746,
+      "y": 198
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-gate-combine",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-gate-combine-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "yes",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 519764291,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "yes",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 28,
+      "x": 616,
+      "y": 322
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-gate-drop",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "a-gate-drop-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "no",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2093818832,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "no",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 19,
+      "x": 450,
+      "y": 446
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "aggregate-out",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "aggregate-out-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Aggregated view",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 275311983,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Aggregated view",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 2028,
+      "y": 322
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "alert",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "alert-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk Alert",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 571935689,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk Alert",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 96,
+      "x": 1712,
+      "y": 82
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "alert-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "alert-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "VaR > 2.5%?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1053502543,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "VaR > 2.5%?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 1708,
+      "y": 322
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-model",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "risk-model-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk model + portfolio",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1678953455,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk model + portfolio",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 1352,
+      "y": 312
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "crowding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "crowding-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Crowding discount",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 645614841,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Crowding discount",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 1038,
+      "y": 322
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "combine",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "combine-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Combine per instrument",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927030064,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Combine per instrument",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 176,
+      "x": 712,
+      "y": 312
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dropped",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dropped-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Never published",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1489812134,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Never published",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 388,
+      "y": 562
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "gate-conf",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "gate-conf-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "≥ 0.70?",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2133877718,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "≥ 0.70?",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 426,
+      "y": 322
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "signals-in",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "signals-in-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Scored Signals",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1396682743,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Scored Signals",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 134,
+      "x": 63,
+      "y": 322
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "aggregate-out-label",
+        "type": "text"
+       },
+       {
+        "id": "a-alertgate-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "The one thing the dashboard and all three reports read from."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "aggregate-out",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1057048666,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 2000,
+      "y": 300
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "alert-label",
+        "type": "text"
+       },
+       {
+        "id": "a-alertgate-alert",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Surfaces on the dashboard the same day. It does not wait for the monthly Risk Deep-Dive.\n\nStill unmodelled: whether a Risk Alert is a Signal with a kind, or its own concept. Parked by you, deliberately."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "alert",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 402474689,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1660,
+      "y": 60
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "alert-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "a-risk-alertgate",
+        "type": "arrow"
+       },
+       {
+        "id": "a-alertgate-alert",
+        "type": "arrow"
+       },
+       {
+        "id": "a-alertgate-out",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The risk alert threshold, set from the console.\n\nThe dashboard currently reads 2.4%, which is one tenth of a point below this line."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "alert-gate",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 881457599,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1660,
+      "y": 292
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "risk-model-label",
+        "type": "text"
+       },
+       {
+        "id": "a-crowd-risk",
+        "type": "arrow"
+       },
+       {
+        "id": "a-risk-alertgate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Where the Portfolio joins: position sizing, exposure, P&L. Produces the 1-day 95% VaR.\n\nThe Macro Calendar also fed in around here — off by default since Aug 2026, so not drawn."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "risk-model",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1612519276,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1340,
+      "y": 300
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#fdf0e0",
+      "boundElements": [
+       {
+        "id": "crowding-label",
+        "type": "text"
+       },
+       {
+        "id": "a-combine-crowd",
+        "type": "arrow"
+       },
+       {
+        "id": "a-crowd-risk",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**Mine, shaded so you can delete it.** This is your 'watch out for crowded trades' note, drawn as the smallest thing that could satisfy it.\n\nIt sits here because this is the only place it can sit: after signals are combined per name, before that combination is turned into risk. Anywhere earlier and there is nothing to discount; anywhere later and the risk numbers are already wrong."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "crowding",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 688593482,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 1020,
+      "y": 300
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "combine-label",
+        "type": "text"
+       },
+       {
+        "id": "a-gate-combine",
+        "type": "arrow"
+       },
+       {
+        "id": "a-combine-crowd",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**A black box, and the oldest one in the project.** Your first description was 'everything gets weighed into a risk model and an aggregator' — this is the weighing, and nobody has ever said how it works.\n\nFour scorers can all fire on one name. Something turns four numbers into one view of that instrument, and whatever it is decides what the whole product says."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "combine",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 800955308,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 700,
+      "y": 300
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "dropped-label",
+        "type": "text"
+       },
+       {
+        "id": "a-gate-drop",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "Below-threshold signals. They exist, they are stored, and no client ever sees them.\n\nWorth noticing: nothing on the dashboard or in any report says how many landed here. An analyst cannot tell a quiet day from a day where forty signals fell just short."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "dropped",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1384516017,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 360,
+      "y": 540
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "gate-conf-label",
+        "type": "text"
+       },
+       {
+        "id": "a-in-gate",
+        "type": "arrow"
+       },
+       {
+        "id": "a-gate-drop",
+        "type": "arrow"
+       },
+       {
+        "id": "a-gate-combine",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "The confidence gate. Settled: it is a **gate, not a label** — below 0.70 a Signal still exists internally and reaches nothing a client sees.\n\nSet from the console. Dragging it down does not dim anything; it publishes signals that were previously invisible."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 80,
+      "id": "gate-conf",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 246583094,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "diamond",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 360,
+      "y": 292
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "signals-in-label",
+        "type": "text"
+       },
+       {
+        "id": "a-in-gate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Everything the four scorers emitted, each with a kind, a confidence and a scoring time.\n\nClick through to see who read what."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "signals-in",
+      "isDeleted": false,
+      "link": "artifact:enrichment-pipeline",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1205075915,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 40,
+      "y": 300
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-alertgate-out-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "faa7266e73"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregate-out",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-alertgate-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1958269002,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "alert-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 140,
+      "x": 1860,
+      "y": 332
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-alertgate-alert-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "11ac351ed1"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "alert",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "a-alertgate-alert",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 137908862,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "alert-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1760,
+      "y": 292
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "ef9e2f1e6c"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "alert-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-risk-alertgate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1371117707,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 1540,
+      "y": 332
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "989bb190b3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-crowd-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 870154478,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "crowding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 1220,
+      "y": 332
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "28d4a122d7"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "crowding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-combine-crowd",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        120,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1354140879,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "combine",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 900,
+      "y": 332
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-gate-combine-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "075d4540e8"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "combine",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-gate-combine",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1079976496,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "gate-conf",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 140,
+      "x": 560,
+      "y": 332
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-gate-drop-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a208f2d3e7"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "dropped",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 168,
+      "id": "a-gate-drop",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        168
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1277388646,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "gate-conf",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 460,
+      "y": 372
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "73110f0dfd"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "gate-conf",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-in-gate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        140,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1133264367,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "signals-in",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 140,
+      "x": 220,
+      "y": 332
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "From signals to risk"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 28,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "signal",
+   "elements": [
+    "argus-domain#signal",
+    "aggregation-flow#signals-in"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "risk-alert",
+   "elements": [
+    "aggregation-flow#alert",
+    "admin-console#sl-var"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "id": "aggregation",
+   "name": "Aggregation",
+   "view_types": {
+    "aggregation-flow": "flow"
+   },
+   "views": [
+    "aggregation-flow"
+   ]
+  }
+ ],
+ "revn": 29,
+ "round": 4,
+ "saved_at": "2026-08-09T11:29:56Z",
+ "selection_at_save": [],
+ "short_id": "54a6e21",
+ "summary": {
+  "headline": "added ≥ 0.70? (+37 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 17,
+   "branch_added": 2,
+   "pin_added": 2,
+   "step_added": 9,
+   "transition_added": 8
+  }
+ },
+ "tripwires": [],
+ "user_note": "open the aggregator: the gate, the combine, and where crowding would enter"
+}

@@ -1,0 +1,54 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 30,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "mapping_tombstoned",
+   "mapping": {
+    "concept": "risk-alert",
+    "elements": [
+     "admin-console#sl-var",
+     "argus-run-flow#risk-model"
+    ],
+    "kinds": [
+     "attribute_added",
+     "attribute_removed"
+    ],
+    "note": "intentionally-divergent: Signal is the domain entity; the enrichment flow's store node is a pipeline stage, so entity attribute rows have nothing to say to it"
+   }
+  },
+  {
+   "action": "remove_mapping",
+   "index": 4
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Aggregation",
+   "id": "aggregation",
+   "name": "Aggregation"
+  }
+ ],
+ "revn": 31,
+ "round": 4,
+ "saved_at": "2026-08-09T11:30:30Z",
+ "selection_at_save": [],
+ "short_id": "52b495a",
+ "summary": {
+  "headline": "registry: mapping tombstoned (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "registry hygiene: the run flow's collapsed risk box is superseded by this view"
+}

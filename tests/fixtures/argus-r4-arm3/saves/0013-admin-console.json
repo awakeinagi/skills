@@ -1,0 +1,589 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-partial-rerun",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "panel-pipelines",
+     "kind": "block",
+     "label": "Pipelines",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "tooltip_added": {
+       "label": "Pipelines",
+       "text": "**Two different animals in one panel.**\n\nThe four small buttons re-score a singl"
+      }
+     },
+     "verb": "tooltip_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "btn-rerun-sentiment",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "tooltip_added": {
+       "label": "rerun",
+       "text": "Re-scores sentiment only. The other three passes keep their existing output.\n\nTh"
+      }
+     },
+     "verb": "tooltip_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "btn-rerun-fundamentals",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "tooltip_added": {
+       "label": "rerun",
+       "text": "Re-scores fundamentals only — same mixed-provenance consequence as the others."
+      }
+     },
+     "verb": "tooltip_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "btn-rerun-technical",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "tooltip_added": {
+       "label": "rerun",
+       "text": "Re-scores technicals only — same mixed-provenance consequence as the others."
+      }
+     },
+     "verb": "tooltip_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "btn-rerun-insider",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "tooltip_added": {
+       "label": "rerun",
+       "text": "Re-scores insider clusters only — same mixed-provenance consequence as the other"
+      }
+     },
+     "verb": "tooltip_added"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "btn-rerun-all",
+     "kind": "button",
+     "label": "Re-run ALL with current settings",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Re-run ALL with current settings",
+       "text": "**A whole day, properly.** Different animal from the four buttons above it, and "
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What is a single-pipeline rerun, in the model? A PipelineRun carries a full settings snapshot and emits Signals — re-scoring only sentiment produces something that is not one of those.",
+       "role": "pin",
+       "status": "open",
+       "target": "btn-rerun-sentiment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-partial-rerun",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1998919006,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1308,
+      "y": 188
+     },
+     "index": 72,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node",
+        "tooltip": "**Two different animals in one panel.**\n\nThe four small buttons re-score a single pass and leave the other three as they were — so the run's Signals end up from two different moments, and its settings snapshot describes a whole day when it only describes a quarter. Confirmed as an accident of how it was built, not a design.\n\nThe big button does a whole day properly.\n\nThey sit at the same size, in the same panel, four rows apart."
+       }
+      }
+     ],
+     "id": "panel-pipelines",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores sentiment only. The other three passes keep their existing output.\n\nThis is the button that produces a run whose settings snapshot is not true of all its signals."
+       }
+      }
+     ],
+     "id": "btn-rerun-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores fundamentals only — same mixed-provenance consequence as the others."
+       }
+      }
+     ],
+     "id": "btn-rerun-fundamentals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores technicals only — same mixed-provenance consequence as the others."
+       }
+      }
+     ],
+     "id": "btn-rerun-technical",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores insider clusters only — same mixed-provenance consequence as the others."
+       }
+      }
+     ],
+     "id": "btn-rerun-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Nothing is overwritten — a new PipelineRun is created beside the old one. That part is safe.\n\nThe part that is not obvious: the dashboard follows the newest run. So this button changes what every analyst is looking at, from a page labelled admin, with no confirmation and nothing telling them it happened."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "**A whole day, properly.** Different animal from the four buttons above it, and the only one whose settings snapshot is true of everything in the run.\n\nNothing is overwritten — a new PipelineRun is created beside the old one. But the dashboard follows the newest run, so this changes what every analyst is looking at, from a page labelled admin, with no confirmation and nothing telling them."
+       }
+      }
+     ],
+     "id": "btn-rerun-all",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "pin-partial-rerun",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "panel-pipelines",
+     "fact": "tooltip_added",
+     "label": "Pipelines",
+     "text": "**Two different animals in one panel.**\n\nThe four small buttons re-score a singl"
+    },
+    {
+     "element": "btn-rerun-sentiment",
+     "fact": "tooltip_added",
+     "label": "rerun",
+     "text": "Re-scores sentiment only. The other three passes keep their existing output.\n\nTh"
+    },
+    {
+     "element": "btn-rerun-fundamentals",
+     "fact": "tooltip_added",
+     "label": "rerun",
+     "text": "Re-scores fundamentals only — same mixed-provenance consequence as the others."
+    },
+    {
+     "element": "btn-rerun-technical",
+     "fact": "tooltip_added",
+     "label": "rerun",
+     "text": "Re-scores technicals only — same mixed-provenance consequence as the others."
+    },
+    {
+     "element": "btn-rerun-insider",
+     "fact": "tooltip_added",
+     "label": "rerun",
+     "text": "Re-scores insider clusters only — same mixed-provenance consequence as the other"
+    },
+    {
+     "element": "btn-rerun-all",
+     "fact": "tooltip_changed",
+     "label": "Re-run ALL with current settings",
+     "text": "**A whole day, properly.** Different animal from the four buttons above it, and "
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "**A whole day, properly.** Different animal from the four buttons above it, and the only one whose settings snapshot is true of everything in the run.\n\nNothing is overwritten — a new PipelineRun is created beside the old one. But the dashboard follows the newest run, so this changes what every analyst is looking at, from a page labelled admin, with no confirmation and nothing telling them."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Nothing is overwritten — a new PipelineRun is created beside the old one. That part is safe.\n\nThe part that is not obvious: the dashboard follows the newest run. So this button changes what every analyst is looking at, from a page labelled admin, with no confirmation and nothing telling them it happened."
+       }
+      }
+     ],
+     "id": "btn-rerun-all",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores insider clusters only — same mixed-provenance consequence as the others."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "btn-rerun-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores technicals only — same mixed-provenance consequence as the others."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "btn-rerun-technical",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores fundamentals only — same mixed-provenance consequence as the others."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "btn-rerun-fundamentals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node",
+        "tooltip": "Re-scores sentiment only. The other three passes keep their existing output.\n\nThis is the button that produces a run whose settings snapshot is not true of all its signals."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-pipelines",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "btn-rerun-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node",
+        "tooltip": "**Two different animals in one panel.**\n\nThe four small buttons re-score a single pass and leave the other three as they were — so the run's Signals end up from two different moments, and its settings snapshot describes a whole day when it only describes a quarter. Confirmed as an accident of how it was built, not a design.\n\nThe big button does a whole day properly.\n\nThey sit at the same size, in the same panel, four rows apart."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node"
+       }
+      }
+     ],
+     "id": "panel-pipelines",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What is a single-pipeline rerun, in the model? A PipelineRun carries a full settings snapshot and emits Signals — re-scoring only sentiment produces something that is not one of those.",
+       "role": "pin",
+       "status": "open",
+       "target": "btn-rerun-sentiment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-partial-rerun",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1998919006,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1308,
+      "y": 188
+     },
+     "index": 72,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 12,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 539673
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "annotate_mapping",
+   "index": 4,
+   "kinds": [
+    "attribute_added",
+    "attribute_removed"
+   ],
+   "note": "intentionally-divergent: Signal is the domain entity; the enrichment flow's store node is a pipeline stage, so entity attribute rows have nothing to say to it"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-12-1"
+  }
+ ],
+ "revn": 13,
+ "round": 2,
+ "saved_at": "2026-08-09T11:04:43Z",
+ "selection_at_save": [],
+ "short_id": "0881c14",
+ "summary": {
+  "headline": "removed pin pin-partial-rerun (+6 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "pin_deleted": 1,
+   "tooltip_added": 5,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "record the partial-rerun finding on the screen where it lives"
+}

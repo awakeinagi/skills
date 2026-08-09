@@ -2136,6 +2136,157 @@ class TestTearsheetFixture(unittest.TestCase):
                             for ln in echo))
 
 
+class FixtureReplayBase(unittest.TestCase):
+    """Shared harness for frozen-project replay fixtures (v0.8 corpus).
+
+    Every remediation work package must leave these replays green: a check
+    validated only against the case that motivated it is validated against
+    one data point, and naive checks over-fire on real data (the run-1
+    lesson: 16 warnings, 13 false). Subclasses set ``FIXTURE``.
+    """
+
+    FIXTURE = ""
+
+    def setUp(self):
+        """Copy the frozen project into a temp dir and load it."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-fixture-"))
+        src = Path(__file__).resolve().parent / "fixtures" / self.FIXTURE
+        shutil.copytree(src, self.tmp / "project_knowledge")
+        self.project = canvas.Project(self.tmp)
+        self.store = canvas.Store(self.project)
+
+    def tearDown(self):
+        """Remove the temp copy and the shared runtime files."""
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def lint_all(self):
+        """Run project_lint over every artifact.
+
+        Returns:
+            {artifact_id: lint result dict} for the loaded scenes.
+        """
+        out = {}
+        for aid in sorted(self.store.scenes):
+            out[aid] = canvas.project_lint(
+                self.project, self.store.scenes[aid],
+                registry=self.store.registry,
+                artifact_type=self.store.artifact_type(aid), aid=aid)
+        return out
+
+
+class TestArgusR4Arm3Fixture(FixtureReplayBase):
+    """Assessment run 4, arm 3: 44 saves, 7 artifacts, 28 concepts.
+
+    The richest real session on record (v0.7): resolved tripwires, scoped
+    divergence rulings, deliberate standing warnings, one deliberately
+    unbound self-loop workaround (r4-11's fallout, D8).
+    """
+
+    FIXTURE = "argus-r4-arm3"
+
+    def test_replays_full_history(self):
+        self.assertEqual(self.store.head_revn(), 44)
+        self.assertEqual(sorted(self.store.scenes), [
+            "admin-console", "aggregation-flow", "argus-domain",
+            "argus-run-flow", "dashboard", "enrichment-pipeline",
+            "publication-flow"])
+
+    def test_loader_repairs_are_label_refits_only(self):
+        # Five ART-011 label-wider-than-container refits, nothing else —
+        # the load-time repair surface WP2 makes loud.
+        self.assertEqual([i.get("code") for i in self.store.issues],
+                         ["ART-011"] * 5)
+
+    def test_catchup_phantoms_a_reconciliation_from_loader_repairs(self):
+        # PINS A DEFECT (WP2 flips this): the loader's silent ART-011
+        # refits diverge the in-memory scenes from their own replayed
+        # history, and catch_up() then mints a spurious out-of-session
+        # commit blaming nobody — on a project no outside editor touched.
+        # Fourth member of the referential-integrity cluster (r4 headline).
+        rec = self.store.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+        self.assertTrue(rec.get("reconciliation"))
+
+    def test_standing_lint_is_the_arms_deliberate_record(self):
+        # Arm 3 left the admin-console reading-order warnings standing on
+        # purpose ("the answer is in the lint") — they must survive replay
+        # exactly, and nothing may fire an ERROR anywhere.
+        lint = self.lint_all()
+        self.assertEqual(len(lint["admin-console"]["warnings"]), 5)
+        self.assertTrue(all("reading order" in w or "precedes" in w
+                            for w in lint["admin-console"]["warnings"]))
+        self.assertEqual(len(lint["dashboard"]["warnings"]), 2)
+        for aid, r in lint.items():
+            self.assertEqual(r["errors"], [],
+                             "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+    def test_unbound_relationship_arrow_is_present_and_unflagged(self):
+        # PINS A DEFECT (WP1 flips this): r-run-rerun is the hand-authored
+        # self-loop workaround for the router crash — a labeled domain
+        # relationship bound to NOTHING, and no lint names it (D8). After
+        # WP1 this arrow must draw a WARNING and this test flips to assert
+        # it.
+        els = self.store.scenes["argus-domain"]
+        loop = next(e for e in els if e["id"] == "r-run-rerun")
+        self.assertIsNone(loop.get("startBinding"))
+        self.assertIsNone(loop.get("endBinding"))
+        lint = self.lint_all()["argus-domain"]
+        self.assertFalse(any("r-run-rerun" in m
+                             for tier in ("errors", "warnings", "notes")
+                             for m in lint[tier]))
+
+
+class TestArgusR4Arm4Fixture(FixtureReplayBase):
+    """Assessment run 4, arm 4: 28 saves, 5 artifacts, 3 ADRs, handover."""
+
+    FIXTURE = "argus-r4-arm4"
+
+    def test_replays_full_history(self):
+        self.assertEqual(self.store.head_revn(), 28)
+        self.assertEqual(sorted(self.store.scenes), [
+            "admin-console-wireframe", "daily-run-flow",
+            "dashboard-wireframe", "enrichment-flow",
+            "review-publish-flow"])
+
+    def test_catchup_phantom_says_nothing_happened(self):
+        # PINS A DEFECT (WP2 flips this): same phantom as arm 3, worse
+        # headline — the spurious reconciliation reports "saved without
+        # changing anything" while committing a revision. The live session
+        # hit this exact shape (r4b save 0028).
+        rec = self.store.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+        headline = (rec.get("summary") or {}).get("headline") or ""
+        self.assertIn("saved without changing anything", headline)
+
+    def test_no_lint_errors_anywhere(self):
+        for aid, r in self.lint_all().items():
+            self.assertEqual(r["errors"], [],
+                             "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+
+class TestAcceptanceTearsheetFixture(FixtureReplayBase):
+    """The formerly-dead fixture, wired in: 15 saves, 3 artifacts."""
+
+    FIXTURE = "acceptance-tearsheet"
+
+    def test_replays_and_phantoms_like_the_others(self):
+        # Third independent instance of the load-repair → phantom
+        # reconciliation chain (REG-007 ×2 + ART-011 ×2 here). Structural,
+        # per the three-instances rule; WP2 flips all three tests at once.
+        self.assertEqual(self.store.head_revn(), 15)
+        self.assertEqual(sorted(self.store.scenes), [
+            "tearsheet-failures", "tearsheet-flow", "tearsheet-sheet"])
+        rec = self.store.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+
+
 class TestClientRemeasure(Base):
     """Client font-metric re-measurement must never masquerade as user
     edits. Excalidraw re-measures every text element on load (real font

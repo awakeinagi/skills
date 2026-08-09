@@ -1,0 +1,1964 @@
+{
+ "appState": {
+  "gridSize": 20,
+  "viewBackgroundColor": "#faf8f2"
+ },
+ "elements": [
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "87cdc19c7f"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "market-feed",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "t-trigger-market",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     -160
+    ],
+    [
+     267,
+     -160
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1239869905,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "run-trigger",
+    "focus": -0.333,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 267,
+   "x": 133,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "3fabbb11d7"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "sec-edgar",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-trigger-edgar",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     213,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 31232004,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "run-trigger",
+    "focus": 0.333,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 213,
+   "x": 187,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "3db3d9e6ae"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "news-stream",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-trigger-news",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     267,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 39073711,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "run-trigger",
+    "focus": -0.333,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 267,
+   "x": 133,
+   "y": 432
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "fdd22ddcc9"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "portfolio-db",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "t-trigger-portfolio",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     160
+    ],
+    [
+     213,
+     160
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1730001475,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "run-trigger",
+    "focus": 0.333,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 213,
+   "x": 187,
+   "y": 432
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "172fc1560c"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "normalize",
+    "focus": -0.333,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "t-market-enrich",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     213,
+     0
+    ],
+    [
+     213,
+     160
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 825894903,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "market-feed",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 213,
+   "x": 560,
+   "y": 112
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "d361a74b29"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "normalize",
+    "focus": 0.333,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-edgar-enrich",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     267,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1264110236,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "sec-edgar",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 267,
+   "x": 560,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "1db0e3a03e"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "normalize",
+    "focus": -0.333,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-news-enrich",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     213,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 722372300,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "news-stream",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 213,
+   "x": 560,
+   "y": 432
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "6d89123fab"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "normalize",
+    "focus": 0.333,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "t-portfolio-enrich",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     267,
+     0
+    ],
+    [
+     267,
+     -160
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1276233049,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "portfolio-db",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 267,
+   "x": 560,
+   "y": 592
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-compose-analyst-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "0ba68c5d43"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "analyst-read",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 48,
+   "id": "t-compose-analyst",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     320,
+     0
+    ],
+    [
+     320,
+     -48
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 1286279759,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "compose-outputs",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 320,
+   "x": 1840,
+   "y": 352
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "df3f315ac9"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "enrichment",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-normalize-enrich",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 922257384,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "normalize",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 880,
+   "y": 352
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "59374861c9"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "review-gate",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-enrich-compose",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 10246149,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "enrichment",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1200,
+   "y": 352
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-compose-clients-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "e26b896441"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "clients",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 48,
+   "id": "t-compose-clients",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     48
+    ],
+    [
+     320,
+     48
+    ]
+   ],
+   "roughness": 1,
+   "roundness": {
+    "type": 2
+   },
+   "seed": 331878583,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "compose-outputs",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 320,
+   "x": 1760,
+   "y": 384
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "customData": {
+    "author": "agent",
+    "role": "node",
+    "routed": "c3d7c4ee13"
+   },
+   "elbowed": false,
+   "endArrowhead": "arrow",
+   "endBinding": {
+    "elementId": "compose-outputs",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 0,
+   "id": "t-review-compose",
+   "isDeleted": false,
+   "lastCommittedPoint": null,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     160,
+     0
+    ]
+   ],
+   "roughness": 1,
+   "roundness": null,
+   "seed": 424392594,
+   "startArrowhead": null,
+   "startBinding": {
+    "elementId": "review-gate",
+    "focus": 0.0,
+    "gap": 6
+   },
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "arrow",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1520,
+   "y": 352
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-trigger-market",
+     "type": "arrow"
+    },
+    {
+     "id": "t-trigger-edgar",
+     "type": "arrow"
+    },
+    {
+     "id": "t-trigger-news",
+     "type": "arrow"
+    },
+    {
+     "id": "t-trigger-portfolio",
+     "type": "arrow"
+    },
+    {
+     "id": "run-trigger-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "source",
+    "role": "node",
+    "tooltip": "**Settled.** Weekdays 06:00, before the open — never weekends. Locked because you said it shouldn't move; right-click to unlock if that changes."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "run-trigger",
+   "isDeleted": false,
+   "link": null,
+   "locked": true,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 746383760,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 80,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-trigger-market",
+     "type": "arrow"
+    },
+    {
+     "id": "t-market-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "market-feed-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "Prices and volumes. Third-party. Feeds technical signals."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "market-feed",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 1868435124,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 80
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-trigger-edgar",
+     "type": "arrow"
+    },
+    {
+     "id": "t-edgar-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "sec-edgar-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "Filings. Feeds both filing-tone sentiment and the Form-4 insider-cluster detector."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "sec-edgar",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 1554189003,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 240
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-trigger-news",
+     "type": "arrow"
+    },
+    {
+     "id": "t-news-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "news-stream-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "Headline stream. Feeds the sentiment scorer."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "news-stream",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 129481834,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 400
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-trigger-portfolio",
+     "type": "arrow"
+    },
+    {
+     "id": "t-portfolio-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "portfolio-db-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "store",
+    "role": "node",
+    "tooltip": "**Ours, not theirs.** The only source we control — and the only one that says which tickers matter. Drawn as a peer of the three external feeds, which may be wrong: it may be the filter that scopes all three."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "portfolio-db",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 852701445,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 400,
+   "y": 560
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-normalize-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "t-enrich-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "enrichment-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "**Click through to `enrichment-flow`.** Four enrichers in parallel, and they do not converge on one place: sentiment + fundamentals feed the risk model; technicals + insider clusters go straight to the aggregator; the risk model's output joins them there.\n\nCollapsed to one box *here* because that topology cannot share a canvas with the ingest fan and stay readable."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "enrichment",
+   "isDeleted": false,
+   "link": "artifact:enrichment-flow",
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1020982990,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1040,
+   "y": 320
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-compose-analyst",
+     "type": "arrow"
+    },
+    {
+     "id": "t-compose-clients",
+     "type": "arrow"
+    },
+    {
+     "id": "t-review-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "compose-outputs-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "agent",
+    "role": "node",
+    "tooltip": "**Settled.** Every run produces everything; the cut decides what goes out that day.\n\n- **Signals Digest** — every weekday\n- **Weekly Brief** — Monday's cut\n- **Risk Deep-Dive** — first-of-month cut\n\nNothing accumulates across days: Monday's Brief is Monday's numbers, not the week's.\n\n*Open, parked:* a Monday rerun re-cuts a Brief that may already have gone to clients. No answer yet."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "compose-outputs",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 142652253,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1680,
+   "y": 320
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-compose-analyst",
+     "type": "arrow"
+    },
+    {
+     "id": "analyst-read-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "sink",
+    "role": "node",
+    "tooltip": "Reads all three Reports plus the dashboard."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "analyst-read",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 815545564,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 2080,
+   "y": 240
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-market-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "t-edgar-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "t-news-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "t-portfolio-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "t-normalize-enrich",
+     "type": "arrow"
+    },
+    {
+     "id": "normalize-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "transform",
+    "role": "node",
+    "tooltip": "**Per source, not into one pool.** The old label let this box read as a merge point, and the routing correction says it isn't one: each source keeps its identity through normalization and is delivered to specific enrichers.\n\nEDGAR → sentiment scorer, insider detector (and probably fundamentals). News → sentiment scorer only. Market feed → technicals only. Portfolio DB scopes the run to our names and feeds no scorer.\n\nFive sources configured, four on."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 160,
+   "id": "normalize",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1314046795,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 720,
+   "y": 272
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-compose-clients",
+     "type": "arrow"
+    },
+    {
+     "id": "clients-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "kind": "sink",
+    "role": "node",
+    "tooltip": "Weekly Brief and Risk Deep-Dive. Digest withheld by **practice, not policy** — a default, not a boundary, so nothing in the design enforces it."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "clients",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 13119092,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "ellipse",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 2080,
+   "y": 400
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "#fff8dc",
+   "boundElements": [
+    {
+     "id": "usernote-d04517fc-t",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "user",
+    "role": "note"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 90,
+   "id": "usernote-d04517fc",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1979457347,
+   "strokeColor": "#b8860b",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 230,
+   "x": 400,
+   "y": 720
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "t-enrich-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "t-review-compose",
+     "type": "arrow"
+    },
+    {
+     "id": "review-gate-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+    "kind": "control",
+    "role": "node",
+    "tooltip": "**New, and the biggest change to the shape of this pipeline.** Sub-threshold Signals are held in a review queue and a non-empty queue blocks publication — nothing unvetted reaches a client (ADR 0003).\n\nThe consequence for this view: the 06:00 run is **no longer unattended**. A human now sits between scoring and publishing, on a clock, before the open.\n\nClick through for what happens inside."
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 64,
+   "id": "review-gate",
+   "isDeleted": false,
+   "link": "artifact:review-publish-flow",
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1502438947,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "width": 160,
+   "x": 1360,
+   "y": 320
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "run-trigger",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "run-trigger-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Weekday 06:00",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 190584947,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Weekday 06:00",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 124,
+   "x": 98,
+   "y": 342
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "market-feed",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "market-feed-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Market Feed",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1970409648,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Market Feed",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 105,
+   "x": 428,
+   "y": 102
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "sec-edgar",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "sec-edgar-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "SEC EDGAR",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 682073303,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "SEC EDGAR",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 86,
+   "x": 437,
+   "y": 262
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "news-stream",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "news-stream-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "News Sentiment",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1002944817,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "News Sentiment",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 134,
+   "x": 413,
+   "y": 422
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "portfolio-db",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "portfolio-db-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Portfolio DB",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 2093100082,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Portfolio DB",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 115,
+   "x": 422,
+   "y": 582
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "enrichment",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "enrichment-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Enrich & score",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 726569998,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Enrich & score",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 134,
+   "x": 1053,
+   "y": 342
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "compose-outputs",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "compose-outputs-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Compose outputs",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1179164368,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Compose outputs",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 1692,
+   "y": 332
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "analyst-read",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "analyst-read-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Analyst",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 279257825,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Analyst",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 67,
+   "x": 2126,
+   "y": 262
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": null,
+   "customData": {
+    "answer": null,
+    "author": "agent",
+    "question": "It's 06:05 and EDGAR hasn't answered. Does the run wait, publish without it, or not publish?",
+    "role": "pin",
+    "status": "open",
+    "target": "run-trigger"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 20,
+   "frameId": null,
+   "groupIds": [],
+   "height": 26,
+   "id": "pin-late-source",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "❓",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 268596449,
+   "strokeColor": "#b45309",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "❓",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 26,
+   "x": 225,
+   "y": 287
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "normalize",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "normalize-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Normalize per source",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1936327801,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Normalize per source",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 136,
+   "x": 732,
+   "y": 332
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "clients",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "clients-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Clients",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 533596389,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Clients",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 67,
+   "x": 2126,
+   "y": 422
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "t-compose-analyst",
+   "customData": {
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "t-compose-analyst-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "all three",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1169262149,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "all three",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 86,
+   "x": 1981,
+   "y": 342
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "t-compose-clients",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "t-compose-clients-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Brief + Deep-Dive",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 147029809,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Brief + Deep-Dive",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 163,
+   "x": 1814,
+   "y": 422
+  },
+  {
+   "angle": 0,
+   "autoResize": false,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "usernote-d04517fc",
+   "customData": {
+    "author": "user",
+    "role": "note-text"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 14,
+   "frameId": null,
+   "groupIds": [],
+   "height": 74,
+   "id": "usernote-d04517fc-t",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "off — noisy",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1623661050,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "off — noisy",
+   "textAlign": "left",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "top",
+   "width": 214,
+   "x": 408,
+   "y": 728
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "review-gate",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 20,
+   "id": "review-gate-label",
+   "isDeleted": false,
+   "lineHeight": 1.25,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Review gate",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1213498770,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Review gate",
+   "textAlign": "center",
+   "type": "text",
+   "updated": 1,
+   "version": 1,
+   "versionNonce": 0,
+   "verticalAlign": "middle",
+   "width": 105,
+   "x": 1388,
+   "y": 342
+  }
+ ],
+ "files": {},
+ "source": "wysiwyg-grilling",
+ "type": "excalidraw",
+ "version": 2,
+ "wysiwyg": {
+  "artifact": "daily-run-flow",
+  "artifact_type": "flow",
+  "migrations": [
+   "0001-baseline"
+  ],
+  "name": "Argus Daily Run"
+ }
+}
