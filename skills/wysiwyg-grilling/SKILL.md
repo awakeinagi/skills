@@ -191,8 +191,12 @@ The server gives you mechanics: `saves/NNNN-*.json` holds the bucketed
 changes, `by_element`, and typed semantic facts **nested under
 `artifacts.<artifact-id>`** (summary and tripwires are top-level), plus a
 mechanical summary. The snapshot (`canvas.py snapshot`) is never the source
-of truth for what the design **says** — the facts are; it is the only
-source of truth for whether the drawing is **legible**. Take one when you
+of truth for what the design **says** — the facts are; it is the best
+available evidence of whether the drawing is **legible** — and know its
+tiers: tier 1 (connected tab) IS the user's renderer; tier 2 (headless)
+and tier 3 (SVG) approximate it, so a tight fit that looks fine there can
+still wrap live. When legibility is the question, prefer tier 1; `x-geometry
+--diff` names stored widths the editor will wrap. Take one when you
 seed a new artifact; never redesign from it; skip when no tier can produce
 one. Narrate the **user's** facts: your own prior ops also produce records
 (`author: agent`) — don't narrate those back, they were your move. Before

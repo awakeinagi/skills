@@ -842,20 +842,89 @@ def mint_id(label, kind, existing):
     return cand
 
 
+# Per-character advance widths (ems) for the canvas font, measured from
+# the vendored Nunito Latin subset with the CLIENT'S OWN engine (headless
+# Chromium canvas.measureText at 100px, 2dp). The flat 0.6-em estimate
+# this replaces truncated '62' at 24px to a 28px box the live editor
+# wraps (needs ceil(28.8)) — the agent's snapshot then showed one line
+# while the user's browser showed two, and both said VALID=true (r4-12,
+# the R3-4 recurrence). Digits are exactly 0.6; W is 1.10; lowercase
+# averages 0.51, so the flat factor was wrong in both directions.
+NUNITO_ADVANCE = {
+    " ": 0.26, "!": 0.23, '"': 0.4, "#": 0.6, "$": 0.6, "%": 0.93,
+    "&": 0.7, "'": 0.23, "(": 0.33, ")": 0.33, "*": 0.45, "+": 0.6,
+    ",": 0.23, "-": 0.43, ".": 0.23, "/": 0.29, "0": 0.6, "1": 0.6,
+    "2": 0.6, "3": 0.6, "4": 0.6, "5": 0.6, "6": 0.6, "7": 0.6,
+    "8": 0.6, "9": 0.6, ":": 0.23, ";": 0.23, "<": 0.6, "=": 0.6,
+    ">": 0.6, "?": 0.45, "@": 0.95, "A": 0.73, "B": 0.68, "C": 0.67,
+    "D": 0.75, "E": 0.59, "F": 0.55, "G": 0.73, "H": 0.76, "I": 0.26,
+    "J": 0.33, "K": 0.63, "L": 0.55, "M": 0.86, "N": 0.74, "O": 0.77,
+    "P": 0.64, "Q": 0.77, "R": 0.67, "S": 0.62, "T": 0.61, "U": 0.73,
+    "V": 0.69, "W": 1.1, "X": 0.65, "Y": 0.6, "Z": 0.59, "[": 0.32,
+    "\\": 0.29, "]": 0.32, "^": 0.6, "_": 0.5, "`": 0.36, "a": 0.53,
+    "b": 0.59, "c": 0.46, "d": 0.59, "e": 0.53, "f": 0.34, "g": 0.59,
+    "h": 0.57, "i": 0.24, "j": 0.24, "k": 0.51, "l": 0.3, "m": 0.86,
+    "n": 0.57, "o": 0.56, "p": 0.59, "q": 0.59, "r": 0.36, "s": 0.48,
+    "t": 0.36, "u": 0.56, "v": 0.52, "w": 0.84, "x": 0.53, "y": 0.52,
+    "z": 0.47, "{": 0.36, "|": 0.27, "}": 0.36, "~": 0.6,
+}
+_ADVANCE_FALLBACK = 0.62
+
+
+def _nunito_face_css(web_root):
+    """@font-face CSS for the vendored Nunito Latin subset, if present.
+
+    Args:
+        web_root: The served web bundle root (fonts live under it).
+
+    Returns:
+        A ``@font-face`` rule with a server-relative URL, or "" when the
+        bundle has no Nunito files (tier 2 then keeps sans-serif).
+    """
+    try:
+        fonts = sorted((web_root / "fonts" / "Nunito")
+                       .glob("Nunito-Regular-*.woff2"),
+                       key=lambda p: -p.stat().st_size)
+    except OSError:
+        fonts = []
+    if not fonts:
+        return ""
+    return ("@font-face{font-family:'Nunito';"
+            "src:url('/fonts/Nunito/%s') format('woff2');}"
+            % fonts[0].name)
+
+
 def _display_width(line):
-    """Character cells, not codepoints — CJK and fullwidth forms occupy
-    two. Counting them as one under-measures a label by ~half, which is
-    how bound text ends up overflowing its container."""
-    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
-               for ch in line)
+    """Advance width of a line in EMs against the vendored canvas font.
+
+    CJK and fullwidth forms count 1.2em (their old two-cell treatment at
+    the 0.6 factor — unchanged so wide scripts keep their headroom);
+    unknown characters fall back to 0.62em.
+
+    Args:
+        line: One line of text (no newlines).
+
+    Returns:
+        The line's advance width in ems.
+    """
+    w = 0.0
+    for ch in line:
+        if unicodedata.east_asian_width(ch) in ("W", "F"):
+            w += 1.2
+        else:
+            w += NUNITO_ADVANCE.get(ch, _ADVANCE_FALLBACK)
+    return w
 
 
 def text_dims(text, font_size):
     lines = (text or "").split("\n")
-    width = max((_display_width(l) for l in lines), default=1) \
-        * font_size * 0.6
+    width = max((_display_width(l) for l in lines), default=0.4) \
+        * font_size
     height = max(len(lines), 1) * font_size * 1.25
-    return (max(int(width), 10), max(int(height), int(font_size * 1.25)))
+    # ceil + 2px: int() truncation is what wrapped '62' (28 < 28.8);
+    # the pad absorbs sub-pixel rendering at autoResize:false widths
+    width_px = int(width + 0.999) + 2
+    return (max(width_px, 10), max(int(height), int(font_size * 1.25)))
 
 
 def wrap_label_text(text, inner, fs):
@@ -1236,6 +1305,52 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         custom["value"] = max(0.0, min(100.0, v))
         out.extend(_compose_slider_glyph(el, custom["value"],
                                          existing_ids))
+    if custom.get("kind") == "body" and etype == "rectangle":
+        # wavy body-text stand-in (WP4/E-4): wireframe.md promised it in
+        # three places across three versions and nothing ever drew a
+        # wave — decoration lines rendered as ruler lines (v0.2 gap #12)
+        out.extend(_compose_body_lines(el, existing_ids))
+    return out
+
+
+def _compose_body_lines(el, existing_ids):
+    """Build a body-text block's wavy stand-in lines.
+
+    Multi-point sine polylines (amplitude 1.5px, ~14px wavelength), one
+    per ~16px of height, the last one short like a paragraph's final
+    line. They carry ``body_of`` so ``reconcile_composed`` re-derives
+    them when the block resizes.
+
+    Args:
+        el: The owner rectangle (`kind: "body"`).
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        List of decoration line elements.
+    """
+    gid = el["id"] + "-grp"
+    w = max(el.get("width", 160) - 16, 24)
+    h = max(el.get("height", 48), 16)
+    n = max(2, int(h // 16))
+    out = []
+    for i in range(n):
+        lw = w * (0.62 if i == n - 1 else 1.0)
+        pts = []
+        x = 0.0
+        k = 0
+        while x < lw:
+            pts.append([round(x, 1), 1.5 if k % 2 else -1.5])
+            x += 7.0
+            k += 1
+        pts.append([round(lw, 1), 0])
+        ly = el["y"] + 8 + (h - 16) * (i / max(n - 1, 1))
+        out.append(_deco(
+            "%s-body%d" % (el["id"], i + 1), "body_of", el["id"], gid,
+            existing_ids, type="line", x=el["x"] + 8, y=ly,
+            width=lw, height=3, points=pts, lastCommittedPoint=None,
+            startBinding=None, endBinding=None, startArrowhead=None,
+            endArrowhead=None, elbowed=False,
+            strokeColor="#b8b2a5", strokeWidth=1))
     return out
 
 
@@ -1412,7 +1527,7 @@ def _compose_control_glyph(el, kind, checked, existing_ids):
         out.append(_deco(
             el["id"] + "-box", "box_of", el["id"], gid, existing_ids,
             type="rectangle", x=el["x"] + 8, y=cy - 8,
-            width=28, height=16, roundness={"type": 3}))
+            width=TOGGLE_PILL_W, height=16, roundness={"type": 3}))
         out.append(_deco(
             el["id"] + "-thumb", "thumb_of", el["id"], gid,
             existing_ids, type="ellipse",
@@ -1435,9 +1550,15 @@ def _check_stroke(el, existing_ids):
         strokeWidth=2)
 
 
+# Toggle pill width. 28px gave the thumb 12px of travel — "merely
+# subtle at export scale" (r4b's withdrawn-to-residue P3); 36px gives
+# 20px, readable in a printed SVG.
+TOGGLE_PILL_W = 36
+
+
 def _toggle_thumb_x(el, checked):
     """X of a toggle thumb: left when off, right when on."""
-    return el["x"] + (22 if checked else 10)
+    return el["x"] + (8 + TOGGLE_PILL_W - 12 - 2 if checked else 10)
 
 
 def _compose_slider_glyph(el, value, existing_ids):
@@ -1528,7 +1649,7 @@ def _interpret_user_composites(new_els, old_els):
                 # flip only when the thumb centre crosses the track
                 # midpoint — a 2px sloppy drag recomposes back instead
                 # of toggling
-                mid = el["x"] + 8 + 14  # box x+8, pill width 28
+                mid = el["x"] + 8 + TOGGLE_PILL_W / 2.0
                 now_on = (thumb.get("x", 0) + 6) > mid
                 if now_on != bool(cd.get("checked")):
                     el["customData"] = dict(cd, checked=now_on)
@@ -1623,6 +1744,16 @@ def reconcile_composed(els, index, existing, el):
                     key=lambda t: t.get("y", 0))]
         if rows:
             _reset_attribute_rows(els, index, existing, el, rows)
+    elif kind == "body":
+        gone = [t for t in els if (t.get("customData") or {})
+                .get("body_of") == el["id"]]
+        for t in gone:
+            els.remove(t)
+            index.pop(t["id"], None)
+            existing.discard(t["id"])
+        for t in _compose_body_lines(el, existing):
+            els.append(t)
+            index[t["id"]] = t
 
 
 def edge_anchor(el, other_cx, other_cy):
@@ -2589,8 +2720,7 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             anchor = index.get(target) if target else None
             pid = op.get("id") or mint_id("pin-" + (target or q[:20]), "pin",
                                           existing)
-            px, py = marker_anchor(anchor, dx=8, dy=-8,
-                                 corner="tr") if anchor else (40, 40)
+            px, py = pin_spot(anchor, els) if anchor else (40, 40)
             pin_el = dict(BASE_DEFAULTS)
             pin_el.update({
                 "id": pid, "type": "text", "x": px, "y": py,
@@ -4005,6 +4135,44 @@ def marker_anchor(el, dx=0, dy=0, corner="br"):
     return (x, el.get("y", 0) + h - h * inset / 2 + dy)
 
 
+def pin_spot(anchor, els, size=26):
+    """Where a ❓ glyph sits: hugging the target, never in a neighbour.
+
+    The constant top-right offset is layout-density-blind (r4b-3): on a
+    12px-gutter wireframe grid the glyph touched no part of its target
+    and its centre landed inside the NEXT panel's column, so three pins
+    read as belonging to the heat map, the drawdown and the Weekly
+    Brief. When the hug spot collides with a foreign element, fall back
+    to inside the target's own top-right corner — on flows (hundreds of
+    px of air) nothing changes.
+
+    Args:
+        anchor: The target element.
+        els: The scene (collision candidates).
+        size: Glyph bbox edge in px.
+
+    Returns:
+        `(x, y)` for the glyph.
+    """
+    px, py = marker_anchor(anchor, dx=8, dy=-8, corner="tr")
+    gx1, gy1, gx2, gy2 = px, py, px + size, py + size
+    for e in els:
+        if e is anchor or e.get("id") == anchor.get("id"):
+            continue
+        if e.get("type") not in ("rectangle", "diamond", "ellipse",
+                                 "frame"):
+            continue
+        if role_of(e) in ("label", "pin", "decoration", "annotation"):
+            continue
+        ex1, ey1 = e.get("x", 0), e.get("y", 0)
+        ex2 = ex1 + e.get("width", 0)
+        ey2 = ey1 + e.get("height", 0)
+        if gx1 < ex2 and gx2 > ex1 and gy1 < ey2 and gy2 > ey1:
+            return (anchor.get("x", 0) + anchor.get("width", 0) -
+                    size - 2, anchor.get("y", 0) + 2)
+    return (px, py)
+
+
 def _reset_attribute_rows(els, index, existing, el, rows):
     """Replace a domain entity's attribute rows, keeping the entity's id.
 
@@ -4271,7 +4439,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                  if e.get("type") in ("arrow", "line")}
     if title:
         out.append("<text x='%f' y='%f' font-size='13' fill='#999' "
-                   "font-family='sans-serif'>%s</text>"
+                   "font-family='Nunito, sans-serif'>%s</text>"
                    % (minx + 8, miny + 18, _svg_escape(title)))
 
     def paint(e):
@@ -4288,7 +4456,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                        "fill='none' stroke='#94a3b8' stroke-width='1.5' "
                        "stroke-dasharray='8 4' rx='8'/>" % (x, y, ew, eh))
             out.append("<text x='%f' y='%f' font-size='12' fill='#64748b' "
-                       "font-family='sans-serif'>%s</text>"
+                       "font-family='Nunito, sans-serif'>%s</text>"
                        % (x + 4, y - 6, _svg_escape(e.get("name") or
                                                     e.get("id", ""))))
             return
@@ -4354,7 +4522,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                               max(len(lines), 1) * lh + 4, SVG_GROUND))
             for li, line in enumerate(lines):
                 out.append("<text x='%f' y='%f' font-size='%s' fill='%s' "
-                           "text-anchor='%s' font-family='sans-serif'>"
+                           "text-anchor='%s' font-family='Nunito, sans-serif'>"
                            "%s</text>"
                            % (tx, y + fs * 0.85 + li * lh, fs, stroke,
                               anchor, _svg_escape(line)))
@@ -4377,7 +4545,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
         out.append("<circle cx='%f' cy='%f' r='8' fill='#fdfcf8' "
                    "stroke='#b45309' stroke-width='1'/>" % (mx, my))
         out.append("<text x='%f' y='%f' font-size='10' fill='#b45309' "
-                   "text-anchor='middle' font-family='sans-serif'>%d</text>"
+                   "text-anchor='middle' font-family='Nunito, sans-serif'>%d</text>"
                    % (mx, my + 3.5, n))
     if note_lines:
         fy = miny + h - foot_h + 12
@@ -4385,7 +4553,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                    "stroke-width='1'/>" % (minx + 20, fy, minx + w - 20, fy))
         for k, line in enumerate(note_lines):
             out.append("<text x='%f' y='%f' font-size='13' fill='#444' "
-                       "font-family='sans-serif'>%s</text>"
+                       "font-family='Nunito, sans-serif'>%s</text>"
                        % (minx + 24, fy + 24 + k * 19, _svg_escape(line)))
     out.append("</svg>")
     return "\n".join(out), int(w * scale), int(h * scale)
@@ -4723,20 +4891,64 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             tgt = ix.get((b or {}).get("elementId"))
             if tgt is None:
                 continue        # genuinely unbound: nothing to check
+            sb_el = (a.get("startBinding") or {}).get("elementId")
+            eb_el = (a.get("endBinding") or {}).get("elementId")
+            if sb_el is not None and sb_el == eb_el:
+                continue  # self-loop (v0.8): both ends live on the border
             gx1, gy1 = tgt["x"], tgt["y"]
             gx2 = tgt["x"] + tgt.get("width", 0)
             gy2 = tgt["y"] + tgt.get("height", 0)
-            # distance to the target's PERIMETER, not containment in a
-            # bbox grown by TOL — a point deep INSIDE satisfied that
-            # trivially, so three arrowheads stopping 56px in passed
-            # while one 26px out was the artifact's only ERROR (r3-16).
-            # A bound endpoint belongs ON the border; TOL is already
-            # described as "binding gap (6) + slack", a statement about
-            # the border and not about the interior.
+            # Two distinct failure shapes (r4-1). Border distance says
+            # whether the endpoint sits ON the perimeter — fanned attach
+            # points land exactly on an edge and must stay legal. The
+            # CHORD says whether the arrow entered through one edge and
+            # kept going: an endpoint 12px from the FAR edge scored as
+            # barely-inside under border distance alone, so deeper
+            # penetration produced LESS warning — the opposite of a
+            # tolerance.
             outside = ((max(gx1 - px, px - gx2, 0)) ** 2 +
                        (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
-            inside = 0 if outside else min(px - gx1, gx2 - px,
-                                           py - gy1, gy2 - py)
+            inside = 0 if outside else max(
+                min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
+            chord = 0.0
+            if not outside and inside > 2:
+                pts = a.get("points") or []
+                if key == "startBinding":
+                    qx = a.get("x", 0) + (pts[1][0] if len(pts) > 1 else 0)
+                    qy = a.get("y", 0) + (pts[1][1] if len(pts) > 1 else 0)
+                else:
+                    qx = a.get("x", 0) + (pts[-2][0] if len(pts) > 1 else 0)
+                    qy = a.get("y", 0) + (pts[-2][1] if len(pts) > 1 else 0)
+                adx, ady = px - qx, py - qy
+                if (qx < gx1 or qx > gx2 or qy < gy1 or qy > gy2) and \
+                        (adx or ady):
+                    t_in = 0.0
+                    for lo, hi, dv, sv in ((gx1, gx2, adx, qx),
+                                           (gy1, gy2, ady, qy)):
+                        if dv > 0:
+                            t_in = max(t_in, (lo - sv) / dv)
+                        elif dv < 0:
+                            t_in = max(t_in, (hi - sv) / dv)
+                    t_in = max(0.0, min(1.0, t_in))
+                    ex_, ey_ = qx + adx * t_in, qy + ady * t_in
+                    chord = ((px - ex_) ** 2 + (py - ey_) ** 2) ** 0.5
+            if chord > TOL * 2 and inside <= TOL:
+                # crosses THROUGH: strictly interior endpoint, long
+                # interior run, yet near some far border — the r4-1
+                # silent case
+                msg = ("arrow %s enters %s and runs %dpx inside it "
+                       "before stopping (%s point) — it reads as "
+                       "crossing through the box; pull the endpoint "
+                       "back to the border"
+                       % (a["id"], name(tgt["id"]), int(chord), side))
+                if not server_owns_geometry(a):
+                    warnings.append(
+                        "user-shaped " + msg +
+                        " — not auto-routed (the path is the user's "
+                        "geometry); re-route deliberately and narrate it")
+                else:
+                    errors.append(msg)
+                continue
             if max(outside, inside) > TOL:
                 msg = ("arrow %s claims to bind %s but its %s point ends "
                        "%dpx %s — re-route it (mod x/y on the node "
@@ -5532,6 +5744,25 @@ def parse_glossary_aliases(text):
     return out
 
 
+def _plausible_term(name):
+    """Is a harvested bold span actually a TERM, not a sentence?
+
+    A bolded clause inside an entry body ("**Switched off by default
+    since Aug 2026**:") parses identically to an entry heading, and the
+    minted "term" then nags as a concept-less glossary entry after the
+    agent's last lint pass (r4, arm 3's parting false alarm). Terms are
+    noun phrases: cap the word count.
+
+    Args:
+        name: The captured bold text.
+
+    Returns:
+        True when the span is term-shaped.
+    """
+    name = name.strip()
+    return bool(name) and len(name) <= 48 and len(name.split()) <= 6
+
+
 def parse_glossary_terms(text):
     """CONTEXT.md → ordered list of settled term names (canonical
     '**Term**:', the em-dash '**Term** — …' form, and bullet lists).
@@ -5544,7 +5775,7 @@ def parse_glossary_terms(text):
     for raw in text.splitlines():
         line = raw.strip()
         m = re.match(TERM_ALIAS_RE, line) or re.match(TERM_RE, line)
-        if m:
+        if m and _plausible_term(m.group(1)):
             terms.append(m.group(1).strip())
     return terms
 
@@ -8647,8 +8878,15 @@ def make_handler(app):
                         self.send_response(200)
                         self.send_header("Content-Type", "image/svg+xml")
                     else:
+                        # tier parity (WP4/r4-12): the headless render
+                        # used to resolve `sans-serif` to whatever the
+                        # system had while the live tab wrapped in real
+                        # Nunito — two wrap engines, one file, both
+                        # "VALID". The fonts are already served locally.
+                        face = _nunito_face_css(app.web_root)
                         body = ("<!doctype html><html><head><meta "
-                                "charset='utf-8'><style>body{margin:0;"
+                                "charset='utf-8'><style>" + face +
+                                "body{margin:0;"
                                 "background:#fdfcf8}</style></head><body>"
                                 + svg + "</body></html>").encode("utf-8")
                         self.send_response(200)
@@ -9575,10 +9813,20 @@ def cmd_x_geometry(args):
     for e in els:
         cont = ix.get(e.get("containerId"))
         drawn = None
+        wrap_note = None
         if e.get("type") == "text" and cont is not None and \
                 cont.get("type") in ("arrow", "line"):
             drawn = arrow_label_anchor(cont, e)
-        if args.diff and drawn is None:
+        if e.get("type") == "text" and e.get("autoResize") is False:
+            # WP4 (r4-12): composed value texts were silently out of this
+            # command's scope — x-geometry printed NOTHING about the '62'
+            # tile whose stored width the live editor wrapped. Compare
+            # stored width against the measured need.
+            need, _ = text_dims(e.get("text") or "", e.get("fontSize", 16))
+            if e.get("width", 0) + 0.5 < need:
+                wrap_note = ("stored width %d < needs %d — the editor "
+                             "WRAPS this" % (e.get("width", 0), need))
+        if args.diff and drawn is None and wrap_note is None:
             continue
         row = "%-24s %-10s (%d,%d) %dx%d" % (
             e["id"][:24], e.get("type", "?"), e.get("x", 0), e.get("y", 0),
@@ -9586,6 +9834,8 @@ def cmd_x_geometry(args):
         if drawn is not None:
             dx = ((e["x"] - drawn[0]) ** 2 + (e["y"] - drawn[1]) ** 2) ** 0.5
             row += "  drawn=(%d,%d) drift=%dpx" % (drawn[0], drawn[1], dx)
+        if wrap_note:
+            row += "  " + wrap_note
         print(row)
     return 0
 

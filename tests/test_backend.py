@@ -1741,10 +1741,18 @@ class TestTermConceptViewDebt(Base):
         lbl = next(e for e in els if e["type"] == "text")
         self.assertEqual(lbl["strokeColor"], "#1e1e1e")
 
-    def test_text_dims_counts_wide_characters_as_two_cells(self):
-        narrow, _ = canvas.text_dims("ab", 16)
+    def test_text_dims_measures_real_advances(self):
+        # v0.8 (r4-12): per-char Nunito advances replace the flat 0.6-em
+        # cell model. CJK counts 1.2em; '62' at 24px must come out WIDER
+        # than the 28px box the old int() truncation produced (the live
+        # editor wrapped it while the snapshot said one line).
         wide, _ = canvas.text_dims("報告", 16)
-        self.assertEqual(wide, narrow * 2)
+        self.assertEqual(wide, int(2 * 1.2 * 16 + 0.999) + 2)
+        digits, _ = canvas.text_dims("62", 24)
+        self.assertGreaterEqual(digits, 29)  # ceil(28.8), plus pad
+        w_cap, _ = canvas.text_dims("W", 24)
+        i_cap, _ = canvas.text_dims("I", 24)
+        self.assertGreater(w_cap, i_cap * 2)  # real metrics, not cells
 
     def test_glossary_parsers_accept_bullet_and_inline_avoid(self):
         """A glossary written as a Markdown bullet list parsed to ZERO
@@ -2286,18 +2294,19 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
 
     FIXTURE = "acceptance-tearsheet"
 
-    def test_replays_and_names_repair_only_reconciliation(self):
-        # FLIPPED BY WP2. This fixture's only divergence IS the loader's
-        # repair work (ART-011 ×2), so the reconciliation must say so in
-        # its headline — the repair-only attribution path — and converge.
+    def test_replays_and_converges_without_reconciliation(self):
+        # FLIPPED TWICE. WP2 turned this fixture's phantom into a named
+        # repair-only reconciliation; WP4's real font metrics then made
+        # the ART-011 refits CONVERGE memory to the replayed history (the
+        # old 0.6-em estimate was what disagreed with the client), so
+        # nothing diverges at all: repairs still fire and are reported,
+        # and catch_up finds nothing to reconcile — on every load.
         self.assertEqual(self.store.head_revn(), 15)
         self.assertEqual(sorted(self.store.scenes), [
             "tearsheet-failures", "tearsheet-flow", "tearsheet-sheet"])
-        rec = self.store.catch_up()
-        self.assertIsNotNone(rec)
-        self.assertEqual(rec["author"], "out-of-session")
-        self.assertIn("load-time repair", rec["summary"]["headline"])
-        self.assertIn("no outside edits", rec["summary"]["headline"])
+        self.assertEqual([i["code"] for i in self.store.scene_repairs],
+                         ["ART-011", "ART-011"])
+        self.assertIsNone(self.store.catch_up())
         store2 = canvas.Store(self.project)
         self.assertIsNone(store2.catch_up())
 
@@ -6701,6 +6710,107 @@ class TestComposedReconciliation(Base):
         rec = self.user_save(els)
         self.assertIn("housekeeping only", rec["summary"]["headline"])
         self.assertNotEqual(rec["summary"]["headline"], "no changes")
+
+
+class TestPictureIsTheTruth(Base):
+    """WP4 (r4-12, r4-1, D15, B6, E-4, D24): the measurements that decide
+    legibility must agree with the renderer the user actually sees."""
+
+    def test_kpi_value_width_no_longer_wraps(self):
+        # The '62' tile: stored width must be >= the real Nunito need
+        # (28.8px at fontSize 24) — the old int(0.6-em) box was 28 and
+        # the live editor wrapped it into stacked digits.
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {
+                "id": "kpi", "type": "rectangle", "x": 0, "y": 0,
+                "width": 292, "height": 120, "label": "Sentiment index",
+                "kind": "kpi", "value": "62"}}], errors)
+        self.assertEqual(errors, [])
+        val = next(e for e in els
+                   if (e.get("customData") or {}).get("value_of") == "kpi")
+        need, _ = canvas.text_dims("62", val.get("fontSize", 24))
+        self.assertGreaterEqual(val["width"], 29)
+        self.assertGreaterEqual(val["width"], need)
+
+    def test_crossing_arrow_fires_and_fan_attach_stays_legal(self):
+        # r4-1 both directions: an endpoint that crossed the whole box
+        # and stopped near the far edge fires the crosses-through check;
+        # a fanned endpoint sitting exactly ON an edge stays silent.
+        box = {"id": "b", "type": "rectangle", "x": 360, "y": 60,
+               "width": 200, "height": 60,
+               "customData": {"role": "node", "kind": "transform"}}
+        crossing = {"id": "a1", "type": "arrow", "x": 300, "y": 90,
+                    "width": 248, "height": 0,
+                    "points": [[0, 0], [248, 0]],
+                    "endBinding": {"elementId": "b", "focus": 0,
+                                   "gap": 6}}
+        fan = {"id": "a2", "type": "arrow", "x": 300, "y": 20,
+               "width": 150, "height": 40,
+               "points": [[0, 0], [150, 40]],
+               "endBinding": {"elementId": "b", "focus": 0, "gap": 6}}
+        lint = canvas.lint_layout([box, crossing, fan],
+                                  artifact_type="flow")
+        crossing_msgs = [m for tier in ("errors", "warnings")
+                        for m in lint[tier] if "a1" in m]
+        self.assertTrue(any("crossing through" in m or "runs" in m
+                            for m in crossing_msgs), lint)
+        fan_msgs = [m for tier in ("errors", "warnings")
+                    for m in lint[tier] if "a2" in m and
+                    ("inside" in m or "crossing" in m)]
+        self.assertEqual(fan_msgs, [], lint)
+
+    def test_body_kind_composes_wavy_lines_and_rederives(self):
+        # E-4 / v0.2 gap #12: the wavy stand-in exists now, and its
+        # lines follow a resize like every other composed part.
+        errors = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {
+                "id": "body", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 64, "kind": "body"}}], errors)
+        self.assertEqual(errors, [])
+        lines = [e for e in els
+                 if (e.get("customData") or {}).get("body_of") == "body"]
+        self.assertGreaterEqual(len(lines), 2)
+        self.assertTrue(all(len(ln["points"]) > 5 for ln in lines))
+        els2 = canvas.apply_ops(els, [
+            {"op": "mod", "id": "body", "attrs": {"width": 400}}], errors)
+        self.assertEqual(errors, [])
+        lines2 = [e for e in els2
+                  if (e.get("customData") or {}).get("body_of") == "body"]
+        self.assertTrue(all(ln["width"] > 300 for ln in lines2[:-1]))
+
+    def test_glossary_parser_rejects_sentence_fragments(self):
+        # D24: the live false alarm — a bolded clause inside an entry
+        # body minted as a term after the agent's last lint pass.
+        text = ("**Run**: one 06:00 execution.\n"
+                "**Switched off by default since Aug 2026**: not a term.\n"
+                "**Macro Calendar** — the fifth source.\n")
+        terms = canvas.parse_glossary_terms(text)
+        self.assertIn("Run", terms)
+        self.assertIn("Macro Calendar", terms)
+        self.assertNotIn("Switched off by default since Aug 2026", terms)
+
+    def test_pin_spot_dodges_dense_neighbours_hugs_on_flows(self):
+        # D15: constant offset was layout-density-blind.
+        target = {"id": "t", "type": "rectangle", "x": 100, "y": 100,
+                  "width": 120, "height": 80}
+        neighbour = {"id": "n", "type": "rectangle", "x": 232, "y": 60,
+                     "width": 120, "height": 80}
+        px, py = canvas.pin_spot(target, [target, neighbour])
+        self.assertLessEqual(px + 26, 232)  # inside the target's column
+        far = {"id": "n2", "type": "rectangle", "x": 600, "y": 100,
+               "width": 120, "height": 80}
+        hug = canvas.pin_spot(target, [target, far])
+        self.assertEqual(hug, canvas.marker_anchor(target, dx=8, dy=-8,
+                                                   corner="tr"))
+
+    def test_toggle_travel_is_readable(self):
+        # B6 residue: 12px of travel was "merely subtle at export scale".
+        el = {"id": "tg", "x": 0, "y": 0, "width": 200, "height": 28}
+        travel = canvas._toggle_thumb_x(el, True) - \
+            canvas._toggle_thumb_x(el, False)
+        self.assertGreaterEqual(travel, 16)
 
 
 if __name__ == "__main__":
