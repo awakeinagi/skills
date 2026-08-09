@@ -401,27 +401,34 @@ export default function App() {
             .then((r) => setDocView({ path: r.path, content: r.content }))
             .catch((e) => toast(e.message));
         }
-        // control affordance (v0.8): selecting a checkbox/toggle host
-        // OR one of its composed parts offers the state flip
-        const cd = sel?.customData || {};
-        const hostId = ["checkbox", "toggle"].includes(cd.kind)
-          ? sel!.id
-          : (cd.box_of || cd.chk_of || cd.thumb_of || null);
-        const host = hostId ? els.find((e) =>
-          e.id === hostId && !e.isDeleted &&
-          ["checkbox", "toggle"].includes((e.customData || {}).kind))
-          : null;
-        if (host) {
-          setCtl({
-            hostId: host.id, kind: host.customData.kind,
-            checked: !!host.customData.checked,
-            el: { x: host.x, y: host.y, width: host.width,
-                  height: host.height },
-          });
-        } else {
-          setCtl(null);
-        }
-      } else if (selIds.length !== 1) {
+      }
+      // control affordance (v0.8): selecting a checkbox/toggle host, a
+      // composed part, or the whole GROUP (a click on a grouped element
+      // selects all its members) offers the state flip
+      const hostIds = new Set<string>();
+      for (const id of selIds) {
+        const e = els.find((el2) => el2.id === id && !el2.isDeleted);
+        const cd2: any = e?.customData || {};
+        if (["checkbox", "toggle"].includes(cd2.kind)) hostIds.add(e!.id);
+        else if (cd2.box_of || cd2.chk_of || cd2.thumb_of)
+          hostIds.add(cd2.box_of || cd2.chk_of || cd2.thumb_of);
+        else if (e) hostIds.add("__not_a_control__");
+      }
+      const onlyHost = hostIds.size === 1 &&
+        !hostIds.has("__not_a_control__")
+        ? [...hostIds][0] : null;
+      const host = onlyHost ? els.find((e) =>
+        e.id === onlyHost && !e.isDeleted &&
+        ["checkbox", "toggle"].includes((e.customData || {}).kind))
+        : null;
+      if (host && selIds.length > 0) {
+        setCtl({
+          hostId: host.id, kind: host.customData.kind,
+          checked: !!host.customData.checked,
+          el: { x: host.x, y: host.y, width: host.width,
+                height: host.height },
+        });
+      } else {
         setCtl(null);
       }
     }
@@ -934,6 +941,19 @@ export default function App() {
       return { ...e, ...patch, customData: cd, version: (e.version || 0) + 1 };
     });
     api.updateScene({ elements: restoreForRender(els) as any });
+  }, []);
+
+  // e2e hook (v0.8): scene→screen through the app's own camera, so
+  // browser tests click elements instead of guessing the fit transform.
+  // Read-only; invisible to any session participant.
+  useEffect(() => {
+    (window as any).__sceneToScreen = (x: number, y: number) => {
+      const a = appStateRef.current;
+      if (!a) return null;
+      const z = a.zoom?.value ?? 1;
+      return { x: (x + a.scrollX) * z + (a.offsetLeft || 0),
+               y: (y + a.scrollY) * z + (a.offsetTop || 0) };
+    };
   }, []);
 
   /** Flip a drawn checkbox/toggle (v0.8). State is the truth
