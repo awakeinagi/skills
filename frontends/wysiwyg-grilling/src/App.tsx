@@ -146,6 +146,9 @@ export default function App() {
   const [selElId, setSelElId] = useState<string | null>(null);
   const [docsList, setDocsList] = useState<string[]>([]);
   const [insertOpen, setInsertOpen] = useState(false);
+  const [mermaidOpen, setMermaidOpen] = useState(false);
+  const [mermaidText, setMermaidText] = useState("");
+  const [mermaidBusy, setMermaidBusy] = useState(false);
   const [walkIdx, setWalkIdx] = useState<number | null>(null);
   // the onion skin: an old revision kept as a DOM overlay only. It never
   // enters the Excalidraw scene, so it can never reach a save buffer.
@@ -168,6 +171,7 @@ export default function App() {
   const viewingRef = useRef<number | null>(null);
   const changeTimer = useRef<any>(null);
   const servicingShot = useRef<Set<number>>(new Set());
+  const servicingMermaid = useRef<Set<number>>(new Set());
   const prevSelRef = useRef<string>("");
   const suppressPinOpenRef = useRef<number>(0);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -653,6 +657,35 @@ export default function App() {
       })();
     }
   }, [state, viewScenes]);
+
+  /* ---------------- mermaid conversion servicing (WP9) ----------------
+   * The stdlib server can't run the mermaid converter, so the agent's
+   * `canvas.py mermaid` posts the text here and this tab (or a headless
+   * one the CLI launches on the same URL) converts it to element
+   * SKELETONS and posts them back. Skeletons, not full elements: the
+   * CLI maps them to ops so the seed flows through apply — lints,
+   * budgets, registry, narration — like any agent revision. */
+  useEffect(() => {
+    const reqs = state?.mermaid_requests || [];
+    for (const req of reqs) {
+      if (servicingMermaid.current.has(req.id)) continue;
+      servicingMermaid.current.add(req.id);
+      (async () => {
+        try {
+          const { parseMermaidToExcalidraw } = await import("@excalidraw/mermaid-to-excalidraw");
+          const { elements } = await parseMermaidToExcalidraw(req.definition, {
+            themeVariables: { fontSize: "20px" },
+          });
+          await apiPost("/api/mermaid/complete", { id: req.id, elements });
+        } catch (e: any) {
+          // a syntax error must reach the CLI as an ERROR, not a timeout
+          await apiPost("/api/mermaid/complete", {
+            id: req.id, error: String(e?.message || e),
+          }).catch(() => undefined);
+        }
+      })();
+    }
+  }, [state]);
 
   /* ---------------- derived ---------------- */
   const artifacts = state?.artifacts || {};
@@ -1277,6 +1310,50 @@ export default function App() {
     toast(`${label} frame added — rename it on canvas, Save to record it.`);
   }, [insertElements, sceneCenter, toast]);
 
+  /** Paste a mermaid diagram as the USER's own drawing (WP9).
+   *
+   * Deliberately different from the agent's `mermaid` seed command:
+   * that maps flowchart/erDiagram to skill grammar through apply; this
+   * converts any natively-supported mermaid type to raw shapes that
+   * arrive exactly like shapes you drew — dirty canvas, your Save,
+   * your authorship. */
+  const importMermaid = useCallback(async () => {
+    const def = mermaidText.trim();
+    if (!def) return;
+    setMermaidBusy(true);
+    try {
+      const [{ parseMermaidToExcalidraw }, { convertToExcalidrawElements }] =
+        await Promise.all([
+          import("@excalidraw/mermaid-to-excalidraw"),
+          import("@excalidraw/excalidraw"),
+        ]);
+      const { elements: skeletons, files } = await parseMermaidToExcalidraw(def, {
+        themeVariables: { fontSize: "20px" },
+      });
+      const converted = convertToExcalidrawElements(skeletons as any);
+      if (!converted.length) throw new Error("the diagram converted to nothing");
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const e of converted) {
+        minX = Math.min(minX, e.x); minY = Math.min(minY, e.y);
+        maxX = Math.max(maxX, e.x + (e.width || 0));
+        maxY = Math.max(maxY, e.y + (e.height || 0));
+      }
+      const c = sceneCenter();
+      const dx = Math.round(c.x - (minX + maxX) / 2);
+      const dy = Math.round(c.y - (minY + maxY) / 2);
+      const shifted = converted.map((e: any) => ({ ...e, x: e.x + dx, y: e.y + dy }));
+      if (files && apiRef.current?.addFiles) apiRef.current.addFiles(Object.values(files));
+      insertElements(shifted);
+      setMermaidOpen(false);
+      setMermaidText("");
+      toast("Diagram imported — it's your drawing now; Save to record it.");
+    } catch (e: any) {
+      toast(`Mermaid import failed: ${e?.message || e}`);
+    } finally {
+      setMermaidBusy(false);
+    }
+  }, [mermaidText, insertElements, sceneCenter, toast]);
+
   const insertTemplate = useCallback((kind: string, name: string) => {
     const { x, y } = sceneCenter();
     const els = templateElements(kind, Math.round(x), Math.round(y));
@@ -1422,6 +1499,8 @@ export default function App() {
             </div>
           )}
         </div>
+        <button className="icon-btn" title="paste a mermaid diagram as your own drawing (flowchart, sequence, class, ER, state)"
+          disabled={viewingRevn != null} onClick={() => setMermaidOpen(true)}>⌗ mermaid</button>
         <button className="icon-btn" title="snap to the grid, re-route arrows, normalize z-order — lands as an ordinary revision you can revert"
           disabled={viewingRevn != null} onClick={doTidy}>✨ tidy</button>
         <button className="icon-btn" title="copy a context update to paste to the agent" onClick={copyContextUpdate}>⧉ context</button>
@@ -1940,6 +2019,37 @@ export default function App() {
       {docView && (
         <DocReader path={docView.path} content={docView.content}
           onClose={() => setDocView(null)} />
+      )}
+      {mermaidOpen && (
+        <div className="modal-backdrop" onClick={() => setMermaidOpen(false)}>
+          <div className="modal mermaid-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <span className="modal-kind">⌗ import mermaid</span>
+              <button className="modal-close" onClick={() => setMermaidOpen(false)}
+                title="close">✕</button>
+            </div>
+            <p className="dim">
+              Converts to plain shapes that arrive as <em>your</em> drawing —
+              edit freely, then Save. Native types: flowchart, sequence,
+              class, ER, state.
+            </p>
+            <textarea
+              className="mermaid-input"
+              autoFocus
+              spellCheck={false}
+              placeholder={"flowchart TD\n  A[Start] --> B{Decision}\n  B -->|yes| C[Do it]\n  B -->|no| D[Stop]"}
+              value={mermaidText}
+              onChange={(e) => setMermaidText(e.target.value)}
+            />
+            <div className="modal-foot">
+              <button disabled={!mermaidText.trim() || mermaidBusy}
+                onClick={importMermaid}>
+                {mermaidBusy ? "Converting…" : "Import"}
+              </button>
+              <button onClick={() => setMermaidOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
       {detailItem && (
         <QuestionModal

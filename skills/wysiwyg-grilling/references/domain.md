@@ -68,6 +68,16 @@ veto-able). Never let the two drift silently.
   eagerly.
 - domain↔wireframe: inference only.
 
+**Seeding from mermaid** (v0.8): an `erDiagram` seeds a domain view in
+one command — `canvas.py mermaid --file d.mmd --artifact <id> --concept
+<c>`, no browser needed (pure text parse). `A ||--o{ B : places` becomes
+a bound relationship with the arrowhead on the many end and the token in
+the label ("places 0..*"); reflexive relations (`RUN |o--o| RUN`) route
+as loops with cardinality in the tooltip; attribute blocks become the
+visible rows (first 3) with the full typed list in the entity's tooltip.
+Entities land on a declaration-order grid — drag them into hub/triangle
+shape after; the drawing is the truth from then on.
+
 ## Seed archetypes
 
 - **Core triangle**: the 3 load-bearing entities + labeled relationships —

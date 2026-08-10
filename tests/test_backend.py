@@ -7069,5 +7069,565 @@ class TestXAsUserFidelity(unittest.TestCase):
                              for e in els))
 
 
+class TestMermaidSeeding(Base):
+    """WP9: mermaid → op-batch mapping, both target types.
+
+    Flowchart mapping runs against the CHECKED-IN captured skeleton
+    fixture (tests/fixtures/mermaid/) so CI never needs a browser; the
+    capture came from the real tab pipeline. ER mapping is pure text
+    parsing. Every seed lands through apply_batch — the point of the
+    design is that a seed is an ordinary revision.
+    """
+
+    SKELETONS = (Path(__file__).resolve().parent / "fixtures" /
+                 "mermaid" / "signal-pipeline.skeletons.json")
+
+    def test_kind_classifier(self):
+        """First-keyword dispatch skips frontmatter and comments."""
+        self.assertEqual(canvas.mermaid_kind("flowchart TD\nA-->B"),
+                         "flowchart")
+        self.assertEqual(canvas.mermaid_kind("graph LR\nA-->B"), "graph")
+        self.assertEqual(
+            canvas.mermaid_kind("%% note\n---\ntitle: T\n---\nerDiagram"),
+            "erdiagram")
+        self.assertEqual(canvas.mermaid_kind(""), "")
+        # sequence/class/state parse natively upstream but are NOT
+        # mappable to this skill's grammar — the refusal set
+        for kw in ("sequencediagram", "classdiagram", "statediagram-v2",
+                   "gantt"):
+            self.assertNotIn(kw, canvas.MERMAID_MAPPED)
+
+    def test_er_parse_full_grammar(self):
+        """Symbol relations, attribute blocks, aliases, quoted names."""
+        p = canvas._parse_mermaid_er(
+            'erDiagram\n'
+            '  CUSTOMER ||--o{ ORDER : places\n'
+            '  ORDER }|..|{ "Line Item" : contains\n'
+            '  p[Person] ||--|| CUSTOMER : "is one"\n'
+            '  RUN |o--o| RUN : "rerun of"\n'
+            '  CUSTOMER {\n'
+            '    string name PK "legal name"\n'
+            '    int age\n'
+            '  }\n')
+        self.assertEqual(p["errors"], [])
+        self.assertEqual(p["entities"]["p"]["display"], "Person")
+        self.assertEqual(p["entities"]["CUSTOMER"]["attrs"][0],
+                         {"type": "string", "name": "name",
+                          "keys": "PK", "comment": "legal name"})
+        r0 = p["relations"][0]
+        self.assertEqual((r0["lc"], r0["rc"], r0["label"]),
+                         ("1", "0..*", "places"))
+        r1 = p["relations"][1]
+        self.assertEqual((r1["a"], r1["b"], r1["lc"], r1["rc"]),
+                         ("ORDER", "Line Item", "1..*", "1..*"))
+        self.assertEqual(p["relations"][3]["a"], p["relations"][3]["b"])
+        # the silent half: a verbose-form line errors by TEXT, never
+        # half-parses
+        bad = canvas._parse_mermaid_er(
+            "erDiagram\n  CUSTOMER one to many ORDER : places\n")
+        self.assertEqual(len(bad["errors"]), 1)
+        self.assertIn("one to many", bad["errors"][0])
+
+    def test_er_seed_lands_through_apply(self):
+        """Entities compose attr rows; cardinality drives arrowheads."""
+        p = canvas._parse_mermaid_er(
+            'erDiagram\n'
+            '  CUSTOMER ||--o{ ORDER : places\n'
+            '  ORDER }|--|{ SKU : lists\n'
+            '  RUN ||--|| REPORT : yields\n'
+            '  RUN |o--o| RUN : "rerun of"\n'
+            '  CUSTOMER {\n'
+            '    string name PK\n    string sector\n'
+            '    int age\n    bool active\n  }\n')
+        ops = canvas._er_seed_ops(p)
+        record, _ = self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "dom", "type": "domain", "concept": "model",
+                       "name": "Model"},
+            "ops": ops})
+        els = self.store.scenes["dom"]
+        ix = {e["id"]: e for e in els}
+        cust = ix["customer"]
+        self.assertEqual(cust["customData"]["kind"], "entity")
+        rows = [e for e in els
+                if (e.get("customData") or {}).get("attr_of") == "customer"]
+        self.assertEqual(len(rows), 3)   # visible rows capped at 3
+        self.assertIn("- bool active",
+                      cust["customData"]["tooltip"])  # overflow → tooltip
+        one_many = ix["r-customer-places"]
+        self.assertIsNone(one_many["startArrowhead"])
+        self.assertEqual(one_many["endArrowhead"], "arrow")
+        many_many = ix["r-order-lists"]
+        self.assertEqual((many_many["startArrowhead"],
+                          many_many["endArrowhead"]), ("arrow", "arrow"))
+        one_one = ix["r-run-yields"]
+        self.assertEqual((one_one["startArrowhead"],
+                          one_one["endArrowhead"]), (None, None))
+        # reflexive: verb-only label, loop route, cardinality in tooltip
+        loop = ix["r-run-rerun-of"]
+        self.assertEqual(
+            (loop.get("startBinding") or {}).get("elementId"),
+            (loop.get("endBinding") or {}).get("elementId"))
+        lbl = next(e for e in els if e.get("containerId") == loop["id"])
+        self.assertEqual(lbl["text"], "rerun of")
+        self.assertIn("0..1", loop["customData"]["tooltip"])
+        # label carries the many-side token on the non-reflexive pair
+        lbl2 = next(e for e in els
+                    if e.get("containerId") == one_many["id"])
+        self.assertEqual(lbl2["text"], "places 0..*")
+
+    def test_flow_seed_from_captured_skeletons(self):
+        """The real captured conversion maps, lands and lints clean."""
+        skeletons = json.loads(self.SKELETONS.read_text())
+        ops, notes, errors = canvas._flow_seed_ops(skeletons)
+        self.assertEqual(errors, [])
+        record, _ = self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "flow", "type": "flow", "concept": "pipe",
+                       "name": "Pipe"},
+            "ops": ops})
+        els = self.store.scenes["flow"]
+        ix = {e["id"]: e for e in els}
+        # semantic slugs, never the mermaid short ids
+        self.assertIn("ingest-market-data", ix)
+        self.assertIn("schema-valid", ix)
+        self.assertNotIn("ingest", ix)
+        self.assertEqual(ix["schema-valid"]["type"], "diamond")
+        # dagre geometry kept, snapped to the 4px grid
+        for eid in ("ingest-market-data", "schema-valid",
+                    "quarantine-batch"):
+            self.assertEqual(ix[eid]["x"] % 4, 0)
+            self.assertEqual(ix[eid]["y"] % 4, 0)
+        # the retry edge is a routed self-loop
+        loop = ix["score-signals-score-signals"]
+        self.assertEqual(
+            (loop.get("startBinding") or {}).get("elementId"),
+            "score-signals")
+        self.assertEqual(
+            (loop.get("endBinding") or {}).get("elementId"),
+            "score-signals")
+        self.assertEqual(loop.get("strokeStyle"), "dashed")
+        # edge labels ride along
+        yes = ix["schema-valid-enrich-with-fundamentals"]
+        ylbl = next(e for e in els if e.get("containerId") == yes["id"])
+        self.assertEqual(ylbl["text"], "yes")
+        # and the seeded artifact stands clean under the geometry lints
+        # (the differential control for the router's interior-elbow
+        # filter: the ORIGINAL route of the "no" branch ran 72px inside
+        # its target)
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="flow")
+        self.assertEqual(lint["errors"], [])
+
+    def test_flow_seed_subgraph_frames(self):
+        """One subgraph level maps to a frame; nesting refuses.
+
+        Hand-built skeletons: the vendored converter (2.2.2) cannot yet
+        emit subgraph containers (it degrades to a picture — refused at
+        the CLI), but the mapping is specified and tested so it works
+        the day upstream fixes the parser.
+        """
+        sub = {"id": "desk", "type": "rectangle",
+               "groupIds": ["subgraph_group_desk"],
+               "label": {"text": "Data desk"},
+               "x": 0, "y": 0, "width": 400, "height": 200}
+        member = {"id": "triage", "type": "rectangle",
+                  "groupIds": ["subgraph_group_desk"],
+                  "label": {"text": "Triage alert"},
+                  "x": 40, "y": 60, "width": 160, "height": 60}
+        loose = {"id": "review", "type": "rectangle",
+                 "label": {"text": "Review"},
+                 "x": 500, "y": 60, "width": 160, "height": 60}
+        ops, notes, errors = canvas._flow_seed_ops([sub, member, loose])
+        self.assertEqual(errors, [])
+        frame_op = next(o for o in ops
+                        if o["element"]["type"] == "frame")
+        self.assertEqual(frame_op["element"]["id"], "data-desk")
+        triage = next(o["element"] for o in ops
+                      if o["element"]["id"] == "triage-alert")
+        self.assertEqual(triage["frameId"], "data-desk")
+        review = next(o["element"] for o in ops
+                      if o["element"]["id"] == "review")
+        self.assertNotIn("frameId", review)
+        nested = dict(sub, groupIds=["subgraph_group_desk",
+                                     "subgraph_group_outer"])
+        _, _, errs = canvas._flow_seed_ops([nested, member])
+        self.assertTrue(errs and "nested" in errs[0])
+
+    def test_flow_seed_image_degrade_named(self):
+        """The library's silent picture-downgrade is named, not mapped."""
+        _, _, errs = canvas._flow_seed_ops([{"type": "image"}])
+        self.assertEqual(len(errs), 1)
+        self.assertIn("degraded this diagram to a picture", errs[0])
+
+    def test_budget_rider_on_oversized_seed(self):
+        """An over-budget seed carries set_budget + reason; a small one
+        doesn't."""
+        big = "erDiagram\n" + "\n".join(
+            "  E%d ||--o{ E%d : feeds" % (i, i + 1) for i in range(11))
+        p = canvas._parse_mermaid_er(big)
+        self.assertEqual(p["errors"], [])
+        ops = canvas._er_seed_ops(p)
+        n = sum(1 for o in ops
+                if o["element"]["type"] == "rectangle")
+        self.assertGreater(n, 8)
+        # the CLI adds the rider; prove the batch validates WITH it, at
+        # the same create-then-registry timing the command uses
+        ops.append({"op": "registry", "action": "set_budget",
+                    "artifact": "dom", "nodes": n, "arrows": 12,
+                    "reason": "mermaid seed: %d nodes" % n})
+        record, _ = self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "dom", "type": "domain", "concept": "m",
+                       "name": "M"},
+            "ops": ops})
+        self.assertIn("dom", self.store.registry.get("budgets", {}))
+
+    def test_flow_to_mermaid_roundtrip_text(self):
+        """--relayout's generator: ids carry identity, keywords are
+        safe, labels are quoted, arrow labels ride the edge."""
+        els = [
+            {"id": "end", "type": "rectangle", "x": 0, "y": 0,
+             "width": 160, "height": 60,
+             "customData": {"role": "node"}},
+            {"id": "end-label", "type": "text", "containerId": "end",
+             "text": "Wrap [it] up"},
+            {"id": "gate", "type": "diamond", "x": 300, "y": 0,
+             "width": 120, "height": 120,
+             "customData": {"role": "node"}},
+            {"id": "gate-label", "type": "text", "containerId": "gate",
+             "text": "Ready?"},
+            {"id": "lone", "type": "ellipse", "x": 600, "y": 0,
+             "width": 100, "height": 60,
+             "customData": {"role": "node"}},
+            {"id": "t1", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0]],
+             "startBinding": {"elementId": "gate"},
+             "endBinding": {"elementId": "end"}},
+            {"id": "t1-label", "type": "text", "containerId": "t1",
+             "text": "yes"},
+        ]
+        text, n = canvas._flow_to_mermaid(els)
+        self.assertEqual(n, 3)
+        # the mermaid keyword `end` is shielded by the n_ prefix
+        self.assertIn('n_gate{"Ready?"} -->|yes| n_end["Wrap [it] up"]',
+                      text)
+        # an unconnected node still gets declared (so dagre places it)
+        self.assertIn('n_lone(["lone"])', text)
+
+    def test_cmd_refusals(self):
+        """Unmapped types, existing artifacts and subgraphs refuse with
+        named reasons; the ER path needs no server at all."""
+        canvas_py = Path(canvas.__file__)
+        env_project = str(self.tmp)
+
+        def run(stdin_text, *argv):
+            return subprocess.run(
+                [sys.executable, str(canvas_py), "--project", env_project,
+                 "mermaid", *argv],
+                input=stdin_text, capture_output=True, text=True,
+                timeout=60)
+
+        r = run("sequenceDiagram\n  A->>B: hi\n",
+                "--artifact", "seq", "--concept", "c")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("isn't mappable", r.stderr)   # die() → stderr
+        r = run("flowchart TD\n  subgraph s\n  a-->b\n  end\n",
+                "--artifact", "f", "--concept", "c")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("subgraph", r.stderr)
+        # ER seeds land offline — no server, no browser
+        r = run("erDiagram\n  A ||--o{ B : owns\n",
+                "--artifact", "dom", "--concept", "c")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("SEED_KIND=erdiagram", r.stdout)
+        # seed-only: an existing artifact refuses — the drawing is the
+        # truth once landed
+        r = run("erDiagram\n  A ||--o{ B : owns\n",
+                "--artifact", "dom", "--concept", "c")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("already exists", r.stderr)
+
+
+class TestRouterInteriorElbows(Base):
+    """v0.8: no candidate elbow may land inside an endpoint box."""
+
+    def test_side_entry_elbow_stays_outside(self):
+        """The mermaid-found geometry: source centre inside the
+        destination's x-span used to elbow THROUGH the box."""
+        src = {"id": "s", "x": 392, "y": 192, "width": 192, "height": 192}
+        dst = {"id": "d", "x": 444, "y": 476, "width": 212, "height": 60}
+        arrow = {"id": "a", "type": "arrow"}
+        canvas.route_arrow(arrow, src, dst)
+        pts = [(arrow["x"] + p[0], arrow["y"] + p[1])
+               for p in arrow["points"]]
+        for px, py in pts[1:-1]:
+            inside_dst = (444 + 1 < px < 656 - 1 and
+                          476 + 1 < py < 536 - 1)
+            inside_src = (392 + 1 < px < 584 - 1 and
+                          192 + 1 < py < 384 - 1)
+            self.assertFalse(inside_dst or inside_src,
+                             "elbow %r inside an endpoint box" % ((px, py),))
+
+    def test_offset_pair_still_elbows(self):
+        """The silent half: a legal L-elbow route is untouched."""
+        src = {"id": "s", "x": 0, "y": 0, "width": 160, "height": 60}
+        dst = {"id": "d", "x": 400, "y": 300, "width": 160, "height": 60}
+        arrow = {"id": "a", "type": "arrow"}
+        canvas.route_arrow(arrow, src, dst)
+        self.assertGreaterEqual(len(arrow["points"]), 3)
+
+
+class TestCrossesThroughRun(Base):
+    """v0.8: the interior-run walk sees what the chord could not."""
+
+    def _flow_with(self, arrow_pts, ax=0, ay=0):
+        """One box and one server-routed arrow with given geometry."""
+        els = [
+            {"id": "box", "type": "rectangle", "x": 444, "y": 476,
+             "width": 212, "height": 60,
+             "customData": {"role": "node"}},
+            {"id": "far", "type": "rectangle", "x": 400, "y": 80,
+             "width": 160, "height": 60,
+             "customData": {"role": "node"}},
+            {"id": "a", "type": "arrow", "x": ax, "y": ay,
+             "points": arrow_pts,
+             "startBinding": {"elementId": "far", "focus": 0, "gap": 6},
+             "endBinding": {"elementId": "box", "focus": 0, "gap": 6},
+             "customData": {"role": "edge", "route": "server"}},
+        ]
+        return els
+
+    def test_on_border_endpoint_with_interior_approach_fires(self):
+        """Endpoint ON the edge, approach through the interior — the
+        exact shape the first dagre seed produced (72px inside)."""
+        els = self._flow_with(
+            [[0, 0], [0, 122], [-44, 122]], ax=488, ay=384)
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="t")
+        # hand-built geometry reads as user-shaped, so the finding rides
+        # the warning tier; the SHAPE detection is what's under test —
+        # the routed-tier split has its own coverage
+        hits = [e for e in lint["errors"] + lint["warnings"]
+                if "runs 72px inside it" in e]
+        self.assertEqual(len(hits), 1,
+                         lint["errors"] + lint["warnings"])
+
+    def test_perpendicular_border_entry_stays_quiet(self):
+        """The silent half: a fan attach point entered from outside."""
+        els = self._flow_with([[0, 0], [0, 92]], ax=520, ay=384)
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="t")
+        self.assertFalse([e for e in lint["errors"] + lint["warnings"]
+                          if "inside it" in e],
+                         lint["errors"] + lint["warnings"])
+
+    def test_boundary_running_approach_stays_quiet(self):
+        """The r4-1 over-fire regression: an approach ALONG the border
+        accumulates no strictly-interior run."""
+        els = self._flow_with(
+            [[0, 0], [0, 92], [60, 92]], ax=444, ay=384)
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="t")
+        self.assertFalse([e for e in lint["errors"] + lint["warnings"]
+                          if "inside it" in e],
+                         lint["errors"] + lint["warnings"])
+
+
+class TestDeletionConsequenceSurface(Base):
+    """v0.8 beats, beat 3: the facts existed on disk; no agent-facing
+    surface named them, and lint was blind to half-unbound arrows."""
+
+    def _delete_hub(self):
+        """Seed a 3-arrow hub and delete it; returns (record, scene)."""
+        self.store.apply_batch(seed_flow_batch())
+        record, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "del", "id": "checkout"}]})
+        return record, self.store.scenes["checkout-flow"]
+
+    def test_consequence_lines_name_the_fallout(self):
+        record, _ = self._delete_hub()
+        lines = canvas.consequence_lines(record)
+        self.assertTrue(lines, "deletion produced no consequence lines")
+        joined = "\n".join(lines)
+        self.assertIn("t1", joined)     # cart→checkout lost its end
+        self.assertIn("t2", joined)     # checkout→payment lost its start
+        # and the silent half: an ordinary add has no consequences
+        rec2, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow",
+            "ops": [{"op": "add", "element": {
+                "id": "aside", "type": "rectangle", "x": 900, "y": 40,
+                "width": 160, "height": 60, "label": "Aside",
+                "role": "node"}}]})
+        self.assertEqual(canvas.consequence_lines(rec2), [])
+
+    def test_half_unbound_arrow_draws_the_warning(self):
+        _, els = self._delete_hub()
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="checkout-flow")
+        halves = [w for w in lint["warnings"]
+                  if "lost its" in w and "endpoint" in w]
+        # t1 lost its end, t2 its start (t1/t2 are unlabeled and this is
+        # a flow view — the warning keys on the half-bound state, so it
+        # must fire regardless of label)
+        self.assertGreaterEqual(len(halves), 2, lint["warnings"])
+
+    def test_fully_bound_and_sketch_arrows_stay_quiet(self):
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        # a decoration-free unlabeled arrow with BOTH ends unbound on a
+        # flow view is sketch furniture — still quiet (unchanged rule)
+        els.append({"id": "sketch", "type": "arrow", "x": 900, "y": 400,
+                    "points": [[0, 0], [80, 0]], "startBinding": None,
+                    "endBinding": None, "customData": {"role": "edge"}})
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="checkout-flow")
+        self.assertFalse([w for w in lint["warnings"]
+                          if "lost its" in w or "binds nothing" in w],
+                         lint["warnings"])
+
+    def test_self_loop_exempt_from_shared_attach_warning(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "add",
+                     "element": {"id": "loop", "type": "arrow",
+                                 "label": "retry"},
+                     "from": "checkout", "to": "checkout"}]})
+        els = self.scene()
+        lint = canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="flow", aid="checkout-flow")
+        self.assertFalse(
+            [w for w in lint["warnings"]
+             if "share an attach point" in w and "loop" in w],
+            lint["warnings"])
+
+
+class TestBeatsBFixes(Base):
+    """v0.8 beats B: stale toggle-pill width, set_round stacking, the
+    stall ratchet, note-id collisions, duplicate ids at the write path."""
+
+    def _toggle_scene(self):
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "w", "type": "wireframe", "concept": "c",
+                       "name": "W"},
+            "ops": [{"op": "add", "element": {
+                "id": "tg", "type": "rectangle", "x": 40, "y": 40,
+                "width": 220, "height": 28, "label": "Macro",
+                "kind": "toggle", "checked": False}}]})
+
+    def test_stale_pill_width_heals_on_reconcile(self):
+        self._toggle_scene()
+        els = self.store.scenes["w"]
+        box = next(e for e in els
+                   if (e.get("customData") or {}).get("box_of") == "tg")
+        box["width"] = 28    # a pre-v0.8 artifact under the old constant
+        self.store.commit(author="agent", new_scenes={"w": els},
+                          base_revn=1)
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "w",
+            "ops": [{"op": "mod", "id": "tg",
+                     "attrs": {"checked": True}}]})
+        els = self.store.scenes["w"]
+        box = next(e for e in els
+                   if (e.get("customData") or {}).get("box_of") == "tg")
+        thumb = next(e for e in els
+                     if (e.get("customData") or {})
+                     .get("thumb_of") == "tg")
+        self.assertEqual(box["width"], canvas.TOGGLE_PILL_W)
+        # the on-position thumb stays ON its track
+        self.assertLessEqual(thumb["x"] + thumb["width"],
+                             box["x"] + box["width"])
+
+    def test_set_round_lands_exactly_after_a_user_turn(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": self.scene()},
+                          base_revn=1)
+        start = self.store.registry.get("round", 0)
+        rec, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow",
+            "ops": [
+                {"op": "add", "element": {
+                    "id": "n1", "type": "rectangle", "x": 900, "y": 40,
+                    "width": 160, "height": 60, "label": "N1",
+                    "role": "node"}},
+                {"op": "registry", "action": "set_round",
+                 "round": start + 3}]})
+        # asked for start+3, got start+3 — the auto-bump used to stack
+        # +1 exactly on the first agent commit after a user turn
+        self.assertEqual(self.store.registry["round"], start + 3)
+        self.assertEqual(rec["round"], start + 3)
+        # and set_round now appears in the registry narration
+        self.assertTrue(any(c.get("action") == "set_round"
+                            for c in rec["registry_changes"]))
+
+    def test_auto_bump_survives_without_set_round(self):
+        """The silent half: an ordinary agent move still opens a round."""
+        self.store.apply_batch(seed_flow_batch())
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": self.scene()},
+                          base_revn=1)
+        start = self.store.registry.get("round", 0)
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow",
+            "ops": [{"op": "add", "element": {
+                "id": "n2", "type": "rectangle", "x": 900, "y": 140,
+                "width": 160, "height": 60, "label": "N2",
+                "role": "node"}}]})
+        self.assertEqual(self.store.registry["round"], start + 1)
+
+    def test_round_stall_clears_when_advice_is_taken(self):
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "pin", "target": "cart",
+                     "question": "still open?"}]})
+        for i in range(3):
+            self.store.apply_batch({
+                "base_revn": 2 + i, "artifact": "checkout-flow",
+                "ops": [{"op": "mod", "id": "cart",
+                         "attrs": {"x": 100 + 4 * i}}]})
+        self.assertIsNotNone(self.store.round_stall())
+        rnd = self.store.registry.get("round", 0)
+        self.store.apply_batch({
+            "base_revn": 5, "artifact": "checkout-flow",
+            "ops": [{"op": "registry", "action": "set_round",
+                     "round": rnd + 1}]})
+        # taking the nag's advice CLEARS it — it used to survive and
+        # ratchet the round on every subsequent apply
+        self.assertIsNone(self.store.round_stall())
+
+    def test_note_ids_never_collide(self):
+        first = canvas._x_user_note("same text", 0, 0)
+        ids = {e["id"] for e in first}
+        second = canvas._x_user_note("same text", 40, 40, existing=ids)
+        self.assertNotEqual(first[0]["id"], second[0]["id"])
+        self.assertTrue(second[0]["id"].startswith("usernote-"))
+
+    def test_duplicate_ids_dropped_at_the_write_moment(self):
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        els.append(dict(els[0]))    # a byte-identical duplicate id
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=1)
+        ids = [e["id"] for e in self.store.scenes["checkout-flow"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        # and a fresh load repairs nothing — the write healed it
+        store2 = canvas.Store(self.project)
+        ids2 = [e["id"] for e in store2.scenes["checkout-flow"]]
+        self.assertEqual(len(ids2), len(set(ids2)))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1,0 +1,351 @@
+[
+ {
+  "id": "ingest",
+  "type": "rectangle",
+  "groupIds": [],
+  "x": 303.12812500074506,
+  "y": 8,
+  "width": 225.65625,
+  "height": 60,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Ingest market data",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "validate",
+  "type": "diamond",
+  "groupIds": [],
+  "x": 320.86250000074506,
+  "y": 118,
+  "width": 191.1875,
+  "height": 191.1875,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Schema valid?",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "enrich",
+  "type": "rectangle",
+  "groupIds": [],
+  "x": 63.93515625037253,
+  "y": 389.1875,
+  "width": 260,
+  "height": 90,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Enrich with fundamentals",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "quarantine",
+  "type": "rectangle",
+  "groupIds": [],
+  "x": 373.93515625037253,
+  "y": 404.1875,
+  "width": 213.4375,
+  "height": 60,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Quarantine batch",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "score",
+  "type": "rectangle",
+  "groupIds": [],
+  "x": 103.90390625037253,
+  "y": 529.1875,
+  "width": 180.0625,
+  "height": 60,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Score signals",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "publish",
+  "type": "rectangle",
+  "groupIds": [],
+  "x": 8,
+  "y": 639.1875,
+  "width": 214.546875,
+  "height": 60,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Publish tearsheet",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "alert",
+  "type": "rectangle",
+  "groupIds": [],
+  "x": 383.94296875037253,
+  "y": 529.1875,
+  "width": 193.421875,
+  "height": 60,
+  "strokeWidth": 2,
+  "label": {
+   "groupIds": [],
+   "text": "Alert data desk",
+   "fontSize": 20
+  },
+  "link": null
+ },
+ {
+  "id": "ingest_validate",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 415.956,
+  "y": 68,
+  "strokeWidth": 2,
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    25
+   ],
+   [
+    0,
+    46
+   ]
+  ],
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "ingest"
+  },
+  "end": {
+   "id": "validate"
+  }
+ },
+ {
+  "id": "validate_enrich",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 356.608,
+  "y": 249.839,
+  "strokeWidth": 2,
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    -162.673,
+    99.34899999999999
+   ],
+   [
+    -162.673,
+    135.349
+   ]
+  ],
+  "label": {
+   "text": "yes",
+   "fontSize": 20,
+   "groupIds": []
+  },
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "validate"
+  },
+  "end": {
+   "id": "enrich"
+  }
+ },
+ {
+  "id": "validate_quarantine",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 446.835,
+  "y": 278.309,
+  "strokeWidth": 2,
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    33.81900000000002,
+    70.87899999999996
+   ],
+   [
+    33.81900000000002,
+    121.87899999999996
+   ]
+  ],
+  "label": {
+   "text": "no",
+   "fontSize": 20,
+   "groupIds": []
+  },
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "validate"
+  },
+  "end": {
+   "id": "quarantine"
+  }
+ },
+ {
+  "id": "enrich_score",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 193.935,
+  "y": 479.188,
+  "strokeWidth": 2,
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    25
+   ],
+   [
+    0,
+    46
+   ]
+  ],
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "enrich"
+  },
+  "end": {
+   "id": "score"
+  }
+ },
+ {
+  "id": "score_publish",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 151.029,
+  "y": 589.188,
+  "strokeWidth": 2,
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    -35.756,
+    25
+   ],
+   [
+    -35.756,
+    46
+   ]
+  ],
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "score"
+  },
+  "end": {
+   "id": "publish"
+  }
+ },
+ {
+  "id": "score_score",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 177.35,
+  "y": 589.188,
+  "strokeWidth": 2,
+  "strokeStyle": "dashed",
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    -14.925999999999988,
+    27
+   ],
+   [
+    48.096000000000004,
+    27
+   ],
+   [
+    35.10500000000002,
+    3.5
+   ]
+  ],
+  "label": {
+   "text": "retry",
+   "fontSize": 20,
+   "groupIds": []
+  },
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "score"
+  },
+  "end": {
+   "id": "score"
+  }
+ },
+ {
+  "id": "quarantine_alert",
+  "type": "arrow",
+  "groupIds": [],
+  "x": 480.654,
+  "y": 464.188,
+  "strokeWidth": 2,
+  "points": [
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    40
+   ],
+   [
+    0,
+    61
+   ]
+  ],
+  "roundness": {
+   "type": 2
+  },
+  "start": {
+   "id": "quarantine"
+  },
+  "end": {
+   "id": "alert"
+  }
+ }
+]
