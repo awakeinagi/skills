@@ -1550,6 +1550,42 @@ class TestExportCompleteness(unittest.TestCase):
             "model, it widens the bounds, it is not in the picture")
 
 
+class TestMermaidRoundTripIdentity(unittest.TestCase):
+    """`--relayout` matches nodes by id, never by label — pinned green."""
+
+    def test_flow_to_mermaid_carries_element_identity(self) -> None:
+        """Every node reaches the mermaid text as `n_<element id>`.
+
+        No defect claimed: this is the protection itself, pinned so it
+        cannot be refactored away quietly. `--relayout` round-trips a flow
+        through mermaid and maps dagre's answer back with
+        `sk["id"][2:] in ix` (canvas.py:10583), so identity lives in that
+        `n_` prefix and nothing is ever matched by label. Were it matched
+        by label instead, two nodes reading "Review" would swap positions
+        on every re-layout and the drawing would rearrange itself for
+        reasons no one could see.
+
+        Asserted per element and exactly, not as a substring count: with
+        three nodes, losing one and duplicating another is invisible to
+        any looser check.
+        """
+        flow = [el(id="step-%d" % i, type=t, x=i * 200, y=0, width=120,
+                   height=60, customData={"role": "node"})
+                for i, t in enumerate(("rectangle", "diamond", "ellipse"))]
+        flow += [el(id="step-%d-label" % i, type="text", x=i * 200 + 10,
+                    y=20, width=100, height=20, text="Review",
+                    containerId="step-%d" % i) for i in range(3)]
+        text, count = canvas._flow_to_mermaid(flow)
+        self.assertEqual(count, 3)
+        # Every id present, once declared, prefix intact — and the shared
+        # "Review" label proves none of it depends on the labels differing.
+        for i in range(3):
+            with self.subTest(node=i):
+                self.assertEqual(text.count("n_step-%d" % i), 1)
+        self.assertEqual(sorted(re.findall(r"n_(step-\d)", text)),
+                         ["step-0", "step-1", "step-2"])
+
+
 # ---------------------------------------------------------------------------
 # Store integrity — the data-loss family (Batch A, 2026-08-12: flowchartai
 # mine M6 §d for the load path, excalidraw-mcp mine M4 for file references,
@@ -1952,6 +1988,60 @@ def _labelled_shape(shape: str) -> list[dict]:
     return [node, lbl]
 
 
+def _framed_flow(escaped: bool) -> list[dict]:
+    """A lane frame and two members, one of them outside the lane.
+
+    Minimal on purpose: an earlier draft kept the arrow joining the two
+    members, and moving `s2` out of the lane dragged its bound endpoint
+    with it, so the scene fired `endpoint_gap` and the containment
+    question arrived wrapped in someone else's finding. Frame membership
+    is a `frameId` claim about geometry; it needs no edges to be wrong.
+
+    `s2` sits 80px below the lane's bottom edge when escaped — the frame
+    spans y 0..200 and the node spans y 280..340 — and inside it at the
+    same y as `s1`. Both scenes carry the identical `frameId` claim.
+
+    Args:
+        escaped: True to place `s2` clear of the lane it claims to be in.
+
+    Returns:
+        The three-element scene: frame `lane`, members `s1` and `s2`.
+    """
+    return [el(id="lane", type="frame", x=0, y=0, width=400, height=200,
+               name="Lane A"),
+            el(id="s1", type="rectangle", x=40, y=60, width=120, height=60,
+               frameId="lane", customData={"role": "node"}),
+            el(id="s2", type="rectangle", x=240, y=280 if escaped else 60,
+               width=120, height=60, frameId="lane",
+               customData={"role": "node"})]
+
+
+def _text_over_node(roled: bool) -> list[dict]:
+    """A free text lying across a node, with and without a role.
+
+    `role_of` defaults to `"node"` for anything carrying no explicit role
+    (canvas.py:3197), and the annotation/node overlap check gates on
+    `role_of(e) == "annotation"` (canvas.py:5523). So the SAME text over
+    the SAME node is reported when it is roled and invisible when it is
+    not — and unroled is what arrives when a user pastes text onto the
+    canvas, the least instrumented direction there is.
+
+    The text covers the node completely: 120x20 of overlap, 2400px².
+
+    Args:
+        roled: True to mark the text `role="annotation"`, which is the
+            control — the existing lint fires on it.
+
+    Returns:
+        The two-element scene: node `n1`, then the text `t1`.
+    """
+    return [el(id="n1", type="rectangle", x=0, y=0, width=200, height=100,
+               customData={"role": "node"}),
+            el(id="t1", type="text", x=40, y=40, width=120, height=20,
+               text="pasted note", fontSize=16,
+               customData={"role": "annotation"} if roled else {})]
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -2122,7 +2212,7 @@ def _attach_chain(shared: bool) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-12 `mutants list --red` reports 9 while the suite reports 15
+# as of 2026-08-12 `mutants list --red` reports 11 while the suite reports 17
 # expected failures. The six outside live in two classes —
 # `TestExportCompleteness` (2) and `TestStoreIntegrity` (4) — and are outside
 # deliberately, because a Mutant is judged by `collect_findings` over an
@@ -2360,6 +2450,57 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _labelled_shape("rectangle"),
                         Silence("endpoint_gap"))))
 
+# Frame membership asserted against a picture that contradicts it — RED BY
+# ABSENCE (flowchartai mine M2, 2026-08-12). `frameId` is a claim of
+# containment, and nothing in `lint_layout` ever tests it: the frameId sites
+# there serve help-slot lookup, same-frame pairing and the unconnected-node
+# note, none of them geometric. Verified live — this scene and its control
+# produce IDENTICAL lint and findings, so the tooling cannot tell a lane
+# with its members in it from a lane whose member is 80px below it.
+#
+# The producer is confirmed too: `--relayout`'s move set is
+# rect/diamond/ellipse (canvas.py:10581) and never frames, so re-laying a
+# framed flow walks members out of a lane that stays put. That half is a
+# WP5 defect and is NOT pinned here — pinning it means stubbing
+# `_mermaid_convert` and `cmd_apply` around a CLI command, which binds the
+# test to three internal names to prove a state this scene already holds.
+#
+# MAGNITUDE: the escape is measured from the frame's near edge to the
+# member's near edge — 280 - 200 = 80px past the bottom. The ±25% band
+# excludes 140px (measuring to the member's FAR edge) and 0px (a bbox
+# overlap test, which would call this "not overlapping" and report nothing).
+_register(Mutant(
+    "framed_node_escapes_its_lane",
+    build=lambda: _framed_flow(escaped=True),
+    op="unchanged", args={},
+    expect=FindingSpec("frame_containment", element="s2",
+                       magnitude=(80, 0.25)),
+    neighbour=Neighbour(lambda: _framed_flow(escaped=False),
+                        Silence("endpoint_gap"))))
+
+# The role gate on text checks — RED BY ABSENCE (visualize-skill mine M2,
+# 2026-08-12). `role_of` defaults everything unroled to "node"
+# (canvas.py:3197) and the text/node overlap check gates on
+# role_of(e) == "annotation" (canvas.py:5523), so the same text over the
+# same node is reported when roled and silent when not. Verified live: with
+# `role="annotation"` the lint says "annotation 'pasted note' lies on top of
+# n1"; with no role at all it says nothing. Unroled is what a user's pasted
+# text looks like, which makes the blind spot point at the one direction we
+# instrument least.
+#
+# MAGNITUDE: the overlap AREA, 120 x 20 = 2400px², matching how the shape
+# overlap loop next door already scores overlaps (`ox * oy`). The ±10% band
+# excludes both single-axis readings (120 and 20) and any fraction-of-text
+# reading (1.0).
+_register(Mutant(
+    "unroled_text_over_node",
+    build=lambda: _text_over_node(roled=False),
+    op="unchanged", args={},
+    expect=FindingSpec("text_overlaps_node", element="t1",
+                       magnitude=(2400, 0.10)),
+    neighbour=Neighbour(lambda: _text_over_node(roled=True),
+                        Silence("endpoint_gap"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -2429,6 +2570,28 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_diamond_label_overflows_shape(self) -> None:
         """The same label on a rectangle: today's nets are right to be quiet."""
         self._run_neighbour("diamond_label_overflows_shape")
+
+    @unittest.expectedFailure
+    def test_mutant_framed_node_escapes_its_lane(self) -> None:
+        """A member 80px below the lane its frameId claims goes unreported."""
+        # Nothing tests frameId against geometry; flips when WP5's
+        # containment check lands and takes a DETECTORS entry.
+        self._run("framed_node_escapes_its_lane")
+
+    def test_neighbour_framed_node_escapes_its_lane(self) -> None:
+        """The same members inside the lane: nothing to report, nothing said."""
+        self._run_neighbour("framed_node_escapes_its_lane")
+
+    @unittest.expectedFailure
+    def test_mutant_unroled_text_over_node(self) -> None:
+        """A text with no role covering a node is invisible to every check."""
+        # The overlap check gates on role == "annotation"; flips when a
+        # role-blind text/node check lands and takes a DETECTORS entry.
+        self._run("unroled_text_over_node")
+
+    def test_neighbour_unroled_text_over_node(self) -> None:
+        """The same overlap with a role attached is reported by today's lint."""
+        self._run_neighbour("unroled_text_over_node")
 
     @unittest.expectedFailure
     def test_mutant_diamond_facet_overfire(self) -> None:
@@ -2623,11 +2786,19 @@ ASPIRATIONAL: dict[str, str] = {
     "label_overflows_shape":
         "WP4 — shape-aware label fitting/lint, not yet built; the geometry "
         "it needs is already in canvas.py as `marker_inset` (4200)",
+    "frame_containment":
+        "WP5 — no check compares a member's geometry against the frame its "
+        "`frameId` names; lint_layout reads frameId for help slots and "
+        "same-frame pairing only, never for containment",
+    "text_overlaps_node":
+        "WP4 — a role-BLIND text/node overlap check, not yet built; the "
+        "existing one gates on role_of(e) == 'annotation' (canvas.py:5523) "
+        "and role_of defaults everything unroled to 'node' (3197)",
 }
 
-# FOR WHOEVER FLIPS THESE. Neither aspirational mutant has a neighbour
-# asserting ITS check's other pole, because neither check exists to have a
-# pole yet — both borrow a detector that does exist. The borrowings are not
+# FOR WHOEVER FLIPS THESE. No aspirational mutant has a neighbour asserting
+# ITS check's other pole, because none of those checks exists to have a pole
+# yet — every one borrows a detector that does exist. The borrowings are not
 # equally strong, and the flip work differs accordingly:
 #
 #   phantom_passthrough  — neighbour `Silence("shared_corridor")` over
@@ -2635,10 +2806,15 @@ ASPIRATIONAL: dict[str, str] = {
 #       builder with `shared=True` fires that check (see
 #       `merged_stroke_caught_by_corridor`), so the quiet means something
 #       about the picture.
-#   label_overflows_shape — neighbour `Silence("endpoint_gap")` over a
-#       scene with NO ARROWS proves liveness only: that check cannot fire
-#       there whatever the labels do. It earns its keep by refusing to
-#       match over any run where a detector crashed, and nothing more.
+#   label_overflows_shape, frame_containment, unroled_text_over_node —
+#       each neighbours `Silence("endpoint_gap")` over a scene with NO
+#       ARROWS, which proves liveness only: that check cannot fire there
+#       whatever the labels, frames or texts do. They earn their keep by
+#       refusing to match over any run where a detector crashed, and
+#       nothing more. `unroled_text_over_node` has the strongest control
+#       of the three even so — its neighbour is the SAME overlap with a
+#       role attached, which the existing lint does report, so the pair
+#       isolates the role gate as the only variable.
 #
 # So when WP4/WP4b's lints land, dropping the `expectedFailure` is not the
 # whole change: give each mutant a real other-pole neighbour on the new
