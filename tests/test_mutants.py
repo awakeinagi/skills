@@ -1629,6 +1629,44 @@ def _annotation_at(corner_clear: bool) -> list[dict]:
                customData={"role": "annotation"})]
 
 
+def _arrow_label_at(corner_clear: bool) -> list[dict]:
+    """The same circle, with a BOUND ARROW LABEL in the void or on the body.
+
+    `annotation_overlaps_node` and `label_on_foreign_node` are siblings
+    with the same bbox blindness, and a scene proving one says nothing
+    about the other: a fix teaching only the annotation check about
+    shapes would flip that red and leave this arm exactly as blind. So
+    this stage exercises the label arm on its own.
+
+    Placing it takes one indirection. The client re-centres a bound arrow
+    label on the arc-length MIDPOINT of its path and discards the stored
+    x/y, and `arrow_label_anchor` mirrors that — so the label is put in
+    the corner void by putting the ARROW's midpoint there, at (337,264),
+    which lands the 70x24 label at (302,252): the same 16.0px of clear
+    space the annotation stage uses.
+
+    The arrow necessarily crosses the void too, so both scenes also draw
+    an unbound-arrow warning and a `passes_through_foreign` hit. They
+    draw the SAME two in both, and `_says_lies_on` reads neither.
+
+    Args:
+        corner_clear: True to park the label in the empty corner.
+
+    Returns:
+        The three-element scene: circle `n1`, arrow `ax`, label `t1`.
+    """
+    mx, my = (337, 264) if corner_clear else (500, 450)
+    arrow = el(id="ax", type="arrow", x=mx - 60, y=my, width=120, height=0,
+               points=[[0, 0], [120, 0]], customData={"role": "edge"},
+               boundElements=[{"id": "t1", "type": "text"}])
+    return [el(id="n1", type="ellipse", x=300, y=250, width=400, height=400,
+               customData={"role": "node"}),
+            arrow,
+            el(id="t1", type="text", x=0, y=0, width=70, height=24,
+               text="then", fontSize=16, containerId="ax",
+               originalText="then")]
+
+
 def _says_lies_on(scene: list[dict]) -> list[str]:
     """Lint warnings claiming a text sits on a node.
 
@@ -1648,11 +1686,17 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
 
     A sibling of `ellipse_corner_overfire`, and outside `CATALOGUE` for a
     reason worth stating: an over-fire mutant asserts `Silence` on its
-    check, and `annotation_overlaps_node` (canvas.py:5593) has no
-    `DETECTORS` entry — it sits in `UNCOVERED`. A `Silence` on an
-    unregistered check passes vacuously, so the catalogue cannot hold this
-    one until that entry lands. Read as lint text instead, which needs no
-    registry.
+    check, and neither `annotation_overlaps_node` (canvas.py:5593) nor
+    `label_on_foreign_node` (:5576) has a `DETECTORS` entry — both sit in
+    `UNCOVERED`. A `Silence` on an unregistered check passes vacuously,
+    so the catalogue cannot hold these until those entries land. Read as
+    lint text instead, which needs no registry.
+
+    Both checks get their OWN red, over their own scene. They share a
+    defect but not a code path — one reads a text's stored box, the other
+    resolves a bound label through `arrow_label_anchor` first — so a fix
+    can land on one and miss the other, and one red covering both would
+    stay red and say nothing about which.
     """
 
     def test_an_annotation_on_the_body_is_reported(self) -> None:
@@ -1680,11 +1724,44 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
         a diamond would read the same way. Flips when the checks test the
         drawn shape — the geometry is already in canvas.py as
         `marker_inset` (4200).
+
+        This method pins `annotation_overlaps_node` ONLY; its sibling has
+        its own red below, because a fix could teach one and not the
+        other.
         """
         self.assertEqual(
             _says_lies_on(_annotation_at(corner_clear=True)), [],
             "the annotation is 16px clear of the circle and reported as "
             "on it")
+
+    def test_an_arrow_label_on_the_body_is_reported(self) -> None:
+        """The label arm fires where it should, and its red needs it to."""
+        self.assertTrue(_says_lies_on(_arrow_label_at(corner_clear=False)))
+
+    @unittest.expectedFailure
+    def test_red_arrow_label_clear_of_a_circle_is_reported_as_on_it(
+            self) -> None:
+        """A bound arrow label 16px clear of the circle is called an overlap.
+
+        The sibling check, pinned separately on purpose.
+        `label_on_foreign_node` (canvas.py:5576-5578) runs the same raw
+        rectangle intersection as `annotation_overlaps_node`, against the
+        same unfiltered `nodes` set, and until this method existed the
+        `"lands on"` arm of `_says_lies_on` matched nothing in either
+        scene — the helper anticipated the check, the docstring claimed
+        it, and no assertion reached it. A WP4 fix teaching only the
+        annotation loop about shapes would have flipped the red above and
+        left this one silently as blind as before.
+
+        One difference from its sibling is worth knowing when fixing:
+        this check reads the label's DRAWN box via `arrow_label_anchor`,
+        not its stored x/y, so the shape term has to be applied after
+        that resolution rather than before it.
+        """
+        self.assertEqual(
+            _says_lies_on(_arrow_label_at(corner_clear=True)), [],
+            "the arrow label is 16px clear of the circle and reported as "
+            "landing on it")
 
 
 class TestMermaidRoundTripIdentity(unittest.TestCase):
@@ -2747,10 +2824,10 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-12 `mutants list --red` reports 16 while the suite reports 25
-# expected failures. The nine outside live in four classes —
+# as of 2026-08-12 `mutants list --red` reports 16 while the suite reports 26
+# expected failures. The ten outside live in four classes —
 # `TestExportCompleteness` (2), `TestStoreIntegrity` (5),
-# `TestPaintOrder` (1) and `TestShapeBlindAnnotationOverlap` (1) — and are
+# `TestPaintOrder` (1) and `TestShapeBlindAnnotationOverlap` (2) — and are
 # outside
 # deliberately, because a Mutant is judged by `collect_findings` over an
 # ELEMENT LIST and none of what they measure is in one. Each class carries
@@ -3852,8 +3929,17 @@ class TestCoverage(unittest.TestCase):
         `TestShapeBlindAnnotationOverlap`) never reach `_register` and
         have no expectation objects to compare, so nothing here would
         notice two agents writing the same plain red test under different
-        method names. For those, the per-agent id/section convention is
-        still the only defence.
+        method names.
+
+        And one convention is REJECTED rather than merely absent, so it
+        does not get re-proposed: per-agent mutant-id PREFIXES. They look
+        like collision avoidance and are the opposite — guaranteeing ids
+        differ permanently disarms `_register`'s duplicate-id refusal,
+        which is the only reason the 2026-08-12 collision was caught at
+        all. That trades a loud, detectable collision for a silent one.
+        A per-agent FILE-SECTION convention is fine and carries none of
+        that cost: it reduces textual merge conflict without touching
+        either detection layer.
         """
         by_defect: dict[tuple, list[str]] = {}
         for mid in sorted(CATALOGUE):
