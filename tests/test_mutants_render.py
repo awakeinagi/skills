@@ -21,6 +21,7 @@ reason, never quietly mark the mutants green.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import os
 import re
 import shutil
@@ -188,6 +189,19 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
     element is not in the picture; ink in two or more separated pieces
     means whatever is drawn over it has cut it in half.
 
+    The delta is *nearly* the ablated element's own ink, and the gap is
+    worth knowing: `canvas.render_svg` decides whether to paint a label's
+    opaque backdrop by testing the label's `containerId` against the arrow
+    ids of the elements it was handed, so ablating an arrow also removes
+    the backdrop of any label bound to it. When that backdrop covers only
+    the ablated arrow — every scene here — the delta is exactly the ink a
+    reader would lose, which is what we want. But a backdrop overlapping
+    FOREIGN ink un-covers it on ablation, and the un-covered ink joins the
+    delta as pieces that were never part of the connector, which can push
+    the component count to 2 and fire `ablation_continuity` spuriously.
+    No scene in this file reaches that; a catalogue scene with a label
+    riding one arrow across another's stroke would.
+
     Args:
         elements: The full scene.
         arrow_ids: Ids to ablate, one at a time. Named for the connectors
@@ -280,9 +294,35 @@ class TestRenderMutants(unittest.TestCase):
         scene = tm._diamond_stage()
         ghost = el(id="g1", type="rectangle", x=300, y=300, width=0,
                    height=0, opacity=0, customData={"role": "node"})
-        finds = ablation_findings(scene + [ghost], ["g1"], self.workdir)
+        finds = ablation_findings([*scene, ghost], ["g1"], self.workdir)
         self.assertIn("g1", [f["element"] for f in finds
                              if f["check"] == "ablation_existence"])
+
+    def test_ablation_of_the_bbox_defining_element_still_reads(self) -> None:
+        """Ablating the element that sets the viewport's own left edge.
+
+        The scenes above all ablate an element well inside the drawing's
+        bounds, so the ablated render happens to want the same viewport as
+        the full one and `_shot`'s `<svg>`-tag splice is a no-op — meaning
+        none of them would notice if it were removed. This ghost sits at
+        x=-100, further left than anything else, so it DEFINES minx while
+        drawing nothing: dropping it moves the viewport from 680x180 to
+        520x180 and shifts the origin by 160px. With the splice, both
+        shots land on one grid and the verdicts below hold. Reverting
+        `_shot` to a naive `render_svg(kept)` makes this test fail loudly
+        — and not via a size error, because the window is sized from the
+        full scene either way: the ablated drawing simply renders shifted
+        inside that window, every stroke lands somewhere new, and the
+        ghost's delta comes back as a spurious two-component
+        `ablation_continuity`. Verified by doing exactly that.
+        """
+        ghost = el(id="g0", type="rectangle", x=-100, y=300, width=0,
+                   height=0, customData={"role": "node"})
+        scene = [*tm._diamond_stage(), ghost]
+        finds = ablation_findings(scene, ["g0", "a1"], self.workdir)
+        # the extremal ghost draws nothing: existence fires, for it alone
+        self.assertEqual([(f["check"], f["element"]) for f in finds],
+                         [("ablation_existence", "g0")])
 
     @unittest.expectedFailure
     def test_mutant_opacity_ghost_is_invisible_to_tier_one(self) -> None:
@@ -297,7 +337,7 @@ class TestRenderMutants(unittest.TestCase):
         scene = tm._diamond_stage()
         ghost = el(id="g1", type="rectangle", x=300, y=300, width=10,
                    height=10, opacity=0, customData={"role": "node"})
-        finds = ablation_findings(scene + [ghost], ["g1"], self.workdir)
+        finds = ablation_findings([*scene, ghost], ["g1"], self.workdir)
         self.assertIn("g1", [f["element"] for f in finds
                              if f["check"] == "ablation_existence"])
 
@@ -328,6 +368,28 @@ class TestRenderMutants(unittest.TestCase):
         self.assertGreaterEqual(severed[0]["magnitude"], 2.0)
 
 
+class TestRenderTierEvidence(unittest.TestCase):
+    """The coverage table's render-tier evidence must name real tests.
+
+    Deliberately NOT gated: resolving a dotted name needs no browser, and
+    the rot this catches — renaming a test here and leaving `--coverage`
+    pointing at a ghost — happens in ordinary editing, where nobody has
+    `MUTANTS_RENDER=1` set. A gated check would notice months late.
+    """
+
+    def test_render_tier_evidence_resolves_to_real_tests(self) -> None:
+        """Every RENDER_TIER evidence string walks to a callable test."""
+        for check, dotted in tm.RENDER_TIER.items():
+            modname, *path = dotted.split(".")
+            obj: Any = importlib.import_module(modname)
+            for part in path:
+                obj = getattr(obj, part, None)
+                self.assertIsNotNone(
+                    obj, "RENDER_TIER[%r] names %s, but %r does not exist"
+                         % (check, dotted, part))
+            self.assertTrue(callable(obj), "%s is not callable" % dotted)
+
+
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
                              "(starts a headless browser)")
 class TestRenderTierAborts(unittest.TestCase):
@@ -335,8 +397,8 @@ class TestRenderTierAborts(unittest.TestCase):
 
     def test_missing_browser_raises_instead_of_skipping(self) -> None:
         """No browser with the tier requested raises, naming the search."""
-        with mock.patch.object(canvas, "find_browsers", lambda: []):
-            with self.assertRaises(RuntimeError) as caught:
-                _browser()
+        with mock.patch.object(canvas, "find_browsers", lambda: []), \
+                self.assertRaises(RuntimeError) as caught:
+            _browser()
         self.assertIn("no chromium", str(caught.exception))
         self.assertIn("ms-playwright", str(caught.exception))
