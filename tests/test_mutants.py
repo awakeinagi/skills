@@ -2065,14 +2065,21 @@ _register(Mutant(
 # at its centre line but 160px across at the top and bottom edges of a 20px
 # label, so the 171px label overhangs by 11px. The ±30% band admits that and
 # excludes the two plausible wrong readings deliberately: 0px (measuring at
-# the centre line, where everything fits) and 5.5px (the per-side half). A
-# lint reporting either is wrong by this spec and will not flip this mutant.
+# the centre line, where everything fits) and 5.5px (half the total, the
+# shape a per-side report would take). A lint reporting either is wrong by
+# this spec and will not flip this mutant. The true split is 6px left and
+# 5px right, not 5.5 each: at x=14 the label sits half a pixel left of the
+# node's centre line, since exact centring would want 14.5.
 #
-# The ellipse is deliberately NOT a second mutant. Measured, it is a much
-# weaker case: at 200x100 the same label clears it by 25px, and only squat
-# proportions (200x60 and below) overflow. The area ratio usually quoted for
-# ellipses is not the quantity that governs a label — the chord at the
-# label's height is.
+# The ellipse is deliberately NOT a second mutant, and the thresholds differ
+# by which box you mean — state both, because quoting one at the other is
+# how this gets miscited. For THIS label (171x20) a 200-wide ellipse gives a
+# chord of 195.96px at 200x100 and 188.56px at 200x60, so it clears by 25px
+# and 17.6px respectively; overflow begins only below 200x38.6. For the
+# WRAPPED 176x40 box the fitter produces from a longer label, the same
+# ellipse overflows below 200x84.2. Either way the ellipse is the weaker
+# case. The area ratio usually quoted for ellipses governs none of this —
+# the chord at the label box's own height does.
 _register(Mutant(
     "diamond_label_overflows_shape",
     build=lambda: _labelled_shape("diamond"),
@@ -2352,6 +2359,26 @@ ASPIRATIONAL: dict[str, str] = {
         "WP4 — shape-aware label fitting/lint, not yet built; the geometry "
         "it needs is already in canvas.py as `marker_inset` (4200)",
 }
+
+# FOR WHOEVER FLIPS THESE. Neither aspirational mutant has a neighbour
+# asserting ITS check's other pole, because neither check exists to have a
+# pole yet — both borrow a detector that does exist. The borrowings are not
+# equally strong, and the flip work differs accordingly:
+#
+#   phantom_passthrough  — neighbour `Silence("shared_corridor")` over
+#       `_attach_chain(shared=False)` is a CONTINGENT negative: the same
+#       builder with `shared=True` fires that check (see
+#       `merged_stroke_caught_by_corridor`), so the quiet means something
+#       about the picture.
+#   label_overflows_shape — neighbour `Silence("endpoint_gap")` over a
+#       scene with NO ARROWS proves liveness only: that check cannot fire
+#       there whatever the labels do. It earns its keep by refusing to
+#       match over any run where a detector crashed, and nothing more.
+#
+# So when WP4/WP4b's lints land, dropping the `expectedFailure` is not the
+# whole change: give each mutant a real other-pole neighbour on the new
+# check at the same time, or the flip trades a red that meant something for
+# a green that does not.
 
 UNCOVERED: dict[str, str] = {
     # The one DETECTORS entry the day-one catalogue leaves unproven: every
