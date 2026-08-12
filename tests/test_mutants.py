@@ -1858,6 +1858,27 @@ _GOOD_ARTIFACT = json.dumps({
 
 _GOOD_SAVE = json.dumps({"revn": 1, "note": "baseline"})
 
+# A node whose bound label is far wider than it, with an arrow bound to the
+# node's BOTTOM edge — the edge the ART-011 refit moves when it grows the
+# container to fit the wrapped label. `s1` exists only to give the arrow a
+# start binding; the interesting end is the one on `n1`.
+_OVERSIZED_LABEL_TEXT = "Escalate to the compliance review board immediately"
+_OVERSIZED_LABEL_ARTIFACT = json.dumps({
+    "type": "excalidraw", "version": 2, "elements": [
+        {"id": "n1", "type": "rectangle", "x": 0, "y": 0, "width": 120,
+         "height": 60, "customData": {"role": "node"},
+         "boundElements": [{"id": "t1", "type": "text"}]},
+        {"id": "t1", "type": "text", "x": 4, "y": 20, "width": 400,
+         "height": 20, "text": _OVERSIZED_LABEL_TEXT, "fontSize": 16,
+         "originalText": _OVERSIZED_LABEL_TEXT, "containerId": "n1",
+         "textAlign": "center"},
+        {"id": "s1", "type": "rectangle", "x": 0, "y": 300, "width": 120,
+         "height": 60, "customData": {"role": "node"}},
+        {"id": "a1", "type": "arrow", "x": 60, "y": 300, "width": 0,
+         "height": 240, "points": [[0, 0], [0, -240]],
+         "startBinding": {"elementId": "s1", "focus": 0, "gap": 1},
+         "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}]})
+
 # One image element pointing at a fileId the `files` map does not hold, and
 # one `files` entry no element points at — the two directions of file-
 # reference integrity, in one artifact so a single load probes both.
@@ -2035,6 +2056,52 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(list(st.artifact_files.get("a", {})),
                          ["orphan-file-id"])
         self.assertIsInstance(st.referential, dict)
+
+    def test_art011_repair_grows_the_container(self) -> None:
+        """The load-time refit really does resize a shape.
+
+        The red below measures what that resize leaves behind, so this
+        pins the resize itself: if ART-011 ever stops firing on this
+        artifact — a threshold moves, the repair is rewritten — the red
+        would go quiet for a reason that has nothing to do with arrow
+        re-routing, and read as a fix.
+        """
+        st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertIn("ART-011", {i.get("code") for i in st.issues})
+        n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
+        self.assertEqual(n1["height"], 136)
+
+    @unittest.expectedFailure
+    def test_red_art011_repair_strands_the_bound_arrow(self) -> None:
+        """A repair moves the shape and leaves its bound arrow behind.
+
+        ART-011 refits an oversized label by calling `fit_label_in`
+        (canvas.py:485), which GROWS the container to fit the wrapped text
+        (canvas.py:969-971). Here `n1` goes from 60px tall to 136px. The
+        arrow bound to its bottom edge is not re-routed, so an endpoint
+        that was exactly on the border is 76px inside the shape by the
+        time the load finishes — geometry the user never wrote.
+
+        `endpoint_gap` DOES report the consequence, so this is not a
+        silence; it is a MISATTRIBUTION. The message says "arrow a1 claims
+        to bind n1 … ends 60px inside the shape — re-route it", blaming
+        the user's arrow for a move the loader made. Nothing in `issues`
+        says the loader resized anything with arrows on it.
+
+        Asserted as the absence of that endpoint finding, because a repair
+        that re-routes what it moves leaves nothing to report. Flips when
+        the refit re-routes bound arrows — or when it declines to grow a
+        container that has any.
+        """
+        st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT},
+                        {"0001-x": _GOOD_SAVE})
+        gaps = [f for f in collect_findings(st.scenes["a"])
+                if f["check"] == "endpoint_gap"]
+        self.assertEqual(
+            gaps, [],
+            "the ART-011 refit grew n1 and left a1 behind: %s"
+            % [f["raw"] for f in gaps])
 
     @unittest.expectedFailure
     def test_red_dangling_file_reference_is_reported(self) -> None:
@@ -2263,7 +2330,12 @@ def _text_over_node(roled: bool) -> list[dict]:
     not — and unroled is what arrives when a user pastes text onto the
     canvas, the least instrumented direction there is.
 
-    The text covers the node completely: 120x20 of overlap, 2400px².
+    The text lies wholly INSIDE the node — 120x20 of text on a 200x100
+    box, so the overlap is the text's own area, 2400px², and it covers
+    about 12% of the node. That orientation is what makes the rejected
+    "fraction" reading 1.0 rather than 0.12: every pixel of the TEXT is
+    over the node. A check reporting the node's covered fraction instead
+    would be a different number and a different claim.
 
     Args:
         roled: True to mark the text `role="annotation"`, which is the
@@ -2277,6 +2349,51 @@ def _text_over_node(roled: bool) -> list[dict]:
             el(id="t1", type="text", x=40, y=40, width=120, height=20,
                text="pasted note", fontSize=16,
                customData={"role": "annotation"} if roled else {})]
+
+
+def _near_miss_pair(gap: float) -> list[dict]:
+    """Two nodes separated by `gap` px of clear space, never overlapping.
+
+    The overlap loop needs a real intersection (`ox * oy > …`), so a
+    positive gap is silent no matter how small — 3px reads exactly like
+    60px to every check we own, while to a reader 3px is a mistake and
+    60px is a layout.
+
+    Args:
+        gap: Horizontal clear space between the two boxes.
+
+    Returns:
+        The two-element scene: nodes `n1` and `n2`.
+    """
+    return [el(id="n1", type="rectangle", x=0, y=0, width=120, height=60,
+               customData={"role": "node"}),
+            el(id="n2", type="rectangle", x=120 + gap, y=0, width=120,
+               height=60, customData={"role": "node"})]
+
+
+def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
+                  font_size: int = 16) -> list[dict]:
+    """A node and a free text on the ground, styled to order.
+
+    One base for all three legibility mutants, since they differ only in
+    which declared style is wrong: the text's color, the node's stroke,
+    or the font size. Everything sits on `SVG_GROUND` (#fdfcf8) with no
+    fills, so the effective background is unambiguous and the WCAG ratio
+    is a pure function of the two declared colors.
+
+    Args:
+        text_color: The free text's `strokeColor` (its ink).
+        stroke: The node's `strokeColor`.
+        font_size: The free text's `fontSize`.
+
+    Returns:
+        The two-element scene: node `n1`, then free text `t1`.
+    """
+    return [el(id="n1", type="rectangle", x=0, y=0, width=200, height=100,
+               strokeColor=stroke, backgroundColor="transparent",
+               customData={"role": "node"}),
+            el(id="t1", type="text", x=0, y=160, width=120, height=20,
+               text="status", fontSize=font_size, strokeColor=text_color)]
 
 
 def _foreign_corner_stage() -> list[dict]:
@@ -2532,9 +2649,10 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-12 `mutants list --red` reports 11 while the suite reports 17
-# expected failures. The six outside live in two classes —
-# `TestExportCompleteness` (2) and `TestStoreIntegrity` (4) — and are outside
+# as of 2026-08-12 `mutants list --red` reports 16 while the suite reports 24
+# expected failures. The eight outside live in three classes —
+# `TestExportCompleteness` (2), `TestStoreIntegrity` (5) and
+# `TestPaintOrder` (1) — and are outside
 # deliberately, because a Mutant is judged by `collect_findings` over an
 # ELEMENT LIST and none of what they measure is in one. Each class carries
 # its own standing guard for its reds; the one below covers CATALOGUE alone.
@@ -2772,9 +2890,13 @@ _register(Mutant(
 
 # Frame membership asserted against a picture that contradicts it — RED BY
 # ABSENCE (flowchartai mine M2, 2026-08-12). `frameId` is a claim of
-# containment, and nothing in `lint_layout` ever tests it: the frameId sites
-# there serve help-slot lookup, same-frame pairing and the unconnected-node
-# note, none of them geometric. Verified live — this scene and its control
+# containment, and nothing in `lint_layout` ever tests it. Three of the
+# frameId sites there serve help-slot lookup, same-frame pairing and the
+# unconnected-node note; a fourth, the dot-row/progress tell
+# (canvas.py:5389-5405), IS geometric — it groups a frame's small members and
+# compares their y against `fr.y + height * 0.25` — but it is hunting for a
+# row of dots, never asking whether a member lies inside the frame at all. No
+# site tests containment. Verified live — this scene and its control
 # produce IDENTICAL lint and findings, so the tooling cannot tell a lane
 # with its members in it from a lane whose member is 80px below it.
 #
@@ -2812,6 +2934,13 @@ _register(Mutant(
 # overlap loop next door already scores overlaps (`ox * oy`). The ±10% band
 # excludes both single-axis readings (120 and 20) and any fraction-of-text
 # reading (1.0).
+#
+# FLIP CONSTRAINT: giving this mutant a real other-pole neighbour is blocked
+# on something outside it — the check its control exercises,
+# `annotation_overlaps_node` (canvas.py:5592), has no DETECTORS entry and
+# sits in UNCOVERED. Until that lands there is no registered check to assert
+# the roled overlap firing, which is why the neighbour asserts liveness
+# instead of the pole it is actually demonstrating.
 _register(Mutant(
     "unroled_text_over_node",
     build=lambda: _text_over_node(roled=False),
@@ -2820,6 +2949,73 @@ _register(Mutant(
                        magnitude=(2400, 0.10)),
     neighbour=Neighbour(lambda: _text_over_node(roled=True),
                         Silence("endpoint_gap"))))
+
+# Near-miss spacing — RED BY ABSENCE (vskill mine M1, 2026-08-12). The
+# overlap loop needs a real intersection, so 3px of clear space reads
+# exactly like 60px to every check we own. To a reader they are opposites:
+# 3px is a mistake, 60px is a layout.
+#
+# DESIGN CONSTRAINT for whoever builds the check, learned the hard way from
+# the Cloud contradiction: a bare distance threshold WILL eventually gate a
+# correct drawing — deliberate near-touching is a real composition (a badge
+# on a card, a shelf and the card inside it). The lint needs an intent
+# channel first (customData.parent already carries nesting; a decoration
+# role and an explicit waiver are the other two), or it will be muted
+# wholesale the first week and never heard from again.
+#
+# MAGNITUDE: the clear gap itself, 3px. The ±33% band excludes 0 (an
+# overlap-area reading, which is what today's loop would report) and 123
+# (centre-to-centre or edge-to-far-edge).
+_register(Mutant(
+    "near_miss_clearance",
+    build=lambda: _near_miss_pair(gap=3),
+    op="unchanged", args={},
+    expect=FindingSpec("min_clearance", element="n2", magnitude=(3, 0.33)),
+    neighbour=Neighbour(lambda: _near_miss_pair(gap=60),
+                        Silence("endpoint_gap"))))
+
+# Legibility — three RED BY ABSENCE mutants over one base scene
+# (docs/todo/contrast-and-min-font-lints.md, user-directed 2026-08-12;
+# independently corroborated by the excalidraw-mcp mine O4/M5). Ops allow
+# free-form colors, so nothing stops an agent writing near-invisible ink on
+# the near-white ground. Legibility is enforced NOWHERE today: not in lint,
+# not on the render tier.
+#
+# MAGNITUDE CONVENTION: the finding carries the MEASURED WCAG ratio, not a
+# pass/fail. Ratios below were computed from the todo's own formula —
+# relative luminance over linearized sRGB, `(L1 + 0.05) / (L2 + 0.05)` —
+# against SVG_GROUND #fdfcf8. A check that reports a boolean, or the
+# inverse ratio, will not flip these.
+_register(Mutant(
+    "gray_text_on_ground",
+    build=lambda: _styled_scene(text_color="#d0d0d0"),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_text", element="t1",
+                       magnitude=(1.50, 0.05)),
+    neighbour=Neighbour(_styled_scene, Silence("endpoint_gap"))))
+
+# WCAG 1.4.11, the criterion people forget: non-text objects need 3:1, and
+# a pale stroke on cream paper is the case it exists for. #b0b0b0 scores
+# 2.11:1 — present in the model, practically invisible in the picture.
+_register(Mutant(
+    "pale_stroke_node",
+    build=lambda: _styled_scene(stroke="#b0b0b0"),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_object", element="n1",
+                       magnitude=(2.11, 0.05)),
+    neighbour=Neighbour(_styled_scene, Silence("endpoint_gap"))))
+
+# The font floor. 6px is legible in a zoomed editor and gone in a
+# fit-to-window snapshot — which is the only view the agent ever gets.
+# MAGNITUDE is the offending fontSize itself; the FLOOR is deliberately not
+# encoded here, because the todo says to measure it against the render tier
+# rather than guess, and a mutant that guessed would fix the wrong number.
+_register(Mutant(
+    "tiny_font_text",
+    build=lambda: _styled_scene(font_size=6),
+    op="unchanged", args={},
+    expect=FindingSpec("min_font", element="t1", magnitude=(6, 0.01)),
+    neighbour=Neighbour(_styled_scene, Silence("endpoint_gap"))))
 
 # ---------------------------------------------------------------------------
 # Shape-blindness, the ELLIPSE (found during the visualize-skill idea-mine,
@@ -2982,6 +3178,47 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_unroled_text_over_node(self) -> None:
         """The same overlap with a role attached is reported by today's lint."""
         self._run_neighbour("unroled_text_over_node")
+
+    @unittest.expectedFailure
+    def test_mutant_near_miss_clearance(self) -> None:
+        """Two nodes 3px apart read exactly like two nodes 60px apart."""
+        # No near-miss check exists; flips when WP4's lands with the
+        # intent channel the catalogue entry describes.
+        self._run("near_miss_clearance")
+
+    def test_neighbour_near_miss_clearance(self) -> None:
+        """A generous gap is silent, and correctly so."""
+        self._run_neighbour("near_miss_clearance")
+
+    @unittest.expectedFailure
+    def test_mutant_gray_text_on_ground(self) -> None:
+        """#d0d0d0 on #fdfcf8 is 1.50:1 where WCAG 1.4.3 wants 4.5:1."""
+        # Nothing checks contrast; flips when the todo's lint lands.
+        self._run("gray_text_on_ground")
+
+    def test_neighbour_gray_text_on_ground(self) -> None:
+        """The default ink scores 16.24:1 and has nothing to answer for."""
+        self._run_neighbour("gray_text_on_ground")
+
+    @unittest.expectedFailure
+    def test_mutant_pale_stroke_node(self) -> None:
+        """#b0b0b0 stroke is 2.11:1 where WCAG 1.4.11 wants 3:1."""
+        # Nothing checks non-text contrast; flips when the todo's lint lands.
+        self._run("pale_stroke_node")
+
+    def test_neighbour_pale_stroke_node(self) -> None:
+        """A default stroke on the ground is legible and stays unremarked."""
+        self._run_neighbour("pale_stroke_node")
+
+    @unittest.expectedFailure
+    def test_mutant_tiny_font_text(self) -> None:
+        """A 6px label survives the model and not the snapshot."""
+        # No font floor exists; flips when the todo's lint lands.
+        self._run("tiny_font_text")
+
+    def test_neighbour_tiny_font_text(self) -> None:
+        """16px is the ordinary size and draws no finding."""
+        self._run_neighbour("tiny_font_text")
 
     @unittest.expectedFailure
     def test_mutant_diamond_facet_overfire(self) -> None:
@@ -3207,6 +3444,22 @@ ASPIRATIONAL: dict[str, str] = {
         "WP4 — a role-BLIND text/node overlap check, not yet built; the "
         "existing one gates on role_of(e) == 'annotation' (canvas.py:5523) "
         "and role_of defaults everything unroled to 'node' (3197)",
+    "min_clearance":
+        "WP4 — a near-miss check, not yet built; today's overlap loop needs "
+        "a real intersection, so any positive gap is silent however small. "
+        "Needs an intent channel before it can ship — see the mutant",
+    "contrast_text":
+        "docs/todo/contrast-and-min-font-lints.md — WCAG 1.4.3 text "
+        "contrast (4.5:1), not yet built. Opacity is SETTLED: fold it into "
+        "the effective color rather than ignoring it",
+    "contrast_object":
+        "docs/todo/contrast-and-min-font-lints.md — WCAG 1.4.11 non-text "
+        "contrast (3:1), not yet built; the criterion people forget, and "
+        "the one that catches a pale connector on cream paper",
+    "min_font":
+        "docs/todo/contrast-and-min-font-lints.md — fontSize floor, not "
+        "yet built; the floor is to be MEASURED against the render tier "
+        "at deviceScaleFactor 1, not guessed",
 }
 
 # FOR WHOEVER FLIPS THESE. No aspirational mutant has a neighbour asserting
