@@ -20,14 +20,14 @@ same three user decisions still open — plus one new one.**
 - **The gotcha:** `~/.claude/skills/wysiwyg-grilling` symlinks into *this
   worktree*. Whatever is checked out here is the skill every agent on this
   machine discovers. Verify before any assessment work.
-- Health, re-measured 2026-08-12: **514 unit tests**
+- Health, re-measured 2026-08-12 end-of-day: **544 unit tests**
   (`python3 -m unittest discover -s tests`, ~8s) →
-  `OK (skipped=6, expected failures=7)`; **7 gated render tests**
+  `OK (skipped=8, expected failures=11)`; **10 gated render tests**
   (`MUTANTS_RENDER=1 python3 -m unittest discover -s tests -p
-  "test_mutants_render.py"`, ~14s, real chromium) → `OK (expected failures=1)`;
+  "test_mutants_render.py"`, ~17s, real chromium) → `OK (expected failures=2)`;
   **12 Playwright e2e**; `uvx pre-commit run --all-files` — all 15 hooks green.
-  The 6 skips are `MUTANTS_RENDER`-gated; the 8 expected failures are red *by
-  intent* (see §1a).
+  The 8 skips are `MUTANTS_RENDER`-gated; the 13 expected failures (11 model +
+  2 render) are red *by intent* (see §1a). **The drain number is 13.**
 
 ### 1a. The mutation harness — landed, red, and it is WP4's acceptance spec
 
@@ -43,18 +43,44 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** 8 model-tier
-`expectedFailure` mutants + 2 render-tier `expectedFailure`. Each one seeds a
-known defect and asserts the finding the detector *should* produce, so v0.9's
-geometry work now has an executable definition of done. **Drain them to zero,
-flipping each in the same change as its fix** — an `expectedFailure` that
-starts passing is reported as an unexpected success, which *is* the signal.
-Never delete a mutant to get green.
+**What is red, and why that is the deliverable.** 11 model-tier
+`expectedFailure` reds + 2 render-tier. Each seeds a known defect and asserts
+the finding the detector *should* produce, so v0.9's geometry work has an
+executable definition of done. **Drain them to zero, flipping each in the same
+change as its fix** — an `expectedFailure` that starts passing is reported as
+an unexpected success, which *is* the signal. Never delete a mutant to get
+green. Three structural notes for the flip author:
+
+- The two **export reds** (`test_red_freedraw_*`/`test_red_image_*`) live
+  OUTSIDE `CATALOGUE` by design (model detectors cannot observe `render_svg`
+  markup); their red-by-assertion protection is a bespoke companion test in
+  `TestExportCompleteness`, not Guard C. `mutants list --red` therefore shows
+  fewer reds than the suite carries — explained at the `CATALOGUE` definition.
+- The two **ASPIRATIONAL reds** (`phantom_passthrough_shared_attach`,
+  `diamond_label_overflows_shape`) flip when their LINTS land (WP4b e1;
+  WP4's shape-aware label check), not when any existing code changes — and
+  the flip change must give each a real other-pole neighbour. Their current
+  neighbours differ in kind: phantom's silence is *contingent* (the same
+  builder with a shared attach point fires the borrowed `shared_corridor`
+  check, so the quiet is evidence about the picture); the label mutant's is
+  *structural* (a scene with no arrows can never fire `endpoint_gap` —
+  liveness only).
+- The **shape-blindness family** now has three pinned instances: the endpoint
+  lint (bbox corners), `_seg_hits_rect` (over-fire), and `fit_label_in`
+  (labels sized to the bbox overflow the inscribed diamond by a measured
+  11px). Same root cause; WP4's one clipping primitive addresses all three.
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi`, `phantom_passthrough_shared_attach` |
+| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi`, `phantom_passthrough_shared_attach`, `diamond_label_overflows_shape`, `test_red_freedraw_never_reaches_the_export`, `test_red_image_never_reaches_the_export` |
 | render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_snapshot_cap_drops_the_rightmost_node` |
+
+The last three model rows came from the 2026-08-12 idea-mining arc via the
+**mutant-curator agent**: the export reds pin `render_svg` painting nothing
+for `freedraw`/`image` (a genuine product defect the curator discovered), and
+the label red pins `fit_label_in`'s inscribed-area blindness (confirmed live
+via the flowchartai mine). The curator + the `mutants` CLI skill live under
+gitignored `.claude/` — machine-local like the docs, discovery-registered.
 
 The last row of each tier came from the 2026-08-12 ELK spike, and both are red
 by an **absence** rather than by a wrong answer — but the two absences are
@@ -155,6 +181,18 @@ V0.9-PLAN's WP4 and must not be re-derived: the **approach-axis** convention
 for `endpoint_gap` magnitudes (a perpendicular-distance fix will not flip the
 mutants), and the **straight-run exemption** question for
 `ablation_continuity`.
+
+**Run-6 probe queue (from the 2026-08-12 idea-mines — canonical home
+`docs/research/<slug>_idea_mining_2026-08-12.md`, one per mined repo):**
+(1) **cosmetic-repair thrash** — Nimbalyst's field data shows agents
+redrawing the same diagram 3-4× after looking at it; our guards (Draw Gate,
+one-view-per-round, proportionality) govern how much to draw, not how many
+times to redraw after a render — an agent issuing three cosmetic-repair
+revisions in one round is our shape of it, untested. (2) The idea-mines'
+calibration worth re-testing rather than assuming: two independent projects
+in this space ship ZERO diagram-quality checking — our lints + harness are a
+category, not a degree; run 6 should confirm agents actually *consume* that
+category under pressure rather than bypassing it.
 
 `TestArgusR5Fixture.test_sticky_note_forces_a_repair_on_every_load` is
 **red-by-intent** — it pins `r5-13`'s wrong behaviour and must be *flipped*
