@@ -43,8 +43,8 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** 7 model-tier
-`expectedFailure` mutants + 1 render-tier `expectedFailure`. Each one seeds a
+**What is red, and why that is the deliverable.** 8 model-tier
+`expectedFailure` mutants + 2 render-tier `expectedFailure`. Each one seeds a
 known defect and asserts the finding the detector *should* produce, so v0.9's
 geometry work now has an executable definition of done. **Drain them to zero,
 flipping each in the same change as its fix** — an `expectedFailure` that
@@ -53,8 +53,21 @@ Never delete a mutant to get green.
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one` |
+| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi`, `phantom_passthrough_shared_attach` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_snapshot_cap_drops_the_rightmost_node` |
+
+The last row of each tier came from the 2026-08-12 ELK spike, and both are red
+in a way the others are not — **by absence, not by wrong answer.**
+`phantom_passthrough_shared_attach` asserts a check (`phantom_passthrough`)
+that has no detector at all: it pins the exact geometry ELK shipped (two
+edges on one attach point on a node, drawn as one unbroken 448px stroke
+through it) and fulfils the sweep survivor's **promote** disposition. Flip it
+by landing WP4b item 1's lint and giving it a `DETECTORS` entry.
+`test_mutant_snapshot_cap_drops_the_rightmost_node` drives `canvas.py
+snapshot` end to end and finds the rightmost node simply absent from the PNG
+— `rasterize_svg` clamps the browser window to 3000px (canvas.py:10003) while
+`render_svg` only scales past 4000px, and `validate_png` checks the file
+against the *window*, so a truncated snapshot reports `VALID=true`.
 
 `collinear_overlap_corridor` is **green and must stay green** — it is the
 control saying `corridor.py` already works.
@@ -65,7 +78,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. 9 detectors today: 6 proven, 2 render-tier, 1 UNCOVERED
+  a reason. 10 detectors today: 7 proven, 2 render-tier, 1 UNCOVERED
   (`crosses_through_bound`).
 - `python3 tests/test_mutants.py --sweep` — the discovery sweep. Current
   state: **8 cells run, 7 skipped, 1 survivor**
@@ -73,12 +86,15 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
   **promote** → V0.9-PLAN WP4b item 1). Exit 0. An undispositioned survivor
   exits non-zero *and* fails a default-suite test.
 
-**The UNCOVERED ledger is 51 rows** — one real detector gap plus 50 finding
+**The UNCOVERED ledger is 50 rows** — one real detector gap plus 49 finding
 codes enumerated out of `lint_layout` and `validate_scene` on 2026-08-12, each
 with a `canvas.py` line reference and "no proving mutant yet". Note the
-asymmetry: `--coverage` prints only the 9 rows in `DETECTORS`; the other 50
+asymmetry: `--coverage` prints only the 10 rows in `DETECTORS`; the other 49
 live in the `UNCOVERED` dict in `tests/test_mutants.py` and are the backlog,
-not the table.
+not the table. The ledger has drained **once**: `shared_attach_point`
+(canvas.py:5688) left it on 2026-08-12 when the ELK spike fired the lint in
+production and `shared_attach_point_fan_failed` promoted it into `DETECTORS`
+— the intended lifecycle, a row at a time.
 
 **Gate integrity:** pre-commit inspects **tracked files only**. All eight
 harness files are tracked, so the green above genuinely covered them — but if

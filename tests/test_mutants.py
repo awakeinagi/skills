@@ -34,7 +34,7 @@ from tests_helpers import el
 # Detector registry: lint detectors carry a compiled regex run over every
 # lint channel (errors + warnings + notes); instrument detectors carry an
 # adapter over the ported instruments.* functions. Message templates below
-# were verified against canvas.py (lines 5083, 5097-5102, 5475).
+# were verified against canvas.py (lines 5083, 5097-5102, 5475, 5689).
 # ---------------------------------------------------------------------------
 
 _ENDPOINT_RE = re.compile(
@@ -46,6 +46,15 @@ _RUNS_INSIDE_RE = re.compile(
 _PASSES_THROUGH_RE = re.compile(
     r"arrow (?P<element>[\w-]+) passes through .+, which is neither its "
     r"source nor destination")
+# The one lint template that names TWO arrows and one node. `element` is the
+# NODE, not either arrow: the pair is symmetric, so naming one of the two
+# would be an arbitrary, iteration-order-dependent pick (and the ELK arm
+# emitted three of these over one node, which would have reported the same
+# arrow twice). The node is the shared attach site — the single element a
+# fix has to change — and both arrow ids survive in `raw`. The trailing
+# `[\w-]+` stops before the ` ('Label')` suffix `canvas.name()` appends.
+_SHARED_ATTACH_RE = re.compile(
+    r"arrows [\w-]+ and [\w-]+ share an attach point on (?P<element>[\w-]+)")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -120,6 +129,7 @@ DETECTORS: dict[str, dict] = {
                                 "inside the shape": "inside"}},
     "crosses_through_bound": {"lint_re": _RUNS_INSIDE_RE},
     "passes_through_foreign": {"lint_re": _PASSES_THROUGH_RE},
+    "shared_attach_point": {"lint_re": _SHARED_ATTACH_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -1115,6 +1125,30 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
         self.assertIsNone(hits[0]["magnitude"])
         self.assertIsNone(hits[0]["direction"])
 
+    def test_shared_attach_point_parses_from_real_lint_output(self) -> None:
+        """Two arrows on one attach point parse, node id as the element.
+
+        The node carries a bound label here, so the real message reads
+        `... on N ('Hub')` — the regex has to stop at the id and not
+        swallow the parenthesised display name.
+        """
+        scene = _attach_chain(shared=True)
+        hub = next(e for e in scene if e["id"] == "N")
+        hub["boundElements"] = [{"id": "t1", "type": "text"}]
+        scene.append(el(id="t1", type="text", x=210, y=110, width=60,
+                        height=20, text="Hub", fontSize=16, fontFamily=1,
+                        textAlign="center", verticalAlign="middle",
+                        containerId="N", originalText="Hub"))
+        finds = collect_findings(scene)
+        hits = [f for f in finds if f["check"] == "shared_attach_point"]
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["element"], "N")
+        self.assertIn("('Hub')", hits[0]["raw"])
+        self.assertIn("the auto-fan ran and left them together",
+                      hits[0]["raw"])
+        self.assertIsNone(hits[0]["magnitude"])
+        self.assertIsNone(hits[0]["direction"])
+
 
 # ---------------------------------------------------------------------------
 # Scene builders. Every coordinate here was measured against live canvas.py
@@ -1333,6 +1367,57 @@ def _parallel_pair() -> list[dict]:
                points=[[0, 0], [400, 0]], customData={"role": "edge"})]
 
 
+def _attach_chain(shared: bool) -> list[dict]:
+    """A -> N -> Z on one rank line, N's two edges sharing a foot or not.
+
+    The production configuration from the 2026-08-12 ELK spike, rebuilt at
+    the same scale: with `shared`, e1's absolute END and e2's absolute
+    START are the SAME point — N's left-edge midpoint (200, 120) — so the
+    two arrows draw as one unbroken 448px horizontal stroke from x=80 to
+    x=528, straight through the box, and N reads as something the line
+    passes rather than something it arrives at. That is what ELK drew for
+    `authorise-payment -> auth-succeeded -> pick-and-pack`: same line, 0px
+    apart, 448px, with one edge's label sitting on the other's stroke
+    (ELK-RESULTS.md, "What the eyes caught" item 1).
+
+    Without `shared`, e2 starts at N's RIGHT edge instead — one node width
+    (80px) clear of e1's end, past both the lint's 12px coincidence window
+    and the corridor instrument's 10px abut window. Two strokes with a box
+    between them, nothing merged.
+
+    Both arrows are straight, 2-point and unmarked, so
+    `canvas.server_owns_geometry` calls them server-routed and the lint's
+    "why" list stays empty — which is what makes the shared variant emit
+    the production wording, "the auto-fan ran and left them together",
+    rather than one of the disqualified-arrow phrasings.
+
+    Args:
+        shared: True to attach both arrows at N's left-edge midpoint;
+            False to move e2's foot to N's right edge.
+
+    Returns:
+        The five-element scene: nodes A, N, Z and arrows e1, e2.
+    """
+    a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
+           customData={"role": "node"})
+    n = el(id="N", type="rectangle", x=200, y=100, width=80, height=40,
+           customData={"role": "node"})
+    z = el(id="Z", type="rectangle", x=528, y=100, width=80, height=40,
+           customData={"role": "node"})
+    e1 = el(id="e1", type="arrow", x=80, y=120, width=120, height=0,
+            points=[[0, 0], [120, 0]],
+            startBinding={"elementId": "A", "focus": 0, "gap": 1},
+            endBinding={"elementId": "N", "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    foot = 200 if shared else 280
+    e2 = el(id="e2", type="arrow", x=foot, y=120, width=528 - foot,
+            height=0, points=[[0, 0], [528 - foot, 0]],
+            startBinding={"elementId": "N", "focus": 0, "gap": 1},
+            endBinding={"elementId": "Z", "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    return [a, n, z, e1, e2]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -1461,6 +1546,70 @@ _register(Mutant(
     expect=FindingSpec("shared_corridor", magnitude=(300, 0.20)),
     neighbour=Neighbour(_parallel_pair, Silence("shared_corridor"))))
 
+# ---------------------------------------------------------------------------
+# The ELK spike's three (2026-08-12). All three read the SAME base scene,
+# `_attach_chain(shared=True)`, because all three conditions genuinely hold
+# on it at once — that is the point: one production configuration, one
+# picture, three different answers from the tooling.
+# ---------------------------------------------------------------------------
+
+# Phantom pass-through — RED BY ABSENCE. e1's end and e2's start are one
+# point on N, so the pair draws as a single unbroken stroke THROUGH the box:
+# a reader sees A -> Z and a decoration in the middle. e1 is the
+# highest-hit-rate class from the Aug 2026 scan, and the ELK spike produced
+# it in production. There is deliberately NO `phantom_passthrough` entry in
+# DETECTORS — the table lists detectors that exist, not ones we want — so
+# this mutant fails with "no finding of check='phantom_passthrough'" until
+# WP4b item 1's lint lands; flip it by adding that DETECTORS entry and
+# dropping the expectedFailure. It fulfils the "promote" disposition on
+# sweep survivor `move_node_onto_rank:chain:ebb2e1f6`, which found this same
+# configuration by accident and could only record it.
+# The neighbour cannot be the usual opposite pole (a Silence on a check with
+# no detector passes vacuously and proves nothing), so it asserts instead
+# what makes the control a control: with the feet 80px apart the picture is
+# genuinely two strokes, and `shared_corridor` — the one net that does exist
+# — says so by staying quiet.
+_register(Mutant(
+    "phantom_passthrough_shared_attach",
+    build=lambda: _attach_chain(shared=True),
+    op="unchanged", args={},
+    expect=FindingSpec("phantom_passthrough", element="N"),
+    neighbour=Neighbour(lambda: _attach_chain(shared=False),
+                        Silence("shared_corridor"))))
+
+# The same merged stroke, caught by the net that exists today. No defect
+# here: `instruments.shared_corridors`' abutting-run case (overlap 0, both
+# runs >= 60px) reads two contiguous collinear strokes as one, and the spike
+# confirmed it on the real ELK output. The division of labour is worth
+# recording — corridor is the current net for FULL-run merges, while
+# `falsebidi` scored the production 448px case 0 because its test only ever
+# looks at each arrow's final segment (ELK-RESULTS.md: "structurally
+# blind"). So this guards the half we have while the mutant above waits for
+# the half we do not.
+_register(Mutant(
+    "merged_stroke_caught_by_corridor",
+    build=lambda: _attach_chain(shared=True),
+    op="unchanged", args={},
+    expect=FindingSpec("shared_corridor", element="e1+e2"),
+    neighbour=Neighbour(lambda: _attach_chain(shared=False),
+                        Silence("shared_corridor"))))
+
+# The shared-attach lint, proven — the first organic UNCOVERED drain. Its
+# firing conditions (canvas.py:5646-5694): two arrows bound to the same node
+# at either end, neither a self-loop, whose attach points on that node sit
+# within 12px on both axes. Here they are the same point, and both arrows
+# are server-routed 2-pointers, so nothing disqualifies them and the message
+# is the ELK arm's own — "the auto-fan ran and left them together" (3 hits
+# there, 0 on the dagre arm). No defect: this drains `shared_attach_point`
+# from UNCOVERED.
+_register(Mutant(
+    "shared_attach_point_fan_failed",
+    build=lambda: _attach_chain(shared=True),
+    op="unchanged", args={},
+    expect=FindingSpec("shared_attach_point", element="N"),
+    neighbour=Neighbour(lambda: _attach_chain(shared=False),
+                        Silence("shared_attach_point"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -1567,6 +1716,36 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_collinear_overlap_corridor(self) -> None:
         """Parallel arrows 40px apart are two strokes, not one."""
         self._run_neighbour("collinear_overlap_corridor")
+
+    @unittest.expectedFailure
+    def test_mutant_phantom_passthrough_shared_attach(self) -> None:
+        """One 448px stroke through N, and no check names the pass-through."""
+        # No `phantom_passthrough` detector exists; flips when WP4b item 1's
+        # lint lands and earns its DETECTORS entry.
+        self._run("phantom_passthrough_shared_attach")
+
+    def test_neighbour_phantom_passthrough_shared_attach(self) -> None:
+        """Feet a node width apart draw two strokes, not one corridor."""
+        self._run_neighbour("phantom_passthrough_shared_attach")
+
+    def test_mutant_merged_stroke_caught_by_corridor(self) -> None:
+        """The abutting collinear runs read as one shared corridor."""
+        # No defect here — the corridor instrument is the net that does
+        # catch a full-run merge, and this holds it to that.
+        self._run("merged_stroke_caught_by_corridor")
+
+    def test_neighbour_merged_stroke_caught_by_corridor(self) -> None:
+        """Feet a node width apart leave no corridor to share."""
+        self._run_neighbour("merged_stroke_caught_by_corridor")
+
+    def test_mutant_shared_attach_point_fan_failed(self) -> None:
+        """Two edges on one attach point: the lint names N and says why."""
+        # No defect here — this proves the detector the ELK arm fired.
+        self._run("shared_attach_point_fan_failed")
+
+    def test_neighbour_shared_attach_point_fan_failed(self) -> None:
+        """Attach points 80px apart are past the lint's 12px window."""
+        self._run_neighbour("shared_attach_point_fan_failed")
 
     @unittest.skipUnless(
         (Path(__file__).parent / "fixtures" / "argus-r5").is_dir(),
@@ -1678,8 +1857,9 @@ UNCOVERED: dict[str, str] = {
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5592",
     "text_overflow":
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5637",
-    "shared_attach_point":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5688",
+    # (`shared_attach_point`, canvas.py:5688, left this table on
+    # 2026-08-12: the ELK spike fired it in production and
+    # `shared_attach_point_fan_failed` now proves it from DETECTORS.)
     "stranded_element":
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5707",
     "offgrid_elements":

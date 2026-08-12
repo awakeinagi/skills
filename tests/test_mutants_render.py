@@ -9,6 +9,10 @@ connector whose delta splits into two separated components is severed
 somewhere along its run (`ablation_continuity`), which is the r5-14 class:
 an opaque label backdrop erasing the stroke it sits on.
 
+Not every pixel question is an ablation: `TestSnapshotFraming` at the tail
+asks a blunter one — is the whole drawing even in the frame? — and asks it
+of `canvas.py snapshot` itself rather than of this file's own rasterizer.
+
 Ablation is by OMISSION, not by styling: the hidden element is absent from
 the SVG entirely, so nothing about how the renderer treats `opacity` or
 `display` can make a hidden element leave ghost ink behind.
@@ -20,8 +24,10 @@ reason, never quietly mark the mutants green.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib
+import io
 import os
 import re
 import shutil
@@ -366,6 +372,171 @@ class TestRenderMutants(unittest.TestCase):
         severed = [f for f in finds if f["check"] == "ablation_continuity"]
         self.assertEqual([f["element"] for f in severed], ["a1"])
         self.assertGreaterEqual(severed[0]["magnitude"], 2.0)
+
+
+# ---------------------------------------------------------------------------
+# Snapshot framing. Nothing above leaves this file's own `_shot`; the tests
+# below drive `canvas.py snapshot` end to end — a real Project, a real Store,
+# the real argv — because the defect they pin lives in that CLI's tier 2 and
+# nowhere else. `rasterize_svg` clamps the browser window to 3000px wide
+# (canvas.py:10003, `win_w = max(min(want_w, 3000), 320)`) while `render_svg`
+# only scales a drawing down past 4000px wide (canvas.py:4542), so anything
+# between those two numbers is rendered at full size into a window too narrow
+# to hold it and the overflow is simply not in the PNG. `validate_png` then
+# compares the file against the WINDOW, not against the drawing, so the
+# snapshot reports VALID=true and TIER=2 with pieces of the artifact missing.
+# That is what bit the ELK spike: the 12-node dagre arm lost `Hand to carrier`
+# and `Delivered` off the right edge (ELK-RESULTS.md, "What the eyes caught"
+# item 4).
+# ---------------------------------------------------------------------------
+
+# Mirrors canvas.py:10003. Kept as a number here on purpose: importing the
+# clamp would make the test agree with the bug by construction.
+SNAP_WIN_CAP = 3000
+# Node spans (outer node x to outer node x) chosen either side of the cap and
+# both under render_svg's own 4000px scale-down, so the uniform-scale path
+# never runs and PNG x is svg x minus minx exactly. Asserted, not assumed.
+WIDE_SPAN = 3400
+NARROW_SPAN = 1200
+SVG_PAD = 40   # canvas.render_svg's fixed margin
+
+
+def _span_flow_batch(span: int) -> dict:
+    """A three-node left-to-right flow whose outer nodes are `span` apart.
+
+    Args:
+        span: X distance from the leftmost node's origin to the
+            rightmost node's origin.
+
+    Returns:
+        An apply batch that creates the `wide` flow artifact.
+    """
+    ops: list[dict] = []
+    prev = None
+    for i, x in enumerate((0, span // 2, span)):
+        nid = "n%d" % i
+        ops.append({"op": "add", "element": {
+            "type": "rectangle", "id": nid, "label": "Step %d" % i, "x": x,
+            "y": 100, "width": 160, "height": 60, "role": "node"}})
+        if prev is not None:
+            ops.append({"op": "add",
+                        "element": {"type": "arrow", "id": "t%d" % i},
+                        "from": prev, "to": nid})
+        prev = nid
+    return {"base_revn": 0, "artifact": "wide",
+            "create": {"id": "wide", "name": "Wide", "type": "flow",
+                       "concept": "w", "concept_name": "Wide"},
+            "ops": ops}
+
+
+def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
+    """Snapshot a `span`-wide flow and count ink where its last node lands.
+
+    A region-scoped ink count rather than an ablation: ablation answers
+    "does this element contribute to the picture", and the snapshot cap
+    does not change what an element contributes — it changes whether the
+    part of the canvas holding it is in the file at all. Running the
+    product path twice (with and without `n2`) would diff two pictures
+    that are byte-identical in the region we can see and differ only in a
+    region neither PNG contains, which is exactly no evidence. Counting
+    ink in the column band `n2` must occupy asks the question directly,
+    and it is the same question a reader asks of the snapshot: is the last
+    box there?
+
+    Args:
+        span: Passed to `_span_flow_batch`.
+        workdir: Directory to build the project and write the PNG into.
+
+    Returns:
+        `(ink_pixels, png_width, wanted_width)` — ink counted over the
+        full raster height within `n2`'s own column band, the PNG's real
+        width, and the width `render_svg` asked for.
+
+    Raises:
+        RuntimeError: If the snapshot CLI exited non-zero or wrote no
+            PNG. Like `_browser`, this never degrades to a skip: the
+            tier was asked for, so not measuring is a failure.
+    """
+    root = Path(workdir) / ("proj-%d" % span)
+    project = canvas.Project(root)
+    project.ensure_tree()
+    try:
+        store = canvas.Store(project)
+        store.apply_batch(_span_flow_batch(span))
+        els = store.scenes["wide"]
+        _svg, want_w, _want_h = canvas.render_svg(els, title="Wide")
+        out = root / "shot.png"
+        # the CLI prints KEY=VALUE lines; swallow them so a passing run is
+        # quiet and a failure's message is the assertion, not the banner
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = canvas.main(["--project", str(root), "snapshot",
+                              "--artifact", "wide", "--out", str(out),
+                              "--no-tab"])
+        if rc != 0 or not out.exists():
+            raise RuntimeError("snapshot CLI failed (rc=%s) for span %d"
+                               % (rc, span))
+        pw, ph, pix = read_png_gray(out.read_bytes())
+    finally:
+        for path in (project.state_path, project.events_path,
+                     project.log_path):
+            if path.exists():
+                path.unlink()
+    # n0 sits at x=0 and is the leftmost thing drawn, so render_svg's minx
+    # is -SVG_PAD; with no uniform scale in play (asserted by the caller)
+    # PNG x is svg x minus that.
+    x0, x1 = span + SVG_PAD, span + 160 + SVG_PAD
+    ink = sum(1 for y in range(ph) for x in range(x0, min(x1, pw))
+              if pix[y * pw + x] < 192)
+    return ink, pw, want_w
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestSnapshotFraming(unittest.TestCase):
+    """Does `canvas.py snapshot` put the whole drawing in the file?"""
+
+    def setUp(self) -> None:
+        """Make a scratch directory for this test's project and renders."""
+        self.workdir = _mkworkdir()
+
+    def tearDown(self) -> None:
+        """Remove the scratch directory — renders never enter the repo."""
+        shutil.rmtree(self.workdir, ignore_errors=True)
+
+    @unittest.expectedFailure
+    def test_mutant_snapshot_cap_drops_the_rightmost_node(self) -> None:
+        """A drawing wider than the window cap loses its right-hand end.
+
+        The artifact wants 3640px; the window is clamped to 3000; the
+        rightmost node's whole column band is past the clamp, so its ink
+        count is 0 and the agent's only view of its own drawing is
+        missing a node it just placed — reported VALID=true. Flip this to
+        a plain pass when `snapshot` either scales to fit on BOTH axes or
+        says out loud that it truncated (V0.9-PLAN.md WP5, incidental
+        finding).
+        """
+        ink, pw, want_w = _rightmost_node_ink(WIDE_SPAN, self.workdir)
+        self.assertLess(want_w, 4000, "span too wide: render_svg's own "
+                                      "uniform scale would kick in and "
+                                      "this would stop testing the clamp")
+        self.assertGreater(want_w, SNAP_WIN_CAP, "span not past the clamp")
+        self.assertGreater(ink, 0, "the rightmost node left no ink in its "
+                                   "own column band: PNG is %dpx wide for "
+                                   "a %dpx drawing" % (pw, want_w))
+
+    def test_neighbour_narrow_snapshot_keeps_the_rightmost_node(self) -> None:
+        """The same path on a drawing that fits: the last node is there.
+
+        Without this the red above would prove nothing — an ink check
+        that can never find ink fails on a truncated snapshot and on a
+        perfect one alike.
+        """
+        ink, pw, want_w = _rightmost_node_ink(NARROW_SPAN, self.workdir)
+        self.assertLess(want_w, SNAP_WIN_CAP, "span not under the clamp")
+        self.assertGreaterEqual(pw, want_w, "narrow drawing was clamped")
+        self.assertGreater(ink, 0, "the rightmost node left no ink in its "
+                                   "own column band even unclamped — the "
+                                   "check itself is broken")
 
 
 class TestRenderTierEvidence(unittest.TestCase):
