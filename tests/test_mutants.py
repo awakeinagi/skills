@@ -57,6 +57,18 @@ _PASSES_THROUGH_RE = re.compile(
 # `[\w-]+` stops before the ` ('Label')` suffix `canvas.name()` appends.
 _SHARED_ATTACH_RE = re.compile(
     r"arrows [\w-]+ and [\w-]+ share an attach point on (?P<element>[\w-]+)")
+# The other symmetric-pair template, and the only one that names no third
+# party to blame: two labels, and the reader has to be told BOTH or the
+# finding says nothing actionable. So `element` is the quoted pair verbatim
+# — `'settled and reconciled n' and 'queued'` — in scene order, which is the
+# strongest identity this message affords. It affords no MAGNITUDE at all
+# (canvas.py:5558 reports the collision and not how many pixels of it),
+# which is why the mutant below asserts the pair and not a number; putting
+# the overlap depth into that template is the standing proposal in
+# docs/research/visualize-skill_idea_mining_2026-08-12.md O2, and the day
+# it lands this spec should tighten to a magnitude.
+_LABEL_OVERLAP_RE = re.compile(
+    r"labels (?P<element>.+) overlap — nudge one clear")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -132,6 +144,7 @@ DETECTORS: dict[str, dict] = {
     "crosses_through_bound": {"lint_re": _RUNS_INSIDE_RE},
     "passes_through_foreign": {"lint_re": _PASSES_THROUGH_RE},
     "shared_attach_point": {"lint_re": _SHARED_ATTACH_RE},
+    "label_label_overlap": {"lint_re": _LABEL_OVERLAP_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -771,6 +784,48 @@ def swap_endpoints(scene: list[dict], a_id: str, b_id: str) -> list[dict]:
 
 
 @_operator
+def relabel(scene: list[dict], container_id: str, text: str) -> list[dict]:
+    """Retext a bound label through canvas.py's own `mod` write path.
+
+    The only operator here that does not edit the element dicts itself.
+    That is the point: every other operator forges a scene, so a scene it
+    produces can only ever pin what the DETECTORS make of geometry
+    somebody typed. This one hands `apply_ops` the op an agent would
+    really send — `{"op": "mod", "id": <arrow>, "attrs": {"label": ...}}`
+    — and keeps whatever the write path decides, so the label's stored
+    `width` is the production number and not a number a test author chose.
+    A mutant built on it therefore pins the write path and the lint
+    together: `lint_layout`'s `drawn_box` (canvas.py:5546) trusts stored
+    width, so the day a write path stops recomputing it, the collision
+    checks go quiet and this operator stops producing the finding its
+    mutant asserts. That is the alarm; a forged scene cannot raise it.
+
+    Args:
+        scene: The scene copy to relabel.
+        container_id: Id of the element carrying the bound label —
+            an arrow here, since arrow labels are what the label
+            collision checks measure.
+        text: The label's new text.
+
+    Returns:
+        The scene as `apply_ops` returned it.
+
+    Raises:
+        EngineError: If canvas.py rejected the op batch. A rejected
+            batch would otherwise return the scene untouched, and an
+            untouched scene travelling on as "mutated" is the silence
+            `_operator`'s no-op guard exists to kill.
+    """
+    errors: list[str] = []
+    out = canvas.apply_ops(scene, [{"op": "mod", "id": container_id,
+                                    "attrs": {"label": text}}], errors)
+    if errors:
+        raise EngineError("relabel(%r): canvas rejected the op batch: %s"
+                          % (container_id, "; ".join(errors)))
+    return out
+
+
+@_operator
 def unchanged(scene: list[dict]) -> list[dict]:
     """Return the scene unmodified.
 
@@ -799,6 +854,7 @@ OPERATORS: dict = {
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
     "swap_endpoints": swap_endpoints,
+    "relabel": relabel,
     "unchanged": unchanged,
 }
 
@@ -1587,6 +1643,187 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Paint order (found during the visualize-skill idea-mine, 2026-08-12 —
+# docs/research/visualize-skill_idea_mining_2026-08-12.md §(i.2), where their
+# renderer's z-order bug was turned back on ours and reproduced). Excalidraw's
+# element ARRAY IS the z-order: index 0 is the bottom of the stack. Two things
+# we document and ship say so — `references/ops-reference.md:90`, decorations
+# are "painted beneath arrows", and `:213`, the whole `reorder` op, whose one
+# job is z-order by array index.
+#
+# `render_svg` discards it. It paints in four type-buckets (canvas.py:4642-
+# 4653: frames, then arrows/lines, then other shapes, then text), so order
+# holds WITHIN a bucket and is thrown away ACROSS them. A decoration at index
+# 0 — declared behind everything — is painted last, over the connector it was
+# meant to sit behind, and erases it.
+#
+# Measured as EMISSION ORDER in the SVG string, not as pixels: later markup
+# paints over earlier markup, the string is cheap to assert, and no browser
+# is needed to say which of two elements went down first. The render tier
+# would say the same thing in pixels and is the natural second home for this
+# (see the note on the red below) — but the render tier's own substrate is
+# this very SVG, which is why the model-tier pin comes first.
+#
+# Why this is not a cosmetic export bug. `tests/test_mutants_render.py`
+# rasterizes this SVG, rasterizes it again with one element omitted, and
+# diffs. An element occluded ONLY by the bucketing contributes zero pixels,
+# so ablating it changes nothing, so `ablation_existence` concludes a plainly
+# visible element is invisible. The tier whose whole claim is that it reads
+# the picture rather than the model can read an occlusion that is not on the
+# canvas. `export` (the user's handover artifact) and `snapshot` tier-3 (a
+# headless agent's only eyes) read the same string.
+#
+# canvas.py:50 already comments a "backing painted under arrow" special case
+# for label backdrops: the paint-order problem was seen, solved pointwise for
+# one element, and never generalized.
+# ---------------------------------------------------------------------------
+
+# A fill no other part of a render emits, so its first occurrence in the SVG
+# is the decoration's own tag and nothing else's — the ground rect
+# (canvas.py's SVG_GROUND) and every default style are different colours.
+_DECOR_FILL = "#ffd8a8"
+
+
+def _backdrop_scene(behind: bool) -> list[dict]:
+    """A decoration and a connector that overlap, stacked either way round.
+
+    The smallest drawing that can state the contract: one opaque
+    `role: decoration` panel covering one straight connector, and nothing
+    else — no bindings, no labels, no nodes, so the only thing that can
+    decide which is visible is the array order the caller chose.
+
+    Args:
+        behind: True to declare the decoration at index 0 (the bottom of
+            the stack, so the connector must stay visible); False to
+            declare it after the connector (the top, so it must cover it).
+
+    Returns:
+        The two-element scene, in the requested array order.
+    """
+    bg = el(id="bg", type="rectangle", x=0, y=0, width=200, height=100,
+            backgroundColor=_DECOR_FILL, strokeColor=_DECOR_FILL,
+            customData={"role": "decoration"})
+    arrow = el(id="e1", type="arrow", x=20, y=50, width=160, height=0,
+               points=[[0, 0], [160, 0]], customData={"role": "edge"})
+    return [bg, arrow] if behind else [arrow, bg]
+
+
+def _paint_offsets(scene: list[dict]) -> tuple[int, int]:
+    """Where the decoration and the connector land in the emitted SVG.
+
+    Args:
+        scene: A scene built by `_backdrop_scene`.
+
+    Returns:
+        `(decoration_offset, connector_offset)` as character positions in
+        the rendered SVG. The LARGER offset is painted later, and so on
+        top.
+
+    Raises:
+        ValueError: If either element emitted no markup at all. Said out
+            loud rather than returned as a -1, because a missing element
+            is the EXPORT-COMPLETENESS defect and a -1 would quietly sort
+            to the bottom of the stack and read as a paint-order answer.
+    """
+    svg = canvas.render_svg(scene)[0]
+    decor, stroke = svg.find(_DECOR_FILL), svg.find("<polyline")
+    if decor < 0 or stroke < 0:
+        raise ValueError(
+            "the scene emitted no %s at all — that is export "
+            "completeness, not paint order"
+            % ("decoration" if decor < 0 else "connector"))
+    return decor, stroke
+
+
+class TestPaintOrder(unittest.TestCase):
+    """The element array is the z-order — or `render_svg` is caught losing it."""
+
+    def test_a_decoration_declared_in_front_is_painted_in_front(self) -> None:
+        """The contract's other pole, and it holds: index 1 paints last.
+
+        Green today, and green after the fix — which is exactly what makes
+        it the control. A "fix" that simply reversed the buckets, or one
+        that dropped array order in the other direction, would satisfy the
+        red below and break this. Both poles or neither.
+        """
+        decor, stroke = _paint_offsets(_backdrop_scene(behind=False))
+        self.assertGreater(
+            decor, stroke,
+            "a decoration declared AFTER the connector must be painted "
+            "over it")
+
+    def test_array_order_is_honoured_within_one_type_bucket(self) -> None:
+        """Order is not lost everywhere — only across bucket boundaries.
+
+        This is what makes the red below a bucketing defect rather than a
+        renderer that never reads the array: two rectangles land in one
+        bucket, and swapping them swaps the emission. Without this the red
+        could be "read" as `render_svg` having no notion of z-order at all,
+        and the fix would be scoped wrong.
+        """
+        pair = [el(id="r1", type="rectangle", x=0, y=0, width=100,
+                   height=100, backgroundColor="#aaaaaa"),
+                el(id="r2", type="rectangle", x=20, y=20, width=100,
+                   height=100, backgroundColor="#bbbbbb")]
+        svg = canvas.render_svg(pair)[0]
+        self.assertLess(svg.index("#aaaaaa"), svg.index("#bbbbbb"))
+        swapped = canvas.render_svg(pair[::-1])[0]
+        self.assertLess(swapped.index("#bbbbbb"), swapped.index("#aaaaaa"))
+
+    def test_zorder_red_is_red_by_measurement_not_by_error(self) -> None:
+        """The red below is red for the reason it claims.
+
+        `@unittest.expectedFailure` swallows ERRORS as well as failures,
+        so a `render_svg` that stopped emitting the decoration entirely —
+        or stopped emitting the stroke — would go on printing a healthy
+        `x` while the pin measured nothing (skill doctrine §6). It also
+        gives the flip a voice: `unittest` reports a red gone green as an
+        anonymous "unexpected success", while this names the decorator to
+        drop and the WP that earned it.
+        """
+        try:
+            decor, stroke = _paint_offsets(_backdrop_scene(behind=True))
+        except Exception as exc:
+            self.fail("the z-order red is red via %r, not a measurement "
+                      "mismatch — that is a broken pin, not a defect pin"
+                      % exc)
+        self.assertGreater(
+            decor, stroke,
+            "the decoration at array index 0 is now painted BENEATH the "
+            "connector (%d < %d) — WP4 honoured array order: drop the "
+            "expectedFailure on "
+            "test_red_zorder_bucketing_occludes_connector"
+            % (decor, stroke))
+
+    @unittest.expectedFailure
+    def test_red_zorder_bucketing_occludes_connector(self) -> None:
+        """A backdrop declared at the bottom of the stack erases the arrow.
+
+        `{"op": "reorder", "id": "bg-panel", "index": 0}` is documented as
+        the way to put a panel behind the drawing, and against this
+        renderer it does nothing whatsoever: both orderings of the same two
+        elements emit byte-identical markup, because the arrow bucket runs
+        before the shape bucket either way. The picture then asserts
+        something the model never said — the connector is gone, and the
+        reader has no way to be suspicious of a stroke that leaves no mark.
+
+        Asserted as emission order, not as a pixel diff, so the pin costs
+        no browser; the same defect is worth a render-tier sibling once
+        `ablation_existence` can be trusted not to be measuring this bug
+        (§(i.2): today it is the bug's own victim). Flips when the paint
+        dispatch walks `live` once in array order instead of four times by
+        type — the WP that owns `render_svg`, not this file.
+        """
+        decor, stroke = _paint_offsets(_backdrop_scene(behind=True))
+        self.assertLess(
+            decor, stroke,
+            "decoration 'bg' is declared at array index 0 — beneath "
+            "everything — but its markup is emitted at %d, after the "
+            "connector's at %d: it is painted OVER the arrow and erases "
+            "it (ops-reference.md:90, :213)" % (decor, stroke))
+
+
+# ---------------------------------------------------------------------------
 # Store integrity — the data-loss family (Batch A, 2026-08-12: flowchartai
 # mine M6 §d for the load path, excalidraw-mcp mine M4 for file references,
 # the latter grounded in Excalidraw's own excalidrawDiff.ts:261 note that
@@ -2204,6 +2441,89 @@ def _attach_chain(shared: bool) -> list[dict]:
     return [a, n, z, e1, e2]
 
 
+def _ellipse_stage(through_body: bool) -> list[dict]:
+    """One circular node and one unbound arrow, at the corner or through it.
+
+    Deliberately two elements and no more. The diamond family's stage
+    carries a source box, a label and a bound arrow because the endpoint
+    mutants need them; nothing here does, and the smaller the scene the
+    less there is to argue about when this fires.
+
+    The node is a 200x200 ellipse at (300,250), i.e. the circle centred
+    (400,350) with r=100 — a circle rather than an oval so every number
+    below is a plain distance from one point. Its bounding box corners
+    are 141.4px from that centre, so the corner void is 41.4px deep.
+
+    With `through_body` False the arrow runs the line x+y=570, every point
+    of which is 127.28px from the centre: **27.3px of clear white canvas**
+    from the drawn outline along its whole length, verified by dense
+    sampling. It clips the top-left corner of the (2px-inset) bounding box
+    and touches nothing a reader can see. With `through_body` True the
+    same arrow runs the horizontal diameter and genuinely crosses the
+    circle — the check's legitimate firing.
+
+    Args:
+        through_body: True for the control, driving the arrow along
+            y=350 through the circle; False for the mutant, clipping the
+            empty bbox corner.
+
+    Returns:
+        The two-element scene: the ellipse `n1`, then the arrow `ax`.
+    """
+    node = el(id="n1", type="ellipse", x=300, y=250, width=200, height=200,
+              customData={"role": "node"})
+    if through_body:
+        arrow = el(id="ax", type="arrow", x=280, y=350, width=240,
+                   height=0, points=[[0, 0], [240, 0]],
+                   customData={"role": "edge"})
+    else:
+        arrow = el(id="ax", type="arrow", x=280, y=290, width=60,
+                   height=60, points=[[0, 0], [60, -60]],
+                   customData={"role": "edge"})
+    return [node, arrow]
+
+
+def _label_pair_stage() -> list[dict]:
+    """Two arrows whose labels sit 62px apart — and one `mod` from colliding.
+
+    Built for the write-path invariant, so every number is chosen to make
+    the collision hinge on the STORED width and nothing else. Both arrows
+    are horizontal, so `arrow_label_anchor` centres each label on its
+    own midpoint: `e1`'s is (200,200) and `e2`'s is (300,212). The 12px
+    vertical offset leaves the two 20px-tall labels overlapping by 8px on
+    y — past the check's 4px floor — so the x axis alone decides.
+
+    On x, as built: `'ok'` is 20px wide and `'queued'` 56px, half-widths
+    10 and 28 against a 100px centre distance, so the boxes miss by 62px
+    and the check is right to stay quiet. Retext `e1` to "settled and
+    reconciled nightly" (216px) and the half-widths become 108 and 28, so
+    they overlap by 36px — past the 6px floor — and it must speak.
+
+    `e1` spans 400px on purpose: its run has to stay wider than the grown
+    label, or `label_wider_than_run` fires and the scene starts asserting
+    two things at once.
+
+    Returns:
+        The four-element scene: arrows `e1`, `e2` and their bound labels
+        `t1`, `t2`. Stored widths are the true `text_dims` of the short
+        texts, which is the state a healthy write path leaves behind.
+    """
+    e1 = el(id="e1", type="arrow", x=0, y=200, width=400, height=0,
+            points=[[0, 0], [400, 0]], customData={"role": "edge"},
+            boundElements=[{"id": "t1", "type": "text"}])
+    e2 = el(id="e2", type="arrow", x=250, y=212, width=100, height=0,
+            points=[[0, 0], [100, 0]], customData={"role": "edge"},
+            boundElements=[{"id": "t2", "type": "text"}])
+    t1 = el(id="t1", type="text", x=190, y=190, width=20, height=20,
+            text="ok", originalText="ok", fontSize=16, fontFamily=1,
+            textAlign="center", verticalAlign="middle", containerId="e1")
+    t2 = el(id="t2", type="text", x=272, y=202, width=56, height=20,
+            text="queued", originalText="queued", fontSize=16,
+            fontFamily=1, textAlign="center", verticalAlign="middle",
+            containerId="e2")
+    return [e1, e2, t1, t2]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -2501,6 +2821,76 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _text_over_node(roled=True),
                         Silence("endpoint_gap"))))
 
+# ---------------------------------------------------------------------------
+# Shape-blindness, the ELLIPSE (found during the visualize-skill idea-mine,
+# 2026-08-12 — docs/research/visualize-skill_idea_mining_2026-08-12.md §(i.3),
+# where their renderer's checks were turned back on ours). Same uncalled
+# helper as the diamond cases: `marker_inset` (canvas.py:4200) already returns
+# 1-1/sqrt(2) for an ellipse, on the stated grounds that "the box's corner is
+# empty canvas for them", and `_seg_hits_rect` (canvas.py:4839) never asks it
+# — it rejects against the bounding box and nothing else. 4 of 4 corner probes
+# false-positived.
+#
+# This is a SEPARATE entry rather than a rider on the diamond ones because
+# WP4's shape-blindness scope IS its mutants, and every one of them was a
+# diamond. A WP4 that taught the through-node test about rhombus edges and
+# stopped could go green with ellipses exactly as blind as they are today.
+# (Not to be confused with the note on `diamond_label_overflows_shape`, which
+# says the ellipse is the WEAKER case — that is about label chords inside a
+# shape, a different check with different thresholds. On through-node testing
+# the ellipse is not weaker at all.)
+#
+# No magnitude to assert: `passes_through_foreign` reports the fact and no
+# number (canvas.py:5474), so what this pins is the POLE — silence — and the
+# neighbour carries the firing proof. The corner arrow's 27.3px of clear
+# canvas is derived in `_ellipse_stage`. Flips when WP4 tests the drawn shape.
+_register(Mutant(
+    "ellipse_corner_overfire",
+    build=lambda: _ellipse_stage(through_body=False),
+    op="unchanged", args={},
+    expect=Silence("passes_through_foreign"),
+    neighbour=Neighbour(lambda: _ellipse_stage(through_body=True),
+                        FindingSpec("passes_through_foreign",
+                                    element="ax"))))
+
+# ---------------------------------------------------------------------------
+# The label-collision checks trust STORED width — latent, so this is a GREEN
+# regression pin and not an indictment (found during the visualize-skill
+# idea-mine, 2026-08-12 — §(i.4)). It is the odd one out here: every other
+# entry says "the drawing is wrong today". This one says "the drawing is
+# right today, for a reason nothing was guarding".
+#
+# `drawn_box` (canvas.py:5546) measures a label by its stored `width`. That
+# is safe only while every write path recomputes it, and three things say the
+# dependency is undefended: the load-time repairs that refit labels (ART-011)
+# and re-glue detached ones (ART-007) both explicitly skip arrow-type
+# containers, and arrow labels are exactly what these checks measure;
+# `render_svg` DISTRUSTS the same number, bounding text by "the larger of
+# stored and estimated extents" because "stored text extents are estimates"
+# (v0.3) — the renderer and the lint disagree about whether it can be
+# believed; and no test asserted it either way.
+#
+# Hence `relabel`, the one operator that sends a real `mod` through
+# `apply_ops` rather than forging the widened label. Green today because the
+# write path recomputes 20px -> 216px and the boxes overlap by 36px. The day
+# a write path stops recomputing, the stored width stays 20px, the drawn
+# boxes miss by 62px, the warning vanishes and this goes RED — which is
+# exactly why it is worth writing while it passes.
+#
+# It also drains `label_label_overlap` from UNCOVERED. The element is the
+# quoted pair because that message names no third party and carries no
+# magnitude (see `_LABEL_OVERLAP_RE`); tighten this spec to a magnitude the
+# day O2 puts the overlap depth into the template.
+_register(Mutant(
+    "stale_label_width_hides_collision",
+    build=_label_pair_stage,
+    op="relabel", args={"container_id": "e1",
+                        "text": "settled and reconciled nightly"},
+    expect=FindingSpec("label_label_overlap",
+                       element="'settled and reconciled n' and 'queued'"),
+    neighbour=Neighbour(_label_pair_stage,
+                        Silence("label_label_overlap"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -2690,6 +3080,29 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_shared_attach_point_fan_failed(self) -> None:
         """Attach points 80px apart are past the lint's 12px window."""
         self._run_neighbour("shared_attach_point_fan_failed")
+
+    @unittest.expectedFailure
+    def test_mutant_ellipse_corner_overfire(self) -> None:
+        """An arrow 27px clear of the circle reads as passing through it."""
+        # Bbox-shaped through-node test, ellipse instance; flips when WP4
+        # tests the drawn shape — for every shape, not only the rhombus.
+        self._run("ellipse_corner_overfire")
+
+    def test_neighbour_ellipse_corner_overfire(self) -> None:
+        """An arrow along the diameter really does pass through the circle."""
+        self._run_neighbour("ellipse_corner_overfire")
+
+    def test_mutant_stale_label_width_hides_collision(self) -> None:
+        """A real `mod` grows the label, and the collision check sees it."""
+        # GREEN, and a pin rather than a report: the collision checks read
+        # stored width, so this stays green only while the write paths keep
+        # recomputing it. If it ever goes red, the defect is upstream in
+        # whatever wrote the label — not in this mutant.
+        self._run("stale_label_width_hides_collision")
+
+    def test_neighbour_stale_label_width_hides_collision(self) -> None:
+        """Labels 62px apart are two captions, and the check says nothing."""
+        self._run_neighbour("stale_label_width_hides_collision")
 
     def test_red_mutants_are_red_by_mismatch_not_by_error(self) -> None:
         """Every expectedFailure above is red for the reason it claims.
@@ -2891,8 +3304,10 @@ UNCOVERED: dict[str, str] = {
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5518",
     "annotation_budget":
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5526",
-    "label_label_overlap":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5558",
+    # (`label_label_overlap`, canvas.py:5558, left this table on
+    # 2026-08-12: the visualize-skill mine's §(i.4) exposed the stored-width
+    # dependency underneath it and `stale_label_width_hides_collision` now
+    # proves it from DETECTORS, both poles.)
     "label_on_foreign_node":
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5579",
     "annotation_overlaps_node":
