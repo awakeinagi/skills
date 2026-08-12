@@ -17,7 +17,9 @@ import inspect
 import json
 import math
 import re
+import shutil
 import sys
+import tempfile
 import unittest
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -1546,6 +1548,225 @@ class TestExportCompleteness(unittest.TestCase):
             sum(delta.values()), 1,
             "image x-1 contributes no markup to the export: it is in the "
             "model, it widens the bounds, it is not in the picture")
+
+
+# ---------------------------------------------------------------------------
+# Store integrity — the data-loss family (Batch A, 2026-08-12: flowchartai
+# mine M6 §d for the load path, excalidraw-mcp mine M4 for file references,
+# the latter grounded in Excalidraw's own excalidrawDiff.ts:261 note that
+# deleting an image element never deletes its asset).
+#
+# Everything else in this file judges a picture. These judge the LOADER, and
+# the failure mode is worse in kind: a lint that misses costs a reader one
+# wrong impression, while a loader that dies or goes quiet costs the user
+# their work. The probe discipline is therefore the WP1 one — cause a
+# failure, then diff the state — run against a throwaway project built in a
+# temp directory, never against `tests/fixtures/` in place.
+#
+# These are plain tests rather than `Mutant` entries, and the reason is now
+# structural rather than incidental: a `Mutant` is judged by
+# `collect_findings` over an ELEMENT LIST, and none of what follows is in
+# one. A save record is not an element; a `files` map is doc-level, so the
+# orphan direction cannot even be written as a scene. That is the third time
+# the element-list scene unit has bounded what the catalogue can hold (after
+# the export path and this), which is worth knowing before anyone tries to
+# fold these in.
+# ---------------------------------------------------------------------------
+
+_GOOD_ARTIFACT = json.dumps({
+    "type": "excalidraw", "version": 2,
+    "elements": [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                  "width": 120, "height": 60}]})
+
+_GOOD_SAVE = json.dumps({"revn": 1, "note": "baseline"})
+
+# One image element pointing at a fileId the `files` map does not hold, and
+# one `files` entry no element points at — the two directions of file-
+# reference integrity, in one artifact so a single load probes both.
+_FILEREF_ARTIFACT = json.dumps({
+    "type": "excalidraw", "version": 2,
+    "elements": [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                  "width": 120, "height": 60},
+                 {"id": "img", "type": "image", "x": 0, "y": 200,
+                  "width": 120, "height": 90, "fileId": "missing-file-id"}],
+    "files": {"orphan-file-id": {"id": "orphan-file-id",
+                                 "mimeType": "image/png",
+                                 "dataURL": "data:image/png;base64,AAAA"}}})
+
+
+class TestStoreIntegrity(unittest.TestCase):
+    """One bad record must not cost the project — and must never go quiet."""
+
+    def _load(self, artifacts: dict[str, str],
+              saves: dict[str, str]) -> canvas.Store:
+        """Build a throwaway project on disk and load it.
+
+        File CONTENTS are passed as raw strings, not objects, because
+        every defect below is about malformed bytes: a helper that took
+        dicts could not express a file truncated mid-JSON.
+
+        Args:
+            artifacts: `{stem: file body}` written under
+                `project_knowledge/artifacts/<stem>.excalidraw`.
+            saves: `{stem: file body}` written under
+                `project_knowledge/saves/<stem>.json`.
+
+        Returns:
+            The loaded `canvas.Store` — `Store.__init__` loads eagerly, so
+            a load-time crash surfaces from the constructor.
+        """
+        tmp = tempfile.mkdtemp(prefix="mutants-store-")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        pk = Path(tmp) / "project_knowledge"
+        (pk / "artifacts").mkdir(parents=True)
+        (pk / "saves").mkdir(parents=True)
+        for stem, body in artifacts.items():
+            (pk / "artifacts" / (stem + ".excalidraw")).write_text(
+                body, encoding="utf-8")
+        for stem, body in saves.items():
+            (pk / "saves" / (stem + ".json")).write_text(body,
+                                                         encoding="utf-8")
+        return canvas.Store(canvas.Project(Path(tmp)))
+
+    def test_scratch_project_baseline_loads_clean(self) -> None:
+        """Two good artifacts and a good save record load with no issues.
+
+        The reds below are all deviations FROM this baseline, so this is
+        their error-red guard: if the harness ever stops being able to
+        build a loadable project, every `expectedFailure` in this class
+        would go on passing while measuring nothing, and this is what
+        says so instead.
+        """
+        st = self._load({"a": _GOOD_ARTIFACT, "b": _GOOD_ARTIFACT},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a", "b"])
+        self.assertEqual(sorted(st.records), [1])
+        self.assertEqual([i.get("code") for i in st.issues], [])
+
+    def test_truncated_save_record_is_quarantined_loudly(self) -> None:
+        """A save record cut mid-JSON is skipped, reported, rest still loads."""
+        st = self._load({"a": _GOOD_ARTIFACT},
+                        {"0001-x": _GOOD_SAVE, "0002-y": '{"revn"'})
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertEqual(sorted(st.records), [1])
+        self.assertIn("SAV-001", {i.get("code") for i in st.issues})
+
+    def test_save_record_missing_its_revision_is_quarantined_loudly(
+            self) -> None:
+        """Valid JSON with no `revn` is skipped loudly, not guessed at."""
+        st = self._load({"a": _GOOD_ARTIFACT},
+                        {"0001-x": _GOOD_SAVE, "0002-y": '{"note": "x"}'})
+        self.assertEqual(sorted(st.records), [1])
+        self.assertIn("SAV-001", {i.get("code") for i in st.issues})
+
+    def test_truncated_artifact_is_quarantined_loudly(self) -> None:
+        """An artifact cut mid-JSON is skipped as ART-006; siblings survive.
+
+        This is the contrast the two reds below are measured against:
+        the loader ALREADY knows how to lose one file without losing the
+        project, and how to say so.
+        """
+        st = self._load({"a": _GOOD_ARTIFACT, "b": '{"elements":['},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertIn("ART-006", {i.get("code") for i in st.issues})
+
+    @unittest.expectedFailure
+    def test_red_non_dict_save_record_takes_down_the_whole_store(self) -> None:
+        """One save record holding `[]` costs the user the entire project.
+
+        `Store.load` guards the save loop with `except (ValueError,
+        KeyError)` (canvas.py:6485), which covers a truncated file and a
+        missing key — both pinned green above. A record that is valid
+        JSON but not an OBJECT slips past both: `apply_migrations` reaches
+        `doc.setdefault("migrations", [])` on a list and raises
+        `AttributeError`, nothing catches it, and the constructor dies. No
+        artifact loads, no save loads, the project will not open.
+
+        `[]` is not an exotic corruption — it is what any tool that writes
+        "just the array" produces, and the same crash comes from `null`,
+        `"text"` and a bare number.
+
+        Flips when that except clause covers the type-confusion case (or
+        the loop checks `isinstance(rec, dict)` before migrating).
+        """
+        try:
+            st = self._load({"a": _GOOD_ARTIFACT},
+                            {"0001-x": _GOOD_SAVE, "0002-y": "[]"})
+        except Exception as exc:
+            self.fail("Store.load died on ONE bad save record (%s: %s) — "
+                      "the whole project is unreachable, artifacts and all"
+                      % (type(exc).__name__, exc))
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertIn("SAV-001", {i.get("code") for i in st.issues})
+
+    @unittest.expectedFailure
+    def test_red_non_dict_artifact_is_dropped_silently(self) -> None:
+        """An artifact holding `[]` leaves the project with nothing said.
+
+        `validate_scene` builds exactly the right issue for this —
+        ART-000, "not a JSON object", with a repair hint — and
+        `Store.load` throws it away: `doc, art_issues = validate_scene(...)`
+        is followed by `if doc is None: continue`, which skips the loop
+        that files `art_issues` (canvas.py:6518-6525). So the drawing
+        disappears from the project and the user is told nothing, while
+        the same file truncated one byte earlier would report ART-006.
+
+        Silence is the whole defect here: losing the file is defensible,
+        losing it quietly is not. Flips when the issues survive the skip.
+        """
+        st = self._load({"a": _GOOD_ARTIFACT, "b": "[]"},
+                        {"0001-x": _GOOD_SAVE})
+        said = " ".join(str(i) for i in st.issues)
+        self.assertIn(
+            "b", said,
+            "artifact 'b' left the project and no issue mentions it "
+            "(issues=%r) — validate_scene made an ART-000 for exactly "
+            "this and the loader dropped it" % (st.issues,))
+
+    @unittest.expectedFailure
+    def test_red_dangling_file_reference_is_reported(self) -> None:
+        """An image whose fileId names no file in `files` goes unreported.
+
+        `referential_findings` is the pass whose whole subject is "a
+        reference whose target is gone", and it never mentions `fileId` —
+        nor does `validate_scene`, nor `lint_layout`. So an image element
+        pointing at a file the document does not carry loads clean, and
+        the picture shows a hole. `render_svg` paints nothing for an image
+        either (see `TestExportCompleteness`), so nothing downstream
+        surfaces it.
+
+        Flips when any channel — issues or referential findings — names
+        the missing file.
+        """
+        st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
+        said = json.dumps([st.issues, st.referential], default=str)
+        self.assertIn(
+            "missing-file-id", said,
+            "nothing reports an image element bound to a fileId the "
+            "document does not hold")
+
+    @unittest.expectedFailure
+    def test_red_orphaned_file_entry_is_reported(self) -> None:
+        """A `files` entry no element references is kept forever, unreported.
+
+        The other direction, and Excalidraw's own documented one
+        (excalidrawDiff.ts:261: deleting an image element never deletes
+        its asset). Delete the image, keep the blob: the store reads
+        `doc["files"]` wholesale into `artifact_files` (canvas.py:6529)
+        and writes it back out on every save, so a project accumulates
+        dataURL payloads nothing can ever draw and nothing ever names.
+
+        Flips when any channel reports the unreferenced entry.
+        """
+        st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
+        self.assertEqual(list(st.artifact_files.get("a", {})),
+                         ["orphan-file-id"])
+        said = json.dumps([st.issues, st.referential], default=str)
+        self.assertIn(
+            "orphan-file-id", said,
+            "the store kept an unreferenced file blob and nothing "
+            "reported it")
 
 
 # ---------------------------------------------------------------------------
