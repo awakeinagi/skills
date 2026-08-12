@@ -485,10 +485,17 @@ def move_endpoint_to(scene: list[dict], arrow_id: str, end: str, x: float,
     if end == "end":
         arr["points"][-1] = [x - arr["x"], y - arr["y"]]
     elif end == "start":
-        old_abs = [(arr["x"] + px, arr["y"] + py) for px, py in
-                  arr["points"]]
+        # The start point IS the element origin by convention, so moving
+        # it means moving the origin itself. The other points' OLD
+        # absolute positions (computed under the OLD origin, before it
+        # moves) are what must be preserved — rebase only those against
+        # the NEW origin; points[0] simply becomes [0, 0].
+        old_x, old_y = arr["x"], arr["y"]
+        rest_abs = [(old_x + px, old_y + py) for px, py in
+                   arr["points"][1:]]
         arr["x"], arr["y"] = x, y
-        arr["points"] = [[ax - x, ay - y] for ax, ay in old_abs]
+        arr["points"] = [[0, 0]] + [[ax - x, ay - y] for ax, ay in
+                                    rest_abs]
     else:
         raise EngineError("move_endpoint_to: unknown end %r" % end)
     return scene
@@ -618,6 +625,14 @@ def move_node_onto_rank(scene: list[dict], node_id: str,
                         y: float) -> list[dict]:
     """Move a node onto a rank line and straighten its 2-point arrows.
 
+    This manufactures a shared rank line — it is not a faithful
+    re-route. Every 2-point arrow bound to the node (at either end)
+    gets BOTH its endpoints' y-coordinates rewritten to the node's new
+    centerline, so the far endpoint deliberately follows the moved
+    node's centerline even when the far node's own centerline differs.
+    That blanket rewrite is what lets a discovery sweep manufacture a
+    deterministic straight-through rank line.
+
     Args:
         scene: The scene copy to mutate.
         node_id: The node element's id.
@@ -626,7 +641,7 @@ def move_node_onto_rank(scene: list[dict], node_id: str,
     Returns:
         The mutated scene, with every 2-point arrow bound to the node
         rewritten so both its endpoint y-coordinates sit on the
-        node's new centerline (mirroring apply's re-route behaviour).
+        node's new centerline.
     """
     node = next(e for e in scene if e["id"] == node_id)
     node["y"] = y
@@ -856,6 +871,32 @@ class TestOperators(unittest.TestCase):
                           ay + arr["points"][-1][1]), (310, 305))
         self.assertEqual(arr["endBinding"]["elementId"], "N")
 
+    def test_move_endpoint_to_start_shifts_origin_not_far_endpoint(
+            self) -> None:
+        """Moving "start" relocates the origin; the far end doesn't move.
+
+        e1's start is bound to A, end to N. Moving the start to (999,
+        999) must land the new absolute start there, leave points[0]
+        at [0, 0] (the origin IS the start), leave the far endpoint's
+        absolute position at its old (200, 200), and leave the
+        (unrelated) startBinding untouched.
+        """
+        out = OPERATORS["move_endpoint_to"](
+            self._chain(), arrow_id="e1", end="start", x=999, y=999)
+        arr = next(e for e in out if e["id"] == "e1")
+        self.assertEqual((arr["x"], arr["y"]), (999, 999))
+        self.assertEqual(arr["points"][0], [0, 0])
+        far_x = arr["x"] + arr["points"][-1][0]
+        far_y = arr["y"] + arr["points"][-1][1]
+        self.assertEqual((far_x, far_y), (200, 200))
+        self.assertEqual(arr["startBinding"]["elementId"], "A")
+
+    def test_move_endpoint_to_rejects_unknown_end(self) -> None:
+        """An `end` value that is neither "start" nor "end" is refused."""
+        with self.assertRaises(EngineError):
+            OPERATORS["move_endpoint_to"](
+                self._chain(), arrow_id="e1", end="middle", x=0, y=0)
+
     def test_decurve_clears_roundness(self) -> None:
         """Decurve sets roundness to None."""
         arr = el(id="e1", type="arrow", x=0, y=0, width=100, height=50,
@@ -928,6 +969,41 @@ class TestOperators(unittest.TestCase):
             arr = next(e for e in out if e["id"] == aid)
             ys = {arr["y"] + p[1] for p in arr["points"]}
             self.assertEqual(len(ys), 1)   # horizontal now
+
+    def test_move_node_onto_rank_follows_movers_centerline_not_fars(
+            self) -> None:
+        """The rewrite is blanket, not bound-end-only.
+
+        A, N, Z have deliberately mismatched heights (40, 80, 20), so
+        their own centerlines differ. After moving N onto y=100, both
+        e1 and e2 must land horizontal at N's new centerline
+        (100 + 80/2 = 140) — NOT at A's centerline (120) or Z's
+        centerline (110). A bound-end-only implementation would leave
+        the far endpoints at their own node's centerline instead.
+        """
+        a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
+               customData={"role": "node"})
+        n = el(id="N", type="rectangle", x=200, y=180, width=80, height=80,
+               customData={"role": "node"})
+        z = el(id="Z", type="rectangle", x=400, y=100, width=80, height=20,
+               customData={"role": "node"})
+        e1 = el(id="e1", type="arrow", x=80, y=120, width=120, height=80,
+                points=[[0, 0], [120, 80]],
+                startBinding={"elementId": "A", "focus": 0, "gap": 1},
+                endBinding={"elementId": "N", "focus": 0, "gap": 1},
+                customData={"role": "edge"})
+        e2 = el(id="e2", type="arrow", x=280, y=200, width=120, height=-80,
+                points=[[0, 0], [120, -80]],
+                startBinding={"elementId": "N", "focus": 0, "gap": 1},
+                endBinding={"elementId": "Z", "focus": 0, "gap": 1},
+                customData={"role": "edge"})
+        out = OPERATORS["move_node_onto_rank"](
+            [a, n, z, e1, e2], node_id="N", y=100)
+        centerline = 100 + 80 / 2   # N's new centerline, not A's or Z's
+        for aid in ("e1", "e2"):
+            arr = next(e for e in out if e["id"] == aid)
+            ys = {arr["y"] + p[1] for p in arr["points"]}
+            self.assertEqual(ys, {centerline})
 
     def test_swap_endpoints_exchanges_end_bindings_and_points(self) -> None:
         """swap_endpoints exchanges endBinding and the end points."""
