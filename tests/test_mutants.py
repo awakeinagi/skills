@@ -11,6 +11,8 @@ never take down a run — they surface as `detector-error` findings.
 from __future__ import annotations
 
 import copy
+import datetime
+import hashlib
 import json
 import math
 import re
@@ -820,34 +822,10 @@ class TestEngineRules(unittest.TestCase):
 class TestOperators(unittest.TestCase):
     """Every operator does what its name says and emits a valid scene."""
 
-    def _chain(self) -> list[dict]:
-        """A -> N -> Z, N offset below the A/Z rank line.
-
-        Returns:
-            The five-element scene: nodes A, N, Z and arrows e1, e2.
-        """
-        a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
-               customData={"role": "node"})
-        n = el(id="N", type="rectangle", x=200, y=180, width=80, height=40,
-               customData={"role": "node"})
-        z = el(id="Z", type="rectangle", x=400, y=100, width=80, height=40,
-               customData={"role": "node"})
-        e1 = el(id="e1", type="arrow", x=80, y=120, width=120, height=80,
-                points=[[0, 0], [120, 80]],
-                startBinding={"elementId": "A", "focus": 0, "gap": 1},
-                endBinding={"elementId": "N", "focus": 0, "gap": 1},
-                customData={"role": "edge"})
-        e2 = el(id="e2", type="arrow", x=280, y=200, width=120, height=-80,
-                points=[[0, 0], [120, -80]],
-                startBinding={"elementId": "N", "focus": 0, "gap": 1},
-                endBinding={"elementId": "Z", "focus": 0, "gap": 1},
-                customData={"role": "edge"})
-        return [a, n, z, e1, e2]
-
     def test_delete_arrowhead_clears_the_end_arrowhead(self) -> None:
         """delete_arrowhead nulls out endArrowhead on the named arrow."""
         out = OPERATORS["delete_arrowhead"](
-            self._chain(), arrow_id="e1")
+            _chain(), arrow_id="e1")
         arr = next(e for e in out if e["id"] == "e1")
         self.assertIsNone(arr["endArrowhead"])
 
@@ -865,7 +843,7 @@ class TestOperators(unittest.TestCase):
     def test_move_endpoint_to_is_absolute_and_keeps_binding(self) -> None:
         """Moving an endpoint by absolute coords leaves its binding alone."""
         out = OPERATORS["move_endpoint_to"](
-            self._chain(), arrow_id="e1", end="end", x=310, y=305)
+            _chain(), arrow_id="e1", end="end", x=310, y=305)
         arr = next(e for e in out if e["id"] == "e1")
         ax, ay = arr["x"], arr["y"]
         self.assertEqual((ax + arr["points"][-1][0],
@@ -883,7 +861,7 @@ class TestOperators(unittest.TestCase):
         (unrelated) startBinding untouched.
         """
         out = OPERATORS["move_endpoint_to"](
-            self._chain(), arrow_id="e1", end="start", x=999, y=999)
+            _chain(), arrow_id="e1", end="start", x=999, y=999)
         arr = next(e for e in out if e["id"] == "e1")
         self.assertEqual((arr["x"], arr["y"]), (999, 999))
         self.assertEqual(arr["points"][0], [0, 0])
@@ -896,7 +874,7 @@ class TestOperators(unittest.TestCase):
         """An `end` value that is neither "start" nor "end" is refused."""
         with self.assertRaises(EngineError):
             OPERATORS["move_endpoint_to"](
-                self._chain(), arrow_id="e1", end="middle", x=0, y=0)
+                _chain(), arrow_id="e1", end="middle", x=0, y=0)
 
     def test_decurve_clears_roundness(self) -> None:
         """Decurve sets roundness to None."""
@@ -940,7 +918,7 @@ class TestOperators(unittest.TestCase):
 
     def test_flip_direction_swaps_bindings_and_reverses_points(self) -> None:
         """flip_direction swaps bindings and reverses point order."""
-        out = OPERATORS["flip_direction"](self._chain(), arrow_id="e1")
+        out = OPERATORS["flip_direction"](_chain(), arrow_id="e1")
         arr = next(e for e in out if e["id"] == "e1")
         self.assertEqual(arr["startBinding"]["elementId"], "N")
         self.assertEqual(arr["endBinding"]["elementId"], "A")
@@ -963,7 +941,7 @@ class TestOperators(unittest.TestCase):
     def test_move_node_onto_rank_straightens_its_arrows(self) -> None:
         """move_node_onto_rank re-levels its bound 2-point arrows."""
         out = OPERATORS["move_node_onto_rank"](
-            self._chain(), node_id="N", y=100)
+            _chain(), node_id="N", y=100)
         n = next(e for e in out if e["id"] == "N")
         self.assertEqual(n["y"], 100)
         for aid in ("e1", "e2"):
@@ -1030,7 +1008,7 @@ class TestOperators(unittest.TestCase):
 
     def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
         """Unchanged returns an equal scene that is a distinct object."""
-        chain = self._chain()
+        chain = _chain()
         out = OPERATORS["unchanged"](chain)
         self.assertEqual(out, chain)
         self.assertIsNot(out, chain)
@@ -1039,7 +1017,7 @@ class TestOperators(unittest.TestCase):
         """A degenerate final segment raises instead of returning."""
         # An operator producing a zero-length final segment must raise,
         # not return: drive move_endpoint_to onto its own penultimate pt.
-        chain = self._chain()
+        chain = _chain()
         arr = next(e for e in chain if e["id"] == "e1")
         px = arr["x"] + arr["points"][0][0]
         py = arr["y"] + arr["points"][0][1]
@@ -1049,7 +1027,7 @@ class TestOperators(unittest.TestCase):
 
     def test_mutation_does_not_alias_input(self) -> None:
         """An operator's output never aliases the caller's input scene."""
-        chain = self._chain()
+        chain = _chain()
         OPERATORS["drop_edge"](chain, arrow_id="e1")
         self.assertIn("e1", [e["id"] for e in chain])
 
@@ -1124,6 +1102,35 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
 # rhombus boundary is |x-400|/100 + |y-350|/50 == 1 and the horizontal gap
 # from a point to that boundary at its own y is 100*(1 - |y-350|/50) wide.
 # ---------------------------------------------------------------------------
+
+
+def _chain() -> list[dict]:
+    """A -> N -> Z, N offset below the A/Z rank line.
+
+    The operator tests' workbench and the discovery sweep's chain base:
+    N sits 80px below A and Z, so both arrows read as diagonals until
+    something moves N onto the rank line the other two share.
+
+    Returns:
+        The five-element scene: nodes A, N, Z and arrows e1, e2.
+    """
+    a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
+           customData={"role": "node"})
+    n = el(id="N", type="rectangle", x=200, y=180, width=80, height=40,
+           customData={"role": "node"})
+    z = el(id="Z", type="rectangle", x=400, y=100, width=80, height=40,
+           customData={"role": "node"})
+    e1 = el(id="e1", type="arrow", x=80, y=120, width=120, height=80,
+            points=[[0, 0], [120, 80]],
+            startBinding={"elementId": "A", "focus": 0, "gap": 1},
+            endBinding={"elementId": "N", "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    e2 = el(id="e2", type="arrow", x=280, y=200, width=120, height=-80,
+            points=[[0, 0], [120, -80]],
+            startBinding={"elementId": "N", "focus": 0, "gap": 1},
+            endBinding={"elementId": "Z", "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    return [a, n, z, e1, e2]
 
 
 def _diamond_stage() -> list[dict]:
@@ -1842,9 +1849,442 @@ class TestCoverage(unittest.TestCase):
             CATALOGUE.update(saved)
 
 
+# ---------------------------------------------------------------------------
+# Discovery mode. Verify mode asks whether a seeded defect produces the
+# finding the catalogue names; discovery asks the inverse — sweep meaningful
+# MODEL mutations (a dropped relation, a reversed one, a renamed node, a node
+# dragged onto its neighbours' rank, two exchanged targets) through the
+# detectors and demand a corresponding change in how the drawing reads. A
+# cell whose correspondence predicate returns detail strings is a SURVIVOR: a
+# real change nothing caught, i.e. a lint rule discovered on purpose. Every
+# survivor is recorded in mutants_sweep.json and must carry a DISPOSITIONS
+# verdict, so a gap can be new exactly once and never twice.
+#
+# Survivor detail strings are the survivor's identity (its id hashes them),
+# so they name element ids and check names only — never a detector's prose,
+# which would re-key every disposition the next time a message is reworded.
+# ---------------------------------------------------------------------------
+
+SWEEP_RECORD = Path(__file__).parent / "mutants_sweep.json"
+# A swapped arrow may be re-routed, but it may not keep pointing at where its
+# OLD target was: 200px is wider than any node in the sweep bases, so a final
+# point still this far from its new target's center is stale geometry, not a
+# routing style.
+_SWAP_TOL = 200.0
+_RENAME_TEXT = "Renamed"
+
+
+def _named_elements(findings: list[dict]) -> set[str]:
+    """Collect every element id a findings list names.
+
+    Composite `element` values (the corridor and bidi checks report
+    `"a+b"`) are split into their parts, and findings whose element is
+    None contribute nothing — testing `"N" in str(None)` is True, so a
+    substring match would let the node id `N` hide behind any
+    scene-level finding.
+
+    Args:
+        findings: Normalized findings from `collect_findings`.
+
+    Returns:
+        The set of element ids named by at least one finding.
+    """
+    return {part for f in findings if f.get("element")
+            for part in str(f["element"]).split("+")}
+
+
+def _ends(arrow: dict) -> tuple[tuple[float, float], tuple[float, float]]:
+    """Return an arrow's absolute start and end points.
+
+    Args:
+        arrow: An arrow element.
+
+    Returns:
+        The `((start_x, start_y), (end_x, end_y))` absolute pair.
+    """
+    pts = arrow["points"]
+    return ((arrow["x"] + pts[0][0], arrow["y"] + pts[0][1]),
+            (arrow["x"] + pts[-1][0], arrow["y"] + pts[-1][1]))
+
+
+def _corr_drop_edge(before: list[dict], after: list[dict], fb: list[dict],
+                    fa: list[dict]) -> list[str]:
+    """The dropped relation must vanish from every detection surface.
+
+    Args:
+        before: The base scene.
+        after: The mutated scene.
+        fb: Findings over `before`.
+        fa: Findings over `after`.
+
+    Returns:
+        One detail string per finding that still names a dropped arrow;
+        empty when the correspondence held.
+    """
+    dropped = {e["id"] for e in before} - {e["id"] for e in after}
+    return sorted({"%s finding still names dropped arrow %s" % (f["check"], d)
+                   for d in dropped for f in fa
+                   if d in _named_elements([f])})
+
+
+def _corr_flip(before: list[dict], after: list[dict], fb: list[dict],
+               fa: list[dict]) -> list[str]:
+    """Reversal must be visible: a swapped arrow is drawn reversed.
+
+    The model-side change is the binding swap; the drawing has to answer
+    it by exchanging that arrow's endpoints, or the reader sees the old
+    direction over the new relation. Only arrows whose binding pair
+    actually swapped are judged — flipping one arrow says nothing about
+    its untouched neighbours, and the operator's own binding bookkeeping
+    is asserted in `TestOperators`, not here.
+
+    Args:
+        before: The base scene.
+        after: The mutated scene.
+        fb: Findings over `before`.
+        fa: Findings over `after`.
+
+    Returns:
+        One detail string per swapped arrow whose drawn endpoints did
+        not exchange; empty when the correspondence held.
+    """
+    out = []
+    for b in before:
+        if b["type"] != "arrow" or not (b.get("startBinding")
+                                        and b.get("endBinding")):
+            continue
+        a = next((e for e in after if e["id"] == b["id"]), None)
+        if a is None or not (a.get("startBinding") and a.get("endBinding")):
+            continue
+        if not (a["startBinding"]["elementId"] == b["endBinding"]["elementId"]
+                and a["endBinding"]["elementId"]
+                == b["startBinding"]["elementId"]):
+            continue
+        (bs, be), (as_, ae) = _ends(b), _ends(a)
+        if math.hypot(as_[0] - be[0], as_[1] - be[1]) > 1 or \
+                math.hypot(ae[0] - bs[0], ae[1] - bs[1]) > 1:
+            out.append("flip left %s drawn unreversed" % b["id"])
+    return out
+
+
+def _corr_rename(before: list[dict], after: list[dict], fb: list[dict],
+                 fa: list[dict]) -> list[str]:
+    """A rename must not move geometry: findings must be identical.
+
+    Args:
+        before: The base scene.
+        after: The mutated scene.
+        fb: Findings over `before`.
+        fa: Findings over `after`.
+
+    Returns:
+        A single detail string when the geometry finding set changed;
+        empty when the correspondence held.
+    """
+    def key(fs: list[dict]) -> list[tuple[str, str]]:
+        """Reduce findings to their check/element identity, ignoring prose.
+
+        Args:
+            fs: A findings list.
+
+        Returns:
+            The sorted `(check, element)` pairs.
+        """
+        return sorted((f["check"], str(f["element"])) for f in fs)
+    return ([] if key(fb) == key(fa)
+            else ["rename changed the geometry finding set"])
+
+
+def _corr_rank(before: list[dict], after: list[dict], fb: list[dict],
+               fa: list[dict]) -> list[str]:
+    """Moving a node onto its neighbours' rank must not go unremarked.
+
+    If two arrows now run collinear into and out of one node on
+    opposite sides, the drawing asserts a straight pass-through the
+    model does not have, and SOME detector must flag it.
+
+    Args:
+        before: The base scene.
+        after: The mutated scene.
+        fb: Findings over `before`.
+        fa: Findings over `after`.
+
+    Returns:
+        One detail string per unflagged collinear pass-through; empty
+        when the correspondence held.
+    """
+    survivors = []
+    named = _named_elements(fa)
+    arrows = [e for e in after if e["type"] == "arrow"
+              and e.get("startBinding") and e.get("endBinding")]
+    for ain in arrows:
+        for aout in arrows:
+            if ain is aout:
+                continue
+            if (ain["endBinding"]["elementId"] !=
+                    aout["startBinding"]["elementId"]):
+                continue
+            in_y = ain["y"] + ain["points"][-1][1]
+            out_y = aout["y"] + aout["points"][0][1]
+            in_horiz = len({p[1] for p in ain["points"]}) == 1
+            out_horiz = len({p[1] for p in aout["points"]}) == 1
+            if in_horiz and out_horiz and abs(in_y - out_y) <= 2:
+                node = ain["endBinding"]["elementId"]
+                if node not in named and ain["id"] not in named:
+                    survivors.append(
+                        "phantom pass-through at node %s "
+                        "(%s -> %s collinear, unflagged)"
+                        % (node, ain["id"], aout["id"]))
+    return survivors
+
+
+def _corr_swap(before: list[dict], after: list[dict], fb: list[dict],
+               fa: list[dict]) -> list[str]:
+    """A swap must not leave stale geometry pointing at the old target.
+
+    Args:
+        before: The base scene.
+        after: The mutated scene.
+        fb: Findings over `before`.
+        fa: Findings over `after`.
+
+    Returns:
+        One detail string per re-bound arrow whose final point sits
+        further than `_SWAP_TOL` from its new target's center; empty
+        when the correspondence held.
+    """
+    out = []
+    centers = {e["id"]: (e["x"] + e.get("width", 0) / 2,
+                         e["y"] + e.get("height", 0) / 2) for e in after}
+    for b in before:
+        if b["type"] != "arrow" or not b.get("endBinding"):
+            continue
+        a = next((e for e in after if e["id"] == b["id"]), None)
+        if a is None or not a.get("endBinding"):
+            continue
+        target = a["endBinding"]["elementId"]
+        if target == b["endBinding"]["elementId"] or target not in centers:
+            continue
+        end, center = _ends(a)[1], centers[target]
+        gap = math.hypot(end[0] - center[0], end[1] - center[1])
+        if gap > _SWAP_TOL:
+            out.append("swap left stale geometry: %s ends %dpx from its "
+                       "new target %s" % (a["id"], round(gap), target))
+    return out
+
+
+CORRESPONDENCE: dict[str, Callable[..., list[str]]] = {
+    "drop_edge": _corr_drop_edge,
+    "flip_direction": _corr_flip,
+    "rename_node": _corr_rename,
+    "move_node_onto_rank": _corr_rank,
+    "swap_endpoints": _corr_swap,
+}
+
+# The sweep's base drawings, in report order.
+SWEEP_BASES: tuple[tuple[str, Callable[[], list[dict]]], ...] = (
+    ("chain", _chain),
+    ("diamond", _diamond_stage),
+    ("opposed", lambda: _opposed_pair(rounded=False)),
+)
+
+
+def sweep_args(op: str, scene: list[dict]) -> tuple[dict | None, str | None]:
+    """Build one sweep cell's concrete operator arguments.
+
+    Not every (base × operator) cell is buildable: `_chain` carries no
+    labeled node, the opposed pair's arrows carry no bindings at all.
+    Such a cell is SKIPPED EXPLICITLY, with its reason printed in the
+    sweep report — never silently omitted, and never left to raise.
+
+    Args:
+        op: The operator name, a key of `CORRESPONDENCE`.
+        scene: The base scene the operator would run against.
+
+    Returns:
+        `(args, None)` when the cell is buildable, else `(None, reason)`.
+
+    Raises:
+        EngineError: If `op` has no argument rule here, which would
+            otherwise let a swept operator run on arguments nobody
+            chose.
+    """
+    arrows = [e for e in scene if e.get("type") == "arrow"]
+    bound = [a for a in arrows if a.get("startBinding") and a.get("endBinding")]
+    if op == "drop_edge":
+        return (({"arrow_id": arrows[0]["id"]}, None) if arrows
+                else (None, "no arrow to drop"))
+    if op == "flip_direction":
+        return (({"arrow_id": bound[0]["id"]}, None) if bound
+                else (None, "no arrow bound at both ends to reverse"))
+    if op == "rename_node":
+        node = next((e for e in scene
+                     if any(b.get("type") == "text"
+                            for b in (e.get("boundElements") or []))), None)
+        return (({"node_id": node["id"], "text": _RENAME_TEXT}, None)
+                if node else (None, "no node carries a bound text label"))
+    if op == "move_node_onto_rank":
+        return _rank_args(scene, bound)
+    if op == "swap_endpoints":
+        ends = [a for a in arrows if a.get("endBinding")]
+        return (({"a_id": ends[0]["id"], "b_id": ends[1]["id"]}, None)
+                if len(ends) >= 2
+                else (None, "fewer than two arrows carry an end binding"))
+    raise EngineError("no sweep argument rule for operator %r" % op)
+
+
+def _rank_args(scene: list[dict],
+               bound: list[dict]) -> tuple[dict | None, str | None]:
+    """Pick a pass-through node and the rank line its source sits on.
+
+    The target is the first node with one bound arrow in and another
+    out; the destination `y` puts that node's centerline exactly on the
+    inbound arrow's SOURCE node's centerline, which is what manufactures
+    the straight rank line the sweep is probing for.
+
+    Args:
+        scene: The base scene.
+        bound: Its arrows bound at both ends.
+
+    Returns:
+        `(args, None)` when such a node exists, else `(None, reason)`.
+    """
+    by_id = {e["id"]: e for e in scene}
+    for e in scene:
+        inbound = next((a for a in bound
+                        if a["endBinding"]["elementId"] == e["id"]), None)
+        outbound = next((a for a in bound
+                         if a["startBinding"]["elementId"] == e["id"]), None)
+        if inbound is None or outbound is None:
+            continue
+        src = by_id.get(inbound["startBinding"]["elementId"])
+        if src is None:
+            continue
+        rank = src["y"] + src.get("height", 0) / 2
+        return ({"node_id": e["id"],
+                 "y": rank - e.get("height", 0) / 2}, None)
+    return (None, "no pass-through node (one bound arrow in, another out)")
+
+
+def sweep_cells() -> tuple[list[dict], list[tuple[str, str, str]]]:
+    """Run every sweep cell, collecting survivors and skipped cells.
+
+    Returns:
+        `(survivors, skipped)` — survivors as `{"id", "detail"}` dicts
+        sorted by id, skipped as `(base, op, reason)` triples in sweep
+        order. Both are deterministic: the bases are fixed builders and
+        an id hashes only its own detail string.
+    """
+    survivors: list[dict] = []
+    skipped: list[tuple[str, str, str]] = []
+    for base_name, build in SWEEP_BASES:
+        for op, predicate in CORRESPONDENCE.items():
+            scene = build()
+            args, reason = sweep_args(op, scene)
+            if args is None:
+                skipped.append((base_name, op, str(reason)))
+                continue
+            after = OPERATORS[op](scene, **args)
+            details = predicate(scene, after, collect_findings(scene),
+                                collect_findings(after))
+            survivors.extend(
+                {"id": "%s:%s:%s"
+                        % (op, base_name,
+                           hashlib.sha1(detail.encode()).hexdigest()[:8]),
+                 "detail": detail} for detail in details)
+    return sorted(survivors, key=lambda s: s["id"]), skipped
+
+
+def run_sweep(write: bool = True) -> int:
+    """Sweep every cell, record the survivors, and report the verdicts.
+
+    Args:
+        write: Whether to overwrite `tests/mutants_sweep.json` with this
+            run's record.
+
+    Returns:
+        The number of survivors carrying no `DISPOSITIONS` entry — 0
+        when the sweep is fully accounted for, which is also this
+        function's process exit code.
+    """
+    survivors, skipped = sweep_cells()
+    if write:
+        SWEEP_RECORD.write_text(json.dumps(
+            {"swept": datetime.date.today().isoformat(),
+             "survivors": survivors}, indent=2) + "\n")
+    ran = len(SWEEP_BASES) * len(CORRESPONDENCE) - len(skipped)
+    print("sweep: %d cells run, %d skipped, %d survivor(s)"
+          % (ran, len(skipped), len(survivors)))
+    for base, op, reason in skipped:
+        print("  SKIP  %-10s %-20s %s" % (base, op, reason))
+    missing = []
+    for s in survivors:
+        kind, why = DISPOSITIONS.get(s["id"], ("UNDISPOSITIONED", ""))
+        if kind == "UNDISPOSITIONED":
+            missing.append(s["id"])
+        print("  %-16s %s" % (kind, s["id"]))
+        print("      %s" % s["detail"])
+        if why:
+            print("      -> %s" % why)
+    if missing:
+        print("%d undispositioned survivor(s): add each id to DISPOSITIONS "
+              "as promote / allow / bug, with a reason" % len(missing))
+    return len(missing)
+
+
+# Survivor verdicts. "promote": a real gap worth a curated mutant and a lint
+# rule. "allow": correspondence the drawing legitimately need not answer,
+# with the reason why. "bug": the operator or predicate is wrong — fix it and
+# re-sweep rather than leaving the entry here.
+DISPOSITIONS: dict[str, tuple[str, str]] = {
+    "move_node_onto_rank:chain:ebb2e1f6": (
+        "promote",
+        "e1 phantom pass-through — the highest-hit-rate class from the "
+        "Aug 2026 scan; promote to a curated mutant + WP4b candidate "
+        "lint rule (V0.9-PLAN.md WP4b item 1)"),
+}
+
+
+class TestDiscovery(unittest.TestCase):
+    """Spec §5: a survivor may be new once, never undispositioned twice."""
+
+    def test_recorded_sweep_is_fully_dispositioned(self) -> None:
+        """Every survivor in the committed sweep record carries a verdict."""
+        rec = json.loads(
+            (Path(__file__).parent / "mutants_sweep.json").read_text())
+        missing = [s["id"] for s in rec["survivors"]
+                   if s["id"] not in DISPOSITIONS]
+        self.assertEqual(missing, [],
+                         "undispositioned survivors from the last sweep — "
+                         "run: python3 tests/test_mutants.py --sweep")
+
+    def test_dispositions_carry_reasons(self) -> None:
+        """Every disposition is a known verdict with a non-blank reason."""
+        bad = [k for k, (kind, why) in DISPOSITIONS.items()
+               if kind not in ("promote", "allow", "bug")
+               or not why.strip()]
+        self.assertEqual(bad, [])
+
+    def test_live_sweep_reproduces_the_record(self) -> None:
+        """The committed record still describes what a sweep finds today.
+
+        Without this the record is only a file: a detector that starts
+        catching a recorded survivor — or stops catching something —
+        would leave a stale json passing the currency test forever.
+        """
+        rec = json.loads(SWEEP_RECORD.read_text())
+        survivors, _skipped = sweep_cells()
+        self.assertEqual([s["id"] for s in survivors],
+                         [s["id"] for s in rec["survivors"]],
+                         "the recorded sweep is stale — "
+                         "run: python3 tests/test_mutants.py --sweep")
+
+
 if __name__ == "__main__":
     if "--coverage" in sys.argv:
         for name, status, ev in coverage_table():
             print("%-28s %-12s %s" % (name, status, ev))
+    elif "--sweep" in sys.argv:
+        raise SystemExit(run_sweep())
     else:
         unittest.main()
