@@ -2161,8 +2161,15 @@ class TestStoreIntegrity(unittest.TestCase):
         (canvas.py:485), which GROWS the container to fit the wrapped text
         (canvas.py:969-971). Here `n1` goes from 60px tall to 136px. The
         arrow bound to its bottom edge is not re-routed, so an endpoint
-        that was exactly on the border is 76px inside the shape by the
-        time the load finishes — geometry the user never wrote.
+        that was exactly on the border ends up interior by the time the
+        load finishes — geometry the user never wrote.
+
+        Two numbers describe that endpoint and both are right: it sits
+        76px above the grown bottom edge (y=136) and 60px below the top
+        one (y=0). The lint reports the NEARER edge, so its message says
+        60px; the 76px figure is how far the border travelled out from
+        under it. They are not in conflict and neither is the magnitude
+        this test asserts — it asserts no finding at all.
 
         `endpoint_gap` DOES report the consequence, so this is not a
         silence; it is a MISATTRIBUTION. The message says "arrow a1 claims
@@ -2436,9 +2443,19 @@ def _near_miss_pair(gap: float) -> list[dict]:
     """Two nodes separated by `gap` px of clear space, never overlapping.
 
     The overlap loop needs a real intersection (`ox * oy > …`), so a
-    positive gap is silent no matter how small — 3px reads exactly like
-    60px to every check we own, while to a reader 3px is a mistake and
+    positive gap is silent no matter how small — 4px reads exactly like
+    60px to every check we own, while to a reader 4px is a mistake and
     60px is a layout.
+
+    The gap is 4px rather than a tighter 3px because 3 puts `n2` at
+    x=123 and trips `offgrid_elements`, which fires on the mutant scene
+    and not the control. That note says nothing about clearance, but it
+    IS a difference in the lint between the two scenes, and a mutant
+    whose base and control differ in something other than the defect is
+    the confound `_framed_flow` was minimized to avoid. 4px is the
+    smallest gap the 4px grid can express at all, which sharpens the
+    claim rather than weakening it: the least clearance the coordinate
+    system can even represent is invisible to every check.
 
     Args:
         gap: Horizontal clear space between the two boxes.
@@ -3033,9 +3050,10 @@ _register(Mutant(
                         Silence("endpoint_gap"))))
 
 # Near-miss spacing — RED BY ABSENCE (vskill mine M1, 2026-08-12). The
-# overlap loop needs a real intersection, so 3px of clear space reads
-# exactly like 60px to every check we own. To a reader they are opposites:
-# 3px is a mistake, 60px is a layout.
+# overlap loop needs a real intersection, so 4px of clear space reads
+# exactly like 60px to every check we own — verified across all three lint
+# channels, errors, warnings AND notes. To a reader they are opposites: 4px
+# is a mistake, 60px is a layout.
 #
 # DESIGN CONSTRAINT for whoever builds the check, learned the hard way from
 # the Cloud contradiction: a bare distance threshold WILL eventually gate a
@@ -3045,14 +3063,14 @@ _register(Mutant(
 # role and an explicit waiver are the other two), or it will be muted
 # wholesale the first week and never heard from again.
 #
-# MAGNITUDE: the clear gap itself, 3px. The ±33% band excludes 0 (an
-# overlap-area reading, which is what today's loop would report) and 123
-# (centre-to-centre or edge-to-far-edge).
+# MAGNITUDE: the clear gap itself, 4px. The ±33% band excludes 0 (an
+# overlap-area reading, which is what today's loop would report) and 124
+# (edge to far edge).
 _register(Mutant(
     "near_miss_clearance",
-    build=lambda: _near_miss_pair(gap=3),
+    build=lambda: _near_miss_pair(gap=4),
     op="unchanged", args={},
-    expect=FindingSpec("min_clearance", element="n2", magnitude=(3, 0.33)),
+    expect=FindingSpec("min_clearance", element="n2", magnitude=(4, 0.33)),
     neighbour=Neighbour(lambda: _near_miss_pair(gap=60),
                         Silence("endpoint_gap"))))
 
@@ -3263,7 +3281,7 @@ class TestMutantCatalogue(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_mutant_near_miss_clearance(self) -> None:
-        """Two nodes 3px apart read exactly like two nodes 60px apart."""
+        """Two nodes 4px apart read exactly like two nodes 60px apart."""
         # No near-miss check exists; flips when WP4's lands with the
         # intent channel the catalogue entry describes.
         self._run("near_miss_clearance")
@@ -3808,6 +3826,52 @@ class TestCoverage(unittest.TestCase):
                          "ASPIRATIONAL names %s, which no catalogue entry "
                          "expects — the aspiration it excused is gone; "
                          "delete the entry" % unused)
+
+    def test_no_two_mutants_encode_the_same_defect(self) -> None:
+        """Two ids for one defect cost every future run and teach nothing.
+
+        `_register` already refuses a duplicate ID, and on 2026-08-12 that
+        guard was the only thing that caught two agents pinning the same
+        ellipse over-fire in parallel. It catches that collision solely
+        because both picked the same name; had either chosen differently,
+        both would have committed and the catalogue would carry two
+        mutants for one bug forever.
+
+        This compares what a mutant MEANS instead: the expectation
+        (check, element, magnitude, direction), the operator and its
+        arguments, and a content fingerprint of the base scene. Two
+        entries agreeing on all of that are the same experiment under two
+        names. Deliberate families stay apart on their own merits — the
+        four diamond mutants share a scene and separate on expectation
+        and operator args, which is exactly the distinction that earns
+        them separate entries.
+
+        Residual gap, stated so nobody reads this as full cover: the
+        non-CATALOGUE red classes (`TestExportCompleteness`,
+        `TestStoreIntegrity`, `TestPaintOrder`,
+        `TestShapeBlindAnnotationOverlap`) never reach `_register` and
+        have no expectation objects to compare, so nothing here would
+        notice two agents writing the same plain red test under different
+        method names. For those, the per-agent id/section convention is
+        still the only defence.
+        """
+        by_defect: dict[tuple, list[str]] = {}
+        for mid in sorted(CATALOGUE):
+            m = CATALOGUE[mid]
+            spec = m.expect
+            key = (spec.check, getattr(spec, "element", None),
+                   getattr(spec, "magnitude", None),
+                   getattr(spec, "direction", None), m.op,
+                   tuple(sorted(m.args.items())),
+                   canvas.content_fingerprint(m.build()))
+            by_defect.setdefault(key, []).append(mid)
+        dups = {k[0]: v for k, v in by_defect.items() if len(v) > 1}
+        self.assertEqual(
+            dups, {},
+            "these mutants encode the same defect under different ids "
+            "(same expectation, operator, args and base scene): %s — "
+            "merge them, or give the second one the distinct magnitude "
+            "or direction that is its reason to exist" % dups)
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""
