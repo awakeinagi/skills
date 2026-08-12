@@ -277,6 +277,35 @@ class TestCodec(unittest.TestCase):
         _, _, pix = read_png_gray(_png(_ihdr(4, 5, 8, 0), rows))
         self.assertEqual(list(pix), [40] * 20)
 
+    def test_sub_filter_uses_the_channel_stride_on_rgb(self) -> None:
+        """Sub's left neighbour is the pixel before, not the byte before.
+
+        A 2x1 RGB row Sub-filtered as [10,20,30, 30,40,50]. At bpp=3 it
+        reconstructs to (10,20,30) and (40,60,80) — luminance 18 and 56.
+        At bpp=1 it reconstructs to (10,30,60) and (90,130,180) instead,
+        luminance 27 and 123. Nothing else in the suite walks this path:
+        the other RGB/RGBA cases use filter 0, which returns before it
+        ever reads bpp.
+        """
+        rows = b"\x01" + bytes([10, 20, 30, 30, 40, 50])
+        _, _, pix = read_png_gray(_png(_ihdr(2, 1, 8, 2), rows))
+        self.assertEqual(list(pix), [18, 56])
+
+    def test_paeth_filter_uses_the_channel_stride_on_rgba(self) -> None:
+        """Paeth's a and c neighbours step by 4 bytes on RGBA, not 1.
+
+        Row 0 (filter 0) is the pixels (10,20,30,255) and (40,60,80,255);
+        row 1 is Paeth-filtered so that at bpp=4 it reconstructs to
+        (50,70,90,255) and (100,120,140,255) — luminance 66 and 116, with
+        alpha 255 throughout so compositing is a no-op and only the
+        stride is under test. This is the exact shape Chromium emits for
+        Task 8's screenshots.
+        """
+        rows = (b"\x00" + bytes([10, 20, 30, 255, 40, 60, 80, 255])
+                + b"\x04" + bytes([40, 50, 60, 0, 50, 50, 50, 0]))
+        _, _, pix = read_png_gray(_png(_ihdr(2, 2, 8, 6), rows))
+        self.assertEqual(list(pix), [18, 56, 66, 116])
+
     def test_paeth_tie_breaks_a_then_b_then_c(self) -> None:
         """A pa == pc tie must pick `a`; picking `c` corrupts the row.
 
@@ -287,6 +316,18 @@ class TestCodec(unittest.TestCase):
         rows = b"\x00" + bytes([10, 11]) + b"\x04" + bytes([254, 0])
         _, _, pix = read_png_gray(_png(_ihdr(2, 2, 8, 0), rows))
         self.assertEqual(list(pix), [10, 11, 8, 8])
+
+    def test_paeth_tie_breaks_b_before_c(self) -> None:
+        """A pb == pc tie must pick `b` — the second branch's order.
+
+        Row 0 is (c=10, b=8); row 1 starts a=11. For the last pixel
+        pa=2, pb=1, pc=1, so `return b if pb <= pc else c` yields b=8,
+        while a c-first spelling of that same branch yields 10. The
+        pa == pc fixture above cannot reach this branch at all.
+        """
+        rows = b"\x00" + bytes([10, 8]) + b"\x04" + bytes([1, 0])
+        _, _, pix = read_png_gray(_png(_ihdr(2, 2, 8, 0), rows))
+        self.assertEqual(list(pix), [10, 8, 11, 8])
 
 
 class TestDecoderRejects(unittest.TestCase):
