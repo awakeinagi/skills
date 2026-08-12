@@ -1654,6 +1654,41 @@ def _rect_stage() -> list[dict]:
     return scene
 
 
+def _labelled_shape(shape: str) -> list[dict]:
+    """One 200x100 node carrying a bound label right at the fitter's budget.
+
+    `fit_label_in` allots a label `width - 24` whatever the container's
+    shape (canvas.py:962), so at 200px wide the budget is 176px and this
+    label's measured 171px clears it — the fitter returns early and never
+    wraps, resizes or grows anything. On a RECTANGLE that is right: the
+    bbox is the shape, and the label has 29px to spare. On a DIAMOND the
+    same box overhangs the rhombus, because at the label's own height the
+    rhombus is 160px across, not 200px.
+
+    The two scenes differ in exactly one field — `type` — which is the
+    whole argument: the fitter never reads it.
+
+    Coordinates are frozen. The label is centred (14, 40) and sized to
+    `text_dims("Send for second review", 16)` exactly, so drift in the
+    advance table moves the finding this stage asserts.
+
+    Args:
+        shape: The container's element type — `"diamond"` for the mutant,
+            `"rectangle"` for its control.
+
+    Returns:
+        The two-element scene: the node `d1`, then its bound label `t1`.
+    """
+    text = "Send for second review"
+    node = el(id="d1", type=shape, x=0, y=0, width=200, height=100,
+              customData={"role": "node"},
+              boundElements=[{"id": "t1", "type": "text"}])
+    lbl = el(id="t1", type="text", x=14, y=40, width=171, height=20,
+             text=text, fontSize=16, fontFamily=1, textAlign="center",
+             verticalAlign="middle", containerId="d1", originalText=text)
+    return [node, lbl]
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -2013,6 +2048,46 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
                         Silence("shared_attach_point"))))
 
+# ---------------------------------------------------------------------------
+# Shape-blindness, instance THREE — RED BY ABSENCE (found via the flowchartai
+# idea-mine, 2026-08-12: docs/research/flowchartai_idea_mining_2026-08-12.md
+# OP1). The endpoint lint measured to the bbox; the through-node test used the
+# bbox; and `fit_label_in` budgets every container `width - 24` alike
+# (canvas.py:962). canvas.py already knows better IN THE SAME FILE:
+# `marker_inset` (canvas.py:4200) returns 0.5 for a diamond and 1-1/sqrt(2)
+# for an ellipse precisely because "the box's corner is empty canvas for
+# them" — and nothing on the label path ever asks it. Prior art for the fix:
+# flowchartai's diamond safeAreaRatio.
+#
+# MAGNITUDE CONVENTION (binds the future lint, as the approach axis binds
+# WP4's endpoint work): the overflow is measured at the LABEL BOX's own
+# height, not at the shape's widest point. A 200x100 rhombus is 200px across
+# at its centre line but 160px across at the top and bottom edges of a 20px
+# label, so the 171px label overhangs by 11px. The ±30% band admits that and
+# excludes the two plausible wrong readings deliberately: 0px (measuring at
+# the centre line, where everything fits) and 5.5px (the per-side half). A
+# lint reporting either is wrong by this spec and will not flip this mutant.
+#
+# The ellipse is deliberately NOT a second mutant. Measured, it is a much
+# weaker case: at 200x100 the same label clears it by 25px, and only squat
+# proportions (200x60 and below) overflow. The area ratio usually quoted for
+# ellipses is not the quantity that governs a label — the chord at the
+# label's height is.
+_register(Mutant(
+    "diamond_label_overflows_shape",
+    build=lambda: _labelled_shape("diamond"),
+    op="unchanged", args={},
+    expect=FindingSpec("label_overflows_shape", element="t1",
+                       magnitude=(11, 0.30)),
+    # Same control shape as the other shape-blindness mutants: the box
+    # whose bbox IS its shape. It cannot assert this check's other pole
+    # (a Silence on a check with no detector passes vacuously — see
+    # `phantom_passthrough_shared_attach`), so it asserts instead that the
+    # pipeline runs clean over the control, which `Silence` alone can say:
+    # it refuses to match over any run where a detector crashed.
+    neighbour=Neighbour(lambda: _labelled_shape("rectangle"),
+                        Silence("endpoint_gap"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -2071,6 +2146,17 @@ class TestMutantCatalogue(unittest.TestCase):
         # Same control and same expectation as the other two diamond
         # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_wrong_direction")
+
+    @unittest.expectedFailure
+    def test_mutant_diamond_label_overflows_shape(self) -> None:
+        """A label inside its w-24 budget overhangs the rhombus by 11px."""
+        # Shape-blind label fitter; flips when WP4's shape-aware label
+        # check lands and takes a DETECTORS entry.
+        self._run("diamond_label_overflows_shape")
+
+    def test_neighbour_diamond_label_overflows_shape(self) -> None:
+        """The same label on a rectangle: today's nets are right to be quiet."""
+        self._run_neighbour("diamond_label_overflows_shape")
 
     @unittest.expectedFailure
     def test_mutant_diamond_facet_overfire(self) -> None:
@@ -2262,6 +2348,9 @@ RENDER_TIER = {
 ASPIRATIONAL: dict[str, str] = {
     "phantom_passthrough":
         "WP4b item 1 — e1 phantom pass-through lint, not yet built",
+    "label_overflows_shape":
+        "WP4 — shape-aware label fitting/lint, not yet built; the geometry "
+        "it needs is already in canvas.py as `marker_inset` (4200)",
 }
 
 UNCOVERED: dict[str, str] = {
