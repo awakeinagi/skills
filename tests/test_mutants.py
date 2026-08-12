@@ -1267,6 +1267,245 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Export completeness (found via excalidraw-mcp field data, 2026-08-12 — their
+# issue #22, where `export_to_excalidraw` dropped every text element, shipped,
+# and no check said a word). Every detector above reads the element MODEL;
+# `canvas.render_svg` is a second, hand-rolled renderer over that same model,
+# independent of the web client's canvas. Two renderers, one truth — and a
+# class the client paints while the exporter skips it produces a picture that
+# lies BY ABSENCE. Absence is the one defect a reader cannot notice: the
+# missing thing leaves no mark to be suspicious of, and the export is the
+# agent's only view of its own drawing.
+#
+# Measured by ABLATION at the markup level: render the scene, render it again
+# without one element, subtract the tag counts. The differential is what makes
+# the magnitude honest. `"<rect" in svg` passes on the ground rect every scene
+# carries, and a scene-wide tag count passes when one of two labels goes
+# missing because the survivor answers for the casualty. What a class owes the
+# export is its OWN tags, counted per element.
+# ---------------------------------------------------------------------------
+
+_TAG_RE = re.compile(r"<(\w+)")
+
+
+def _tag_counts(svg: str) -> dict[str, int]:
+    """Count an SVG document's elements by tag name.
+
+    Args:
+        svg: The rendered SVG text.
+
+    Returns:
+        Tag name -> occurrences. Closing tags never match, since the
+        pattern wants a word character where `</text>` has a slash.
+    """
+    counts: dict[str, int] = {}
+    for name in _TAG_RE.findall(svg):
+        counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def _export_delta(els: list[dict], eid: str) -> dict[str, int]:
+    """The markup one element contributes to the export, by tag.
+
+    Ablation rather than inspection, because `render_svg` paints a ground
+    rect on every scene and a title on some: counting tags in a single
+    render cannot say which element owns them. Re-rendering without `eid`
+    and subtracting cancels everything that is not about `eid`. The
+    viewport shrinks when the bounds do, but tag COUNTS are unaffected by
+    that, so the subtraction stays exact.
+
+    Args:
+        els: The full scene. Must hold something besides `eid` — an empty
+            list takes `render_svg`'s "(empty artifact)" branch, whose
+            markup is about no class at all.
+        eid: The element to ablate.
+
+    Returns:
+        Tag name -> count contributed, zero deltas dropped. An empty dict
+        means the element reached the export as nothing whatsoever.
+    """
+    full = _tag_counts(canvas.render_svg(els)[0])
+    less = _tag_counts(canvas.render_svg(
+        [e for e in els if e.get("id") != eid])[0])
+    return {tag: n for tag, n in
+            ((t, full.get(t, 0) - less.get(t, 0))
+             for t in set(full) | set(less)) if n}
+
+
+def _one_of(etype: str) -> list[dict]:
+    """An anchor rectangle plus one element of the class under test.
+
+    The anchor exists so the ablated render still has something to draw,
+    and it sits 200px clear of `x-1` so no overlap, binding or lint rule
+    can colour the measurement. Only the keys each class actually needs
+    are added — the rest of `el`'s defaults are inert here.
+
+    Args:
+        etype: An element type from `canvas.ELEMENT_TYPES`.
+
+    Returns:
+        The two-element scene: `anchor`, then `x-1` of type `etype`.
+    """
+    extra: dict[str, Any] = {
+        "arrow": {"points": [[0, 0], [120, 0]]},
+        "line": {"points": [[0, 0], [120, 0]]},
+        "freedraw": {"points": [[0, 0], [40, 30], [80, 10], [120, 60]]},
+        "image": {"fileId": "f1"}, "frame": {"name": "Frame"},
+        "text": {"text": "ink", "fontSize": 16}}.get(etype, {})
+    return [el(id="anchor", type="rectangle", x=0, y=0, width=120,
+               height=60),
+            el(id="x-1", type=etype, x=0, y=200, width=120, height=60,
+               **extra)]
+
+
+# What each class that survives export owes it, per instance — MEASURED
+# against live `render_svg` on 2026-08-12, not read off its source. An arrow
+# owes a stroke and its arrowhead; a frame owes its box and its name; a line
+# owes a stroke and no head. The two classes missing from this table are
+# missing on purpose: they owe nothing today, and that is the defect pinned
+# red below, so writing them here as `{}` would enshrine the bug as the spec.
+_EXPORT_MARKUP: dict[str, dict[str, int]] = {
+    "rectangle": {"rect": 1}, "ellipse": {"ellipse": 1},
+    "diamond": {"polygon": 1}, "line": {"polyline": 1},
+    "arrow": {"polyline": 1, "polygon": 1}, "text": {"text": 1},
+    "frame": {"rect": 1, "text": 1}}
+
+# Shipped classes `render_svg`'s paint dispatch has no branch for.
+_DROPPED = ("freedraw", "image")
+
+
+class TestExportCompleteness(unittest.TestCase):
+    """`render_svg` emits every class it ships — or is caught not to."""
+
+    def test_every_shipped_class_is_accounted_for(self) -> None:
+        """A newly shipped element class cannot arrive unpinned.
+
+        Both tables are hand-measured, so the one thing neither can do is
+        notice a tenth name in `ELEMENT_TYPES`. Without this, adding a
+        class the paint dispatch does not handle would repeat the exact
+        defect these tests exist to catch, and repeat it silently.
+        """
+        self.assertEqual(set(_EXPORT_MARKUP) | set(_DROPPED),
+                         set(canvas.ELEMENT_TYPES))
+
+    def test_shipped_classes_reach_the_export(self) -> None:
+        """Every surviving class contributes exactly its own markup."""
+        for etype, want in sorted(_EXPORT_MARKUP.items()):
+            with self.subTest(element_type=etype):
+                self.assertEqual(_export_delta(_one_of(etype), "x-1"), want)
+
+    def test_a_second_instance_exports_a_second_time(self) -> None:
+        """Magnitude, not presence: two texts owe two text tags.
+
+        Presence assertions are how an export loses one of two labels and
+        still reads as healthy — `"<text" in svg` is answered by whichever
+        label survived. Counted per element, the casualty has to answer
+        for itself.
+        """
+        scene = _one_of("text")
+        scene.append(el(id="x-2", type="text", x=0, y=300, width=120,
+                        height=60, text="more", fontSize=16))
+        self.assertEqual(_tag_counts(canvas.render_svg(scene)[0])["text"], 2)
+        self.assertEqual(_export_delta(scene, "x-1"), {"text": 1})
+        self.assertEqual(_export_delta(scene, "x-2"), {"text": 1})
+
+    def test_bound_labels_reach_the_export_with_their_backdrop(self) -> None:
+        """Both label bindings survive, and the arrow label keeps its ground.
+
+        A label bound to a NODE and one bound to an ARROW take different
+        paths through `paint`, and the arrow path is load-bearing: the
+        client breaks the stroke behind an edge label, this renderer has
+        no such notion, so it paints the ground back in under the text or
+        the export shows a connector struck through its own label (r5-14).
+        That backdrop is therefore part of what the edge label OWES — two
+        tags, not one. Pinning only the text would let it go quietly.
+        """
+        node = el(id="n1", type="rectangle", x=0, y=0, width=120, height=60,
+                  boundElements=[{"id": "t-node", "type": "text"}])
+        dest = el(id="n2", type="rectangle", x=280, y=0, width=120,
+                  height=60)
+        arrow = el(id="a1", type="arrow", x=120, y=30, width=160, height=0,
+                   points=[[0, 0], [160, 0]],
+                   boundElements=[{"id": "t-edge", "type": "text"}])
+        scene = [node, dest, arrow,
+                 el(id="t-node", type="text", x=30, y=20, width=60,
+                    height=20, text="Node", fontSize=16, textAlign="center",
+                    verticalAlign="middle", containerId="n1",
+                    originalText="Node"),
+                 el(id="t-edge", type="text", x=170, y=20, width=60,
+                    height=20, text="then", fontSize=16, textAlign="center",
+                    verticalAlign="middle", containerId="a1",
+                    originalText="then")]
+        self.assertEqual(_export_delta(scene, "t-node"), {"text": 1})
+        self.assertEqual(_export_delta(scene, "t-edge"),
+                         {"text": 1, "rect": 1})
+
+    def test_footnote_markers_match_the_footnote_list(self) -> None:
+        """`--with-footnotes` cannot print a note nothing on the drawing marks.
+
+        The marker circles and the numbered list are emitted by two
+        separate loops over one `collect_footnotes` result, so they can
+        drift apart without either half looking wrong on its own — and a
+        handover export whose notes point at nothing is worse than one
+        carrying no notes at all. Green today: this is the pin, not a
+        report.
+        """
+        scene = [el(id="n-a", type="rectangle", x=0, y=0, width=120,
+                    height=60, customData={"tooltip": "first"}),
+                 el(id="n-b", type="rectangle", x=200, y=0, width=120,
+                    height=60, customData={"tooltip": "second"})]
+        svg = canvas.render_svg(scene, footnotes=True)[0]
+        want = len(canvas.collect_footnotes(scene))
+        self.assertEqual(want, 2)
+        self.assertEqual(_tag_counts(svg).get("circle"), want)
+        self.assertEqual(
+            len(re.findall(r"<text[^>]*>\d+\. ", svg)), want)
+
+    @unittest.expectedFailure
+    def test_mutant_freedraw_never_reaches_the_export(self) -> None:
+        """A freehand stroke is in `ELEMENT_TYPES` and in no export.
+
+        `paint` dispatches on rectangle/ellipse/diamond/arrow/line/text/
+        frame and returns silently for anything else, so a stroke the user
+        drew with the pencil is stored, is counted into the export's
+        bounds — and paints nothing, leaving a hole the reader takes for
+        empty canvas. The user's own mark is the case that stings: the
+        drawing is the truth (v0.6 WP1), and the agent narrates from a
+        snapshot the mark is missing from.
+
+        Asserted as "at least one tag", not an exact count, because
+        whether the fix emits `<polyline>` or `<path>` belongs to the WP
+        that owns the dispatch. Flips when that branch lands.
+        """
+        delta = _export_delta(_one_of("freedraw"), "x-1")
+        self.assertGreaterEqual(
+            sum(delta.values()), 1,
+            "freedraw x-1 contributes no markup to the export: it is in "
+            "ELEMENT_TYPES, it is in the model, it is not in the picture")
+
+    @unittest.expectedFailure
+    def test_mutant_image_never_reaches_the_export(self) -> None:
+        """A pasted image is in the drawing and in no export.
+
+        Same missing branch as the stroke above, and the same silence,
+        but the reachability differs and matters: `make_element` refuses
+        op-made images outright (they would have no `fileId` to render),
+        so every image in a scene got there because a person pasted or
+        dropped it on the canvas. That makes this the purest form of the
+        defect — the export drops only what the user put there by hand.
+
+        Flips when the dispatch grows an `image` branch; whether that is
+        an `<image>` href or a labelled placeholder is the owning WP's
+        call, so only the count is pinned.
+        """
+        delta = _export_delta(_one_of("image"), "x-1")
+        self.assertGreaterEqual(
+            sum(delta.values()), 1,
+            "image x-1 contributes no markup to the export: it is in the "
+            "model, it widens the bounds, it is not in the picture")
+
+
+# ---------------------------------------------------------------------------
 # Scene builders. Every coordinate here was measured against live canvas.py
 # and instruments.py output, so the numbers are frozen: move a point and you
 # move the finding the catalogue asserts. The diamond is 200x100 at
