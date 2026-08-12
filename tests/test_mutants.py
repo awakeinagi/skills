@@ -11,6 +11,7 @@ never take down a run — they surface as `detector-error` findings.
 from __future__ import annotations
 
 import copy
+import json
 import math
 import re
 import sys
@@ -1116,28 +1117,443 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Detector-coverage gate: every detector is proven by a firing mutant or
-# named in UNCOVERED with a reason — the table can never rot quietly.
-# CATALOGUE is empty until Task 5 populates it with Mutant instances;
-# render-tier detectors get their proving mutants from an env-gated file
-# Task 8 adds, and are reported as "render-tier", never as UNCOVERED.
+# Scene builders. Every coordinate here was measured against live canvas.py
+# and instruments.py output, so the numbers are frozen: move a point and you
+# move the finding the catalogue asserts. The diamond is 200x100 at
+# (300,300), i.e. center (400,350) with half-axes a=100, b=50, so the
+# rhombus boundary is |x-400|/100 + |y-350|/50 == 1 and the horizontal gap
+# from a point to that boundary at its own y is 100*(1 - |y-350|/50) wide.
 # ---------------------------------------------------------------------------
 
-CATALOGUE: dict = {}   # Task 5 populates this.
+
+def _diamond_stage() -> list[dict]:
+    """A bound rect->diamond arrow, endpoint at the top-left facet midpoint.
+
+    (350,325) lies exactly ON the rhombus boundary (0.5 + 0.5 == 1), so
+    this base drawing is visually perfect — which is what makes it a
+    probe for the bbox-shaped lint's over-fire.
+
+    Returns:
+        The four-element scene: source rect, diamond, its label, arrow.
+    """
+    dia = el(id="d1", type="diamond", x=300, y=300, width=200, height=100,
+             customData={"role": "node"})
+    lbl = el(id="t1", type="text", x=340, y=340, width=120, height=20,
+             text="Decide?", fontSize=16, fontFamily=1, textAlign="center",
+             verticalAlign="middle", containerId="d1",
+             originalText="Decide?")
+    dia["boundElements"] = [{"id": "t1", "type": "text"}]
+    src = el(id="s1", type="rectangle", x=60, y=300, width=80, height=50,
+             customData={"role": "node"})
+    arr = el(id="a1", type="arrow", x=140, y=325, width=210, height=0,
+             points=[[0, 0], [210, 0]],
+             startBinding={"elementId": "s1", "focus": 0, "gap": 1},
+             endBinding={"elementId": "d1", "focus": 0, "gap": 1},
+             customData={"role": "edge"})
+    return [src, dia, lbl, arr]
+
+
+def _rect_stage() -> list[dict]:
+    """Three arrows fanned onto one rectangle's left edge, 20px apart.
+
+    The endpoint mutants' control: a rectangle's bbox IS its shape, so a
+    correct attachment on its edge must stay silent — and so must the
+    fanned siblings at (300,305) and (300,345), the r4-1 over-fire guard.
+
+    Returns:
+        The eight-element scene: target rect, its label, and three
+        source rects each with an arrow onto the shared left edge.
+    """
+    tgt = el(id="r1", type="rectangle", x=300, y=300, width=180, height=60,
+             customData={"role": "node"})
+    lbl = el(id="t1", type="text", x=310, y=320, width=160, height=20,
+             text="Review", fontSize=16, fontFamily=1, textAlign="center",
+             verticalAlign="middle", containerId="r1",
+             originalText="Review")
+    tgt["boundElements"] = [{"id": "t1", "type": "text"}]
+    scene = [tgt, lbl]
+    # (source y, attach y): the middle arrow runs straight in; the other
+    # two elbow via x=250 onto attach points 20px above and below it.
+    for i, (sy, ay) in enumerate(((300, 325), (180, 305), (420, 345))):
+        sid, aid, cy = "s%d" % (i + 1), "a%d" % (i + 1), sy + 25
+        scene.append(el(id=sid, type="rectangle", x=60, y=sy, width=80,
+                        height=50, customData={"role": "node"}))
+        dy = ay - cy
+        points = ([[0, 0], [160, 0]] if dy == 0 else
+                  [[0, 0], [110, 0], [110, dy], [160, dy]])
+        scene.append(el(id=aid, type="arrow", x=140, y=cy, width=160,
+                        height=abs(dy), points=points,
+                        startBinding={"elementId": sid, "focus": 0,
+                                      "gap": 1},
+                        endBinding={"elementId": "r1", "focus": 0,
+                                    "gap": 1},
+                        customData={"role": "edge"}))
+    return scene
+
+
+def _foreign_corner_stage() -> list[dict]:
+    """The diamond stage plus an arrow threading its empty bbox corner.
+
+    `ax` clips the top-left corner of the diamond's (inset) bounding box
+    between (302,309) and (312,302) — roughly 36px of clear white space
+    from the rhombus edge at its closest, since |x-400|/100 + |y-350|/50
+    stays above 1.8 along that whole run.
+
+    Returns:
+        The diamond stage plus the unbound corner-threading arrow `ax`.
+    """
+    scene = _diamond_stage()
+    scene.append(el(id="ax", type="arrow", x=210, y=370, width=180,
+                    height=120, points=[[0, 0], [180, -120]],
+                    customData={"role": "edge"}))
+    return scene
+
+
+def _foreign_body_stage() -> list[dict]:
+    """The diamond stage plus an arrow driven through the rhombus body.
+
+    Returns:
+        The diamond stage plus the unbound arrow `ax` running along
+        y=350, the diamond's own centerline.
+    """
+    scene = _diamond_stage()
+    scene.append(el(id="ax", type="arrow", x=210, y=350, width=380,
+                    height=0, points=[[0, 0], [380, 0]],
+                    customData={"role": "edge"}))
+    return scene
+
+
+def _crossing_scene() -> list[dict]:
+    """A flat arrow crossed four times by one zigzag arrow.
+
+    The zigzag's four legs each cut the flat arrow's y=100 line exactly
+    once between x=150 and x=550 (verified by brute-force proper-
+    intersection count over all 4x1 segment pairs).
+
+    Returns:
+        The two-arrow scene.
+    """
+    flat = el(id="a1", type="arrow", x=100, y=100, width=760, height=0,
+              points=[[0, 0], [760, 0]], customData={"role": "edge"})
+    zig = el(id="a2", type="arrow", x=150, y=40, width=400, height=120,
+             points=[[0, 0], [100, 120], [200, 0], [300, 120], [400, 0]],
+             customData={"role": "edge"})
+    return [flat, zig]
+
+
+def _single_crossing_scene() -> list[dict]:
+    """The same flat arrow cut exactly once by a single diagonal.
+
+    Returns:
+        The two-arrow scene.
+    """
+    flat = el(id="a1", type="arrow", x=100, y=100, width=760, height=0,
+              points=[[0, 0], [760, 0]], customData={"role": "edge"})
+    diag = el(id="a2", type="arrow", x=300, y=40, width=100, height=120,
+              points=[[0, 0], [100, 120]], customData={"role": "edge"})
+    return [flat, diag]
+
+
+def _opposed_pair(rounded: bool) -> list[dict]:
+    """Two elbowed arrows whose 18px final segments meet head-on at x=250.
+
+    Both final chords are vertical on x=250 and point at each other,
+    heads 2px apart — the false-bidi signature. `rounded` decides
+    whether those elbows render as curves (type-2 roundness), which
+    bends the visible approach away from the stored chord.
+
+    Args:
+        rounded: True for type-2 roundness, False for sharp elbows.
+
+    Returns:
+        The two-arrow scene.
+    """
+    shape = {"type": 2} if rounded else None
+    top = el(id="ea", type="arrow", x=150, y=282, width=100, height=18,
+             points=[[0, 0], [100, 0], [100, 18]], roundness=shape,
+             customData={"role": "edge"})
+    bot = el(id="eb", type="arrow", x=150, y=320, width=100, height=18,
+             points=[[0, 0], [100, 0], [100, -18]], roundness=shape,
+             customData={"role": "edge"})
+    return [top, bot]
+
+
+def _collinear_pair() -> list[dict]:
+    """Two horizontal arrows on y=200 overlapping along 300px of it.
+
+    Returns:
+        The two-arrow scene.
+    """
+    return [el(id="b1", type="arrow", x=100, y=200, width=400, height=0,
+               points=[[0, 0], [400, 0]], customData={"role": "edge"}),
+            el(id="b2", type="arrow", x=200, y=200, width=400, height=0,
+               points=[[0, 0], [400, 0]], customData={"role": "edge"})]
+
+
+def _parallel_pair() -> list[dict]:
+    """The same two arrows held 40px apart — far outside the 16px tol.
+
+    Returns:
+        The two-arrow scene.
+    """
+    return [el(id="b1", type="arrow", x=100, y=200, width=400, height=0,
+               points=[[0, 0], [400, 0]], customData={"role": "edge"}),
+            el(id="b2", type="arrow", x=100, y=240, width=400, height=0,
+               points=[[0, 0], [400, 0]], customData={"role": "edge"})]
+
+
+# ---------------------------------------------------------------------------
+# The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
+# today with a neighbour that must read right today; the mutant tests below
+# are `expectedFailure` exactly where the defect is still live, so WP4's fix
+# announces itself as an unexpected success rather than a silent pass.
+# ---------------------------------------------------------------------------
+
+CATALOGUE: dict[str, Mutant] = {}
+
+
+def _register(m: Mutant) -> Mutant:
+    """Add a mutant to the catalogue, keyed by its id.
+
+    Args:
+        m: The mutant to register.
+
+    Returns:
+        The same mutant, so callers can keep a reference.
+
+    Raises:
+        EngineError: If a mutant with this id is already registered.
+    """
+    if m.mid in CATALOGUE:
+        raise EngineError("duplicate mutant id %r" % m.mid)
+    CATALOGUE[m.mid] = m
+    return m
+
+
+# Shape-blind endpoint lint: the endpoint sits 80px of white space clear of
+# the rhombus but inside its bbox. Flips when WP4 clips to the shape.
+_register(Mutant(
+    "diamond_corner_silence",
+    build=_diamond_stage,
+    op="move_endpoint_to", args={"arrow_id": "a1", "end": "end",
+                                 "x": 310, "y": 305},
+    expect=FindingSpec("endpoint_gap", element="a1",
+                       magnitude=(80, 0.30), direction="outside"),
+    neighbour=Neighbour(_rect_stage, Silence("endpoint_gap"))))
+
+# Same blindness, now inverted: 50px OUTSIDE the rhombus is reported as
+# 15px "inside the shape". Flips when WP4 clips to the shape.
+_register(Mutant(
+    "diamond_wrong_direction",
+    build=_diamond_stage,
+    op="move_endpoint_to", args={"arrow_id": "a1", "end": "end",
+                                 "x": 320, "y": 315},
+    expect=FindingSpec("endpoint_gap", element="a1",
+                       magnitude=(50, 0.40), direction="outside"),
+    neighbour=Neighbour(_rect_stage, Silence("endpoint_gap"))))
+
+# Over-fire: a perfect facet-midpoint attachment is called 25px inside the
+# shape, as an error. Flips when WP4 clips to the shape.
+_register(Mutant(
+    "diamond_facet_overfire",
+    build=_diamond_stage,
+    op="unchanged", args={},
+    expect=Silence("endpoint_gap"),
+    neighbour=Neighbour(_rect_stage, Silence("endpoint_gap"))))
+
+# Over-fire: the through-node test uses the node's bbox, so an arrow
+# clipping the diamond's empty corner reads as passing through it. Flips
+# when WP4 tests the rendered shape.
+_register(Mutant(
+    "foreign_diamond_corner_overfire",
+    build=_foreign_corner_stage,
+    op="unchanged", args={},
+    expect=Silence("passes_through_foreign"),
+    neighbour=Neighbour(_foreign_body_stage,
+                        FindingSpec("passes_through_foreign",
+                                    element="ax"))))
+
+# Undercount: the pair truly crosses 4 times (reviewer-verified by brute
+# force) but the double-break instrument reports 1. Flips when WP4 counts
+# crossings instead of pairs.
+_register(Mutant(
+    "four_crossings_pairbug",
+    build=_crossing_scene,
+    op="unchanged", args={},
+    expect=FindingSpec("crossings_count", magnitude=(4, 0.0)),
+    neighbour=Neighbour(_single_crossing_scene,
+                        FindingSpec("crossings_count",
+                                    magnitude=(1, 0.0)))))
+
+# Blind spot: an endpoint pinned to the diamond's exact center — the worst
+# possible binding — scores gap 0 and is never reported. Flips when WP4
+# stops returning r at t == 0.
+_register(Mutant(
+    "float_diamond_center_zero",
+    build=_diamond_stage,
+    op="move_endpoint_to", args={"arrow_id": "a1", "end": "end",
+                                 "x": 400, "y": 350},
+    expect=FindingSpec("float_diamond", element="a1",
+                       magnitude=(50, 0.90)),
+    neighbour=Neighbour(_diamond_stage, Silence("float_diamond"))))
+
+# Spurious: false_bidi reads the stored chord, so curved elbows whose
+# rendered tangents diverge still read as one bidirectional line. Flips
+# when WP4 measures the rendered tangent.
+_register(Mutant(
+    "curved_elbow_spurious_bidi",
+    build=lambda: _opposed_pair(rounded=True),
+    op="unchanged", args={},
+    expect=Silence("false_bidi"),
+    neighbour=Neighbour(lambda: _opposed_pair(rounded=False),
+                        FindingSpec("false_bidi"))))
+
+# No defect: the corridor instrument already reads collinear overlap
+# correctly, so this one guards the behavior rather than indicting it.
+_register(Mutant(
+    "collinear_overlap_corridor",
+    build=_collinear_pair,
+    op="unchanged", args={},
+    expect=FindingSpec("shared_corridor", magnitude=(300, 0.20)),
+    neighbour=Neighbour(_parallel_pair, Silence("shared_corridor"))))
+
+
+class TestMutantCatalogue(unittest.TestCase):
+    """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
+
+    def _run(self, mid: str) -> None:
+        """Build, mutate, and assert one catalogue mutant's expectation.
+
+        Args:
+            mid: The mutant's catalogue id.
+        """
+        m = CATALOGUE[mid]
+        scene = OPERATORS[m.op](m.build(), **m.args)
+        mism = m.expect.matches(collect_findings(scene))
+        self.assertIsNone(mism, "%s: %s" % (mid, mism))
+
+    def _run_neighbour(self, mid: str) -> None:
+        """Build one mutant's neighbour and assert its opposite pole.
+
+        Args:
+            mid: The mutant's catalogue id.
+        """
+        n = CATALOGUE[mid].neighbour
+        mism = n.expect.matches(collect_findings(n.build()))
+        self.assertIsNone(mism, "%s neighbour: %s" % (mid, mism))
+
+    @unittest.expectedFailure
+    def test_mutant_diamond_corner_silence(self) -> None:
+        """80px clear of the rhombus, inside its bbox — lint says nothing."""
+        # Shape-blind endpoint lint; flips when WP4 clips to the shape.
+        self._run("diamond_corner_silence")
+
+    def test_neighbour_diamond_corner_silence(self) -> None:
+        """Fanned rectangle attachments stay endpoint-silent."""
+        self._run_neighbour("diamond_corner_silence")
+
+    @unittest.expectedFailure
+    def test_mutant_diamond_wrong_direction(self) -> None:
+        """50px outside the rhombus, reported as 15px inside the shape."""
+        # Shape-blind endpoint lint; flips when WP4 clips to the shape.
+        self._run("diamond_wrong_direction")
+
+    def test_neighbour_diamond_wrong_direction(self) -> None:
+        """Fanned rectangle attachments stay endpoint-silent."""
+        self._run_neighbour("diamond_wrong_direction")
+
+    @unittest.expectedFailure
+    def test_mutant_diamond_facet_overfire(self) -> None:
+        """A perfect facet-midpoint attachment is called 25px inside."""
+        # Shape-blind endpoint lint; flips when WP4 clips to the shape.
+        self._run("diamond_facet_overfire")
+
+    def test_neighbour_diamond_facet_overfire(self) -> None:
+        """Fanned rectangle attachments stay endpoint-silent."""
+        self._run_neighbour("diamond_facet_overfire")
+
+    @unittest.expectedFailure
+    def test_mutant_foreign_diamond_corner_overfire(self) -> None:
+        """An arrow clipping the empty bbox corner reads as passing through."""
+        # Bbox-shaped through-node test; flips when WP4 tests the shape.
+        self._run("foreign_diamond_corner_overfire")
+
+    def test_neighbour_foreign_diamond_corner_overfire(self) -> None:
+        """An arrow through the rhombus body really does pass through it."""
+        self._run_neighbour("foreign_diamond_corner_overfire")
+
+    @unittest.expectedFailure
+    def test_mutant_four_crossings_pairbug(self) -> None:
+        """Four true crossings, counted as one pair."""
+        # Pair count masquerading as a crossing count; flips when WP4
+        # drops the double-break.
+        self._run("four_crossings_pairbug")
+
+    def test_neighbour_four_crossings_pairbug(self) -> None:
+        """A single crossing counts one either way."""
+        self._run_neighbour("four_crossings_pairbug")
+
+    @unittest.expectedFailure
+    def test_mutant_float_diamond_center_zero(self) -> None:
+        """An endpoint pinned dead-center scores gap 0 and never reports."""
+        # t == 0 returns r (0); flips when WP4 measures to the boundary.
+        self._run("float_diamond_center_zero")
+
+    def test_neighbour_float_diamond_center_zero(self) -> None:
+        """An endpoint exactly on the facet is not a floating endpoint."""
+        self._run_neighbour("float_diamond_center_zero")
+
+    @unittest.expectedFailure
+    def test_mutant_curved_elbow_spurious_bidi(self) -> None:
+        """Curved elbows whose rendered tangents diverge still read bidi."""
+        # Stored chord, not rendered tangent; flips when WP4 reads the
+        # rendered tangent.
+        self._run("curved_elbow_spurious_bidi")
+
+    def test_neighbour_curved_elbow_spurious_bidi(self) -> None:
+        """Sharp opposed elbows genuinely read as one bidirectional line."""
+        self._run_neighbour("curved_elbow_spurious_bidi")
+
+    def test_mutant_collinear_overlap_corridor(self) -> None:
+        """300px of collinear overlap reads as one shared corridor."""
+        # No defect here — this guards correct behavior, not a bug.
+        self._run("collinear_overlap_corridor")
+
+    def test_neighbour_collinear_overlap_corridor(self) -> None:
+        """Parallel arrows 40px apart are two strokes, not one."""
+        self._run_neighbour("collinear_overlap_corridor")
+
+    @unittest.skipUnless(
+        (Path(__file__).parent / "fixtures" / "argus-r5").is_dir(),
+        "argus-r5 fixture not present")
+    def test_instruments_run_over_the_r5_fixture(self) -> None:
+        """Every promoted artifact parses and every detector completes."""
+        root = Path(__file__).parent / "fixtures" / "argus-r5" / "artifacts"
+        for path in sorted(root.iterdir()):
+            with self.subTest(artifact=path.name):
+                data = json.loads(path.read_text())
+                els = data["elements"] if isinstance(data, dict) else data
+                finds = collect_findings(els)
+                self.assertNotIn("detector-error",
+                                 {f["check"] for f in finds})
+
+
+# ---------------------------------------------------------------------------
+# Detector-coverage gate: every detector is proven by a firing mutant or
+# named in UNCOVERED with a reason — the table can never rot quietly.
+# Render-tier detectors get their proving mutants from an env-gated file
+# Task 8 adds, and are reported as "render-tier", never as UNCOVERED.
+# ---------------------------------------------------------------------------
 
 RENDER_TIER = {"ablation_existence", "ablation_continuity"}
 
 UNCOVERED: dict[str, str] = {
-    # DETECTORS placeholders: CATALOGUE is empty until Task 5, so every
-    # current detector is unproven for now — Task 5 drains these rows as
-    # it gives each detector its first proving mutant.
-    "endpoint_gap": "no proving mutant yet; Task 5 drains this",
-    "crosses_through_bound": "no proving mutant yet; Task 5 drains this",
-    "passes_through_foreign": "no proving mutant yet; Task 5 drains this",
-    "crossings_count": "no proving mutant yet; Task 5 drains this",
-    "shared_corridor": "no proving mutant yet; Task 5 drains this",
-    "false_bidi": "no proving mutant yet; Task 5 drains this",
-    "float_diamond": "no proving mutant yet; Task 5 drains this",
+    # The one DETECTORS entry the day-one catalogue leaves unproven: every
+    # scene that runs long enough inside a bound node to trip it also trips
+    # endpoint_gap first, so it needs a mutant of its own.
+    "crosses_through_bound":
+        "no proving mutant yet; candidate: a multi-elbow interior run "
+        "— WP4 backlog",
 
     # lint_layout message templates with no DETECTORS entry (enumerated
     # 2026-08-12 by grepping errors.append/warnings.append/notes.append
@@ -1263,27 +1679,34 @@ UNCOVERED: dict[str, str] = {
 def coverage_table() -> list[tuple[str, str, str]]:
     """Report each detector's proof status against the mutant catalogue.
 
-    A detector is "proven" once at least one `CATALOGUE` mutant's
-    `expect` is a `FindingSpec` naming that detector's check — a mutant
-    whose `expect` is a `Silence` proves only the check's quiet half, so
-    a check whose only mutants are Silences is still reported UNCOVERED
-    for firing. Detectors named in `RENDER_TIER` are reported
-    "render-tier" instead: their proving mutants live in a separate
-    env-gated catalogue (Task 8) that this function does not read, so
-    they are never reported UNCOVERED.
+    A detector is "proven" once at least one `CATALOGUE` entry carries a
+    `FindingSpec` naming that detector's check — in the mutant's own
+    `expect` OR in its neighbour's. The neighbour half matters because an
+    over-fire mutant's `expect` is a `Silence` (the defect is that the
+    check fires when it shouldn't); its live firing proof is exactly the
+    neighbour that fires legitimately, and without counting that,
+    `passes_through_foreign` and `false_bidi` would sit UNCOVERED forever
+    despite being proven in every run. A check whose entries are Silences
+    on both sides is still reported UNCOVERED for firing. Detectors named
+    in `RENDER_TIER` are reported "render-tier" instead: their proving
+    mutants live in a separate env-gated catalogue (Task 8) that this
+    function does not read, so they are never reported UNCOVERED.
 
     Returns:
         One `(detector, status, evidence)` tuple per name currently in
         `DETECTORS`, sorted by name. `status` is one of "proven",
         "render-tier", "UNCOVERED". `evidence` is the proving mutant id
-        for "proven", a placeholder note for "render-tier", or the
-        `UNCOVERED` reason (empty string if the detector carries none).
+        for "proven" — the lexicographically first, so a check with
+        several proofs reports the same one every run — a placeholder
+        note for "render-tier", or the `UNCOVERED` reason (empty string
+        if the detector carries none).
     """
     proven_by: dict[str, str] = {}
-    for mid, mutant in CATALOGUE.items():
-        expect = mutant.expect
-        if isinstance(expect, FindingSpec) and expect.check not in proven_by:
-            proven_by[expect.check] = mid
+    for mid in sorted(CATALOGUE):
+        mutant = CATALOGUE[mid]
+        for expect in (mutant.expect, mutant.neighbour.expect):
+            if isinstance(expect, FindingSpec):
+                proven_by.setdefault(expect.check, mid)
     rows: list[tuple[str, str, str]] = []
     for name in sorted(DETECTORS):
         if name in RENDER_TIER:
@@ -1316,21 +1739,16 @@ class TestCoverage(unittest.TestCase):
         """A check whose only catalogue mutant is a Silence stays UNCOVERED.
 
         `Silence` only proves a check's quiet half — a mutant that never
-        expects the check to fire cannot stand in for one that does.
+        expects the check to fire cannot stand in for one that does, and
+        neither can its neighbour when that is a `Silence` too.
         """
         silence = Silence("endpoint_gap")
         neighbour = Neighbour(build=lambda: [], expect=silence)
         mutant = Mutant("synthetic-silence-only", build=lambda: [],
                         op="unchanged", args={}, expect=silence,
                         neighbour=neighbour)
-        saved = dict(CATALOGUE)
-        CATALOGUE.clear()
-        CATALOGUE["synthetic-silence-only"] = mutant
-        try:
-            row = next(r for r in coverage_table() if r[0] == "endpoint_gap")
-        finally:
-            CATALOGUE.clear()
-            CATALOGUE.update(saved)
+        row = self._row_for("endpoint_gap",
+                            {"synthetic-silence-only": mutant})
         self.assertEqual(row[1], "UNCOVERED")
 
     def test_findingspec_mutant_proves_its_check(self) -> None:
@@ -1339,16 +1757,75 @@ class TestCoverage(unittest.TestCase):
         mutant = Mutant("synthetic-proof", build=lambda: [], op="unchanged",
                         args={}, expect=FindingSpec("endpoint_gap"),
                         neighbour=neighbour)
+        row = self._row_for("endpoint_gap", {"synthetic-proof": mutant})
+        self.assertEqual(row[1], "proven")
+        self.assertEqual(row[2], "synthetic-proof")
+
+    def test_neighbour_findingspec_proves_its_check(self) -> None:
+        """A FindingSpec in the NEIGHBOUR proves the check just as well.
+
+        This is the over-fire shape: the mutant expects `Silence`
+        because the defect is that the check fires when it shouldn't,
+        and the neighbour is where the check's legitimate firing is
+        proven. Without this rule every over-fire mutant would read as
+        leaving its check unproven.
+        """
+        mutant = Mutant(
+            "synthetic-overfire", build=lambda: [], op="unchanged", args={},
+            expect=Silence("endpoint_gap"),
+            neighbour=Neighbour(build=lambda: [],
+                                expect=FindingSpec("endpoint_gap")))
+        row = self._row_for("endpoint_gap", {"synthetic-overfire": mutant})
+        self.assertEqual(row[1], "proven")
+        self.assertEqual(row[2], "synthetic-overfire")
+
+    def test_evidence_is_the_lexicographically_first_prover(self) -> None:
+        """Several provers pick one deterministically, not by insertion order.
+
+        Both mutants prove `endpoint_gap`; the reported evidence is the
+        sorted-first id whichever way the catalogue was populated.
+        """
+        def prover(mid: str) -> Mutant:
+            """Build a minimal mutant whose expect proves `endpoint_gap`.
+
+            Args:
+                mid: The mutant's catalogue id.
+
+            Returns:
+                The constructed mutant.
+            """
+            return Mutant(mid, build=lambda: [], op="unchanged", args={},
+                          expect=FindingSpec("endpoint_gap"),
+                          neighbour=Neighbour(build=lambda: [],
+                                              expect=Silence("endpoint_gap")))
+        forward = self._row_for("endpoint_gap",
+                                {"aaa-first": prover("aaa-first"),
+                                 "zzz-last": prover("zzz-last")})
+        reverse = self._row_for("endpoint_gap",
+                                {"zzz-last": prover("zzz-last"),
+                                 "aaa-first": prover("aaa-first")})
+        self.assertEqual(forward[2], "aaa-first")
+        self.assertEqual(reverse[2], "aaa-first")
+
+    def _row_for(self, detector: str,
+                 catalogue: dict[str, Mutant]) -> tuple[str, str, str]:
+        """Read one coverage row against a temporarily swapped catalogue.
+
+        Args:
+            detector: The detector name whose row to return.
+            catalogue: The catalogue to install for the duration.
+
+        Returns:
+            That detector's `(name, status, evidence)` coverage row.
+        """
         saved = dict(CATALOGUE)
         CATALOGUE.clear()
-        CATALOGUE["synthetic-proof"] = mutant
+        CATALOGUE.update(catalogue)
         try:
-            row = next(r for r in coverage_table() if r[0] == "endpoint_gap")
+            return next(r for r in coverage_table() if r[0] == detector)
         finally:
             CATALOGUE.clear()
             CATALOGUE.update(saved)
-        self.assertEqual(row[1], "proven")
-        self.assertEqual(row[2], "synthetic-proof")
 
 
 if __name__ == "__main__":
