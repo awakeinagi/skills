@@ -1,7 +1,7 @@
 """Stdlib PNG codec plus the one-pixel-tolerant blob comparator.
 
 Why a tolerant XOR and not a perceptual metric — the render tier's design
-premise, from docs/superpowers/specs (V0.9-PLAN.md § the comparator):
+premise, from V0.9-PLAN.md at the repo root (§ the comparator):
 
     Anti-aliasing, hinting and sub-pixel positioning artefacts are all
     *sub-pixel edge displacements*: at most a one-pixel band hugging a

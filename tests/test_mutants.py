@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 import datetime
 import hashlib
+import inspect
 import json
 import math
 import re
@@ -124,9 +125,12 @@ DETECTORS: dict[str, dict] = {
     "false_bidi": {"collect": _collect_false_bidi},
     "float_diamond": {"collect": _collect_float_diamond},
     # The render tier's two detectors are registered HERE, not by
-    # test_mutants_render.py updating this dict at import: the default
-    # suite never imports that module, so a self-registration would leave
-    # `--coverage` silently missing two rows. They carry neither `lint_re`
+    # test_mutants_render.py updating this dict at import: `--coverage`
+    # runs through this file's standalone `__main__` (file tail), which
+    # never imports the render module, so a self-registration would leave
+    # `--coverage` silently missing two rows. (Discovery DOES import that
+    # module — `skipUnless` defers to run time, not import time — so the
+    # gap is the CLI's alone, and that is enough.) They carry neither `lint_re`
     # nor `collect`, so `collect_findings` walks straight past them — they
     # measure pixels, and the pixels only exist under MUTANTS_RENDER=1.
     "ablation_existence": {"render": True},
@@ -352,12 +356,24 @@ class Silence:
 
 @dataclass
 class Neighbour:
-    """The control scene an operator's mutant must leave unaffected.
+    """The mutant's control scene: the detector's opposite pole, ungated.
+
+    A neighbour is built and run AS-IS — `_run_neighbour` never applies
+    the mutant's operator to it. Neighbours prove detector poles, not
+    operator innocence: where the mutant pins the defect (and is usually
+    an `expectedFailure`), the neighbour asserts the same detector's
+    other answer on a healthy scene, plainly, in every commit. That is
+    what keeps a crashed or dead detector from hiding inside the
+    mutant's expectedFailure mask. So an over-fire mutant expecting
+    `Silence` gets a neighbour whose `FindingSpec` proves the check
+    still fires legitimately, and a mutant expecting a wrong finding
+    gets a neighbour expecting `Silence` on the same check.
 
     Attributes:
-        build: Zero-arg factory returning the neighbour scene's elements.
-        expect: The spec (usually `Silence`) the neighbour's findings
-            must satisfy after the mutant's operator is applied near it.
+        build: Zero-arg factory returning the neighbour scene's
+            elements — already in its final, unmutated form.
+        expect: The spec the neighbour's findings must satisfy, chosen
+            as the opposite pole of the mutant's own `expect`.
     """
 
     build: Callable[[], list[dict]]
@@ -1105,8 +1121,10 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
 # and instruments.py output, so the numbers are frozen: move a point and you
 # move the finding the catalogue asserts. The diamond is 200x100 at
 # (300,300), i.e. center (400,350) with half-axes a=100, b=50, so the
-# rhombus boundary is |x-400|/100 + |y-350|/50 == 1 and the horizontal gap
-# from a point to that boundary at its own y is 100*(1 - |y-350|/50) wide.
+# rhombus boundary is |x-400|/100 + |y-350|/50 == 1 and the rhombus's
+# HALF-WIDTH at a given y is 100*(1 - |y-350|/50). The horizontal gap from
+# a point to the boundary at its own y is (400 - half_width) - x on the
+# left side, i.e. derived from the half-width, not equal to it.
 # ---------------------------------------------------------------------------
 
 
@@ -1768,6 +1786,28 @@ class TestCoverage(unittest.TestCase):
         """No UNCOVERED entry has a blank or whitespace-only reason."""
         empty = [k for k, v in UNCOVERED.items() if not str(v).strip()]
         self.assertEqual(empty, [])
+
+    def test_lint_layout_append_count_is_pinned(self) -> None:
+        """Spec §3 anti-rot, canvas.py half: the enumeration cannot drift.
+
+        `coverage_table` gates the `DETECTORS` half of the ledger — a new
+        registry entry with no mutant and no reason fails. The canvas.py
+        half (the lint-template and ART-code rows in `UNCOVERED`) is a
+        hand enumeration frozen on 2026-08-12 instead, so a new
+        `errors.append` in `lint_layout` would otherwise land with no
+        ledger row, no coverage row and nothing red — exactly the silence
+        §3 says cannot happen. This pins the append-site count the
+        enumeration was made from, so the ledger's basis moving is loud
+        and says what to do about it.
+        """
+        src = inspect.getsource(canvas.lint_layout)
+        sites = sum(src.count("%s.append" % chan)
+                    for chan in ("errors", "warnings", "notes"))
+        self.assertEqual(sites, 45,
+                         "canvas.py lint_layout append-site count changed "
+                         "(45 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(see plan Task 4 Step 1) and update this pin."
+                         % sites)
 
     def test_silence_only_mutant_does_not_prove_its_check(self) -> None:
         """A check whose only catalogue mutant is a Silence stays UNCOVERED.

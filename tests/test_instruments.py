@@ -15,7 +15,12 @@ class TestInstrumentPorts(unittest.TestCase):
     """The ports run and preserve the spike scripts' observed behavior."""
 
     def _crossing_scene(self) -> list[dict]:
-        """A flat arrow crossed three times by one zigzag arrow.
+        """A flat arrow crossed four times by one zigzag arrow.
+
+        The zigzag's four legs each cut the flat arrow's y=100 line once;
+        the count is reviewer-verified by brute-force proper-intersection
+        count over all 4x1 segment pairs (see
+        `test_mutants._crossing_scene`, which builds the same scene).
 
         Returns:
             The two-arrow scene as a list of element dicts.
@@ -28,9 +33,9 @@ class TestInstrumentPorts(unittest.TestCase):
         return [flat, zig]
 
     def test_crossing_counter_reports_pairs_not_crossings(self) -> None:
-        """The counter reports one PAIR even though the arrows cross thrice."""
+        """The counter reports one PAIR though the arrows cross four times."""
         count, pairs = instruments.edge_crossing_pairs(self._crossing_scene())
-        self.assertEqual(count, 1)          # BUG, preserved: 3 crossings -> 1
+        self.assertEqual(count, 1)          # BUG, preserved: 4 crossings -> 1
         self.assertEqual(pairs, [("a1", "a2")])
 
     def test_corridor_fires_on_collinear_overlap(self) -> None:
