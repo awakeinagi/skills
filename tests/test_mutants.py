@@ -435,7 +435,21 @@ def validate_scene(scene: list[dict]) -> None:
 
 
 def _operator(fn: Callable[..., list[dict]]) -> Callable[..., list[dict]]:
-    """Deep-copy in, validate out — no operator escapes either.
+    """Deep-copy in, validate out, and refuse to mutate nothing.
+
+    The third guard is the root fix for a trap that surfaced twice
+    downstream: an operator handed a bogus target id either returns the
+    scene untouched (`drop_edge` filters on an id nothing matches) or
+    dies on a bare `StopIteration` from its `next(...)` lookup, which
+    names neither the operator nor the id. The first is the dangerous
+    one — a pristine scene validates clean and travels on labelled
+    "mutated", so `sweep_cells` had to grow an `after == scene` guard
+    and the CLI's `seed` could write an unmutated artifact. Silence must
+    mean the drawing answered the mutation, never that no mutation
+    happened; so an unchanged output is engine misuse and raises here,
+    at the source, where the operator's name and args are still in hand.
+    `unchanged` is exempt BY NAME — it is the deliberate no-op behind
+    the base-is-the-defect mutants.
 
     Args:
         fn: An operator body taking a mutable scene copy plus keyword
@@ -445,7 +459,7 @@ def _operator(fn: Callable[..., list[dict]]) -> Callable[..., list[dict]]:
         A wrapped operator with the same name and docstring as `fn`.
     """
     def wrapped(scene: list[dict], **args: Any) -> list[dict]:
-        """Deep-copy `scene`, run the operator, then validate the result.
+        """Deep-copy `scene`, run the operator, then check and validate.
 
         Args:
             scene: The input scene; never mutated in place.
@@ -453,9 +467,29 @@ def _operator(fn: Callable[..., list[dict]]) -> Callable[..., list[dict]]:
 
         Returns:
             The mutated, validated scene.
+
+        Raises:
+            EngineError: If the operator's target id names no element,
+                or if a non-`unchanged` operator returned a scene equal
+                to its input.
         """
-        out = fn(copy.deepcopy(scene), **args)
+        # Compared against a pristine copy, not `scene` itself: an
+        # operator that mutated its argument in place would otherwise
+        # make every no-op look like a change (see
+        # `test_mutation_does_not_alias_input` for the other half).
+        pristine = copy.deepcopy(scene)
+        try:
+            out = fn(copy.deepcopy(scene), **args)
+        except StopIteration:
+            # Every operator locates its target with `next(e for e in
+            # scene if e["id"] == ...)`; the only StopIteration any of
+            # them can raise is that lookup missing.
+            raise EngineError("%s: no element matches the target id in %r"
+                              % (fn.__name__, args)) from None
         validate_scene(out)
+        if fn.__name__ != "unchanged" and out == pristine:
+            raise EngineError("%s: mutated nothing — bad target id or "
+                              "no-op args? %r" % (fn.__name__, args))
         return out
     wrapped.__name__ = fn.__name__
     wrapped.__doc__ = fn.__doc__
@@ -1039,7 +1073,13 @@ class TestOperators(unittest.TestCase):
              arr_b["y"] + arr_b["points"][-1][1]), (100, 0))
 
     def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
-        """Unchanged returns an equal scene that is a distinct object."""
+        """Unchanged returns an equal scene that is a distinct object.
+
+        Equal output is what `_operator`'s no-op guard rejects for every
+        other operator, so this doubles as the proof that `unchanged`'s
+        by-name exemption holds — the base-is-the-defect mutants would
+        all die at load without it.
+        """
         chain = _chain()
         out = OPERATORS["unchanged"](chain)
         self.assertEqual(out, chain)
@@ -1062,6 +1102,48 @@ class TestOperators(unittest.TestCase):
         chain = _chain()
         OPERATORS["drop_edge"](chain, arrow_id="e1")
         self.assertIn("e1", [e["id"] for e in chain])
+
+    def test_drop_edge_with_a_bogus_id_refuses_to_no_op(self) -> None:
+        """A typo'd arrow id returns a pristine scene, so it must raise.
+
+        `drop_edge` is the operator that made this trap concrete: it
+        filters by id rather than looking one up, so a typo deletes
+        nothing, validates clean, and travels on labelled "mutated".
+        """
+        with self.assertRaises(EngineError) as caught:
+            OPERATORS["drop_edge"](_chain(), arrow_id="e1-typo")
+        self.assertIn("drop_edge: mutated nothing", str(caught.exception))
+
+    def test_move_endpoint_to_with_a_bogus_arrow_id_raises(self) -> None:
+        """A missing target names the operator, not a bare StopIteration."""
+        with self.assertRaises(EngineError) as caught:
+            OPERATORS["move_endpoint_to"](
+                _chain(), arrow_id="e1-typo", end="end", x=1, y=1)
+        self.assertIn("move_endpoint_to: no element matches",
+                      str(caught.exception))
+
+    def test_rename_node_with_a_bogus_node_id_raises(self) -> None:
+        """The node lookup missing is engine misuse, reported as such."""
+        with self.assertRaises(EngineError) as caught:
+            OPERATORS["rename_node"](
+                _chain(), node_id="A-typo", text="Renamed")
+        self.assertIn("rename_node: no element matches",
+                      str(caught.exception))
+
+    def test_zero_shift_label_is_refused_as_a_no_op(self) -> None:
+        """A real target with (0, 0) offsets mutates nothing, so it raises.
+
+        The target id is fine here — this is the other half of the
+        guard: arguments that make a legitimate operator do nothing are
+        misuse too, and would otherwise mint a vacuous pass.
+        """
+        label = el(id="lbl", type="text", x=10, y=20, width=40, height=20,
+                  text="A", originalText="A", containerId="A")
+        node = el(id="A", type="rectangle", x=0, y=0, width=80, height=40,
+                 boundElements=[{"id": "lbl", "type": "text"}])
+        with self.assertRaises(EngineError) as caught:
+            OPERATORS["shift_label"]([node, label], text_id="lbl", dx=0, dy=0)
+        self.assertIn("shift_label: mutated nothing", str(caught.exception))
 
 
 class TestDetectorsAgainstRealLint(unittest.TestCase):
@@ -1747,6 +1829,55 @@ class TestMutantCatalogue(unittest.TestCase):
         """Attach points 80px apart are past the lint's 12px window."""
         self._run_neighbour("shared_attach_point_fan_failed")
 
+    def test_red_mutants_are_red_by_mismatch_not_by_error(self) -> None:
+        """Every expectedFailure above is red for the reason it claims.
+
+        `@unittest.expectedFailure` swallows ERRORS as well as failures,
+        so a red mutant whose scene builder crashes, or whose operator
+        starts raising, reads as a healthy `x` in the dots — the defect
+        it was pinning could have been fixed, or broken further, and the
+        run would look identical. This re-runs each red mutant at engine
+        level and insists the redness is a spec MISMATCH: a crash is a
+        broken mutant, not a defect pin.
+
+        It also gives unexpected-success detection a second and far more
+        talkative voice: `unittest` reports a mutant that has quietly
+        gone green only as an anonymous "unexpected success", while this
+        names the mutant and says to flip its decorator.
+
+        Scope is the model tier deliberately. The render tier's two
+        expectedFailures need a live browser, so their analog belongs in
+        `tests/test_mutants_render.py` behind the same `MUTANTS_RENDER=1`
+        gate its own catalogue uses — not here, where it would either
+        skip silently or import a module `--coverage` never loads.
+        """
+        cls = type(self)
+        reds = [n for n in sorted(dir(cls))
+                if getattr(getattr(cls, n, None),
+                          "__unittest_expecting_failure__", False)]
+        self.assertTrue(reds, "no expectedFailure methods found — the "
+                              "introspection hook moved")
+        for name in reds:
+            with self.subTest(method=name):
+                mid = name[len("test_mutant_"):]
+                self.assertTrue(
+                    name.startswith("test_mutant_") and mid in CATALOGUE,
+                    "expectedFailure method %r maps to no catalogue mutant "
+                    "(convention: test_mutant_<mid>) — rename it, or this "
+                    "guard walks straight past it" % name)
+                m = CATALOGUE[mid]
+                try:
+                    scene = OPERATORS[m.op](m.build(), **m.args)
+                    mism = m.expect.matches(collect_findings(scene))
+                except Exception as exc:
+                    self.fail("red mutant %r is red via %r, not a spec "
+                              "mismatch — that is a broken mutant, not a "
+                              "defect pin" % (mid, exc))
+                self.assertIsNotNone(
+                    mism, "red mutant %r is secretly GREEN at engine level "
+                          "— its fix may have landed; flip the "
+                          "expectedFailure" % mid)
+
     @unittest.skipUnless(
         (Path(__file__).parent / "fixtures" / "argus-r5").is_dir(),
         "argus-r5 fixture not present")
@@ -1777,6 +1908,19 @@ RENDER_TIER = {
     "ablation_continuity":
         "test_mutants_render.TestRenderMutants."
         "test_mutant_label_backdrop_severs_connector",
+}
+
+# Check names a catalogue entry may name with no `DETECTORS` detector
+# behind them, mapped to why that is legitimate. Red-by-absence is a real
+# tactic — `phantom_passthrough_shared_attach` pins a defect the lint
+# cannot see yet, and stays red until the lint lands — but it is
+# indistinguishable from a TYPO'd check name, which is red forever for no
+# reason. Worse, a typo'd check inside a `Silence` matches nothing and so
+# passes VACUOUSLY forever. This table is the difference: aspiration is
+# declared here with its reason, and anything else is a mistake.
+ASPIRATIONAL: dict[str, str] = {
+    "phantom_passthrough":
+        "WP4b item 1 — e1 phantom pass-through lint, not yet built",
 }
 
 UNCOVERED: dict[str, str] = {
@@ -1961,6 +2105,33 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(gaps, [],
                          "detectors with no firing mutant and no "
                          "UNCOVERED reason: %s" % gaps)
+
+    def test_every_expected_check_has_a_detector_or_is_declared(self) -> None:
+        """No catalogue entry names a check that nothing can ever answer.
+
+        Walks every mutant's `expect` and its neighbour's, both spec
+        types: a `FindingSpec` on a check with no detector is red
+        forever, and a `Silence` on one is worse — it matches nothing,
+        so it passes vacuously forever and reads as coverage. Either
+        way the likeliest cause is a typo, and the only legitimate
+        cause is deliberate aspiration, which belongs in `ASPIRATIONAL`
+        with its reason.
+        """
+        for mid in sorted(CATALOGUE):
+            mutant = CATALOGUE[mid]
+            for where, spec in (("expect", mutant.expect),
+                                ("neighbour.expect",
+                                 mutant.neighbour.expect)):
+                with self.subTest(mutant=mid, where=where):
+                    self.assertTrue(
+                        spec.check in DETECTORS or spec.check in ASPIRATIONAL,
+                        "mutant %r: %s names check %r, which is in neither "
+                        "DETECTORS %s nor ASPIRATIONAL %s — a typo is red "
+                        "forever (or, in a Silence, vacuously green "
+                        "forever); declare it in ASPIRATIONAL if the "
+                        "detector is genuinely still to be built"
+                        % (mid, where, spec.check, sorted(DETECTORS),
+                           sorted(ASPIRATIONAL)))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""
@@ -2429,6 +2600,12 @@ def sweep_cells() -> tuple[list[dict], list[tuple[str, str, str]]]:
                 skipped.append((base_name, op, str(reason)))
                 continue
             after = OPERATORS[op](scene, **args)
+            # `_operator` now refuses a no-op at the source, so a
+            # decorated operator can never reach this line unchanged.
+            # The check stays as the net for entries that bypass the
+            # decorator — a monkeypatched or foreign `OPERATORS` value
+            # (see `test_no_op_operator_fails_the_sweep_cell`, which
+            # patches in a bare lambda and is caught HERE, by cell name).
             if after == scene:
                 raise EngineError("sweep cell %s/%s mutated nothing"
                                   % (base_name, op))
