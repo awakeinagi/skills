@@ -1,0 +1,115 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "position",
+     "kind": "entity",
+     "label": "Holding",
+     "ops": [],
+     "semantic": {
+      "entity_renamed": {
+       "from": "Position",
+       "glossary_challenge": true,
+       "to": "Holding"
+      },
+      "renamed": {
+       "from": "Position",
+       "to": "Holding"
+      }
+     },
+     "verb": "renamed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 61,
+       "to": 60
+      },
+      {
+       "attr": "text",
+       "from": "Position",
+       "to": "Holding"
+      }
+     ],
+     "id": "position-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "position",
+     "fact": "renamed",
+     "from": "Position",
+     "to": "Holding"
+    },
+    {
+     "element": "position",
+     "fact": "entity_renamed",
+     "from": "Position",
+     "glossary_challenge": true,
+     "to": "Holding"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 60,
+       "to": 61
+      },
+      {
+       "attr": "text",
+       "from": "Holding",
+       "to": "Position"
+      }
+     ],
+     "id": "position-label",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Domain model"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 6,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 7,
+ "round": 3,
+ "saved_at": "2026-08-10T07:06:08Z",
+ "selection_at_save": [],
+ "short_id": "d848e47",
+ "summary": {
+  "headline": "renamed 'Position' → 'Holding' (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "entity_renamed": 1,
+   "renamed": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

@@ -1,0 +1,1499 @@
+{
+ "branches": [
+  {
+   "archived": false,
+   "head": 23,
+   "name": "main",
+   "scope": {
+    "budgets": {
+     "admin-console": {
+      "arrows": 1,
+      "nodes": 16,
+      "reason": "a control panel's block count IS its content — dropping controls to fit 9 would draw a screen the user does not have"
+     },
+     "tuesday-triage": {
+      "arrows": 11,
+      "nodes": 10,
+      "reason": "transcribed from the user's own paste — their process, not mine to shrink to fit"
+     }
+    },
+    "concepts": [
+     {
+      "glossary": null,
+      "id": "argus",
+      "name": "Argus",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "argus-domain"
+      ]
+     },
+     {
+      "glossary": "Signal",
+      "id": "signal",
+      "name": "Signal",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Aggregator",
+      "id": "aggregator",
+      "name": "Aggregator",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Contrarian Screen",
+      "id": "contrarian-screen",
+      "name": "Contrarian Screen",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Portfolio DB",
+      "id": "portfolio-db",
+      "name": "Portfolio DB",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Risk Model",
+      "id": "risk-model",
+      "name": "Risk Model",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Enrichment",
+      "id": "enrichment",
+      "name": "Enrichment",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "enrichment-flow"
+      ]
+     },
+     {
+      "glossary": "Run",
+      "id": "run",
+      "name": "Run",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "daily-run",
+       "edgar-late"
+      ]
+     },
+     {
+      "glossary": "Sentiment Scorer",
+      "id": "sentiment-scorer",
+      "name": "Sentiment Scorer",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Insider Cluster Detector",
+      "id": "insider-detector",
+      "name": "Insider Cluster Detector",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Pipeline",
+      "id": "pipeline",
+      "name": "Pipeline",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Scorer",
+      "id": "scorer",
+      "name": "Scorer",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Report",
+      "id": "report",
+      "name": "Report",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Name",
+      "id": "instrument",
+      "name": "Name",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Assessment",
+      "id": "assessment",
+      "name": "Assessment",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Holding",
+      "id": "position",
+      "name": "Holding",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Ticker",
+      "id": "ticker",
+      "name": "Ticker",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": null,
+      "id": "admin-console",
+      "name": "Admin Console",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "admin-console"
+      ]
+     },
+     {
+      "glossary": "Risk threshold",
+      "id": "risk-threshold",
+      "name": "Risk threshold",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Confidence threshold",
+      "id": "confidence-threshold",
+      "name": "Confidence threshold",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Source switch",
+      "id": "source-switch",
+      "name": "Source switch",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": null,
+      "id": "triage",
+      "name": "Triage",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "tuesday-triage"
+      ]
+     }
+    ],
+    "declined": [],
+    "divergence_policies": [],
+    "mappings": [
+     {
+      "concept": "aggregator",
+      "elements": [
+       "daily-run#aggregator",
+       "enrichment-flow#aggregator"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "risk-model",
+      "elements": [
+       "daily-run#risk-model",
+       "enrichment-flow#risk-model"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "argus",
+      "elements": [
+       "daily-run#market-feed",
+       "enrichment-flow#market-feed"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "argus",
+      "elements": [
+       "daily-run#sec-edgar",
+       "enrichment-flow#sec-edgar"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "argus",
+      "elements": [
+       "daily-run#news-stream",
+       "enrichment-flow#news-stream"
+      ],
+      "kinds": null,
+      "note": null
+     }
+    ],
+    "pins": [
+     {
+      "answer": "Sentiment scorer is the only model — an LLM reading headlines and filing tone. Ratios, technicals and the Form-4 clustering are formulas.",
+      "answered_at": "2026-08-10T06:38:01Z",
+      "artifact": "daily-run",
+      "asked_at_revn": 1,
+      "detail": "You called Argus an agent, but three of the four scorers sound deterministic — ratios, technical signals, and Form-4 clustering are formulas. The sentiment scorer sounds like the one that actually decides something.\n\nIt matters twice. First, a nondeterministic step gets drawn differently and owes a rule nobody ever volunteers: what does it do when it is unsure? Second, the console lets you rerun a pipeline with new settings — if the scorer is a model, the same inputs and the same settings will not give you the same number, and 'rerun' quietly means something else.",
+      "element": "enrichment",
+      "examples": [
+       "All four deterministic: an LLM writes prose *around* the numbers, but never produces one",
+       "Sentiment scorer is an LLM; the other three are formulas",
+       "The risk model itself is the judgement call, and the four scorers are all just features"
+      ],
+      "id": "pin-nondeterminism",
+      "question": "Which of the four scorers is a model making a judgement, and which is arithmetic?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "daily-run",
+      "asked_at_revn": 1,
+      "detail": "06:00 before the open is a deadline, not a start time — a Weekly Brief that arrives at 10:00 is a different product from one that arrives at 06:30. So the interesting flow is not the one drawn here; it is the one where a source is late.\n\nWhichever answer you give becomes a second diagram, because degradation crammed into footnotes on the happy path is how it gets forgotten. I need to know what the output looks like when it is partial: does the dashboard say so, do the PDFs still generate, does anyone get told.",
+      "element": "run-trigger",
+      "examples": [
+       "Wait up to N minutes, then ship whatever arrived, flagged as partial",
+       "Ship on time always — a stale EDGAR pull from yesterday is better than a late brief",
+       "No EDGAR, no run — the insider signal is the whole point and a brief without it misleads"
+      ],
+      "id": "pin-deadline",
+      "question": "It's 06:00 and EDGAR is down. Does the run wait, ship without it, or not ship?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "daily-run",
+      "asked_at_revn": 1,
+      "detail": "I drew it as a fourth peer source feeding enrichment, but I suspect that is wrong — it is the only one that is ours, and it is the only one that knows what we care about.\n\nIf the portfolio picks the universe, it runs *first* and everything downstream is small. If it enters late, you are scoring the whole market every morning and filtering at the end — much more expensive, but you can spot something you don't hold yet. That is a real trade-off and it changes the shape of this diagram, not just an arrow.",
+      "element": "portfolio-db",
+      "examples": [
+       "Universe filter: only score what we hold — cheap, but blind to new ideas",
+       "Late join: score broadly, weigh against holdings at the risk model",
+       "Both: holdings are scored deeply, a watchlist is scored shallowly"
+      ],
+      "id": "pin-portfolio-scope",
+      "question": "Does the portfolio decide *what gets scored*, or does it only enter at the risk model?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "enrichment-flow",
+      "asked_at_revn": 2,
+      "detail": "I drew the verdict looping back into the aggregator, which asserts that a knocked-back signal gets re-aggregated and comes out different. That is a guess and it is the kind of guess that quietly becomes architecture.\n\nThe three readings behave very differently on the page. If the signal is suppressed, the Signals Digest is shorter on crowded days and nobody knows why. If it is downgraded, it still appears but ranks lower. If it is only flagged, the analyst sees 'crowded' next to it and decides — which means the screen is not a gate at all and I should take it off the main line.\n\nThere is a second half: if it loops, can it loop twice?",
+      "element": "contrarian-screen",
+      "examples": [
+       "Suppressed — the signal never reaches the risk model",
+       "Downgraded — confidence is cut, it still shows",
+       "Flagged only — the analyst is told it is crowded and judges for themselves"
+      ],
+      "id": "pin-knockback",
+      "question": "When the screen knocks a signal back — is it gone, quieter, or just flagged?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "enrichment-flow",
+      "asked_at_revn": 2,
+      "detail": "It is the only model here, which means it is the only step that can be unsure — and a model that is unsure will still hand you a number unless you have decided otherwise. Nobody ever specifies this until it has already gone wrong.\n\nThere is a consequence attached. The console offers 'rerun this pipeline with new settings'. For the other three that is a clean re-computation. For this one, the same inputs and the same settings can return a different number, so a rerun is not a repeat — it is a second opinion. That is either a feature you want to name, or a surprise waiting for the analyst who reruns to check something.",
+      "element": "sentiment-scorer",
+      "examples": [
+       "Neutral 0 — indistinguishable from 'read it, felt nothing'",
+       "Abstains: no signal at all, and the aggregate weights the other three up",
+       "Emits a score plus its own confidence, and the confidence threshold does the filtering"
+      ],
+      "id": "pin-sentiment-unsure",
+      "question": "What does the sentiment scorer emit when it genuinely doesn't know?",
+      "round": 1,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "argus-domain",
+      "asked_at_revn": 5,
+      "detail": "Your definition and the enrichment wiring disagree in one specific place, and I only noticed because both are drawn now.\n\n'A pipeline is one source end to end' implies the four pipelines are disjoint — each owns its scorers. But Sentiment reads headlines *and* filing tone, so it sits in the EDGAR pipeline and the News pipeline at once. Rerunning EDGAR therefore recomputes a number that is partly about news, and because Sentiment is the LLM, the news half of that answer can come back different even though no news changed.\n\nSo an analyst reruns EDGAR to check a filing, and a sentiment score they were not looking at quietly moves. Three ways out, and they are real forks, not phrasings.",
+      "element": "scorer",
+      "examples": [
+       "Accept it: pipelines overlap, rerunning EDGAR recomputes shared scorers too",
+       "Split Sentiment into two scorers — filing tone and headline tone — so pipelines stay disjoint",
+       "Rerun re-pulls the source but only recomputes the parts that depend on it, pinning the rest"
+      ],
+      "id": "pin-shared-scorer",
+      "question": "Rerunning the EDGAR pipeline reruns the Sentiment Scorer — which is half News's. Is that intended?",
+      "round": 2,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "argus-domain",
+      "asked_at_revn": 5,
+      "detail": "This is the noun the whole system is about and you have never once had to say it — you have said 'the whole universe gets scored' and 'crowded trades' and 'what we hold', but never named the thing itself. That is normal, and it is exactly why it is worth naming now: it is about to appear as a column header on the dashboard, a row in three PDFs, and a filter in the admin console.\n\nThe choice is not cosmetic. 'Ticker' quietly says one row per listing. 'Issuer' says the bond and the equity are the same subject. 'Instrument' says they are not. Pick the one your analyst already says out loud when nobody is writing it down.",
+      "element": "instrument",
+      "examples": [
+       "Ticker / Symbol — one row per listing",
+       "Instrument / Security — bonds and equities are separate subjects",
+       "Issuer / Company — one subject, many listings under it",
+       "Name — what desks often actually say"
+      ],
+      "id": "pin-instrument-name",
+      "question": "What do you and the analyst actually call this? I've guessed 'Instrument'.",
+      "round": 2,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "admin-console",
+      "asked_at_revn": 8,
+      "detail": "A Pipeline is one source end to end. But the risk threshold belongs to the Risk Model and the confidence threshold belongs to the Aggregator — both of which sit after all four pipelines have merged.\n\nSo 'rerun the EDGAR pipeline with new settings' has no obvious meaning. Either the settings that belong to a pipeline are *different* settings from these two (per-source knobs I haven't drawn), or moving a threshold re-runs the aggregate for every Name at once — in which case the rerun buttons and these sliders are two unrelated controls that happen to share a screen, and the screen should probably say so.\n\nThe third possibility is the interesting one: thresholds don't rerun anything, they just re-filter what is already computed.",
+      "element": "panel-thresholds",
+      "examples": [
+       "Thresholds are display filters — nothing recomputes, the dashboard just shows fewer rows",
+       "Moving a threshold re-runs the aggregate for everything (not per-pipeline at all)",
+       "Pipelines have their own settings I haven't drawn, and these two are separate"
+      ],
+      "id": "pin-threshold-scope",
+      "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+      "round": 4,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "admin-console",
+      "asked_at_revn": 8,
+      "detail": "The domain model says a Run is a thing with an identity, and a Pipeline can be a 'rerun of' another. That leaves the important half unanswered: after you press this, is there one set of numbers or two?\n\nIf it overwrites, the PDFs that already went out no longer match the dashboard, and nobody can reconstruct what the 06:00 brief said. If it sits alongside, the dashboard needs to say which run you are looking at — and that is a whole piece of screen furniture that does not exist yet.\n\nSharpest for the Sentiment Scorer, since a rerun of it can return a different number from identical inputs. Overwriting there means the record of what the model said this morning is gone.",
+      "element": "btn-rerun-edgar",
+      "examples": [
+       "Overwrites — there is one current state and reruns correct it",
+       "Sits alongside — runs are immutable, the console shows which one you're viewing",
+       "Overwrites the dashboard but the PDFs are already sent and stay as sent"
+      ],
+      "id": "pin-rerun-result",
+      "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?",
+      "round": 4,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "admin-console",
+      "asked_at_revn": 9,
+      "detail": "Your two answers put a trap on one row. The switch is deferred — it takes effect on tomorrow's 06:00 run. The Rerun button is immediate. They sit side by side on a row you just told me is *one object*, and that is exactly why the mismatch is invisible.\n\nSo the obvious gesture — turn a bad source off and rerun to see the pipeline without it — either does nothing surprising, does nothing at all, or does something the screen never said. And the reverse gesture is worse: switch EDGAR back ON and hit Rerun expecting today's numbers to include it.\n\nWhichever answer is true, the screen currently does not say it. The annotation I added says switches are deferred, but it does not tell you what Rerun respects.",
+      "element": "tog-edgar",
+      "examples": [
+       "Rerun uses the live switch state — so Rerun is the way to make a switch take effect today",
+       "Rerun uses this morning's state — the switch is genuinely tomorrow-only and Rerun ignores it",
+       "Rerun is disabled while a row's switch is off — pending changes block it"
+      ],
+      "id": "pin-switch-rerun-timing",
+      "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?",
+      "round": 4,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "edgar-late",
+      "asked_at_revn": 17,
+      "detail": "This diamond is the one box on the canvas I have no evidence for. You told me EDGAR is late twice a month and that you find out from the numbers — which describes a system that does not notice, and a system that does not notice usually does not wait either.\n\nThree shapes, and they are genuinely different machines. If Argus waits and then gives up, there is a timer and a decision, and this diamond is real. If it just fires requests at 06:00 and uses whatever came back before enrichment started, there is no decision anywhere and the diamond should be deleted — the whole thing is a straight line and the failure is that nothing checks. If EDGAR is 'late' in the sense that the *filings* appear later in the day rather than the API being slow, then this is not a timeout at all and the fix is a second run, not an alert.\n\nI would rather delete this box than leave it there being flattering.",
+      "element": "wait-cutoff",
+      "examples": [
+       "There is a wait-then-give-up timer — the diamond is real, tell me the number",
+       "No timer: we take whatever the pull returned, nothing checks completeness",
+       "EDGAR isn't slow — the filings themselves land later in the day"
+      ],
+      "id": "pin-cutoff-exists",
+      "question": "Is there a cutoff at all, or does Argus just take whatever EDGAR gave it?",
+      "round": 5,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "edgar-late",
+      "asked_at_revn": 17,
+      "detail": "This is the box the whole session has been walking toward, and it is the only one that is a decision nobody has made yet rather than a fact about what exists.\n\nThe options are not equivalent, and the difference is who absorbs the cost. Telling you at 06:05 puts a message in your morning twice a month and lets you decide before the brief is read. Marking the output partial costs nothing in attention but relies on someone noticing a badge. Holding the Signals Digest — the one report that most depends on the insider detector — trades punctuality for correctness on exactly the report where correctness matters most, and breaks the 06:00 promise for the other two.\n\nWorth naming: the Weekly Brief is presumably not written on a Tuesday, so a late EDGAR on the wrong day may matter far more than on the others.",
+      "element": "nobody-told",
+      "examples": [
+       "Alert me at the cutoff — a message, before the brief is read",
+       "Mark the output partial: a badge on the dashboard, a line in each PDF",
+       "Hold the Signals Digest, ship the other two on time",
+       "Re-run the EDGAR pipeline automatically when the filings land, and reissue"
+      ],
+      "id": "pin-what-should-happen",
+      "question": "Twice a month, at 06:05, what should have happened instead?",
+      "round": 5,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "tuesday-triage",
+      "asked_at_revn": 20,
+      "detail": "This step is the most useful thing in the paste, because it contradicts a decision we wrote down two rounds ago.\n\nADR 0001 says the thresholds are display filters: everything is scored regardless, and moving a slider re-filters results that already exist. Your own Tuesday process says you re-pull a source and then *rerun at 0.65*.\n\nIf 0.65 is just the slider and 'rerun' is loose desk language, the ADR stands and this box should read 're-filter at 0.65' — worth fixing, because the next person will read it literally. But if there is genuinely a way to recompute with a different threshold, then the ADR is wrong in a way that matters, and I would rather find that out now than have it discovered by whoever inherits these drawings.",
+      "element": "rerun-065",
+      "examples": [
+       "Loose language — I move the slider to 0.65 and look again, nothing recomputes",
+       "There is a real rerun-with-threshold path the console doesn't show",
+       "0.65 isn't a threshold at all — it's something else"
+      ],
+      "id": "pin-rerun-at-065",
+      "question": "\"Rerun at 0.65\" — but we just recorded that thresholds don't rerun anything. Which of us is wrong?",
+      "round": 6,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "tuesday-triage",
+      "asked_at_revn": 20,
+      "detail": "Your sketch ends at this box, and that ending is the finding. Every step above it is you manually reconstructing a comparison that the system could have handed you — and the reason the reconstruction is needed is that no run records what it differed from.\n\nThis is the same hole as the EDGAR-late diagram, seen from the other end. There, nothing tells you a source was missing. Here, nothing tells you what changed between two runs. One mechanism answers both: if a run recorded which sources it had and which settings it used, 'EDGAR was absent' and 'the sentiment scores moved' stop being detective work.\n\nWorth naming what you would settle for, because a full diff of two runs and a one-line 'this run had 2 of 3 sources' are very different amounts of work.",
+      "element": "which-knob",
+      "examples": [
+       "A run manifest: which sources, which settings, which scorers ran",
+       "A real run-vs-run diff in the UI — the two tabs, done properly",
+       "Neither: the triage is fine, it's the silence at 06:00 that needs fixing"
+      ],
+      "id": "pin-attribution",
+      "question": "Nothing in Argus can answer \"which knob moved it\". Should it?",
+      "round": 6,
+      "status": "open"
+     }
+    ],
+    "tripwires": [],
+    "waives": {
+     "q12:admin-console:confidence-threshold": {
+      "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'",
+      "when": "2026-08-10"
+     },
+     "q12:admin-console:risk-threshold": {
+      "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'",
+      "when": "2026-08-10"
+     }
+    }
+   }
+  },
+  {
+   "archived": true,
+   "forked_at_revn": 14,
+   "forked_from": "main",
+   "head": 22,
+   "name": "alt-0022",
+   "origin_revn": 22,
+   "scope": {
+    "budgets": {
+     "admin-console": {
+      "arrows": 1,
+      "nodes": 16,
+      "reason": "a control panel's block count IS its content — dropping controls to fit 9 would draw a screen the user does not have"
+     },
+     "tuesday-triage": {
+      "arrows": 11,
+      "nodes": 10,
+      "reason": "transcribed from the user's own paste — their process, not mine to shrink to fit"
+     }
+    },
+    "concepts": [
+     {
+      "glossary": null,
+      "id": "argus",
+      "name": "Argus",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "argus-domain"
+      ]
+     },
+     {
+      "glossary": "Signal",
+      "id": "signal",
+      "name": "Signal",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Aggregator",
+      "id": "aggregator",
+      "name": "Aggregator",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Contrarian Screen",
+      "id": "contrarian-screen",
+      "name": "Contrarian Screen",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Portfolio DB",
+      "id": "portfolio-db",
+      "name": "Portfolio DB",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Risk Model",
+      "id": "risk-model",
+      "name": "Risk Model",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Enrichment",
+      "id": "enrichment",
+      "name": "Enrichment",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "enrichment-flow"
+      ]
+     },
+     {
+      "glossary": "Run",
+      "id": "run",
+      "name": "Run",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "daily-run",
+       "edgar-late"
+      ]
+     },
+     {
+      "glossary": "Sentiment Scorer",
+      "id": "sentiment-scorer",
+      "name": "Sentiment Scorer",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Insider Cluster Detector",
+      "id": "insider-detector",
+      "name": "Insider Cluster Detector",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Pipeline",
+      "id": "pipeline",
+      "name": "Pipeline",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Scorer",
+      "id": "scorer",
+      "name": "Scorer",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Report",
+      "id": "report",
+      "name": "Report",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Name",
+      "id": "instrument",
+      "name": "Name",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Assessment",
+      "id": "assessment",
+      "name": "Assessment",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Holding",
+      "id": "position",
+      "name": "Holding",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Ticker",
+      "id": "ticker",
+      "name": "Ticker",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": null,
+      "id": "admin-console",
+      "name": "Admin Console",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "admin-console"
+      ]
+     },
+     {
+      "glossary": "Risk threshold",
+      "id": "risk-threshold",
+      "name": "Risk threshold",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Confidence threshold",
+      "id": "confidence-threshold",
+      "name": "Confidence threshold",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": "Source switch",
+      "id": "source-switch",
+      "name": "Source switch",
+      "owed": [],
+      "unviewed": true,
+      "views": []
+     },
+     {
+      "glossary": null,
+      "id": "triage",
+      "name": "Triage",
+      "owed": [],
+      "unviewed": false,
+      "views": [
+       "tuesday-triage"
+      ]
+     }
+    ],
+    "declined": [],
+    "divergence_policies": [],
+    "mappings": [
+     {
+      "concept": "aggregator",
+      "elements": [
+       "daily-run#aggregator",
+       "enrichment-flow#aggregator"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "risk-model",
+      "elements": [
+       "daily-run#risk-model",
+       "enrichment-flow#risk-model"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "argus",
+      "elements": [
+       "daily-run#market-feed",
+       "enrichment-flow#market-feed"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "argus",
+      "elements": [
+       "daily-run#sec-edgar",
+       "enrichment-flow#sec-edgar"
+      ],
+      "kinds": null,
+      "note": null
+     },
+     {
+      "concept": "argus",
+      "elements": [
+       "daily-run#news-stream",
+       "enrichment-flow#news-stream"
+      ],
+      "kinds": null,
+      "note": null
+     }
+    ],
+    "pins": [
+     {
+      "answer": "Sentiment scorer is the only model — an LLM reading headlines and filing tone. Ratios, technicals and the Form-4 clustering are formulas.",
+      "answered_at": "2026-08-10T06:38:01Z",
+      "artifact": "daily-run",
+      "asked_at_revn": 1,
+      "detail": "You called Argus an agent, but three of the four scorers sound deterministic — ratios, technical signals, and Form-4 clustering are formulas. The sentiment scorer sounds like the one that actually decides something.\n\nIt matters twice. First, a nondeterministic step gets drawn differently and owes a rule nobody ever volunteers: what does it do when it is unsure? Second, the console lets you rerun a pipeline with new settings — if the scorer is a model, the same inputs and the same settings will not give you the same number, and 'rerun' quietly means something else.",
+      "element": "enrichment",
+      "examples": [
+       "All four deterministic: an LLM writes prose *around* the numbers, but never produces one",
+       "Sentiment scorer is an LLM; the other three are formulas",
+       "The risk model itself is the judgement call, and the four scorers are all just features"
+      ],
+      "id": "pin-nondeterminism",
+      "question": "Which of the four scorers is a model making a judgement, and which is arithmetic?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "daily-run",
+      "asked_at_revn": 1,
+      "detail": "06:00 before the open is a deadline, not a start time — a Weekly Brief that arrives at 10:00 is a different product from one that arrives at 06:30. So the interesting flow is not the one drawn here; it is the one where a source is late.\n\nWhichever answer you give becomes a second diagram, because degradation crammed into footnotes on the happy path is how it gets forgotten. I need to know what the output looks like when it is partial: does the dashboard say so, do the PDFs still generate, does anyone get told.",
+      "element": "run-trigger",
+      "examples": [
+       "Wait up to N minutes, then ship whatever arrived, flagged as partial",
+       "Ship on time always — a stale EDGAR pull from yesterday is better than a late brief",
+       "No EDGAR, no run — the insider signal is the whole point and a brief without it misleads"
+      ],
+      "id": "pin-deadline",
+      "question": "It's 06:00 and EDGAR is down. Does the run wait, ship without it, or not ship?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "daily-run",
+      "asked_at_revn": 1,
+      "detail": "I drew it as a fourth peer source feeding enrichment, but I suspect that is wrong — it is the only one that is ours, and it is the only one that knows what we care about.\n\nIf the portfolio picks the universe, it runs *first* and everything downstream is small. If it enters late, you are scoring the whole market every morning and filtering at the end — much more expensive, but you can spot something you don't hold yet. That is a real trade-off and it changes the shape of this diagram, not just an arrow.",
+      "element": "portfolio-db",
+      "examples": [
+       "Universe filter: only score what we hold — cheap, but blind to new ideas",
+       "Late join: score broadly, weigh against holdings at the risk model",
+       "Both: holdings are scored deeply, a watchlist is scored shallowly"
+      ],
+      "id": "pin-portfolio-scope",
+      "question": "Does the portfolio decide *what gets scored*, or does it only enter at the risk model?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "enrichment-flow",
+      "asked_at_revn": 2,
+      "detail": "I drew the verdict looping back into the aggregator, which asserts that a knocked-back signal gets re-aggregated and comes out different. That is a guess and it is the kind of guess that quietly becomes architecture.\n\nThe three readings behave very differently on the page. If the signal is suppressed, the Signals Digest is shorter on crowded days and nobody knows why. If it is downgraded, it still appears but ranks lower. If it is only flagged, the analyst sees 'crowded' next to it and decides — which means the screen is not a gate at all and I should take it off the main line.\n\nThere is a second half: if it loops, can it loop twice?",
+      "element": "contrarian-screen",
+      "examples": [
+       "Suppressed — the signal never reaches the risk model",
+       "Downgraded — confidence is cut, it still shows",
+       "Flagged only — the analyst is told it is crowded and judges for themselves"
+      ],
+      "id": "pin-knockback",
+      "question": "When the screen knocks a signal back — is it gone, quieter, or just flagged?",
+      "round": 1,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "enrichment-flow",
+      "asked_at_revn": 2,
+      "detail": "It is the only model here, which means it is the only step that can be unsure — and a model that is unsure will still hand you a number unless you have decided otherwise. Nobody ever specifies this until it has already gone wrong.\n\nThere is a consequence attached. The console offers 'rerun this pipeline with new settings'. For the other three that is a clean re-computation. For this one, the same inputs and the same settings can return a different number, so a rerun is not a repeat — it is a second opinion. That is either a feature you want to name, or a surprise waiting for the analyst who reruns to check something.",
+      "element": "sentiment-scorer",
+      "examples": [
+       "Neutral 0 — indistinguishable from 'read it, felt nothing'",
+       "Abstains: no signal at all, and the aggregate weights the other three up",
+       "Emits a score plus its own confidence, and the confidence threshold does the filtering"
+      ],
+      "id": "pin-sentiment-unsure",
+      "question": "What does the sentiment scorer emit when it genuinely doesn't know?",
+      "round": 1,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "argus-domain",
+      "asked_at_revn": 5,
+      "detail": "Your definition and the enrichment wiring disagree in one specific place, and I only noticed because both are drawn now.\n\n'A pipeline is one source end to end' implies the four pipelines are disjoint — each owns its scorers. But Sentiment reads headlines *and* filing tone, so it sits in the EDGAR pipeline and the News pipeline at once. Rerunning EDGAR therefore recomputes a number that is partly about news, and because Sentiment is the LLM, the news half of that answer can come back different even though no news changed.\n\nSo an analyst reruns EDGAR to check a filing, and a sentiment score they were not looking at quietly moves. Three ways out, and they are real forks, not phrasings.",
+      "element": "scorer",
+      "examples": [
+       "Accept it: pipelines overlap, rerunning EDGAR recomputes shared scorers too",
+       "Split Sentiment into two scorers — filing tone and headline tone — so pipelines stay disjoint",
+       "Rerun re-pulls the source but only recomputes the parts that depend on it, pinning the rest"
+      ],
+      "id": "pin-shared-scorer",
+      "question": "Rerunning the EDGAR pipeline reruns the Sentiment Scorer — which is half News's. Is that intended?",
+      "round": 2,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "argus-domain",
+      "asked_at_revn": 5,
+      "detail": "This is the noun the whole system is about and you have never once had to say it — you have said 'the whole universe gets scored' and 'crowded trades' and 'what we hold', but never named the thing itself. That is normal, and it is exactly why it is worth naming now: it is about to appear as a column header on the dashboard, a row in three PDFs, and a filter in the admin console.\n\nThe choice is not cosmetic. 'Ticker' quietly says one row per listing. 'Issuer' says the bond and the equity are the same subject. 'Instrument' says they are not. Pick the one your analyst already says out loud when nobody is writing it down.",
+      "element": "instrument",
+      "examples": [
+       "Ticker / Symbol — one row per listing",
+       "Instrument / Security — bonds and equities are separate subjects",
+       "Issuer / Company — one subject, many listings under it",
+       "Name — what desks often actually say"
+      ],
+      "id": "pin-instrument-name",
+      "question": "What do you and the analyst actually call this? I've guessed 'Instrument'.",
+      "round": 2,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "admin-console",
+      "asked_at_revn": 8,
+      "detail": "A Pipeline is one source end to end. But the risk threshold belongs to the Risk Model and the confidence threshold belongs to the Aggregator — both of which sit after all four pipelines have merged.\n\nSo 'rerun the EDGAR pipeline with new settings' has no obvious meaning. Either the settings that belong to a pipeline are *different* settings from these two (per-source knobs I haven't drawn), or moving a threshold re-runs the aggregate for every Name at once — in which case the rerun buttons and these sliders are two unrelated controls that happen to share a screen, and the screen should probably say so.\n\nThe third possibility is the interesting one: thresholds don't rerun anything, they just re-filter what is already computed.",
+      "element": "panel-thresholds",
+      "examples": [
+       "Thresholds are display filters — nothing recomputes, the dashboard just shows fewer rows",
+       "Moving a threshold re-runs the aggregate for everything (not per-pipeline at all)",
+       "Pipelines have their own settings I haven't drawn, and these two are separate"
+      ],
+      "id": "pin-threshold-scope",
+      "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+      "round": 4,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "admin-console",
+      "asked_at_revn": 8,
+      "detail": "The domain model says a Run is a thing with an identity, and a Pipeline can be a 'rerun of' another. That leaves the important half unanswered: after you press this, is there one set of numbers or two?\n\nIf it overwrites, the PDFs that already went out no longer match the dashboard, and nobody can reconstruct what the 06:00 brief said. If it sits alongside, the dashboard needs to say which run you are looking at — and that is a whole piece of screen furniture that does not exist yet.\n\nSharpest for the Sentiment Scorer, since a rerun of it can return a different number from identical inputs. Overwriting there means the record of what the model said this morning is gone.",
+      "element": "btn-rerun-edgar",
+      "examples": [
+       "Overwrites — there is one current state and reruns correct it",
+       "Sits alongside — runs are immutable, the console shows which one you're viewing",
+       "Overwrites the dashboard but the PDFs are already sent and stay as sent"
+      ],
+      "id": "pin-rerun-result",
+      "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?",
+      "round": 4,
+      "status": "resolved"
+     },
+     {
+      "answer": null,
+      "artifact": "admin-console",
+      "asked_at_revn": 9,
+      "detail": "Your two answers put a trap on one row. The switch is deferred — it takes effect on tomorrow's 06:00 run. The Rerun button is immediate. They sit side by side on a row you just told me is *one object*, and that is exactly why the mismatch is invisible.\n\nSo the obvious gesture — turn a bad source off and rerun to see the pipeline without it — either does nothing surprising, does nothing at all, or does something the screen never said. And the reverse gesture is worse: switch EDGAR back ON and hit Rerun expecting today's numbers to include it.\n\nWhichever answer is true, the screen currently does not say it. The annotation I added says switches are deferred, but it does not tell you what Rerun respects.",
+      "element": "tog-edgar",
+      "examples": [
+       "Rerun uses the live switch state — so Rerun is the way to make a switch take effect today",
+       "Rerun uses this morning's state — the switch is genuinely tomorrow-only and Rerun ignores it",
+       "Rerun is disabled while a row's switch is off — pending changes block it"
+      ],
+      "id": "pin-switch-rerun-timing",
+      "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?",
+      "round": 4,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "edgar-late",
+      "asked_at_revn": 17,
+      "detail": "This diamond is the one box on the canvas I have no evidence for. You told me EDGAR is late twice a month and that you find out from the numbers — which describes a system that does not notice, and a system that does not notice usually does not wait either.\n\nThree shapes, and they are genuinely different machines. If Argus waits and then gives up, there is a timer and a decision, and this diamond is real. If it just fires requests at 06:00 and uses whatever came back before enrichment started, there is no decision anywhere and the diamond should be deleted — the whole thing is a straight line and the failure is that nothing checks. If EDGAR is 'late' in the sense that the *filings* appear later in the day rather than the API being slow, then this is not a timeout at all and the fix is a second run, not an alert.\n\nI would rather delete this box than leave it there being flattering.",
+      "element": "wait-cutoff",
+      "examples": [
+       "There is a wait-then-give-up timer — the diamond is real, tell me the number",
+       "No timer: we take whatever the pull returned, nothing checks completeness",
+       "EDGAR isn't slow — the filings themselves land later in the day"
+      ],
+      "id": "pin-cutoff-exists",
+      "question": "Is there a cutoff at all, or does Argus just take whatever EDGAR gave it?",
+      "round": 5,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "edgar-late",
+      "asked_at_revn": 17,
+      "detail": "This is the box the whole session has been walking toward, and it is the only one that is a decision nobody has made yet rather than a fact about what exists.\n\nThe options are not equivalent, and the difference is who absorbs the cost. Telling you at 06:05 puts a message in your morning twice a month and lets you decide before the brief is read. Marking the output partial costs nothing in attention but relies on someone noticing a badge. Holding the Signals Digest — the one report that most depends on the insider detector — trades punctuality for correctness on exactly the report where correctness matters most, and breaks the 06:00 promise for the other two.\n\nWorth naming: the Weekly Brief is presumably not written on a Tuesday, so a late EDGAR on the wrong day may matter far more than on the others.",
+      "element": "nobody-told",
+      "examples": [
+       "Alert me at the cutoff — a message, before the brief is read",
+       "Mark the output partial: a badge on the dashboard, a line in each PDF",
+       "Hold the Signals Digest, ship the other two on time",
+       "Re-run the EDGAR pipeline automatically when the filings land, and reissue"
+      ],
+      "id": "pin-what-should-happen",
+      "question": "Twice a month, at 06:05, what should have happened instead?",
+      "round": 5,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "tuesday-triage",
+      "asked_at_revn": 20,
+      "detail": "This step is the most useful thing in the paste, because it contradicts a decision we wrote down two rounds ago.\n\nADR 0001 says the thresholds are display filters: everything is scored regardless, and moving a slider re-filters results that already exist. Your own Tuesday process says you re-pull a source and then *rerun at 0.65*.\n\nIf 0.65 is just the slider and 'rerun' is loose desk language, the ADR stands and this box should read 're-filter at 0.65' — worth fixing, because the next person will read it literally. But if there is genuinely a way to recompute with a different threshold, then the ADR is wrong in a way that matters, and I would rather find that out now than have it discovered by whoever inherits these drawings.",
+      "element": "rerun-065",
+      "examples": [
+       "Loose language — I move the slider to 0.65 and look again, nothing recomputes",
+       "There is a real rerun-with-threshold path the console doesn't show",
+       "0.65 isn't a threshold at all — it's something else"
+      ],
+      "id": "pin-rerun-at-065",
+      "question": "\"Rerun at 0.65\" — but we just recorded that thresholds don't rerun anything. Which of us is wrong?",
+      "round": 6,
+      "status": "open"
+     },
+     {
+      "answer": null,
+      "artifact": "tuesday-triage",
+      "asked_at_revn": 20,
+      "detail": "Your sketch ends at this box, and that ending is the finding. Every step above it is you manually reconstructing a comparison that the system could have handed you — and the reason the reconstruction is needed is that no run records what it differed from.\n\nThis is the same hole as the EDGAR-late diagram, seen from the other end. There, nothing tells you a source was missing. Here, nothing tells you what changed between two runs. One mechanism answers both: if a run recorded which sources it had and which settings it used, 'EDGAR was absent' and 'the sentiment scores moved' stop being detective work.\n\nWorth naming what you would settle for, because a full diff of two runs and a one-line 'this run had 2 of 3 sources' are very different amounts of work.",
+      "element": "which-knob",
+      "examples": [
+       "A run manifest: which sources, which settings, which scorers ran",
+       "A real run-vs-run diff in the UI — the two tabs, done properly",
+       "Neither: the triage is fine, it's the silence at 06:00 that needs fixing"
+      ],
+      "id": "pin-attribution",
+      "question": "Nothing in Argus can answer \"which knob moved it\". Should it?",
+      "round": 6,
+      "status": "open"
+     }
+    ],
+    "tripwires": [],
+    "waives": {
+     "q12:admin-console:confidence-threshold": {
+      "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'",
+      "when": "2026-08-10"
+     },
+     "q12:admin-console:risk-threshold": {
+      "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'",
+      "when": "2026-08-10"
+     }
+    }
+   }
+  }
+ ],
+ "budgets": {
+  "admin-console": {
+   "arrows": 1,
+   "nodes": 16,
+   "reason": "a control panel's block count IS its content — dropping controls to fit 9 would draw a screen the user does not have"
+  },
+  "tuesday-triage": {
+   "arrows": 11,
+   "nodes": 10,
+   "reason": "transcribed from the user's own paste — their process, not mine to shrink to fit"
+  }
+ },
+ "concepts": [
+  {
+   "glossary": null,
+   "id": "argus",
+   "name": "Argus",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "argus-domain"
+   ]
+  },
+  {
+   "glossary": "Signal",
+   "id": "signal",
+   "name": "Signal",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Aggregator",
+   "id": "aggregator",
+   "name": "Aggregator",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Contrarian Screen",
+   "id": "contrarian-screen",
+   "name": "Contrarian Screen",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Portfolio DB",
+   "id": "portfolio-db",
+   "name": "Portfolio DB",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Risk Model",
+   "id": "risk-model",
+   "name": "Risk Model",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Enrichment",
+   "id": "enrichment",
+   "name": "Enrichment",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "enrichment-flow"
+   ]
+  },
+  {
+   "glossary": "Run",
+   "id": "run",
+   "name": "Run",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "daily-run",
+    "edgar-late"
+   ]
+  },
+  {
+   "glossary": "Sentiment Scorer",
+   "id": "sentiment-scorer",
+   "name": "Sentiment Scorer",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Insider Cluster Detector",
+   "id": "insider-detector",
+   "name": "Insider Cluster Detector",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Pipeline",
+   "id": "pipeline",
+   "name": "Pipeline",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Scorer",
+   "id": "scorer",
+   "name": "Scorer",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Report",
+   "id": "report",
+   "name": "Report",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Name",
+   "id": "instrument",
+   "name": "Name",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Assessment",
+   "id": "assessment",
+   "name": "Assessment",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Holding",
+   "id": "position",
+   "name": "Holding",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Ticker",
+   "id": "ticker",
+   "name": "Ticker",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": null,
+   "id": "admin-console",
+   "name": "Admin Console",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "admin-console"
+   ]
+  },
+  {
+   "glossary": "Risk threshold",
+   "id": "risk-threshold",
+   "name": "Risk threshold",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Confidence threshold",
+   "id": "confidence-threshold",
+   "name": "Confidence threshold",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": "Source switch",
+   "id": "source-switch",
+   "name": "Source switch",
+   "owed": [],
+   "unviewed": true,
+   "views": []
+  },
+  {
+   "glossary": null,
+   "id": "triage",
+   "name": "Triage",
+   "owed": [],
+   "unviewed": false,
+   "views": [
+    "tuesday-triage"
+   ]
+  }
+ ],
+ "declined": [],
+ "divergence_policies": [],
+ "head": "main",
+ "mappings": [
+  {
+   "concept": "aggregator",
+   "elements": [
+    "daily-run#aggregator",
+    "enrichment-flow#aggregator"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "risk-model",
+   "elements": [
+    "daily-run#risk-model",
+    "enrichment-flow#risk-model"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run#market-feed",
+    "enrichment-flow#market-feed"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run#sec-edgar",
+    "enrichment-flow#sec-edgar"
+   ],
+   "kinds": null,
+   "note": null
+  },
+  {
+   "concept": "argus",
+   "elements": [
+    "daily-run#news-stream",
+    "enrichment-flow#news-stream"
+   ],
+   "kinds": null,
+   "note": null
+  }
+ ],
+ "migrations": [
+  "0001-baseline",
+  "0002-branch-scoped-registry"
+ ],
+ "pins": [
+  {
+   "answer": "Sentiment scorer is the only model — an LLM reading headlines and filing tone. Ratios, technicals and the Form-4 clustering are formulas.",
+   "answered_at": "2026-08-10T06:38:01Z",
+   "artifact": "daily-run",
+   "asked_at_revn": 1,
+   "detail": "You called Argus an agent, but three of the four scorers sound deterministic — ratios, technical signals, and Form-4 clustering are formulas. The sentiment scorer sounds like the one that actually decides something.\n\nIt matters twice. First, a nondeterministic step gets drawn differently and owes a rule nobody ever volunteers: what does it do when it is unsure? Second, the console lets you rerun a pipeline with new settings — if the scorer is a model, the same inputs and the same settings will not give you the same number, and 'rerun' quietly means something else.",
+   "element": "enrichment",
+   "examples": [
+    "All four deterministic: an LLM writes prose *around* the numbers, but never produces one",
+    "Sentiment scorer is an LLM; the other three are formulas",
+    "The risk model itself is the judgement call, and the four scorers are all just features"
+   ],
+   "id": "pin-nondeterminism",
+   "question": "Which of the four scorers is a model making a judgement, and which is arithmetic?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "daily-run",
+   "asked_at_revn": 1,
+   "detail": "06:00 before the open is a deadline, not a start time — a Weekly Brief that arrives at 10:00 is a different product from one that arrives at 06:30. So the interesting flow is not the one drawn here; it is the one where a source is late.\n\nWhichever answer you give becomes a second diagram, because degradation crammed into footnotes on the happy path is how it gets forgotten. I need to know what the output looks like when it is partial: does the dashboard say so, do the PDFs still generate, does anyone get told.",
+   "element": "run-trigger",
+   "examples": [
+    "Wait up to N minutes, then ship whatever arrived, flagged as partial",
+    "Ship on time always — a stale EDGAR pull from yesterday is better than a late brief",
+    "No EDGAR, no run — the insider signal is the whole point and a brief without it misleads"
+   ],
+   "id": "pin-deadline",
+   "question": "It's 06:00 and EDGAR is down. Does the run wait, ship without it, or not ship?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "daily-run",
+   "asked_at_revn": 1,
+   "detail": "I drew it as a fourth peer source feeding enrichment, but I suspect that is wrong — it is the only one that is ours, and it is the only one that knows what we care about.\n\nIf the portfolio picks the universe, it runs *first* and everything downstream is small. If it enters late, you are scoring the whole market every morning and filtering at the end — much more expensive, but you can spot something you don't hold yet. That is a real trade-off and it changes the shape of this diagram, not just an arrow.",
+   "element": "portfolio-db",
+   "examples": [
+    "Universe filter: only score what we hold — cheap, but blind to new ideas",
+    "Late join: score broadly, weigh against holdings at the risk model",
+    "Both: holdings are scored deeply, a watchlist is scored shallowly"
+   ],
+   "id": "pin-portfolio-scope",
+   "question": "Does the portfolio decide *what gets scored*, or does it only enter at the risk model?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-flow",
+   "asked_at_revn": 2,
+   "detail": "I drew the verdict looping back into the aggregator, which asserts that a knocked-back signal gets re-aggregated and comes out different. That is a guess and it is the kind of guess that quietly becomes architecture.\n\nThe three readings behave very differently on the page. If the signal is suppressed, the Signals Digest is shorter on crowded days and nobody knows why. If it is downgraded, it still appears but ranks lower. If it is only flagged, the analyst sees 'crowded' next to it and decides — which means the screen is not a gate at all and I should take it off the main line.\n\nThere is a second half: if it loops, can it loop twice?",
+   "element": "contrarian-screen",
+   "examples": [
+    "Suppressed — the signal never reaches the risk model",
+    "Downgraded — confidence is cut, it still shows",
+    "Flagged only — the analyst is told it is crowded and judges for themselves"
+   ],
+   "id": "pin-knockback",
+   "question": "When the screen knocks a signal back — is it gone, quieter, or just flagged?",
+   "round": 1,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "enrichment-flow",
+   "asked_at_revn": 2,
+   "detail": "It is the only model here, which means it is the only step that can be unsure — and a model that is unsure will still hand you a number unless you have decided otherwise. Nobody ever specifies this until it has already gone wrong.\n\nThere is a consequence attached. The console offers 'rerun this pipeline with new settings'. For the other three that is a clean re-computation. For this one, the same inputs and the same settings can return a different number, so a rerun is not a repeat — it is a second opinion. That is either a feature you want to name, or a surprise waiting for the analyst who reruns to check something.",
+   "element": "sentiment-scorer",
+   "examples": [
+    "Neutral 0 — indistinguishable from 'read it, felt nothing'",
+    "Abstains: no signal at all, and the aggregate weights the other three up",
+    "Emits a score plus its own confidence, and the confidence threshold does the filtering"
+   ],
+   "id": "pin-sentiment-unsure",
+   "question": "What does the sentiment scorer emit when it genuinely doesn't know?",
+   "round": 1,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "argus-domain",
+   "asked_at_revn": 5,
+   "detail": "Your definition and the enrichment wiring disagree in one specific place, and I only noticed because both are drawn now.\n\n'A pipeline is one source end to end' implies the four pipelines are disjoint — each owns its scorers. But Sentiment reads headlines *and* filing tone, so it sits in the EDGAR pipeline and the News pipeline at once. Rerunning EDGAR therefore recomputes a number that is partly about news, and because Sentiment is the LLM, the news half of that answer can come back different even though no news changed.\n\nSo an analyst reruns EDGAR to check a filing, and a sentiment score they were not looking at quietly moves. Three ways out, and they are real forks, not phrasings.",
+   "element": "scorer",
+   "examples": [
+    "Accept it: pipelines overlap, rerunning EDGAR recomputes shared scorers too",
+    "Split Sentiment into two scorers — filing tone and headline tone — so pipelines stay disjoint",
+    "Rerun re-pulls the source but only recomputes the parts that depend on it, pinning the rest"
+   ],
+   "id": "pin-shared-scorer",
+   "question": "Rerunning the EDGAR pipeline reruns the Sentiment Scorer — which is half News's. Is that intended?",
+   "round": 2,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "argus-domain",
+   "asked_at_revn": 5,
+   "detail": "This is the noun the whole system is about and you have never once had to say it — you have said 'the whole universe gets scored' and 'crowded trades' and 'what we hold', but never named the thing itself. That is normal, and it is exactly why it is worth naming now: it is about to appear as a column header on the dashboard, a row in three PDFs, and a filter in the admin console.\n\nThe choice is not cosmetic. 'Ticker' quietly says one row per listing. 'Issuer' says the bond and the equity are the same subject. 'Instrument' says they are not. Pick the one your analyst already says out loud when nobody is writing it down.",
+   "element": "instrument",
+   "examples": [
+    "Ticker / Symbol — one row per listing",
+    "Instrument / Security — bonds and equities are separate subjects",
+    "Issuer / Company — one subject, many listings under it",
+    "Name — what desks often actually say"
+   ],
+   "id": "pin-instrument-name",
+   "question": "What do you and the analyst actually call this? I've guessed 'Instrument'.",
+   "round": 2,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console",
+   "asked_at_revn": 8,
+   "detail": "A Pipeline is one source end to end. But the risk threshold belongs to the Risk Model and the confidence threshold belongs to the Aggregator — both of which sit after all four pipelines have merged.\n\nSo 'rerun the EDGAR pipeline with new settings' has no obvious meaning. Either the settings that belong to a pipeline are *different* settings from these two (per-source knobs I haven't drawn), or moving a threshold re-runs the aggregate for every Name at once — in which case the rerun buttons and these sliders are two unrelated controls that happen to share a screen, and the screen should probably say so.\n\nThe third possibility is the interesting one: thresholds don't rerun anything, they just re-filter what is already computed.",
+   "element": "panel-thresholds",
+   "examples": [
+    "Thresholds are display filters — nothing recomputes, the dashboard just shows fewer rows",
+    "Moving a threshold re-runs the aggregate for everything (not per-pipeline at all)",
+    "Pipelines have their own settings I haven't drawn, and these two are separate"
+   ],
+   "id": "pin-threshold-scope",
+   "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+   "round": 4,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console",
+   "asked_at_revn": 8,
+   "detail": "The domain model says a Run is a thing with an identity, and a Pipeline can be a 'rerun of' another. That leaves the important half unanswered: after you press this, is there one set of numbers or two?\n\nIf it overwrites, the PDFs that already went out no longer match the dashboard, and nobody can reconstruct what the 06:00 brief said. If it sits alongside, the dashboard needs to say which run you are looking at — and that is a whole piece of screen furniture that does not exist yet.\n\nSharpest for the Sentiment Scorer, since a rerun of it can return a different number from identical inputs. Overwriting there means the record of what the model said this morning is gone.",
+   "element": "btn-rerun-edgar",
+   "examples": [
+    "Overwrites — there is one current state and reruns correct it",
+    "Sits alongside — runs are immutable, the console shows which one you're viewing",
+    "Overwrites the dashboard but the PDFs are already sent and stay as sent"
+   ],
+   "id": "pin-rerun-result",
+   "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?",
+   "round": 4,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "admin-console",
+   "asked_at_revn": 9,
+   "detail": "Your two answers put a trap on one row. The switch is deferred — it takes effect on tomorrow's 06:00 run. The Rerun button is immediate. They sit side by side on a row you just told me is *one object*, and that is exactly why the mismatch is invisible.\n\nSo the obvious gesture — turn a bad source off and rerun to see the pipeline without it — either does nothing surprising, does nothing at all, or does something the screen never said. And the reverse gesture is worse: switch EDGAR back ON and hit Rerun expecting today's numbers to include it.\n\nWhichever answer is true, the screen currently does not say it. The annotation I added says switches are deferred, but it does not tell you what Rerun respects.",
+   "element": "tog-edgar",
+   "examples": [
+    "Rerun uses the live switch state — so Rerun is the way to make a switch take effect today",
+    "Rerun uses this morning's state — the switch is genuinely tomorrow-only and Rerun ignores it",
+    "Rerun is disabled while a row's switch is off — pending changes block it"
+   ],
+   "id": "pin-switch-rerun-timing",
+   "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?",
+   "round": 4,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "edgar-late",
+   "asked_at_revn": 17,
+   "detail": "This diamond is the one box on the canvas I have no evidence for. You told me EDGAR is late twice a month and that you find out from the numbers — which describes a system that does not notice, and a system that does not notice usually does not wait either.\n\nThree shapes, and they are genuinely different machines. If Argus waits and then gives up, there is a timer and a decision, and this diamond is real. If it just fires requests at 06:00 and uses whatever came back before enrichment started, there is no decision anywhere and the diamond should be deleted — the whole thing is a straight line and the failure is that nothing checks. If EDGAR is 'late' in the sense that the *filings* appear later in the day rather than the API being slow, then this is not a timeout at all and the fix is a second run, not an alert.\n\nI would rather delete this box than leave it there being flattering.",
+   "element": "wait-cutoff",
+   "examples": [
+    "There is a wait-then-give-up timer — the diamond is real, tell me the number",
+    "No timer: we take whatever the pull returned, nothing checks completeness",
+    "EDGAR isn't slow — the filings themselves land later in the day"
+   ],
+   "id": "pin-cutoff-exists",
+   "question": "Is there a cutoff at all, or does Argus just take whatever EDGAR gave it?",
+   "round": 5,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "edgar-late",
+   "asked_at_revn": 17,
+   "detail": "This is the box the whole session has been walking toward, and it is the only one that is a decision nobody has made yet rather than a fact about what exists.\n\nThe options are not equivalent, and the difference is who absorbs the cost. Telling you at 06:05 puts a message in your morning twice a month and lets you decide before the brief is read. Marking the output partial costs nothing in attention but relies on someone noticing a badge. Holding the Signals Digest — the one report that most depends on the insider detector — trades punctuality for correctness on exactly the report where correctness matters most, and breaks the 06:00 promise for the other two.\n\nWorth naming: the Weekly Brief is presumably not written on a Tuesday, so a late EDGAR on the wrong day may matter far more than on the others.",
+   "element": "nobody-told",
+   "examples": [
+    "Alert me at the cutoff — a message, before the brief is read",
+    "Mark the output partial: a badge on the dashboard, a line in each PDF",
+    "Hold the Signals Digest, ship the other two on time",
+    "Re-run the EDGAR pipeline automatically when the filings land, and reissue"
+   ],
+   "id": "pin-what-should-happen",
+   "question": "Twice a month, at 06:05, what should have happened instead?",
+   "round": 5,
+   "status": "open"
+  },
+  {
+   "answer": null,
+   "artifact": "tuesday-triage",
+   "asked_at_revn": 20,
+   "detail": "This step is the most useful thing in the paste, because it contradicts a decision we wrote down two rounds ago.\n\nADR 0001 says the thresholds are display filters: everything is scored regardless, and moving a slider re-filters results that already exist. Your own Tuesday process says you re-pull a source and then *rerun at 0.65*.\n\nIf 0.65 is just the slider and 'rerun' is loose desk language, the ADR stands and this box should read 're-filter at 0.65' — worth fixing, because the next person will read it literally. But if there is genuinely a way to recompute with a different threshold, then the ADR is wrong in a way that matters, and I would rather find that out now than have it discovered by whoever inherits these drawings.",
+   "element": "rerun-065",
+   "examples": [
+    "Loose language — I move the slider to 0.65 and look again, nothing recomputes",
+    "There is a real rerun-with-threshold path the console doesn't show",
+    "0.65 isn't a threshold at all — it's something else"
+   ],
+   "id": "pin-rerun-at-065",
+   "question": "\"Rerun at 0.65\" — but we just recorded that thresholds don't rerun anything. Which of us is wrong?",
+   "round": 6,
+   "status": "resolved"
+  },
+  {
+   "answer": null,
+   "artifact": "tuesday-triage",
+   "asked_at_revn": 20,
+   "detail": "Your sketch ends at this box, and that ending is the finding. Every step above it is you manually reconstructing a comparison that the system could have handed you — and the reason the reconstruction is needed is that no run records what it differed from.\n\nThis is the same hole as the EDGAR-late diagram, seen from the other end. There, nothing tells you a source was missing. Here, nothing tells you what changed between two runs. One mechanism answers both: if a run recorded which sources it had and which settings it used, 'EDGAR was absent' and 'the sentiment scores moved' stop being detective work.\n\nWorth naming what you would settle for, because a full diff of two runs and a one-line 'this run had 2 of 3 sources' are very different amounts of work.",
+   "element": "which-knob",
+   "examples": [
+    "A run manifest: which sources, which settings, which scorers ran",
+    "A real run-vs-run diff in the UI — the two tabs, done properly",
+    "Neither: the triage is fine, it's the silence at 06:00 that needs fixing"
+   ],
+   "id": "pin-attribution",
+   "question": "Nothing in Argus can answer \"which knob moved it\". Should it?",
+   "round": 6,
+   "status": "open"
+  }
+ ],
+ "revn": 23,
+ "round": 6,
+ "tripwires": [],
+ "waives": {
+  "q12:admin-console:confidence-threshold": {
+   "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'",
+   "when": "2026-08-10"
+  },
+  "q12:admin-console:risk-threshold": {
+   "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'",
+   "when": "2026-08-10"
+  }
+ },
+ "whose_move": "user"
+}

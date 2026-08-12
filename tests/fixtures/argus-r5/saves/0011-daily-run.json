@@ -1,0 +1,405 @@
+{
+ "artifacts": {
+  "daily-run": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrichment",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Enrichment",
+       "text": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, inside"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk Model",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Risk Model",
+       "text": "Reads the aggregate, and joins it against the Portfolio DB for **exposure and co"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Aggregator",
+       "text": "Where the four Signals meet, and what the Risk Model reads.\n\nIt does **not** own"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, insider-cluster detector.\n\n**Click to open the Enrichment flow** — the fan, the aggregator and the contrarian screen live there."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, insider-cluster detector.\n\n**Click to open the Enrichment flow** — the fan and the aggregator live there."
+       }
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against Portfolio DB for **exposure and concentration**. Owns the **risk threshold**."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against the Portfolio DB for **exposure and concentration**.\n\nIt does **not** own the risk threshold — that is a display filter. Canonical: `project_knowledge/CONTEXT.md`."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Where the four signals meet, and what the risk model reads. Owns the **confidence threshold**.\n\nThe contrarian screen sits between this and the risk model — see Enrichment."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Where the four Signals meet, and what the Risk Model reads.\n\nIt does **not** own the confidence threshold — thresholds filter what is shown, they do not gate what is computed. Canonical: `project_knowledge/CONTEXT.md`."
+       }
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "t-portfolio-risk",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "t-portfolio-risk-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline"
+     ],
+     "moved": [
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "t-portfolio-risk-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "t-portfolio-risk",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "t-portfolio-risk-label"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "enrichment",
+     "fact": "tooltip_changed",
+     "label": "Enrichment",
+     "text": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, inside"
+    },
+    {
+     "element": "risk-model",
+     "fact": "tooltip_changed",
+     "label": "Risk Model",
+     "text": "Reads the aggregate, and joins it against the Portfolio DB for **exposure and co"
+    },
+    {
+     "element": "aggregator",
+     "fact": "tooltip_changed",
+     "label": "Aggregator",
+     "text": "Where the four Signals meet, and what the Risk Model reads.\n\nIt does **not** own"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "t-portfolio-risk",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "t-portfolio-risk-label"
+     ],
+     "moved": [
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "t-portfolio-risk-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "t-portfolio-risk",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "t-portfolio-risk-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Where the four Signals meet, and what the Risk Model reads.\n\nIt does **not** own the confidence threshold — thresholds filter what is shown, they do not gate what is computed. Canonical: `project_knowledge/CONTEXT.md`."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Where the four signals meet, and what the risk model reads. Owns the **confidence threshold**.\n\nThe contrarian screen sits between this and the risk model — see Enrichment."
+       }
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against the Portfolio DB for **exposure and concentration**.\n\nIt does **not** own the risk threshold — that is a display filter. Canonical: `project_knowledge/CONTEXT.md`."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against Portfolio DB for **exposure and concentration**. Owns the **risk threshold**."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, insider-cluster detector.\n\n**Click to open the Enrichment flow** — the fan and the aggregator live there."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, insider-cluster detector.\n\n**Click to open the Enrichment flow** — the fan, the aggregator and the contrarian screen live there."
+       }
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Daily Run (06:00)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 10,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 11,
+ "round": 4,
+ "saved_at": "2026-08-10T07:16:31Z",
+ "selection_at_save": [],
+ "short_id": "1c4396c",
+ "summary": {
+  "headline": "reworded the tooltip on Enrichment (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 3
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "promised sweep: three tooltips still claimed the old threshold story and a screen that was never built"
+}

@@ -1,0 +1,78 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 3,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Enrichment",
+   "id": "enrichment",
+   "name": "Enrichment",
+   "views": [
+    "enrichment-flow"
+   ]
+  },
+  {
+   "action": "remove_view",
+   "concept": "signal",
+   "view": "enrichment-flow"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Run",
+   "id": "run",
+   "name": "Run"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Sentiment Scorer",
+   "id": "sentiment-scorer",
+   "name": "Sentiment Scorer"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Insider Cluster Detector",
+   "id": "insider-detector",
+   "name": "Insider Cluster Detector"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Pipeline",
+   "id": "pipeline",
+   "name": "Pipeline"
+  },
+  {
+   "action": "set_round",
+   "round": 2,
+   "whose_move": "user"
+  },
+  {
+   "action": "set_round",
+   "round": 2,
+   "whose_move": "user"
+  }
+ ],
+ "revn": 4,
+ "round": 2,
+ "saved_at": "2026-08-10T06:46:06Z",
+ "selection_at_save": [],
+ "short_id": "05589e5",
+ "summary": {
+  "headline": "registry: upsert concept enrichment (+7 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "registry: reattach the enrichment view, mint the terms that settled this round"
+}
