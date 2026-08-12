@@ -10,12 +10,15 @@ never take down a run — they surface as `detector-error` findings.
 """
 from __future__ import annotations
 
+import copy
+import math
 import re
 import sys
 import unittest
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
@@ -356,9 +359,344 @@ class EngineError(RuntimeError):
     """Raised when a Mutant or its supporting pieces are misconfigured."""
 
 
-# Registered mutation operators; populated by Task 3. Left empty here so
-# Mutant's op guard is inert until then (see the guard's docstring).
-OPERATORS: dict = {}
+def validate_scene(scene: list[dict]) -> None:
+    """Reject a scene whose arrows have degenerate geometry or bindings.
+
+    Every non-deleted arrow must have at least two points, no two
+    consecutive points closer than 1e-6, and a final segment at least
+    1e-6 long; every element's `startBinding`/`endBinding` (if set)
+    must name an id present in the scene.
+
+    Args:
+        scene: The candidate scene to validate.
+
+    Raises:
+        EngineError: Naming the element and what is degenerate about
+            it — missing points, coincident points, a zero-length
+            final segment, or a binding to a missing element.
+    """
+    ids = {e["id"] for e in scene}
+    for e in scene:
+        if e.get("type") != "arrow" or e.get("isDeleted"):
+            continue
+        points = e.get("points") or []
+        if len(points) < 2:
+            raise EngineError("%s: fewer than two points" % e["id"])
+        for i in range(len(points) - 1):
+            (x1, y1), (x2, y2) = points[i], points[i + 1]
+            if math.hypot(x2 - x1, y2 - y1) < 1e-6:
+                raise EngineError("%s: points %d and %d coincide"
+                                  % (e["id"], i, i + 1))
+        (x1, y1), (x2, y2) = points[-2], points[-1]
+        if math.hypot(x2 - x1, y2 - y1) < 1e-6:
+            raise EngineError("%s: final segment is degenerate" % e["id"])
+    for e in scene:
+        for key in ("startBinding", "endBinding"):
+            binding = e.get(key)
+            if binding and binding.get("elementId") not in ids:
+                raise EngineError(
+                    "%s: %s points at missing element %r"
+                    % (e.get("id"), key, binding.get("elementId")))
+
+
+def _operator(fn: Callable[..., list[dict]]) -> Callable[..., list[dict]]:
+    """Deep-copy in, validate out — no operator escapes either.
+
+    Args:
+        fn: An operator body taking a mutable scene copy plus keyword
+            args and returning the mutated scene.
+
+    Returns:
+        A wrapped operator with the same name and docstring as `fn`.
+    """
+    def wrapped(scene: list[dict], **args: Any) -> list[dict]:
+        """Deep-copy `scene`, run the operator, then validate the result.
+
+        Args:
+            scene: The input scene; never mutated in place.
+            **args: Operator-specific keyword arguments.
+
+        Returns:
+            The mutated, validated scene.
+        """
+        out = fn(copy.deepcopy(scene), **args)
+        validate_scene(out)
+        return out
+    wrapped.__name__ = fn.__name__
+    wrapped.__doc__ = fn.__doc__
+    return wrapped
+
+
+@_operator
+def delete_arrowhead(scene: list[dict], arrow_id: str) -> list[dict]:
+    """Strip an arrow's end arrowhead.
+
+    Args:
+        scene: The scene copy to mutate.
+        arrow_id: The arrow's element id.
+
+    Returns:
+        The mutated scene.
+    """
+    arr = next(e for e in scene if e["id"] == arrow_id)
+    arr["endArrowhead"] = None
+    return scene
+
+
+@_operator
+def shift_label(scene: list[dict], text_id: str, dx: float,
+                dy: float) -> list[dict]:
+    """Nudge a text element's position by (dx, dy).
+
+    Args:
+        scene: The scene copy to mutate.
+        text_id: The text element's id.
+        dx: Offset added to the element's `x`.
+        dy: Offset added to the element's `y`.
+
+    Returns:
+        The mutated scene.
+    """
+    txt = next(e for e in scene if e["id"] == text_id)
+    txt["x"] += dx
+    txt["y"] += dy
+    return scene
+
+
+@_operator
+def move_endpoint_to(scene: list[dict], arrow_id: str, end: str, x: float,
+                     y: float) -> list[dict]:
+    """Move one absolute endpoint of an arrow, leaving the other in place.
+
+    Args:
+        scene: The scene copy to mutate.
+        arrow_id: The arrow's element id.
+        end: Which endpoint to move — `"start"` or `"end"`.
+        x: The endpoint's new absolute x coordinate.
+        y: The endpoint's new absolute y coordinate.
+
+    Returns:
+        The mutated scene.
+
+    Raises:
+        EngineError: If `end` is neither `"start"` nor `"end"`.
+    """
+    arr = next(e for e in scene if e["id"] == arrow_id)
+    if end == "end":
+        arr["points"][-1] = [x - arr["x"], y - arr["y"]]
+    elif end == "start":
+        old_abs = [(arr["x"] + px, arr["y"] + py) for px, py in
+                  arr["points"]]
+        arr["x"], arr["y"] = x, y
+        arr["points"] = [[ax - x, ay - y] for ax, ay in old_abs]
+    else:
+        raise EngineError("move_endpoint_to: unknown end %r" % end)
+    return scene
+
+
+@_operator
+def decurve(scene: list[dict], arrow_id: str) -> list[dict]:
+    """Clear an arrow's roundness, straightening its segments.
+
+    Args:
+        scene: The scene copy to mutate.
+        arrow_id: The arrow's element id.
+
+    Returns:
+        The mutated scene.
+    """
+    arr = next(e for e in scene if e["id"] == arrow_id)
+    arr["roundness"] = None
+    return scene
+
+
+@_operator
+def encurve(scene: list[dict], arrow_id: str) -> list[dict]:
+    """Give an arrow type-2 (curved) roundness.
+
+    Args:
+        scene: The scene copy to mutate.
+        arrow_id: The arrow's element id.
+
+    Returns:
+        The mutated scene.
+    """
+    arr = next(e for e in scene if e["id"] == arrow_id)
+    arr["roundness"] = {"type": 2}
+    return scene
+
+
+@_operator
+def merge_corridors(scene: list[dict], a_id: str, b_id: str) -> list[dict]:
+    """Slide arrow `b` onto arrow `a`'s horizontal corridor.
+
+    Args:
+        scene: The scene copy to mutate.
+        a_id: The corridor-defining arrow's id.
+        b_id: The arrow to merge onto it.
+
+    Returns:
+        The mutated scene.
+    """
+    a = next(e for e in scene if e["id"] == a_id)
+    b = next(e for e in scene if e["id"] == b_id)
+    b["y"] = a["y"]
+    return scene
+
+
+@_operator
+def drop_edge(scene: list[dict], arrow_id: str) -> list[dict]:
+    """Delete an arrow and every reference to it in `boundElements`.
+
+    Args:
+        scene: The scene copy to mutate.
+        arrow_id: The arrow's element id.
+
+    Returns:
+        The scene with the arrow, and dangling references to it,
+        removed.
+    """
+    kept = [e for e in scene if e["id"] != arrow_id]
+    for e in kept:
+        if e.get("boundElements"):
+            e["boundElements"] = [b for b in e["boundElements"]
+                                  if b.get("id") != arrow_id]
+    return kept
+
+
+@_operator
+def flip_direction(scene: list[dict], arrow_id: str) -> list[dict]:
+    """Reverse an arrow's direction, swapping bindings and rebasing points.
+
+    Args:
+        scene: The scene copy to mutate.
+        arrow_id: The arrow's element id.
+
+    Returns:
+        The mutated scene.
+    """
+    arr = next(e for e in scene if e["id"] == arrow_id)
+    arr["startBinding"], arr["endBinding"] = (arr["endBinding"],
+                                              arr["startBinding"])
+    last = arr["points"][-1]
+    new_points = [[px - last[0], py - last[1]]
+                 for px, py in reversed(arr["points"])]
+    arr["x"] += last[0]
+    arr["y"] += last[1]
+    arr["points"] = new_points
+    return scene
+
+
+@_operator
+def rename_node(scene: list[dict], node_id: str, text: str) -> list[dict]:
+    """Rewrite a node's bound label text.
+
+    Args:
+        scene: The scene copy to mutate.
+        node_id: The node element's id.
+        text: The new label text.
+
+    Returns:
+        The mutated scene.
+
+    Raises:
+        EngineError: If the node has no bound text label.
+    """
+    node = next(e for e in scene if e["id"] == node_id)
+    label_id = next((b["id"] for b in (node.get("boundElements") or [])
+                     if b.get("type") == "text"), None)
+    if label_id is None:
+        raise EngineError("rename_node: %r has no bound label" % node_id)
+    label = next(e for e in scene if e["id"] == label_id)
+    label["text"] = text
+    label["originalText"] = text
+    return scene
+
+
+@_operator
+def move_node_onto_rank(scene: list[dict], node_id: str,
+                        y: float) -> list[dict]:
+    """Move a node onto a rank line and straighten its 2-point arrows.
+
+    Args:
+        scene: The scene copy to mutate.
+        node_id: The node element's id.
+        y: The node's new `y` position.
+
+    Returns:
+        The mutated scene, with every 2-point arrow bound to the node
+        rewritten so both its endpoint y-coordinates sit on the
+        node's new centerline (mirroring apply's re-route behaviour).
+    """
+    node = next(e for e in scene if e["id"] == node_id)
+    node["y"] = y
+    centerline = y + node.get("height", 0) / 2
+    for e in scene:
+        if e.get("type") != "arrow" or len(e.get("points") or []) != 2:
+            continue
+        bound = any((e.get(k) or {}).get("elementId") == node_id
+                   for k in ("startBinding", "endBinding"))
+        if not bound:
+            continue
+        rel_y = centerline - e["y"]
+        for p in e["points"]:
+            p[1] = rel_y
+    return scene
+
+
+@_operator
+def swap_endpoints(scene: list[dict], a_id: str, b_id: str) -> list[dict]:
+    """Exchange two arrows' end bindings and absolute end points.
+
+    Args:
+        scene: The scene copy to mutate.
+        a_id: The first arrow's id.
+        b_id: The second arrow's id.
+
+    Returns:
+        The mutated scene.
+    """
+    a = next(e for e in scene if e["id"] == a_id)
+    b = next(e for e in scene if e["id"] == b_id)
+    a["endBinding"], b["endBinding"] = b["endBinding"], a["endBinding"]
+    a_end = (a["x"] + a["points"][-1][0], a["y"] + a["points"][-1][1])
+    b_end = (b["x"] + b["points"][-1][0], b["y"] + b["points"][-1][1])
+    a["points"][-1] = [b_end[0] - a["x"], b_end[1] - a["y"]]
+    b["points"][-1] = [a_end[0] - b["x"], a_end[1] - b["y"]]
+    return scene
+
+
+@_operator
+def unchanged(scene: list[dict]) -> list[dict]:
+    """Return the scene unmodified.
+
+    Exists for mutants whose base scene is itself the defect trigger
+    — no operator needs to touch it for a finding to be expected.
+
+    Args:
+        scene: The scene copy to return as-is.
+
+    Returns:
+        The same (already-copied) scene, unmodified.
+    """
+    return scene
+
+
+# Registered mutation operators.
+OPERATORS: dict = {
+    "delete_arrowhead": delete_arrowhead,
+    "shift_label": shift_label,
+    "move_endpoint_to": move_endpoint_to,
+    "decurve": decurve,
+    "encurve": encurve,
+    "merge_corridors": merge_corridors,
+    "drop_edge": drop_edge,
+    "flip_direction": flip_direction,
+    "rename_node": rename_node,
+    "move_node_onto_rank": move_node_onto_rank,
+    "swap_endpoints": swap_endpoints,
+    "unchanged": unchanged,
+}
 
 
 class Mutant:
@@ -376,8 +714,7 @@ class Mutant:
 
     Raises:
         EngineError: If `neighbour` or `expect` is None, or if `op` is
-            not a registered operator (once Task 3 populates `OPERATORS`
-            — until then this guard is inert).
+            not a name registered in `OPERATORS`.
     """
 
     def __init__(self, mid: str, build: Callable[[], list[dict]], op: str,
@@ -393,7 +730,7 @@ class Mutant:
             raise EngineError("mutant %r has no neighbour" % mid)
         if expect is None:
             raise EngineError("mutant %r has no expectation" % mid)
-        if op not in OPERATORS if OPERATORS else False:
+        if op not in OPERATORS:
             raise EngineError("mutant %r uses unregistered op %r"
                               % (mid, op))
         self.mid = mid
@@ -413,6 +750,14 @@ class TestEngineRules(unittest.TestCase):
             Mutant("m", build=lambda: [], op="decurve",
                    args={"arrow_id": "a"}, expect=Silence("false_bidi"),
                    neighbour=None)
+
+    def test_mutant_with_unregistered_op_fails_to_load(self) -> None:
+        """A Mutant naming an op absent from OPERATORS refuses to load."""
+        with self.assertRaises(EngineError):
+            Mutant("m", build=lambda: [], op="not_a_real_op", args={},
+                   expect=Silence("false_bidi"),
+                   neighbour=Neighbour(build=lambda: [],
+                                       expect=Silence("false_bidi")))
 
     def test_crashing_detector_reports_detector_error(self) -> None:
         """A detector that raises yields a detector-error, not a crash."""
@@ -454,6 +799,182 @@ class TestEngineRules(unittest.TestCase):
         mismatch = Silence("float_diamond").matches(finds)
         self.assertIsNotNone(mismatch)
         self.assertIn("float_diamond", mismatch)
+
+
+class TestOperators(unittest.TestCase):
+    """Every operator does what its name says and emits a valid scene."""
+
+    def _chain(self) -> list[dict]:
+        """A -> N -> Z, N offset below the A/Z rank line.
+
+        Returns:
+            The five-element scene: nodes A, N, Z and arrows e1, e2.
+        """
+        a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
+               customData={"role": "node"})
+        n = el(id="N", type="rectangle", x=200, y=180, width=80, height=40,
+               customData={"role": "node"})
+        z = el(id="Z", type="rectangle", x=400, y=100, width=80, height=40,
+               customData={"role": "node"})
+        e1 = el(id="e1", type="arrow", x=80, y=120, width=120, height=80,
+                points=[[0, 0], [120, 80]],
+                startBinding={"elementId": "A", "focus": 0, "gap": 1},
+                endBinding={"elementId": "N", "focus": 0, "gap": 1},
+                customData={"role": "edge"})
+        e2 = el(id="e2", type="arrow", x=280, y=200, width=120, height=-80,
+                points=[[0, 0], [120, -80]],
+                startBinding={"elementId": "N", "focus": 0, "gap": 1},
+                endBinding={"elementId": "Z", "focus": 0, "gap": 1},
+                customData={"role": "edge"})
+        return [a, n, z, e1, e2]
+
+    def test_delete_arrowhead_clears_the_end_arrowhead(self) -> None:
+        """delete_arrowhead nulls out endArrowhead on the named arrow."""
+        out = OPERATORS["delete_arrowhead"](
+            self._chain(), arrow_id="e1")
+        arr = next(e for e in out if e["id"] == "e1")
+        self.assertIsNone(arr["endArrowhead"])
+
+    def test_shift_label_moves_the_text_element(self) -> None:
+        """shift_label adds (dx, dy) to the text element's x/y."""
+        label = el(id="lbl", type="text", x=10, y=20, width=40, height=20,
+                  text="A", originalText="A", containerId="A")
+        node = el(id="A", type="rectangle", x=0, y=0, width=80, height=40,
+                 boundElements=[{"id": "lbl", "type": "text"}])
+        out = OPERATORS["shift_label"](
+            [node, label], text_id="lbl", dx=5, dy=-3)
+        lbl = next(e for e in out if e["id"] == "lbl")
+        self.assertEqual((lbl["x"], lbl["y"]), (15, 17))
+
+    def test_move_endpoint_to_is_absolute_and_keeps_binding(self) -> None:
+        """Moving an endpoint by absolute coords leaves its binding alone."""
+        out = OPERATORS["move_endpoint_to"](
+            self._chain(), arrow_id="e1", end="end", x=310, y=305)
+        arr = next(e for e in out if e["id"] == "e1")
+        ax, ay = arr["x"], arr["y"]
+        self.assertEqual((ax + arr["points"][-1][0],
+                          ay + arr["points"][-1][1]), (310, 305))
+        self.assertEqual(arr["endBinding"]["elementId"], "N")
+
+    def test_decurve_clears_roundness(self) -> None:
+        """Decurve sets roundness to None."""
+        arr = el(id="e1", type="arrow", x=0, y=0, width=100, height=50,
+                 points=[[0, 0], [100, 0], [100, 50]],
+                 roundness={"type": 2})
+        out = OPERATORS["decurve"]([arr], arrow_id="e1")
+        self.assertIsNone(
+            next(e for e in out if e["id"] == "e1")["roundness"])
+
+    def test_encurve_sets_roundness_type_2(self) -> None:
+        """Encurve sets roundness to {"type": 2}."""
+        arr = el(id="e1", type="arrow", x=0, y=0, width=100, height=50,
+                 points=[[0, 0], [100, 0], [100, 50]])
+        out = OPERATORS["encurve"]([arr], arrow_id="e1")
+        self.assertEqual(
+            next(e for e in out if e["id"] == "e1")["roundness"],
+            {"type": 2})
+
+    def test_merge_corridors_aligns_b_onto_a(self) -> None:
+        """merge_corridors sets b's y to a's y."""
+        a = el(id="a", type="arrow", x=0, y=100, width=100, height=0,
+              points=[[0, 0], [100, 0]])
+        b = el(id="b", type="arrow", x=0, y=150, width=100, height=0,
+              points=[[0, 0], [100, 0]])
+        out = OPERATORS["merge_corridors"](
+            [a, b], a_id="a", b_id="b")
+        self.assertEqual(next(e for e in out if e["id"] == "b")["y"], 100)
+
+    def test_drop_edge_removes_arrow_and_bound_reference(self) -> None:
+        """drop_edge removes the arrow and its id from boundElements."""
+        node = el(id="A", type="rectangle", x=0, y=0, width=80, height=40,
+                 boundElements=[{"id": "e1", "type": "arrow"}])
+        arr = el(id="e1", type="arrow", x=80, y=20, width=40, height=0,
+                points=[[0, 0], [40, 0]],
+                startBinding={"elementId": "A", "focus": 0, "gap": 0})
+        out = OPERATORS["drop_edge"]([node, arr], arrow_id="e1")
+        self.assertNotIn("e1", [e["id"] for e in out])
+        self.assertEqual(
+            next(e for e in out if e["id"] == "A")["boundElements"], [])
+
+    def test_flip_direction_swaps_bindings_and_reverses_points(self) -> None:
+        """flip_direction swaps bindings and reverses point order."""
+        out = OPERATORS["flip_direction"](self._chain(), arrow_id="e1")
+        arr = next(e for e in out if e["id"] == "e1")
+        self.assertEqual(arr["startBinding"]["elementId"], "N")
+        self.assertEqual(arr["endBinding"]["elementId"], "A")
+        # absolute endpoint set is preserved, order reversed
+        pts = [(arr["x"] + p[0], arr["y"] + p[1]) for p in arr["points"]]
+        self.assertEqual(pts[0], (200, 200))
+        self.assertEqual(pts[-1], (80, 120))
+
+    def test_rename_node_rewrites_label_text(self) -> None:
+        """rename_node rewrites text/originalText on the bound label."""
+        label = el(id="lbl", type="text", x=10, y=10, width=40, height=20,
+                  text="old", originalText="old", containerId="A")
+        node = el(id="A", type="rectangle", x=0, y=0, width=80, height=40,
+                 boundElements=[{"id": "lbl", "type": "text"}])
+        out = OPERATORS["rename_node"](
+            [node, label], node_id="A", text="new")
+        lbl = next(e for e in out if e["id"] == "lbl")
+        self.assertEqual((lbl["text"], lbl["originalText"]), ("new", "new"))
+
+    def test_move_node_onto_rank_straightens_its_arrows(self) -> None:
+        """move_node_onto_rank re-levels its bound 2-point arrows."""
+        out = OPERATORS["move_node_onto_rank"](
+            self._chain(), node_id="N", y=100)
+        n = next(e for e in out if e["id"] == "N")
+        self.assertEqual(n["y"], 100)
+        for aid in ("e1", "e2"):
+            arr = next(e for e in out if e["id"] == aid)
+            ys = {arr["y"] + p[1] for p in arr["points"]}
+            self.assertEqual(len(ys), 1)   # horizontal now
+
+    def test_swap_endpoints_exchanges_end_bindings_and_points(self) -> None:
+        """swap_endpoints exchanges endBinding and the end points."""
+        a = el(id="a", type="arrow", x=0, y=0, width=100, height=0,
+              points=[[0, 0], [100, 0]],
+              endBinding={"elementId": "X", "focus": 0, "gap": 0})
+        b = el(id="b", type="arrow", x=0, y=200, width=50, height=0,
+              points=[[0, 0], [50, 0]],
+              endBinding={"elementId": "Y", "focus": 0, "gap": 0})
+        x = el(id="X", type="rectangle", x=100, y=-20, width=40, height=40)
+        y = el(id="Y", type="rectangle", x=50, y=180, width=40, height=40)
+        out = OPERATORS["swap_endpoints"]([a, b, x, y], a_id="a", b_id="b")
+        arr_a = next(e for e in out if e["id"] == "a")
+        arr_b = next(e for e in out if e["id"] == "b")
+        self.assertEqual(arr_a["endBinding"]["elementId"], "Y")
+        self.assertEqual(arr_b["endBinding"]["elementId"], "X")
+        self.assertEqual(
+            (arr_a["x"] + arr_a["points"][-1][0],
+             arr_a["y"] + arr_a["points"][-1][1]), (50, 200))
+        self.assertEqual(
+            (arr_b["x"] + arr_b["points"][-1][0],
+             arr_b["y"] + arr_b["points"][-1][1]), (100, 0))
+
+    def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
+        """Unchanged returns an equal scene that is a distinct object."""
+        chain = self._chain()
+        out = OPERATORS["unchanged"](chain)
+        self.assertEqual(out, chain)
+        self.assertIsNot(out, chain)
+
+    def test_operator_output_is_validated(self) -> None:
+        """A degenerate final segment raises instead of returning."""
+        # An operator producing a zero-length final segment must raise,
+        # not return: drive move_endpoint_to onto its own penultimate pt.
+        chain = self._chain()
+        arr = next(e for e in chain if e["id"] == "e1")
+        px = arr["x"] + arr["points"][0][0]
+        py = arr["y"] + arr["points"][0][1]
+        with self.assertRaises(EngineError):
+            OPERATORS["move_endpoint_to"](
+                chain, arrow_id="e1", end="end", x=px, y=py)
+
+    def test_mutation_does_not_alias_input(self) -> None:
+        """An operator's output never aliases the caller's input scene."""
+        chain = self._chain()
+        OPERATORS["drop_edge"](chain, arrow_id="e1")
+        self.assertIn("e1", [e["id"] for e in chain])
 
 
 class TestDetectorsAgainstRealLint(unittest.TestCase):
