@@ -2290,6 +2290,62 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
 
+class TestArgusR5Fixture(FixtureReplayBase):
+    """Assessment run 5: 23 saves, 6 artifacts, 22 concepts, one ADR.
+
+    The first fixture on record carrying a **branch pair** — the user
+    checked out an old revision, saved on top of it (forking `alt-0022`),
+    and the agent restored `main` and archived the fork. Branch handling
+    had no coverage at all before this session, in tests or in any of the
+    four prior runs.
+
+    It also carries a user sticky note, which is what makes the r5-13
+    replay below bite.
+    """
+
+    FIXTURE = "argus-r5"
+
+    def test_replays_full_history(self):
+        self.assertEqual(self.store.head_revn(), 23)
+        self.assertEqual(sorted(self.store.scenes), [
+            "admin-console", "argus-domain", "daily-run", "edgar-late",
+            "enrichment-flow", "tuesday-triage"])
+
+    def test_no_lint_errors_anywhere(self):
+        for aid, r in self.lint_all().items():
+            self.assertEqual(r["errors"], [],
+                             "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+    def test_forked_branch_survives_replay_archived(self):
+        names = {b["name"]: b.get("archived")
+                 for b in self.store.registry["branches"]}
+        self.assertEqual(names, {"main": False, "alt-0022": True})
+
+    def test_sticky_note_forces_a_repair_on_every_load(self):
+        # PINS r5-13. Both note creators (the client's addStickyNote and
+        # x-as-user note) pad the label by w-16, while the ART-011 rule
+        # repairs anything wider than w-24 — an 8px disagreement that is
+        # structural, so the repair is guaranteed on the FIRST load of
+        # every note anyone has ever made and never persists.
+        #
+        # Worse, the repair mutates geometry, so the replayed history no
+        # longer matches the loaded scene and `catch_up` mints an
+        # out-of-session reconciliation on EVERY resume. The headline is
+        # honest about why (the v0.8 WP2 fix), which is the only reason
+        # this is a P2 and not a P1.
+        #
+        # When r5-13 is fixed this test must flip to: repairs == [] and
+        # catch_up() is None. Leave it failing loudly rather than
+        # deleting it — a green suite that stopped asserting anything is
+        # how the defect comes back.
+        self.assertEqual([i["code"] for i in self.store.scene_repairs],
+                         ["ART-011"])
+        rec = self.store.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertIn("ART-011", rec["summary"]["headline"])
+        self.assertIn("no outside edits", rec["summary"]["headline"])
+
+
 class TestAcceptanceTearsheetFixture(FixtureReplayBase):
     """The formerly-dead fixture, wired in: 15 saves, 3 artifacts."""
 

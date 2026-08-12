@@ -1,0 +1,40 @@
+{
+ "artifacts": {},
+ "author": "agent",
+ "base_revn": 17,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "waive",
+   "key": "q12:admin-console:risk-threshold",
+   "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'"
+  },
+  {
+   "action": "waive",
+   "key": "q12:admin-console:confidence-threshold",
+   "reason": "user's own words, turn 1: 'set the risk and confidence thresholds'"
+  }
+ ],
+ "revn": 18,
+ "round": 5,
+ "saved_at": "2026-08-10T07:25:21Z",
+ "selection_at_save": [],
+ "short_id": "32109d8",
+ "summary": {
+  "headline": "registry: waive (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "registry: both threshold labels are the user's own words"
+}

@@ -1,0 +1,1120 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-switch-timing",
+     "kind": "text",
+     "label": "Switches take effect on tomorrow's 06:00",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "annotated": {
+       "author": "agent",
+       "target": "console-nav",
+       "text": "Switches take effect on tomorrow's 06:00 run — not now."
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-switch-rerun-timing",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "run-status",
+     "kind": "feedback",
+     "label": "Last run 06:04 — EDGAR 4 min late",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "feedback",
+        "label": "Last run 06:04 — EDGAR 4 min late"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-threshold-scope",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "screen-console",
+     "kind": "frame",
+     "label": "Admin Console",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "reading_order_changed": {
+       "order": [
+        "Argus — Admin Console",
+        "Pipelines",
+        "Market Feed",
+        "Rerun",
+        "SEC EDGAR",
+        "Rerun",
+        "News Sentiment",
+        "Rerun",
+        "Portfolio DB",
+        "Rerun",
+        "Thresholds",
+        "Risk threshold",
+        "Confidence threshold",
+        "Apply"
+       ],
+       "screen": "Admin Console",
+       "was": [
+        "Argus — Admin Console",
+        "Last run 06:04 — EDGAR 4 min late",
+        "Pipelines",
+        "Market Feed",
+        "Rerun",
+        "SEC EDGAR",
+        "Rerun",
+        "News Sentiment",
+        "Rerun",
+        "Portfolio DB",
+        "Rerun",
+        "Thresholds",
+        "Risk threshold",
+        "Confidence threshold",
+        "Apply"
+       ]
+      },
+      "resized": {
+       "label": "Admin Console"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "customData",
+      "locked"
+     ],
+     "consequence_of": null,
+     "id": "panel-pipelines",
+     "kind": "block",
+     "label": "Pipelines",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Pipelines",
+       "text": "One row per Pipeline — settled. The switch and the Rerun button are two controls"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "sld-risk",
+     "kind": "slider",
+     "label": "Risk threshold",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Risk threshold",
+       "text": "A **display filter**, not a compute setting. Everything is scored regardless; th"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "sld-confidence",
+     "kind": "slider",
+     "label": "Confidence threshold",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Confidence threshold",
+       "text": "A **display filter**, not a compute setting. Nothing re-runs when this moves — i"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "btn-apply",
+     "kind": "button",
+     "label": "Apply",
+     "ops": [
+      9,
+      10
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Apply",
+       "screen": "Admin Console"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": -80,
+       "label": "Apply",
+       "spatial": "moved up"
+      },
+      "tooltip_changed": {
+       "label": "Apply",
+       "text": "Commits the two sliders. Nothing else on this screen needs it — the switches sav"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "annotates": "panel-pipelines",
+       "author": "agent",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 24,
+      "id": "note-switch-timing",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Switches take effect on tomorrow's 06:00 run — not now.",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1170530607,
+      "strokeColor": "#5c8a5f",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Switches take effect on tomorrow's 06:00 run — not now.",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 480,
+      "x": 40,
+      "y": 88
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?",
+       "role": "pin",
+       "status": "open",
+       "target": "tog-edgar"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-switch-rerun-timing",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 507600152,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 292,
+      "y": 222
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "run-status-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "feedback",
+       "role": "node",
+       "tooltip": "**Invented.** You never said the console shows run status — but you said this is where you spend your time, and 'did this morning work' is the first thing anyone asks a control panel.\n\nIf it belongs on the dashboard instead, delete it."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 36,
+      "id": "run-status",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 181114147,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 80
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "run-status",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "run-status-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Last run 06:04 — EDGAR 4 min late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1987060631,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Last run 06:04 — EDGAR 4 min late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 258,
+      "x": 231,
+      "y": 88
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+       "role": "pin",
+       "status": "open",
+       "target": "panel-thresholds"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-threshold-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1802470776,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 672,
+      "y": 362
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 600,
+       "to": 560
+      }
+     ],
+     "id": "screen-console",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node",
+        "tooltip": "One row per Pipeline — because a Pipeline is one source end to end, the switch and the rerun button are two controls on the same object, not two lists that happen to be the same length."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node",
+        "tooltip": "One row per Pipeline — settled. The switch and the Rerun button are two controls on the same object, because a Pipeline is one source end to end.\n\nThe row *pattern* is locked so a stray drag can't dissolve it; the controls inside are free."
+       }
+      },
+      {
+       "attr": "locked",
+       "from": false,
+       "to": true
+      }
+     ],
+     "id": "panel-pipelines",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "Belongs to the **Risk Model** — downstream of all four pipelines.",
+        "value": 60.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **display filter**, not a compute setting. Everything is scored regardless; this decides what you are shown.\n\nCanonical definition: `project_knowledge/CONTEXT.md`.",
+        "value": 60.0
+       }
+      }
+     ],
+     "id": "sld-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "Belongs to the **Aggregator** — also downstream of all four pipelines.",
+        "value": 70.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **display filter**, not a compute setting. Nothing re-runs when this moves — it re-filters Assessments that already exist.\n\nCanonical definition: `project_knowledge/CONTEXT.md`.",
+        "value": 70.0
+       }
+      }
+     ],
+     "id": "sld-confidence",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 32,
+       "to": 40
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "role": "node",
+        "tooltip": "I drew this because a settings screen with no commit control asserts that every drag takes effect immediately — which would be a strange thing for a threshold. But I can't tell you what it does."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "Commits the two sliders. Nothing else on this screen needs it — the switches save themselves and land on tomorrow's run.\n\nMoved inside the Thresholds panel so it stops looking like it commits the whole console."
+       }
+      }
+     ],
+     "id": "btn-apply",
+     "op": "mod"
+    },
+    {
+     "from": [
+      560,
+      540
+     ],
+     "id": "btn-apply",
+     "op": "move",
+     "to": [
+      560,
+      460
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 546,
+       "to": 470
+      }
+     ],
+     "id": "btn-apply-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "author": "agent",
+     "element": "note-switch-timing",
+     "fact": "annotated",
+     "target": "console-nav",
+     "text": "Switches take effect on tomorrow's 06:00 run — not now."
+    },
+    {
+     "element": "pin-switch-rerun-timing",
+     "fact": "pin_added",
+     "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?"
+    },
+    {
+     "element": "run-status",
+     "fact": "deleted",
+     "was": {
+      "kind": "feedback",
+      "label": "Last run 06:04 — EDGAR 4 min late"
+     }
+    },
+    {
+     "element": "pin-threshold-scope",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "screen-console",
+     "fact": "resized",
+     "label": "Admin Console"
+    },
+    {
+     "element": "panel-pipelines",
+     "fact": "tooltip_changed",
+     "label": "Pipelines",
+     "text": "One row per Pipeline — settled. The switch and the Rerun button are two controls"
+    },
+    {
+     "element": "sld-risk",
+     "fact": "tooltip_changed",
+     "label": "Risk threshold",
+     "text": "A **display filter**, not a compute setting. Everything is scored regardless; th"
+    },
+    {
+     "element": "sld-confidence",
+     "fact": "tooltip_changed",
+     "label": "Confidence threshold",
+     "text": "A **display filter**, not a compute setting. Nothing re-runs when this moves — i"
+    },
+    {
+     "element": "btn-apply",
+     "fact": "tooltip_changed",
+     "label": "Apply",
+     "text": "Commits the two sliders. Nothing else on this screen needs it — the switches sav"
+    },
+    {
+     "dx": 0,
+     "dy": -80,
+     "element": "btn-apply",
+     "fact": "moved",
+     "label": "Apply",
+     "spatial": "moved up"
+    },
+    {
+     "element": "btn-apply",
+     "fact": "block_moved_within_screen",
+     "label": "Apply",
+     "screen": "Admin Console"
+    },
+    {
+     "element": "screen-console",
+     "fact": "reading_order_changed",
+     "order": [
+      "Argus — Admin Console",
+      "Pipelines",
+      "Market Feed",
+      "Rerun",
+      "SEC EDGAR",
+      "Rerun",
+      "News Sentiment",
+      "Rerun",
+      "Portfolio DB",
+      "Rerun",
+      "Thresholds",
+      "Risk threshold",
+      "Confidence threshold",
+      "Apply"
+     ],
+     "screen": "Admin Console",
+     "was": [
+      "Argus — Admin Console",
+      "Last run 06:04 — EDGAR 4 min late",
+      "Pipelines",
+      "Market Feed",
+      "Rerun",
+      "SEC EDGAR",
+      "Rerun",
+      "News Sentiment",
+      "Rerun",
+      "Portfolio DB",
+      "Rerun",
+      "Thresholds",
+      "Risk threshold",
+      "Confidence threshold",
+      "Apply"
+     ]
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 470,
+       "to": 546
+      }
+     ],
+     "id": "btn-apply-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      560,
+      460
+     ],
+     "id": "btn-apply",
+     "op": "move",
+     "to": [
+      560,
+      540
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 40,
+       "to": 32
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "button",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "Commits the two sliders. Nothing else on this screen needs it — the switches save themselves and land on tomorrow's run.\n\nMoved inside the Thresholds panel so it stops looking like it commits the whole console."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "button",
+        "role": "node",
+        "tooltip": "I drew this because a settings screen with no commit control asserts that every drag takes effect immediately — which would be a strange thing for a threshold. But I can't tell you what it does."
+       }
+      }
+     ],
+     "id": "btn-apply",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **display filter**, not a compute setting. Nothing re-runs when this moves — it re-filters Assessments that already exist.\n\nCanonical definition: `project_knowledge/CONTEXT.md`.",
+        "value": 70.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "Belongs to the **Aggregator** — also downstream of all four pipelines.",
+        "value": 70.0
+       }
+      }
+     ],
+     "id": "sld-confidence",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "A **display filter**, not a compute setting. Everything is scored regardless; this decides what you are shown.\n\nCanonical definition: `project_knowledge/CONTEXT.md`.",
+        "value": 60.0
+       },
+       "to": {
+        "author": "agent",
+        "kind": "slider",
+        "parent": "panel-thresholds",
+        "role": "node",
+        "tooltip": "Belongs to the **Risk Model** — downstream of all four pipelines.",
+        "value": 60.0
+       }
+      }
+     ],
+     "id": "sld-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node",
+        "tooltip": "One row per Pipeline — settled. The switch and the Rerun button are two controls on the same object, because a Pipeline is one source end to end.\n\nThe row *pattern* is locked so a stray drag can't dissolve it; the controls inside are free."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "block",
+        "role": "node",
+        "tooltip": "One row per Pipeline — because a Pipeline is one source end to end, the switch and the rerun button are two controls on the same object, not two lists that happen to be the same length."
+       }
+      },
+      {
+       "attr": "locked",
+       "from": true,
+       "to": false
+      }
+     ],
+     "id": "panel-pipelines",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 560,
+       "to": 600
+      }
+     ],
+     "id": "screen-console",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+       "role": "pin",
+       "status": "open",
+       "target": "panel-thresholds"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-threshold-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1802470776,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 672,
+      "y": 362
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "run-status",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "run-status-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Last run 06:04 — EDGAR 4 min late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1987060631,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Last run 06:04 — EDGAR 4 min late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 258,
+      "x": 231,
+      "y": 88
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "run-status-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "feedback",
+       "role": "node",
+       "tooltip": "**Invented.** You never said the console shows run status — but you said this is where you spend your time, and 'did this morning work' is the first thing anyone asks a control panel.\n\nIf it belongs on the dashboard instead, delete it."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 36,
+      "id": "run-status",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 181114147,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 80
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "I switch EDGAR off, then press Rerun on that same row. Which state does the rerun use?",
+       "role": "pin",
+       "status": "open",
+       "target": "tog-edgar"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-switch-rerun-timing",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 507600152,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 292,
+      "y": 222
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "annotates": "panel-pipelines",
+       "author": "agent",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 24,
+      "id": "note-switch-timing",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Switches take effect on tomorrow's 06:00 run — not now.",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1170530607,
+      "strokeColor": "#5c8a5f",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Switches take effect on tomorrow's 06:00 run — not now.",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 480,
+      "x": 40,
+      "y": 88
+     },
+     "index": 27,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 8,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Holding",
+   "id": "position",
+   "name": "Holding"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Risk threshold",
+   "id": "risk-threshold",
+   "name": "Risk threshold"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Confidence threshold",
+   "id": "confidence-threshold",
+   "name": "Confidence threshold"
+  }
+ ],
+ "revn": 9,
+ "round": 4,
+ "saved_at": "2026-08-10T07:16:25Z",
+ "selection_at_save": [],
+ "short_id": "956f6bb",
+ "summary": {
+  "headline": "screen Admin Console now reads: Argus — Admin Console / Pipelines / Market Feed / Rerun / SEC EDGAR / Rerun… (+11 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "annotated": 1,
+   "block_moved_within_screen": 1,
+   "deleted": 1,
+   "moved": 1,
+   "pin_added": 1,
+   "pin_deleted": 1,
+   "reading_order_changed": 1,
+   "resized": 1,
+   "tooltip_changed": 4
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "status strip out; Apply belongs to the sliders; the switches are deferred and now say so"
+}

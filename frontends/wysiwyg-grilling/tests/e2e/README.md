@@ -1,7 +1,7 @@
 # E2E regression suite — right-home triage
 
-Every finding from assessment runs 1–4 (`capability-assessment-notes-
-optimizer_R{1,2,3,4}*.md`, worktree root) maps to exactly **one** test
+Every finding from assessment runs 1–5 (`capability-assessment-notes-
+optimizer_R{1,2,3,4,5}*.md`, worktree root) maps to exactly **one** test
 home. The rule: a browser test asserts only what only a browser can see —
 backend mechanics stay in the fast in-process unittest suite
 (`tests/test_backend.py`), and a Playwright test for them would boot a
@@ -17,7 +17,8 @@ with the pinned `@playwright/test`; regenerate with
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
   reconciliation, composed-part invariants, metrics, mermaid mapping.
-  412 tests.
+  416 tests at run-5 close; the `v0.9_mutation_harness` branch adds the
+  mutation harness (515 default + 7 gated render tests, 8 red by intent).
 - **e2e-dom** — React chrome: rail, cards, modals, banners, overlays.
 - **e2e-flow** — round-trips that cross the browser AND the server.
 - **e2e-visual** — canvas-rendered pixels (`toHaveScreenshot`).
@@ -47,11 +48,24 @@ with the pinned `@playwright/test`; regenerate with
 | R2-8 arrow-label anchor | unittest | `TestClientRemeasure` + x-geometry |
 | R2-10 decoration overshoot | unittest | decoration-spill lint tests |
 | R2-11/r3-1 marker on diamond | unittest | `TestMarkerAnchor` |
-| Stale-save 409 banner | e2e-dom (planned, run 5) | needs a second browser context |
-| Branch fork/archive chips | e2e-dom (planned, run 5) | checkout → draw → Fork & Save |
+| Stale-save 409 banner | e2e-dom (planned, run 6) | needs a second browser context — still unexercised after run 5 |
+| Branch fork/archive chips | unittest | **exercised in run 5**: user checkout + save forked `alt-0022`, agent restored `main` and archived it. Replay-pinned by `TestArgusR5Fixture.test_forked_branch_survives_replay_archived`; the *chips* still have no DOM test |
+| r5-2 round goes backwards on Apply | e2e-flow (planned, run 6) | pulled cadence → queue → Apply now → header round must not decrease and pin ages must not fall |
+| r5-6 pulled drops ECHO/lint | unittest | apply the same batch under both cadences; the queued response must carry echo+lint computed from the staged scene |
+| r5-11 `--relayout` user-placement guard | unittest | drag a node as the user, relayout, assert the NOTE names it — the check currently filters an empty set |
+| r5-8 rejected batch mutates the registry | unittest | reject a batch containing a valid registry op; the registry must be unchanged on the server AND on disk |
+| r5-13 sticky note trips ART-011 forever | unittest | `TestArgusR5Fixture.test_sticky_note_forces_a_repair_on_every_load` — flip it to `repairs == []` when fixed |
+| r5-10 ⌗ dialog import quality | e2e-flow | extend `mermaid.spec` — paste onto a non-empty artifact, assert no mid-word-broken label |
+| r5-5 border-collinear routing | unittest | an edge leaving a side-edge midpoint must not run along its own box's border |
 | Mermaid seed (WP9) | e2e-flow | `mermaid.spec` — CLI seed through the LIVE tab handshake (`--no-headless` so a fallback can't mask it), semantic slugs + self-loop on disk; import dialog → user Save. Skeleton→op mapping itself is unittest (`TestMermaidSeeding`, captured fixture) |
 
-Rows marked *planned* are the run-5 requirements list — add the spec
+Rows marked *planned* are the run-6 requirements list — add the spec
 when the surface ships or the beat is scripted, and extend this table;
 an untested row silently promoted to "covered" is how the next run
 inherits false confidence.
+
+Run 5 closed three of run 5's own planned rows by *exercising* them
+(pending banner incl. `After I save`, cadence flip both directions,
+branch fork/switch/archive) and left one open (the 409). The r5-* rows
+above are all currently **red-by-intent**: they name the assertion the
+v0.9 fix has to satisfy, not coverage that exists.
