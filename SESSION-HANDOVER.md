@@ -20,14 +20,14 @@ same three user decisions still open — plus one new one.**
 - **The gotcha:** `~/.claude/skills/wysiwyg-grilling` symlinks into *this
   worktree*. Whatever is checked out here is the skill every agent on this
   machine discovers. Verify before any assessment work.
-- Health, re-measured 2026-08-12 end-of-day: **544 unit tests**
-  (`python3 -m unittest discover -s tests`, ~8s) →
-  `OK (skipped=8, expected failures=11)`; **10 gated render tests**
+- Health, re-measured 2026-08-12 after the candidate-board arc: **581 unit
+  tests** (`python3 -m unittest discover -s tests`, ~9s) →
+  `OK (skipped=8, expected failures=26)`; **10 gated render tests**
   (`MUTANTS_RENDER=1 python3 -m unittest discover -s tests -p
   "test_mutants_render.py"`, ~17s, real chromium) → `OK (expected failures=2)`;
   **12 Playwright e2e**; `uvx pre-commit run --all-files` — all 15 hooks green.
-  The 8 skips are `MUTANTS_RENDER`-gated; the 13 expected failures (11 model +
-  2 render) are red *by intent* (see §1a). **The drain number is 13.**
+  The 8 skips are `MUTANTS_RENDER`-gated; the 28 expected failures (26 model +
+  2 render) are red *by intent* (see §1a). **The drain number is 28.**
 
 ### 1a. The mutation harness — landed, red, and it is WP4's acceptance spec
 
@@ -43,13 +43,25 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** 11 model-tier
-`expectedFailure` reds + 2 render-tier. Each seeds a known defect and asserts
-the finding the detector *should* produce, so v0.9's geometry work has an
-executable definition of done. **Drain them to zero, flipping each in the same
-change as its fix** — an `expectedFailure` that starts passing is reported as
-an unexpected success, which *is* the signal. Never delete a mutant to get
-green. Three structural notes for the flip author:
+**What is red, and why that is the deliverable.** 26 model-tier
+`expectedFailure` reds + 2 render-tier: 16 catalogue reds (`mutants list
+--red` is authoritative) plus **ten non-catalogue reds across four guarded
+classes** — Export 2, Store 5 (incl. the A1a TOTAL-LOSS pin: one `[]` save
+record bricks the whole project), PaintOrder 1, ShapeBlind 2 — enumerated
+with reasons at the `CATALOGUE` pointer in tests/test_mutants.py. Each red
+seeds a known defect and asserts what the detector *should* say, so v0.9 has
+an executable definition of done. **Drain them to zero, flipping each in the
+same change as its fix** — an unexpected success IS the signal. Never delete
+a mutant to get green. `ASPIRATIONAL` holds 8 checks awaiting their lints
+(each flip must add a real other-pole neighbour). The **shape-blindness
+family is at FIVE pinned instances** (endpoint lint, `_seg_hits_rect`
+diamond + ellipse, `fit_label_in`, the text/node bbox checks); WP4's one
+inscribed-shape primitive addresses all of them, and is not done until the
+ellipse and label-arm mutants flip too. The dedupe-by-defect guard protects
+the catalogue against same-defect-different-id collisions; the non-catalogue
+classes are defended by file-section convention + reviewer vigilance (id
+prefixes REJECTED — they disarm the duplicate-id guard). Structural notes for
+the flip author:
 
 - The two **export reds** (`test_red_freedraw_*`/`test_red_image_*`) live
   OUTSIDE `CATALOGUE` by design (model detectors cannot observe `render_svg`
