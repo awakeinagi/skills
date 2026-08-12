@@ -429,6 +429,49 @@ def _span_flow_batch(span: int) -> dict:
             "ops": ops}
 
 
+def _span_scene(span: int, root: Path) -> tuple[Any, list[dict], int]:
+    """Build the `span`-wide flow in a project and ask what it wants to be.
+
+    The browser-free half of `_rightmost_node_ink`, split out so the
+    ungated regime test below computes `want_w` by exactly the same route
+    the mutant does — a regime invariant checked against a differently
+    derived number would not be checking the mutant's regime.
+
+    Args:
+        span: Passed to `_span_flow_batch`.
+        root: Project root to create. The caller owns it, and owns
+            clearing the runtime files the `Project` writes OUTSIDE it
+            (see `_clear_runtime`).
+
+    Returns:
+        `(project, elements, want_w)` — the live `canvas.Project`, the
+        committed scene, and the width `render_svg` asks for.
+    """
+    project = canvas.Project(root)
+    project.ensure_tree()
+    store = canvas.Store(project)
+    store.apply_batch(_span_flow_batch(span))
+    els = store.scenes["wide"]
+    _svg, want_w, _want_h = canvas.render_svg(els, title="Wide")
+    return project, els, want_w
+
+
+def _clear_runtime(project: Any) -> None:
+    """Delete the runtime files a Project keeps outside its own root.
+
+    `Project` hashes its root path into the system temp dir for state,
+    events and log, so removing the project tree alone leaves three
+    files behind per test run.
+
+    Args:
+        project: The `canvas.Project` to clean up after.
+    """
+    for path in (project.state_path, project.events_path,
+                 project.log_path):
+        if path.exists():
+            path.unlink()
+
+
 def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
     """Snapshot a `span`-wide flow and count ink where its last node lands.
 
@@ -458,13 +501,8 @@ def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
             tier was asked for, so not measuring is a failure.
     """
     root = Path(workdir) / ("proj-%d" % span)
-    project = canvas.Project(root)
-    project.ensure_tree()
+    project, _els, want_w = _span_scene(span, root)
     try:
-        store = canvas.Store(project)
-        store.apply_batch(_span_flow_batch(span))
-        els = store.scenes["wide"]
-        _svg, want_w, _want_h = canvas.render_svg(els, title="Wide")
         out = root / "shot.png"
         # the CLI prints KEY=VALUE lines; swallow them so a passing run is
         # quiet and a failure's message is the assertion, not the banner
@@ -477,13 +515,12 @@ def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
                                % (rc, span))
         pw, ph, pix = read_png_gray(out.read_bytes())
     finally:
-        for path in (project.state_path, project.events_path,
-                     project.log_path):
-            if path.exists():
-                path.unlink()
+        _clear_runtime(project)
     # n0 sits at x=0 and is the leftmost thing drawn, so render_svg's minx
-    # is -SVG_PAD; with no uniform scale in play (asserted by the caller)
-    # PNG x is svg x minus that.
+    # is -SVG_PAD; with no uniform scale in play (the regime
+    # `TestSnapshotFramingRegime` pins ungated) PNG x is svg x minus that.
+    # This mapping is 1:1 BY CONSTRUCTION and the mutant's flip contract
+    # depends on it — read that docstring before changing either.
     x0, x1 = span + SVG_PAD, span + 160 + SVG_PAD
     ink = sum(1 for y in range(ph) for x in range(x0, min(x1, pw))
               if pix[y * pw + x] < 192)
@@ -510,16 +547,49 @@ class TestSnapshotFraming(unittest.TestCase):
         The artifact wants 3640px; the window is clamped to 3000; the
         rightmost node's whole column band is past the clamp, so its ink
         count is 0 and the agent's only view of its own drawing is
-        missing a node it just placed — reported VALID=true. Flip this to
-        a plain pass when `snapshot` either scales to fit on BOTH axes or
-        says out loud that it truncated (V0.9-PLAN.md WP5, incidental
-        finding).
+        missing a node it just placed — reported VALID=true.
+
+        WHAT FLIPS THIS, precisely. The band is mapped 1:1 (PNG x == svg x
+        minus minx), so the only repair that turns this green untouched is
+        one where **the window follows the drawing** — raise or drop the
+        3000px clamp so a 3640px drawing is rasterized into a 3640px
+        window. Every other candidate needs work here too, and two of them
+        are traps:
+
+        - **Scale-to-fit inside `rasterize_svg`** — the fix V0.9-PLAN
+          recommends first, and what the spike's own `fullshot2.py` did —
+          leaves this RED on a FIXED product. The whole drawing lands in a
+          3000px PNG at 0.824x, so `n2`'s ink sits at PNG x 2835..2967
+          while this band still looks at 3440..3600, off the right edge.
+          Such a fix MUST rewrite `_rightmost_node_ink`'s band mapping in
+          the same change, or it will look like it failed.
+        - **Naive proportional band scaling is NOT that rewrite.** Multiply
+          the band by `png_w / want_w` and it lands at 2835..2967 — which
+          on the UNFIXED 1:1 raster is the middle of the `n1 -> n2` arrow's
+          horizontal run (svg-relative x 1900..3440). Measured against the
+          product as it stands today: 264 ink pixels, so the test would go
+          GREEN with two nodes still missing from the picture. Any band
+          rewrite has to derive its mapping from the PNG the product
+          actually produced AND be re-run against the unfixed product
+          first, to watch it fail.
+        - **Raising `render_svg`'s own 4000px threshold** takes the scene
+          out of the regime this mutant measures. That does not flip it; it
+          fails `TestSnapshotFramingRegime` loudly instead, which is the
+          intended signal.
+        - **A truncation warning alone** (V0.9-PLAN WP5's fallback
+          suggestion) changes stdout, not pixels, and leaves this red —
+          correctly, because the drawing is still not in the file. If the
+          project decides warn-only is the ship, this mutant does not
+          become a lie: re-point it at the warning on stdout, or retire it
+          with that decision as the reason. Do not delete it to get green.
+
+        The regime guards this test used to carry inline moved OUT to
+        `TestSnapshotFramingRegime`: inside an `expectedFailure` every
+        assertion reports identically as "expected failure", so a guard
+        here could never signal and would have let the test silently stop
+        measuring anything.
         """
         ink, pw, want_w = _rightmost_node_ink(WIDE_SPAN, self.workdir)
-        self.assertLess(want_w, 4000, "span too wide: render_svg's own "
-                                      "uniform scale would kick in and "
-                                      "this would stop testing the clamp")
-        self.assertGreater(want_w, SNAP_WIN_CAP, "span not past the clamp")
         self.assertGreater(ink, 0, "the rightmost node left no ink in its "
                                    "own column band: PNG is %dpx wide for "
                                    "a %dpx drawing" % (pw, want_w))
@@ -537,6 +607,45 @@ class TestSnapshotFraming(unittest.TestCase):
         self.assertGreater(ink, 0, "the rightmost node left no ink in its "
                                    "own column band even unclamped — the "
                                    "check itself is broken")
+
+
+class TestSnapshotFramingRegime(unittest.TestCase):
+    """The wide scene must stay in the band of widths the red mutant means.
+
+    Deliberately NOT gated and deliberately NOT an `expectedFailure`, for
+    the same reason `TestRenderTierEvidence` is neither: this needs no
+    browser, and the rot it catches — the scene drifting out of the
+    regime, so the mutant measures nothing and still reports "expected
+    failure" — happens in ordinary editing, where nobody has
+    `MUTANTS_RENDER=1` set. Gated, it would notice months late; inside
+    the mutant, it could not notice at all.
+    """
+
+    def test_wide_scene_sits_between_the_two_caps(self) -> None:
+        """`WIDE_SPAN` wants a width past the window clamp but under 4000.
+
+        Both bounds are load-bearing. Under `SNAP_WIN_CAP` there is no
+        truncation to pin. Over 4000, `render_svg`'s own uniform
+        scale-down (canvas.py:4542) kicks in, PNG x stops being svg x
+        minus minx, and `_rightmost_node_ink`'s 1:1 band mapping silently
+        measures the wrong column.
+        """
+        root = Path(tempfile.mkdtemp(prefix="mutants-regime-"))
+        try:
+            project, _els, want_w = _span_scene(WIDE_SPAN, root)
+            _clear_runtime(project)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+        self.assertGreater(want_w, SNAP_WIN_CAP,
+                           "WIDE_SPAN no longer overflows the %dpx window "
+                           "clamp (wants %dpx): the snapshot mutant has "
+                           "nothing to measure" % (SNAP_WIN_CAP, want_w))
+        self.assertLess(want_w, 4000,
+                        "WIDE_SPAN (wants %dpx) reached render_svg's own "
+                        "4000px scale-down: PNG x is no longer svg x minus "
+                        "minx, so _rightmost_node_ink's band mapping is "
+                        "wrong and the mutant is measuring the wrong "
+                        "column" % want_w)
 
 
 class TestRenderTierEvidence(unittest.TestCase):
