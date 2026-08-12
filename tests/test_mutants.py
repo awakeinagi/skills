@@ -2169,11 +2169,22 @@ def _rank_args(scene: list[dict],
 def sweep_cells() -> tuple[list[dict], list[tuple[str, str, str]]]:
     """Run every sweep cell, collecting survivors and skipped cells.
 
+    A cell that mutated nothing is an ENGINE defect — a broken operator
+    or arguments that missed their target — not a fact about a drawing,
+    so it raises rather than minting a survivor: every predicate here
+    returns `[]` on an unchanged scene (nothing dropped, `fb == fa`, no
+    re-bound target, no manufactured collinearity), which would turn the
+    cell into a vacuous pass. Silence has to mean "the drawing answered
+    the mutation", never "no mutation happened".
+
     Returns:
         `(survivors, skipped)` — survivors as `{"id", "detail"}` dicts
         sorted by id, skipped as `(base, op, reason)` triples in sweep
         order. Both are deterministic: the bases are fixed builders and
         an id hashes only its own detail string.
+
+    Raises:
+        EngineError: If a cell's operator left the scene unchanged.
     """
     survivors: list[dict] = []
     skipped: list[tuple[str, str, str]] = []
@@ -2185,6 +2196,9 @@ def sweep_cells() -> tuple[list[dict], list[tuple[str, str, str]]]:
                 skipped.append((base_name, op, str(reason)))
                 continue
             after = OPERATORS[op](scene, **args)
+            if after == scene:
+                raise EngineError("sweep cell %s/%s mutated nothing"
+                                  % (base_name, op))
             details = predicate(scene, after, collect_findings(scene),
                                 collect_findings(after))
             survivors.extend(
@@ -2264,6 +2278,23 @@ class TestDiscovery(unittest.TestCase):
                if kind not in ("promote", "allow", "bug")
                or not why.strip()]
         self.assertEqual(bad, [])
+
+    def test_no_op_operator_fails_the_sweep_cell(self) -> None:
+        """An operator that mutates nothing raises, naming its cell.
+
+        The guard exists because every correspondence predicate is
+        silent on an unchanged scene, so without it a broken operator
+        would read as a clean sweep — silence standing in for health,
+        which is the failure mode this harness exists to kill.
+        """
+        saved = OPERATORS["drop_edge"]
+        OPERATORS["drop_edge"] = lambda scene, **kw: copy.deepcopy(scene)
+        try:
+            with self.assertRaises(EngineError) as caught:
+                sweep_cells()
+        finally:
+            OPERATORS["drop_edge"] = saved
+        self.assertIn("chain/drop_edge", str(caught.exception))
 
     def test_live_sweep_reproduces_the_record(self) -> None:
         """The committed record still describes what a sweep finds today.
