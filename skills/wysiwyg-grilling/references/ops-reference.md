@@ -88,6 +88,11 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // default node; text w/o container → annotation. `decoration` is
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
       // exempt from connector lints and budgets, painted beneath arrows.
+      // [KNOWN DEFECT 2026-08-12: the SVG export currently paints in
+      // type buckets and DISCARDS array order across types, so "beneath
+      // arrows" is not honoured there — pinned red by TestPaintOrder in
+      // tests/test_mutants.py; the web client is unaffected. Do not rely
+      // on cross-type z-order in exported/snapshot output until it flips.]
   "kind": "button" | "nav" | "input" | "entity" | "image" | "store"
         | "kpi" | "checkbox" | "toggle" | "slider"
         | "help" | "sticky-bar" | "feedback" | …,
@@ -211,6 +216,10 @@ them.
 into the save record: `{"op": "del", "id": "old-step"}`
 
 **reorder** — z-order: `{"op": "reorder", "id": "bg-panel", "index": 0}`
+[KNOWN DEFECT 2026-08-12: reorder changes stored order (which replay and the
+web client honour) but has NO effect on the SVG export/snapshot across type
+boundaries — see the TestPaintOrder pin. Flips when render_svg paints in
+array order.]
 
 **pin** — element-anchored question (❓ on canvas + interactive rail entry;
 answers arrive as `pin_answer` events carrying the text):
