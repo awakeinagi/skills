@@ -153,10 +153,13 @@ right behaviour and is red now. Its state is unchanged by the harness work.
    `~/docs/optimization/.ledger/so1.jsonl`, and C3 (the `lastmsg.py --grep`
    inversion) fixed immediately** — run 6 must not inherit an instrument that
    inverts answers.
-3. **The ELK experiment — RESOLVED: spike running now** (user chose to measure
-   against the current-dagre baseline knowingly; the dependency lands in the
-   committed bundle only if BOTH defect classes drop per
-   `~/docs/optimization/r5/mermaid-spike/README.md`'s decision rule).
+3. **The ELK experiment — RESOLVED: run 2026-08-12, verdict REJECT.** The
+   conjunctive rule failed on both sources (classes moved in opposite
+   directions; hypothesis falsified); ELK *relocated* the manufactured
+   relationship into a 448px shared corridor rather than removing it. No
+   dependency lands. Full report:
+   `~/docs/optimization/r5/mermaid-spike/ELK-RESULTS.md`; verdict + the
+   spike's incidental snapshot-truncation finding recorded in V0.9-PLAN WP5.
 4. **`docs/` gitignore — RESOLVED: stays fully local.** The convention stands
    (adr/ and prototypes/ have been local through eight versions). Accepted
    consequences, recorded once: committed code references documents a fresh
