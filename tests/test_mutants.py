@@ -1330,6 +1330,13 @@ def _register(m: Mutant) -> Mutant:
     return m
 
 
+# AXIS CONVENTION (binds WP4): endpoint_gap magnitude is the gap along the
+# arrow's APPROACH AXIS (horizontal here), not the perpendicular distance to
+# the facet — 80.0/50.0, not 35.8/22.4. A fix that reports perpendicular
+# distance will not flip these mutants and is wrong by this spec. The bands
+# below (±30%, ±40%) exclude the perpendicular readings deliberately: the
+# approach axis is what the reader's eye follows down the arrow.
+
 # Shape-blind endpoint lint: the endpoint sits 80px of white space clear of
 # the rhombus but inside its bbox. Flips when WP4 clips to the shape.
 _register(Mutant(
@@ -1397,9 +1404,15 @@ _register(Mutant(
                        magnitude=(50, 0.90)),
     neighbour=Neighbour(_diamond_stage, Silence("float_diamond"))))
 
-# Spurious: false_bidi reads the stored chord, so curved elbows whose
-# rendered tangents diverge still read as one bidirectional line. Flips
-# when WP4 measures the rendered tangent.
+# Spurious: false_bidi reads the stored chord, so a curved elbow whose
+# rendered path bows away from it still reads as one bidirectional line.
+# Flips when WP4 samples the rendered PATH over the final stretch — NOT
+# the tangent at the arrowhead, which is (0,18) here, identical to the
+# chord, and would never flip this. With Catmull-Rom controls c1=(266.7,
+# 285) and c2=(250,294), the curve passes through (254.8,291.9): |dx|=4.8
+# off the x=250 chord line, breaking false_bidi's 2px collinearity
+# tolerance while the sharp neighbour, whose path IS its chord, keeps
+# firing.
 _register(Mutant(
     "curved_elbow_spurious_bidi",
     build=lambda: _opposed_pair(rounded=True),
@@ -1505,9 +1518,10 @@ class TestMutantCatalogue(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_mutant_curved_elbow_spurious_bidi(self) -> None:
-        """Curved elbows whose rendered tangents diverge still read bidi."""
-        # Stored chord, not rendered tangent; flips when WP4 reads the
-        # rendered tangent.
+        """A curved elbow bowed off its own chord still reads as bidi."""
+        # Stored chord, not rendered path; flips when WP4 samples the
+        # rendered path over the final stretch (see the catalogue entry —
+        # the arrowhead tangent alone will not flip it).
         self._run("curved_elbow_spurious_bidi")
 
     def test_neighbour_curved_elbow_spurious_bidi(self) -> None:
