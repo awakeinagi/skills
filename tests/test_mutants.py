@@ -1566,11 +1566,16 @@ class TestExportCompleteness(unittest.TestCase):
 # These are plain tests rather than `Mutant` entries, and the reason is now
 # structural rather than incidental: a `Mutant` is judged by
 # `collect_findings` over an ELEMENT LIST, and none of what follows is in
-# one. A save record is not an element; a `files` map is doc-level, so the
-# orphan direction cannot even be written as a scene. That is the third time
-# the element-list scene unit has bounded what the catalogue can hold (after
-# the export path and this), which is worth knowing before anyone tries to
-# fold these in.
+# one. Three distinct things have now fallen outside that scene unit, two of
+# them here:
+#   1. rendered markup    — `render_svg`'s output is not elements
+#                           (`TestExportCompleteness`);
+#   2. save records       — not elements at all, and not even in the
+#                           artifact file;
+#   3. the `files` map    — doc-level, a SIBLING of `elements`, so the
+#                           orphan direction cannot be written as a scene.
+# Worth knowing before anyone tries to fold these into the catalogue: the
+# blocker is the scene unit, not the will to write the quadruple.
 # ---------------------------------------------------------------------------
 
 _GOOD_ARTIFACT = json.dumps({
@@ -1678,17 +1683,28 @@ class TestStoreIntegrity(unittest.TestCase):
         `Store.load` guards the save loop with `except (ValueError,
         KeyError)` (canvas.py:6485), which covers a truncated file and a
         missing key — both pinned green above. A record that is valid
-        JSON but not an OBJECT slips past both: `apply_migrations` reaches
-        `doc.setdefault("migrations", [])` on a list and raises
-        `AttributeError`, nothing catches it, and the constructor dies. No
-        artifact loads, no save loads, the project will not open.
+        JSON but not an OBJECT slips past both: `apply_migrations` opens
+        by calling `migration_list` (canvas.py:701), whose body is
+        `doc.setdefault("migrations", [])` (canvas.py:696), which raises
+        `AttributeError` on a list. Nothing catches it and the
+        constructor dies. No artifact loads, no save loads, the project
+        will not open.
+
+        That call site matters: it is the FIRST line of
+        `apply_migrations`, ahead of the `pending` computation and its
+        `if not pending: return` early-out. So the crash does not depend
+        on any migration actually being due — a fully migrated project
+        dies exactly the same way, on every load.
 
         `[]` is not an exotic corruption — it is what any tool that writes
         "just the array" produces, and the same crash comes from `null`,
         `"text"` and a bare number.
 
-        Flips when that except clause covers the type-confusion case (or
-        the loop checks `isinstance(rec, dict)` before migrating).
+        The `except Exception` below pins the OUTCOME — the project will
+        not open — and deliberately not the mechanism: WP1 may well fix
+        this somewhere other than that `setdefault`, and any exception
+        escaping the load is the same disaster for the user. Flips when
+        the record is quarantined like every other bad one.
         """
         try:
             st = self._load({"a": _GOOD_ARTIFACT},
@@ -1724,6 +1740,29 @@ class TestStoreIntegrity(unittest.TestCase):
             "(issues=%r) — validate_scene made an ART-000 for exactly "
             "this and the loader dropped it" % (st.issues,))
 
+    def test_the_fileref_artifact_loads_and_keeps_its_orphan(self) -> None:
+        """The two file-reference reds' setup, asserted where nothing masks it.
+
+        `artifact_files` and `referential` are read ONLY inside those two
+        reds, and both are `expectedFailure`. Rename either attribute —
+        exactly what a WP1 fix to this area would be touching — and both
+        reds become swallowed `AttributeError`s printing a healthy `x`
+        (doctrine §6). This is their standing guard: ungated, naming both
+        attributes, and asserting the load those reds measure deviations
+        from.
+
+        `referential` is asserted to be a dict rather than to be EMPTY,
+        deliberately. Its emptiness is the very silence the reds pin, so
+        pinning it here as well would make WP1's fix break this test in
+        the same change that flips them — a guard that fights the fix it
+        is waiting for.
+        """
+        st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertEqual(list(st.artifact_files.get("a", {})),
+                         ["orphan-file-id"])
+        self.assertIsInstance(st.referential, dict)
+
     @unittest.expectedFailure
     def test_red_dangling_file_reference_is_reported(self) -> None:
         """An image whose fileId names no file in `files` goes unreported.
@@ -1757,11 +1796,14 @@ class TestStoreIntegrity(unittest.TestCase):
         and writes it back out on every save, so a project accumulates
         dataURL payloads nothing can ever draw and nothing ever names.
 
+        The retention half of this — that the blob really is kept — is
+        asserted by `test_the_fileref_artifact_loads_and_keeps_its_orphan`
+        above, unmasked, so this red carries only its own claim: that
+        nothing SAYS so.
+
         Flips when any channel reports the unreferenced entry.
         """
         st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
-        self.assertEqual(list(st.artifact_files.get("a", {})),
-                         ["orphan-file-id"])
         said = json.dumps([st.issues, st.referential], default=str)
         self.assertIn(
             "orphan-file-id", said,
@@ -2079,11 +2121,13 @@ def _attach_chain(shared: bool) -> list[dict]:
 # announces itself as an unexpected success rather than a silent pass.
 # ---------------------------------------------------------------------------
 
-# Not every red in this file is a catalogue entry. `TestExportCompleteness`'s
-# two export reds are deliberately outside CATALOGUE (a Mutant is judged by
-# `collect_findings`, which cannot see rendered markup at all), so
-# `mutants list --red` reports fewer reds than the suite's expected-failure
-# count. Their guard is that class's own, not the one below.
+# Not every red in this file is a catalogue entry, and the gap is not small:
+# as of 2026-08-12 `mutants list --red` reports 9 while the suite reports 15
+# expected failures. The six outside live in two classes —
+# `TestExportCompleteness` (2) and `TestStoreIntegrity` (4) — and are outside
+# deliberately, because a Mutant is judged by `collect_findings` over an
+# ELEMENT LIST and none of what they measure is in one. Each class carries
+# its own standing guard for its reds; the one below covers CATALOGUE alone.
 CATALOGUE: dict[str, Mutant] = {}
 
 
