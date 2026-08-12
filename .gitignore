@@ -11,3 +11,7 @@ docs/
 project_knowledge/
 .mypy_cache/
 .ruff_cache/
+
+# optimization
+.ledger/
+frontends/wysiwyg-grilling/test-results/.last-run.json
