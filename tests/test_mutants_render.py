@@ -429,7 +429,7 @@ def _span_flow_batch(span: int) -> dict:
             "ops": ops}
 
 
-def _span_scene(span: int, root: Path) -> tuple[Any, list[dict], int]:
+def _span_scene(span: int, root: Path) -> tuple[list[dict], int]:
     """Build the `span`-wide flow in a project and ask what it wants to be.
 
     The browser-free half of `_rightmost_node_ink`, split out so the
@@ -440,12 +440,12 @@ def _span_scene(span: int, root: Path) -> tuple[Any, list[dict], int]:
     Args:
         span: Passed to `_span_flow_batch`.
         root: Project root to create. The caller owns it, and owns
-            clearing the runtime files the `Project` writes OUTSIDE it
-            (see `_clear_runtime`).
+            calling `_clear_runtime(root)` afterwards — including when
+            this function raises part-way through.
 
     Returns:
-        `(project, elements, want_w)` — the live `canvas.Project`, the
-        committed scene, and the width `render_svg` asks for.
+        `(elements, want_w)` — the committed scene and the width
+        `render_svg` asks for.
     """
     project = canvas.Project(root)
     project.ensure_tree()
@@ -453,19 +453,29 @@ def _span_scene(span: int, root: Path) -> tuple[Any, list[dict], int]:
     store.apply_batch(_span_flow_batch(span))
     els = store.scenes["wide"]
     _svg, want_w, _want_h = canvas.render_svg(els, title="Wide")
-    return project, els, want_w
+    return els, want_w
 
 
-def _clear_runtime(project: Any) -> None:
-    """Delete the runtime files a Project keeps outside its own root.
+def _clear_runtime(root: Path) -> None:
+    """Delete the runtime files a project rooted at `root` keeps outside it.
 
     `Project` hashes its root path into the system temp dir for state,
-    events and log, so removing the project tree alone leaves three
-    files behind per test run.
+    events and log, so removing the project tree alone would leave three
+    files behind per test run — and `tearDown`'s `rmtree` cannot reach
+    them either.
+
+    Takes the ROOT, not a live `Project`, so that a caller can put it in
+    a `finally` that also covers CONSTRUCTION. Those paths are a pure
+    function of the root, so a project that raised half-built — before
+    any `Project` object came back to hand to this — is still cleaned up.
+    Reconstructing the `Project` here is free: `__init__` only hashes the
+    path and ensures the runtime dir.
 
     Args:
-        project: The `canvas.Project` to clean up after.
+        root: The project root that was (or was being) built.
     """
+    project = canvas.Project(root)
+    # system tempdir, not `workdir` — tearDown's rmtree never reaches these
     for path in (project.state_path, project.events_path,
                  project.log_path):
         if path.exists():
@@ -501,8 +511,11 @@ def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
             tier was asked for, so not measuring is a failure.
     """
     root = Path(workdir) / ("proj-%d" % span)
-    project, _els, want_w = _span_scene(span, root)
+    # construction INSIDE the try: `_span_scene` writes a project tree and
+    # can raise part-way, and the runtime files it would leave behind sit
+    # outside `workdir` where tearDown's rmtree will never find them.
     try:
+        _els, want_w = _span_scene(span, root)
         out = root / "shot.png"
         # the CLI prints KEY=VALUE lines; swallow them so a passing run is
         # quiet and a failure's message is the assertion, not the banner
@@ -515,7 +528,7 @@ def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
                                % (rc, span))
         pw, ph, pix = read_png_gray(out.read_bytes())
     finally:
-        _clear_runtime(project)
+        _clear_runtime(root)
     # n0 sits at x=0 and is the leftmost thing drawn, so render_svg's minx
     # is -SVG_PAD; with no uniform scale in play (the regime
     # `TestSnapshotFramingRegime` pins ungated) PNG x is svg x minus that.
@@ -632,9 +645,9 @@ class TestSnapshotFramingRegime(unittest.TestCase):
         """
         root = Path(tempfile.mkdtemp(prefix="mutants-regime-"))
         try:
-            project, _els, want_w = _span_scene(WIDE_SPAN, root)
-            _clear_runtime(project)
+            _els, want_w = _span_scene(WIDE_SPAN, root)
         finally:
+            _clear_runtime(root)
             shutil.rmtree(root, ignore_errors=True)
         self.assertGreater(want_w, SNAP_WIN_CAP,
                            "WIDE_SPAN no longer overflows the %dpx window "
