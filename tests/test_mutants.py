@@ -1115,5 +1115,245 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
         self.assertIsNone(hits[0]["direction"])
 
 
+# ---------------------------------------------------------------------------
+# Detector-coverage gate: every detector is proven by a firing mutant or
+# named in UNCOVERED with a reason — the table can never rot quietly.
+# CATALOGUE is empty until Task 5 populates it with Mutant instances;
+# render-tier detectors get their proving mutants from an env-gated file
+# Task 8 adds, and are reported as "render-tier", never as UNCOVERED.
+# ---------------------------------------------------------------------------
+
+CATALOGUE: dict = {}   # Task 5 populates this.
+
+RENDER_TIER = {"ablation_existence", "ablation_continuity"}
+
+UNCOVERED: dict[str, str] = {
+    # DETECTORS placeholders: CATALOGUE is empty until Task 5, so every
+    # current detector is unproven for now — Task 5 drains these rows as
+    # it gives each detector its first proving mutant.
+    "endpoint_gap": "no proving mutant yet; Task 5 drains this",
+    "crosses_through_bound": "no proving mutant yet; Task 5 drains this",
+    "passes_through_foreign": "no proving mutant yet; Task 5 drains this",
+    "crossings_count": "no proving mutant yet; Task 5 drains this",
+    "shared_corridor": "no proving mutant yet; Task 5 drains this",
+    "false_bidi": "no proving mutant yet; Task 5 drains this",
+    "float_diamond": "no proving mutant yet; Task 5 drains this",
+
+    # lint_layout message templates with no DETECTORS entry (enumerated
+    # 2026-08-12 by grepping errors.append/warnings.append/notes.append
+    # over canvas.py:4868-5800 — lint_layout's body. The three templates
+    # DETECTORS already covers via lint_re — endpoint_gap,
+    # crosses_through_bound, passes_through_foreign — are excluded here;
+    # project_lint (canvas.py:6361-6403) delegates to lint_layout,
+    # lint_glossary and lint_registry and has no direct appends of its
+    # own, so it contributes no rows).
+    "budget_override_note":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4900",
+    "decoration_overhang":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4956",
+    "half_unbound_endpoint":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4982",
+    "unbound_arrow":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4993",
+    "dangling_binding":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5016",
+    "source_to_sink":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5130",
+    "flow_black_hole":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5140",
+    "flow_miracle":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5146",
+    "message_travels_up":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5158",
+    "message_budget":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5163",
+    "duplicate_screen_title":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5188",
+    "variant_label_mismatch":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5231",
+    "submit_precedes_inputs":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5250",
+    "input_missing_label":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5261",
+    "input_asterisk_required":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5266",
+    "uniform_input_widths":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5275",
+    "sticky_bar_over_inputs":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5286",
+    "help_presence_missing":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5300",
+    "help_slot_drift":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5318",
+    "target_size_too_close":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5366",
+    "progress_indicator_present":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5413",
+    "label_wider_than_run":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5436",
+    "arrow_points_both_ways":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5442",
+    "diagonal_arrow":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5453",
+    "grown_label_overlap":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5513",
+    "shape_overlap":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5518",
+    "annotation_budget":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5526",
+    "label_label_overlap":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5558",
+    "label_on_foreign_node":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5579",
+    "annotation_overlaps_node":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5592",
+    "text_overflow":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5637",
+    "shared_attach_point":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5688",
+    "stranded_element":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5707",
+    "offgrid_elements":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5721",
+    "opacity_not_style":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5727",
+    "unlabeled_decision_branch":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5743",
+    "unconnected_nodes":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5756",
+    "screen_node_budget":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5765",
+    "node_budget_whole_artifact":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5770",
+    "arrow_budget":
+        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5775",
+
+    # ART-### repair codes: validate_scene (canvas.py:374-495) and the
+    # project-load JSON guard (canvas.py:6504).
+    "not_a_json_object": "enumerated 2026-08-12; no proving mutant yet — "
+                         "ART-000, canvas.py:378",
+    "elements_not_a_list": "enumerated 2026-08-12; no proving mutant yet — "
+                           "ART-001, canvas.py:394",
+    "malformed_element_dropped":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-002, canvas.py:402",
+    "duplicate_element_id_dropped":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-003, canvas.py:406",
+    "dangling_container_detached":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-004, canvas.py:415",
+    "dangling_binding_cleared":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-005, canvas.py:421",
+    "invalid_json_ignored": "enumerated 2026-08-12; no proving mutant yet — "
+                            "ART-006, canvas.py:6504",
+    "detached_label_recentered":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-007, canvas.py:471",
+    "label_in_text_element_merged":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-010, canvas.py:448",
+    "label_wider_than_container_refit":
+        "enumerated 2026-08-12; no proving mutant yet — "
+        "ART-011, canvas.py:491",
+}
+
+
+def coverage_table() -> list[tuple[str, str, str]]:
+    """Report each detector's proof status against the mutant catalogue.
+
+    A detector is "proven" once at least one `CATALOGUE` mutant's
+    `expect` is a `FindingSpec` naming that detector's check — a mutant
+    whose `expect` is a `Silence` proves only the check's quiet half, so
+    a check whose only mutants are Silences is still reported UNCOVERED
+    for firing. Detectors named in `RENDER_TIER` are reported
+    "render-tier" instead: their proving mutants live in a separate
+    env-gated catalogue (Task 8) that this function does not read, so
+    they are never reported UNCOVERED.
+
+    Returns:
+        One `(detector, status, evidence)` tuple per name currently in
+        `DETECTORS`, sorted by name. `status` is one of "proven",
+        "render-tier", "UNCOVERED". `evidence` is the proving mutant id
+        for "proven", a placeholder note for "render-tier", or the
+        `UNCOVERED` reason (empty string if the detector carries none).
+    """
+    proven_by: dict[str, str] = {}
+    for mid, mutant in CATALOGUE.items():
+        expect = mutant.expect
+        if isinstance(expect, FindingSpec) and expect.check not in proven_by:
+            proven_by[expect.check] = mid
+    rows: list[tuple[str, str, str]] = []
+    for name in sorted(DETECTORS):
+        if name in RENDER_TIER:
+            rows.append((name, "render-tier",
+                        proven_by.get(name, "pending Task 8")))
+        elif name in proven_by:
+            rows.append((name, "proven", proven_by[name]))
+        else:
+            rows.append((name, "UNCOVERED", UNCOVERED.get(name, "")))
+    return rows
+
+
+class TestCoverage(unittest.TestCase):
+    """Spec §3: every detector is proven or named, never silently unproven."""
+
+    def test_every_detector_is_proven_or_named(self) -> None:
+        """Every DETECTORS entry is either proven or carries an UNCOVERED reason."""
+        gaps = [name for name, status, _ in coverage_table()
+                if status == "UNCOVERED" and name not in UNCOVERED]
+        self.assertEqual(gaps, [],
+                         "detectors with no firing mutant and no "
+                         "UNCOVERED reason: %s" % gaps)
+
+    def test_uncovered_entries_all_carry_reasons(self) -> None:
+        """No UNCOVERED entry has a blank or whitespace-only reason."""
+        empty = [k for k, v in UNCOVERED.items() if not str(v).strip()]
+        self.assertEqual(empty, [])
+
+    def test_silence_only_mutant_does_not_prove_its_check(self) -> None:
+        """A check whose only catalogue mutant is a Silence stays UNCOVERED.
+
+        `Silence` only proves a check's quiet half — a mutant that never
+        expects the check to fire cannot stand in for one that does.
+        """
+        silence = Silence("endpoint_gap")
+        neighbour = Neighbour(build=lambda: [], expect=silence)
+        mutant = Mutant("synthetic-silence-only", build=lambda: [],
+                        op="unchanged", args={}, expect=silence,
+                        neighbour=neighbour)
+        saved = dict(CATALOGUE)
+        CATALOGUE.clear()
+        CATALOGUE["synthetic-silence-only"] = mutant
+        try:
+            row = next(r for r in coverage_table() if r[0] == "endpoint_gap")
+        finally:
+            CATALOGUE.clear()
+            CATALOGUE.update(saved)
+        self.assertEqual(row[1], "UNCOVERED")
+
+    def test_findingspec_mutant_proves_its_check(self) -> None:
+        """A catalogue mutant whose expect is a FindingSpec proves it."""
+        neighbour = Neighbour(build=lambda: [], expect=Silence("endpoint_gap"))
+        mutant = Mutant("synthetic-proof", build=lambda: [], op="unchanged",
+                        args={}, expect=FindingSpec("endpoint_gap"),
+                        neighbour=neighbour)
+        saved = dict(CATALOGUE)
+        CATALOGUE.clear()
+        CATALOGUE["synthetic-proof"] = mutant
+        try:
+            row = next(r for r in coverage_table() if r[0] == "endpoint_gap")
+        finally:
+            CATALOGUE.clear()
+            CATALOGUE.update(saved)
+        self.assertEqual(row[1], "proven")
+        self.assertEqual(row[2], "synthetic-proof")
+
+
 if __name__ == "__main__":
-    unittest.main()
+    if "--coverage" in sys.argv:
+        for name, status, ev in coverage_table():
+            print("%-28s %-12s %s" % (name, status, ev))
+    else:
+        unittest.main()
