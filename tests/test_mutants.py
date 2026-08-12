@@ -123,8 +123,14 @@ DETECTORS: dict[str, dict] = {
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
     "float_diamond": {"collect": _collect_float_diamond},
-    # render tier registers "ablation_existence" / "ablation_continuity"
-    # in test_mutants_render.py by updating this dict at import.
+    # The render tier's two detectors are registered HERE, not by
+    # test_mutants_render.py updating this dict at import: the default
+    # suite never imports that module, so a self-registration would leave
+    # `--coverage` silently missing two rows. They carry neither `lint_re`
+    # nor `collect`, so `collect_findings` walks straight past them — they
+    # measure pixels, and the pixels only exist under MUTANTS_RENDER=1.
+    "ablation_existence": {"render": True},
+    "ablation_continuity": {"render": True},
 }
 
 
@@ -1566,7 +1572,15 @@ class TestMutantCatalogue(unittest.TestCase):
 # Task 8 adds, and are reported as "render-tier", never as UNCOVERED.
 # ---------------------------------------------------------------------------
 
-RENDER_TIER = {"ablation_existence", "ablation_continuity"}
+# Detector -> the gated test that proves it, in tests/test_mutants_render.py.
+RENDER_TIER = {
+    "ablation_existence":
+        "test_mutants_render.TestRenderMutants."
+        "test_ablation_existence_fires_on_invisible_element",
+    "ablation_continuity":
+        "test_mutants_render.TestRenderMutants."
+        "test_mutant_label_backdrop_severs_connector",
+}
 
 UNCOVERED: dict[str, str] = {
     # The one DETECTORS entry the day-one catalogue leaves unproven: every
@@ -1718,9 +1732,9 @@ def coverage_table() -> list[tuple[str, str, str]]:
         `DETECTORS`, sorted by name. `status` is one of "proven",
         "render-tier", "UNCOVERED". `evidence` is the proving mutant id
         for "proven" — the lexicographically first, so a check with
-        several proofs reports the same one every run — a placeholder
-        note for "render-tier", or the `UNCOVERED` reason (empty string
-        if the detector carries none).
+        several proofs reports the same one every run — the gated test
+        `RENDER_TIER` names for "render-tier", or the `UNCOVERED` reason
+        (empty string if the detector carries none).
     """
     proven_by: dict[str, str] = {}
     for mid in sorted(CATALOGUE):
@@ -1731,8 +1745,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
     rows: list[tuple[str, str, str]] = []
     for name in sorted(DETECTORS):
         if name in RENDER_TIER:
-            rows.append((name, "render-tier",
-                        proven_by.get(name, "pending Task 8")))
+            rows.append((name, "render-tier", RENDER_TIER[name]))
         elif name in proven_by:
             rows.append((name, "proven", proven_by[name]))
         else:
