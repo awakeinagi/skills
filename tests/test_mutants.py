@@ -1310,9 +1310,16 @@ def _export_delta(els: list[dict], eid: str) -> dict[str, int]:
     Ablation rather than inspection, because `render_svg` paints a ground
     rect on every scene and a title on some: counting tags in a single
     render cannot say which element owns them. Re-rendering without `eid`
-    and subtracting cancels everything that is not about `eid`. The
-    viewport shrinks when the bounds do, but tag COUNTS are unaffected by
-    that, so the subtraction stays exact.
+    and subtracting cancels everything that is not about `eid`.
+
+    The subtraction is exact only because this renders at `render_svg`'s
+    DEFAULTS. Ablating an element shrinks the viewport, and under
+    `footnotes=True` the note block wraps to that width
+    (canvas.py:4524-4529), so a narrower scene can rewrap a note onto more
+    lines and move the `text` count for reasons that have nothing to do
+    with `eid`. Pass footnotes through here and the counts stop being
+    attributable — measure that path by counting markers against notes
+    instead, the way `test_footnote_markers_match_the_footnote_list` does.
 
     Args:
         els: The full scene. Must hold something besides `eid` — an empty
@@ -1370,7 +1377,11 @@ _EXPORT_MARKUP: dict[str, dict[str, int]] = {
     "arrow": {"polyline": 1, "polygon": 1}, "text": {"text": 1},
     "frame": {"rect": 1, "text": 1}}
 
-# Shipped classes `render_svg`'s paint dispatch has no branch for.
+# Shipped classes `render_svg`'s paint dispatch has no branch for. Note for
+# whoever writes those branches: the bounds loop reads `points` for arrows and
+# lines ONLY (canvas.py:4498), so a freedraw contributes its STORED width and
+# height and not the extent of its stroke — paint it from `points` and any
+# part of the stroke overhanging that box lands outside the viewBox.
 _DROPPED = ("freedraw", "image")
 
 
@@ -1461,8 +1472,40 @@ class TestExportCompleteness(unittest.TestCase):
         self.assertEqual(
             len(re.findall(r"<text[^>]*>\d+\. ", svg)), want)
 
+    def test_dropped_classes_are_red_by_measurement_not_by_error(self) -> None:
+        """The two reds below are red for the reason they claim.
+
+        `@unittest.expectedFailure` swallows ERRORS as well as failures,
+        so a `render_svg` that started RAISING on these classes would go
+        on printing a healthy `x`: the pin would be gone and the run
+        would look identical (skill doctrine §6). `TestMutantCatalogue`'s
+        own guard cannot reach these — it walks `type(self)` and maps
+        method names onto `CATALOGUE`, and export reds are outside both —
+        so this is that guard's analog for this class, ungated on purpose
+        because it has to speak in every commit.
+
+        It doubles as the talkative half of unexpected-success detection:
+        `unittest` reports a red that has quietly gone green as an
+        anonymous "unexpected success", while this names the class and
+        says which decorator to drop.
+        """
+        for etype in _DROPPED:
+            with self.subTest(element_type=etype):
+                try:
+                    delta = _export_delta(_one_of(etype), "x-1")
+                except Exception as exc:
+                    self.fail("%s's red is red via %r, not a spec "
+                              "mismatch — that is a broken pin, not a "
+                              "defect pin" % (etype, exc))
+                self.assertEqual(
+                    delta, {},
+                    "%s now reaches the export as %r — flip the "
+                    "expectedFailure on "
+                    "test_red_%s_never_reaches_the_export"
+                    % (etype, delta, etype))
+
     @unittest.expectedFailure
-    def test_mutant_freedraw_never_reaches_the_export(self) -> None:
+    def test_red_freedraw_never_reaches_the_export(self) -> None:
         """A freehand stroke is in `ELEMENT_TYPES` and in no export.
 
         `paint` dispatches on rectangle/ellipse/diamond/arrow/line/text/
@@ -1484,7 +1527,7 @@ class TestExportCompleteness(unittest.TestCase):
             "ELEMENT_TYPES, it is in the model, it is not in the picture")
 
     @unittest.expectedFailure
-    def test_mutant_image_never_reaches_the_export(self) -> None:
+    def test_red_image_never_reaches_the_export(self) -> None:
         """A pasted image is in the drawing and in no export.
 
         Same missing branch as the stroke above, and the same silence,
@@ -1780,6 +1823,11 @@ def _attach_chain(shared: bool) -> list[dict]:
 # announces itself as an unexpected success rather than a silent pass.
 # ---------------------------------------------------------------------------
 
+# Not every red in this file is a catalogue entry. `TestExportCompleteness`'s
+# two export reds are deliberately outside CATALOGUE (a Mutant is judged by
+# `collect_findings`, which cannot see rendered markup at all), so
+# `mutants list --red` reports fewer reds than the suite's expected-failure
+# count. Their guard is that class's own, not the one below.
 CATALOGUE: dict[str, Mutant] = {}
 
 
