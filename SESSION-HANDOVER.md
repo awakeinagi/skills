@@ -57,16 +57,23 @@ Never delete a mutant to get green.
 | render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_snapshot_cap_drops_the_rightmost_node` |
 
 The last row of each tier came from the 2026-08-12 ELK spike, and both are red
-in a way the others are not — **by absence, not by wrong answer.**
-`phantom_passthrough_shared_attach` asserts a check (`phantom_passthrough`)
-that has no detector at all: it pins the exact geometry ELK shipped (two
-edges on one attach point on a node, drawn as one unbroken 448px stroke
-through it) and fulfils the sweep survivor's **promote** disposition. Flip it
-by landing WP4b item 1's lint and giving it a `DETECTORS` entry.
-`test_mutant_snapshot_cap_drops_the_rightmost_node` drives `canvas.py
-snapshot` end to end and finds the rightmost node simply absent from the PNG
-— `rasterize_svg` clamps the browser window to 3000px (canvas.py:10003) while
-`render_svg` only scales past 4000px, and `validate_png` checks the file
+by an **absence** rather than by a wrong answer — but the two absences are
+different things and should not be read as one phenomenon.
+
+`phantom_passthrough_shared_attach` is red for a **missing check**: the
+picture is wrong and no detector in the harness can say so. Its `expect` names
+`phantom_passthrough`, which has no `DETECTORS` entry at all (declared in
+`ASPIRATIONAL` with that reason, so it reads as deliberate rather than as a
+typo). It pins the exact geometry ELK shipped — two edges on one attach point
+on a node, drawn as one unbroken 448px stroke through it — and fulfils the
+sweep survivor's **promote** disposition. Flip it by landing WP4b item 1's
+lint and giving it a `DETECTORS` entry.
+
+`test_mutant_snapshot_cap_drops_the_rightmost_node` is red for **missing ink**:
+the check works, and what is absent is the drawing itself. It drives
+`canvas.py snapshot` end to end and finds the rightmost node simply not in the
+PNG — `rasterize_svg` clamps the browser window to 3000px (canvas.py:10003)
+while `render_svg` only scales past 4000px, and `validate_png` checks the file
 against the *window*, so a truncated snapshot reports `VALID=true`.
 
 `collinear_overlap_corridor` is **green and must stay green** — it is the

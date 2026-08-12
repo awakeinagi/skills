@@ -473,17 +473,25 @@ def _operator(fn: Callable[..., list[dict]]) -> Callable[..., list[dict]]:
                 or if a non-`unchanged` operator returned a scene equal
                 to its input.
         """
-        # Compared against a pristine copy, not `scene` itself: an
-        # operator that mutated its argument in place would otherwise
-        # make every no-op look like a change (see
-        # `test_mutation_does_not_alias_input` for the other half).
+        # Insurance, not a live fix: `fn` gets its own copy on the next
+        # line, so today nothing can reach `scene`. Comparing against a
+        # pristine copy keeps the guard honest if that ever changes —
+        # an operator mutating its argument in place would otherwise
+        # make every no-op look like a change, and the no-op guard would
+        # go quiet exactly where it is needed. (The isolation this
+        # depends on is itself pinned by
+        # `test_mutation_does_not_alias_input`.)
         pristine = copy.deepcopy(scene)
         try:
             out = fn(copy.deepcopy(scene), **args)
         except StopIteration:
             # Every operator locates its target with `next(e for e in
-            # scene if e["id"] == ...)`; the only StopIteration any of
-            # them can raise is that lookup missing.
+            # scene if e["id"] == ...)`, so the only StopIteration any
+            # of them can raise is that lookup missing. Some lookups are
+            # on ids DERIVED from the scene rather than passed in (a
+            # node's bound label id, say); those raise for themselves,
+            # since this message would blame the caller's args for a
+            # malformed scene. See `rename_node`.
             raise EngineError("%s: no element matches the target id in %r"
                               % (fn.__name__, args)) from None
         validate_scene(out)
@@ -676,14 +684,24 @@ def rename_node(scene: list[dict], node_id: str, text: str) -> list[dict]:
         The mutated scene.
 
     Raises:
-        EngineError: If the node has no bound text label.
+        EngineError: If the node has no bound text label, or names one
+            the scene does not contain.
     """
     node = next(e for e in scene if e["id"] == node_id)
     label_id = next((b["id"] for b in (node.get("boundElements") or [])
                      if b.get("type") == "text"), None)
     if label_id is None:
         raise EngineError("rename_node: %r has no bound label" % node_id)
-    label = next(e for e in scene if e["id"] == label_id)
+    # Looked up with a default rather than bare, because `label_id` is
+    # DERIVED from the node's boundElements, not passed in by the caller.
+    # Letting the decorator's StopIteration handler report this would
+    # blame the caller's `node_id`, which resolved perfectly well; the
+    # fault is a scene whose boundElements names an absent label.
+    label = next((e for e in scene if e["id"] == label_id), None)
+    if label is None:
+        raise EngineError("rename_node: %r is bound to label %r, which is "
+                          "not in the scene — malformed scene, not a bad "
+                          "target id" % (node_id, label_id))
     label["text"] = text
     label["originalText"] = text
     return scene
@@ -1129,6 +1147,22 @@ class TestOperators(unittest.TestCase):
                 _chain(), node_id="A-typo", text="Renamed")
         self.assertIn("rename_node: no element matches",
                       str(caught.exception))
+
+    def test_rename_node_blames_the_scene_for_an_absent_label(self) -> None:
+        """A derived id that misses indicts the scene, not the caller's args.
+
+        `node_id` resolves perfectly here; it is the label id read OUT of
+        the node's boundElements that names nothing. The decorator's
+        message would have blamed `{'node_id': 'A', ...}` and sent the
+        reader hunting a typo that isn't there.
+        """
+        node = el(id="A", type="rectangle", x=0, y=0, width=80, height=40,
+                 boundElements=[{"id": "lbl-gone", "type": "text"}])
+        with self.assertRaises(EngineError) as caught:
+            OPERATORS["rename_node"]([node], node_id="A", text="Renamed")
+        msg = str(caught.exception)
+        self.assertIn("'lbl-gone'", msg)
+        self.assertIn("malformed scene, not a bad target id", msg)
 
     def test_zero_shift_label_is_refused_as_a_no_op(self) -> None:
         """A real target with (0, 0) offsets mutates nothing, so it raises.
@@ -1710,6 +1744,16 @@ class TestMutantCatalogue(unittest.TestCase):
     def _run_neighbour(self, mid: str) -> None:
         """Build one mutant's neighbour and assert its opposite pole.
 
+        Every mutant gets its own neighbour method even where several
+        mutants share one control scene and one expectation, so some of
+        these read as duplicates. That is the convention, not an
+        oversight: a neighbour is part of a single mutant's RECORD, and
+        collapsing the repeats would mean a mutant whose control quietly
+        stopped being the right pole — or one whose control was deleted
+        with the mutant it was written for — could take its neighbours
+        with it, or keep passing on another mutant's evidence. One
+        mutant, one control, one line in the run.
+
         Args:
             mid: The mutant's catalogue id.
         """
@@ -1725,6 +1769,8 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_diamond_corner_silence(self) -> None:
         """Fanned rectangle attachments stay endpoint-silent."""
+        # Same control and same expectation as the other two diamond
+        # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_corner_silence")
 
     @unittest.expectedFailure
@@ -1735,6 +1781,8 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_diamond_wrong_direction(self) -> None:
         """Fanned rectangle attachments stay endpoint-silent."""
+        # Same control and same expectation as the other two diamond
+        # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_wrong_direction")
 
     @unittest.expectedFailure
@@ -1745,6 +1793,8 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_diamond_facet_overfire(self) -> None:
         """Fanned rectangle attachments stay endpoint-silent."""
+        # Same control and same expectation as the other two diamond
+        # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_facet_overfire")
 
     @unittest.expectedFailure
@@ -1808,6 +1858,8 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_phantom_passthrough_shared_attach(self) -> None:
         """Feet a node width apart draw two strokes, not one corridor."""
+        # Same control and same expectation as the other _attach_chain
+        # corridor mutant, deliberately — see `_run_neighbour`.
         self._run_neighbour("phantom_passthrough_shared_attach")
 
     def test_mutant_merged_stroke_caught_by_corridor(self) -> None:
@@ -1818,6 +1870,8 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_merged_stroke_caught_by_corridor(self) -> None:
         """Feet a node width apart leave no corridor to share."""
+        # Same control and same expectation as the other _attach_chain
+        # corridor mutant, deliberately — see `_run_neighbour`.
         self._run_neighbour("merged_stroke_caught_by_corridor")
 
     def test_mutant_shared_attach_point_fan_failed(self) -> None:
@@ -2132,6 +2186,34 @@ class TestCoverage(unittest.TestCase):
                         "detector is genuinely still to be built"
                         % (mid, where, spec.check, sorted(DETECTORS),
                            sorted(ASPIRATIONAL)))
+
+    def test_aspirational_entries_are_live_reasoned_and_still_needed(
+            self) -> None:
+        """ASPIRATIONAL cannot rot into a permanent excuse list.
+
+        It is the one table that makes a check name legal with nothing
+        behind it, so it needs its own anti-rot in three directions: a
+        blank reason makes the exemption unreviewable; a key that has
+        since gained a detector is stale, and leaving it means the
+        mutant it covers stays red after its fix landed; and a key no
+        catalogue entry names is dead weight nobody will dare delete
+        later.
+        """
+        blank = sorted(k for k, v in ASPIRATIONAL.items() if not str(v).strip())
+        self.assertEqual(blank, [],
+                         "ASPIRATIONAL entries with no reason: %s" % blank)
+        landed = sorted(set(ASPIRATIONAL) & set(DETECTORS))
+        self.assertEqual(landed, [],
+                         "ASPIRATIONAL names %s, which now HAS a detector — "
+                         "the lint landed: drop the entry and flip the "
+                         "mutant it was covering" % landed)
+        named = {spec.check for m in CATALOGUE.values()
+                for spec in (m.expect, m.neighbour.expect)}
+        unused = sorted(set(ASPIRATIONAL) - named)
+        self.assertEqual(unused, [],
+                         "ASPIRATIONAL names %s, which no catalogue entry "
+                         "expects — the aspiration it excused is gone; "
+                         "delete the entry" % unused)
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""
@@ -2588,7 +2670,9 @@ def sweep_cells() -> tuple[list[dict], list[tuple[str, str, str]]]:
         an id hashes only its own detail string.
 
     Raises:
-        EngineError: If a cell's operator left the scene unchanged.
+        EngineError: If a cell's operator left the scene unchanged, or
+            raised one itself — either way named by the `base/op` cell
+            it happened in, which is what makes it actionable.
     """
     survivors: list[dict] = []
     skipped: list[tuple[str, str, str]] = []
@@ -2599,7 +2683,16 @@ def sweep_cells() -> tuple[list[dict], list[tuple[str, str, str]]]:
             if args is None:
                 skipped.append((base_name, op, str(reason)))
                 continue
-            after = OPERATORS[op](scene, **args)
+            try:
+                after = OPERATORS[op](scene, **args)
+            except EngineError as exc:
+                # The decorator's guards fire first for a decorated
+                # operator, and they know the operator but not the CELL
+                # — and a sweep failure is only actionable with the base
+                # it ran on. Re-raise with the cell name prefixed so both
+                # paths out of here read the same way.
+                raise EngineError("sweep cell %s/%s: %s"
+                                  % (base_name, op, exc)) from None
             # `_operator` now refuses a no-op at the source, so a
             # decorated operator can never reach this line unchanged.
             # The check stays as the net for entries that bypass the
@@ -2705,6 +2798,29 @@ class TestDiscovery(unittest.TestCase):
         finally:
             OPERATORS["drop_edge"] = saved
         self.assertIn("chain/drop_edge", str(caught.exception))
+
+    def test_a_decorated_no_op_still_names_its_sweep_cell(self) -> None:
+        """The decorator's guard reaches the caller with the cell attached.
+
+        The test above patches in a BARE lambda, which bypasses
+        `_operator` and so exercises the sweep's own check. A decorated
+        no-op takes the other path: the decorator raises first, before
+        `sweep_cells` can compare anything. Without the re-raise that
+        report would name the operator and not the base it ran on, and
+        "drop_edge mutated nothing" does not tell you which of the sweep
+        bases to go and look at.
+        """
+        saved = OPERATORS["drop_edge"]
+        OPERATORS["drop_edge"] = _operator(
+            lambda scene, **kw: copy.deepcopy(scene))
+        try:
+            with self.assertRaises(EngineError) as caught:
+                sweep_cells()
+        finally:
+            OPERATORS["drop_edge"] = saved
+        msg = str(caught.exception)
+        self.assertIn("sweep cell chain/drop_edge", msg)
+        self.assertIn("mutated nothing", msg)
 
     def test_live_sweep_reproduces_the_record(self) -> None:
         """The committed record still describes what a sweep finds today.
