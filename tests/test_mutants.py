@@ -312,18 +312,30 @@ class Silence:
     def matches(self, findings: list[dict]) -> str | None:
         """Check that no finding of this check fired.
 
+        A crash anywhere in the run invalidates any silence claim: a
+        detector that raised before emitting anything looks identical
+        to one that ran cleanly and found nothing, so "no finding of
+        this check" alone cannot be trusted as coverage — a crash is
+        not coverage.
+
         Args:
             findings: The normalized findings list from `collect_findings`.
 
         Returns:
-            None if silent; otherwise a description of the first finding
-            that broke the silence.
+            None if silent AND no detector crashed; otherwise a
+            description of what broke the silence claim.
         """
         hits = [f for f in findings if f["check"] == self.check]
-        if not hits:
-            return None
-        return "expected silence on check=%r but it fired: %s" % (
-            self.check, hits[0]["raw"])
+        if hits:
+            return "expected silence on check=%r but it fired: %s" % (
+                self.check, hits[0]["raw"])
+        errors = [f for f in findings if f["check"] == "detector-error"]
+        if errors:
+            names = ", ".join(sorted({f["element"] for f in errors}))
+            return ("cannot claim silence on check=%r: detector(s) %s "
+                    "crashed mid-run — a crash is not coverage"
+                    % (self.check, names))
+        return None
 
 
 @dataclass
@@ -427,6 +439,21 @@ class TestEngineRules(unittest.TestCase):
         self.assertIsNotNone(s.matches(
             [{"check": "endpoint_gap", "element": "a1", "magnitude": 1.0,
               "direction": "inside", "raw": "x"}]))
+
+    def test_silence_does_not_match_over_a_crashed_detector(self) -> None:
+        """A crashed detector must not read as silence for its own check.
+
+        `Silence("float_diamond")` on a run where the `float_diamond`
+        collector raised (and so never got the chance to emit a
+        finding) must NOT match — that would let a crash masquerade
+        as "ran clean and found nothing".
+        """
+        bad = dict(DETECTORS)
+        bad["float_diamond"] = {"collect": lambda els: 1 / 0}
+        finds = collect_findings([], registry=bad)
+        mismatch = Silence("float_diamond").matches(finds)
+        self.assertIsNotNone(mismatch)
+        self.assertIn("float_diamond", mismatch)
 
 
 class TestDetectorsAgainstRealLint(unittest.TestCase):
