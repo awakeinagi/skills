@@ -3929,7 +3929,9 @@ class TestCoverage(unittest.TestCase):
         `TestShapeBlindAnnotationOverlap`) never reach `_register` and
         have no expectation objects to compare, so nothing here would
         notice two agents writing the same plain red test under different
-        method names.
+        method names. What defends those classes is a per-agent
+        FILE-SECTION convention plus reviewer vigilance — no automated
+        layer covers them, and saying so is the point.
 
         And one convention is REJECTED rather than merely absent, so it
         does not get re-proposed: per-agent mutant-id PREFIXES. They look
