@@ -1606,6 +1606,87 @@ class TestExportCompleteness(unittest.TestCase):
             "model, it widens the bounds, it is not in the picture")
 
 
+def _annotation_at(corner_clear: bool) -> list[dict]:
+    """A circle and an annotation, in its empty bbox corner or on its body.
+
+    The circle is 400x400 at (300,250) — centre (500,450), r=200 — so the
+    bounding box corner is 82.8px deep, wide enough to park a readable
+    text in the void without any part of it touching the drawn outline.
+    At (302,252) the 70x24 annotation's nearest point is 16.0px clear of
+    the circle; at (460,420) it lies across the body, 194px inside.
+
+    Args:
+        corner_clear: True to park the annotation in the empty corner.
+
+    Returns:
+        The two-element scene: circle `n1`, then annotation `t1`.
+    """
+    tx, ty = (302, 252) if corner_clear else (460, 420)
+    return [el(id="n1", type="ellipse", x=300, y=250, width=400, height=400,
+               customData={"role": "node"}),
+            el(id="t1", type="text", x=tx, y=ty, width=70, height=24,
+               text="see note", fontSize=16,
+               customData={"role": "annotation"})]
+
+
+def _says_lies_on(scene: list[dict]) -> list[str]:
+    """Lint warnings claiming a text sits on a node.
+
+    Args:
+        scene: The scene to lint.
+
+    Returns:
+        The matching warning lines, one per claim.
+    """
+    lint = canvas.lint_layout(scene, artifact_type="flow")
+    return [w for w in lint["warnings"]
+            if "lies on top" in w or "lands on" in w]
+
+
+class TestShapeBlindAnnotationOverlap(unittest.TestCase):
+    """Shape-blindness instance five: text/node overlap is raw bbox math.
+
+    A sibling of `ellipse_corner_overfire`, and outside `CATALOGUE` for a
+    reason worth stating: an over-fire mutant asserts `Silence` on its
+    check, and `annotation_overlaps_node` (canvas.py:5593) has no
+    `DETECTORS` entry — it sits in `UNCOVERED`. A `Silence` on an
+    unregistered check passes vacuously, so the catalogue cannot hold this
+    one until that entry lands. Read as lint text instead, which needs no
+    registry.
+    """
+
+    def test_an_annotation_on_the_body_is_reported(self) -> None:
+        """The check fires where it should — and the red below needs it to.
+
+        Without this, a `lint_layout` that stopped emitting the warning
+        at all would turn the red green and read as a fix.
+        """
+        self.assertTrue(_says_lies_on(_annotation_at(corner_clear=False)))
+
+    @unittest.expectedFailure
+    def test_red_annotation_clear_of_a_circle_is_reported_as_on_it(
+            self) -> None:
+        """An annotation 16px clear of the circle is called an overlap.
+
+        Both text/node checks — `label_on_foreign_node` (canvas.py:5580)
+        and `annotation_overlaps_node` (:5593) — intersect raw
+        `x/y/width/height` rectangles with no shape term at all, so an
+        ellipse is its bounding box to both of them. Here the annotation
+        sits wholly in the corner void, its nearest point 16.0px from the
+        drawn outline, and the lint says it "lies on top of" the circle in
+        the same words it uses for one lying across the middle.
+
+        The `nodes` set these loops walk is not shape-filtered either, so
+        a diamond would read the same way. Flips when the checks test the
+        drawn shape — the geometry is already in canvas.py as
+        `marker_inset` (4200).
+        """
+        self.assertEqual(
+            _says_lies_on(_annotation_at(corner_clear=True)), [],
+            "the annotation is 16px clear of the circle and reported as "
+            "on it")
+
+
 class TestMermaidRoundTripIdentity(unittest.TestCase):
     """`--relayout` matches nodes by id, never by label — pinned green."""
 
@@ -2649,10 +2730,11 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-12 `mutants list --red` reports 16 while the suite reports 24
-# expected failures. The eight outside live in three classes —
-# `TestExportCompleteness` (2), `TestStoreIntegrity` (5) and
-# `TestPaintOrder` (1) — and are outside
+# as of 2026-08-12 `mutants list --red` reports 16 while the suite reports 25
+# expected failures. The nine outside live in four classes —
+# `TestExportCompleteness` (2), `TestStoreIntegrity` (5),
+# `TestPaintOrder` (1) and `TestShapeBlindAnnotationOverlap` (1) — and are
+# outside
 # deliberately, because a Mutant is judged by `collect_findings` over an
 # ELEMENT LIST and none of what they measure is in one. Each class carries
 # its own standing guard for its reds; the one below covers CATALOGUE alone.
