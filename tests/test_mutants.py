@@ -2485,14 +2485,16 @@ class TestStoreIntegrity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The reporting surface (v0.9 re-review O-1, 2026-08-13). The class above
-# pins what `Store.issues` CARRIES; this one pins what the agent is TOLD, and
-# the two have come apart. `issues` gained ART-000 in the fix round above,
-# but every printer of load findings filters on `if i.get("repaired")` —
-# canvas.py:9550 (resume) and canvas.py:9677 (lint) — so the QUARANTINE half
-# reaches no agent-facing surface at all: neither ART-000 nor the long-
-# shipped SAV-001. A project whose second artifact is unreadable lints as "a
-# project with one artifact", and nothing anywhere says a file was dropped.
+# The reporting surface (v0.9 re-review O-1, 2026-08-13; fixed in Task 33).
+# The class above pins what `Store.issues` CARRIES; this one pins what the
+# agent is TOLD, and the two had come apart. `issues` gained ART-000 in the
+# fix round above, but every printer of load findings filtered on
+# `if i.get("repaired")` — `cmd_status` (resume) and `cmd_lint` — so the
+# QUARANTINE half reached no agent-facing surface at all: neither ART-000 nor
+# the long-shipped SAV-001. A project whose second artifact was unreadable
+# linted as "a project with one artifact", and nothing anywhere said a file
+# had been dropped. Both printers now split on `repaired` instead of
+# filtering by it, and this class holds that split open.
 #
 # This is the fourth thing to fall outside the scene unit named above, and
 # the furthest out: the evidence is a CLI command's STDOUT, so there is no
@@ -2609,19 +2611,19 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         self.assertEqual(noise, [],
                          "a clean load was told something happened to it")
 
-    @unittest.expectedFailure
     def test_red_lint_never_names_what_the_load_quarantined(self) -> None:
-        """Two files left the project and the only surface says neither.
+        """Two files left the project and the only surface names both.
 
-        `canvas.py lint` is the sole server-free surface that prints load
-        findings, and its loop (canvas.py:9677-9679) keeps only issues
-        with `repaired` true. Quarantines are exactly the issues that
-        repaired nothing, so the filter drops the whole class: this
-        project prints `LAYOUT_NOTE=a: ...`, `ARTIFACTS=1`, `FINDINGS=1`
-        and stops. Artifact `b` is named nowhere; the agent is handed a
-        one-artifact project and no reason to doubt it. `status` shares
-        the filter at canvas.py:9550-9552, so the resume surface is silent
-        in the same way — one predicate, both exits.
+        Was red through v0.9 Task 33. `canvas.py lint` is the sole
+        server-free surface that prints load findings, and its loop kept
+        only issues with `repaired` true. Quarantines are exactly the
+        issues that repaired nothing, so the filter dropped the whole
+        class: this project printed `LAYOUT_NOTE=a: ...`, `ARTIFACTS=1`,
+        `FINDINGS=1` and stopped, naming artifact `b` nowhere — a
+        one-artifact project and no reason to doubt it. `status` shared
+        the predicate, so the resume surface was silent the same way. Both
+        loops now print every finding, under `REPAIR=` or `QUARANTINE=`
+        as its own `repaired` flag decides.
 
         Magnitude is what the output must CONTAIN: every unrepaired
         issue's code AND its message, since the code alone would not say
@@ -2631,12 +2633,12 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         is covered the day it is added, not the day someone remembers.
 
         Direction is the CLAIM the line makes, and the second assertion
-        is the flip contract. The one-line "fix" of deleting the filter
-        would print `REPAIR=ART-000: b: not a JSON object` — a repair
-        headline over a file still unreadable on disk, which is the same
+        is what the fix had to satisfy. The one-line "fix" of deleting the
+        filter would print `REPAIR=ART-000: b: not a JSON object` — a
+        repair headline over a file still unreadable on disk, the same
         falsehood `test_quarantine_is_reported_but_never_filed_as_a_repair`
-        keeps out of the model layer. Flips when the surface names the
-        drop under a heading that does not call it repair work.
+        keeps out of the model layer. It stays here to hold the two
+        headings apart if either loop is ever collapsed back into one.
         """
         root = self._quarantine_project()
         out = self._lint(root)
@@ -4704,8 +4706,18 @@ UNCOVERED: dict[str, str] = {
 
     # ART-### repair codes: validate_scene (canvas.py:374-495) and the
     # project-load JSON guard (canvas.py:6504).
-    "not_a_json_object": "enumerated 2026-08-12; no proving mutant yet — "
-                         "ART-000, canvas.py:378",
+    # (`not_a_json_object`, ART-000, canvas.py:378, left this table on
+    # 2026-08-13. It has no CATALOGUE mutant and will not get one — the
+    # subject is a LOAD, so there is no element list to mutate and
+    # `mutants new` declines it — but the hand-kept quadruples prove it
+    # ungated on both poles and at both tiers: what the model files
+    # (`test_red_non_dict_artifact_is_dropped_silently`,
+    # `test_quarantine_is_reported_but_never_filed_as_a_repair`,
+    # `test_quarantine_alone_makes_catch_up_claim_no_repairs` in
+    # `TestStoreIntegrity`, green since v0.9 Task 3) and what the agent is
+    # told (`TestLoadFindingsReachTheAgent`, green since v0.9 Task 33).
+    # "No proving mutant" was still literally true and would have stayed
+    # true forever, which is how the row read as a gap it is not.)
     "elements_not_a_list": "enumerated 2026-08-12; no proving mutant yet — "
                            "ART-001, canvas.py:394",
     "malformed_element_dropped":

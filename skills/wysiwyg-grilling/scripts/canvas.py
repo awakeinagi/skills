@@ -9882,9 +9882,16 @@ def cmd_status(args):
     # WP2 (report-and-repair): load-time repairs used to reach exactly
     # one surface — /api/state, which nothing in the loop reads. Silent
     # repair is how the r4-7 lint became unreachable.
+    #
+    # v0.9 (re-review O-1): every finding, under the heading its own
+    # `repaired` flag earns — the filter that kept only repairs dropped
+    # the whole quarantine class, so an artifact the loader could not
+    # read left no trace on the resume surface. The headings are not
+    # interchangeable: a quarantine mended nothing, and printing one as
+    # REPAIR claims a file is fixed while it is still unreadable on disk.
     for i in st.get("issues") or []:
-        if i.get("repaired"):
-            print("REPAIR=%s: %s" % (i.get("code"), i.get("msg")))
+        print("%s=%s: %s" % ("REPAIR" if i.get("repaired") else "QUARANTINE",
+                             i.get("code"), i.get("msg")))
     if state.get("protocol_version") != PROTOCOL_VERSION:
         print("WARNING=protocol mismatch: server v%s vs CLI v%d — restart "
               "the server (canvas.py stop && canvas.py start)"
@@ -10008,10 +10015,14 @@ def cmd_lint(args):
                 total += 1
                 print("%s=%s: %s" % (prefix, aid, msg))
     # WP2: what the loader fixed on the way in, named — a repair the
-    # agent never hears about is a defect the next session re-inherits
+    # agent never hears about is a defect the next session re-inherits.
+    # v0.9 (re-review O-1): and what it could NOT fix, under a heading of
+    # its own. `lint` is the only server-free surface for load findings,
+    # so the `repaired`-only filter made a dropped artifact invisible
+    # everywhere: `ARTIFACTS=1` and no reason to doubt it.
     for i in store.issues:
-        if i.get("repaired"):
-            print("REPAIR=%s: %s" % (i.get("code"), i.get("msg")))
+        print("%s=%s: %s" % ("REPAIR" if i.get("repaired") else "QUARANTINE",
+                             i.get("code"), i.get("msg")))
     print_kv(artifacts=len(aids), findings=total)
     return 0
 
