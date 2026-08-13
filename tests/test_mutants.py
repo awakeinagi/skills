@@ -2371,20 +2371,21 @@ class TestStoreIntegrity(unittest.TestCase):
             "the ART-011 refit grew n1 and left a1 behind: %s"
             % [f["raw"] for f in gaps])
 
-    @unittest.expectedFailure
     def test_red_dangling_file_reference_is_reported(self) -> None:
-        """An image whose fileId names no file in `files` goes unreported.
+        """An image whose fileId names no file in `files` is reported.
 
         `referential_findings` is the pass whose whole subject is "a
-        reference whose target is gone", and it never mentions `fileId` —
-        nor does `validate_scene`, nor `lint_layout`. So an image element
-        pointing at a file the document does not carry loads clean, and
-        the picture shows a hole. `render_svg` paints nothing for an image
-        either (see `TestExportCompleteness`), so nothing downstream
-        surfaces it.
+        reference whose target is gone", and until v0.9 WP1 it never
+        mentioned `fileId` — nor did `validate_scene`, nor `lint_layout`.
+        So an image element pointing at a file the document does not
+        carry loaded clean while the picture showed a hole, and nothing
+        downstream surfaced it either (`render_svg` paints nothing for an
+        image — see `TestExportCompleteness`).
 
-        Flips when any channel — issues or referential findings — names
-        the missing file.
+        WP1 gave the pass a files arm, so the missing id now rides
+        `st.referential` as a WARNING on that artifact. Asserted against
+        BOTH channels, unchanged from when this was red: the claim is
+        that SOMETHING says the id, not that a particular one does.
         """
         st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
         said = json.dumps([st.issues, st.referential], default=str)
@@ -2393,23 +2394,26 @@ class TestStoreIntegrity(unittest.TestCase):
             "nothing reports an image element bound to a fileId the "
             "document does not hold")
 
-    @unittest.expectedFailure
     def test_red_orphaned_file_entry_is_reported(self) -> None:
-        """A `files` entry no element references is kept forever, unreported.
+        """A `files` entry no element references is kept — and now named.
 
         The other direction, and Excalidraw's own documented one
         (excalidrawDiff.ts:261: deleting an image element never deletes
         its asset). Delete the image, keep the blob: the store reads
-        `doc["files"]` wholesale into `artifact_files` (canvas.py:6529)
-        and writes it back out on every save, so a project accumulates
-        dataURL payloads nothing can ever draw and nothing ever names.
+        `doc["files"]` wholesale into `artifact_files` and writes it back
+        out on every save, so a project accumulates dataURL payloads
+        nothing can ever draw.
 
-        The retention half of this — that the blob really is kept — is
-        asserted by `test_the_fileref_artifact_loads_and_keeps_its_orphan`
-        above, unmasked, so this red carries only its own claim: that
-        nothing SAYS so.
+        The retention itself is unchanged and still correct — WP1 reports
+        the blob rather than dropping it, because a load that deleted
+        user bytes to tidy a lint would be the worse defect. The finding
+        is a NOTE carrying the id and what the entry costs the file in
+        bytes on every save.
 
-        Flips when any channel reports the unreferenced entry.
+        The retention half — that the blob really is kept — is asserted
+        by `test_the_fileref_artifact_loads_and_keeps_its_orphan` above,
+        unmasked, so this one carries only its own claim: that something
+        SAYS so.
         """
         st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
         said = json.dumps([st.issues, st.referential], default=str)
@@ -2417,6 +2421,58 @@ class TestStoreIntegrity(unittest.TestCase):
             "orphan-file-id", said,
             "the store kept an unreferenced file blob and nothing "
             "reported it")
+
+    def test_a_resolved_file_reference_says_nothing(self) -> None:
+        """The neighbour of both flips: matched ids produce no finding.
+
+        Built from `_FILEREF_ARTIFACT` by the smallest edit that heals
+        it — pointing the element and the blob at one id — so it differs
+        from the mutant in exactly the property the two arms judge, and a
+        files arm that fired on every image or every blob would be caught
+        here rather than shipping as permanent noise on healthy projects.
+
+        The load is asserted as well as the silence, because an artifact
+        that failed to load would also produce no file findings and would
+        read as a passing control.
+        """
+        doc = json.loads(_FILEREF_ARTIFACT)
+        entry = doc["files"].pop("orphan-file-id")
+        entry["id"] = "matched-file-id"
+        doc["files"]["matched-file-id"] = entry
+        for e in doc["elements"]:
+            if e.get("fileId"):
+                e["fileId"] = "matched-file-id"
+        st = self._load({"a": json.dumps(doc)}, {"0001-x": _GOOD_SAVE})
+        self.assertEqual(list(st.artifact_files.get("a", {})),
+                         ["matched-file-id"])
+        self.assertEqual(st.referential, {})
+        self.assertEqual([i.get("code") for i in st.issues], [])
+
+    def test_a_soft_deleted_image_does_not_vouch_for_its_file(self) -> None:
+        """The real-world orphan: delete the image, the blob stays.
+
+        Excalidraw soft-deletes, and `normalize_scene_doc` drops
+        `isDeleted` elements at load while keeping `doc["files"]` whole —
+        so the element is gone from the picture the moment the project
+        opens and the blob is not. A files arm that counted the deleted
+        element as a reference would call this artifact healthy for as
+        long as the tombstone survived, which is the commonest way an
+        orphan is made in the first place.
+
+        Both directions are asserted: the blob is named as orphaned, and
+        the deleted element does NOT earn a dangling warning of its own —
+        an element the load discards is not something to send the user
+        back to the canvas over.
+        """
+        doc = json.loads(_FILEREF_ARTIFACT)
+        for e in doc["elements"]:
+            if e.get("fileId"):
+                e["fileId"], e["isDeleted"] = "orphan-file-id", True
+        st = self._load({"a": json.dumps(doc)}, {"0001-x": _GOOD_SAVE})
+        found = st.referential.get("a") or {}
+        self.assertEqual(found.get("warnings"), [])
+        self.assertEqual(len(found.get("notes") or []), 1, found)
+        self.assertIn("orphan-file-id", (found.get("notes") or [""])[0])
 
 
 # ---------------------------------------------------------------------------

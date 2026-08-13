@@ -547,7 +547,8 @@ def content_fingerprint(els):
         return None
 
 
-def referential_findings(raw_scenes, registry, artifact_ids=None):
+def referential_findings(raw_scenes, registry, artifact_ids=None,
+                         artifact_files=None):
     """Report every reference whose target is gone — BEFORE any repair.
 
     The r4 headline: *nothing validates a reference after the thing it
@@ -558,6 +559,13 @@ def referential_findings(raw_scenes, registry, artifact_ids=None):
     on the RAW on-disk scenes at load, so the report survives the repair
     (report-and-repair: the loader may fix, but never silently).
 
+    A ``fileId`` is a reference like any other, and v0.9 WP1 brought both
+    of its directions in here rather than into ``validate_scene``: an
+    image whose blob is gone draws as a hole nothing else reports (no
+    lint reads ``fileId``, and ``render_svg`` paints nothing for an image
+    either), and a blob no element names is kept and rewritten forever
+    (Excalidraw never deletes an asset with its element).
+
     Args:
         raw_scenes: {artifact_id: elements} as read from disk, un-repaired.
             Non-dict elements are tolerated and skipped (corrupt scenes
@@ -565,6 +573,10 @@ def referential_findings(raw_scenes, registry, artifact_ids=None):
         registry: The registry (mappings are read; may be None).
         artifact_ids: Known artifact ids for ``links_to`` checks; defaults
             to ``raw_scenes``' keys.
+        artifact_files: {artifact_id: doc["files"]} as read from disk. An
+            artifact absent here (or carrying a non-dict) is read as
+            holding no files, so every ``fileId`` in it dangles — which
+            is the truth: nothing can draw those images.
 
     Returns:
         {scope: {"errors": [...], "warnings": [...], "notes": [...]}} —
@@ -585,9 +597,27 @@ def referential_findings(raw_scenes, registry, artifact_ids=None):
                            if isinstance(e, dict) and e.get("id")}
     for aid, els in sorted(raw_scenes.items()):
         ids = ids_by_aid[aid]
+        files = (artifact_files or {}).get(aid)
+        files = files if isinstance(files, dict) else {}
+        used_files = set()
         for e in els:
             if not isinstance(e, dict):
                 continue
+            # Soft-deleted elements are skipped HERE and nowhere else in
+            # this pass: the other arms judge one element against another,
+            # and a deleted element's target went with it. A blob does not
+            # go with it — `normalize_scene_doc` drops the element at load
+            # and keeps the file — so letting a deleted image vouch for a
+            # blob would hide the commonest orphan there is.
+            fid = e.get("fileId")
+            if fid and not e.get("isDeleted"):
+                used_files.add(fid)
+                if fid not in files:
+                    add(aid, "warnings",
+                        "%s %s shows file %r and this artifact carries no "
+                        "such file — it draws as a hole; re-import the "
+                        "image, or delete the element"
+                        % (e.get("type") or "element", e.get("id"), fid))
             if e.get("type") in ("arrow", "line"):
                 for battr in ("startBinding", "endBinding"):
                     b = e.get(battr)
@@ -613,6 +643,15 @@ def referential_findings(raw_scenes, registry, artifact_ids=None):
                 add(aid, "notes",
                     "%s links_to artifact %r, which does not exist"
                     % (e.get("id"), link[len("artifact:"):]))
+        for fid in sorted(k for k in files if k not in used_files):
+            # Sized in the bytes it costs the file, not in decoded pixels:
+            # this entry is re-serialized into the artifact on every save,
+            # which is the whole harm of keeping it.
+            add(aid, "notes",
+                "file %r is kept in this artifact (%d bytes) and no "
+                "element shows it — nothing can draw it; delete it, or "
+                "re-attach an image to it"
+                % (fid, len(json.dumps(files[fid], default=str))))
     for m in (registry or {}).get("mappings") or []:
         for ref in m.get("elements") or []:
             if "#" not in ref:
@@ -6497,6 +6536,7 @@ class Store:
         self.raw_hashes = {}
         self.scene_repairs = []
         raw_scenes = {}
+        raw_files = {}
         for f in sorted(self.p.artifacts_dir.glob("*.excalidraw")):
             aid = f.stem
             try:
@@ -6517,6 +6557,10 @@ class Store:
             if isinstance(raw_els, list):
                 raw_scenes[aid] = json.loads(json.dumps(raw_els))
                 self.raw_hashes[aid] = content_fingerprint(raw_scenes[aid])
+                # Held by reference, not deep-copied: nothing below writes
+                # INTO `files` (only `setdefault`s the map itself), and the
+                # entries are dataURL payloads a copy would double.
+                raw_files[aid] = doc.get("files")
             doc, art_issues = validate_scene(doc, aid)
             # File the findings BEFORE the skip: an unusable artifact is
             # the case that most needs saying so, and filing below the
@@ -6542,7 +6586,8 @@ class Store:
             if doc.get("files"):
                 self.artifact_files[aid] = doc["files"]
         self.referential = referential_findings(raw_scenes, reg,
-                                                set(self.scenes.keys()))
+                                                set(self.scenes.keys()),
+                                                raw_files)
         for scope, tiers in sorted(self.referential.items()):
             for tier, msgs in tiers.items():
                 for msg in msgs:
