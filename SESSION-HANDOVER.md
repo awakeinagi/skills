@@ -21,7 +21,7 @@ repos idea-mined with everything dispositioned; methodology documented in
    defects incl. the A1a total-loss crash; gate = cause a failure, then
    diff the state). WP4 = drain the 28 reds (scope rules bind: ellipse +
    label-arm mutants must flip; ASPIRATIONAL flips owe real other-pole
-   neighbours).
+   neighbors).
 5. Execution/review record if needed:
    `docs/superpowers/reviews/2026-08-11-mutation-harness/progress.md`.
 
@@ -56,13 +56,13 @@ Plan: `docs/superpowers/plans/2026-08-11-mutation-harness.md`. Both are
 Eight files, all tracked and all covered by pre-commit: `tests/instruments.py`
 (verbatim port of the four spike measurement scripts, bugs preserved on
 purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
-`tests/test_mutants.py` (engine + catalogue + coverage gate + sweep),
+`tests/test_mutants.py` (engine + catalog + coverage gate + sweep),
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** 26 model-tier
-`expectedFailure` reds + 2 render-tier: 16 catalogue reds (`mutants list
---red` is authoritative) plus **ten non-catalogue reds across four guarded
+`expectedFailure` reds + 2 render-tier: 16 catalog reds (`mutants list
+--red` is authoritative) plus **ten non-catalog reds across four guarded
 classes** — Export 2, Store 5 (incl. the A1a TOTAL-LOSS pin: one `[]` save
 record bricks the whole project), PaintOrder 1, ShapeBlind 2 — enumerated
 with reasons at the `CATALOGUE` pointer in tests/test_mutants.py. Each red
@@ -70,12 +70,12 @@ seeds a known defect and asserts what the detector *should* say, so v0.9 has
 an executable definition of done. **Drain them to zero, flipping each in the
 same change as its fix** — an unexpected success IS the signal. Never delete
 a mutant to get green. `ASPIRATIONAL` holds 8 checks awaiting their lints
-(each flip must add a real other-pole neighbour). The **shape-blindness
+(each flip must add a real other-pole neighbor). The **shape-blindness
 family is at FIVE pinned instances** (endpoint lint, `_seg_hits_rect`
 diamond + ellipse, `fit_label_in`, the text/node bbox checks); WP4's one
 inscribed-shape primitive addresses all of them, and is not done until the
 ellipse and label-arm mutants flip too. The dedupe-by-defect guard protects
-the catalogue against same-defect-different-id collisions; the non-catalogue
+the catalog against same-defect-different-id collisions; the non-catalog
 classes are defended by file-section convention + reviewer vigilance (id
 prefixes REJECTED — they disarm the duplicate-id guard). Structural notes for
 the flip author:
@@ -88,8 +88,8 @@ the flip author:
 - The two **ASPIRATIONAL reds** (`phantom_passthrough_shared_attach`,
   `diamond_label_overflows_shape`) flip when their LINTS land (WP4b e1;
   WP4's shape-aware label check), not when any existing code changes — and
-  the flip change must give each a real other-pole neighbour. Their current
-  neighbours differ in kind: phantom's silence is *contingent* (the same
+  the flip change must give each a real other-pole neighbor. Their current
+  neighbors differ in kind: phantom's silence is *contingent* (the same
   builder with a shared attach point fires the borrowed `shared_corridor`
   check, so the quiet is evidence about the picture); the label mutant's is
   *structural* (a scene with no arrows can never fire `endpoint_gap` —
@@ -236,11 +236,11 @@ category, not a degree; run 6 should confirm agents actually *consume* that
 category under pressure rather than bypassing it.
 
 `TestArgusR5Fixture.test_sticky_note_forces_a_repair_on_every_load` is
-**red-by-intent** — it pins `r5-13`'s wrong behaviour and must be *flipped*
+**red-by-intent** — it pins `r5-13`'s wrong behavior and must be *flipped*
 when WP4 lands, not deleted. Its body says so. Note its polarity is the
-**opposite** of the eight mutants: it asserts today's *wrong* behaviour, so it
+**opposite** of the eight mutants: it asserts today's *wrong* behavior, so it
 is **green now and goes red when the fix lands**, whereas a mutant asserts the
-right behaviour and is red now. Its state is unchanged by the harness work.
+right behavior and is red now. Its state is unchanged by the harness work.
 
 ## 4. Decisions — ALL FOUR RULED, 2026-08-12 grilling session
 
