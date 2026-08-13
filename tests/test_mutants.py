@@ -28,6 +28,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
@@ -2084,18 +2085,51 @@ _FILEREF_ARTIFACT = json.dumps({
                                  "dataURL": "data:image/png;base64,AAAA"}}})
 
 
+def _repair_pack(count: int) -> str:
+    """Build one artifact whose load files `count` ART-011 repairs.
+
+    The `/api/state` cap is a flat `issues[-20:]`, so nothing below 21
+    issues can demonstrate an eviction at all — the flood has to be a
+    parameter of the fixture rather than a property of it. Each pair is
+    the `_OVERSIZED_LABEL_ARTIFACT` shape reduced to its repair-producing
+    half: a container with a bound label far wider than it. The arrow is
+    dropped deliberately, so these carry no endpoint geometry and add no
+    lint lines to the surfaces the reds read.
+
+    Args:
+        count: How many oversized label/container pairs to write.
+
+    Returns:
+        A serialized artifact document filing exactly `count` ART-011
+        repairs at load.
+    """
+    els: list[dict[str, Any]] = []
+    for i in range(count):
+        els += [{"id": "c%d" % i, "type": "rectangle", "x": 0, "y": 200 * i,
+                 "width": 120, "height": 60, "customData": {"role": "node"},
+                 "boundElements": [{"id": "t%d" % i, "type": "text"}]},
+                {"id": "t%d" % i, "type": "text", "x": 4,
+                 "y": 200 * i + 20, "width": 400, "height": 20,
+                 "text": _OVERSIZED_LABEL_TEXT, "fontSize": 16,
+                 "originalText": _OVERSIZED_LABEL_TEXT,
+                 "containerId": "c%d" % i, "textAlign": "center"}]
+    return json.dumps({"type": "excalidraw", "version": 2, "elements": els})
+
+
 def _scratch_project(case: unittest.TestCase, artifacts: dict[str, str],
-                     saves: dict[str, str]) -> Path:
+                     saves: dict[str, str],
+                     pending: dict[str, str] | None = None) -> Path:
     """Write a throwaway project tree and return its root.
 
     File CONTENTS are passed as raw strings, not objects, because every
     defect below is about malformed bytes: a helper that took dicts could
     not express a file truncated mid-JSON.
 
-    The root is returned rather than a loaded `Store` because the two
-    classes below probe different layers of the same load — one reads the
-    store's own attributes, the other runs a CLI command that opens the
-    project itself and is judged on what it prints.
+    The root is returned rather than a loaded `Store` because the classes
+    below probe different layers of the same load — one reads the store's
+    own attributes, another runs a CLI command that opens the project
+    itself and is judged on what it prints, and a third hands the root to
+    a `ServerApp`, which is the only thing that reads the pending queue.
 
     Args:
         case: The test owning the tree; its `addCleanup` removes it.
@@ -2103,6 +2137,10 @@ def _scratch_project(case: unittest.TestCase, artifacts: dict[str, str],
             `project_knowledge/artifacts/<stem>.excalidraw`.
         saves: `{stem: file body}` written under
             `project_knowledge/saves/<stem>.json`.
+        pending: `{filename: file body}` written under
+            `project_knowledge/.pending/`. The directory is created only
+            when this is given, because `Store` never makes one and a
+            project that has never queued a revision does not have it.
 
     Returns:
         The project root directory holding `project_knowledge/`.
@@ -2117,6 +2155,9 @@ def _scratch_project(case: unittest.TestCase, artifacts: dict[str, str],
             body, encoding="utf-8")
     for stem, body in saves.items():
         (pk / "saves" / (stem + ".json")).write_text(body, encoding="utf-8")
+    for name, body in (pending or {}).items():
+        (pk / ".pending").mkdir(parents=True, exist_ok=True)
+        (pk / ".pending" / name).write_text(body, encoding="utf-8")
     return Path(tmp)
 
 
@@ -2659,6 +2700,308 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
             "a quarantine repaired nothing, but the surface files it as "
             "repair work: %r" % (mislabelled,))
 
+    # -- The four reach gaps Task 33 left open (v0.9 Task-33 review,
+    # 2026-08-13; findings 1, 2, 3 and 5, each reproduced by the reviewer
+    # against the shipped code). The red above proved the QUARANTINE= line
+    # reaches lint and status. These pin the four places that line still
+    # does not reach or does not survive: the summary that counts it
+    # nowhere, the served-state cap that evicts it, the surface an agent
+    # runs FIRST, and the one quarantine producer lint cannot see at all.
+    # Same quadruple discipline as the class above, and the same base
+    # project wherever the defect allows — `_quarantine_project` carries
+    # the first, and only the cap and the pending queue need fixtures of
+    # their own, for reasons their docstrings give.
+
+    def _start(self, root: Path) -> list[str]:
+        """Run `canvas.py start` against a project and capture its output.
+
+        `cmd_start` reaches its print through one of two paths — spawn a
+        server, or reuse a live one — and both end at the SAME `print_kv`
+        call (canvas.py:9822), so the reuse path measures the surface
+        without a subprocess, a port, or a 20-second wait. `server_alive`
+        is what selects between them and it is an HTTP GET, so it is
+        patched rather than answered: the alternative is a real listener,
+        which would buy nothing here and could hang a commit hook.
+
+        Args:
+            root: Project root, as built by `_scratch_project`.
+
+        Returns:
+            The command's stdout, split into lines.
+        """
+        canvas.Project(root).state_path.write_text(json.dumps({
+            "url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
+            "protocol_version": canvas.PROTOCOL_VERSION,
+            "catchup_revn": 0}), encoding="utf-8")
+        buf = io.StringIO()
+        with mock.patch.object(canvas, "server_alive", lambda s: True), \
+                contextlib.redirect_stdout(buf):
+            canvas.cmd_start(argparse.Namespace(project=str(root),
+                                                no_browser=True))
+        return buf.getvalue().splitlines()
+
+    def _serve(self, root: Path) -> canvas.ServerApp:
+        """Build the `ServerApp` for a project without listening on a port.
+
+        `ServerApp.__init__` loads the store and then the pending queue
+        (canvas.py:8807), and `serve` is a separate call, so the PND-001
+        producer runs here with no socket bound. The log handle is closed
+        on cleanup because the constructor opens one per app and these
+        tests build two over one project.
+
+        Args:
+            root: Project root, as built by `_scratch_project`.
+
+        Returns:
+            The constructed app, its load already done.
+        """
+        app = canvas.ServerApp(canvas.Project(root))
+        self.addCleanup(app.log_file.close)
+        return app
+
+    @unittest.expectedFailure
+    def test_red_the_lint_summary_counts_the_quarantines_nowhere(
+            self) -> None:
+        """The surface prints two dropped files, then totals them as zero.
+
+        The half the flipped red above deliberately did not claim. `lint`
+        now NAMES both quarantines and then closes with
+        `ARTIFACTS=1 / FINDINGS=1` — a count of loaded artifacts that
+        omits the dropped one, and a findings total that counts layout
+        lines only. The summary is the part an agent skims, and it reads
+        as a clean one-artifact project directly beneath the two lines
+        saying it is not.
+
+        The Task 33 implementer asked for a curator ruling on the shape
+        rather than picking one, because widening `FINDINGS=` moves a
+        number three neighbouring tests read. This is that ruling, and it
+        is deliberately more specific than these tests usually are: a
+        `QUARANTINED=` key of its own on the summary block, leaving
+        `ARTIFACTS=` and `FINDINGS=` exactly as they are. It reads as
+        arithmetic that closes — 1 loaded plus 1 dropped is the 2 files
+        on disk — and it costs no existing reader a changed number.
+
+        MAGNITUDE is the count, derived from `issues` rather than written
+        as a literal, so a quarantine code added later is covered the day
+        it is added. DIRECTION is that `FINDINGS=` must NOT absorb them,
+        asserted second: that is the trap fix, and it is the one that
+        breaks the three neighbours.
+        """
+        root = self._quarantine_project()
+        out = self._lint(root)
+        dropped = [i for i in canvas.Store(canvas.Project(root)).issues
+                   if not i.get("repaired")]
+        self.assertIn(
+            "QUARANTINED=%d" % len(dropped), out,
+            "%d file(s) left the project and the summary counts them "
+            "nowhere: %r" % (len(dropped), out))
+        self.assertIn(
+            "FINDINGS=1", out,
+            "the layout findings total moved — three neighbouring tests "
+            "read it, and quarantines belong under a key of their own: %r"
+            % (out,))
+
+    @unittest.expectedFailure
+    def test_red_a_quarantine_falls_off_the_served_state(self) -> None:
+        """Twenty repairs push the dropped file off the resume surface.
+
+        `public_state` ships `self.issues[-20:]` (canvas.py:8696) and
+        `cmd_status` prints whatever that carries, so the resume surface
+        shows the twenty MOST RECENT issues and a quarantine is filed
+        early — at the artifact that failed to load, before any later
+        artifact's repairs. Probed on the shipped code: a project with
+        one dropped artifact and twenty label refits serves twenty
+        `ART-011` entries and zero quarantines, while `lint`, which reads
+        `issues` directly, still names the dropped file. The cap defeats
+        the Task 33 fix on exactly the projects most likely to carry load
+        damage — the busy, long-lived ones.
+
+        The fixture is the smallest the cap's own arithmetic allows:
+        below 21 issues nothing is evicted at all. `a` is the dropped
+        file and sorts first, which is why its quarantine is the one that
+        falls off; the guard below pins that ordering as the premise, so
+        a load order that changed would surface as a flip rather than as
+        a silent pass.
+
+        MAGNITUDE is which issues survive the cap, and it is asserted as
+        the quarantine's PRESENCE rather than as a length or a position:
+        the outcome is that a dropped file reaches the agent, and
+        ordering, exemption or a raised limit would each satisfy it. That
+        choice belongs to the work package that owns the endpoint.
+        """
+        root = _scratch_project(self, {"a": "[]", "b": _repair_pack(20)},
+                                {"0001-x": _GOOD_SAVE})
+        served = canvas.Store(canvas.Project(root)).public_state()["issues"]
+        self.assertEqual(
+            [i["code"] for i in served if not i.get("repaired")],
+            ["ART-000"],
+            "artifact 'a' was dropped and the served state carries only "
+            "repairs (%d of them) — status prints no QUARANTINE= line at "
+            "all" % (len(served),))
+
+    @unittest.expectedFailure
+    def test_red_start_names_no_load_finding(self) -> None:
+        """The first surface an agent runs on resume says nothing happened.
+
+        `cmd_start` prints its `URL=`/`CATCHUP_REVN=` block and stops
+        (canvas.py:9822). It is what an agent runs FIRST when resuming a
+        session, and probed on the shipped code it is silent about a
+        quarantined artifact — the drop is reachable only from a later
+        `status`, which an agent that got a working URL has no reason to
+        run. Symmetric, and named that way deliberately: repairs are
+        equally absent, so the fix is a load-findings block on this
+        surface rather than a quarantine special case.
+
+        MAGNITUDE is what the output must CONTAIN — every unrepaired
+        issue's code and its message, the same contract the lint red
+        holds, so the agent learns which file left. DIRECTION is the
+        claim: named as a drop, never as a repair, which is the same trap
+        fix that a bare "print the issues" would walk into.
+        """
+        root = self._quarantine_project()
+        out = self._start(root)
+        joined = "\n".join(out)
+        dropped = [i for i in canvas.Store(canvas.Project(root)).issues
+                   if not i.get("repaired")]
+        missing = [i["code"] for i in dropped
+                   if i["code"] not in joined or i["msg"] not in joined]
+        self.assertEqual(
+            missing, [],
+            "the load quarantined %s; start names %s nowhere, so the "
+            "first thing the agent reads on resume is %r"
+            % ([i["code"] for i in dropped], missing, out))
+        self.assertEqual(
+            [ln for ln in out if ln.startswith("REPAIR=")
+             and any(i["code"] in ln for i in dropped)], [],
+            "a quarantine repaired nothing and start files it as repair "
+            "work: %r" % (out,))
+
+    @unittest.expectedFailure
+    def test_red_a_pending_quarantine_reaches_no_durable_surface(
+            self) -> None:
+        """The one quarantine `lint` cannot see, and it is unrecoverable.
+
+        PND-001 is filed by `ServerApp.load_pending` (canvas.py:8931),
+        not by `Store.load`, and `cmd_lint` builds a bare `Store` — so
+        the queue's own quarantine reaches the one surface that needs no
+        server nowhere at all. What makes it worse than a reach gap is
+        the compounding half, pinned by the guard below: the unreadable
+        file is renamed `.bad` as it is quarantined, so the notice exists
+        only in that one server's memory. An agent that never runs
+        `status` before the server stops loses it permanently, and the
+        NEXT load finds nothing to report because there is nothing left
+        to fail on.
+
+        MAGNITUDE is what the surface must contain — the code and its
+        message, the same contract the lint red holds. DIRECTION is that
+        the finding must be recoverable AFTER the fact, from a surface
+        that does not need the server that made it, which is what the
+        `.bad` rename takes away. `lint` is the surface asserted because
+        it is the only server-free one; the outcome is discoverability,
+        and a lint that read the queue, a producer that filed to the
+        store, or a `.bad` file the loader still reports would each
+        satisfy it.
+        """
+        root = _scratch_project(self, {"a": _GOOD_ARTIFACT},
+                                {"0001-x": _GOOD_SAVE},
+                                pending={"7.json": '{"id": 7, "batch"'})
+        filed = [i for i in self._serve(root).store.issues
+                 if i["code"] == "PND-001"]
+        out = self._lint(root)
+        joined = "\n".join(out)
+        missing = [i["code"] for i in filed
+                   if i["code"] not in joined or i["msg"] not in joined]
+        self.assertEqual(
+            missing, [],
+            "a queued revision was quarantined and the only server-free "
+            "surface names it nowhere: %r" % (out,))
+
+    def test_the_cap_serves_a_quarantine_when_nothing_crowds_it_out(
+            self) -> None:
+        """The cap's other pole: under the limit, the drop is served.
+
+        The eviction red's neighbour, and the reason it is this project —
+        `_quarantine_project` is the same base the class's other reds
+        use, differing from the eviction fixture in nothing but the
+        twenty repairs standing between the quarantine and the tail. So a
+        `public_state` that had simply stopped carrying `issues` at all,
+        or a load that had stopped filing quarantines, is caught here
+        rather than reading as an unexpected success over there.
+        """
+        root = self._quarantine_project()
+        served = canvas.Store(canvas.Project(root)).public_state()["issues"]
+        self.assertEqual(
+            sorted(i["code"] for i in served if not i.get("repaired")),
+            ["ART-000", "SAV-001"])
+
+    def test_the_evicting_project_files_its_quarantine_first(self) -> None:
+        """The eviction red's premise: 21 issues, the drop at the front.
+
+        Its error-red guard, ungated. That red asserts over what the cap
+        SERVES, so a fixture that stopped producing twenty repairs — a
+        moved ART-011 threshold, a rewritten refit — would leave the
+        quarantine inside the last twenty and flip the red green while
+        the endpoint stayed exactly as broken. This pins the arithmetic
+        instead: the drop is issue zero, twenty repairs follow it, and
+        21 is one more than the cap.
+        """
+        root = _scratch_project(self, {"a": "[]", "b": _repair_pack(20)},
+                                {"0001-x": _GOOD_SAVE})
+        codes = [i["code"] for i in canvas.Store(canvas.Project(root)).issues]
+        self.assertEqual(codes, ["ART-000"] + ["ART-011"] * 20)
+        self.assertEqual(sorted(canvas.Store(canvas.Project(root)).scenes),
+                         ["b"])
+
+    def test_start_on_a_clean_load_invents_no_load_finding(self) -> None:
+        """The start red's silent pole, and proof its surface was reached.
+
+        Two jobs, which is why the `REUSED=true` assertion sits beside
+        the silence. Without the first, a fix that printed a load finding
+        unconditionally would satisfy the start red while telling every
+        healthy project that a file had been dropped. Without the second,
+        a patched `server_alive` that stopped selecting the reuse path —
+        or a `cmd_start` signature that moved — would make the red
+        measure a command that never ran, and `expectedFailure` swallows
+        that as readily as a real failure (doctrine §6).
+        """
+        root = _scratch_project(self, {"a": _GOOD_ARTIFACT,
+                                       "b": _GOOD_ARTIFACT},
+                                {"0001-x": _GOOD_SAVE})
+        out = self._start(root)
+        self.assertIn("REUSED=true", out)
+        noise = [ln for ln in out if ln.startswith(("REPAIR=", "QUARANTINE="))
+                 or "ART-" in ln or "SAV-" in ln]
+        self.assertEqual(noise, [],
+                         "a clean load was told something happened to it")
+
+    def test_the_pending_quarantine_is_filed_once_and_never_again(
+            self) -> None:
+        """The PND-001 red's premise, and the half that makes it permanent.
+
+        Its error-red guard, and the compounding claim in one test
+        because they are one mechanism. First: the producer really does
+        fire, so the red measures REACH rather than a fixture that
+        stopped being corrupt. Second: the same project served a second
+        time files nothing, because the first server renamed the file to
+        `.bad` — which is what makes the missing lint surface a permanent
+        loss rather than a delay. Asserted on a second `ServerApp` over
+        the same root, since that is exactly the next session.
+        """
+        root = _scratch_project(self, {"a": _GOOD_ARTIFACT},
+                                {"0001-x": _GOOD_SAVE},
+                                pending={"7.json": '{"id": 7, "batch"'})
+        first = self._serve(root)
+        self.assertEqual([i["code"] for i in first.store.issues],
+                         ["PND-001"])
+        self.assertIn("PND-001", [i["code"] for i in
+                                  first.store.public_state()["issues"]],
+                      "status is the one surface that sees it; if even "
+                      "that goes quiet the red measures nothing")
+        self.assertEqual([i["code"] for i in self._serve(root).store.issues],
+                         [], "the notice lived only in the first server's "
+                         "memory — the queue file is renamed .bad, so no "
+                         "later load can rediscover it")
+
 
 # ---------------------------------------------------------------------------
 # The WRITE path (v0.9 Task-5 review, 2026-08-13). The two classes above judge
@@ -3053,6 +3396,385 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertTrue(self._ghost_file(root).exists())
         self.assertEqual(store.artifact_meta["ghost"]["name"],
                          "Renamed Ghost")
+
+
+# ---------------------------------------------------------------------------
+# Pin identity (v0.9 Task-7 review, 2026-08-13; findings M2, R1 and the
+# report's own disclosure, each reproduced by the reviewer against the
+# shipped code). The class above judges what a batch does to the MODEL;
+# this one judges what a PIN op does to the pin lifecycle — the ❓ on the
+# canvas, the registry record standing behind it, and the sentence the agent
+# is handed about both. The three defects share one base store because they
+# share one root: a pin id is treated as an identity without ever being
+# checked for ROLE or for UNIQUENESS.
+#
+# The sixth subject in this file to fall outside the scene unit. The evidence
+# is a store's answer plus a printed echo, so there is no element list and no
+# `collect_findings` to judge one with. `mutants new` does not decline the
+# subject — it writes an element-list scaffold and WARNS that the code names
+# no `DETECTORS` entry — but that scaffold cannot express a batch, so the
+# quadruple is kept by hand exactly as the two classes above keep it.
+#
+# BASE: two artifacts, one pin, ids known exactly. MUTATION: one field — an
+# element reusing the id its own batch resolves, or a `pin` op reusing an id
+# the registry already holds. MAGNITUDE is what SURVIVES the op (which
+# elements stand, how many registry records exist) and, for the echo, what
+# the sentence must CLAIM. DIRECTION is which way the batch resolved —
+# refused with a named error, or accepted and acted on — and which claim the
+# echo makes. NEIGHBOURS sit at the same predicates' other poles: the same
+# batch with no id collision, a fresh pin id, and a resolve that really does
+# take a glyph down.
+#
+# Deliberately NOT re-covered here: cross-artifact resolve/glyph parity.
+# `TestCrossArtifactPinResolution` (tests/test_failure_paths.py) owns that
+# and pins it GREEN, including the id-shadowing add that earned the role gate
+# on `here`. These three pin the gaps that suite leaves — the role gate that
+# was never added to `apply_ops`' own resolve arm, the uniqueness check no
+# validation performs, and an echo claiming a deletion the record denies.
+# ---------------------------------------------------------------------------
+
+
+class TestPinIdentityIntegrity(unittest.TestCase):
+    """A pin id names one question, or the ❓ outlives the answer."""
+
+    def _store(self) -> canvas.Store:
+        """Build a two-artifact project carrying one pin on `flow`.
+
+        Two artifacts are the fewest this family can be written with: the
+        resolve arm that goes wrong is reached from a batch scoped
+        somewhere ELSE, so a one-artifact store cannot express "the pin
+        lives over there" at all. `n1` and `m1` exist only to give each
+        artifact something legal to pin to, and to give a colliding add
+        somewhere to land.
+
+        Returns:
+            The loaded store — `flow` holding node `n1` and glyph
+            `pin-a`, `other` holding node `m1`, one open registry pin.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        for aid, nid in (("flow", "n1"), ("other", "m1")):
+            store.apply_batch({
+                "base_revn": store.head_revn(), "artifact": aid,
+                "create": {"id": aid, "name": aid.title(), "type": "flow",
+                           "concept": "checkout",
+                           "concept_name": "Checkout"},
+                "ops": [{"op": "add", "element": {
+                    "type": "rectangle", "id": nid, "label": nid.upper(),
+                    "x": 0, "y": 0, "width": 100, "height": 60,
+                    "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": "pin-a", "target": "n1",
+                     "question": "Which one?"}]})
+        return store
+
+    def _send(self, store: canvas.Store, artifact: str,
+              ops: list[dict[str, Any]]) -> Exception | None:
+        """Apply one batch and hand back whatever escaped, if any.
+
+        Broad by the same reasoning as `TestBatchPathIntegrity._send`:
+        the reds turn on WHICH way the batch resolved, so the exception
+        has to be a value to assert about rather than a type an
+        `assertRaises` has narrowed in advance.
+
+        Args:
+            store: The store to apply against, at its current head.
+            artifact: The artifact the batch is scoped to.
+            ops: The batch's op list.
+
+        Returns:
+            The exception the batch raised, or `None` if it was applied.
+        """
+        try:
+            store.apply_batch({"base_revn": store.head_revn(),
+                               "artifact": artifact, "ops": ops})
+        except Exception as exc:            # broad on purpose: see above
+            return exc
+        return None
+
+    def _ids(self, store: canvas.Store, artifact: str) -> list[str]:
+        """List the element ids standing in one artifact.
+
+        Args:
+            store: The store to read.
+            artifact: Which artifact's scene to list.
+
+        Returns:
+            Every element id in that scene, in stored order.
+        """
+        return [e["id"] for e in store.scenes[artifact]]
+
+    def _orphan_labels(self, store: canvas.Store,
+                       artifact: str) -> list[str]:
+        """Name the bound labels whose container is no longer there.
+
+        The damage a role-blind deletion leaves behind, and the reason
+        the red asserts it separately from the missing shape: a label
+        whose `containerId` names nothing is drawn at its last known
+        position with nothing under it, so the picture keeps a caption
+        for a box the reader cannot see.
+
+        Args:
+            store: The store to read.
+            artifact: Which artifact's scene to check.
+
+        Returns:
+            The ids of bound labels pointing at absent containers.
+        """
+        live = {e["id"] for e in store.scenes[artifact]}
+        return [e["id"] for e in store.scenes[artifact]
+                if e.get("containerId") and e["containerId"] not in live]
+
+    def _pin_records(self, store: canvas.Store,
+                     pid: str) -> list[dict[str, Any]]:
+        """Collect every registry pin filed under one id.
+
+        Args:
+            store: The store to read.
+            pid: The pin id to count records for.
+
+        Returns:
+            Each registry record carrying that id — more than one is the
+            corruption the duplicate-id red measures.
+        """
+        return [p for p in store.registry["pins"] if p["id"] == pid]
+
+    def test_the_seeded_store_holds_one_pin_on_its_own_artifact(
+            self) -> None:
+        """The baseline all three reds below are deviations from.
+
+        Their standing guard, ungated. Each red measures what ONE batch
+        changes about this store, so a harness that quietly stopped being
+        able to build it — a `create` block whose schema moved, a `pin`
+        op that started rejecting this spelling — would leave three
+        `expectedFailure`s passing while measuring nothing at all
+        (doctrine §6). The glyph's HOME is asserted, not merely its
+        existence: `pin-a` living on `flow` while every mutated batch is
+        scoped to `other` is the whole geometry of this family.
+        """
+        store = self._store()
+        self.assertEqual(sorted(store.scenes), ["flow", "other"])
+        self.assertEqual([e["id"] for e in store.scenes["flow"]
+                          if canvas.role_of(e) == "pin"], ["pin-a"])
+        self.assertEqual([e["id"] for e in store.scenes["other"]
+                          if canvas.role_of(e) == "pin"], [])
+        self.assertEqual([(p["id"], p["status"])
+                          for p in store.registry["pins"]],
+                         [("pin-a", "open")])
+
+    @unittest.expectedFailure
+    def test_red_a_resolve_deletes_a_same_id_node_from_its_own_batch(
+            self) -> None:
+        """A resolve takes down whatever shares the id, pin or not.
+
+        `apply_ops`' resolve arm is `el = index.get(op.get("id"))`
+        followed by an unconditional delete (canvas.py:2887). `index` is
+        the batch artifact's, keyed by id alone, so the arm never asks
+        what it is deleting. Task 7 added exactly that role gate to the
+        two places it thought about — the cross-artifact scan and the
+        `here` set that skips it (canvas.py:8021-8029) — and left the
+        arm those two feed into role-blind.
+
+        So a batch that adds a shape and then resolves a pin of the same
+        id deletes its own new shape. Probed on the shipped code: `other`
+        goes in holding `m1` and comes out holding `m1` and
+        `pin-a-label` — the caption for a rectangle that was created and
+        destroyed inside one batch — while the save record names only
+        `add pin-a-label`, so nothing in the history says the shape ever
+        left. The foreign ❓ on `flow` is removed correctly; that half is
+        Task 7's and still works.
+
+        MAGNITUDE is what survives the batch, asserted in two parts
+        because they fail independently: no label may be left pointing at
+        an absent container, and an ACCEPTED batch's own add must be on
+        the canvas. DIRECTION is the second assertion's other half — a
+        batch refused for the id collision satisfies it, because refusing
+        and applying are both honest answers and silently doing neither
+        is not. The outcome is pinned and never the mechanism: a role
+        gate on the arm and a validation-time collision check would both
+        flip this, and choosing between them belongs to the work package
+        that owns the write.
+        """
+        store = self._store()
+        escaped = self._send(store, "other", [
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "pin-a", "label": "New Box",
+                "x": 200, "y": 0, "width": 100, "height": 60,
+                "role": "node"}},
+            {"op": "resolve_pin", "id": "pin-a", "answer": "yes"}])
+        self.assertEqual(
+            self._orphan_labels(store, "other"), [],
+            "the resolve deleted the rectangle its own batch had just "
+            "added and left the caption behind: other=%r"
+            % (self._ids(store, "other"),))
+        self.assertTrue(
+            escaped is not None or "pin-a" in self._ids(store, "other"),
+            "the batch was accepted and its own new rectangle is gone — "
+            "no error, no record of the deletion, other=%r"
+            % (self._ids(store, "other"),))
+
+    @unittest.expectedFailure
+    def test_red_a_duplicate_pin_id_is_accepted_by_validation(self) -> None:
+        """A second `pin` op may reuse a live pin's id, and does.
+
+        `_validate_batch` checks a `resolve_pin` against the known pins
+        (canvas.py:7841) and checks a `pin` op against nothing of the
+        sort, so the id an open question already owns can be minted a
+        second time. Probed on the shipped code: `check_batch` answers
+        `ok=True` with no errors, the batch applies, and the registry
+        holds two records under `dup` — two different questions, on two
+        different artifacts, sharing one name.
+
+        What that costs is downstream and total. The resolve
+        write-through is id-global (canvas.py:8050), so ONE
+        `resolve_pin dup` marks both records resolved, and the
+        cross-artifact scan takes both glyphs. The user answered one
+        question and the tool closed two, with the unanswered one gone
+        from the canvas and counted nowhere. The same asymmetry is what
+        the Task 7 re-check filed as R1: a `pin` op reusing a
+        just-resolved id is born `resolved` by that write-through, so a
+        brand-new question never reaches the open count while its ❓
+        stands on the canvas.
+
+        DIRECTION is the outcome the reviewer named as the durable fix
+        and it is asserted first: the duplicate op is REFUSED, with an
+        error naming the id that collided, so the agent learns which of
+        its ops was refused rather than guessing. MAGNITUDE is what
+        survives — exactly one registry record under that id — asserted
+        second because a refusal that still filed the record would leave
+        the corruption live.
+        """
+        store = self._store()
+        escaped = self._send(store, "other", [
+            {"op": "pin", "id": "pin-a", "target": "m1",
+             "question": "And this one?"}])
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "a second pin op reusing the open pin's id was accepted "
+            "(escaped=%r) — one resolve now closes two questions"
+            % (escaped,))
+        self.assertIn("pin-a", "\n".join(escaped.errors))
+        self.assertEqual(
+            len(self._pin_records(store, "pin-a")), 1,
+            "the registry holds %d records under one pin id: %r"
+            % (len(self._pin_records(store, "pin-a")),
+               [(p["id"], p["artifact"]) for p in store.registry["pins"]]))
+
+    @unittest.expectedFailure
+    def test_red_the_echo_claims_a_removal_the_record_denies(self) -> None:
+        """The echo reports a deletion beside the note saying it never was.
+
+        `intent_echo`'s resolve arm reads absence from the batch scene as
+        success — `"❓ glyph removed from canvas" if eid not in ix`
+        (canvas.py:4911) — but `ix` is the POST-op scene, where a glyph
+        the user deleted last session is equally absent. So the one case
+        where nothing was removed is the case the line calls a removal.
+
+        `pin_glyph_notes` was written for exactly this tolerance and gets
+        it right, deriving the answer from the `del` changes the record
+        actually carries. Both go into the same server response, so the
+        agent is handed "op 0 (resolve_pin): gone resolved (❓ glyph
+        removed from canvas)" and "pin gone resolved; its ❓ was already
+        gone" together, and has to guess which of its tool's two
+        sentences about one op to believe.
+
+        MAGNITUDE for a surface is what the line must CONTAIN, and
+        DIRECTION is which claim it makes; here they are the same
+        assertion, so it is written as agreement with the record rather
+        than as wording: the echo may not claim a removal the save record
+        denies. The note's presence is asserted first as the premise —
+        without it there would be no disagreement to pin, and a fixture
+        that stopped reaching the tolerant branch would read as a fix.
+        """
+        store = self._store()
+        self._send(store, "flow", [{"op": "del", "id": "pin-a"}])
+        ops: list[dict[str, Any]] = [{"op": "resolve_pin", "id": "pin-a",
+                                      "answer": "yes"}]
+        record, _ = store.apply_batch({"base_revn": store.head_revn(),
+                                       "artifact": "flow", "ops": ops})
+        self.assertEqual(canvas.pin_glyph_notes(record, ops),
+                         ["pin pin-a resolved; its ❓ was already gone"])
+        said = canvas.intent_echo(ops, store.scenes["flow"])
+        self.assertNotIn(
+            "removed from canvas", "\n".join(said),
+            "nothing was removed — the record carries no del and the "
+            "note says so — but the echo claims a removal: %r" % (said,))
+
+    def test_a_resolve_without_an_id_collision_leaves_the_batch_intact(
+            self) -> None:
+        """The resolve arm's live pole: it takes the ❓ and nothing else.
+
+        The first red's neighbour, and the same batch with the ONE field
+        changed that the red turns on — the added rectangle's id. Without
+        it, a "fix" that made the resolve arm delete nothing at all would
+        satisfy the red while stranding every ❓ on the canvas, which is
+        r5-17 restored. So both halves are asserted here: the added shape
+        stands, AND the foreign glyph is gone with its registry record
+        marked resolved.
+        """
+        store = self._store()
+        escaped = self._send(store, "other", [
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "fresh", "label": "New Box",
+                "x": 200, "y": 0, "width": 100, "height": 60,
+                "role": "node"}},
+            {"op": "resolve_pin", "id": "pin-a", "answer": "yes"}])
+        self.assertIsNone(escaped, "a clean resolve batch was refused: %r"
+                          % (escaped,))
+        self.assertIn("fresh", self._ids(store, "other"))
+        self.assertEqual(self._orphan_labels(store, "other"), [])
+        self.assertEqual([e["id"] for e in store.scenes["flow"]
+                          if canvas.role_of(e) == "pin"], [])
+        self.assertEqual([(p["id"], p["status"])
+                          for p in store.registry["pins"]],
+                         [("pin-a", "resolved")])
+
+    def test_a_distinct_pin_id_is_accepted_and_files_one_record(self) -> None:
+        """The pin op's live pole: a fresh id is minted without argument.
+
+        The duplicate red's neighbour, differing from it in the ONE field
+        the red turns on. A uniqueness check that refused every `pin` op
+        — or refused any id already spelled anywhere in the project —
+        would flip that red and delete the feature, and this is what
+        refuses that reading: the second question is asked, drawn, and
+        filed alongside the first.
+        """
+        store = self._store()
+        escaped = self._send(store, "other", [
+            {"op": "pin", "id": "pin-b", "target": "m1",
+             "question": "And this one?"}])
+        self.assertIsNone(escaped, "a fresh pin id was refused: %r"
+                          % (escaped,))
+        self.assertEqual([e["id"] for e in store.scenes["other"]
+                          if canvas.role_of(e) == "pin"], ["pin-b"])
+        self.assertEqual(sorted((p["id"], p["status"])
+                                for p in store.registry["pins"]),
+                         [("pin-a", "open"), ("pin-b", "open")])
+
+    def test_the_echo_reports_a_removal_that_really_happened(self) -> None:
+        """The echo's other pole: a glyph that WAS taken down is claimed.
+
+        The third red's neighbour, and the reason that red is written as
+        agreement with the record rather than as a banned phrase: "❓
+        glyph removed from canvas" is the correct sentence here, so a
+        fix that simply deleted the clause would flip the red while
+        making the echo useless. The note list is asserted empty in the
+        same breath — it is the record-derived half the red compares
+        against, and this is where it is pinned as working.
+        """
+        store = self._store()
+        ops: list[dict[str, Any]] = [{"op": "resolve_pin", "id": "pin-a",
+                                      "answer": "yes"}]
+        record, _ = store.apply_batch({"base_revn": store.head_revn(),
+                                       "artifact": "flow", "ops": ops})
+        self.assertEqual(canvas.pin_glyph_notes(record, ops), [])
+        said = canvas.intent_echo(ops, store.scenes["flow"])
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("removed from canvas", said[0])
 
 
 # ---------------------------------------------------------------------------
@@ -3621,15 +4343,15 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 26
-# expected failures. The ten outside live in six classes —
-# `TestBatchPathIntegrity` (3), `TestExportCompleteness` (2),
-# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (1),
-# `TestPaintOrder` (1) and `TestLoadFindingsReachTheAgent` (1) — and are
-# outside
-# deliberately, because a Mutant is judged by `collect_findings` over an
-# ELEMENT LIST and none of what they measure is in one. Each class carries
-# its own standing guard for its reds; the one below covers CATALOGUE alone.
+# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 32
+# expected failures. The sixteen outside live in seven classes —
+# `TestLoadFindingsReachTheAgent` (4), `TestBatchPathIntegrity` (3),
+# `TestPinIdentityIntegrity` (3), `TestExportCompleteness` (2),
+# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (1) and
+# `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
+# judged by `collect_findings` over an ELEMENT LIST and none of what they
+# measure is in one. Each class carries its own standing guard for its reds;
+# the one below covers CATALOGUE alone.
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them: on 2026-08-12 this read "(5)" for
 # `TestStoreIntegrity`, and four of those five had since been flipped green by
@@ -4877,7 +5599,8 @@ class TestCoverage(unittest.TestCase):
         non-CATALOGUE red classes (`TestExportCompleteness`,
         `TestStoreIntegrity`, `TestPaintOrder`,
         `TestShapeBlindAnnotationOverlap`,
-        `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity`) never
+        `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity`,
+        `TestPinIdentityIntegrity`) never
         reach `_register` and have no expectation objects to compare, so
         nothing here would notice two agents writing the same plain red
         test under different method names. What defends those classes is
