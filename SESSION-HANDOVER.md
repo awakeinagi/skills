@@ -194,6 +194,12 @@ for `endpoint_gap` magnitudes (a perpendicular-distance fix will not flip the
 mutants), and the **straight-run exemption** question for
 `ablation_continuity`.
 
+**The consolidated feature backlog is `docs/todo/feature-backlog.md`** —
+one row per opportunity from the four idea-mines with verdicts, sources,
+which items are already pinned red in the harness (⛳), the dependency-parked
+pair, and the explicitly-rejected list (MCP adapter, ELK, id prefixes) so
+nothing gets re-proposed. Machine-local like all of docs/.
+
 **Run-6 probe queue (from the 2026-08-12 idea-mines — canonical home
 `docs/research/<slug>_idea_mining_2026-08-12.md`, one per mined repo):**
 (1) **cosmetic-repair thrash** — Nimbalyst's field data shows agents
