@@ -103,27 +103,20 @@ def _mkworkdir() -> str:
     return tempfile.mkdtemp(prefix="mutants-render-", dir=root)
 
 
-def _shot(elements: list[dict], workdir: str,
-          hide: Iterable[str] = ()) -> bytes:
-    """Rasterize a scene's tier-1 SVG, omitting the `hide` elements.
+def _rasterize(svg: str, w: int, h: int, workdir: str) -> bytes:
+    """Screenshot one SVG document at a given window size.
 
-    The ablated shot is framed in the FULL scene's viewport, not its own:
-    `canvas.render_svg` derives width/height/viewBox from the elements it
-    is given, so omitting one would otherwise resize and shift the whole
-    picture and make the two rasters incomparable (`tolerant_diff` rejects
-    a size mismatch outright). Swapping in the full scene's `<svg>` tag
-    pins both shots to the same pixel grid. The ground rect underneath is
-    left at the ablated scene's own bounds on purpose — it is painted in
-    `SVG_GROUND`, which is far above the ink threshold, so where it does
-    and doesn't reach is invisible to the diff.
-
-    Renders are cached by SVG digest inside `workdir`, so a scene shot
-    twice in one test class costs one browser start.
+    Split out of `_shot` so the parity section below can rasterize markup
+    it framed itself. Renders are cached by SVG digest inside `workdir`,
+    so a document shot twice in one test class costs one browser start —
+    and because the digest is of the markup alone, the cache is keyed on
+    exactly what the browser was asked to draw.
 
     Args:
-        elements: The full scene.
+        svg: The complete SVG document to draw.
+        w: Browser window width in pixels.
+        h: Browser window height in pixels.
         workdir: Directory to write the HTML and PNG into.
-        hide: Ids to ablate — dropped from the element list entirely.
 
     Returns:
         The screenshot's PNG bytes.
@@ -131,14 +124,6 @@ def _shot(elements: list[dict], workdir: str,
     Raises:
         RuntimeError: If the browser exited without writing a PNG.
     """
-    full, w, h = canvas.render_svg(elements)
-    if hide:
-        hidden = set(hide)
-        kept = [e for e in elements if e.get("id") not in hidden]
-        svg, _kw, _kh = canvas.render_svg(kept)
-        svg = _SVG_TAG.match(full).group(0) + svg[_SVG_TAG.match(svg).end():]
-    else:
-        svg = full
     name = hashlib.sha1(svg.encode("utf-8")).hexdigest()[:16]
     png = Path(workdir) / (name + ".png")
     if png.exists():
@@ -155,6 +140,58 @@ def _shot(elements: list[dict], workdir: str,
                            "(rc=%s): %s" % (html, proc.returncode,
                                             proc.stderr[-400:]))
     return png.read_bytes()
+
+
+def _framed_svg(elements: list[dict],
+                hide: Iterable[str] = ()) -> tuple[str, int, int]:
+    """The tier-1 markup for a scene, pinned to the FULL scene's viewport.
+
+    The ablated markup is framed in the FULL scene's viewport, not its
+    own: `canvas.render_svg` derives width/height/viewBox from the
+    elements it is given, so omitting one would otherwise resize and shift
+    the whole picture and make the two rasters incomparable
+    (`tolerant_diff` rejects a size mismatch outright). Swapping in the
+    full scene's `<svg>` tag pins both shots to the same pixel grid. The
+    ground rect underneath is left at the ablated scene's own bounds on
+    purpose — it is painted in `SVG_GROUND`, which is far above the ink
+    threshold, so where it does and doesn't reach is invisible to the
+    diff.
+
+    Returned as markup rather than pixels because the parity section below
+    re-frames this document a second time before drawing it.
+
+    Args:
+        elements: The full scene.
+        hide: Ids to ablate — dropped from the element list entirely.
+
+    Returns:
+        `(svg, width, height)` — the document to draw and the window the
+        full scene asks for.
+    """
+    full, w, h = canvas.render_svg(elements)
+    if not hide:
+        return full, w, h
+    hidden = set(hide)
+    kept = [e for e in elements if e.get("id") not in hidden]
+    svg, _kw, _kh = canvas.render_svg(kept)
+    return (_SVG_TAG.match(full).group(0) + svg[_SVG_TAG.match(svg).end():],
+            w, h)
+
+
+def _shot(elements: list[dict], workdir: str,
+          hide: Iterable[str] = ()) -> bytes:
+    """Rasterize a scene's tier-1 SVG, omitting the `hide` elements.
+
+    Args:
+        elements: The full scene.
+        workdir: Directory to write the HTML and PNG into.
+        hide: Ids to ablate — dropped from the element list entirely.
+
+    Returns:
+        The screenshot's PNG bytes. Propagates `_rasterize`'s
+        `RuntimeError` when the browser wrote no PNG.
+    """
+    return _rasterize(*_framed_svg(elements, hide), workdir)
 
 
 def _delta_components(w: int, h: int,
@@ -303,6 +340,52 @@ class TestRenderMutants(unittest.TestCase):
         finds = ablation_findings([*scene, ghost], ["g1"], self.workdir)
         self.assertIn("g1", [f["element"] for f in finds
                              if f["check"] == "ablation_existence"])
+
+    def test_ablation_existence_fires_on_a_real_shipped_class(self) -> None:
+        """A node stroked in the ground color is in the model, not the picture.
+
+        Batch D item 2, 2026-08-13. `ablation_existence` had one proof
+        before this — the ghost above — and that ghost is 0x0 and
+        0%-opacity, which is to say an element no drawing has ever
+        contained. It demonstrated the arithmetic on a scene built to
+        make the arithmetic easy. This asks the same question of a real
+        shipped class in a configuration a person can produce by
+        accident: an ordinary 200x100 `rectangle`, full size, full
+        opacity, ordinary `role: node`, whose `strokeColor` happens to be
+        `SVG_GROUND` — the paper it is drawn on. Ops accept free-form
+        colors, so nothing anywhere refuses it.
+
+        The scene is `test_mutants._styled_scene`, shared on purpose with
+        the three model-tier legibility mutants (`gray_text_on_ground`,
+        `pale_stroke_node`, `tiny_font_text`) rather than rebuilt here:
+        this is the same invisible-by-styling class seen from the other
+        tier, and one base scene keeps the family readable. What differs
+        is which instrument speaks. On the model tier that class is
+        RED BY ABSENCE — `contrast_object` has no detector and sits in
+        `ASPIRATIONAL` — so `pale_stroke_node` pins a lint that does not
+        exist yet. Here it is green: the render tier can already see it,
+        because a stroke the color of the paper leaves no pixels and
+        pixels are all this tier reads. That contrast is the entry's
+        point, and it is the argument for building the contrast lint at
+        1:1 with what the render tier can already measure.
+        """
+        scene = tm._styled_scene(stroke=canvas.SVG_GROUND)
+        finds = ablation_findings(scene, ["n1"], self.workdir)
+        self.assertEqual([(f["check"], f["element"], f["magnitude"])
+                          for f in finds],
+                         [("ablation_existence", "n1", 0.0)])
+
+    def test_neighbour_a_visible_node_is_in_the_picture(self) -> None:
+        """The same node in ordinary ink: present, whole, and silent.
+
+        The other pole of the proof above, and the only thing standing
+        between it and a detector that reports every element as missing.
+        One variable moves — `strokeColor`, from `SVG_GROUND` back to the
+        default `#1e1e1e` — so the difference in verdict is the styling
+        and nothing else.
+        """
+        scene = tm._styled_scene()
+        self.assertEqual(ablation_findings(scene, ["n1"], self.workdir), [])
 
     def test_ablation_of_the_bbox_defining_element_still_reads(self) -> None:
         """Ablating the element that sets the viewport's own left edge.
@@ -659,6 +742,646 @@ class TestSnapshotFramingRegime(unittest.TestCase):
                         "minx, so _rightmost_node_ink's band mapping is "
                         "wrong and the mutant is measuring the wrong "
                         "column" % want_w)
+
+
+# ---------------------------------------------------------------------------
+# Render parity (Batch D item 1, 2026-08-13; backlog item 15, out of the
+# visualize-skill mine's renderer-fidelity finding). The doctrine it comes
+# from: any second render path needs equivalence pins against the primary.
+# Ours are `render_svg`'s markup (tier 1) and the browser's raster of it
+# (tier 2) — and the first thing to say about that pair is what it cannot do.
+#
+# Tier 2 rasterizes tier 1's OWN OUTPUT, so every defect where tier 1 omits or
+# misstates content is inherited rather than caught. `freedraw` and `image`
+# reach neither path (test_mutants.TestExportCompleteness's two reds), and
+# reordering an element moves neither path (TestPaintOrder's red). A parity
+# sweep reports perfect agreement on all three, and that agreement is worth
+# nothing as independent evidence: it ATTESTS a defect already pinned
+# elsewhere. `test_dropped_classes_agree_by_being_absent_from_both` says so
+# out loud, because a green row in a parity table otherwise reads as health.
+#
+# What the pair CAN answer is the question tier 1 settles alone and can get
+# wrong: does the frame tier 1 chose actually contain the ink tier 1 emitted?
+# Same markup, two viewports — the one `render_svg` computed and one
+# deliberately generous. A correct frame makes the two rasters identical; a
+# short frame loses ink off an edge, and the difference between them is that
+# loss, counted in pixels.
+#
+# WHAT THIS FOUND. `render_svg`'s bounds loop (canvas.py:4497-4515) takes the
+# MAX side from `max(stored, text_dims(...))` — v0.3's fix for the "real glyph
+# advance regularly overhangs" stored extents, whose comment sits right there.
+# The MIN side never got the same treatment: it is `xs.append(e.get("x", 0))`,
+# the raw origin. For a `textAlign: center` text that is wrong by
+# construction, because `paint` anchors such a text at `x + width/2` and runs
+# its glyphs BOTH ways from there (canvas.py:4620): when the drawn string is
+# wider than the stored width, the leading glyphs are painted to the left of
+# `x`, outside the viewBox, and the SVG viewport clips them off. Half of v0.3's
+# fix is missing, on the side nobody measured.
+# ---------------------------------------------------------------------------
+
+# Extra margin per side for the generous frame. It only has to exceed the
+# largest overhang any scene here produces (56px); 200 leaves headroom without
+# growing the raster enough to slow the diff down.
+PARITY_PAD = 200
+
+_SVG_DIMS = re.compile(r"width='(\d+)' height='(\d+)' viewBox='"
+                       r"(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)'")
+
+# The label the clip mutant hangs on, and the width `render_svg`'s own
+# estimator gives it at fontSize 16. Written as a number rather than computed,
+# for the reason SNAP_WIN_CAP is: a scene that derives its own regime from the
+# code under test cannot notice when that code moves it out of the regime.
+# `TestRenderParityRegime` is where the number is checked.
+_WIDE_LABEL = "a considerably wider label"
+_WIDE_LABEL_W = 192
+
+
+def _reframe(svg: str, pad: int) -> tuple[str, int, int]:
+    """Re-open the same markup in a viewport `pad` px larger on every side.
+
+    Nothing inside the document moves: the viewBox origin shifts out by
+    `pad` and the window grows by `2 * pad`, so every drawn coordinate
+    lands where it did plus a constant offset, and ink the original frame
+    cut off is simply inside this one. That is what makes the two rasters
+    comparable as "what tier 1 framed" against "what tier 1 drew".
+
+    Args:
+        svg: A document from `_framed_svg`.
+        pad: Extra margin per side, in viewBox units.
+
+    Returns:
+        `(svg, width, height)` for the widened frame.
+
+    Raises:
+        RuntimeError: If the `<svg>` tag cannot be parsed, or if
+            `render_svg` scaled this scene (its uniform 4000x3000 clamp,
+            canvas.py:4540). Under a scale a viewBox unit is no longer a
+            pixel, so the difference between the two rasters stops being
+            a count of lost ink — better to refuse than to report a
+            number that means nothing.
+    """
+    dims = _SVG_DIMS.search(_SVG_TAG.match(svg).group(0))
+    if dims is None:
+        raise RuntimeError("parity: cannot parse the <svg> tag %r"
+                           % svg[:120])
+    w, h = int(dims.group(1)), int(dims.group(2))
+    vx, vy, vw, vh = (float(dims.group(i)) for i in range(3, 7))
+    if (w, h) != (int(vw), int(vh)):
+        raise RuntimeError("parity: render_svg scaled this scene to %dx%d "
+                           "for a %gx%g viewBox — a viewBox unit is no "
+                           "longer a pixel, so lost ink cannot be counted"
+                           % (w, h, vw, vh))
+    tag = ("<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d' "
+           "viewBox='%f %f %f %f'>"
+           % (w + 2 * pad, h + 2 * pad, vx - pad, vy - pad, vw + 2 * pad,
+              vh + 2 * pad))
+    return tag + svg[_SVG_TAG.match(svg).end():], w + 2 * pad, h + 2 * pad
+
+
+def _element_ink(elements: list[dict], eid: str, workdir: str, pad: int = 0,
+                 min_blob: int = MIN_BLOB
+                 ) -> tuple[int, tuple[int, ...] | None]:
+    """How much ink one element contributes, in a frame of the given size.
+
+    Ablation exactly as `ablation_findings` does it — the diff between the
+    scene and the scene without `eid` is that element's own ink — but
+    optionally measured in a viewport `pad` px bigger than the one tier 1
+    chose, so ink outside tier 1's frame is counted rather than lost.
+
+    Args:
+        elements: The full scene.
+        eid: The element to ablate.
+        workdir: Directory renders are written into.
+        pad: Extra margin per side; 0 means tier 1's own frame.
+        min_blob: Smallest component worth counting. The default drops
+            anti-aliasing speckle, which is right when the question is
+            "how much of this drawing is here". It is WRONG when the
+            element is itself only a few dozen pixels — a word set at 5px
+            is speckle-sized, and filtering would eat the thing being
+            measured — so the legibility section passes 1.
+
+    Returns:
+        `(area, bbox)` — the element's ink in pixels and the union
+        bounding box of its blobs, or `(0, None)` if it drew nothing.
+    """
+    full, w, h = _framed_svg(elements)
+    less = _framed_svg(elements, hide=(eid,))[0]
+    if pad:
+        full, w, h = _reframe(full, pad)
+        less = _reframe(less, pad)[0]
+    blobs = tolerant_diff(_rasterize(less, w, h, workdir),
+                          _rasterize(full, w, h, workdir),
+                          min_blob=min_blob)
+    if not blobs:
+        return 0, None
+    return (sum(b["area"] for b in blobs),
+            (min(b["bbox"][0] for b in blobs),
+             min(b["bbox"][1] for b in blobs),
+             max(b["bbox"][2] for b in blobs),
+             max(b["bbox"][3] for b in blobs)))
+
+
+def _clipped_edges(bbox: tuple[int, ...], pad: int, w: int, h: int) -> str:
+    """Which sides of tier 1's frame the element's ink escapes.
+
+    Args:
+        bbox: The ink's bounding box, in the GENEROUS frame's pixels.
+        pad: The generous frame's extra margin per side.
+        w: Tier 1's own raster width.
+        h: Tier 1's own raster height.
+
+    Returns:
+        The escaping edges joined by "+", or "" when the ink sits wholly
+        inside the frame tier 1 chose.
+    """
+    x0, y0, x1, y1 = bbox
+    return "+".join(name for name, escaped in
+                    (("top", y0 < pad), ("left", x0 < pad),
+                     ("right", x1 >= pad + w), ("bottom", y1 >= pad + h))
+                    if escaped)
+
+
+def parity_findings(elements: list[dict], ids: Iterable[str],
+                    workdir: str) -> list[dict]:
+    """Findings where tier 1's frame does not contain tier 1's own ink.
+
+    Args:
+        elements: The full scene.
+        ids: Ids to measure, one at a time.
+        workdir: Directory renders are written into.
+
+    Returns:
+        Findings shaped like `ablation_findings` output. `parity_clipped`
+        carries as its magnitude the count of pixels tier 1 emitted and
+        tier 1's own viewport then cut away, and as its direction the
+        edges they went off.
+    """
+    framed_w, framed_h = _framed_svg(elements)[1:]
+    findings: list[dict] = []
+    for eid in ids:
+        framed = _element_ink(elements, eid, workdir)[0]
+        whole, bbox = _element_ink(elements, eid, workdir, pad=PARITY_PAD)
+        if bbox is None or whole <= framed:
+            continue
+        edges = _clipped_edges(bbox, PARITY_PAD, framed_w, framed_h)
+        findings.append({
+            "check": "parity_clipped", "element": eid,
+            "magnitude": float(whole - framed), "direction": edges,
+            "raw": "%s draws %d ink pixels and only %d of them are inside "
+                   "the viewport render_svg chose — %d px go off the %s "
+                   "edge" % (eid, whole, framed, whole - framed,
+                             edges or "?")})
+    return findings
+
+
+def _left_edge_label(stored_width: int) -> list[dict]:
+    """A center-anchored label at the drawing's left edge, plus a node.
+
+    The label sits at x=0 and the node at x=400, so the LABEL sets the
+    drawing's minx and a clip, if there is one, lands on the left edge of
+    the picture where it can be attributed to nothing else.
+    `textAlign: center` is what makes the stored width load-bearing:
+    `render_svg` anchors such a text at `x + width/2` and runs the glyphs
+    both ways from there, so a stored width narrower than the drawn string
+    pushes the leading glyphs left of `x` — and the bounds loop's min side
+    only ever saw `x`.
+
+    A stored width narrower than the drawn string is not a contrivance.
+    `render_svg`'s own bounds comment calls stored text extents estimates
+    that "regularly overhang", which is why the MAX side was patched in
+    v0.3; and the two load-time repairs that would refit a label (ART-011)
+    or re-center a detached one (ART-007) both skip arrow-type containers
+    by design, so arrow labels in particular keep whatever width they were
+    last written with — the same undefended dependency
+    `stale_label_width_hides_collision` pins from the model tier.
+
+    Args:
+        stored_width: The label's `width`. `_WIDE_LABEL_W` is the honest
+            value; anything less is an underestimate.
+
+    Returns:
+        The two-element scene: node `n1`, then label `t1`.
+    """
+    return [el(id="n1", type="rectangle", x=400, y=0, width=120, height=60,
+               strokeColor="#1e1e1e", customData={"role": "node"}),
+            el(id="t1", type="text", x=0, y=200, width=stored_width,
+               height=20, text=_WIDE_LABEL, fontSize=16,
+               textAlign="center", strokeColor="#1e1e1e")]
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestRenderParity(unittest.TestCase):
+    """Do the two render paths agree about what they both claim to draw?"""
+
+    def setUp(self) -> None:
+        """Make a scratch directory for this test's renders."""
+        self.workdir = _mkworkdir()
+
+    def tearDown(self) -> None:
+        """Remove the scratch directory — renders never enter the repo."""
+        shutil.rmtree(self.workdir, ignore_errors=True)
+
+    def test_shipped_classes_agree_on_what_they_render(self) -> None:
+        """Markup in tier 1 and ink in tier 2 are the same answer, per class.
+
+        The equivalence pin proper, asked of every class `ELEMENT_TYPES`
+        ships and asked over the SAME scenes the model tier measures
+        markup on (`test_mutants._one_of`), so a disagreement is about
+        the two paths and not about two different drawings. What it
+        catches is a paint branch that emits markup drawing nothing — a
+        shape stroked in the ground color, a zero-extent box, an
+        attribute the rasterizer ignores. Neither tier asks this alone:
+        tier 1 counts tags and cannot tell whether they are visible, and
+        tier 2's ablation checks run on hand-built scenes rather than
+        across the class list.
+        """
+        for etype in sorted(canvas.ELEMENT_TYPES):
+            with self.subTest(element_type=etype):
+                scene = tm._one_of(etype)
+                markup = bool(tm._export_delta(scene, "x-1"))
+                ink = _element_ink(scene, "x-1", self.workdir)[0] > 0
+                self.assertEqual(
+                    markup, ink,
+                    "%s emits markup=%s but leaves ink=%s: one render "
+                    "path claims it and the other does not"
+                    % (etype, markup, ink))
+
+    def test_dropped_classes_agree_by_being_absent_from_both(self) -> None:
+        """Both dropped classes are absent from tier 1 AND tier 2 — agreed.
+
+        Read this row correctly, because it is the one that could be
+        misquoted. It is NOT evidence that the two paths are faithful to
+        each other in any useful sense: tier 2 rasterizes tier 1's
+        output, so a class tier 1 never paints cannot appear in tier 2
+        either, and the agreement is arithmetic rather than observation.
+        It ATTESTS the defect `test_mutants.TestExportCompleteness`
+        already pins red and adds nothing to it. It is written down so
+        the sweep above cannot be summarized as "all nine classes agree"
+        without this caveat attached, and so that whoever lands the
+        missing paint branches is sent to both files at once.
+        """
+        for etype in tm._DROPPED:
+            with self.subTest(element_type=etype):
+                self.assertEqual(tm._export_delta(tm._one_of(etype), "x-1"),
+                                 {})
+                self.assertEqual(
+                    _element_ink(tm._one_of(etype), "x-1", self.workdir)[0],
+                    0,
+                    "%s now leaves ink, so the tier-1 paint branch has "
+                    "landed: flip test_mutants.TestExportCompleteness."
+                    "test_red_%s_never_reaches_the_export and re-read "
+                    "this attestation" % (etype, etype))
+
+    def test_parity_clip_is_red_by_measurement_not_by_error(self) -> None:
+        """The red below is red for the reason it claims, and says so.
+
+        Two jobs the `expectedFailure` next door cannot do for itself.
+        First, `@unittest.expectedFailure` swallows ERRORS as well as
+        failures (skill doctrine §6), so a `_reframe` that began raising
+        — on a scaled scene, on a changed `<svg>` tag — would print an
+        identical healthy `x` with nothing measured at all. Second, this
+        is the only place `parity_clipped` is asserted to FIRE, with its
+        magnitude and its direction: the mutant asserts the post-fix
+        silence, and a check proven only by a silence is not proven
+        (`test_mutants.TestCoverage.
+        test_silence_only_mutant_does_not_prove_its_check`).
+        """
+        try:
+            finds = parity_findings(_left_edge_label(20), ["t1"],
+                                    self.workdir)
+        except Exception as exc:
+            self.fail("the parity red is red via %r, not a measurement "
+                      "mismatch — that is a broken pin, not a defect pin"
+                      % exc)
+        self.assertEqual(
+            [(f["check"], f["element"], f["direction"]) for f in finds],
+            [("parity_clipped", "t1", "left")],
+            "parity_clipped no longer fires on the clipped label — if the "
+            "bounds loop learned about center anchoring, drop the "
+            "expectedFailure on "
+            "test_mutant_center_anchored_label_is_clipped_off_the_frame")
+        # 170px of 820 (measured 2026-08-13). The +-10% band excludes 0
+        # (no loss), 650 (the part that survives) and 820 (the whole
+        # label), so a check that reported any of those instead fails.
+        self.assertAlmostEqual(finds[0]["magnitude"], 170, delta=17)
+
+    @unittest.expectedFailure
+    def test_mutant_center_anchored_label_is_clipped_off_the_frame(self
+                                                                  ) -> None:
+        """A label wider than its stored width loses its head off the frame.
+
+        The picture then asserts something the model never said: the
+        drawing reads "considerably wider label" where the model holds
+        "a considerably wider label", and the reader has no way to be
+        suspicious of glyphs that leave no mark. Absence is the one
+        defect a reader cannot notice, and this export is the agent's own
+        view of its own drawing.
+
+        Flips when `render_svg`'s bounds loop gives its MIN side the
+        treatment v0.3 gave the max side — accounting for a centered
+        text's leftward run, `x + width/2 - text_dims(...)/2`, instead of
+        the raw `x`. That is the WP that owns `render_svg`, not this
+        file. Two things that will NOT flip it, deliberately: widening
+        the fixed 40px pad only moves the threshold this scene has
+        already cleared by 46px, and clamping the anchor to `x` would
+        flip it while changing where every centered label in every
+        drawing sits — which `test_shipped_classes_agree_on_what_they
+        _render` and the model tier's label checks would both notice.
+        """
+        finds = parity_findings(_left_edge_label(20), ["t1"], self.workdir)
+        self.assertEqual(
+            finds, [],
+            "the label's leading glyphs are painted outside the viewBox "
+            "render_svg computed for its own markup: %s"
+            % [f["raw"] for f in finds])
+
+    def test_neighbour_honest_label_width_is_framed_whole(self) -> None:
+        """With the stored width honest, tier 1's frame holds all its ink.
+
+        The other pole, and the control that keeps the red above
+        meaningful: same label, same anchoring, same position, and the
+        single variable is whether the stored width matches the string.
+        Without it the red would be satisfied by a renderer that framed
+        nothing correctly, or by an instrument that reported a clip on
+        every scene it was shown.
+        """
+        scene = _left_edge_label(_WIDE_LABEL_W)
+        self.assertEqual(parity_findings(scene, ["t1"], self.workdir), [])
+        # A label that drew nothing at all would satisfy that too, so pin
+        # that there was ink to lose: silence has to mean "framed whole",
+        # never "absent from both frames".
+        self.assertGreater(_element_ink(scene, "t1", self.workdir)[0], 0)
+
+
+class TestRenderParityRegime(unittest.TestCase):
+    """The parity scene must keep measuring what it was built to measure.
+
+    Ungated for the reason `TestSnapshotFramingRegime` is ungated: it
+    needs no browser, and the rot it catches — a font-metric or bounds
+    change quietly taking the scene out of its regime, so the red
+    measures nothing and still reports "expected failure" — happens in
+    ordinary editing, where nobody has `MUTANTS_RENDER=1` set.
+    """
+
+    def test_the_wide_label_still_overhangs_the_frame_on_the_left(self
+                                                                 ) -> None:
+        """`_WIDE_LABEL` drawn at 16px still runs left of the viewBox.
+
+        Both halves are load-bearing. If `text_dims` stops returning 192
+        the arithmetic below is about a different string; and if the
+        leftward run stops clearing the renderer's fixed 40px pad there
+        is no clip left to pin, whatever the mutant goes on reporting.
+        """
+        self.assertEqual(canvas.text_dims(_WIDE_LABEL, 16),
+                         (_WIDE_LABEL_W, 20),
+                         "the font metrics moved: re-measure _WIDE_LABEL_W "
+                         "and the 170px magnitude in "
+                         "test_parity_clip_is_red_by_measurement_not_by_"
+                         "error")
+        # `paint` centers the text on x + width/2 = 10 and runs the glyphs
+        # 96px each way, so the drawn left edge is at -86 while the frame
+        # starts at minx = x - SVG_PAD = -40.
+        drawn_left = 20 / 2 - _WIDE_LABEL_W / 2
+        self.assertLess(drawn_left, -SVG_PAD,
+                        "the centered label no longer reaches past the "
+                        "%dpx pad (left edge %g): the clip mutant has "
+                        "nothing to measure" % (SVG_PAD, drawn_left))
+
+
+# ---------------------------------------------------------------------------
+# The min_font floor, CALIBRATED (Batch D item 3, 2026-08-13; backlog item 17,
+# design doc docs/todo/contrast-and-min-font-lints.md). That doc asks for a
+# fontSize floor "calibrated against the render tier's rasterization ... at
+# deviceScaleFactor 1 — measure, don't guess", and the C5 wave deliberately
+# left it unmeasured: `tiny_font_text` pins fontSize 6 with a comment saying
+# the floor is not encoded because guessing it would fix the wrong number.
+# This is that measurement.
+#
+# NOT MUTANTS. Nothing below pins a defect in our code and nothing below is
+# expected to fail — small type renders badly because of how rasterizers work,
+# not because `render_svg` is wrong about it. What these are is the evidence
+# behind a number, held in the place the number can be re-measured: the day
+# someone writes the `min_font` lint, its threshold has to answer to these two
+# poles rather than to taste. They are the same kind of thing as
+# `TestSnapshotFramingRegime` — a guard on a constant, not a judgement on a
+# drawing.
+#
+# THE MEASUREMENT (2026-08-13, headless chromium, the pinned CHROME_FLAGS,
+# deviceScaleFactor 1, text #1e1e1e on SVG_GROUND, declared contrast 16.24:1).
+# Sweeping `_styled_scene`'s free text "status" from 20px down and reading the
+# darkest pixel the word achieves anywhere, its ink height, and its ink count:
+#
+#     fontSize  20     16     14     13     12     11     10
+#     contrast  16.24  16.24  16.24  16.24  16.24  15.50  14.74
+#     height    14     11     10      9      9      8      8
+#     ink      308    190    162    130    115    107     96
+#
+#     fontSize   9      8      7   |   6      5      4
+#     contrast  11.25   8.91   8.50 |  4.62   4.12   3.36
+#     height     6      5      5   |   3      3      2
+#     ink       72     58     52   |  40     34     18
+#
+# Contrast holds at the declared 16.24:1 down to 12px and decays gently to
+# 8.50:1 at 7px. Between 7 and 6 it nearly halves — 8.50 to 4.62, the largest
+# single step anywhere in the sweep — while the ink height drops 5px to 3px
+# and the letters of "status" stop separating at all (5 inter-glyph gaps at
+# 12px, 2 at 7px, 0 at 6px). A second, longer, mixed-case word ("Reconcile
+# nightly") puts its cliff in the same place: 7.73:1 at 7px, 5.04:1 at 6px.
+# Below 6 it degrades monotonically to a 2px-tall 3.36:1 smear at 4px.
+#
+# So the floor is 7: the smallest size whose rendered ink keeps BOTH a stroke
+# that clears WCAG 1.4.3's 4.5:1 with real margin and enough height to hold a
+# letterform. This says nothing about whether 7px is a good size to write at
+# — it is the size below which the picture stops carrying the text at all,
+# which is the only thing pixels can settle.
+#
+# The sweep was stable across three scanline phases (the text moved to y=160,
+# 163 and 167), identical in all three columns, so these are properties of the
+# rasterizer under the pinned flags and not of where the text happened to
+# land. One instrument note worth keeping: the ablation that locates the word
+# must run with `min_blob=1`. At these sizes the whole word is speckle-sized,
+# and the default filter silently ate a third of the 7px reading — reporting
+# 6.62:1 where the word really reaches 8.50:1, which would have moved the
+# floor by measuring the instrument instead of the picture.
+# ---------------------------------------------------------------------------
+
+# The measured floor. `tiny_font_text` (model tier) pins fontSize 6, one below
+# this, which the measurement above now makes a boundary-honest choice rather
+# than a plausible-looking one.
+MIN_FONT_FLOOR = 7
+
+# Matches `pngdiff.tolerant_diff`'s default: below this, a pixel is ink.
+INK_THRESHOLD = 192
+
+# WCAG 1.4.3's floor for body text, and the paper every scene here is drawn
+# on. The model tier already works to both — the three legibility mutants'
+# ratios (1.50, 2.11, control 16.24) were computed against this same ground.
+WCAG_TEXT_FLOOR = 4.5
+_GROUND_RGB = (0xFD, 0xFC, 0xF8)
+
+
+def _relative_luminance(rgb: tuple[int, int, int]) -> float:
+    """WCAG relative luminance of an 8-bit sRGB triple.
+
+    Implemented here rather than imported from `canvas.py` on purpose,
+    and it must stay that way when the contrast lint lands: the harness
+    checks the product, so sharing the product's arithmetic would make
+    every ratio agree with itself by construction. The check that this
+    implementation is right is that it reproduces the model tier's
+    already-pinned ratios exactly — see
+    `TestLegibilityFloorRegime.test_the_contrast_arithmetic_matches_the
+    _catalogue`.
+
+    Args:
+        rgb: Channel values 0-255.
+
+    Returns:
+        Luminance in 0.0-1.0.
+    """
+    chans = []
+    for ch in rgb:
+        c = ch / 255.0
+        chans.append(c / 12.92 if c <= 0.03928
+                     else ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2]
+
+
+def contrast_ratio(a: tuple[int, int, int],
+                   b: tuple[int, int, int]) -> float:
+    """WCAG contrast ratio between two 8-bit sRGB colors.
+
+    Args:
+        a: One color's channels, 0-255.
+        b: The other's.
+
+    Returns:
+        The ratio, 1.0 (identical) to 21.0 (black on white). Order does
+        not matter.
+    """
+    la, lb = _relative_luminance(a), _relative_luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def rendered_text(elements: list[dict], eid: str,
+                  workdir: str) -> dict[str, float]:
+    """What one text element actually looks like once it is rasterized.
+
+    Located by ablation — the diff between the scene and the scene
+    without `eid` is that element's own ink — and then MEASURED in the
+    full raster inside that region, so anti-aliased grays are read at
+    their real values rather than at whatever the diff made of them.
+
+    The contrast reported is of the DARKEST pixel in the word, which is
+    the most generous reading available: if even the best pixel fails a
+    threshold, every pixel does. A floor argued from this number is
+    therefore conservative on the picture's side.
+
+    Args:
+        elements: The full scene.
+        eid: The text element to measure.
+        workdir: Directory renders are written into.
+
+    Returns:
+        `{"ink", "height", "contrast"}` — ink pixels, the ink's height in
+        pixels, and the darkest pixel's WCAG ratio against `SVG_GROUND`.
+        An element that drew nothing reports zeros and a ratio of 1.0.
+    """
+    bbox = _element_ink(elements, eid, workdir, min_blob=1)[1]
+    if bbox is None:
+        return {"ink": 0, "height": 0, "contrast": 1.0}
+    w, _h, pix = read_png_gray(_shot(elements, workdir))
+    x0, y0, x1, y1 = bbox
+    marks = [(y, pix[y * w + x]) for y in range(y0, y1 + 1)
+             for x in range(x0, x1 + 1) if pix[y * w + x] < INK_THRESHOLD]
+    if not marks:
+        return {"ink": 0, "height": 0, "contrast": 1.0}
+    rows = [m[0] for m in marks]
+    darkest = min(m[1] for m in marks)
+    return {"ink": len(marks), "height": max(rows) - min(rows) + 1,
+            "contrast": contrast_ratio((darkest,) * 3, _GROUND_RGB)}
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestLegibilityFloor(unittest.TestCase):
+    """The two poles the measured `min_font` floor sits between."""
+
+    def setUp(self) -> None:
+        """Make a scratch directory for this test's renders."""
+        self.workdir = _mkworkdir()
+
+    def tearDown(self) -> None:
+        """Remove the scratch directory — renders never enter the repo."""
+        shutil.rmtree(self.workdir, ignore_errors=True)
+
+    def test_text_at_the_floor_still_carries_its_ink(self) -> None:
+        """At `MIN_FONT_FLOOR` the word survives rasterization.
+
+        The upper pole. Without it the lower pole proves only that this
+        instrument can call something illegible, which any instrument
+        that called everything illegible would also manage.
+        """
+        got = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR),
+                            "t1", self.workdir)
+        self.assertGreater(
+            got["contrast"], WCAG_TEXT_FLOOR,
+            "text at the floor no longer clears WCAG 1.4.3 (%.2f:1): "
+            "re-run the sweep in this section's header and move "
+            "MIN_FONT_FLOOR" % got["contrast"])
+        self.assertGreaterEqual(got["height"], 5)
+
+    def test_text_below_the_floor_degenerates_in_the_picture(self) -> None:
+        """One px under the floor, the same word is a gray smear.
+
+        The scene is exactly the one `test_mutants.tiny_font_text` pins
+        from the model tier — `_styled_scene(font_size=6)` — so this is
+        the evidence for that mutant's choice of 6 rather than a second
+        opinion about a different drawing. Its declared color is
+        #1e1e1e, which the model tier scores at 16.24:1; rasterized at
+        6px, no pixel in the word gets within a whisker of that, and the
+        text a contrast lint reading DECLARED colors would wave through
+        is one the picture cannot deliver.
+
+        Green, and not a mutant: nothing here is our bug to fix. It is
+        the floor's evidence, kept where it can be re-measured.
+        """
+        got = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR - 1),
+                            "t1", self.workdir)
+        self.assertLess(
+            got["contrast"], WCAG_TEXT_FLOOR + 0.2,
+            "text below the floor now renders at %.2f:1 — the rasterizer "
+            "or the font changed under this calibration; re-run the sweep "
+            "in this section's header before trusting MIN_FONT_FLOOR"
+            % got["contrast"])
+        self.assertLessEqual(got["height"], 3)
+
+
+class TestLegibilityFloorRegime(unittest.TestCase):
+    """The calibration's arithmetic, checked without a browser.
+
+    Ungated, like the other two regime classes: an implementation of the
+    WCAG formulas that quietly went wrong would move the measured floor
+    while every gated test went on passing, and nobody runs the gated
+    tier during ordinary editing.
+    """
+
+    def test_the_contrast_arithmetic_matches_the_catalogue(self) -> None:
+        """Our ratios reproduce the ones the model tier already pins.
+
+        `gray_text_on_ground` and `pale_stroke_node` carry MEASURED WCAG
+        ratios computed independently when they were written. Landing on
+        the same three numbers from this implementation is what makes it
+        trustworthy enough to argue a font floor from; disagreeing would
+        mean one of the two is wrong and the floor rests on nothing.
+        """
+        for hexcolor, want in (("#1e1e1e", 16.24), ("#d0d0d0", 1.50),
+                               ("#b0b0b0", 2.11)):
+            with self.subTest(color=hexcolor):
+                rgb = tuple(int(hexcolor[i:i + 2], 16)
+                            for i in (1, 3, 5))
+                self.assertAlmostEqual(contrast_ratio(rgb, _GROUND_RGB),
+                                       want, places=2)
 
 
 class TestRenderTierEvidence(unittest.TestCase):

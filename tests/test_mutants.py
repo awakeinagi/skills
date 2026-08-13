@@ -160,6 +160,10 @@ DETECTORS: dict[str, dict] = {
     # measure pixels, and the pixels only exist under MUTANTS_RENDER=1.
     "ablation_existence": {"render": True},
     "ablation_continuity": {"render": True},
+    # Batch D, 2026-08-13: not an ablation at all — it compares tier 1's
+    # markup against tier 1's own chosen viewport, so it is the one render
+    # detector that measures a second render path rather than the picture.
+    "parity_clipped": {"render": True},
 }
 
 
@@ -3184,9 +3188,21 @@ _register(Mutant(
 
 # The font floor. 6px is legible in a zoomed editor and gone in a
 # fit-to-window snapshot — which is the only view the agent ever gets.
-# MAGNITUDE is the offending fontSize itself; the FLOOR is deliberately not
-# encoded here, because the todo says to measure it against the render tier
-# rather than guess, and a mutant that guessed would fix the wrong number.
+# MAGNITUDE is the offending fontSize itself, and it stays that way: the
+# convention across this family is that the finding reports what it MEASURED
+# and names the threshold in its message, exactly as `contrast_text` carries
+# 1.50 and names 4.5. A floor is a threshold, so it does not belong here.
+#
+# FLOOR, MEASURED 2026-08-13 (Batch D item 3): 7px, against the render tier at
+# deviceScaleFactor 1 — `test_mutants_render.TestLegibilityFloor` and the
+# sweep in that section's header. This scene is unchanged by the calibration,
+# and that is the result: 6px sits one below the measured floor, so what was a
+# plausible-looking choice is now the boundary-honest case the design doc asks
+# every legibility lint to carry. The evidence is that between 7px and 6px the
+# rendered word loses nearly half its stroke contrast (8.50:1 to 4.62:1, the
+# sharpest step in the sweep) and drops from 5px to 3px of ink height, while
+# its DECLARED contrast stays 16.24:1 throughout — so a lint reading declared
+# colors alone waves through text the picture cannot deliver.
 _register(Mutant(
     "tiny_font_text",
     build=lambda: _styled_scene(font_size=6),
@@ -3590,13 +3606,27 @@ class TestMutantCatalogue(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 # Detector -> the gated test that proves it, in tests/test_mutants_render.py.
+# Where a detector has several proofs this names the STRONGEST one, since the
+# string is what a reader takes for the state of the evidence.
 RENDER_TIER = {
+    # Batch D, 2026-08-13: moved off
+    # `test_ablation_existence_fires_on_invisible_element`, which proves the
+    # check against a 0x0, 0%-opacity ghost — an element no drawing contains,
+    # so it demonstrated the arithmetic and not the defect class. That test
+    # stays (it is the opacity red's control); the record now names the proof
+    # over a real shipped class in a plausible configuration.
     "ablation_existence":
         "test_mutants_render.TestRenderMutants."
-        "test_ablation_existence_fires_on_invisible_element",
+        "test_ablation_existence_fires_on_a_real_shipped_class",
     "ablation_continuity":
         "test_mutants_render.TestRenderMutants."
         "test_mutant_label_backdrop_severs_connector",
+    # Named at the FIRING proof, not at the red mutant beside it: the mutant
+    # asserts the post-fix silence, and a silence proves nothing (see
+    # `test_silence_only_mutant_does_not_prove_its_check`).
+    "parity_clipped":
+        "test_mutants_render.TestRenderParity."
+        "test_parity_clip_is_red_by_measurement_not_by_error",
 }
 
 # Check names a catalogue entry may name with no `DETECTORS` detector
@@ -3635,8 +3665,9 @@ ASPIRATIONAL: dict[str, str] = {
         "the one that catches a pale connector on cream paper",
     "min_font":
         "docs/todo/contrast-and-min-font-lints.md — fontSize floor, not "
-        "yet built; the floor is to be MEASURED against the render tier "
-        "at deviceScaleFactor 1, not guessed",
+        "yet built. The floor itself is no longer open: MEASURED at 7px "
+        "on 2026-08-13 against the render tier at deviceScaleFactor 1, "
+        "evidence in test_mutants_render.TestLegibilityFloor",
 }
 
 # FOR WHOEVER FLIPS THESE. No aspirational mutant has a neighbour asserting
