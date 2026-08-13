@@ -20,6 +20,7 @@ or after.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -475,6 +476,78 @@ class TestPendingQueueDurability(unittest.TestCase):
         self.project.ensure_tree()
         self.assertEqual(gi.read_text("utf-8").count(".pending/"), 1,
                          "a second call appended the line again")
+
+    def test_a_non_utf8_gitignore_does_not_take_down_the_project(self) -> None:
+        """It is a USER-owned file, so it can hold anything at all.
+
+        `read_text("utf-8")` raises UnicodeDecodeError, which is a
+        ValueError and not an OSError — so one stray high byte in a file
+        this code merely consults took down every command that builds a
+        Store, with a raw traceback. `ensure_tree` runs inside
+        `Store.load`, so that is start, status, apply and lint.
+        """
+        gi = self.project.pk / ".gitignore"
+        gi.write_bytes(b".backups/\nca\xe9sar/\n")
+        before = gi.read_bytes()
+        self.restart()
+        self.assertEqual(gi.read_bytes(), before,
+                         "an unreadable .gitignore was rewritten")
+        self.assertIn(".gitignore left alone",
+                      self.project.log_path.read_text("utf-8"))
+
+    def test_an_unreadable_gitignore_is_not_replaced(self) -> None:
+        """The read failure must not be read as "the file was empty".
+
+        Treating it that way rewrote the template over the top: a
+        `.gitignore` holding user lines came back holding only
+        `.backups/` and `.pending/`, silently. A file this code cannot
+        read is not this code's to rewrite.
+        """
+        gi = self.project.pk / ".gitignore"
+        gi.write_bytes(b"secrets.env\n\xff\xfe\nnotes/\n")
+        before = gi.read_bytes()
+        self.restart()
+        self.assertEqual(gi.read_bytes(), before)
+        self.assertIn(b"secrets.env", gi.read_bytes())
+        self.assertIn(b"notes/", gi.read_bytes())
+
+    @unittest.skipIf(os.name != "posix" or os.geteuid() == 0,
+                     "mode 000 is not honoured for root, or off posix")
+    def test_a_mode_000_gitignore_keeps_its_user_lines(self) -> None:
+        """The destruction case, on the branch that actually did it.
+
+        The non-UTF-8 cases die in the decode; this one reaches the
+        `except OSError` arm that read "could not read" as "was empty"
+        and wrote the template over the top. `os.replace` needs write
+        permission on the *directory*, not the file, so an unreadable
+        file was replaced quite happily — three user lines became two
+        machine ones with nothing logged.
+        """
+        gi = self.project.pk / ".gitignore"
+        gi.write_text(".backups/\nsecrets.env\nnotes/\n", "utf-8")
+        before = gi.read_bytes()
+        gi.chmod(0o000)
+        try:
+            self.restart()
+        finally:
+            gi.chmod(0o644)
+        self.assertEqual(gi.read_bytes(), before,
+                         "the unreadable .gitignore was replaced wholesale")
+
+    def test_a_directory_shaped_gitignore_is_skipped(self) -> None:
+        """`exists()` is true for a directory, and the write died on it.
+
+        The old `if not gi.exists()` guard skipped this quietly; reading
+        it raises IsADirectoryError, and rewriting from the assumed-empty
+        list then crashed inside `atomic_write`'s `os.replace`.
+        """
+        gi = self.project.pk / ".gitignore"
+        gi.unlink()
+        gi.mkdir()
+        (gi / "inner").write_text("x", "utf-8")
+        self.restart()
+        self.assertTrue(gi.is_dir())
+        self.assertEqual((gi / "inner").read_text("utf-8"), "x")
 
     def test_an_unparseable_pending_file_is_quarantined_not_fatal(self) -> None:
         """Control (c), the truncated variant: the write was interrupted."""

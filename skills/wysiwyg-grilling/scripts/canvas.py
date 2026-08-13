@@ -258,7 +258,13 @@ class Project:
         self.log_path = self.runtime_dir / ("%s.server.log" % h)
         self.shots_dir = self.runtime_dir / ("%s.shots" % h)
 
-    def ensure_tree(self):
+    def ensure_tree(self, log=None):
+        """Create the project tree and keep its .gitignore current.
+
+        Args:
+            log: Optional message sink, used only to report a .gitignore
+                this code declined to touch.
+        """
         for d in (self.pk, self.artifacts_dir, self.saves_dir,
                   self.pending_dir):
             d.mkdir(parents=True, exist_ok=True)
@@ -271,8 +277,18 @@ class Project:
         try:
             have = [ln.strip() for ln in
                     gi.read_text("utf-8").splitlines()] if gi.exists() else []
-        except OSError:
-            have = []
+        except (OSError, ValueError) as e:
+            # a .gitignore this code cannot read is not this code's to
+            # rewrite. Treating the failure as "empty" and writing the
+            # template over it destroyed whatever the user had in there
+            # — a mode-000 file lost two lines and said nothing — and a
+            # directory-shaped one died in atomic_write. UnicodeDecodeError
+            # is a ValueError, so one stray high byte in a USER-owned file
+            # took down every command that builds a Store.
+            if log is not None:
+                log("project_knowledge/.gitignore left alone, could not "
+                    "read it: %s" % e)
+            return
         missing = [ln for ln in (".backups/", ".pending/") if ln not in have]
         if missing:
             atomic_write(gi, "".join("%s\n" % ln for ln in have + missing))
@@ -6497,7 +6513,7 @@ class Store:
 
     # -- loading ----------------------------------------------------------
     def load(self):
-        self.p.ensure_tree()
+        self.p.ensure_tree(self.log)
         # config
         if self.p.config_path.exists():
             try:
