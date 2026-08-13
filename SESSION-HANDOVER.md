@@ -1,6 +1,6 @@
 # Session handover — harness + candidate-board arc COMPLETE; v0.9 is next
 
-Current through 2026-08-13 (branch `v0.9_mutation_harness` @ `38b9e44` —
+Current through 2026-08-13 (branch `v0.9_mutation_harness` @ `7c84e09` —
 curator Batch D closed the harness backlog; drain 28→29).
 Superseded content from earlier phases is reproduced in the R5 notes.
 
@@ -31,7 +31,7 @@ repos idea-mined with everything dispositioned; methodology documented in
 
 ## 1. Where the code is, and the gotcha that still bites
 
-- Branch **`v0.9_mutation_harness`** @ `38b9e44`, cut from `v0.8_correctness`
+- Branch **`v0.9_mutation_harness`** @ `7c84e09`, cut from `v0.8_correctness`
   @ `cb533ab`, in the worktree
   `~/Projects/wysiwyg_grilling_skill.worktrees/capability_assessment`.
   **Nothing is merged to `main`.** No `v0.9_failure_paths` branch exists yet —
@@ -39,16 +39,17 @@ repos idea-mined with everything dispositioned; methodology documented in
 - **The gotcha:** `~/.claude/skills/wysiwyg-grilling` symlinks into *this
   worktree*. Whatever is checked out here is the skill every agent on this
   machine discovers. Verify before any assessment work.
-- Health, re-measured 2026-08-13 after curator Batch D: **592 unit
-  tests** (`python3 -m unittest discover -s tests`, ~9s) →
+- Health, re-measured 2026-08-13 after curator Batch D + follow-up: **596
+  unit tests** (`python3 -m unittest discover -s tests`, ~9s) →
   `OK (skipped=17, expected failures=26)`; with the render tier enabled
   (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the same
-  592 run `OK (expected failures=29)` — the 17 skips are the render tests,
-  now 21 of them (ef=3); **12 Playwright e2e**; `uvx pre-commit run
+  596 run `OK (expected failures=29)` — the 17 skips are the render tests,
+  21 of them (ef=3); **12 Playwright e2e**; `uvx pre-commit run
   --all-files` green. The 29 expected failures (26 model + 3 render) are red
   *by intent* (see §1a). **The drain number is 29** (Batch D added
   `parity_clipped` — render_svg clips center-aligned labels at the viewBox's
-  min side; coverage table 11→12 rows).
+  min side; the follow-up proved `text_overflow` both arms GREEN; coverage
+  table 13 rows, UNCOVERED ledger 48).
 
 ### 1a. The mutation harness — landed, red, and it is WP4's acceptance spec
 
@@ -144,18 +145,18 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. 12 detectors today (re-derived 2026-08-13): 8 proven, 3
-  render-tier, 1 UNCOVERED (`crosses_through_bound`).
+  a reason. 13 detectors today (re-derived 2026-08-13 post follow-up): 9
+  proven, 3 render-tier, 1 UNCOVERED (`crosses_through_bound`).
 - `python3 tests/test_mutants.py --sweep` — the discovery sweep. Current
   state: **8 cells run, 7 skipped, 1 survivor**
   (`move_node_onto_rank:chain:ebb2e1f6`, phantom pass-through, dispositioned
   **promote** → V0.9-PLAN WP4b item 1). Exit 0. An undispositioned survivor
   exits non-zero *and* fails a default-suite test.
 
-**The UNCOVERED ledger is 50 rows** — one real detector gap plus 49 finding
+**The UNCOVERED ledger is 49 rows** — one real detector gap plus 48 finding
 codes enumerated out of `lint_layout` and `validate_scene` on 2026-08-12, each
 with a `canvas.py` line reference and "no proving mutant yet". Note the
-asymmetry: `--coverage` prints only the 12 rows in `DETECTORS`; the other 49
+asymmetry: `--coverage` prints only the 13 rows in `DETECTORS`; the other 48
 live in the `UNCOVERED` dict in `tests/test_mutants.py` and are the backlog,
 not the table. The ledger has drained **once**: `shared_attach_point`
 (canvas.py:5688) left it on 2026-08-12 when the ELK spike fired the lint in
