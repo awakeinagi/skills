@@ -1,6 +1,6 @@
 # Session handover — harness + candidate-board arc COMPLETE; v0.9 is next
 
-Current through 2026-08-13 (branch `v0.9_mutation_harness` @ `7c84e09` —
+Current through 2026-08-13 (branch `v0.9_mutation_harness` @ `2319a17` —
 curator Batch D closed the harness backlog; drain 28→29).
 Superseded content from earlier phases is reproduced in the R5 notes.
 
@@ -31,7 +31,7 @@ repos idea-mined with everything dispositioned; methodology documented in
 
 ## 1. Where the code is, and the gotcha that still bites
 
-- Branch **`v0.9_mutation_harness`** @ `7c84e09`, cut from `v0.8_correctness`
+- Branch **`v0.9_mutation_harness`** @ `2319a17`, cut from `v0.8_correctness`
   @ `cb533ab`, in the worktree
   `~/Projects/wysiwyg_grilling_skill.worktrees/capability_assessment`.
   **Nothing is merged to `main`.** No `v0.9_failure_paths` branch exists yet —
