@@ -6890,15 +6890,25 @@ class Store:
                                                            reg_errors)
                     if reg_errors:
                         raise BatchError(reg_errors)
-                except BatchError:
+                except BaseException:
                     # a rejected batch leaves NO trace: not the phantom
                     # artifact a `create` seeded, not the pin lifecycle
                     # above, and not the writes the ops before the
-                    # failing one already made. `rename_artifact` is the
-                    # one that also reaches DISK as it validates, so the
-                    # restored name has to be written back through.
-                    renamed = [ch.get("artifact") for ch in reg_changes
-                               if ch.get("action") == "artifact_renamed"]
+                    # failing one already made. ANY exception, not just
+                    # BatchError — `annotate_mapping` with a negative
+                    # index walks past its bounds check and dies on a
+                    # bare IndexError, and a guard that asks what raised
+                    # would hand that crash a half-written registry.
+                    # The error contract is untouched: restore, re-raise.
+                    # `rename_artifact` is the op that also reaches DISK
+                    # as it validates, so the restored name is written
+                    # back through — named by comparing meta against the
+                    # pre-image rather than by reading `reg_changes`,
+                    # which a crash never returns.
+                    renamed = [a for a, m in self.artifact_meta.items()
+                               if a in pre_meta and
+                               (pre_meta[a] or {}).get("name") !=
+                               (m or {}).get("name")]
                     self.registry = pre_registry
                     self.artifact_meta = pre_meta
                     for aid2 in renamed:
@@ -7048,8 +7058,10 @@ class Store:
             new_meta: `{artifact_id: meta}` for the batch, or None.
 
         Returns:
-            The ids actually seeded, so a rejected batch can un-publish
-            them rather than leave a phantom artifact behind.
+            The ids actually seeded. `commit` no longer needs them —
+            its pre-image restore un-publishes a rejected batch's
+            phantom artifact along with everything else — but the list
+            still names exactly what this call added.
         """
         seeded = []
         for aid, meta in (new_meta or {}).items():

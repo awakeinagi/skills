@@ -26,7 +26,7 @@ import canvas
 
 
 def seed_batch() -> dict[str, Any]:
-    """A one-node flow with a concept, so mappings have something to name.
+    """A two-node flow with a concept, so mappings have something to name.
 
     Returns:
         An op-batch envelope creating the `checkout-flow` artifact.
@@ -39,7 +39,11 @@ def seed_batch() -> dict[str, Any]:
                    "concept_name": "Checkout"},
         "ops": [{"op": "add", "element": {
             "type": "rectangle", "id": "cart", "label": "Cart", "x": 40,
-            "y": 120, "width": 140, "height": 60, "role": "node"}}],
+            "y": 120, "width": 140, "height": 60, "role": "node"}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "checkout", "label": "Checkout",
+                "x": 260, "y": 120, "width": 140, "height": 60,
+                "role": "node"}}],
     }
 
 
@@ -132,6 +136,70 @@ class TestFailurePathAtomicity(unittest.TestCase):
                          "Checkout Flow")
         self.assertEqual(path.read_bytes(), before,
                          "a rejected rename stayed in the artifact file")
+
+    def test_rejected_batch_leaves_the_pin_lifecycle_untouched(self) -> None:
+        """The registry ops are not the only write ahead of the rejection.
+
+        `commit` runs the pin lifecycle — prune on target deletion,
+        `target_edits` on target churn — BEFORE it dispatches the
+        registry ops, so the guard has to sit ahead of both. With it
+        moved down to the ops, this batch still pruned a pin the user
+        never lost and aged another one for an edit that never landed.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "target": "cart", "id": "pin-a",
+                      "question": "one cart, or one per seller?"},
+                     {"op": "pin", "target": "checkout", "id": "pin-b",
+                      "question": "guest checkout?"}]})
+        before_pins = json.dumps(self.store.registry["pins"], sort_keys=True)
+        before_meta = json.dumps(self.store.artifact_meta, sort_keys=True)
+        before = self.snapshot()
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow",
+                 "ops": [{"op": "del", "id": "cart"},
+                         {"op": "mod", "id": "checkout",
+                          "attrs": {"label": "Checkout & pay"}},
+                         {"op": "registry", "action": "set_round",
+                          "round": "two"}]})
+        self.assertEqual(json.dumps(self.store.registry["pins"],
+                                    sort_keys=True), before_pins,
+                         "the rejected batch pruned or aged a pin")
+        self.assertEqual(json.dumps(self.store.artifact_meta, sort_keys=True),
+                         before_meta)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_a_crashing_registry_op_leaves_nothing_behind(self) -> None:
+        """The promise is "no trace", so the guard cannot ask what raised.
+
+        `annotate_mapping` with a negative `index` walks past the bounds
+        check (`idx >= len(...)` is false for -1) and subscripts an
+        empty list, so the batch dies on a bare IndexError rather than a
+        BatchError — and a guard that only catches BatchError never
+        runs. The negative index itself is a separate, still-open
+        defect; this pins the guard, not the validation.
+        """
+        before = self.snapshot()
+        before_meta = json.dumps(self.store.artifact_meta, sort_keys=True)
+        path = self.project.artifacts_dir / "checkout-flow.excalidraw"
+        before_file = path.read_bytes()
+        with self.assertRaises(IndexError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow",
+                 "ops": [{"op": "registry", "action": "rename_artifact",
+                          "artifact": "checkout-flow", "name": "Renamed"},
+                         {"op": "registry", "action": "set_round",
+                          "round": 9},
+                         {"op": "registry", "action": "annotate_mapping",
+                          "index": -1, "note": "boom"}]})
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(json.dumps(self.store.artifact_meta, sort_keys=True),
+                         before_meta)
+        self.assertEqual(path.read_bytes(), before_file,
+                         "the crash left the rename in the artifact file")
 
     def test_checking_the_same_batch_leaves_the_registry_byte_identical(
             self) -> None:
