@@ -244,6 +244,7 @@ class Project:
         self.artifacts_dir = self.pk / "artifacts"
         self.saves_dir = self.pk / "saves"
         self.backups_dir = self.pk / ".backups"
+        self.pending_dir = self.pk / ".pending"
         self.registry_path = self.pk / "model.json"
         self.config_path = self.pk / "config.json"
         h = hashlib.sha1(str(self.root).encode("utf-8")).hexdigest()[:12]
@@ -258,7 +259,8 @@ class Project:
         self.shots_dir = self.runtime_dir / ("%s.shots" % h)
 
     def ensure_tree(self):
-        for d in (self.pk, self.artifacts_dir, self.saves_dir):
+        for d in (self.pk, self.artifacts_dir, self.saves_dir,
+                  self.pending_dir):
             d.mkdir(parents=True, exist_ok=True)
         gi = self.pk / ".gitignore"
         if not gi.exists():
@@ -8705,6 +8707,7 @@ class ServerApp:
         self.mermaid_seq = 0
         self.httpd = None
         self.catchup_record = None
+        self.load_pending()
 
     def start_catch_up(self):
         try:
@@ -8719,6 +8722,89 @@ class ServerApp:
             self.log(traceback.format_exc())
 
     # -- pending agent revisions -----------------------------------------
+    def pending_path(self, pending_id):
+        """Where a queued revision's durable copy lives.
+
+        Args:
+            pending_id: Queue entry id.
+
+        Returns:
+            The entry's path under `project_knowledge/.pending/`.
+        """
+        return self.project.pending_dir / ("%s.json" % pending_id)
+
+    def persist_pending(self, entry):
+        """Write a queue entry through to disk, so a restart keeps it.
+
+        The queue holds agent-authored content the user has not answered
+        yet, and `stop` is the *documented* way to end a session — while
+        the queue was memory-only, the documented shutdown destroyed
+        every revision behind the banner and said nothing at stop, at
+        start, or after (r5-18).
+
+        Args:
+            entry: The queue entry to persist.
+        """
+        try:
+            write_json(self.pending_path(entry["id"]), entry)
+        except OSError as e:
+            self.log("queued revision %s not persisted: %s" %
+                     (entry["id"], e))
+
+    def forget_pending(self, pending_id):
+        """Delete a queue entry's durable copy.
+
+        Persisting on queue without this is the worse bug: a discard
+        looks like it worked until the next start puts the revision back
+        on the banner, and the user has no second way to say no.
+
+        Args:
+            pending_id: Queue entry id.
+        """
+        try:
+            self.pending_path(pending_id).unlink()
+        except OSError:
+            pass
+
+    def load_pending(self):
+        """Restore the queue an earlier server left on disk.
+
+        Every file goes through a guard before it joins the queue. This
+        directory is a new on-disk surface, so it gets what save records
+        get: one holding `[]` is rejected by shape rather than
+        subscripted as a dict, and one that survived load only to reach
+        `sanitize_pending` without a `batch` would fail on the first
+        `/api/state` poll with the banner already drawn. A malformed
+        entry is quarantined by name and skipped — never fatal.
+        """
+        for f in sorted(self.project.pending_dir.glob("*.json")):
+            try:
+                entry = read_json(f)
+                if not isinstance(entry, dict):
+                    raise ValueError("queue entry is not a JSON object")
+                if not isinstance(entry.get("id"), int):
+                    raise ValueError("queue entry has no integer id")
+                if not isinstance(entry.get("batch"), dict):
+                    raise ValueError("queue entry carries no batch")
+                entry["pin_only"] = bool(entry.get("pin_only"))
+                entry["deferred"] = bool(entry.get("deferred"))
+                entry.setdefault("supersedes", None)
+                if not isinstance(entry.get("queued_at"), str):
+                    entry["queued_at"] = now_iso()
+                self.pending.append(entry)
+            except (OSError, ValueError) as e:
+                self.store.issues.append(Issue(
+                    "PND-001",
+                    "unreadable queued revision %s — skipped" % f.name,
+                    "That revision is lost; ask the agent to redraw it. "
+                    "Delete the file to stop the warning.").to_dict())
+                self.log("quarantine: PND-001 %s (%s)" % (f.name, e))
+        self.pending.sort(key=lambda p: p["id"])
+        # the counter has to clear every id already on the banner, or the
+        # next queue hands out one of theirs and `/api/pending/resolve`,
+        # which resolves by id, applies whichever came first in the list
+        self.pending_seq = max([p["id"] for p in self.pending] or [0])
+
     def drop_pending(self, pending_id):
         """Remove a queued revision from the banner.
 
@@ -8732,7 +8818,10 @@ class ServerApp:
             before = len(self.pending)
             self.pending = [p for p in self.pending
                             if p["id"] != pending_id]
-            return len(self.pending) != before
+            dropped = len(self.pending) != before
+            if dropped:
+                self.forget_pending(pending_id)
+            return dropped
 
     def queue_pending(self, batch, pin_only, supersedes=None):
         """Hold a revision behind the banner for the user to pull.
@@ -8756,7 +8845,30 @@ class ServerApp:
                      "pin_only": pin_only, "deferred": False,
                      "supersedes": supersedes, "queued_at": now_iso()}
             self.pending.append(entry)
+            self.persist_pending(entry)
             return entry
+
+    def set_pending_deferred(self, pending_id):
+        """Park a queued revision until after the user's next Save.
+
+        "After my save" is an answer, and it arrives long after the
+        queue write — persisting only at queue time would restore the
+        entry with `deferred` back to False and hold it on the banner
+        the user had already dismissed.
+
+        Args:
+            pending_id: Queue entry id.
+
+        Returns:
+            True when an entry was parked.
+        """
+        with self.lock:
+            for p in self.pending:
+                if p["id"] == pending_id:
+                    p["deferred"] = True
+                    self.persist_pending(p)
+                    return True
+            return False
 
     def sanitize_pending(self):
         """Project the queue to the shape the web app renders.
@@ -8999,8 +9111,7 @@ class ServerApp:
                                     for aid, part in
                                     (record.get("artifacts") or {}).items()}}
             if action == "after_save":
-                with self.lock:
-                    entry["deferred"] = True
+                self.set_pending_deferred(pid)
                 return {"ok": True, "deferred": True}
             if action == "discard":
                 # without this a revision the user does not want can only

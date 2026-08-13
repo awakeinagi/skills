@@ -1,4 +1,4 @@
-"""WP1 acceptance: what a rejected batch leaves behind.
+"""WP1 acceptance: what a failure leaves behind.
 
 Every case here follows one discipline — *cause a failure, then diff the
 state*. A test that only asserts the error message passes just as
@@ -9,6 +9,13 @@ added, served it on `/api/state`, and the next commit persisted it. So
 each case snapshots what a caller can observe — the in-memory registry,
 the registry file, the artifact file — provokes the rejection, and
 asserts the snapshot is unchanged afterwards.
+
+The second class reads the same discipline through durability rather
+than atomicity. r5-18's failure is a *restart*, and the state to diff
+is the pending queue across two server lifetimes: the old queue lived
+only in `ServerApp.pending`, so the documented shutdown destroyed every
+revision waiting behind the banner and said nothing at stop, at start,
+or after.
 """
 from __future__ import annotations
 
@@ -228,6 +235,198 @@ class TestFailurePathAtomicity(unittest.TestCase):
         self.store.apply_batch(self.mapping_then_round(7))
         self.assertEqual(len(self.store.registry["mappings"]), 1)
         self.assertEqual(self.store.registry["round"], 7)
+
+
+class TestPendingQueueDurability(unittest.TestCase):
+    """A revision queued behind the banner must outlive the server."""
+
+    def setUp(self) -> None:
+        """Build a server app over a temp project and seed one artifact."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-pending-"))
+        self.project = canvas.Project(self.tmp)
+        self.project.ensure_tree()
+        self.app = self.restart()
+        self.app.store.apply_batch(seed_batch())
+
+    def tearDown(self) -> None:
+        """Drop the temp project and the process-level side files."""
+        self.app.log_file.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def restart(self) -> Any:
+        """Stand a fresh server app over the same project directory.
+
+        The old app's log handle is closed first, so a case may restart
+        as often as it likes without leaking one per lifetime.
+
+        Returns:
+            The new `ServerApp` — what `start` builds after a `stop`.
+        """
+        old = getattr(self, "app", None)
+        if old is not None:
+            old.log_file.close()
+        self.app = canvas.ServerApp(self.project)
+        return self.app
+
+    def a_revision(self, note: str = "the cart needs a total") -> dict[str, Any]:
+        """A queueable batch: one modification to the seeded flow.
+
+        Args:
+            note: The banner's headline for this revision.
+
+        Returns:
+            An op-batch envelope on the current head revision.
+        """
+        return {"base_revn": self.app.store.head_revn(),
+                "artifact": "checkout-flow", "note": note,
+                "ops": [{"op": "mod", "id": "cart",
+                         "attrs": {"label": "Cart (3 items)"}}]}
+
+    def test_a_queued_revision_survives_a_restart(self) -> None:
+        """The measured failure: `PENDING=1` → stop → start → `PENDING=0`.
+
+        `stop` is the documented way to end a session, so the queue
+        being memory-only meant the documented shutdown destroyed
+        agent-authored work the user had not answered yet — with no
+        warning at stop, no note at start, and no record anywhere
+        (r5-18).
+        """
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        self.restart()
+        self.assertEqual(len(self.app.pending), 1,
+                         "the restart destroyed the queued revision")
+        after = self.app.pending[0]
+        self.assertEqual(after["id"], entry["id"])
+        self.assertEqual(after["batch"]["ops"], entry["batch"]["ops"])
+        self.assertEqual(after["batch"].get("note"), "the cart needs a total")
+        self.assertEqual(after["pin_only"], False)
+        self.assertEqual(after["queued_at"], entry["queued_at"])
+
+    def test_a_restored_revision_still_applies(self) -> None:
+        """Surviving is not enough — the banner must still be pullable."""
+        self.app.queue_pending(self.a_revision(), pin_only=False)
+        self.restart()
+        record = self.app.commit_pending(self.app.pending[0])
+        self.assertEqual([e.get("text") for e in
+                          self.app.store.scenes["checkout-flow"]
+                          if e.get("containerId") == "cart"],
+                         ["Cart (3 items)"])
+        self.assertEqual(self.app.pending, [])
+        self.assertGreater(record["revn"], 1)
+
+    def test_the_restored_queue_does_not_reuse_an_id(self) -> None:
+        """Two entries, one restart: the next queue must not collide.
+
+        A counter that restarted at zero would hand the new revision
+        the id of one still on the banner, and `/api/pending/resolve`
+        resolves by id — the user's Apply would hit whichever came
+        first in the list.
+        """
+        first = self.app.queue_pending(self.a_revision("first"), False)
+        second = self.app.queue_pending(self.a_revision("second"), False)
+        self.restart()
+        third = self.app.queue_pending(self.a_revision("third"), False)
+        self.assertEqual(len({first["id"], second["id"], third["id"]}), 3)
+        self.assertEqual(len({p["id"] for p in self.app.pending}), 3)
+
+    def test_an_empty_queue_restarts_silently(self) -> None:
+        """Control (a): durability must not invent a finding of its own."""
+        before = list(self.app.store.issues)
+        self.restart()
+        self.assertEqual(self.app.pending, [])
+        self.assertEqual(self.app.store.issues, before)
+
+    def test_a_discarded_revision_is_gone_from_disk_too(self) -> None:
+        """Control (b): the user said no, so a restart must not re-offer it.
+
+        Persisting on queue without deleting on drop is the worse bug:
+        the discard looks like it worked until the next `start` puts the
+        revision back on the banner, and there is no second way to say
+        no.
+        """
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        self.app.drop_pending(entry["id"])
+        self.assertEqual(
+            sorted(p.name for p in self.project.pending_dir.glob("*.json")),
+            [], "the dropped revision is still on disk")
+        self.restart()
+        self.assertEqual(self.app.pending, [])
+
+    def test_a_committed_revision_is_gone_from_disk_too(self) -> None:
+        """Control (b), the other exit: pulling it must clear the file."""
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        self.app.commit_pending(entry)
+        self.assertEqual(list(self.project.pending_dir.glob("*.json")), [])
+        self.restart()
+        self.assertEqual(self.app.pending, [])
+
+    def test_a_malformed_pending_file_is_quarantined_not_fatal(self) -> None:
+        """Control (c): the new on-disk surface gets Task 2's treatment.
+
+        A record holding `[]` is the shape that bricked the whole store
+        through the save loop, and the spec's Risks section names this
+        directory as the next thing that drifts. So the load rejects a
+        non-object before it can subscript one, quarantines it with an
+        issue naming the file, and keeps every well-formed sibling.
+        """
+        good = self.app.queue_pending(self.a_revision("keep me"), False)
+        (self.project.pending_dir / "99.json").write_text("[]", "utf-8")
+        self.restart()
+        self.assertEqual([p["id"] for p in self.app.pending], [good["id"]],
+                         "the malformed file took its sibling down with it")
+        self.assertEqual(self.app.pending[0]["batch"].get("note"), "keep me")
+        quarantined = [i for i in self.app.store.issues
+                       if i.get("code") == "PND-001"]
+        self.assertEqual(len(quarantined), 1)
+        self.assertIn("99.json", quarantined[0]["msg"])
+        self.assertFalse(quarantined[0]["repaired"],
+                         "a skipped revision is not a repair")
+
+    def test_an_unparseable_pending_file_is_quarantined_not_fatal(self) -> None:
+        """Control (c), the truncated variant: the write was interrupted."""
+        good = self.app.queue_pending(self.a_revision("keep me"), False)
+        (self.project.pending_dir / "98.json").write_text('{"id": 98,', "utf-8")
+        self.restart()
+        self.assertEqual([p["id"] for p in self.app.pending], [good["id"]])
+        self.assertIn("98.json", "".join(i["msg"] for i in
+                                         self.app.store.issues
+                                         if i.get("code") == "PND-001"))
+
+    def test_a_pending_file_missing_its_batch_is_quarantined(self) -> None:
+        """An object is not enough — the queue entry has to be one.
+
+        `sanitize_pending` reads `p["batch"].get(...)` for every entry
+        on every `/api/state`, so an entry restored without a batch
+        would not fail at load; it would fail on the next poll, with
+        the banner already drawn.
+        """
+        (self.project.pending_dir / "97.json").write_text(
+            '{"id": 97, "pin_only": false}', "utf-8")
+        self.restart()
+        self.assertEqual(self.app.pending, [])
+        self.assertIn("97.json", "".join(i["msg"] for i in
+                                         self.app.store.issues
+                                         if i.get("code") == "PND-001"))
+        self.app.sanitize_pending()
+
+    def test_a_deferred_revision_stays_deferred_across_a_restart(self) -> None:
+        """"After my save" is an answer, and answers must not be forgotten.
+
+        The flag is set by `/api/pending/resolve`, long after the queue
+        write, so persisting only at queue time would restore the entry
+        with `deferred` back to False and hold it on the banner the user
+        already dismissed.
+        """
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        self.app.set_pending_deferred(entry["id"])
+        self.restart()
+        self.assertEqual([p["deferred"] for p in self.app.pending], [True])
+        self.app.flush_deferred()
+        self.assertEqual(self.app.pending, [])
 
 
 if __name__ == "__main__":
