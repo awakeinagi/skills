@@ -107,10 +107,19 @@ def _rasterize(svg: str, w: int, h: int, workdir: str) -> bytes:
     """Screenshot one SVG document at a given window size.
 
     Split out of `_shot` so the parity section below can rasterize markup
-    it framed itself. Renders are cached by SVG digest inside `workdir`,
-    so a document shot twice in one test class costs one browser start —
-    and because the digest is of the markup alone, the cache is keyed on
-    exactly what the browser was asked to draw.
+    it framed itself. Renders are cached inside `workdir`, so a document
+    shot twice in one test class costs one browser start.
+
+    The cache key is the markup AND THE BROWSER BINARY, and the second
+    half is not decoration. Keyed on markup alone this cache is only
+    sound while one binary is in play: the min_font calibration sweeps
+    the same scenes across three chromium builds that disagree about
+    anti-aliasing, and a markup-keyed cache happily served build 151's
+    pixels for build 131 — returning 4.62:1 for a build that renders
+    5.51:1, which is the difference between failing WCAG's floor and
+    passing it. Folding the binary in makes that unreachable rather than
+    merely documented, so cross-build work needs no separate workdir and
+    no discipline to remember.
 
     Args:
         svg: The complete SVG document to draw.
@@ -124,7 +133,8 @@ def _rasterize(svg: str, w: int, h: int, workdir: str) -> bytes:
     Raises:
         RuntimeError: If the browser exited without writing a PNG.
     """
-    name = hashlib.sha1(svg.encode("utf-8")).hexdigest()[:16]
+    name = hashlib.sha1(("%s\0%s" % (_browser(), svg))
+                        .encode("utf-8")).hexdigest()[:16]
     png = Path(workdir) / (name + ".png")
     if png.exists():
         return png.read_bytes()
@@ -995,6 +1005,15 @@ class TestRenderParity(unittest.TestCase):
         tier 1 counts tags and cannot tell whether they are visible, and
         tier 2's ablation checks run on hand-built scenes rather than
         across the class list.
+
+        Two of the nine rows are VACUOUS, and should be read as such:
+        `freedraw` and `image` reach neither path, so both sides of the
+        assertion are False and those rows pass without observing
+        anything. They are swept all the same — see
+        `test_dropped_classes_agree_by_being_absent_from_both`, which
+        exists to say why that agreement attests a defect pinned
+        elsewhere rather than evidencing fidelity, and which names the
+        red to flip when the paint branches land.
         """
         for etype in sorted(canvas.ELEMENT_TYPES):
             with self.subTest(element_type=etype):
@@ -1166,6 +1185,19 @@ class TestRenderParityRegime(unittest.TestCase):
 # poles rather than to taste. They are the same kind of thing as
 # `TestSnapshotFramingRegime` — a guard on a constant, not a judgement on a
 # drawing.
+#
+# The analogy stops at one place, and it is worth naming because it invites an
+# expectation this section cannot meet. `TestSnapshotFramingRegime` is
+# UNGATED: its regime is arithmetic over stored geometry, so it guards its
+# mutant in every commit. Here that is impossible. What these poles measure is
+# what a rasterizer does to a glyph, and only pixels can see that — so the
+# guard runs under `MUTANTS_RENDER=1` or not at all, and on an ordinary commit
+# nothing checks that the floor still holds. `TestLegibilityFloorRegime` below
+# IS ungated, but it guards only the ARITHMETIC (our WCAG implementation
+# against the catalogue's pinned ratios); it cannot notice the rasterizer
+# moving under the constant. That gap does not close at this tier: treat
+# `MIN_FONT_FLOOR` as a number to re-measure when the render stack changes,
+# not as one the suite defends for you.
 #
 # THE MEASUREMENT (2026-08-13, headless chromium, the pinned CHROME_FLAGS,
 # deviceScaleFactor 1, text #1e1e1e on SVG_GROUND, declared contrast 16.24:1).
@@ -1379,7 +1411,7 @@ class TestLegibilityFloor(unittest.TestCase):
         cross-build sweep in this section's header is why. Ink height is
         identical on every build tested; the small-size contrast reading
         is NOT — Chromium 131 renders this same 6px word at 5.51:1 where
-        152 renders it at 4.62:1, which is the difference between
+        151 renders it at 4.62:1, which is the difference between
         failing WCAG's 4.5 and passing it. An absolute bound here would
         therefore pass or fail on which chromium the tier happened to
         find, and a calibration that moves with the binary calibrates

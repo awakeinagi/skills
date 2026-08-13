@@ -69,6 +69,25 @@ _SHARED_ATTACH_RE = re.compile(
 # it lands this spec should tighten to a magnitude.
 _LABEL_OVERLAP_RE = re.compile(
     r"labels (?P<element>.+) overlap — nudge one clear")
+# The clipped-text lint (canvas.py:5637), whose template is the richest one
+# here: it carries a 2-D need AND a 2-D allowance AND which axis failed.
+# `element` is the OWNER, not the text — the text is quoted as CONTENT and
+# carries no id, so the box is the only element named, and it is also the one
+# the first remedy ("widen the box") acts on. The `[\w-]+` stops before the
+# ` ('Label')` suffix `canvas.name()` appends, as `_SHARED_ATTACH_RE`'s does.
+#
+# MAGNITUDE is the needed WIDTH — the first number, at a stable position —
+# and the limitation is worth stating rather than hiding: a `FindingSpec`
+# magnitude is one scalar and this finding is two, so on the too-tall arm the
+# asserted number is not the axis that failed. The DIRECTION carries the axis
+# instead, which is why the dirmap below distinguishes all three arms rather
+# than collapsing them. Tighten this to a pair the day `FindingSpec` grows
+# one; until then the band still discriminates, because on both mutants below
+# it excludes every other number in the same message.
+_TEXT_OVERFLOW_RE = re.compile(
+    r"does not fit (?P<element>[\w-]+).*? needs ~(?P<mag>\d+)x\d+px, "
+    r"the box gives \d+x\d+px "
+    r"\((?P<dir>too wide and too tall|too wide|too tall)\)")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -145,6 +164,13 @@ DETECTORS: dict[str, dict] = {
     "passes_through_foreign": {"lint_re": _PASSES_THROUGH_RE},
     "shared_attach_point": {"lint_re": _SHARED_ATTACH_RE},
     "label_label_overlap": {"lint_re": _LABEL_OVERLAP_RE},
+    # Batch D follow-up, 2026-08-13: left the enumerated-no-mutant ledger
+    # when the pair below proved it fires, on both arms, with magnitude and
+    # direction. The dirmap keeps the three arms distinct because the
+    # direction is where this check's axis information lives.
+    "text_overflow": {"lint_re": _TEXT_OVERFLOW_RE,
+                      "dirmap": {"too wide": "wide", "too tall": "tall",
+                                 "too wide and too tall": "both"}},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -2575,6 +2601,64 @@ def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
                text="status", fontSize=font_size, strokeColor=text_color)]
 
 
+def _composed_row(text: str) -> list[dict]:
+    """An entity node carrying one composed attribute row.
+
+    The SINGLE-LINE arm of `text_overflow` (canvas.py:5623): a text
+    claimed by an owner through `customData.value_of` is a composed row —
+    a KPI value, an entity attribute — which the renderer emits on one
+    line and never wraps, so width alone decides whether it fits. The
+    box is 120px wide and the check reserves 16px of padding for this
+    arm, leaving `room_w = 104`.
+
+    Owner and text are separate elements rather than a bound label
+    precisely because that is what a composed row is; binding it would
+    take the wrapped path and measure something else.
+
+    Args:
+        text: The row's content. Anything measuring over 104px at
+            fontSize 16 overflows; `text_dims` is the arbiter.
+
+    Returns:
+        The two-element scene: node `n1`, then row `t1`.
+    """
+    return [el(id="n1", type="rectangle", x=0, y=0, width=120, height=60,
+               customData={"role": "node"}),
+            el(id="t1", type="text", x=8, y=20, width=100, height=20,
+               text=text, fontSize=16, customData={"value_of": "n1"})]
+
+
+def _boxed_label(height: int) -> list[dict]:
+    """A 200px-wide node whose bound label wraps to three lines.
+
+    The WRAPPED arm of `text_overflow`, which is the common one: a bound
+    label is laid out by the renderer, so the check wraps it to
+    `room_w = 192` and judges the resulting HEIGHT, calling it too wide
+    only when a single word cannot fit. This label wraps to 172x60px
+    whatever the box does, and its longest word is 67px, so the width
+    arm stays quiet and `height` alone decides the verdict.
+
+    Only the container's height moves between the two poles — the label,
+    its text and the box's width are identical — so the difference in
+    verdict is the room and nothing else.
+
+    Args:
+        height: The container's height. `room_h` is this minus 4, so
+            anything under 64 cannot hold the wrapped 60px label.
+
+    Returns:
+        The two-element scene: node `n1`, then its bound label `t1`.
+    """
+    text = "reconcile every settled position nightly against custody"
+    return [el(id="n1", type="rectangle", x=0, y=0, width=200,
+               height=height, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=4, y=4, width=192, height=20,
+               text=text, fontSize=16, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -3270,6 +3354,88 @@ _register(Mutant(
 # quoted pair because that message names no third party and carries no
 # magnitude (see `_LABEL_OVERLAP_RE`); tighten this spec to a magnitude the
 # day O2 puts the overlap depth into the template.
+# ---------------------------------------------------------------------------
+# The clipped-text lint, PROVEN — both arms, the second organic drain off the
+# enumerated ledger (Batch D follow-up, 2026-08-13; review item 1). Detector
+# coverage on `text_overflow` (canvas.py:5637) was zero: the check has shipped
+# since v0.4, has been enumerated as unproven since 2026-08-12, and nothing
+# had ever asserted that it fires, on either arm, with any number.
+#
+# Two mutants rather than one because the check has TWO code paths, not two
+# messages. `single_line` (canvas.py:5623) is true only for composed rows
+# (`value_of` / `attr_of`), which measure raw `text_dims` against a 16px pad;
+# everything else — bound labels, sticky notes, fixed-width text, the common
+# case — is wrapped to `room_w` first and judged on the resulting height with
+# an 8px pad. A pair that exercised only the first would leave the branch that
+# governs most of the drawings we make unproven, which is the exact difference
+# between line coverage and detector coverage this harness exists to keep.
+#
+# Both are GREEN. Nothing is broken here: the check fires, and it fires
+# correctly. What was missing was the proof, and a check nobody has ever
+# watched fire is indistinguishable from one that cannot.
+#
+# THE SHAPE ARM IS ABSENT, AND IT IS NOT A NEW DEFECT — determination for the
+# review's second half, evidence first. `room_w`/`room_h` come from the
+# owner's bbox on every container type (canvas.py:5626-5627), so a diamond or
+# ellipse is credited with room its drawn body does not have. Measured on the
+# scene the catalogue ALREADY pins for this: `_labelled_shape("diamond")` is a
+# 200x100 rhombus carrying a 171px label at y=40..60, where the rhombus is
+# 160px across — an 11px overhang — and `text_overflow` is SILENT on it, as it
+# is on the rectangle control. A shape-aware `room_w` would therefore report
+# exactly 11px there, which is `diamond_label_overflows_shape`'s pinned
+# magnitude (11, ±30%) to the pixel.
+#
+# So this is not shape-blindness instance SIX. It is the same defect
+# `label_overflows_shape` already pins, seen from the checker side rather than
+# the producer side (`fit_label_in`, canvas.py:962), and what it adds is the
+# NAME OF THE SHIPPED CHECK that should host the fix. Consequence, flagged in
+# V0.9-PLAN WP4 and repeated here because nothing automated enforces it: if
+# WP4 puts the shape term inside `text_overflow`, then `label_overflows_shape`
+# stops being a check that needs building and becomes an arm of this one — and
+# the `diamond_label_overflows_shape` entry must be RE-KEYED to `text_overflow`
+# deliberately, not left pointing at a check that will never exist. Its
+# magnitude convention (measured at the LABEL BOX's own height, not the
+# shape's widest point) is already the right one for that arm and should
+# survive the move unchanged.
+_register(Mutant(
+    "composed_row_overflows_its_box",
+    build=lambda: _composed_row("net revenue total"),
+    op="unchanged", args={},
+    # MAGNITUDE: the needed width, 126px. The ±10% band excludes every
+    # other number this message prints — 104 (room_w), 56 (room_h) and 20
+    # (the needed height) — so a check reporting the allowance instead of
+    # the need, or transposing the axes, fails this spec.
+    expect=FindingSpec("text_overflow", element="n1",
+                       magnitude=(126, 0.10), direction="wide"),
+    neighbour=Neighbour(lambda: _composed_row("revenue"),
+                        Silence("text_overflow"))))
+
+# The wrapped arm, and the one that reaches most drawings. Same check, other
+# code path, other axis: the label wraps to 172x60 and the box gives 192x56,
+# so the height fails while the width passes. The neighbour moves ONLY the
+# container's height, 60 -> 120, which is the cleanest control this check
+# affords — same label, same text, same width, opposite verdict.
+#
+# Honest note on both neighbours: they are `Silence("text_overflow")`, which
+# is this check's real other pole, but neither scene is silent on EVERY
+# check — both emit an `unconnected node(s)` note, since a lone node is by
+# construction unconnected. That note belongs to a different check and cannot
+# colour a `text_overflow` spec, but the C-wave review earned this sentence
+# the hard way (a scene claimed "identical to every check" was firing
+# `offgrid_elements`), so it is written down rather than assumed.
+_register(Mutant(
+    "wrapped_label_overflows_its_box",
+    build=lambda: _boxed_label(height=60),
+    op="unchanged", args={},
+    # MAGNITUDE: 172px, the wrapped text's width. On this arm that is NOT
+    # the failing axis — see the note on `_TEXT_OVERFLOW_RE` — and the
+    # direction carries the axis instead. The ±10% band still excludes
+    # 192 (room_w), 60 (the needed height) and 56 (room_h).
+    expect=FindingSpec("text_overflow", element="n1",
+                       magnitude=(172, 0.10), direction="tall"),
+    neighbour=Neighbour(lambda: _boxed_label(height=120),
+                        Silence("text_overflow"))))
+
 _register(Mutant(
     "stale_label_width_hides_collision",
     build=_label_pair_stage,
@@ -3534,6 +3700,25 @@ class TestMutantCatalogue(unittest.TestCase):
         """Labels 62px apart are two captions, and the check says nothing."""
         self._run_neighbour("stale_label_width_hides_collision")
 
+    def test_mutant_composed_row_overflows_its_box(self) -> None:
+        """A 126px attribute row in a box that affords 104px, called wide."""
+        # Green: the check fires and is right to. This is the proof it
+        # fires, which nothing had ever asserted.
+        self._run("composed_row_overflows_its_box")
+
+    def test_neighbour_composed_row_overflows_its_box(self) -> None:
+        """A 60px row in the same box fits, and the check says nothing."""
+        self._run_neighbour("composed_row_overflows_its_box")
+
+    def test_mutant_wrapped_label_overflows_its_box(self) -> None:
+        """A label wrapping to 60px tall in a box that affords 56px."""
+        # The other code path: wrapped, judged on height, width quiet.
+        self._run("wrapped_label_overflows_its_box")
+
+    def test_neighbour_wrapped_label_overflows_its_box(self) -> None:
+        """The same label in a 120px box has room, and the check is quiet."""
+        self._run_neighbour("wrapped_label_overflows_its_box")
+
     def test_red_mutants_are_red_by_mismatch_not_by_error(self) -> None:
         """Every expectedFailure above is red for the reason it claims.
 
@@ -3773,8 +3958,12 @@ UNCOVERED: dict[str, str] = {
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5579",
     "annotation_overlaps_node":
         "enumerated 2026-08-12; no proving mutant yet — canvas.py:5592",
-    "text_overflow":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5637",
+    # (`text_overflow`, canvas.py:5637, left this table on 2026-08-13:
+    # `composed_row_overflows_its_box` and `wrapped_label_overflows_its_box`
+    # now prove it from DETECTORS on BOTH code paths, each with a magnitude
+    # and an axis. The bbox-naive `room_w` underneath it is recorded at those
+    # entries as an arm of `label_overflows_shape`, not as a defect of its
+    # own.)
     # (`shared_attach_point`, canvas.py:5688, left this table on
     # 2026-08-12: the ELK spike fired it in production and
     # `shared_attach_point_fan_failed` now proves it from DETECTORS.)
