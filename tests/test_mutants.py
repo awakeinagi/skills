@@ -2659,6 +2659,401 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# The WRITE path (v0.9 Task-5 review, 2026-08-13). The two classes above judge
+# what a LOAD produces; this one judges what an op BATCH does — the same store
+# driven the other way. Three shipped defects the reviewer reproduced against
+# three revisions, and the fifth subject in this file to fall outside the
+# scene unit: the evidence is a store's ANSWER to a batch, so there is no
+# element list and no `collect_findings` to judge one with. `mutants new`
+# declines the subject outright — it wants a `DETECTORS` code and emits an
+# element-list scaffold — so the quadruple is kept by hand, exactly as
+# `TestLoadFindingsReachTheAgent` keeps it.
+#
+# BASE: a one-node artifact whose mapping list is known exactly. MUTATION: one
+# field — an `index` of `-1` where a valid index belongs, or a
+# `rename_artifact` naming the id its own batch is creating. The MAGNITUDE
+# analogue for a write path is what SURVIVES the op: which mappings remain,
+# which scenes and files exist. The DIRECTION analogue is which way the batch
+# resolved — refused with a named error, or accepted and acted on. The two are
+# not interchangeable, and a batch that does neither is the first red below.
+# NEIGHBOURS sit at the same predicates' other poles: an index past the TOP of
+# the list, a valid index, and the same batch with its failing op removed.
+#
+# Deliberately NOT re-covered here: whether the rejection guard restores state
+# afterwards. `TestFailurePathAtomicity` (tests/test_failure_paths.py) owns
+# that and pins it GREEN — including the very IndexError below, whose own
+# docstring there records that "the negative index itself is a separate,
+# still-open defect". These three pin the gaps that suite leaves: the
+# validation that lets a negative index through at all, the mapping a negative
+# index silently removes, and the create that outlives its rejected batch.
+# ---------------------------------------------------------------------------
+
+
+class TestBatchPathIntegrity(unittest.TestCase):
+    """An op does what was asked, or says why — never quietly neither."""
+
+    def _store(self) -> tuple[canvas.Store, Path]:
+        """Build a throwaway project holding one artifact and no mappings.
+
+        The smallest store an `index` op can be aimed at. `mappings` is
+        empty deliberately: that is the pole where a negative index has
+        nothing at all to land on, so the miss surfaces as a crash rather
+        than as a wrong write. The single node exists only so the
+        artifact is legal and a mapping has something to name.
+
+        Returns:
+            `(the loaded store, the project root directory)`.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-batch-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        return store, tmp
+
+    def _with_mappings(self, store: canvas.Store) -> canvas.Store:
+        """Attach two mappings, `alpha` then `beta`, in that order.
+
+        Two is the fewest that can tell "the op removed the one it was
+        asked for" apart from "the op removed the last one", which is the
+        entire distinction the remove red measures. They arrive in
+        separate batches so the stored order is the order they were
+        added, and the red can name which one went.
+
+        Args:
+            store: A store from `_store`, still holding no mappings.
+
+        Returns:
+            The same store, so callers can chain the call.
+        """
+        for concept in ("alpha", "beta"):
+            store.apply_batch({
+                "base_revn": store.head_revn(), "artifact": "flow",
+                "ops": [{"op": "registry", "action": "add_mapping",
+                         "concept": concept, "elements": ["flow#n1"]}]})
+        return store
+
+    def _send(self, store: canvas.Store,
+              op: dict[str, Any]) -> Exception | None:
+        """Apply one registry op and hand back whatever escaped, if any.
+
+        The reds turn on WHICH exception reaches the caller: `BatchError`
+        becomes the 422 the CLI prints as an `ERROR=` line
+        (canvas.py:8944), and nothing else is converted at all. So the
+        exception has to be a value to assert about, not something an
+        `assertRaises` narrows to one type in advance — catching only
+        `BatchError` would let the crash these pin propagate and turn an
+        honest red into an error-red (doctrine §6).
+
+        Args:
+            store: The store to apply against, at its current head.
+            op: The registry op's body, e.g. `{"action": …, "index": …}`.
+
+        Returns:
+            The exception the batch raised, or `None` if it was applied.
+        """
+        payload = dict(op, op="registry")
+        try:
+            store.apply_batch({"base_revn": store.head_revn(),
+                               "artifact": "flow", "ops": [payload]})
+        except Exception as exc:            # broad on purpose: see above
+            return exc
+        return None
+
+    def _create_batch(self, store: canvas.Store,
+                      failing: bool) -> dict[str, Any]:
+        """A batch that creates `ghost` and renames it in the same breath.
+
+        `rename_artifact` is what drives this shape onto disk: it writes
+        the new name through to the artifact FILE as it validates
+        (canvas.py:6885), and `_seed_created_meta` publishes the create
+        early enough for a registry op to name the id its own batch is
+        making — the BUG-03 workflow. So the create is written from
+        INSIDE the commit window rather than after the ops, which is the
+        only way a rejection can arrive with the file already written. A
+        create plus a failing op alone does not reproduce it, and stops
+        reproducing it as of e2f3bf0.
+
+        Args:
+            store: The store the batch will be applied to, at its head.
+            failing: Append the `set_round` carrying a string that the
+                review used to reject the batch after that write.
+
+        Returns:
+            An op-batch envelope creating and renaming `ghost`.
+        """
+        ops: list[dict[str, Any]] = [
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "g1", "label": "G1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}},
+            {"op": "registry", "action": "rename_artifact",
+             "artifact": "ghost", "name": "Renamed Ghost"}]
+        if failing:
+            ops.append({"op": "registry", "action": "set_round",
+                        "round": "two"})
+        return {"base_revn": store.head_revn(), "artifact": "ghost",
+                "create": {"id": "ghost", "name": "Ghost", "type": "flow",
+                           "concept": "checkout",
+                           "concept_name": "Checkout"},
+                "ops": ops}
+
+    def _ghost_file(self, root: Path) -> Path:
+        """Where a `ghost` artifact lands on disk.
+
+        Args:
+            root: The project root returned by `_store`.
+
+        Returns:
+            The path `_write_artifact` writes `ghost` to, whether or not
+            it currently exists.
+        """
+        return root / "project_knowledge" / "artifacts" / "ghost.excalidraw"
+
+    def test_the_seeded_store_holds_one_artifact_and_no_mappings(
+            self) -> None:
+        """The baseline all three reds below are deviations from.
+
+        Each red measures what one batch changes about this store, so a
+        harness that quietly stopped being able to BUILD it — a `create`
+        block whose schema moved, an `add_mapping` that started rejecting
+        this element spelling — would leave all three `expectedFailure`s
+        passing while measuring nothing at all (doctrine §6). This is
+        their standing guard, and it covers both fixtures: the empty
+        mapping list the annotate red needs, and the two-mapping list the
+        remove red needs.
+        """
+        store, root = self._store()
+        self.assertEqual(sorted(store.scenes), ["flow"])
+        self.assertEqual(store.registry["mappings"], [])
+        self.assertTrue((root / "project_knowledge" / "artifacts" /
+                         "flow.excalidraw").exists())
+        self.assertEqual(
+            [m["concept"] for m in self._with_mappings(store)
+             .registry["mappings"]], ["alpha", "beta"])
+
+    @unittest.expectedFailure
+    def test_red_a_negative_annotate_index_escapes_as_a_bare_crash(
+            self) -> None:
+        """`index: -1` walks past the bounds check and dies uncaught.
+
+        The check is `idx >= len(reg["mappings"])` (canvas.py:7480),
+        which is false for every negative number, so `-1` is waved
+        through as a valid index and `reg["mappings"][-1]` is then
+        evaluated against an empty list. The op does not fail the batch;
+        it kills it. An `IndexError` leaves `apply_batch`, where
+        `BatchError` is the only exception any caller knows about:
+        `_handle_apply` turns `BatchError` into a 422 the CLI prints as
+        `ERROR=` and converts nothing else, so the v0.8 promise that
+        every failure prints an `ERROR=` line is broken here by a bare
+        traceback the agent cannot parse or act on.
+
+        DIRECTION is the first assertion and the whole point: a batch
+        must resolve one way or the other, and this one resolves neither.
+        MAGNITUDE, for a rejection, is what the message identifies — the
+        action and the field at fault — so the agent learns which of its
+        ops was refused rather than guessing. That is pinned to what the
+        already-working upper pole says, not to new wording, so the
+        minimal fix flips this without also rewriting a message; the
+        neighbour asserts the same two tokens on the same empty list.
+
+        Flips when the bounds check gains its sign half.
+        """
+        store, _ = self._store()
+        escaped = self._send(store, {"action": "annotate_mapping",
+                                     "index": -1, "note": "boom"})
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "annotate_mapping index=-1 left apply_batch as %s(%s) — no "
+            "surface converts that, so the agent is handed a traceback "
+            "where the error envelope promises an ERROR= line"
+            % (type(escaped).__name__, escaped))
+        said = "\n".join(escaped.errors)
+        self.assertIn("annotate_mapping", said)
+        self.assertIn("index", said)
+
+    @unittest.expectedFailure
+    def test_red_a_negative_remove_index_pops_the_newest_mapping(
+            self) -> None:
+        """`index: -1` removes a mapping nobody asked to remove.
+
+        The same missing sign check as the red above (canvas.py:7491), at
+        the pole where the list is NOT empty — so Python's own negative
+        indexing makes `-1` a perfectly valid subscript and there is no
+        crash for anything to notice. `reg["mappings"].pop(-1)`
+        tombstones the NEWEST mapping, the batch commits, and the
+        response reports the removal the agent asked for. The model has
+        quietly lost the concept most recently attached, and every
+        surface goes on claiming the op did what was requested.
+
+        MAGNITUDE is which mappings survive — both, `alpha` and `beta`,
+        in the order they arrived — and it is asserted FIRST because it
+        is the damage. DIRECTION is that the op must be REFUSED rather
+        than silently redirected onto a different mapping, asserted
+        second because a fix that merely stopped popping without saying
+        so would leave the agent believing a mapping was removed.
+
+        The two reds are one defect class under two magnitudes and share
+        `_store` for that reason; this one earns its own entry because a
+        fix that only guards the empty list leaves this half live.
+        """
+        store, _ = self._store()
+        self._with_mappings(store)
+        escaped = self._send(store, {"action": "remove_mapping",
+                                     "index": -1})
+        self.assertEqual(
+            [m["concept"] for m in store.registry["mappings"]],
+            ["alpha", "beta"],
+            "remove_mapping index=-1 named no mapping in particular and "
+            "tombstoned the newest one")
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "remove_mapping index=-1 was accepted (escaped=%r) — the "
+            "response tells the agent the removal it asked for happened"
+            % (escaped,))
+        said = "\n".join(escaped.errors)
+        self.assertIn("remove_mapping", said)
+        self.assertIn("index", said)
+
+    @unittest.expectedFailure
+    def test_red_a_rejected_create_survives_and_blocks_the_retry(
+            self) -> None:
+        """A rejected batch's `create` stays, and nothing can dislodge it.
+
+        `_write_artifact` sets `self.scenes[aid]` and writes the
+        `.excalidraw` file (canvas.py:7106) from inside the commit
+        window, so by the time the trailing `set_round` rejects the batch
+        the artifact is already on disk. The e2f3bf0 restore guard puts
+        every renamed artifact back by comparing against the pre-image —
+        correctly, and `ghost` is not IN the pre-image, so it is skipped
+        rather than removed. What is left is an EMPTY scene: the ops that
+        would have drawn into it were rolled back, so the store holds an
+        artifact with no elements and, as the review measured, no
+        `artifact_meta` entry either.
+
+        The consequence is not a stray file. The corrected batch — the
+        same batch with the typo fixed — can now never be sent, because
+        `_validate_batch`'s `elif aid in self.scenes` (canvas.py:7721)
+        sees the phantom and answers "create: artifact 'ghost' already
+        exists". A fresh load takes the file at face value and raises no
+        repair, and neither error tells the agent that dropping the
+        `create` block is the way out.
+
+        The OUTCOME is pinned and never the mechanism: unlinking on an
+        error path is a decision for the work package that owns the
+        write, and a batch that wrote nothing until it was accepted would
+        satisfy this equally. MAGNITUDE is what survives the rejection —
+        no scene, no file. DIRECTION is which way the retry resolves —
+        accepted, where today it is refused for a reason the agent cannot
+        act on. The retry is measured with `check_batch` rather than a
+        second `apply_batch`: `--check` is the surface an agent reaches
+        for after a rejection, and it answers whether the batch WOULD
+        land without committing a second artifact into the assertion.
+        """
+        store, root = self._store()
+        with self.assertRaises(canvas.BatchError):
+            store.apply_batch(self._create_batch(store, failing=True))
+        retry = store.check_batch(self._create_batch(store, failing=False))
+        self.assertEqual(
+            sorted(store.scenes), ["flow"],
+            "the rejected batch's create is still in the live store")
+        self.assertFalse(
+            self._ghost_file(root).exists(),
+            "the rejected batch's create is still on disk at %s"
+            % self._ghost_file(root))
+        self.assertTrue(
+            retry["ok"],
+            "the corrected batch can now never be sent: %r"
+            % (retry["errors"],))
+
+    def test_an_index_past_the_end_is_rejected_with_a_named_error(
+            self) -> None:
+        """The live half of the bounds check both reds slip under.
+
+        `idx >= len(...)` is the predicate at fault, and this is the
+        direction where it works — so this is what says the reds measure
+        a gap in a LIVE check rather than one that quietly stopped
+        running. Asserted on the same empty mapping list the annotate red
+        uses, where every index is out of range, so mutant and neighbour
+        differ in the SIGN of one field and nothing else.
+
+        It also fixes the message tokens both reds demand: they assert
+        the rejection names its action and its field, and this is where
+        that wording is pinned as already-shipped behaviour rather than
+        as something a fix would have to invent.
+        """
+        store, _ = self._store()
+        for action in ("annotate_mapping", "remove_mapping"):
+            with self.subTest(action=action):
+                escaped = self._send(store, {"action": action, "index": 0})
+                self.assertIsInstance(escaped, canvas.BatchError,
+                                      "index=0 on an empty mapping list "
+                                      "was not refused: %r" % (escaped,))
+                said = "\n".join(escaped.errors)
+                self.assertIn(action, said)
+                self.assertIn("index", said)
+
+    def test_a_valid_index_annotates_exactly_that_mapping(self) -> None:
+        """The annotate op's other pole: asked properly, it writes there.
+
+        Without this, a fix that simply refused every `annotate_mapping`
+        would flip the first red and read as a success while deleting the
+        feature. Mapping 0 takes the note and mapping 1 must be left
+        alone — the same "exactly one" claim the remove neighbour makes,
+        which is what a fix that annotated the whole list would fail.
+        """
+        store, _ = self._store()
+        self._with_mappings(store)
+        escaped = self._send(store, {"action": "annotate_mapping",
+                                     "index": 0, "note": "deliberate"})
+        self.assertIsNone(escaped, "a valid annotate was refused: %r"
+                          % (escaped,))
+        self.assertEqual([m.get("note") for m in
+                          store.registry["mappings"]],
+                         ["deliberate", None])
+
+    def test_a_valid_index_removes_exactly_that_mapping(self) -> None:
+        """The remove op's live pole: index 0 takes `alpha`, `beta` stays.
+
+        The neighbour the remove red is measured against, and the reason
+        that red's magnitude is the SURVIVING list rather than the list
+        LENGTH: a fix that removed the right count but the wrong element
+        would satisfy a length check and fail this one.
+        """
+        store, _ = self._store()
+        self._with_mappings(store)
+        escaped = self._send(store, {"action": "remove_mapping",
+                                     "index": 0})
+        self.assertIsNone(escaped, "a valid remove was refused: %r"
+                          % (escaped,))
+        self.assertEqual([m["concept"] for m in store.registry["mappings"]],
+                         ["beta"])
+
+    def test_an_accepted_create_and_rename_persists_normally(self) -> None:
+        """The create red's neighbour: the same batch, minus the typo.
+
+        The pole that makes the red's demand safe to satisfy. "A rejected
+        batch's create leaves nothing behind" is trivially met by never
+        writing a create at all, or by unlinking one on every path, and
+        this refuses both readings: accepted, the artifact is in the
+        store, on disk, and carrying the name its rename gave it — the
+        BUG-03 workflow of naming the id your own batch creates.
+        """
+        store, root = self._store()
+        store.apply_batch(self._create_batch(store, failing=False))
+        self.assertIn("ghost", store.scenes)
+        self.assertTrue(self._ghost_file(root).exists())
+        self.assertEqual(store.artifact_meta["ghost"]["name"],
+                         "Renamed Ghost")
+
+
+# ---------------------------------------------------------------------------
 # Scene builders. Every coordinate here was measured against live canvas.py
 # and instruments.py output, so the numbers are frozen: move a point and you
 # move the finding the catalogue asserts. The diamond is 200x100 at
@@ -3224,14 +3619,19 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-12 `mutants list --red` reports 16 while the suite reports 26
-# expected failures. The ten outside live in four classes —
-# `TestExportCompleteness` (2), `TestStoreIntegrity` (5),
-# `TestPaintOrder` (1) and `TestShapeBlindAnnotationOverlap` (2) — and are
+# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 26
+# expected failures. The ten outside live in six classes —
+# `TestBatchPathIntegrity` (3), `TestExportCompleteness` (2),
+# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (1),
+# `TestPaintOrder` (1) and `TestLoadFindingsReachTheAgent` (1) — and are
 # outside
 # deliberately, because a Mutant is judged by `collect_findings` over an
 # ELEMENT LIST and none of what they measure is in one. Each class carries
 # its own standing guard for its reds; the one below covers CATALOGUE alone.
+# These counts are a hand enumeration and drift silently, so re-measure them
+# rather than trusting them: on 2026-08-12 this read "(5)" for
+# `TestStoreIntegrity`, and four of those five had since been flipped green by
+# WP1 fixes with the comment left behind.
 CATALOGUE: dict[str, Mutant] = {}
 
 
@@ -4464,12 +4864,13 @@ class TestCoverage(unittest.TestCase):
         Residual gap, stated so nobody reads this as full cover: the
         non-CATALOGUE red classes (`TestExportCompleteness`,
         `TestStoreIntegrity`, `TestPaintOrder`,
-        `TestShapeBlindAnnotationOverlap`) never reach `_register` and
-        have no expectation objects to compare, so nothing here would
-        notice two agents writing the same plain red test under different
-        method names. What defends those classes is a per-agent
-        FILE-SECTION convention plus reviewer vigilance — no automated
-        layer covers them, and saying so is the point.
+        `TestShapeBlindAnnotationOverlap`,
+        `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity`) never
+        reach `_register` and have no expectation objects to compare, so
+        nothing here would notice two agents writing the same plain red
+        test under different method names. What defends those classes is
+        a per-agent FILE-SECTION convention plus reviewer vigilance — no
+        automated layer covers them, and saying so is the point.
 
         And one convention is REJECTED rather than merely absent, so it
         does not get re-proposed: per-agent mutant-id PREFIXES. They look
