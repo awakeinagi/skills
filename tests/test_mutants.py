@@ -2158,35 +2158,32 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a"])
         self.assertIn("ART-006", {i.get("code") for i in st.issues})
 
-    @unittest.expectedFailure
     def test_red_non_dict_save_record_takes_down_the_whole_store(self) -> None:
-        """One save record holding `[]` costs the user the entire project.
+        """One save record holding `[]` is quarantined; the project opens.
 
-        `Store.load` guards the save loop with `except (ValueError,
-        KeyError)` (canvas.py:6485), which covers a truncated file and a
-        missing key — both pinned green above. A record that is valid
-        JSON but not an OBJECT slips past both: `apply_migrations` opens
-        by calling `migration_list` (canvas.py:701), whose body is
-        `doc.setdefault("migrations", [])` (canvas.py:696), which raises
-        `AttributeError` on a list. Nothing catches it and the
-        constructor dies. No artifact loads, no save loads, the project
-        will not open.
+        A record that is valid JSON but not an OBJECT used to slip past
+        the save loop's `except (ValueError, KeyError)` and kill the
+        constructor: `apply_migrations` opens by calling `migration_list`,
+        whose body is `doc.setdefault("migrations", [])`, which raises
+        `AttributeError` on a list. Nothing caught it, so no artifact
+        loaded, no save loaded, and the project would not open at all.
+        `Store.load` now rejects a non-`dict` record before migrating it,
+        which lands it in the same `SAV-001` quarantine as a truncated
+        file or a missing `revn` — both pinned green above.
 
-        That call site matters: it is the FIRST line of
-        `apply_migrations`, ahead of the `pending` computation and its
-        `if not pending: return` early-out. So the crash does not depend
-        on any migration actually being due — a fully migrated project
-        dies exactly the same way, on every load.
+        That call site is why the guard has to come first: `migration_list`
+        is the FIRST line of `apply_migrations`, ahead of the `pending`
+        computation and its `if not pending: return` early-out, so the
+        crash never depended on a migration actually being due. A fully
+        migrated project died exactly the same way, on every load.
 
         `[]` is not an exotic corruption — it is what any tool that writes
-        "just the array" produces, and the same crash comes from `null`,
-        `"text"` and a bare number.
+        "just the array" produces, and `null`, `"text"` and a bare number
+        reached the same crash.
 
-        The `except Exception` below pins the OUTCOME — the project will
-        not open — and deliberately not the mechanism: WP1 may well fix
-        this somewhere other than that `setdefault`, and any exception
-        escaping the load is the same disaster for the user. Flips when
-        the record is quarantined like every other bad one.
+        The `except Exception` below pins the OUTCOME — the project opens
+        — and deliberately not the mechanism: any exception escaping the
+        load is the same disaster for the user, wherever it comes from.
         """
         try:
             st = self._load({"a": _GOOD_ARTIFACT},

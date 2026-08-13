@@ -6480,6 +6480,8 @@ class Store:
         for f in sorted(self.p.saves_dir.glob("*.json")):
             try:
                 rec = read_json(f)
+                if not isinstance(rec, dict):
+                    raise ValueError("save record is not a JSON object")
                 rec, _ = apply_migrations(rec, "save", f, self.p, self.log)
                 self.records[rec["revn"]] = rec
             except (ValueError, KeyError):
