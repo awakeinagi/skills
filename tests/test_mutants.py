@@ -2463,6 +2463,14 @@ class TestStoreIntegrity(unittest.TestCase):
         the deleted element does NOT earn a dangling warning of its own —
         an element the load discards is not something to send the user
         back to the canvas over.
+
+        The note is asserted to name the id and to carry SOME byte count,
+        never a particular one: the magnitude channel is the doctrinal
+        half ("say what you measured") and the digits belong to the
+        fixture, which two neighbouring tests are free to edit. Nothing
+        here pins the remedy clause — it says today that no prune path
+        exists (backlog #21), and that sentence should be free to change
+        the day one does.
         """
         doc = json.loads(_FILEREF_ARTIFACT)
         for e in doc["elements"]:
@@ -2473,6 +2481,7 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(found.get("warnings"), [])
         self.assertEqual(len(found.get("notes") or []), 1, found)
         self.assertIn("orphan-file-id", (found.get("notes") or [""])[0])
+        self.assertRegex((found.get("notes") or [""])[0], r"\(\d+ bytes\)")
 
 
 # ---------------------------------------------------------------------------

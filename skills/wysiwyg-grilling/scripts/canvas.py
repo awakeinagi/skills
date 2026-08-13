@@ -649,8 +649,10 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
             # which is the whole harm of keeping it.
             add(aid, "notes",
                 "file %r is kept in this artifact (%d bytes) and no "
-                "element shows it — nothing can draw it; delete it, or "
-                "re-attach an image to it"
+                "element shows it — nothing can draw it, and every save "
+                "writes it out again; there is no prune path yet, so if "
+                "this is what a deleted image left behind the note is "
+                "expected and will stand"
                 % (fid, len(json.dumps(files[fid], default=str))))
     for m in (registry or {}).get("mappings") or []:
         for ref in m.get("elements") or []:
