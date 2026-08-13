@@ -233,8 +233,8 @@ def det_seed(element_id):
 
 # ---------------------------------------------------------------------------
 # project paths + runtime (state/events live OUTSIDE project_knowledge —
-# project_knowledge holds only durable state; .backups/ is its only
-# gitignored member)
+# project_knowledge holds only durable state; .backups/ and .pending/ are
+# its gitignored members, both being machinery rather than user content)
 # ---------------------------------------------------------------------------
 
 class Project:
@@ -262,9 +262,20 @@ class Project:
         for d in (self.pk, self.artifacts_dir, self.saves_dir,
                   self.pending_dir):
             d.mkdir(parents=True, exist_ok=True)
+        # a queued revision is in-flight machinery, not user content: left
+        # tracked it lands in the user's commits, and a later checkout
+        # re-materializes revisions they may already have answered. The
+        # line is appended to an EXISTING .gitignore too — projects
+        # created before .pending/ existed need it just as much.
         gi = self.pk / ".gitignore"
-        if not gi.exists():
-            atomic_write(gi, ".backups/\n")
+        try:
+            have = [ln.strip() for ln in
+                    gi.read_text("utf-8").splitlines()] if gi.exists() else []
+        except OSError:
+            have = []
+        missing = [ln for ln in (".backups/", ".pending/") if ln not in have]
+        if missing:
+            atomic_write(gi, "".join("%s\n" % ln for ln in have + missing))
 
     def name(self):
         return self.root.name
@@ -8763,8 +8774,35 @@ class ServerApp:
         """
         try:
             self.pending_path(pending_id).unlink()
-        except OSError:
-            pass
+        except FileNotFoundError:
+            pass    # persist_pending already said it could not write
+        except OSError as e:
+            # anything else means the entry is off the banner but still on
+            # disk, and the next start resurrects it — say so
+            self.log("queued revision %s dropped but still on disk: %s" %
+                     (pending_id, e))
+
+    def quarantine_pending(self, path):
+        """Set a malformed queue file aside, out of the loader's way.
+
+        Renaming rather than leaving it in place does two jobs at once.
+        It keeps the evidence the quarantine promises — and `pending_seq`
+        is seeded from the entries that loaded, so a corrupt file holding
+        the highest id would otherwise be silently overwritten by the
+        very next queue, destroying exactly what was being preserved.
+
+        Args:
+            path: The file that failed the guard.
+
+        Returns:
+            The name it was set aside under, or None if the rename failed.
+        """
+        try:
+            path.rename(path.with_name(path.name + ".bad"))
+            return path.name + ".bad"
+        except OSError as e:
+            self.log("could not set aside %s: %s" % (path.name, e))
+            return None
 
     def load_pending(self):
         """Restore the queue an earlier server left on disk.
@@ -8782,8 +8820,15 @@ class ServerApp:
                 entry = read_json(f)
                 if not isinstance(entry, dict):
                     raise ValueError("queue entry is not a JSON object")
-                if not isinstance(entry.get("id"), int):
+                if isinstance(entry.get("id"), bool) or \
+                        not isinstance(entry.get("id"), int):
                     raise ValueError("queue entry has no integer id")
+                # `forget_pending` recomputes the path from the id, so an
+                # entry whose file is named for a different one can never
+                # be deleted: discarding it clears the banner and the next
+                # start puts it straight back, forever
+                if f.name != "%s.json" % entry["id"]:
+                    raise ValueError("queue entry id does not match its name")
                 if not isinstance(entry.get("batch"), dict):
                     raise ValueError("queue entry carries no batch")
                 entry["pin_only"] = bool(entry.get("pin_only"))
@@ -8793,11 +8838,15 @@ class ServerApp:
                     entry["queued_at"] = now_iso()
                 self.pending.append(entry)
             except (OSError, ValueError) as e:
+                kept = self.quarantine_pending(f)
+                where = ("The file is kept as %s." % kept if kept else
+                         "The file could not be moved, so the next start "
+                         "will read it again.")
                 self.store.issues.append(Issue(
                     "PND-001",
                     "unreadable queued revision %s — skipped" % f.name,
                     "That revision is lost; ask the agent to redraw it. "
-                    "Delete the file to stop the warning.").to_dict())
+                    + where).to_dict())
                 self.log("quarantine: PND-001 %s (%s)" % (f.name, e))
         self.pending.sort(key=lambda p: p["id"])
         # the counter has to clear every id already on the banner, or the

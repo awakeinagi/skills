@@ -383,8 +383,98 @@ class TestPendingQueueDurability(unittest.TestCase):
                        if i.get("code") == "PND-001"]
         self.assertEqual(len(quarantined), 1)
         self.assertIn("99.json", quarantined[0]["msg"])
+        self.assertIn("99.json.bad", quarantined[0]["hint"],
+                      "the issue does not say where the file went")
         self.assertFalse(quarantined[0]["repaired"],
                          "a skipped revision is not a repair")
+
+    def test_a_quarantined_file_is_kept_as_evidence(self) -> None:
+        """Set aside under a new name, not left where it was.
+
+        Leaving it in place loses it: `pending_seq` is seeded from the
+        entries that *loaded*, so a corrupt file holding the highest id
+        is handed straight back out by the next queue, which overwrites
+        the very evidence the quarantine promised to keep.
+        """
+        self.app.queue_pending(self.a_revision("keep me"), False)   # id 1
+        (self.project.pending_dir / "2.json").write_text("[]", "utf-8")
+        self.restart()
+        self.assertTrue((self.project.pending_dir / "2.json.bad").exists(),
+                        "the malformed file was not set aside")
+        self.assertFalse((self.project.pending_dir / "2.json").exists())
+        second = self.app.queue_pending(self.a_revision("the next one"), False)
+        self.assertEqual(second["id"], 2)
+        self.assertEqual(
+            json.loads((self.project.pending_dir / "2.json").read_text("utf-8"))
+            ["batch"]["note"], "the next one")
+        self.assertEqual((self.project.pending_dir / "2.json.bad")
+                         .read_text("utf-8"), "[]",
+                         "the new entry overwrote the quarantined file")
+
+    def test_a_file_whose_name_lies_about_its_id_is_quarantined(self) -> None:
+        """Otherwise it is a ghost the user can never get rid of.
+
+        `forget_pending` recomputes the path from the entry's id, so a
+        well-formed entry in a mismatched file is dropped from the queue
+        and left on disk — the discard looks like it worked, and every
+        subsequent start puts the revision back on the banner. The
+        writer never produces this shape, so it is quarantine, not
+        repair.
+        """
+        entry = dict(self.app.queue_pending(self.a_revision("ghost"), False))
+        self.app.drop_pending(entry["id"])
+        entry["id"] = 2
+        (self.project.pending_dir / "5.json").write_text(
+            json.dumps(entry), "utf-8")
+        self.restart()
+        self.assertEqual(self.app.pending, [],
+                         "a file that can never be deleted reached the queue")
+        self.assertIn("5.json", "".join(i["msg"] for i in
+                                        self.app.store.issues
+                                        if i.get("code") == "PND-001"))
+        self.restart()
+        self.assertEqual(self.app.pending, [], "the ghost came back")
+
+    def test_a_boolean_id_is_not_an_integer_id(self) -> None:
+        """`isinstance(True, int)` is True, and JSON has real booleans.
+
+        The file is named for what `pending_path` would produce from
+        that id, so this reaches the type check rather than the
+        name check.
+        """
+        (self.project.pending_dir / "True.json").write_text(
+            '{"id": true, "batch": {"ops": []}}', "utf-8")
+        self.restart()
+        self.assertEqual(self.app.pending, [])
+        self.assertIn("True.json", "".join(i["msg"] for i in
+                                           self.app.store.issues
+                                           if i.get("code") == "PND-001"))
+
+    def test_the_pending_directory_is_gitignored(self) -> None:
+        """A queued revision is machinery, and must not reach a commit.
+
+        Tracked, it rides into the user's commits and a later checkout
+        re-materializes revisions they may already have answered.
+        """
+        lines = (self.project.pk / ".gitignore").read_text("utf-8").split()
+        self.assertIn(".pending/", lines)
+        self.assertIn(".backups/", lines)
+
+    def test_an_existing_gitignore_gains_the_pending_line(self) -> None:
+        """Projects that predate `.pending/` need the line just as much.
+
+        The template was written only when absent, so every project
+        created before this change would have kept ignoring `.backups/`
+        alone and tracking its queue.
+        """
+        gi = self.project.pk / ".gitignore"
+        gi.write_text(".backups/\nnotes.local.md\n", "utf-8")
+        self.project.ensure_tree()
+        self.assertEqual(gi.read_text("utf-8").split(),
+                         [".backups/", "notes.local.md", ".pending/"])
+        self.project.ensure_tree()
+        self.assertEqual(gi.read_text("utf-8").count(".pending/"), 1,
+                         "a second call appended the line again")
 
     def test_an_unparseable_pending_file_is_quarantined_not_fatal(self) -> None:
         """Control (c), the truncated variant: the write was interrupted."""
