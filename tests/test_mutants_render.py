@@ -1196,12 +1196,41 @@ class TestRenderParityRegime(unittest.TestCase):
 # — it is the size below which the picture stops carrying the text at all,
 # which is the only thing pixels can settle.
 #
-# The sweep was stable across three scanline phases (the text moved to y=160,
-# 163 and 167), identical in all three columns, so these are properties of the
-# rasterizer under the pinned flags and not of where the text happened to
-# land. One instrument note worth keeping: the ablation that locates the word
-# must run with `min_blob=1`. At these sizes the whole word is speckle-sized,
-# and the default filter silently ate a third of the 7px reading — reporting
+# STABILITY, and the part of it that bites. Across three scanline phases (the
+# text moved to y=160, 163 and 167) every column above is identical, so these
+# are properties of the rasterizer under the pinned flags rather than of where
+# the text happened to land.
+#
+# Across BROWSER BUILDS the picture is more interesting, and it decided how
+# the tests below are written. Swept on all three chromium builds this machine
+# offers — Chrome for Testing 151.0.7922.34 (what `find_browsers()` returns
+# first, and so the source of the table above), snap Chromium 150.0.7871.128,
+# and playwright's headless_shell 131.0.6778.33, a 20-major-version spread:
+#
+#   - INK HEIGHT is identical on all three at every size. 11/9/8/6/5/5/3/3/2.
+#   - CONTRAST is not, and it diverges exactly where it matters. 151 and 150
+#     agree to the decimal; 131 reads HIGHER at the small end — 5.51:1 at 6px
+#     where the others read 4.62:1, and 5.27 against 4.12 at 5px.
+#
+# That 6px divergence straddles WCAG's 4.5 floor: the same word, the same
+# markup, the same flags, failing on one build and passing on another. So an
+# absolute contrast bound below the floor would be a pin on which chromium the
+# tier happened to find, and would have gone red on a machine where
+# headless_shell sorted first. The floor itself is unmoved — it computes to 7
+# on all three builds — because it rests on the STEP between 7px and 6px, and
+# the step survives the divergence (6px is 0.54 of 7px on 151/150 and 0.63 on
+# 131, against 1.0 for no step at all). Hence: the tests assert ink height and
+# the step strictly, and keep the absolute WCAG anchor on the passing pole,
+# where all three builds read 8.5:1 or better. Put the strict assertion where
+# the measurement is stable.
+#
+# (The parity and ablation pins elsewhere in this file were swept the same way
+# and are build-robust as written: the clip magnitude reads 170/172/170 px
+# against a +-17 band, direction `left` on all three.)
+#
+# One instrument note worth keeping: the ablation that locates the word must
+# run with `min_blob=1`. At these sizes the whole word is speckle-sized, and
+# the default filter silently ate a third of the 7px reading — reporting
 # 6.62:1 where the word really reaches 8.50:1, which would have moved the
 # floor by measuring the instrument instead of the picture.
 # ---------------------------------------------------------------------------
@@ -1345,16 +1374,41 @@ class TestLegibilityFloor(unittest.TestCase):
 
         Green, and not a mutant: nothing here is our bug to fix. It is
         the floor's evidence, kept where it can be re-measured.
+
+        ASSERTED AS A STEP, not as an absolute ratio, and the
+        cross-build sweep in this section's header is why. Ink height is
+        identical on every build tested; the small-size contrast reading
+        is NOT — Chromium 131 renders this same 6px word at 5.51:1 where
+        152 renders it at 4.62:1, which is the difference between
+        failing WCAG's 4.5 and passing it. An absolute bound here would
+        therefore pass or fail on which chromium the tier happened to
+        find, and a calibration that moves with the binary calibrates
+        nothing. The cliff between the two poles survives that: 6px
+        measures 0.54 of 7px's contrast on one build and 0.63 on
+        another, nowhere near the 1.0 that would mean no step at all.
+        The absolute WCAG anchor is kept on the pole where it is stable
+        — the passing one, where every build reads 8.5:1 or better.
         """
-        got = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR - 1),
-                            "t1", self.workdir)
+        below = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR - 1),
+                              "t1", self.workdir)
+        at_floor = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR),
+                                 "t1", self.workdir)
+        self.assertLessEqual(
+            below["height"], 3,
+            "text below the floor now stands %d px tall — this reading "
+            "was identical on every browser build swept, so a change "
+            "here is the font or the renderer, not the binary; re-run "
+            "the sweep in this section's header before trusting "
+            "MIN_FONT_FLOOR" % below["height"])
+        step = below["contrast"] / at_floor["contrast"]
         self.assertLess(
-            got["contrast"], WCAG_TEXT_FLOOR + 0.2,
-            "text below the floor now renders at %.2f:1 — the rasterizer "
-            "or the font changed under this calibration; re-run the sweep "
-            "in this section's header before trusting MIN_FONT_FLOOR"
-            % got["contrast"])
-        self.assertLessEqual(got["height"], 3)
+            step, 0.70,
+            "the contrast cliff under the floor has gone: %.2f:1 at %dpx "
+            "against %.2f:1 at %dpx is %.0f%% of it, where every build "
+            "swept read 63%% or less. The floor rests on that step — "
+            "re-measure before trusting it"
+            % (below["contrast"], MIN_FONT_FLOOR - 1, at_floor["contrast"],
+               MIN_FONT_FLOOR, step * 100))
 
 
 class TestLegibilityFloorRegime(unittest.TestCase):
