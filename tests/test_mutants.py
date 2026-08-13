@@ -2524,6 +2524,306 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertIn("orphan-file-id", (found.get("notes") or [""])[0])
         self.assertRegex((found.get("notes") or [""])[0], r"\(\d+ bytes\)")
 
+    # -- Four more from the same load path (v0.9 Task 1-6 sweep,
+    # 2026-08-13): the referential pass's tombstone blindness and its
+    # integer-id double-report, the non-hashable value that kills the load
+    # outright, and the one rewrite that edits a file the user owns. The
+    # first two are read straight off `referential_findings`, which is a
+    # pure function over raw scenes — a full `_load` would bury a
+    # two-element defect under a project. The end-to-end silence was
+    # confirmed through a real load first; the direct call is the
+    # minimization, not a shortcut around it.
+
+    def _refer(self, els: list[dict[str, Any]],
+               registry: dict[str, Any] | None = None,
+               files: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Run the referential pass over one raw artifact named `flow`.
+
+        Args:
+            els: The artifact's elements, exactly as they sit on disk —
+                tombstones included, since dropping them is what the load
+                does later and what these tests are about.
+            registry: The registry whose mappings are checked; `None`
+                means no mappings.
+            files: That artifact's `files` map.
+
+        Returns:
+            The pass's findings, keyed by scope (`"flow"` or
+            `"registry"`); scopes with nothing to say are absent.
+        """
+        return canvas.referential_findings(
+            {"flow": els}, registry or {}, artifact_files={"flow": files
+                                                           or {}})
+
+    @unittest.expectedFailure
+    def test_red_a_tombstone_hides_a_mapping_member_from_the_pass(
+            self) -> None:
+        """A soft-deleted element leaves its mapping reading as resolved.
+
+        `ids_by_aid` is built from every element carrying an id
+        (canvas.py:625), tombstones included, and the pass then asks
+        whether a mapping's member is in that set. `normalize_scene_doc`
+        drops `isDeleted` elements at load, so the member is gone from
+        the loaded picture while the set that vouches for it still holds
+        its id — the mapping points into a hole and the pass says
+        nothing.
+
+        The WP1 files arm skips tombstones and is the only arm that
+        does; its comment reasons that "the other arms judge one element
+        against another, and a deleted element's target went with it".
+        That is true when both go, and false here: the mapping is in the
+        registry, which no tombstone touches.
+
+        This is the mapping arm rather than the arrow arm the Task 4
+        report cited, and deliberately so — I probed all three. An arrow
+        bound to a tombstone is silent in THIS pass but `lint_layout`
+        reports it correctly on the loaded scene, so the reader is
+        warned. The mapping arm has no such backstop: probed end to end,
+        `referential`, `issues` and `lint_layout` are all empty. The
+        `annotates` arm is uncovered the same way and the same
+        `isDeleted` filter fixes it, which is why it gets this sentence
+        instead of a second entry.
+
+        MAGNITUDE is what the finding must name — the concept and the
+        `artifact#element` reference, so the user can find the mapping —
+        and it is asserted against the message the hard-delete neighbour
+        already produces, so the minimal fix flips this without also
+        having to invent wording. DIRECTION is that it is filed under
+        `registry` scope, where a mapping's owner reads.
+        """
+        els = [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 60, "isDeleted": True}]
+        registry = {"mappings": [{"concept": "checkout",
+                                  "elements": ["flow#n1"]}]}
+        said = self._refer(els, registry).get("registry") or {}
+        self.assertEqual(
+            len(said.get("warnings") or []), 1,
+            "the mapping's only member is a tombstone the load is about "
+            "to drop, and the pass reports nothing: %r"
+            % (self._refer(els, registry),))
+        self.assertIn("checkout", said["warnings"][0])
+        self.assertIn("flow#n1", said["warnings"][0])
+
+    @unittest.expectedFailure
+    def test_red_a_non_hashable_id_takes_the_whole_project_down(
+            self) -> None:
+        """One malformed value kills the load — at both id sites.
+
+        `ids_by_aid` builds a SET of element ids (canvas.py:625) and the
+        files arm builds a set of used fileIds (canvas.py:643), so a
+        value that is not hashable raises `TypeError` out of a
+        comprehension nothing catches, and `Store.__init__` dies with it.
+        Probed on the shipped code: `{"x": 1}` in either field gives
+        `TypeError: unhashable type: 'dict'` and no artifact loads at
+        all — not the malformed one, not its healthy siblings.
+
+        The reviewer asked for one entry over both sites and this is it,
+        as a `subTest` per field: the two are one defect under one
+        operator — a container where a string belongs — and a fix that
+        guarded only the newer files arm would leave the pre-existing id
+        site live. `referential_findings` also advertises exactly this
+        tolerance in its own docstring ("Non-dict elements are tolerated
+        and skipped") while reading untrusted on-disk JSON by design.
+
+        The outcome is the one `test_red_non_dict_save_record_takes_down
+        _the_whole_store` established for the save loop and is asserted
+        the same way: the project OPENS, and the file that could not be
+        read is named. `except Exception` is deliberate and pins the
+        outcome rather than the mechanism — any exception escaping the
+        load is the same disaster for the user, whatever raised it.
+        """
+        for field in ("id", "fileId"):
+            with self.subTest(field=field):
+                bad = {"id": "img", "type": "image", "x": 0, "y": 0,
+                       "width": 120, "height": 90, "fileId": "f1"}
+                bad[field] = {"x": 1}
+                body = json.dumps({"type": "excalidraw", "version": 2,
+                                   "elements": [bad]})
+                try:
+                    st = self._load({"a": _GOOD_ARTIFACT, "b": body},
+                                    {"0001-x": _GOOD_SAVE})
+                except Exception as exc:
+                    self.fail(
+                        "a non-hashable %s in ONE artifact killed the "
+                        "load (%s: %s) — the whole project is "
+                        "unreachable, healthy artifacts and all"
+                        % (field, type(exc).__name__, exc))
+                self.assertEqual(sorted(st.scenes), ["a"])
+                self.assertIn("b", " ".join(str(i) for i in st.issues))
+
+    @unittest.expectedFailure
+    def test_red_an_integer_fileid_is_reported_in_both_directions(
+            self) -> None:
+        """One image and its own blob draw both findings at once.
+
+        `used_files` and the `files` map are compared with `in`, so the
+        integer `123` never matches the key `"123"` and BOTH arms fire
+        about the same pair: a warning saying the image "carries no such
+        file — re-import the image, or delete the element", and a note
+        saying the blob "is kept ... and no element shows it". Excalidraw
+        writes string fileIds, so this needs a hand-malformed or
+        foreign-tool document — which is the kind this function reads by
+        contract.
+
+        Low reachability is why it is one entry and not three, but it is
+        not why it would be harmless. The two findings are contradictory
+        ADVICE about one image: follow the note and the user deletes the
+        only blob the element names, turning a type confusion into real
+        data loss. That is the harm being pinned.
+
+        Asserted as "not both" rather than as a coercion, deliberately.
+        Two readings are defensible — the pair is matched and the
+        comparison should be type-tolerant, or the pair is genuinely
+        unmatched and the note should not claim nothing shows that key —
+        and either fix flips this. Choosing between them belongs to the
+        work package that owns the pass. The neighbour below is what
+        keeps the cheap fix of muting one arm from satisfying it.
+        """
+        els = [{"id": "img", "type": "image", "x": 0, "y": 0,
+                "width": 120, "height": 90, "fileId": 123}]
+        files = {"123": {"id": "123", "mimeType": "image/png",
+                         "dataURL": "data:image/png;base64,AAAA"}}
+        said = self._refer(els, files=files).get("flow") or {}
+        self.assertEqual(
+            (len(said.get("warnings") or []),
+             len(said.get("notes") or [])), (1, 0),
+            "one image and its own blob earned a dangling warning AND an "
+            "orphan note — the user is told to re-import the image and "
+            "to delete the file it names: %r" % (said,))
+
+    @unittest.expectedFailure
+    def test_red_the_gitignore_rewrite_edits_a_users_own_pattern(
+            self) -> None:
+        """The one start that appends silently rewrites what git matches.
+
+        `ensure_tree` reads the file as `[ln.strip() for ln in ...]`
+        (canvas.py:278) and rebuilds it from that list, so on the single
+        start where `.pending/` or `.backups/` is missing — the legacy
+        project upgrade, which every existing project takes exactly once
+        — every preserved line loses its leading whitespace. Git treats
+        leading whitespace as part of the pattern, so `    build/` and
+        `build/` are different rules, and the file the user wrote is not
+        the file that comes back.
+
+        Trailing whitespace is deliberately NOT pinned here: git ignores
+        it unless it is escaped, so stripping it is defensible and
+        pinning it would make this fail over a difference that changes
+        no match. Leading whitespace changes what the rule matches, and
+        that is the whole claim.
+
+        MAGNITUDE is the byte-for-byte survival of the user's line.
+        DIRECTION is that the append still happens — asserted in the
+        same test because "leave the file alone" is trivially satisfied
+        by doing nothing, and doing nothing is the bug this rewrite was
+        added to fix. The outcome is pinned, not the mechanism: appending
+        to the raw text instead of to a stripped list would satisfy both.
+        """
+        root = _scratch_project(self, {}, {})
+        gi = root / "project_knowledge" / ".gitignore"
+        gi.write_text("    build/\n.backups/\n", encoding="utf-8")
+        canvas.Project(root).ensure_tree()
+        after = gi.read_text(encoding="utf-8").splitlines()
+        self.assertIn(
+            "    build/", after,
+            "the user's indented pattern came back as a different rule: "
+            "%r" % (after,))
+        self.assertIn(".pending/", after)
+
+    def test_a_hard_deleted_mapping_member_is_reported(self) -> None:
+        """The mapping arm's live pole: the element gone, the warning fires.
+
+        The tombstone red's neighbour, and the same scene with the one
+        field changed that the red turns on — `isDeleted: True` becomes
+        the element's absence. So it proves the arm is alive, that it
+        reaches `registry` scope, and that the message the red asserts
+        against is already shipped wording rather than something a fix
+        would have to invent.
+        """
+        registry = {"mappings": [{"concept": "checkout",
+                                  "elements": ["flow#n1"]}]}
+        said = self._refer([], registry).get("registry") or {}
+        self.assertEqual(len(said.get("warnings") or []), 1, said)
+        self.assertIn("checkout", said["warnings"][0])
+        self.assertIn("flow#n1", said["warnings"][0])
+
+    def test_a_live_mapping_member_says_nothing(self) -> None:
+        """The mapping arm's silent pole: a member that is really there.
+
+        Without it, a fix that simply reported every mapping member
+        would flip the tombstone red and hand every healthy project a
+        warning per mapping. The element carries no `isDeleted` key at
+        all, which is the shape a normal scene has.
+        """
+        els = [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 60}]
+        registry = {"mappings": [{"concept": "checkout",
+                                  "elements": ["flow#n1"]}]}
+        self.assertEqual(self._refer(els, registry), {})
+
+    def test_an_unmatched_integer_fileid_earns_one_finding(self) -> None:
+        """The integer red's neighbour: same type, genuinely no such file.
+
+        This is what stops the double-report red from being satisfied by
+        muting an arm. The fileId is still the integer `123` and the
+        `files` map holds an unrelated key, so the dangling warning is
+        correct and must survive any fix; the orphan note is correct too,
+        because that blob really is shown by nothing. One finding per
+        real problem, which is exactly what the red says the matched case
+        must also produce.
+        """
+        els = [{"id": "img", "type": "image", "x": 0, "y": 0,
+                "width": 120, "height": 90, "fileId": 123}]
+        files = {"other": {"id": "other", "mimeType": "image/png",
+                           "dataURL": "data:image/png;base64,AAAA"}}
+        said = self._refer(els, files=files).get("flow") or {}
+        self.assertEqual(len(said.get("warnings") or []), 1, said)
+        self.assertIn("123", said["warnings"][0])
+        self.assertEqual(len(said.get("notes") or []), 1, said)
+        self.assertIn("other", said["notes"][0])
+
+    def test_the_gitignore_rewrite_appends_once_and_keeps_the_rest(
+            self) -> None:
+        """The rewrite's live pole: it does its job and then stops.
+
+        The whitespace red's neighbour, differing in the one thing that
+        red turns on — no leading whitespace on the user's line. Three
+        claims, because a fix to `ensure_tree` could break any of them
+        while satisfying the red: the user's own lines survive in order,
+        both machinery lines are appended on the start that finds them
+        missing, and a second start appends nothing further. Without the
+        last one, a fix that stopped comparing against the file's
+        contents would grow the file on every start forever.
+        """
+        root = _scratch_project(self, {}, {})
+        gi = root / "project_knowledge" / ".gitignore"
+        gi.write_text("build/\n# mine\nnotes.local.md\n", encoding="utf-8")
+        canvas.Project(root).ensure_tree()
+        first = gi.read_text(encoding="utf-8")
+        self.assertEqual(first.splitlines(),
+                         ["build/", "# mine", "notes.local.md",
+                          ".backups/", ".pending/"])
+        canvas.Project(root).ensure_tree()
+        self.assertEqual(gi.read_text(encoding="utf-8"), first,
+                         "a second start appended the machinery again")
+
+    def test_a_hashable_fileid_still_reaches_both_file_arms(self) -> None:
+        """The crash red's neighbour: well-formed values load and report.
+
+        Its live pole and its error-red guard in one. The red asserts
+        that a project OPENS, which an artifact that quietly stopped
+        being read would also satisfy, so this pins that the same
+        artifact shape with string values both loads and produces the
+        finding its `fileId` earns — the arm the crash happens inside is
+        reached, and reached with something to say.
+        """
+        body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
+            {"id": "img", "type": "image", "x": 0, "y": 0, "width": 120,
+             "height": 90, "fileId": "f1"}]})
+        st = self._load({"a": _GOOD_ARTIFACT, "b": body},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a", "b"])
+        self.assertIn("f1", json.dumps(st.referential, default=str))
+
 
 # ---------------------------------------------------------------------------
 # The reporting surface (v0.9 re-review O-1, 2026-08-13; fixed in Task 33).
@@ -4343,11 +4643,11 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 32
-# expected failures. The sixteen outside live in seven classes —
-# `TestLoadFindingsReachTheAgent` (4), `TestBatchPathIntegrity` (3),
-# `TestPinIdentityIntegrity` (3), `TestExportCompleteness` (2),
-# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (1) and
+# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 36
+# expected failures. The twenty outside live in seven classes —
+# `TestStoreIntegrity` (5), `TestLoadFindingsReachTheAgent` (4),
+# `TestBatchPathIntegrity` (3), `TestPinIdentityIntegrity` (3),
+# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2) and
 # `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
