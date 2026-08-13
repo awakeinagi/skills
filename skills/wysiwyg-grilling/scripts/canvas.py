@@ -8012,9 +8012,13 @@ class Store:
             # record that lost it would strand its ❓ in exactly the way
             # this fixes. Only a pin element is ever taken: ids are
             # minted per scene, so the same id on another artifact need
-            # not be the same thing.
+            # not be the same thing — and `here`, which skips the scan,
+            # is gated on the same role for the same reason. Asking only
+            # whether the id survived let one batch resolve a foreign pin
+            # and then add any element reusing that id, putting it back
+            # in scope and skipping straight past the stranded ❓.
             scenes = {aid: new_els}
-            here = {e["id"] for e in new_els}
+            here = {e["id"] for e in new_els if role_of(e) == "pin"}
             for o in ops:
                 pid = o.get("id")
                 if o.get("op") != "resolve_pin" or pid in here:

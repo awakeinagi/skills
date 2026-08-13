@@ -411,6 +411,32 @@ class TestCrossArtifactPinResolution(unittest.TestCase):
         self.assertEqual(self.glyphs(), set())
         self.assertEqual(self.open_pins(), set())
 
+    def test_an_id_shadowing_add_cannot_hide_the_foreign_pin(self) -> None:
+        """The skip has to test what the scan tests, or it reopens r5-17.
+
+        The scan reaches across artifacts for a PIN; the guard that
+        skips it asked only whether the batch artifact's post-op scene
+        still holds that id. So one batch that resolves a foreign pin
+        and then adds any element reusing the pin's id put the id back
+        into scope, skipped the scan, and stranded the ❓ exactly as
+        before — registry resolved, glyph drawn, the count parity broken
+        again. Order matters: the add has to land after the resolve,
+        because `apply_ops` would otherwise delete the shadow itself.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "payments",
+             "ops": [{"op": "resolve_pin", "id": "pin-a"},
+                     {"op": "add", "element": {
+                         "type": "rectangle", "id": "pin-a",
+                         "label": "Shadow", "x": 240, "y": 200,
+                         "width": 140, "height": 60, "role": "node"}}]})
+        self.assertEqual(self.glyphs(), set(),
+                         "an add reusing the pin's id hid the foreign ❓")
+        self.assertEqual(self.glyphs(), self.open_pins())
+        self.assertEqual([e.get("id") for e in self.store.scenes["payments"]
+                          if e.get("type") == "rectangle"], ["card", "pin-a"],
+                         "the shadowing add was swallowed by the scan")
+
     def test_a_pin_record_that_lost_its_artifact_still_resolves(self) -> None:
         """Nothing validates that key, so it cannot be the only witness.
 
