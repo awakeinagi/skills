@@ -6521,10 +6521,18 @@ class Store:
             # File the findings BEFORE the skip: an unusable artifact is
             # the case that most needs saying so, and filing below the
             # `continue` dropped exactly those on the floor.
+            #
+            # `issues` takes every finding; `scene_repairs` takes only the
+            # ones that REPAIRED something. catch_up gates repair_only on
+            # scene_repairs and names its codes in a "load-time repair"
+            # headline, so filing an untouched quarantine there would
+            # report an unreadable artifact to the user as mended.
             for i in art_issues:
                 self.issues.append(i.to_dict())
-                self.scene_repairs.append(i.to_dict())
-                self.log("repair: %s %s" % (i.code, i.msg))
+                if i.repaired:
+                    self.scene_repairs.append(i.to_dict())
+                self.log("%s: %s %s" % ("repair" if i.repaired
+                                        else "quarantine", i.code, i.msg))
             if doc is None:
                 continue
             doc, _ = apply_migrations(doc, "artifact", f, self.p, self.log)

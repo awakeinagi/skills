@@ -2219,6 +2219,59 @@ class TestStoreIntegrity(unittest.TestCase):
             "(issues=%r) — validate_scene made an ART-000 for exactly "
             "this and the loader dropped it" % (st.issues,))
 
+    def test_quarantine_is_reported_but_never_filed_as_a_repair(self) -> None:
+        """An unreadable artifact reaches `issues` only, not `scene_repairs`.
+
+        Filing ART-000 above the skip — the fix that flipped the red above
+        — put it in front of two consumers that read `scene_repairs` as
+        work the loader DID: `catch_up` gates `repair_only` on it and
+        names its codes in a "load-time repair" headline. A quarantine
+        repaired nothing; the file is still unreadable on disk. So the
+        loud half and the repaired half are different claims, and this
+        pins that the fix bought the first without asserting the second.
+
+        `Issue.repaired` is the discriminator, deliberately, not a list of
+        codes: ART-000 is merely the only issue `validate_scene` currently
+        builds with the flag False, and a code list would silently stop
+        covering the second one the moment anybody adds it.
+        """
+        st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT, "b": "[]"},
+                        {"0001-x": _GOOD_SAVE})
+        codes = [i["code"] for i in st.issues]
+        self.assertIn("ART-000", codes, "the drop must still be reported")
+        self.assertIn("ART-011", codes, "the real repair must still be "
+                      "reported (issues=%r)" % (codes,))
+        self.assertEqual(
+            [i["code"] for i in st.scene_repairs], ["ART-011"],
+            "ART-011 refit the label and belongs in scene_repairs; ART-000 "
+            "touched nothing and must not be counted as repair work "
+            "(scene_repairs=%r)" % (st.scene_repairs,))
+
+    def test_quarantine_alone_makes_catch_up_claim_no_repairs(self) -> None:
+        """With only a drop to report, no resume narration says "repair".
+
+        The end of the channel the test above guards. `repair_only` is
+        `bool(self.scene_repairs) and ...`, so a quarantine filed there
+        would flip a load with NO repair work into the repairs-only
+        branch and hand the user "load-time repair: ART-000 ×1 — no
+        outside edits" about a file that is still broken on disk.
+
+        The headline is asserted by what it may not CLAIM rather than by
+        its exact text: the drift wording is incidental to this defect and
+        pinning it would make an unrelated headline reword fail here.
+        """
+        st = self._load({"a": _GOOD_ARTIFACT, "b": "[]"},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(st.scene_repairs, [])
+        rec = st.catch_up()
+        headline = ((rec or {}).get("summary") or {}).get("headline") or ""
+        self.assertNotIn("repair", headline.lower(),
+                         "nothing was repaired, but the resume headline "
+                         "says it was: %r" % (headline,))
+        self.assertNotIn("repairs", rec or {},
+                         "an unrepaired quarantine was written onto the "
+                         "reconciliation record as repair work")
+
     def test_the_fileref_artifact_loads_and_keeps_its_orphan(self) -> None:
         """The two file-reference reds' setup, asserted where nothing masks it.
 
