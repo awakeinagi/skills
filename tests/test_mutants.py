@@ -10,10 +10,13 @@ never take down a run — they surface as `detector-error` findings.
 """
 from __future__ import annotations
 
+import argparse
+import contextlib
 import copy
 import datetime
 import hashlib
 import inspect
+import io
 import json
 import math
 import re
@@ -2081,6 +2084,42 @@ _FILEREF_ARTIFACT = json.dumps({
                                  "dataURL": "data:image/png;base64,AAAA"}}})
 
 
+def _scratch_project(case: unittest.TestCase, artifacts: dict[str, str],
+                     saves: dict[str, str]) -> Path:
+    """Write a throwaway project tree and return its root.
+
+    File CONTENTS are passed as raw strings, not objects, because every
+    defect below is about malformed bytes: a helper that took dicts could
+    not express a file truncated mid-JSON.
+
+    The root is returned rather than a loaded `Store` because the two
+    classes below probe different layers of the same load — one reads the
+    store's own attributes, the other runs a CLI command that opens the
+    project itself and is judged on what it prints.
+
+    Args:
+        case: The test owning the tree; its `addCleanup` removes it.
+        artifacts: `{stem: file body}` written under
+            `project_knowledge/artifacts/<stem>.excalidraw`.
+        saves: `{stem: file body}` written under
+            `project_knowledge/saves/<stem>.json`.
+
+    Returns:
+        The project root directory holding `project_knowledge/`.
+    """
+    tmp = tempfile.mkdtemp(prefix="mutants-store-")
+    case.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+    pk = Path(tmp) / "project_knowledge"
+    (pk / "artifacts").mkdir(parents=True)
+    (pk / "saves").mkdir(parents=True)
+    for stem, body in artifacts.items():
+        (pk / "artifacts" / (stem + ".excalidraw")).write_text(
+            body, encoding="utf-8")
+    for stem, body in saves.items():
+        (pk / "saves" / (stem + ".json")).write_text(body, encoding="utf-8")
+    return Path(tmp)
+
+
 class TestStoreIntegrity(unittest.TestCase):
     """One bad record must not cost the project — and must never go quiet."""
 
@@ -2088,32 +2127,16 @@ class TestStoreIntegrity(unittest.TestCase):
               saves: dict[str, str]) -> canvas.Store:
         """Build a throwaway project on disk and load it.
 
-        File CONTENTS are passed as raw strings, not objects, because
-        every defect below is about malformed bytes: a helper that took
-        dicts could not express a file truncated mid-JSON.
-
         Args:
-            artifacts: `{stem: file body}` written under
-                `project_knowledge/artifacts/<stem>.excalidraw`.
-            saves: `{stem: file body}` written under
-                `project_knowledge/saves/<stem>.json`.
+            artifacts: `{stem: file body}` under `artifacts/`.
+            saves: `{stem: file body}` under `saves/`.
 
         Returns:
             The loaded `canvas.Store` — `Store.__init__` loads eagerly, so
             a load-time crash surfaces from the constructor.
         """
-        tmp = tempfile.mkdtemp(prefix="mutants-store-")
-        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
-        pk = Path(tmp) / "project_knowledge"
-        (pk / "artifacts").mkdir(parents=True)
-        (pk / "saves").mkdir(parents=True)
-        for stem, body in artifacts.items():
-            (pk / "artifacts" / (stem + ".excalidraw")).write_text(
-                body, encoding="utf-8")
-        for stem, body in saves.items():
-            (pk / "saves" / (stem + ".json")).write_text(body,
-                                                         encoding="utf-8")
-        return canvas.Store(canvas.Project(Path(tmp)))
+        return canvas.Store(canvas.Project(
+            _scratch_project(self, artifacts, saves)))
 
     def test_scratch_project_baseline_loads_clean(self) -> None:
         """Two good artifacts and a good save record load with no issues.
@@ -2394,6 +2417,180 @@ class TestStoreIntegrity(unittest.TestCase):
             "orphan-file-id", said,
             "the store kept an unreferenced file blob and nothing "
             "reported it")
+
+
+# ---------------------------------------------------------------------------
+# The reporting surface (v0.9 re-review O-1, 2026-08-13). The class above
+# pins what `Store.issues` CARRIES; this one pins what the agent is TOLD, and
+# the two have come apart. `issues` gained ART-000 in the fix round above,
+# but every printer of load findings filters on `if i.get("repaired")` —
+# canvas.py:9550 (resume) and canvas.py:9677 (lint) — so the QUARANTINE half
+# reaches no agent-facing surface at all: neither ART-000 nor the long-
+# shipped SAV-001. A project whose second artifact is unreadable lints as "a
+# project with one artifact", and nothing anywhere says a file was dropped.
+#
+# This is the fourth thing to fall outside the scene unit named above, and
+# the furthest out: the evidence is a CLI command's STDOUT, so there is no
+# element list to judge and no `collect_findings` to judge it with. The
+# quadruple is therefore kept by hand — a base project, one mutation (an
+# artifact body of `[]`), the expectation, and neighbours at the filtering
+# predicate's other pole. The magnitude analogue for a surface is WHAT it
+# must contain: every quarantined issue's code and its message, so the agent
+# learns which file left. The direction analogue is WHICH CLAIM it makes:
+# named as a drop, never as a repair — see the flip note on the red.
+# ---------------------------------------------------------------------------
+
+
+class TestLoadFindingsReachTheAgent(unittest.TestCase):
+    """A finding filed at load and never printed is a finding nobody has."""
+
+    def _lint(self, root: Path) -> list[str]:
+        """Run `canvas.py lint` over a project and capture what it printed.
+
+        `cmd_lint` is called in-process rather than through a subprocess
+        because it opens the project itself and needs no running server,
+        so these lines are the same bytes an agent's terminal receives.
+
+        Args:
+            root: Project root, as built by `_scratch_project`.
+
+        Returns:
+            The command's stdout, split into lines.
+        """
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas.cmd_lint(argparse.Namespace(project=str(root),
+                                               artifact=None))
+        return buf.getvalue().splitlines()
+
+    def _quarantine_project(self) -> Path:
+        """One good artifact and one dropped artifact, plus a dropped save.
+
+        The smallest project carrying BOTH quarantine producers, which is
+        the point: `b`'s body is `[]`, which `validate_scene` rejects as
+        ART-000, and `0002-y`'s is `[]`, which the save loop rejects as
+        SAV-001. Two unrelated code paths in `Store.load`, one shared
+        silent consumer downstream — pinning them together is what says
+        the defect is the print filter and not either producer.
+
+        `a` and `0001-x` load cleanly so the project still has something
+        to talk about; without them the surface's silence would be honest.
+
+        Returns:
+            The project root.
+        """
+        return _scratch_project(self, {"a": _GOOD_ARTIFACT, "b": "[]"},
+                                {"0001-x": _GOOD_SAVE, "0002-y": "[]"})
+
+    def test_both_quarantines_are_filed_unrepaired(self) -> None:
+        """The red's scene really does produce two unrepaired issues.
+
+        Its error-red guard, ungated. The red below asserts over whatever
+        `issues` holds, so a scene that stopped quarantining anything
+        would make it iterate an empty list and pass — reading as a fix
+        for a surface nobody changed. This pins the premise instead: two
+        issues, both flagged unrepaired, which is what makes them
+        invisible downstream.
+        """
+        st = canvas.Store(canvas.Project(self._quarantine_project()))
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertEqual({i["code"] for i in st.issues},
+                         {"ART-000", "SAV-001"})
+        self.assertEqual([i["code"] for i in st.issues if i.get("repaired")],
+                         [], "neither quarantine repaired anything")
+
+    def test_lint_names_a_load_time_repair(self) -> None:
+        """The repaired half of the same filter does reach stdout.
+
+        The neighbour, and the reason it is this scene: ART-011 rides the
+        exact `if i.get("repaired")` branch the red dies on, at its other
+        pole. So this proves the print loop is reached, that it formats a
+        code and a message, and that the surface is alive — which is what
+        stops a broken helper, a renamed `cmd_lint` or a deleted loop from
+        hiding inside the red's `expectedFailure` mask and reading as
+        health.
+
+        The message is matched on the element it names rather than in
+        full: the repair's exact wording is incidental here, and pinning
+        it would make an unrelated reword fail in a test about reach.
+        """
+        root = _scratch_project(self, {"a": _OVERSIZED_LABEL_ARTIFACT},
+                                {"0001-x": _GOOD_SAVE})
+        out = self._lint(root)
+        said = [ln for ln in out if ln.startswith("REPAIR=ART-011:")]
+        self.assertEqual(len(said), 1,
+                         "the one load-time repair reached lint %d times: %r"
+                         % (len(said), out))
+        self.assertIn("t1", said[0],
+                      "the repair line does not name what it refitted")
+
+    def test_lint_on_a_clean_load_invents_no_load_finding(self) -> None:
+        """A load with nothing to report reports nothing — the silent pole.
+
+        The other neighbour. Without it, a "fix" that printed a load
+        finding unconditionally would satisfy the red while telling every
+        healthy project that something had gone wrong. `ARTIFACTS=2` is
+        asserted alongside because it is the same count the red watches
+        collapse to 1, so this fixes the surface's honest reading of a
+        two-artifact project as the baseline that reading deviates from.
+        """
+        root = _scratch_project(self, {"a": _GOOD_ARTIFACT,
+                                       "b": _GOOD_ARTIFACT},
+                                {"0001-x": _GOOD_SAVE})
+        out = self._lint(root)
+        self.assertIn("ARTIFACTS=2", out)
+        noise = [ln for ln in out
+                 if ln.startswith("REPAIR=") or "ART-" in ln or "SAV-" in ln]
+        self.assertEqual(noise, [],
+                         "a clean load was told something happened to it")
+
+    @unittest.expectedFailure
+    def test_red_lint_never_names_what_the_load_quarantined(self) -> None:
+        """Two files left the project and the only surface says neither.
+
+        `canvas.py lint` is the sole server-free surface that prints load
+        findings, and its loop (canvas.py:9677-9679) keeps only issues
+        with `repaired` true. Quarantines are exactly the issues that
+        repaired nothing, so the filter drops the whole class: this
+        project prints `LAYOUT_NOTE=a: ...`, `ARTIFACTS=1`, `FINDINGS=1`
+        and stops. Artifact `b` is named nowhere; the agent is handed a
+        one-artifact project and no reason to doubt it. `status` shares
+        the filter at canvas.py:9550-9552, so the resume surface is silent
+        in the same way — one predicate, both exits.
+
+        Magnitude is what the output must CONTAIN: every unrepaired
+        issue's code AND its message, since the code alone would not say
+        which file went. Asserted over `issues` rather than against the
+        two literal codes, following the model-layer test above:
+        `repaired` is the discriminator, so a third quarantine added later
+        is covered the day it is added, not the day someone remembers.
+
+        Direction is the CLAIM the line makes, and the second assertion
+        is the flip contract. The one-line "fix" of deleting the filter
+        would print `REPAIR=ART-000: b: not a JSON object` — a repair
+        headline over a file still unreadable on disk, which is the same
+        falsehood `test_quarantine_is_reported_but_never_filed_as_a_repair`
+        keeps out of the model layer. Flips when the surface names the
+        drop under a heading that does not call it repair work.
+        """
+        root = self._quarantine_project()
+        out = self._lint(root)
+        joined = "\n".join(out)
+        dropped = [i for i in canvas.Store(canvas.Project(root)).issues
+                   if not i.get("repaired")]
+        missing = [i["code"] for i in dropped
+                   if i["code"] not in joined or i["msg"] not in joined]
+        self.assertEqual(
+            missing, [],
+            "the load quarantined %s; lint names %s nowhere, so all the "
+            "agent is shown is %r"
+            % ([i["code"] for i in dropped], missing, out))
+        mislabelled = [ln for ln in out if ln.startswith("REPAIR=")
+                       and any(i["code"] in ln for i in dropped)]
+        self.assertEqual(
+            mislabelled, [],
+            "a quarantine repaired nothing, but the surface files it as "
+            "repair work: %r" % (mislabelled,))
 
 
 # ---------------------------------------------------------------------------
