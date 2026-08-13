@@ -194,6 +194,12 @@ for `endpoint_gap` magnitudes (a perpendicular-distance fix will not flip the
 mutants), and the **straight-run exemption** question for
 `ablation_continuity`.
 
+**New agents start at `docs/design/README.md`** — the methodology
+(mutation-first development: reds, the flip contract, the drain number,
+the guard architecture) and the operating guide (curator flow, review
+discipline, the coordination rules each bought by an incident, and where
+work is tracked). Written 2026-08-13 to carry the arc's learnings forward.
+
 **The consolidated feature backlog is `docs/todo/feature-backlog.md`** —
 one row per opportunity from the four idea-mines with verdicts, sources,
 which items are already pinned red in the harness (⛳), the dependency-parked
