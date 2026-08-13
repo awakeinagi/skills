@@ -6518,14 +6518,17 @@ class Store:
                 raw_scenes[aid] = json.loads(json.dumps(raw_els))
                 self.raw_hashes[aid] = content_fingerprint(raw_scenes[aid])
             doc, art_issues = validate_scene(doc, aid)
-            if doc is None:
-                continue
-            doc, _ = apply_migrations(doc, "artifact", f, self.p, self.log)
-            doc = normalize_scene_doc(doc)
+            # File the findings BEFORE the skip: an unusable artifact is
+            # the case that most needs saying so, and filing below the
+            # `continue` dropped exactly those on the floor.
             for i in art_issues:
                 self.issues.append(i.to_dict())
                 self.scene_repairs.append(i.to_dict())
                 self.log("repair: %s %s" % (i.code, i.msg))
+            if doc is None:
+                continue
+            doc, _ = apply_migrations(doc, "artifact", f, self.p, self.log)
+            doc = normalize_scene_doc(doc)
             self.scenes[aid] = doc["elements"]
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
             if doc.get("files"):

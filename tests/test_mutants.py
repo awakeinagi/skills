@@ -2195,20 +2195,20 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a"])
         self.assertIn("SAV-001", {i.get("code") for i in st.issues})
 
-    @unittest.expectedFailure
     def test_red_non_dict_artifact_is_dropped_silently(self) -> None:
-        """An artifact holding `[]` leaves the project with nothing said.
+        """An artifact holding `[]` is dropped LOUDLY — the project says so.
 
         `validate_scene` builds exactly the right issue for this —
-        ART-000, "not a JSON object", with a repair hint — and
-        `Store.load` throws it away: `doc, art_issues = validate_scene(...)`
-        is followed by `if doc is None: continue`, which skips the loop
-        that files `art_issues` (canvas.py:6518-6525). So the drawing
-        disappears from the project and the user is told nothing, while
-        the same file truncated one byte earlier would report ART-006.
+        ART-000, "not a JSON object", with a repair hint — and `Store.load`
+        used to throw it away: the loop filing `art_issues` sat BELOW
+        `if doc is None: continue`, so the unusable artifact — the case
+        that most needs saying so — was the one case never reported. The
+        drawing vanished from the project in silence, while the same file
+        truncated one byte earlier reported ART-006.
 
-        Silence is the whole defect here: losing the file is defensible,
-        losing it quietly is not. Flips when the issues survive the skip.
+        Losing the file is defensible; losing it quietly is not. Filing now
+        happens before the skip, so this pins that an artifact leaving the
+        project is always named in `issues`.
         """
         st = self._load({"a": _GOOD_ARTIFACT, "b": "[]"},
                         {"0001-x": _GOOD_SAVE})
