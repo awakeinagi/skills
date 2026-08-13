@@ -1,12 +1,29 @@
-# Session handover — run 5 DONE; v0.9 planned; the mutation harness is landed and red
+# Session handover — harness + candidate-board arc COMPLETE; v0.9 is next
 
-Written before a context compaction. The previous occupant of this file was the
-*start-of-run-5* handover; run 5 has since been run, so it is superseded. If you
-need it, its content is reproduced in the R5 notes' method sections.
+Current through 2026-08-13 (branch `v0.9_mutation_harness` @ `e036941`).
+Superseded content from earlier phases is reproduced in the R5 notes.
 
-**State in one line: run 5 complete, v0.9 planned, the mutation harness built
-and committed on its own branch (red by intent, 8 expected failures), and the
-same three user decisions still open — plus one new one.**
+**State in one line: run 5 complete and committed; the mutation harness is
+built, self-guarded, and red by intent (drain 28); ~11 product defects
+discovered and pinned by the tooling arc; all user decisions RESOLVED; four
+repos idea-mined with everything dispositioned; methodology documented in
+`docs/design/`; v0.9 (WP1 first) is the next work.**
+
+**Picking up after a compaction, in order:**
+1. `docs/design/README.md` — the methodology + operating guide (new agents
+   start here).
+2. This file §1/§1a — exact counts and the red inventory.
+3. `docs/todo/feature-backlog.md` — every queued item with verdicts
+   (Batch D = items 15-17; dependency-parked = 19-20; rejected list at the
+   bottom).
+4. `V0.9-PLAN.md` — the near-future work. **WP1 ships alone and first**
+   (failure-path cluster; now opens against five pinned store-integrity
+   defects incl. the A1a total-loss crash; gate = cause a failure, then
+   diff the state). WP4 = drain the 28 reds (scope rules bind: ellipse +
+   label-arm mutants must flip; ASPIRATIONAL flips owe real other-pole
+   neighbours).
+5. Execution/review record if needed:
+   `docs/superpowers/reviews/2026-08-11-mutation-harness/progress.md`.
 
 ---
 
