@@ -3393,10 +3393,16 @@ _register(Mutant(
 # WP4 puts the shape term inside `text_overflow`, then `label_overflows_shape`
 # stops being a check that needs building and becomes an arm of this one — and
 # the `diamond_label_overflows_shape` entry must be RE-KEYED to `text_overflow`
-# deliberately, not left pointing at a check that will never exist. Its
+# deliberately, not left pointing at a check that will never exist. Two halves
+# of that re-key move in opposite directions, so neither is automatic. Its
 # magnitude convention (measured at the LABEL BOX's own height, not the
 # shape's widest point) is already the right one for that arm and should
-# survive the move unchanged.
+# survive the move unchanged — but its `element` must NOT: that spec names
+# the label (`t1`), while `_TEXT_OVERFLOW_RE` names the OWNER, because the
+# text is quoted as content and carries no id. A re-key that moves the check
+# and leaves the element pointing at the label asserts a finding this
+# template cannot emit, and would go red for a reason that has nothing to do
+# with the shape term it was meant to record.
 _register(Mutant(
     "composed_row_overflows_its_box",
     build=lambda: _composed_row("net revenue total"),
@@ -3420,7 +3426,7 @@ _register(Mutant(
 # is this check's real other pole, but neither scene is silent on EVERY
 # check — both emit an `unconnected node(s)` note, since a lone node is by
 # construction unconnected. That note belongs to a different check and cannot
-# colour a `text_overflow` spec, but the C-wave review earned this sentence
+# color a `text_overflow` spec, but the C-wave review earned this sentence
 # the hard way (a scene claimed "identical to every check" was firing
 # `offgrid_elements`), so it is written down rather than assumed.
 _register(Mutant(

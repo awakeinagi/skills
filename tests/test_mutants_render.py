@@ -117,9 +117,15 @@ def _rasterize(svg: str, w: int, h: int, workdir: str) -> bytes:
     anti-aliasing, and a markup-keyed cache happily served build 151's
     pixels for build 131 — returning 4.62:1 for a build that renders
     5.51:1, which is the difference between failing WCAG's floor and
-    passing it. Folding the binary in makes that unreachable rather than
-    merely documented, so cross-build work needs no separate workdir and
-    no discipline to remember.
+    passing it. Folding the binary in makes THAT hazard unreachable
+    rather than merely documented: a shared workdir can no longer return
+    one build's pixels for another. It buys nothing beyond the cache —
+    in particular a cross-build sweep that includes a snap-confined
+    chromium still needs its workdir rooted under `$HOME`, because that
+    build cannot see the real `/tmp` at all (the constraint `_mkworkdir`
+    exists for). That one fails loudly with a RuntimeError rather than
+    quietly with a wrong number, which is why it is a note and not a
+    second key.
 
     Args:
         svg: The complete SVG document to draw.
