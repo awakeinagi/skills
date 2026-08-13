@@ -3326,11 +3326,15 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
 #
 # Deliberately NOT re-covered here: whether the rejection guard restores state
 # afterwards. `TestFailurePathAtomicity` (tests/test_failure_paths.py) owns
-# that and pins it GREEN — including the very IndexError below, whose own
-# docstring there records that "the negative index itself is a separate,
-# still-open defect". These three pin the gaps that suite leaves: the
-# validation that lets a negative index through at all, the mapping a negative
-# index silently removes, and the create that outlives its rejected batch.
+# that and pins it GREEN. These three pinned the gaps that suite left: the
+# validation that let a negative index through at all, the mapping a negative
+# index silently removed, and the create that outlived its rejected batch.
+#
+# All three FLIPPED in v0.9 Task 34 and now stand as regressions. That task
+# also had to re-vehicle one case in `TestFailurePathAtomicity`: it provoked
+# its crash WITH the negative index, which its docstring already flagged as
+# "a separate, still-open defect", so fixing the defect took the crash away.
+# Its crash is synthetic now — a pin on a live bug dies the day the bug does.
 # ---------------------------------------------------------------------------
 
 
@@ -3416,15 +3420,21 @@ class TestBatchPathIntegrity(unittest.TestCase):
                       failing: bool) -> dict[str, Any]:
         """A batch that creates `ghost` and renames it in the same breath.
 
-        `rename_artifact` is what drives this shape onto disk: it writes
-        the new name through to the artifact FILE as it validates
-        (canvas.py:6885), and `_seed_created_meta` publishes the create
-        early enough for a registry op to name the id its own batch is
-        making — the BUG-03 workflow. So the create is written from
-        INSIDE the commit window rather than after the ops, which is the
-        only way a rejection can arrive with the file already written. A
-        create plus a failing op alone does not reproduce it, and stops
+        `rename_artifact` is what drove this shape onto disk: it wrote
+        the new name through to the artifact FILE as it validated, and
+        `_seed_created_meta` publishes the create early enough for a
+        registry op to name the id its own batch is making — the BUG-03
+        workflow. So the create was written from INSIDE the commit
+        window rather than after the ops, which is the only way a
+        rejection can arrive with the file already written. A create
+        plus a failing op alone does not reproduce it, and stopped
         reproducing it as of e2f3bf0.
+
+        Kept verbatim after the fix: this is the shape that has to stay
+        harmless. Both poles below are built from it, so a rename that
+        crept back inside the window would fail the rejected pole while
+        a rename that stopped reaching disk at all would fail the
+        accepted one.
 
         Args:
             store: The store the batch will be applied to, at its head.
@@ -3483,32 +3493,33 @@ class TestBatchPathIntegrity(unittest.TestCase):
             [m["concept"] for m in self._with_mappings(store)
              .registry["mappings"]], ["alpha", "beta"])
 
-    @unittest.expectedFailure
     def test_red_a_negative_annotate_index_escapes_as_a_bare_crash(
             self) -> None:
-        """`index: -1` walks past the bounds check and dies uncaught.
+        """`index: -1` is refused, not waved past the bounds check.
 
-        The check is `idx >= len(reg["mappings"])` (canvas.py:7480),
-        which is false for every negative number, so `-1` is waved
-        through as a valid index and `reg["mappings"][-1]` is then
-        evaluated against an empty list. The op does not fail the batch;
-        it kills it. An `IndexError` leaves `apply_batch`, where
-        `BatchError` is the only exception any caller knows about:
-        `_handle_apply` turns `BatchError` into a 422 the CLI prints as
-        `ERROR=` and converts nothing else, so the v0.8 promise that
-        every failure prints an `ERROR=` line is broken here by a bare
-        traceback the agent cannot parse or act on.
+        The check was `idx >= len(reg["mappings"])`, which is false for
+        every negative number, so `-1` was waved through as a valid
+        index and `reg["mappings"][-1]` was then evaluated against an
+        empty list. The op did not fail the batch; it killed it. An
+        `IndexError` left `apply_batch`, where `BatchError` is the only
+        exception any caller knows about: `_handle_apply` turns
+        `BatchError` into a 422 the CLI prints as `ERROR=` and converts
+        nothing else, so the v0.8 promise that every failure prints an
+        `ERROR=` line was broken here by a bare traceback the agent
+        could neither parse nor act on.
 
         DIRECTION is the first assertion and the whole point: a batch
-        must resolve one way or the other, and this one resolves neither.
-        MAGNITUDE, for a rejection, is what the message identifies — the
-        action and the field at fault — so the agent learns which of its
-        ops was refused rather than guessing. That is pinned to what the
-        already-working upper pole says, not to new wording, so the
-        minimal fix flips this without also rewriting a message; the
-        neighbour asserts the same two tokens on the same empty list.
+        must resolve one way or the other, and this one resolved
+        neither. MAGNITUDE, for a rejection, is what the message
+        identifies — the action and the field at fault — so the agent
+        learns which of its ops was refused rather than guessing. That
+        is pinned to what the already-working upper pole says, not to
+        new wording, so the fix flipped this without also rewriting a
+        message; the neighbour asserts the same two tokens on the same
+        empty list.
 
-        Flips when the bounds check gains its sign half.
+        Flipped by v0.9 Task 34: the bounds check gained its sign half
+        (`0 <= idx < len(...)`) in both mapping-index arms.
         """
         store, _ = self._store()
         escaped = self._send(store, {"action": "annotate_mapping",
@@ -3523,19 +3534,18 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertIn("annotate_mapping", said)
         self.assertIn("index", said)
 
-    @unittest.expectedFailure
     def test_red_a_negative_remove_index_pops_the_newest_mapping(
             self) -> None:
-        """`index: -1` removes a mapping nobody asked to remove.
+        """`index: -1` removes nothing, rather than the newest mapping.
 
-        The same missing sign check as the red above (canvas.py:7491), at
-        the pole where the list is NOT empty — so Python's own negative
-        indexing makes `-1` a perfectly valid subscript and there is no
-        crash for anything to notice. `reg["mappings"].pop(-1)`
-        tombstones the NEWEST mapping, the batch commits, and the
-        response reports the removal the agent asked for. The model has
-        quietly lost the concept most recently attached, and every
-        surface goes on claiming the op did what was requested.
+        The same missing sign check as the red above, at the pole where
+        the list is NOT empty — so Python's own negative indexing made
+        `-1` a perfectly valid subscript and there was no crash for
+        anything to notice. `reg["mappings"].pop(-1)` tombstoned the
+        NEWEST mapping, the batch committed, and the response reported
+        the removal the agent had asked for. The model quietly lost the
+        concept most recently attached, and every surface went on
+        claiming the op did what was requested.
 
         MAGNITUDE is which mappings survive — both, `alpha` and `beta`,
         in the order they arrived — and it is asserted FIRST because it
@@ -3546,7 +3556,8 @@ class TestBatchPathIntegrity(unittest.TestCase):
 
         The two reds are one defect class under two magnitudes and share
         `_store` for that reason; this one earns its own entry because a
-        fix that only guards the empty list leaves this half live.
+        fix that only guarded the empty list would have left this half
+        live. Flipped by v0.9 Task 34 with its twin.
         """
         store, _ = self._store()
         self._with_mappings(store)
@@ -3566,34 +3577,38 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertIn("remove_mapping", said)
         self.assertIn("index", said)
 
-    @unittest.expectedFailure
     def test_red_a_rejected_create_survives_and_blocks_the_retry(
             self) -> None:
-        """A rejected batch's `create` stays, and nothing can dislodge it.
+        """A rejected batch's `create` leaves nothing, so the retry lands.
 
         `_write_artifact` sets `self.scenes[aid]` and writes the
-        `.excalidraw` file (canvas.py:7106) from inside the commit
-        window, so by the time the trailing `set_round` rejects the batch
-        the artifact is already on disk. The e2f3bf0 restore guard puts
-        every renamed artifact back by comparing against the pre-image —
-        correctly, and `ghost` is not IN the pre-image, so it is skipped
-        rather than removed. What is left is an EMPTY scene: the ops that
-        would have drawn into it were rolled back, so the store holds an
-        artifact with no elements and, as the review measured, no
-        `artifact_meta` entry either.
+        `.excalidraw` file, and `rename_artifact` used to call it from
+        inside the commit window — so by the time the trailing
+        `set_round` rejected the batch the artifact was already on disk.
+        The e2f3bf0 restore guard puts every renamed artifact back by
+        comparing against the pre-image — correctly, and `ghost` is not
+        IN the pre-image, so it was skipped rather than removed. What
+        was left is an EMPTY scene: the ops that would have drawn into
+        it were rolled back, so the store held an artifact with no
+        elements and, as the review measured, no `artifact_meta` entry
+        either.
 
-        The consequence is not a stray file. The corrected batch — the
-        same batch with the typo fixed — can now never be sent, because
-        `_validate_batch`'s `elif aid in self.scenes` (canvas.py:7721)
-        sees the phantom and answers "create: artifact 'ghost' already
-        exists". A fresh load takes the file at face value and raises no
-        repair, and neither error tells the agent that dropping the
-        `create` block is the way out.
+        The consequence was not a stray file. The corrected batch — the
+        same batch with the typo fixed — could then never be sent,
+        because `_validate_batch`'s `elif aid in self.scenes` saw the
+        phantom and answered "create: artifact 'ghost' already exists".
+        A fresh load took the file at face value and raised no repair,
+        and neither error told the agent that dropping the `create`
+        block was the way out.
 
         The OUTCOME is pinned and never the mechanism: unlinking on an
         error path is a decision for the work package that owns the
         write, and a batch that wrote nothing until it was accepted would
-        satisfy this equally. MAGNITUDE is what survives the rejection —
+        satisfy this equally. v0.9 Task 34 took the second reading — the
+        rename's write-through moved OUT of the op and into `commit`'s
+        persist block, so no `_write_artifact` runs inside the commit
+        window at all and there is no phantom to unlink. MAGNITUDE is
+        what survives the rejection —
         no scene, no file. DIRECTION is which way the retry resolves —
         accepted, where today it is refused for a reason the agent cannot
         act on. The retry is measured with `check_batch` rather than a

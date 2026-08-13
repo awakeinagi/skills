@@ -6960,26 +6960,18 @@ class Store:
                     # artifact a `create` seeded, not the pin lifecycle
                     # above, and not the writes the ops before the
                     # failing one already made. ANY exception, not just
-                    # BatchError — `annotate_mapping` with a negative
-                    # index walks past its bounds check and dies on a
-                    # bare IndexError, and a guard that asks what raised
-                    # would hand that crash a half-written registry.
-                    # The error contract is untouched: restore, re-raise.
-                    # `rename_artifact` is the op that also reaches DISK
-                    # as it validates, so the restored name is written
-                    # back through — named by comparing meta against the
-                    # pre-image rather than by reading `reg_changes`,
-                    # which a crash never returns.
-                    renamed = [a for a, m in self.artifact_meta.items()
-                               if a in pre_meta and
-                               (pre_meta[a] or {}).get("name") !=
-                               (m or {}).get("name")]
+                    # BatchError — a registry op that dies on a bare
+                    # IndexError instead of appending to `errors` would
+                    # hand a guard that asks what raised a half-written
+                    # registry. The error contract is untouched:
+                    # restore, re-raise. Restoring MEMORY is now the
+                    # whole job — `rename_artifact` used to reach disk
+                    # as it validated, and the write-back that undid
+                    # that lived here; the write-through moved to
+                    # `commit`'s persist block, so no op inside this
+                    # window touches a file to begin with.
                     self.registry = pre_registry
                     self.artifact_meta = pre_meta
-                    for aid2 in renamed:
-                        self._write_artifact(
-                            aid2, self.scenes.get(aid2) or [],
-                            self.artifact_meta.get(aid2) or {})
                     raise
                 # a registry op can change artifact META, and `meta` was
                 # snapshotted above — BEFORE these ran. A rename landing
@@ -7080,6 +7072,20 @@ class Store:
                 if aid in new_scenes:
                     self._write_artifact(aid, new_scenes[aid],
                                          artifacts[aid]["meta"])
+            # `rename_artifact` used to write the new title through to the
+            # artifact file itself, from inside the commit window. Here
+            # is where that write belongs: the batch is accepted, the
+            # record is on disk, and nothing left can reject it. An
+            # artifact this batch also DREW was written by the loop above
+            # carrying the renamed meta (re-read after the ops, r3-10);
+            # this covers the registry-only rename, whose artifact is in
+            # no scene the batch touched.
+            for ch in reg_changes:
+                aid2 = ch.get("artifact")
+                if ch.get("action") == "artifact_renamed" and \
+                        aid2 not in artifacts:
+                    self._write_artifact(aid2, self.scenes.get(aid2) or [],
+                                         self.artifact_meta.get(aid2) or {})
             self.registry["revn"] = revn
             if forked:
                 # the outgoing branch keeps its own registry; the new one
@@ -7543,7 +7549,15 @@ class Store:
                                     "policy": pol})
                     continue
                 idx = op.get("index")
-                if not isinstance(idx, int) or idx >= len(reg["mappings"]):
+                # BOTH halves: `idx >= len(...)` alone is false for every
+                # negative number, and Python then reads `-1` as a
+                # perfectly good subscript — so an index nobody could
+                # have meant either crashed on an empty list or, worse,
+                # landed silently on the newest mapping. A mapping index
+                # is a position in the stored order, and that order has
+                # no negative positions.
+                if not isinstance(idx, int) or not 0 <= idx < \
+                        len(reg["mappings"]):
                     errors.append("registry op %d: annotate_mapping needs a "
                                   "valid mapping `index` (see model.json "
                                   "mappings order) or a `pattern` for a "
@@ -7554,7 +7568,8 @@ class Store:
                     op, i, errors)
             elif action == "remove_mapping":
                 idx = op.get("index")
-                if not isinstance(idx, int) or idx >= len(reg["mappings"]):
+                if not isinstance(idx, int) or not 0 <= idx < \
+                        len(reg["mappings"]):     # sign half: see above
                     errors.append("registry op %d: remove_mapping needs a "
                                   "valid `index`" % i)
                     continue
@@ -7657,11 +7672,16 @@ class Store:
                     continue
                 old_name = self.artifact_meta[aid2].get("name") or aid2
                 self.artifact_meta[aid2]["name"] = new_name
-                # the name lives in the artifact FILE, and a registry-only
-                # batch never touches scenes — so write it through here or
-                # the rail keeps the old title until the next drawing
-                self._write_artifact(aid2, self.scenes.get(aid2) or [],
-                                     self.artifact_meta[aid2])
+                # the name lives in the artifact FILE too, and a
+                # registry-only batch never touches scenes — but the
+                # write-through is COMMIT's, not this op's. Done here it
+                # reached disk while the batch was still deciding it was
+                # legal, and a create renamed by its own batch (BUG-03)
+                # was then written before the op that rejected it: the
+                # rollback restores the pre-image, and a phantom is by
+                # definition not IN the pre-image, so it survived as an
+                # empty scene that no later `create` could displace.
+                # `artifact_renamed` below is what commit writes from.
                 applied.append({"action": "artifact_renamed",
                                 "artifact": aid2, "from": old_name,
                                 "to": new_name})

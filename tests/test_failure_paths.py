@@ -30,6 +30,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
@@ -132,7 +133,16 @@ class TestFailurePathAtomicity(unittest.TestCase):
                          "next commit")
 
     def test_rejected_rename_leaves_the_artifact_file_untouched(self) -> None:
-        """`rename_artifact` writes through to disk while validating."""
+        """The name a rejected batch asked for reaches neither meta nor file.
+
+        `rename_artifact` is the one registry op whose new name also
+        belongs in the artifact FILE, and it used to write it there as
+        it validated — so the rejection below arrived with the rename
+        already on disk, and the guard had to write the old name back.
+        The write-through now waits for `commit`'s persist block, which
+        a rejected batch never reaches; this holds either way, which is
+        the point of asserting the bytes rather than the mechanism.
+        """
         path = self.project.artifacts_dir / "checkout-flow.excalidraw"
         before = path.read_bytes()
         with self.assertRaises(canvas.BatchError):
@@ -185,18 +195,28 @@ class TestFailurePathAtomicity(unittest.TestCase):
     def test_a_crashing_registry_op_leaves_nothing_behind(self) -> None:
         """The promise is "no trace", so the guard cannot ask what raised.
 
-        `annotate_mapping` with a negative `index` walks past the bounds
-        check (`idx >= len(...)` is false for -1) and subscripts an
-        empty list, so the batch dies on a bare IndexError rather than a
-        BatchError — and a guard that only catches BatchError never
-        runs. The negative index itself is a separate, still-open
-        defect; this pins the guard, not the validation.
+        A guard that catches only `BatchError` never runs when an op
+        dies of something else, and the half-written registry escapes
+        with the exception. This once rode a real defect as its crash —
+        `annotate_mapping` with `index: -1`, which subscripted an empty
+        list — and that defect is now fixed, which is precisely why the
+        crash here is SYNTHETIC: the subject is the guard's breadth, and
+        pinning it to a live bug meant the pin died the day the bug did.
+        `_parse_kinds` is raised through because `add_mapping` calls it
+        mid-op, after the two ops before it have already written.
+
+        The ops before the crash are chosen to write in both places the
+        guard restores: `rename_artifact` mutates `artifact_meta` (and
+        is the one op whose new name also belongs in the artifact FILE),
+        `set_round` mutates the registry.
         """
         before = self.snapshot()
         before_meta = json.dumps(self.store.artifact_meta, sort_keys=True)
         path = self.project.artifacts_dir / "checkout-flow.excalidraw"
         before_file = path.read_bytes()
-        with self.assertRaises(IndexError):
+        boom = mock.Mock(side_effect=RuntimeError("boom"))
+        with mock.patch.object(self.store, "_parse_kinds", boom), \
+                self.assertRaises(RuntimeError):
             self.store.apply_batch(
                 {"base_revn": self.store.head_revn(),
                  "artifact": "checkout-flow",
@@ -204,8 +224,11 @@ class TestFailurePathAtomicity(unittest.TestCase):
                           "artifact": "checkout-flow", "name": "Renamed"},
                          {"op": "registry", "action": "set_round",
                           "round": 9},
-                         {"op": "registry", "action": "annotate_mapping",
-                          "index": -1, "note": "boom"}]})
+                         {"op": "registry", "action": "add_mapping",
+                          "concept": "checkout",
+                          "elements": ["checkout-flow#cart"]}]})
+        self.assertTrue(boom.called, "the batch never reached the crash — "
+                                     "this pins nothing")
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(json.dumps(self.store.artifact_meta, sort_keys=True),
                          before_meta)
