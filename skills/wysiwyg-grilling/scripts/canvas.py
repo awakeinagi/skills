@@ -6803,6 +6803,23 @@ class Store:
                                 {"fact": "mapping_dangling", "element": None,
                                  "concept": m.get("concept"), "ref": ref})
 
+            # everything below MUTATES the registry while the batch is
+            # still deciding whether it is legal — the pin lifecycle
+            # first, then `_apply_registry_ops`, which validates and
+            # writes in the same pass (`set_round`: errors.append() in
+            # one arm, reg["round"] = ... in the other). A batch rejected
+            # by a LATER op therefore kept the earlier ops' writes: a
+            # rejected batch left a concept on /api/state and the next
+            # commit persisted it (r5-8). Hold a pre-image and put it
+            # back on rejection. `_sandbox` proves the shape but always
+            # throws its copy away; here the accepted path must KEEP the
+            # writes, so the good path is left untouched — only the
+            # rejection restores, and only registry ops can reject.
+            pre_registry = copy.deepcopy(self.registry) if registry_ops \
+                else None
+            pre_meta = copy.deepcopy(self.artifact_meta) if registry_ops \
+                else None
+
             # pin lifecycle on deletion: a deleted pin element = "not worth
             # explaining", never re-raised; a pin whose TARGET was deleted
             # follows the prune rules (spec §5.2)
@@ -6864,7 +6881,7 @@ class Store:
             # plus a false NOTE for the overrun it was in the act of
             # justifying (brownfield BUG-03). Publish first; r3-10's
             # re-read below still picks up what the ops then did.
-            seeded = self._seed_created_meta(new_meta)
+            self._seed_created_meta(new_meta)
             reg_changes = []
             if registry_ops:
                 reg_errors = []
@@ -6874,10 +6891,20 @@ class Store:
                     if reg_errors:
                         raise BatchError(reg_errors)
                 except BatchError:
-                    # a rejected batch must not leave a phantom artifact
-                    # with no scene and no file
-                    for aid2 in seeded:
-                        self.artifact_meta.pop(aid2, None)
+                    # a rejected batch leaves NO trace: not the phantom
+                    # artifact a `create` seeded, not the pin lifecycle
+                    # above, and not the writes the ops before the
+                    # failing one already made. `rename_artifact` is the
+                    # one that also reaches DISK as it validates, so the
+                    # restored name has to be written back through.
+                    renamed = [ch.get("artifact") for ch in reg_changes
+                               if ch.get("action") == "artifact_renamed"]
+                    self.registry = pre_registry
+                    self.artifact_meta = pre_meta
+                    for aid2 in renamed:
+                        self._write_artifact(
+                            aid2, self.scenes.get(aid2) or [],
+                            self.artifact_meta.get(aid2) or {})
                     raise
                 # a registry op can change artifact META, and `meta` was
                 # snapshotted above — BEFORE these ran. A rename landing
