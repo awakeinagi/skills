@@ -19,6 +19,9 @@ or after.
 """
 from __future__ import annotations
 
+import argparse
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -236,6 +239,247 @@ class TestFailurePathAtomicity(unittest.TestCase):
         self.store.apply_batch(self.mapping_then_round(7))
         self.assertEqual(len(self.store.registry["mappings"]), 1)
         self.assertEqual(self.store.registry["round"], 7)
+
+
+class TestCrossArtifactPinResolution(unittest.TestCase):
+    """A pin is resolved where it LIVES, not where the batch is aimed.
+
+    The third failure path of the same shape: `resolve_pin` looked the
+    ❓ up in the batch artifact's index, so a pin living anywhere else
+    fell through the tolerant branch — the registry recorded the
+    resolution and the glyph stayed drawn forever. `status` then said
+    `OPEN_PINS=3` with four glyphs on the canvas, and SKILL.md instructs
+    exactly the shape that triggers it ("the batch that executes an
+    answer also carries its mirrored pin's `resolve_pin`" plus "one
+    batch = one artifact"). The state to diff here is the canvas against
+    the registry: they must agree about how many questions are open
+    (r5-17).
+    """
+
+    def setUp(self) -> None:
+        """Two artifacts, and one open pin whose ❓ sits on the first."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-pin-"))
+        self.project = canvas.Project(self.tmp)
+        self.project.ensure_tree()
+        self.store = canvas.Store(self.project)
+        self.store.apply_batch(seed_batch())
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "payments",
+             "create": {"id": "payments", "name": "Payments", "type": "flow"},
+             "ops": [{"op": "add", "element": {
+                 "type": "rectangle", "id": "card", "label": "Card", "x": 40,
+                 "y": 40, "width": 140, "height": 60, "role": "node"}}]})
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "target": "cart", "id": "pin-a",
+                      "question": "one cart, or one per seller?"}]})
+
+    def tearDown(self) -> None:
+        """Drop the temp project and the process-level side files."""
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def glyphs(self) -> set[str]:
+        """Every ❓ standing on any canvas.
+
+        Returns:
+            The ids of the pin elements across all scenes.
+        """
+        return {e["id"] for els in self.store.scenes.values() for e in els
+                if (e.get("customData") or {}).get("role") == "pin"}
+
+    def open_pins(self) -> set[str]:
+        """Every question the registry still counts as unanswered.
+
+        Returns:
+            The ids of the registry pins in an open or answered state —
+            what `OPEN_PINS` reports.
+        """
+        return {p["id"] for p in self.store.registry["pins"]
+                if p.get("status") in ("open", "answered")}
+
+    def drawing(self) -> str:
+        """Both scenes minus their pins, as a comparable string.
+
+        Returns:
+            Sorted JSON of every non-pin element in every artifact, so a
+            case can assert that resolving a pin edited nothing else.
+        """
+        return json.dumps(
+            {aid: [e for e in els
+                   if (e.get("customData") or {}).get("role") != "pin"]
+             for aid, els in self.store.scenes.items()}, sort_keys=True)
+
+    def resolve_from_payments(self) -> tuple[dict[str, Any], bool]:
+        """Resolve `pin-a` from a batch scoped to the OTHER artifact.
+
+        Returns:
+            What `apply_batch` returns — `(record, pin_only)`.
+        """
+        return self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "payments",
+             "ops": [{"op": "resolve_pin", "id": "pin-a"}]})
+
+    def test_a_foreign_batch_removes_the_glyph_where_it_lives(self) -> None:
+        """The measured failure: registry resolved, ❓ still drawn."""
+        self.assertEqual(self.glyphs(), {"pin-a"})
+        self.resolve_from_payments()
+        self.assertEqual(self.glyphs(), set(),
+                         "the ❓ survived a resolve aimed at another "
+                         "artifact")
+        self.assertEqual(self.glyphs(), self.open_pins(),
+                         "the canvas and the registry disagree about how "
+                         "many questions are open")
+
+    def test_the_glyph_leaves_the_artifact_file_too(self) -> None:
+        """In memory is not enough — the drawing on disk is the drawing."""
+        self.resolve_from_payments()
+        path = self.project.artifacts_dir / "checkout-flow.excalidraw"
+        on_disk = json.loads(path.read_text("utf-8"))
+        self.assertEqual([e["id"] for e in on_disk["elements"]
+                          if (e.get("customData") or {}).get("role") == "pin"],
+                         [], "the resolved ❓ is still in the artifact file")
+
+    def test_a_foreign_resolve_edits_nothing_else(self) -> None:
+        """Reaching into another artifact must touch only that one glyph."""
+        before = self.drawing()
+        self.resolve_from_payments()
+        self.assertEqual(self.drawing(), before,
+                         "resolving a pin moved or rewrote real elements")
+
+    def test_the_registry_records_it_as_resolved_not_dismissed(self) -> None:
+        """Deleting the glyph IS the resolution, from either artifact.
+
+        `commit`'s pin lifecycle reads a deleted pin element as the
+        user's "not worth explaining" dismissal unless the batch also
+        resolved it, and the cross-artifact deletion has to arrive
+        inside that same window to be told apart.
+        """
+        self.resolve_from_payments()
+        self.assertEqual([p["status"] for p in self.store.registry["pins"]],
+                         ["resolved"])
+
+    def test_an_already_deleted_glyph_resolves_quietly(self) -> None:
+        """The silent half: the user deleted the ❓ first.
+
+        The tolerant branch is kept for exactly this — a pin whose glyph
+        is genuinely gone must still be resolvable, with no error and no
+        invented element edit. What changes is that it now SAYS so
+        instead of resolving in silence.
+        """
+        self.store.commit(
+            author="user",
+            new_scenes={"checkout-flow":
+                        [e for e in self.store.scenes["checkout-flow"]
+                         if e["id"] != "pin-a"]})
+        self.assertEqual(self.glyphs(), set())
+        before = self.drawing()
+        record, _ = self.resolve_from_payments()
+        self.assertEqual(self.open_pins(), set())
+        self.assertEqual(self.drawing(), before)
+        self.assertEqual(
+            canvas.pin_glyph_notes(record,
+                                   [{"op": "resolve_pin", "id": "pin-a"}]),
+            ["pin pin-a resolved; its ❓ was already gone"])
+
+    def test_a_resolve_that_did_delete_the_glyph_says_nothing(self) -> None:
+        """Control: the note belongs to the absent glyph, not to every one."""
+        record, _ = self.resolve_from_payments()
+        self.assertEqual(
+            canvas.pin_glyph_notes(record,
+                                   [{"op": "resolve_pin", "id": "pin-a"}]), [])
+
+    def test_two_pins_on_one_foreign_artifact_both_go(self) -> None:
+        """The second resolve has to build on the first one's scene.
+
+        Both glyphs live on the same foreign artifact, so a loop that
+        re-reads the stored scene each time would put the first ❓ back
+        and only the last resolve would stick.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "target": "checkout", "id": "pin-b",
+                      "question": "guest checkout?"}]})
+        self.assertEqual(self.glyphs(), {"pin-a", "pin-b"})
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "payments",
+             "ops": [{"op": "resolve_pin", "id": "pin-a"},
+                     {"op": "resolve_pin", "id": "pin-b"}]})
+        self.assertEqual(self.glyphs(), set())
+        self.assertEqual(self.open_pins(), set())
+
+    def test_a_pin_record_that_lost_its_artifact_still_resolves(self) -> None:
+        """Nothing validates that key, so it cannot be the only witness.
+
+        `validate_registry` fills in the registry's top-level lists and
+        stops there — a pin record is never checked field by field. A
+        home read from the record alone would strand the ❓ of any pin
+        whose entry was hand-edited or written by an older version,
+        which is the very failure this is here to prevent. The glyph is
+        on a canvas; that is where to look for it.
+        """
+        del self.store.registry["pins"][0]["artifact"]
+        self.resolve_from_payments()
+        self.assertEqual(self.glyphs(), set())
+        self.assertEqual(self.open_pins(), set())
+
+    def test_a_same_id_element_elsewhere_is_not_collateral(self) -> None:
+        """Ids are minted per scene, so the same id can mean two things.
+
+        Reaching across artifacts by id has to reach for a PIN. A third
+        artifact holding an ordinary node that happens to share the id
+        must come through the resolve untouched.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "shipping",
+             "create": {"id": "shipping", "name": "Shipping", "type": "flow"},
+             "ops": [{"op": "add", "element": {
+                 "type": "rectangle", "id": "pin-a", "label": "Courier",
+                 "x": 40, "y": 40, "width": 140, "height": 60,
+                 "role": "node"}}]})
+        self.resolve_from_payments()
+        self.assertEqual([e["id"] for e in self.store.scenes["shipping"]
+                          if e.get("type") == "rectangle"], ["pin-a"],
+                         "the resolve deleted a node that merely shares "
+                         "the pin's id")
+        self.assertEqual(self.glyphs(), set())
+
+    def test_the_note_reaches_the_agent_s_screen(self) -> None:
+        """A note nobody prints is the silence this fix is about.
+
+        `_print_layout` is the one surface both the server response and
+        the offline path print through, so this drives the whole
+        degraded-path command rather than the helper: a `notes` key a
+        call site forgot to pass would still fail here.
+        """
+        self.store.commit(
+            author="user",
+            new_scenes={"checkout-flow":
+                        [e for e in self.store.scenes["checkout-flow"]
+                         if e["id"] != "pin-a"]})
+        path = self.tmp / "resolve.json"
+        path.write_text(json.dumps(
+            {"base_revn": self.store.head_revn(), "artifact": "payments",
+             "ops": [{"op": "resolve_pin", "id": "pin-a"}]}), "utf-8")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas.cmd_apply(argparse.Namespace(
+                project=self.tmp, file=str(path), check=False, render=False))
+        self.assertIn("NOTE=pin pin-a resolved; its ❓ was already gone",
+                      buf.getvalue().splitlines())
+
+    def test_a_same_artifact_resolve_still_works(self) -> None:
+        """Control: the common path must not pay for the foreign one."""
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "resolve_pin", "id": "pin-a"}]})
+        self.assertEqual(self.glyphs(), set())
+        self.assertEqual(self.open_pins(), set())
+        self.assertEqual([p["status"] for p in self.store.registry["pins"]],
+                         ["resolved"])
 
 
 class TestPendingQueueDurability(unittest.TestCase):

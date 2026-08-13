@@ -2879,6 +2879,11 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             # Resolution DELETES the ❓ element (live_test_2 B3: settled
             # things leave the canvas; the glyph is tombstoned in the
             # save record like any deletion).
+            # `index` is the BATCH artifact's, and only ever that one, so
+            # a pin living on another artifact is not missing — it is
+            # merely out of reach from here. `apply_batch` resolves those
+            # against the pin's own scene before it commits (r5-17); what
+            # reaches this branch afterwards is a genuinely absent glyph.
             el = index.get(op.get("id"))
             if el is not None:
                 els = [e for e in els if e["id"] != el["id"]]
@@ -4213,6 +4218,37 @@ def consequence_lines(record):
                     "mapping for concept %r now references the deleted "
                     "%s" % (f.get("concept"), f.get("ref")))
     return out
+
+
+def pin_glyph_notes(record, ops):
+    """Name the resolves that found no ❓ to take down.
+
+    `resolve_pin` is deliberately tolerant of a missing element — a pin
+    whose glyph the user already deleted must still be resolvable rather
+    than strand its registry entry. That tolerance was silent, which is
+    how r5-17 hid: a resolve aimed at the wrong artifact took the same
+    branch and looked identical to a clean one. Now the branch that did
+    nothing to the drawing says so, and the branch that reached into
+    another artifact reports its deletion like any other.
+
+    Derived rather than stored: a resolve that removed a glyph leaves a
+    `del` change in the record, from whichever artifact the pin lived
+    on, so the absence of one is the whole signal.
+
+    Args:
+        record: A save record from `apply_batch`/`commit`.
+        ops: The batch's op list — the resolves to account for.
+
+    Returns:
+        One string per `resolve_pin` whose ❓ was already gone, empty
+        when every resolve took a glyph down with it.
+    """
+    gone = {c["element"]["id"]
+            for part in (record.get("artifacts") or {}).values()
+            for c in part.get("changes") or [] if c.get("op") == "del"}
+    return ["pin %s resolved; its ❓ was already gone" % o.get("id")
+            for o in ops or []
+            if o.get("op") == "resolve_pin" and o.get("id") not in gone]
 
 
 def mechanical_summary(facts, sentinel_suppressed):
@@ -7958,9 +7994,39 @@ class Store:
                 and not server_owns_geometry(was[o["id"]])]
             resolved_now = {o.get("id") for o in ops
                             if o.get("op") == "resolve_pin"}
+            # a pin is resolved where it LIVES. `apply_ops` is handed one
+            # scene — the batch artifact's — so a resolve aimed at any
+            # other artifact took its tolerant branch: the registry
+            # recorded the resolution and the ❓ stayed drawn forever
+            # (`OPEN_PINS=3` with four glyphs on the canvas). SKILL.md
+            # instructs exactly that shape — "the batch that executes an
+            # answer also carries its mirrored pin's resolve_pin" plus
+            # "one batch = one artifact" — and the silence made one
+            # agent apologise for the tool's bug as its own carelessness
+            # (r5-17). So the pin's own scene rides into the SAME commit:
+            # the glyph is tombstoned like any other deletion, and the
+            # pin lifecycle inside `commit` still reads that deletion as
+            # a resolution rather than as the user's dismissal. The home
+            # is found by looking for the glyph, not by reading the pin
+            # record's `artifact` — nothing validates that key, and a
+            # record that lost it would strand its ❓ in exactly the way
+            # this fixes. Only a pin element is ever taken: ids are
+            # minted per scene, so the same id on another artifact need
+            # not be the same thing.
+            scenes = {aid: new_els}
+            here = {e["id"] for e in new_els}
+            for o in ops:
+                pid = o.get("id")
+                if o.get("op") != "resolve_pin" or pid in here:
+                    continue
+                for aid2 in self.scenes:
+                    els2 = scenes.get(aid2, self.scenes[aid2])
+                    if any(e["id"] == pid and role_of(e) == "pin"
+                           for e in els2):
+                        scenes[aid2] = [e for e in els2 if e["id"] != pid]
             record = self.commit(
                 author="agent",
-                new_scenes={aid: new_els},
+                new_scenes=scenes,
                 base_revn=base_revn,
                 user_note=batch.get("note"),
                 registry_ops=registry_ops,
@@ -9141,6 +9207,9 @@ class ServerApp:
                     # noise, so without this line the only surface that
                     # named them was the save file on disk
                     "consequences": consequence_lines(record),
+                    # a resolve that found no ❓ to take down says so —
+                    # the silence is what let r5-17 pass for a clean one
+                    "notes": pin_glyph_notes(record, body.get("ops") or []),
                     "intent_echo": intent_echo(body.get("ops") or [], scene),
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
@@ -10055,6 +10124,10 @@ def _print_layout(resp):
         # deletion fallout (v0.8): what this revision orphaned, spelled
         # out where the agent reads — narrate these in the same round
         print("CONSEQUENCE=%s" % line)
+    for line in resp.get("notes") or []:
+        # a tolerant branch that quietly did nothing (r5-17): the batch
+        # landed, and this is what it did NOT have to do
+        print("NOTE=%s" % line)
     for e in resp.get("layout_errors") or []:
         print("LAYOUT_ERROR=%s" % e)
     for w in resp.get("layout_warnings") or []:
@@ -10160,6 +10233,7 @@ def cmd_apply(args):
         {"errors": [], "warnings": [], "notes": []}
     _print_layout({"intent_echo": intent_echo(batch.get("ops") or [], scene),
                    "consequences": consequence_lines(record),
+                   "notes": pin_glyph_notes(record, batch.get("ops") or []),
                    "layout_errors": lint["errors"],
                    "layout_warnings": lint["warnings"],
                    "layout_notes": lint["notes"]})
