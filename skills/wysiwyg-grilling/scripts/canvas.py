@@ -1201,6 +1201,15 @@ def fit_label_in(container, lbl):
     # rest, so box containers keep the exact behavior they had. The walk
     # settles in at most one pass per line, because a pass that adds no
     # line hands back the budget it was given.
+    #
+    # `box` — the `width - 24` this replaces — is always one of the
+    # candidates, and the descent is not allowed to step over it. That
+    # is what makes "never worse than the rule it replaces" true by
+    # construction rather than by measurement: on a narrow rhombus the
+    # first shape-aware step lands on the 60px floor and skips straight
+    # past a budget that was better than either end (a 90x100 diamond
+    # went from a 30px overhang to 42px this way).
+    box = max(60, container.get("width", 160) - 24)
     inner, best, keep = tw, None, True
     while True:
         cand_w = min(tw, inner)
@@ -1216,6 +1225,8 @@ def fit_label_in(container, lbl):
         if best is None or over < best[0]:
             best, keep = (over, cand_w, cand_h), inner == tw
         nxt = label_budget(probe, cand_h)
+        if nxt < box < inner:
+            nxt = box
         if nxt >= inner:
             break
         inner = nxt
@@ -4877,7 +4888,10 @@ def shape_band_width(el, y0, y1):
 
     Returns:
         The narrowest body width across the band, in px, never below 0
-        (a band wholly outside the shape has no room, not negative room).
+        (a band wholly outside the shape has no room, not negative room),
+        and snapped to an exact integer where it is within float dust of
+        one.
+
     """
     cx = el.get("x", 0) + el.get("width", 0) / 2.0
     room = None
@@ -4885,7 +4899,20 @@ def shape_band_width(el, y0, y1):
         seg = shape_clip(el, cx, y, 1.0, 0.0)
         wide = 0.0 if seg is None else max(seg[1] - seg[0], 0.0)
         room = wide if room is None else min(room, wide)
-    return 0.0 if room is None else room
+    room = 0.0 if room is None else room
+    # An integer-width box must give back an integer room. The clip
+    # divides by a half-width and multiplies it back, so 72 of the 781
+    # integer widths in 20..800 return inexact — and 210 returns
+    # 209.99999999999997, which `fit_label_in` then stores as a label
+    # width of 185.99999999999997 where it stored 186, reaching saved
+    # JSON and minting a phantom diff out of nothing (v0.9 WP4 review,
+    # F2). Only DUST is snapped: the ellipse's 195.959 chord is nowhere
+    # near an integer and passes through untouched.
+    # The snap returns the INT, not 186.0: `content_fingerprint` would
+    # canonicalize those together, but the width also lands in saved
+    # JSON, where `186.0` and `186` are different bytes.
+    nearest = round(room)
+    return nearest if abs(room - nearest) < 1e-9 else room
 
 
 def label_room(container, height):
@@ -6507,22 +6534,34 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         fs = t.get("fontSize") or 16
         txt = t.get("text") or ""
         box_w = float(t.get("width") or 0)
-        # Measure what is DRAWN, by `render_svg`'s own two rules, or the
-        # number is wrong in both directions. First: a label the fitter
-        # sized carries `autoResize: False` and UNWRAPPED text, because
-        # the client wraps it to the box we allotted — so measuring that
-        # text raw reads a two-line label as one long line. Second: the
-        # larger of the stored and the estimated extents, because a
-        # stored extent is an estimate the client re-derives.
+        box_h = float(t.get("height") or 0)
+        # Measure the INK, which is not the same thing as the box, and
+        # the difference is which branch you are on. A label the fitter
+        # sized carries `autoResize: False` and UNWRAPPED text: its
+        # stored box is the FRAME chosen to wrap inside, not a
+        # measurement of anything, and the client centres the wrapped
+        # lines in it. Reading that frame as the drawn width says a
+        # 136px box overhangs by 11px while the 85px of text inside it
+        # sits 20px clear of the outline on both sides — a warning
+        # pointing at empty canvas that has no text on it (v0.9 WP4
+        # review, F1; argus-r4-arm4 `to-compose-label` was the case).
+        #
+        # On the other branch the stored extents ARE a measurement — the
+        # client sizes the box to the text — so `render_svg`'s rule
+        # applies there and only there: take the larger of stored and
+        # estimated, because a stored extent is an estimate the client
+        # re-derives and real glyph advance overhangs it.
         if t.get("autoResize") is False and box_w > 0:
-            tw, th = text_dims(
+            drawn_w, drawn_h = text_dims(
                 wrap_label_text(txt.replace("\n", " "), box_w, fs), fs)
         else:
             tw, th = text_dims(txt, fs)
-        drawn_w = max(tw, box_w)
-        drawn_h = max(th, float(t.get("height") or 0))
-        room = shape_band_width(owner, t.get("y", 0),
-                                t.get("y", 0) + drawn_h)
+            drawn_w, drawn_h = max(tw, box_w), max(th, box_h)
+        # the ink is centred in whatever box holds it, so the band it
+        # occupies is its own height about that box's middle
+        cy = t.get("y", 0) + max(box_h, drawn_h) / 2.0
+        room = shape_band_width(owner, cy - drawn_h / 2.0,
+                                cy + drawn_h / 2.0)
         over = drawn_w - room
         # `>= 1` and not `> 0`: the interval `shape_clip` returns is
         # closed, so a label whose edge lands exactly on the outline is

@@ -2291,6 +2291,22 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
+    def test_no_label_is_accused_of_hanging_over_its_shape(self):
+        """v0.9 WP4's shape check must stay quiet on recorded work.
+
+        `to-compose-label` on `enrichment-flow` is the scene that caught
+        the first cut measuring a fitted label's wrapping FRAME instead
+        of its ink (review F1): a 136px frame holding 85px of centred
+        text, 20px clear of the ellipse on both sides, reported as
+        hanging 11px over empty canvas. This artifact is a real session
+        someone drew and reviewed, so a shape warning here is a false
+        positive until proven otherwise — the standing count is zero.
+        """
+        for aid, r in self.lint_all().items():
+            self.assertEqual(
+                [w for w in r["warnings"] if "overhangs" in w], [],
+                "shape-overhang warning on %s" % aid)
+
 
 class TestArgusR5Fixture(FixtureReplayBase):
     """Assessment run 5: 23 saves, 6 artifacts, 22 concepts, one ADR.
@@ -8314,28 +8330,151 @@ class TestShapeAwareLabelRoom(Base):
         self.assertEqual(cont["height"], lbl["height"] + 16)
         self.assertAlmostEqual(canvas.label_budget(cont, lbl["height"]), 136)
 
-    def test_the_check_is_silent_on_a_rectangle_by_construction(self):
-        """`marker_inset` gates it, so the box case stays `text_overflow`'s.
+    def test_the_walk_never_steps_over_the_box_rule(self):
+        """The budget `width - 24` would have chosen is always a candidate.
 
-        Reporting both would double-count the same pixels under two
-        names — and the rectangle arm of `text_overflow` is already
-        pinned green by `composed_row`/`wrapped_label`.
+        On a narrow rhombus the first shape-aware step lands on the 60px
+        floor, skipping a budget between the two ends that beats both:
+        a 90x100 diamond wrapping this label to the box rule's 66px
+        overhangs by 30px, and to the floor's 60px by 42px, because the
+        narrower wrap costs a fourth line and a rhombus charges for
+        height. Keeping `box` in the candidate set is what makes "never
+        worse than the rule it replaces" true by construction.
         """
         text = "Send for second review"
-        els = [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
-                "width": 200, "height": 100, "customData": {"role": "node"},
-                "boundElements": [{"id": "t1", "type": "text"}]},
-               {"id": "t1", "type": "text", "x": 14, "y": 40, "width": 171,
-                "height": 20, "text": text, "originalText": text,
-                "fontSize": 16, "containerId": "n1"}]
+        cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
+                "width": 90, "height": 100}
+        lbl = {"id": "t1", "type": "text", "text": text,
+               "originalText": text, "fontSize": 16,
+               "width": canvas.text_dims(text, 16)[0], "height": 20,
+               "containerId": "n1"}
+        canvas.fit_label_in(cont, lbl)
+        self.assertEqual((lbl["width"], lbl["height"]), (66, 60))  # 90 - 24
+        self.assertAlmostEqual(
+            lbl["width"] - canvas.label_room(cont, lbl["height"]), 30.0)
+
+    def test_an_integer_wide_box_gives_an_integer_room(self):
+        """Float dust off the clip must not reach a stored label width.
+
+        The clip divides by a half-width and multiplies it back, so 72
+        of the 781 integer widths in 20..800 came back inexact — 210
+        gave 209.99999999999997, which `fit_label_in` stored as a label
+        width of 185.99999999999997 where it had stored 186. That is a
+        float in saved JSON and a diff out of nothing (v0.9 WP4 review,
+        F2). Only dust is snapped; a genuinely fractional chord is not.
+        """
+        inexact = [w for w in range(20, 801)
+                   if canvas.label_room({"type": "rectangle", "x": 0, "y": 0,
+                                         "width": w, "height": 60}, 20) != w]
+        self.assertEqual(inexact, [])
+        text = "Escalate to the regional compliance desk for manual review"
+        cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 210, "height": 60}
+        lbl = {"id": "t1", "type": "text", "text": text,
+               "originalText": text, "fontSize": 16,
+               "width": canvas.text_dims(text, 16)[0], "height": 20,
+               "containerId": "n1"}
+        canvas.fit_label_in(cont, lbl)
+        self.assertEqual(lbl["width"], 186)          # 210 - 24, exactly
+        self.assertNotIsInstance(lbl["width"], float,
+                                 "186.0 and 186 are different bytes in "
+                                 "saved JSON even though they fingerprint "
+                                 "the same")
+        # the ellipse's real chord is fractional and must stay that way
+        self.assertAlmostEqual(
+            canvas.shape_band_width({"type": "ellipse", "x": 0, "y": 0,
+                                     "width": 200, "height": 100}, 40, 60),
+            195.959, places=3)
+
+    def _overhangs(self, els):
+        """The scene's `label_overflows_shape` warnings.
+
+        Args:
+            els: The scene's element list.
+
+        Returns:
+            The matching warning lines.
+        """
         lint = canvas.lint_layout(els, artifact_type="flow")
-        self.assertEqual([w for w in lint["warnings"] if "overhangs" in w],
-                         [])
-        # the same label on the diamond it was sized for DOES report
+        return [w for w in lint["warnings"] if "overhangs" in w]
+
+    def _bound(self, shape, cw, ch, text, **lbl):
+        """One node of `shape` carrying a bound label, centred.
+
+        Args:
+            shape: The container's element type.
+            cw: Container width.
+            ch: Container height.
+            text: The label's text.
+            **lbl: Overrides merged into the label element.
+
+        Returns:
+            The two-element scene, node then label.
+        """
+        w, h = canvas.text_dims(text, 16)
+        w, h = lbl.pop("width", w), lbl.pop("height", h)
+        label = {"id": "t1", "type": "text", "x": (cw - w) / 2,
+                 "y": (ch - h) / 2, "width": w, "height": h, "text": text,
+                 "originalText": text, "fontSize": 16, "textAlign": "center",
+                 "verticalAlign": "middle", "containerId": "n1"}
+        label.update(lbl)
+        return [{"id": "n1", "type": shape, "x": 0, "y": 0, "width": cw,
+                 "height": ch, "customData": {"role": "node"},
+                 "boundElements": [{"id": "t1", "type": "text"}]}, label]
+
+    def test_the_check_reads_ink_not_the_wrapping_frame(self):
+        """A fitted label's stored box is a frame, and frames are not ink.
+
+        `autoResize: False` means the fitter chose that width for the
+        CLIENT to wrap inside and left the text unwrapped; the client
+        then centres the wrapped lines in it. Measuring the frame as the
+        drawn width condemned argus-r4-arm4's `to-compose-label` — a
+        136px frame holding 85px of text that sits 20px clear of the
+        ellipse on both sides — for hanging 11px over empty canvas that
+        has no text on it (v0.9 WP4 review, F1).
+        """
+        # the frame is wider than the ellipse's chord; the ink is not
+        els = self._bound("ellipse", 160, 64, "→ Review & publish",
+                          width=136, height=40, autoResize=False)
+        self.assertEqual(canvas.text_dims(
+            canvas.wrap_label_text("→ Review & publish", 136, 16), 16)[0], 85)
+        self.assertEqual(self._overhangs(els), [])
+        # and the check still bites on that branch when the INK is wide:
+        # same frame, same shape, text that does not wrap small
+        els = self._bound("ellipse", 160, 64, "Unsplittable" * 2,
+                          width=136, height=20, autoResize=False)
+        self.assertEqual(len(self._overhangs(els)), 1)
+
+    def test_the_marker_inset_gate_is_what_silences_a_rectangle(self):
+        """Pin the GATE, not the geometry that would silence it anyway.
+
+        A label narrower than its box is silent whether or not the gate
+        exists, so the obvious control proves nothing. This label is one
+        unsplittable word WIDER than its rectangle, which is the case
+        where both checks have something to say: `text_overflow` fires
+        (no wrap can rescue a single word), and the geometry the shape
+        check runs on would fire too. Only `marker_inset` returning 0
+        for a box keeps the second one quiet. Delete the gate and this
+        goes red — as it should, because that is the same pixels
+        reported twice under two names.
+        """
+        text = "Unsplittable" * 3
+        els = self._bound("rectangle", 200, 100, text)
+        ink = canvas.text_dims(text, 16)[0]
+        self.assertGreater(ink, 200, "the label must overhang the BOX")
+        # what the check would compute if it ever reached this scene
+        self.assertEqual(canvas.marker_inset("rectangle"), 0.0)
+        self.assertGreaterEqual(
+            ink - canvas.shape_band_width(els[0], els[1]["y"],
+                                          els[1]["y"] + els[1]["height"]), 1,
+            "the gate must be the ONLY thing keeping this quiet")
+        self.assertEqual(self._overhangs(els), [])
+        # and `text_overflow`, which owns the box case, does report it
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        self.assertTrue([w for w in lint["warnings"] if "does not fit" in w])
+        # the same label on a diamond IS this check's business
         els[0]["type"] = "diamond"
-        lint = canvas.lint_layout(els, artifact_type="flow")
-        self.assertEqual(
-            len([w for w in lint["warnings"] if "overhangs" in w]), 1)
+        self.assertEqual(len(self._overhangs(els)), 1)
 
 
 class TestDeletionConsequenceSurface(Base):
