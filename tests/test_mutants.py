@@ -2337,21 +2337,26 @@ class TestStoreIntegrity(unittest.TestCase):
                          "reconciliation record as repair work")
 
     def test_the_fileref_artifact_loads_and_keeps_its_orphan(self) -> None:
-        """The two file-reference reds' setup, asserted where nothing masks it.
+        """The two file-reference tests' setup, asserted where nothing masks it.
 
-        `artifact_files` and `referential` are read ONLY inside those two
-        reds, and both are `expectedFailure`. Rename either attribute —
-        exactly what a WP1 fix to this area would be touching — and both
-        reds become swallowed `AttributeError`s printing a healthy `x`
-        (doctrine §6). This is their standing guard: ungated, naming both
-        attributes, and asserting the load those reds measure deviations
-        from.
+        `artifact_files` and `referential` are read almost nowhere else,
+        and the two tests that read them were `expectedFailure` when this
+        guard was written — WP1 flipped both green in Task 4, and the
+        guard outlived the flip on purpose. Rename either attribute and
+        those two would raise `AttributeError` rather than fail, which
+        reads as a broken test rather than a broken loader; while they
+        were red the mask would have swallowed it outright (doctrine §6).
+        This is their standing guard either way: ungated, naming both
+        attributes, and asserting the load they measure deviations from.
 
         `referential` is asserted to be a dict rather than to be EMPTY,
-        deliberately. Its emptiness is the very silence the reds pin, so
-        pinning it here as well would make WP1's fix break this test in
-        the same change that flips them — a guard that fights the fix it
-        is waiting for.
+        deliberately. Its emptiness was the very silence those two
+        pinned, so fixing it here as well would have made WP1's fix break
+        this test in the same change that flipped them — a guard that
+        fights the fix it is waiting for. It is left that way now that
+        the fix has landed, because the claim it makes is about the
+        attribute existing and being the right shape, not about what a
+        healthy project happens to put in it.
         """
         st = self._load({"a": _FILEREF_ARTIFACT}, {"0001-x": _GOOD_SAVE})
         self.assertEqual(sorted(st.scenes), ["a"])
@@ -2836,6 +2841,105 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a", "b"])
         self.assertIn("f1", json.dumps(st.referential, default=str))
 
+    @unittest.expectedFailure
+    def test_red_four_reference_fields_are_still_unhashable_crash_sites(
+            self) -> None:
+        """The guard covers two fields; its own function indexes six.
+
+        `indexable` was added with the flipped red above and checks `id`
+        and `fileId` — the two fields that become SET MEMBERS. But
+        `validate_scene` goes on to test four more values FOR MEMBERSHIP
+        in that same `seen` set, and `x in some_set` hashes `x` just as
+        hard: `containerId` (canvas.py:484), `startBinding` and
+        `endBinding`'s `elementId` (:490), and each `boundElements` entry's
+        `id` (:496).
+
+        Probed on the shipped code, one element per field, `{"x": 1}` in
+        each: all four raise `TypeError: unhashable type: 'dict'` and
+        BRICK `Store()` outright. That is a worse outcome than the defect
+        the guard was written for, where the malformed artifact is
+        quarantined as ART-000 and its healthy sibling still loads — the
+        same value in a guarded field loses one file, and in an unguarded
+        one loses the project.
+
+        This entry exists because two pieces of shipped prose read as if
+        the family were closed: the comment above the guard says "A
+        document we cannot index is a document we cannot read", and the
+        flipped red's own docstring describes the crash in the past
+        tense. Neither is wrong about what it fixed; both invite the next
+        reader to stop looking. A sweep is the honest shape here — one
+        red per site would be four near-identical entries, and the
+        subTest form matches how this class already pins `id` and
+        `fileId` together.
+
+        MAGNITUDE and DIRECTION are the outcome the guarded fields
+        already have, asserted the same way: the project OPENS, and the
+        artifact that could not be read is named. Widening `indexable` to
+        every field `validate_scene` hashes flips all four at once, which
+        is why they share one entry.
+        """
+        fields: dict[str, dict[str, Any]] = {
+            "containerId": {"id": "t1", "type": "text",
+                            "containerId": {"x": 1}},
+            "startBinding": {"id": "a1", "type": "arrow",
+                             "startBinding": {"elementId": {"x": 1}}},
+            "endBinding": {"id": "a1", "type": "arrow",
+                           "endBinding": {"elementId": {"x": 1}}},
+            "boundElements": {"id": "n2", "type": "rectangle",
+                              "boundElements": [{"id": {"x": 1},
+                                                 "type": "text"}]},
+        }
+        for field, spec in fields.items():
+            with self.subTest(field=field):
+                body = json.dumps({"type": "excalidraw", "version": 2,
+                                   "elements": [dict(spec, x=0, y=0,
+                                                     width=10, height=10)]})
+                try:
+                    st = self._load({"a": _GOOD_ARTIFACT, "b": body},
+                                    {"0001-x": _GOOD_SAVE})
+                except Exception as exc:
+                    self.fail(
+                        "an unhashable %s in ONE element killed the load "
+                        "(%s: %s) — the same value in `id` or `fileId` "
+                        "only costs that one artifact"
+                        % (field, type(exc).__name__, exc))
+                self.assertEqual(sorted(st.scenes), ["a"])
+                self.assertIn("b", " ".join(str(i) for i in st.issues))
+
+    def test_the_four_reference_fields_are_read_when_well_formed(
+            self) -> None:
+        """The sweep's live pole: those same four fields resolve normally.
+
+        The reference repairs are the code the red crashes inside, so
+        this pins that all four paths are REACHED and working on ordinary
+        input — a `validate_scene` that had stopped reading them would
+        make the red's "the project opens" trivially true while the
+        loader silently stopped repairing anything.
+
+        Dangling values are used rather than resolvable ones because
+        that is the branch the membership test selects: each field points
+        at an id the scene does not hold, so every repair fires and the
+        artifact still loads. Asserted by the codes, since those name
+        which of the four arms spoke.
+        """
+        body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
+            {"id": "t1", "type": "text", "x": 0, "y": 0, "width": 10,
+             "height": 10, "containerId": "gone"},
+            {"id": "a1", "type": "arrow", "x": 0, "y": 0, "width": 10,
+             "height": 10, "startBinding": {"elementId": "gone"},
+             "endBinding": {"elementId": "gone"}},
+            {"id": "n2", "type": "rectangle", "x": 0, "y": 0, "width": 10,
+             "height": 10, "boundElements": [{"id": "gone",
+                                              "type": "text"}]}]})
+        st = self._load({"a": _GOOD_ARTIFACT, "b": body},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a", "b"])
+        codes = {i["code"] for i in st.issues}
+        self.assertIn("ART-004", codes, st.issues)
+        self.assertIn("ART-005", codes, st.issues)
+        n2 = next(e for e in st.scenes["b"] if e["id"] == "n2")
+        self.assertEqual(n2["boundElements"], [])
+
     def test_red_a_negative_replay_index_lands_in_the_interior(self) -> None:
         """A corrupt record's index resolves the way every other one does.
 
@@ -2914,6 +3018,24 @@ class TestStoreIntegrity(unittest.TestCase):
         that matters and it survives any change to how the seed batch
         happens to lay elements out.
         """
+        store, _ = self._replay_project()
+        rebuilt = store.state_at(store.head_revn())["flow"]["elements"]
+        self.assertEqual([e["id"] for e in rebuilt],
+                         [e["id"] for e in store.scenes["flow"]])
+
+    def _replay_project(self) -> tuple[canvas.Store, Path]:
+        """Build a three-node project whose save record is worth corrupting.
+
+        Three nodes because a replay index only means something against a
+        list long enough to have an interior; one batch because the reds
+        edit a single record's `changes` and a second revision would give
+        them two places to look. Shared by the green reconstruction pin
+        and by the corrupt-index reds, so those measure a deviation from
+        one known-good history rather than from two.
+
+        Returns:
+            `(the loaded store, the project root directory)`.
+        """
         tmp = Path(tempfile.mkdtemp(prefix="mutants-replay-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         project = canvas.Project(tmp)
@@ -2927,9 +3049,90 @@ class TestStoreIntegrity(unittest.TestCase):
                 "type": "rectangle", "id": nid, "x": 200 * i, "y": 0,
                 "width": 100, "height": 60, "role": "node"}}
                 for i, nid in enumerate(("a", "b", "c"))]})
-        rebuilt = store.state_at(store.head_revn())["flow"]["elements"]
-        self.assertEqual([e["id"] for e in rebuilt],
-                         [e["id"] for e in store.scenes["flow"]])
+        return store, tmp
+
+    def _corrupt_index(self, root: Path, value: Any) -> None:
+        """Rewrite one add change's `index` in the newest save record.
+
+        Args:
+            root: The project root from `_replay_project`.
+            value: What to write into the `index` field — the whole point
+                is that it need not be a position.
+        """
+        saves = sorted((root / "project_knowledge" / "saves").glob("*.json"))
+        doc = json.loads(saves[-1].read_text(encoding="utf-8"))
+        for ch in doc["artifacts"]["flow"]["changes"]:
+            if ch["op"] == "add" and ch["element"]["id"] == "c":
+                ch["index"] = value
+        saves[-1].write_text(json.dumps(doc), encoding="utf-8")
+
+    @unittest.expectedFailure
+    def test_red_a_non_integer_replay_index_kills_reconstruction(
+            self) -> None:
+        """A corrupt record's index does not crash — it takes history down.
+
+        The sibling of the negative-index red Task 36 just flipped, at
+        the fault that fix did not cover. `index_fault` now refuses
+        strings, `None`, containers and bools everywhere an AGENT can
+        send an index, and `replay_changes` reads its index off DISK
+        instead: `min(ch.get("index", len(els)), len(els))`
+        (canvas.py:3188) compares whatever is there against an int, so a
+        string gives `TypeError: '<' not supported between instances of
+        'int' and 'str'`.
+
+        Pre-existing, and confirmed as such rather than assumed — it
+        reproduces identically at `fce0b30`, before the shared predicate
+        existed, because `min("2", 3)` raised the same way. Nobody should
+        hunt this as a regression from that fix.
+
+        What makes it worse than the negative case it sits beside is
+        WHEN it is felt. Probed end to end: the project reloads with
+        `issues` EMPTY — nothing at load looks at a change's index — and
+        then `state_at` raises, so revert, checkout and rollback are all
+        unreachable for a project that opened cleanly and looks fine. One
+        hand-edited byte in one record costs the user their whole
+        history, silently, until they try to use it.
+
+        MAGNITUDE is where the element lands, and it is asserted against
+        the function's OWN documented default for "no position given" —
+        `ch.get("index", len(els))`, i.e. the end — rather than against a
+        literal, so the fix inherits a behaviour the code already
+        defines instead of inventing one. DIRECTION is that reconstruction
+        RESOLVES rather than dying, asserted last and end to end, because
+        that is the outcome the user feels; routing the field through
+        `index_fault` and falling back to the default satisfies both, and
+        quarantining the record at load would satisfy them too.
+        """
+        base = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+        default = [e["id"] for e in canvas.replay_changes(
+            base, [{"op": "add", "element": {"id": "NEW"}}])]
+        for value in ("2", None, [], {}, 1.5):
+            with self.subTest(index=value):
+                try:
+                    got = canvas.replay_changes(
+                        base, [{"op": "add", "index": value,
+                                "element": {"id": "NEW"}}])
+                except Exception as exc:
+                    self.fail(
+                        "replay_changes died on index=%r (%s: %s) — one "
+                        "corrupt save record takes down every path that "
+                        "reconstructs history"
+                        % (value, type(exc).__name__, exc))
+                self.assertEqual([e["id"] for e in got], default)
+        store, root = self._replay_project()
+        revn = store.head_revn()
+        self._corrupt_index(root, "2")
+        reloaded = canvas.Store(canvas.Project(root))
+        try:
+            rebuilt = reloaded.state_at(revn)["flow"]["elements"]
+        except Exception as exc:
+            self.fail(
+                "the project reloaded clean (issues=%r) and then state_at "
+                "died (%s: %s) — revert, checkout and rollback are all "
+                "gone for a project that opens fine"
+                % ([i["code"] for i in reloaded.issues],
+                   type(exc).__name__, exc))
+        self.assertEqual(len(rebuilt), 6)
 
 
 # ---------------------------------------------------------------------------
@@ -5409,11 +5612,11 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 37
-# expected failures. The twenty-one outside live in seven classes —
-# `TestStoreIntegrity` (6), `TestLoadFindingsReachTheAgent` (4),
-# `TestBatchPathIntegrity` (3), `TestPinIdentityIntegrity` (3),
-# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2) and
+# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 33
+# expected failures. The seventeen outside live in seven classes —
+# `TestLoadFindingsReachTheAgent` (4), `TestStoreIntegrity` (4),
+# `TestPinIdentityIntegrity` (3), `TestExportCompleteness` (2),
+# `TestShapeBlindAnnotationOverlap` (2), `TestBatchPathIntegrity` (1) and
 # `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
