@@ -9,7 +9,9 @@ metric in the score vector.
 """
 from __future__ import annotations
 
+import json
 import unittest
+from pathlib import Path
 
 import instruments
 from tests_helpers import el
@@ -194,6 +196,86 @@ class TestRenderedPath(unittest.TestCase):
         self.assertEqual(instruments.false_bidi(sharp),
                          [{"a": "ea", "b": "eb"}])
         self.assertEqual(instruments.false_bidi(curved), [])
+
+
+class TestCorridorKind(unittest.TestCase):
+    """v0.9 WP4 task 24: one geometry, two defects, told apart.
+
+    `shared_corridors` answers whether two runs are collinear and
+    overlapping, and that same answer covers a chain whose node has been
+    deleted from the reading and a fan whose edges have not separated
+    yet. The corpus is lopsided enough that the raw count misleads: all
+    6 findings across the 24 frozen artifacts are fans.
+    """
+
+    def _bind(self, eid: str, x: float, y: float, pts: list[list[float]],
+              src: str | None, dst: str | None) -> dict:
+        """An arrow with explicit bindings at both ends.
+
+        Args:
+            eid: Element id.
+            x: The arrow's x origin.
+            y: The arrow's y origin.
+            pts: The arrow's points, relative to the origin.
+            src: Start binding target id, or None.
+            dst: End binding target id, or None.
+
+        Returns:
+            The arrow element.
+        """
+        arrow = _edge(eid, x, y, pts)
+        if src:
+            arrow["startBinding"] = {"elementId": src, "focus": 0, "gap": 1}
+        if dst:
+            arrow["endBinding"] = {"elementId": dst, "focus": 0, "gap": 1}
+        return arrow
+
+    def test_a_chain_shares_its_node_at_opposite_ends(self) -> None:
+        """`X -> N`, `N -> Z`: the two runs continue each other."""
+        els = [self._bind("e1", 80, 120, [[0, 0], [120, 0]], "A", "N"),
+               self._bind("e2", 200, 120, [[0, 0], [328, 0]], "N", "Z")]
+        hits = instruments.shared_corridors(els)
+        self.assertEqual([h["kind"] for h in hits], ["chain"], hits)
+
+    def test_a_fan_shares_its_node_at_the_same_end(self) -> None:
+        """Two edges out of one source, still together 100px later.
+
+        Same collinearity, same overlap, and the repair is the auto-fan
+        rather than a re-route — which is why reporting the geometry
+        without the relation makes the two indistinguishable.
+        """
+        els = [self._bind("e1", 80, 120, [[0, 0], [200, 0]], "A", "N"),
+               self._bind("e2", 80, 122, [[0, 0], [200, 0]], "A", "Z")]
+        hits = instruments.shared_corridors(els)
+        self.assertEqual([h["kind"] for h in hits], ["fan"], hits)
+
+    def test_unbound_arrows_on_one_line_are_neither(self) -> None:
+        """No binding, no relation to name — the third answer, not a fan."""
+        els = [_edge("b1", 100, 200, [[0, 0], [400, 0]]),
+               _edge("b2", 200, 200, [[0, 0], [400, 0]])]
+        hits = instruments.shared_corridors(els)
+        self.assertEqual([h["kind"] for h in hits], ["unrelated"], hits)
+
+    def test_no_frozen_artifact_contains_a_merged_stroke(self) -> None:
+        """The census, as the claim it supports rather than as a count.
+
+        Every corridor finding on the 24 committed artifacts is a fan.
+        The exact total is deliberately not pinned — it moves whenever a
+        fixture does, for reasons that say nothing about this
+        instrument — but "none of them is a chain" is the whole basis
+        for reading the corridor count as a fanning backlog rather than
+        as merged strokes, and that must not go quiet.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        kinds: list[str] = []
+        for path in sorted(root.rglob("*.excalidraw")):
+            doc = json.loads(path.read_text())
+            for hit in instruments.shared_corridors(doc.get("elements") or []):
+                kinds.append(hit["kind"])
+                self.assertNotEqual(hit["kind"], "chain",
+                                    "%s: %s" % (path.name, hit))
+        self.assertTrue(kinds, "the fixture corpus produced no corridors "
+                               "at all — this census has gone vacuous")
 
 
 class TestTiltBand(unittest.TestCase):

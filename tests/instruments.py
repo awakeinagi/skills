@@ -359,6 +359,45 @@ def _axis(
     return None
 
 
+def _corridor_kind(a: dict, b: dict) -> str:
+    """How two corridor-sharing arrows are related through their bindings.
+
+    The corridor instrument answers one geometric question — are these
+    two runs collinear and overlapping — and two very different defects
+    give the same answer. A CHAIN shares a node at opposite ends
+    (`X -> N`, `N -> Z`), so the two runs continue each other and the
+    merged stroke deletes N as a step. A FAN shares a node at the SAME
+    end, so the two runs are the common approach of edges that diverge
+    later; the picture is thick, not wrong, and the repair is the
+    auto-fan rather than a re-route.
+
+    Worth splitting because the corpus is lopsided in a way that reading
+    the raw count hides: all 6 corridor findings across the 24 frozen
+    artifacts are fans and none is a chain (measured 2026-08-14). Anyone
+    treating this instrument as a merged-stroke detector — which is what
+    `merged_stroke_caught_by_corridor` records it as, correctly, for the
+    ELK scene — is reading six false positives on our own drawings.
+
+    Args:
+        a: The first arrow element.
+        b: The second arrow element.
+
+    Returns:
+        `"chain"`, `"fan"`, or `"unrelated"` when no binding is shared.
+        `"chain"` wins a tie, since two arrows related both ways are a
+        2-cycle and the through-reading is the damaging one.
+    """
+    ea = ((a.get("startBinding") or {}).get("elementId"),
+          (a.get("endBinding") or {}).get("elementId"))
+    eb = ((b.get("startBinding") or {}).get("elementId"),
+          (b.get("endBinding") or {}).get("elementId"))
+    if (ea[0] and ea[0] == eb[1]) or (ea[1] and ea[1] == eb[0]):
+        return "chain"
+    if (ea[0] and ea[0] == eb[0]) or (ea[1] and ea[1] == eb[1]):
+        return "fan"
+    return "unrelated"
+
+
 def shared_corridors(
     elements: list[dict], tol: float = 16, minover: float = 60,
 ) -> list[dict]:
@@ -375,8 +414,11 @@ def shared_corridors(
             hardcoded in the source, not tied to this parameter.
 
     Returns:
-        A list of `{"a": id, "b": id, "overlap": float}` dicts, one per
-        corridor-sharing pair (first qualifying segment pair wins).
+        A list of `{"a": id, "b": id, "overlap": float, "kind": str}`
+        dicts, one per corridor-sharing pair (first qualifying segment
+        pair wins). `kind` is `_corridor_kind`'s verdict and is
+        reported rather than filtered on: the geometry is the finding,
+        and which defect it is is the caller's question.
     """
     arrows = _arrows(elements)
     hits: list[dict] = []
@@ -397,7 +439,8 @@ def shared_corridors(
                 if ov >= minover or (-10 <= ov <= 0
                                      and (A[3] - A[2]) >= 60
                                      and (B[3] - B[2]) >= 60):
-                    hits.append({"a": a["id"], "b": b["id"], "overlap": ov})
+                    hits.append({"a": a["id"], "b": b["id"], "overlap": ov,
+                                 "kind": _corridor_kind(a, b)})
                     break
             else:
                 continue
@@ -500,6 +543,22 @@ def false_bidi(elements: list[dict]) -> list[dict]:
     one-way arrows that together read as a single bidirectional
     junction. What changed in WP4 is which geometry is asked: the
     rendered path, not the stored chord.
+
+    HONESTY NOTE (v0.9 WP4b): **no study compares double-headed arrows
+    against paired opposed single arrows.** This check's premise — that
+    a reader merges the two into one bidirectional relation and so reads
+    a symmetry the model does not assert — is well motivated by
+    continuity theory (Ware et al. 2002, continuity among the strongest
+    predictors of path-tracing difficulty) and by Holten & van Wijk's
+    CHI 2009 result that arrowhead OVERLAP is precisely why arrowheads
+    underperform for direction tasks. It is not empirically established,
+    and neither is its converse. Every tolerance below inherits that
+    status: the 2px straightness floor, the 8px head alignment, the
+    -24px overlap and the 1/14 tilt ratio are engineering choices with
+    recorded derivations, not measured thresholds. Treat a finding here
+    as a question to put to the drawing, not a verdict on it, and do not
+    let the arithmetic's precision imply a confidence the premise has
+    not earned.
 
     Args:
         elements: Full scene element list; arrows are filtered internally.
