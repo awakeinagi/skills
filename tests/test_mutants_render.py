@@ -1627,14 +1627,21 @@ class TestRasterizeScaleToFit(unittest.TestCase):
             "the detail line does not report the scale that was used "
             "(%r): a reader told VALID=true about a picture silently "
             "shrunk has no way to know why it is small" % detail)
-        # The marker occupies svg x 8600..8900, so at 0.5x it is PNG x
-        # 4300..4450 — inside a whole picture, off the end of a cropped one.
+        # The marker occupies svg x 8600..8900 by y 100..300, so at 0.5x it
+        # is PNG x 4300..4450 by y 50..150 — 15000 px, and the only ink in
+        # the image (SVG_GROUND is luminance ~252, far above the 192
+        # threshold). Pinned as a BAND rather than as "more than nothing":
+        # a wrong-but-nonzero scale puts a marker of the wrong size at the
+        # wrong offset and would leave some ink in this column while
+        # failing the count.
         ink = sum(1 for y in range(h) for x in range(4300, 4450)
                   if pix[y * w + x] < 192)
-        self.assertGreater(ink, 0,
-                           "the far-edge marker left no ink: the drawing "
-                           "was cropped to %dpx rather than scaled into it"
-                           % w)
+        self.assertAlmostEqual(
+            ink, 15000, delta=1500,
+            msg="the far-edge marker covers %d px of this column where a "
+                "300x200 rect at 0.50x covers 15000: the drawing was "
+                "cropped to %dpx, or scaled by something other than the "
+                "0.50x the detail line claims" % (ink, w))
 
 
 # ---------------------------------------------------------------------------
@@ -1677,15 +1684,24 @@ class TestRasterizeScaleToFit(unittest.TestCase):
 # missing, on the side nobody measured. The min side now takes the leftward
 # run, floored at `x` so the change can only widen a frame.
 #
-# WHAT THAT COST THIS SECTION, since it shapes everything below. A frame that
-# does not contain its own ink is the only thing `parity_clipped` fires on,
-# and that is a tier-1 defect by definition — so with tier 1 correct, no scene
-# here makes the finding fire, and both surviving scenes assert silence. The
-# instrument is therefore proven at the level of its PARTS rather than its
-# findings: `test_the_clip_instrument_still_sees_ink_leave_a_short_frame`
-# manufactures a short frame with a negative `_element_ink` pad, and
-# `TestRenderParityRegime` pins `_clipped_edges` ungated. Read those two
-# before concluding a silent parity table means anything.
+# HOW THIS SECTION STAYS HONEST ONCE THE DEFECT IS FIXED, since it shapes
+# everything below. A frame that does not contain its own ink is the only
+# thing `parity_clipped` fires on, and that is a tier-1 defect by definition —
+# so with tier 1 correct no DRAWING here makes the finding fire, and both
+# scenes that ask the product question assert silence. Silence is not proof:
+# a `parity_findings` that inverted its gate or returned `[]` unconditionally
+# would leave this whole section green with the instrument blind, which is the
+# same vacuity `test_no_class_agrees_by_being_absent_from_both` exists to
+# prevent, and no automated rule catches it here (`parity_clipped` is
+# `render: True` in the catalogue, so the `Silence` rule exempts it, and
+# `TestRenderTierEvidence` only checks that the pointer resolves).
+#
+# So the instrument is asked for a frame the CALLER made too small, via
+# `parity_findings`' `frame_pad` — the seam `_element_ink` already had, one
+# level up. `test_the_clip_instrument_still_sees_ink_leave_a_short_frame`
+# drives the real function to a real finding that way, and
+# `TestRenderParityRegime` pins `_clipped_edges` ungated besides. Read those
+# two before concluding a silent parity table means anything.
 # ---------------------------------------------------------------------------
 
 # Extra margin per side for the generous frame. It has to exceed the largest
@@ -1727,11 +1743,11 @@ def _reframe(svg: str, pad: int) -> tuple[str, int, int]:
 
     Raises:
         RuntimeError: If the `<svg>` tag cannot be parsed, or if
-            `render_svg` scaled this scene (its uniform 4000x3000 clamp,
-            canvas.py:4540). Under a scale a viewBox unit is no longer a
-            pixel, so the difference between the two rasters stops being
-            a count of lost ink — better to refuse than to report a
-            number that means nothing.
+            `render_svg` scaled this scene (its uniform
+            `RASTER_MAX_W`/`RASTER_MAX_H` clamp). Under a scale a viewBox
+            unit is no longer a pixel, so the difference between the two
+            rasters stops being a count of lost ink — better to refuse
+            than to report a number that means nothing.
     """
     dims = _SVG_DIMS.search(_SVG_TAG.match(svg).group(0))
     if dims is None:
@@ -1795,17 +1811,26 @@ def _element_ink(elements: list[dict], eid: str, workdir: str, pad: int = 0,
 
 
 def _clipped_edges(bbox: tuple[int, ...], pad: int, w: int, h: int) -> str:
-    """Which sides of tier 1's frame the element's ink escapes.
+    """Which sides of the frame under test the element's ink escapes.
+
+    Pure arithmetic over two rectangles, which is why it is pinned
+    ungated in `TestRenderParityRegime` while everything else in this
+    section needs a browser.
 
     Args:
         bbox: The ink's bounding box, in the GENEROUS frame's pixels.
-        pad: The generous frame's extra margin per side.
-        w: Tier 1's own raster width.
-        h: Tier 1's own raster height.
+        pad: How far the tested frame's top-left sits inside the generous
+            frame, in the same pixels. That is `PARITY_PAD` when the
+            frame under test is the one tier 1 chose, and `PARITY_PAD -
+            frame_pad` when the caller resized it — see
+            `parity_findings`, which is where getting this wrong would
+            misname the edges while leaving the magnitude right.
+        w: The tested frame's raster width.
+        h: The tested frame's raster height.
 
     Returns:
-        The escaping edges joined by "+", or "" when the ink sits wholly
-        inside the frame tier 1 chose.
+        The escaping edges joined by "+", in the fixed order top, left,
+        right, bottom; or "" when the ink sits wholly inside the frame.
     """
     x0, y0, x1, y1 = bbox
     return "+".join(name for name, escaped in
@@ -1815,28 +1840,52 @@ def _clipped_edges(bbox: tuple[int, ...], pad: int, w: int, h: int) -> str:
 
 
 def parity_findings(elements: list[dict], ids: Iterable[str],
-                    workdir: str) -> list[dict]:
+                    workdir: str, frame_pad: int = 0) -> list[dict]:
     """Findings where tier 1's frame does not contain tier 1's own ink.
 
     Args:
         elements: The full scene.
         ids: Ids to measure, one at a time.
         workdir: Directory renders are written into.
+        frame_pad: Resize the frame under test by this much per side,
+            the same seam and the same sign convention `_element_ink`
+            already has. 0 — the default, and the only value the product
+            question is asked at — measures the frame `render_svg`
+            actually chose. A NEGATIVE value measures a frame the caller
+            has deliberately made too small, which is how this function
+            can be asked to assemble a real finding while tier 1 is
+            correct: after Task 22 no scene makes it fire on its own, and
+            a finding proven only by its own silence is not proven. The
+            generous reference frame is unaffected, so `PARITY_PAD` must
+            stay larger than any `frame_pad` a caller shrinks by.
 
     Returns:
         Findings shaped like `ablation_findings` output. `parity_clipped`
         carries as its magnitude the count of pixels tier 1 emitted and
-        tier 1's own viewport then cut away, and as its direction the
-        edges they went off.
+        the frame under test then cut away, and as its direction the
+        edges they went off. At a non-zero `frame_pad` the `raw` sentence
+        still says "the viewport render_svg chose" — true at the default
+        and the only way this text is ever reported; a caller that
+        shrank the frame itself knows it did.
     """
     framed_w, framed_h = _framed_svg(elements)[1:]
+    # The frame under test, in the GENEROUS raster's pixels. `_reframe`
+    # puts a frame's origin at `minx - pad`, so the tested frame's left
+    # edge sits `PARITY_PAD - frame_pad` in from the generous origin —
+    # NOT `PARITY_PAD`, which is only correct at the default. Getting
+    # this wrong costs the direction and nothing else, which is exactly
+    # the kind of error a silence-only proof cannot see: a shrunken
+    # frame still yields the right magnitude while naming the wrong
+    # edges.
+    edge_pad = PARITY_PAD - frame_pad
+    test_w, test_h = framed_w + 2 * frame_pad, framed_h + 2 * frame_pad
     findings: list[dict] = []
     for eid in ids:
-        framed = _element_ink(elements, eid, workdir)[0]
+        framed = _element_ink(elements, eid, workdir, pad=frame_pad)[0]
         whole, bbox = _element_ink(elements, eid, workdir, pad=PARITY_PAD)
         if bbox is None or whole <= framed:
             continue
-        edges = _clipped_edges(bbox, PARITY_PAD, framed_w, framed_h)
+        edges = _clipped_edges(bbox, edge_pad, test_w, test_h)
         findings.append({
             "check": "parity_clipped", "element": eid,
             "magnitude": float(whole - framed), "direction": edges,
@@ -2033,27 +2082,33 @@ class TestRenderParity(unittest.TestCase):
         health forever (`test_mutants.TestCoverage.test_silence_only_
         mutant_does_not_prove_its_check` is the same rule one tier up).
 
-        What it cost to keep that job honestly, stated plainly because it
-        is a real reduction. `parity_clipped` fires only on a frame that
-        does not contain its own ink, which is the definition of a tier-1
-        defect — so once tier 1 is right, NO scene makes the finding fire,
-        and an end-to-end fire-proof is only available while the product
-        is broken. The two candidates were both refused: borrowing an
-        unfixed defect from elsewhere in `render_svg` would tie this test
-        to a bug someone else is expected to fix, which is the same
-        attestation trap this section's header warns about, and
-        hand-rolling the frame arithmetic would prove the copy rather than
-        the instrument. So the fire is proven one level down, at the two
-        parts the finding is assembled from: the two-frame ink
-        measurement here, and `_clipped_edges`' edge attribution in
-        `TestRenderParityRegime` — which is ungated, so it guards this in
-        every commit rather than only under `MUTANTS_RENDER=1`.
+        What it cost to keep that job honestly. `parity_clipped` fires
+        only on a frame that does not contain its own ink, which is the
+        definition of a tier-1 defect — so once tier 1 is right, no
+        DRAWING makes the finding fire, and a fire-proof that waits for
+        one is only available while the product is broken. Two ways of
+        getting a fire anyway were refused: borrowing an unfixed defect
+        from elsewhere in `render_svg` would tie this test to a bug
+        someone else is expected to fix, which is the attestation trap
+        this section's header warns about; and hand-rolling the frame
+        arithmetic in a helper would prove the copy rather than the
+        instrument.
 
-        The short frame is manufactured by the test rather than borrowed:
-        a NEGATIVE pad through `_element_ink` is the same `_reframe` the
-        instrument uses for its generous frame, asked for a viewport
-        `_TIGHTEN` px smaller per side instead of larger. The drawing is
-        correct; only the frame it is measured against is not.
+        The third way is the one taken, and it is the technique
+        `_element_ink` already ships: ask the real function for a frame
+        the CALLER made too small. `parity_findings` takes a `frame_pad`
+        with the same sign convention, so at `-_TIGHTEN` it assembles a
+        real finding — real gate, real magnitude, real attribution, real
+        `check` name — against a correct product and without borrowing
+        anyone's bug. The drawing is right; only the frame it is measured
+        against is not. So the assembly IS proven to fire, and what
+        follows asserts it rather than asserting a silence.
+
+        Its parts are pinned either side of that: the two-frame ink
+        measurement below, and `_clipped_edges` in
+        `TestRenderParityRegime`, which is ungated and so guards the
+        attribution in every commit rather than only under
+        `MUTANTS_RENDER=1`.
         """
         scene = _short_frame_probe()
         whole = _element_ink(scene, "r1", self.workdir, pad=PARITY_PAD)[0]
@@ -2080,6 +2135,34 @@ class TestRenderParity(unittest.TestCase):
                            "rather than part of it: %d px became 0, so "
                            "this measures a blind instrument and a clipped "
                            "one identically" % whole)
+        # The whole finding, assembled by the real function. The direction
+        # is read off the DRAWING rather than off `_clipped_edges`, so it
+        # is an independent claim: the probe's box spans 0..400 x 0..300,
+        # and tightening tier 1's -40..760 x -40..340 frame by 100 leaves
+        # 60..660 x 60..240 — which cuts the box's left (0 < 60), top
+        # (0 < 60) and bottom (300 > 240) while its right edge at 400
+        # stays well inside 660. Three sides, named in the order
+        # `_clipped_edges` reports them.
+        finds = parity_findings(scene, ["r1"], self.workdir,
+                                frame_pad=-_TIGHTEN)
+        self.assertEqual(
+            [(f["check"], f["element"], f["direction"]) for f in finds],
+            [("parity_clipped", "r1", "top+left+bottom")],
+            "parity_findings did not assemble the finding its own parts "
+            "measure: %s" % finds)
+        self.assertEqual(
+            finds[0]["magnitude"], float(whole - tight),
+            "the magnitude is not the ink the tightened frame lost "
+            "(%d - %d = %d): the gate and the subtraction disagree with "
+            "the two measurements above"
+            % (whole, tight, whole - tight))
+        # And the same call at the DEFAULT pad stays silent, so the fire
+        # above is the manufactured frame talking and not a probe that
+        # was mis-framed all along.
+        self.assertEqual(parity_findings(scene, ["r1"], self.workdir), [],
+                         "the probe is clipped by the frame render_svg "
+                         "chose for it: it is a defect scene, and the "
+                         "finding above proves nothing about the seam")
 
     def test_mutant_center_anchored_label_is_clipped_off_the_frame(self
                                                                    ) -> None:

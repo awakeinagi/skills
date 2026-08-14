@@ -8701,15 +8701,15 @@ RENDER_TIER = {
     # moved this off `test_parity_clip_is_red_by_measurement_not_by_error`,
     # which fixing the bounds loop made false — that test asserted the check
     # FIRES on a centered label the export used to clip, and it no longer
-    # does. The replacement is weaker in one specific way, recorded here
-    # because this string is what a reader takes for the state of the
-    # evidence: `parity_clipped` fires only on a frame that does not contain
-    # its own ink, which is a tier-1 defect by definition, so with tier 1
-    # correct NO scene produces the finding and there is no finding-level
-    # fire left to name. What is named instead is the two-frame ink
-    # comparison the finding is assembled from, exercised against a frame the
-    # test itself shortens. Its other part, the edge attribution, is pinned
-    # ungated in `TestRenderParityRegime.
+    # does. What is named instead is still a FIRING proof, and that is the
+    # point of naming it: `parity_clipped` fires only on a frame that does
+    # not contain its own ink, which is a tier-1 defect by definition, so
+    # with tier 1 correct no DRAWING produces the finding. The replacement
+    # gets one anyway by asking `parity_findings` for a frame the caller
+    # deliberately shrank (its `frame_pad` seam), so the real function
+    # assembles a real finding — check, magnitude and direction — over a
+    # correct product. The attribution half is pinned ungated besides, in
+    # `TestRenderParityRegime.
     # test_the_edge_attribution_still_names_the_side_ink_escapes`.
     "parity_clipped":
         "test_mutants_render.TestRenderParity."
