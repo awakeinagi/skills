@@ -7346,10 +7346,10 @@ class TestMutantCatalogue(unittest.TestCase):
         mism = n.expect.matches(collect_findings(n.build()))
         self.assertIsNone(mism, "%s neighbour: %s" % (mid, mism))
 
-    @unittest.expectedFailure
     def test_mutant_diamond_corner_silence(self) -> None:
-        """80px clear of the rhombus, inside its bbox — lint says nothing."""
-        # Shape-blind endpoint lint; flips when WP4 clips to the shape.
+        """80px clear of the rhombus, inside its bbox, is now reported."""
+        # Was measured against the bbox. FLIPPED by WP4 (task 15):
+        # `endpoint_gap` clips the approach axis to the drawn outline.
         self._run("diamond_corner_silence")
 
     def test_neighbour_diamond_corner_silence(self) -> None:
@@ -7358,10 +7358,10 @@ class TestMutantCatalogue(unittest.TestCase):
         # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_corner_silence")
 
-    @unittest.expectedFailure
     def test_mutant_diamond_wrong_direction(self) -> None:
-        """50px outside the rhombus, reported as 15px inside the shape."""
-        # Shape-blind endpoint lint; flips when WP4 clips to the shape.
+        """50px outside the rhombus now reads outside, not 15px inside."""
+        # Was measured against the bbox. FLIPPED by WP4 (task 15): the
+        # sign comes off the clip, so the direction cannot invert.
         self._run("diamond_wrong_direction")
 
     def test_neighbour_diamond_wrong_direction(self) -> None:
@@ -7444,10 +7444,10 @@ class TestMutantCatalogue(unittest.TestCase):
         """16px is the ordinary size and draws no finding."""
         self._run_neighbour("tiny_font_text")
 
-    @unittest.expectedFailure
     def test_mutant_diamond_facet_overfire(self) -> None:
-        """A perfect facet-midpoint attachment is called 25px inside."""
-        # Shape-blind endpoint lint; flips when WP4 clips to the shape.
+        """A perfect facet-midpoint attachment draws no complaint."""
+        # Was measured against the bbox. FLIPPED by WP4 (task 15): on the
+        # outline the clip reads zero, for the gap AND the interior run.
         self._run("diamond_facet_overfire")
 
     def test_neighbour_diamond_facet_overfire(self) -> None:

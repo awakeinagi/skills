@@ -1986,12 +1986,22 @@ def reconcile_composed(els, index, existing, el):
 
 
 def edge_anchor(el, other_cx, other_cy):
-    """Point on el's bounding box edge nearest to the other element's center."""
+    """Point on el's OUTLINE facing the other element's center.
+
+    The outline, not the bounding box: anchoring a diamond on its box put
+    the arrow tail 19px out in the empty corner, which the seeded flow
+    shipped and `instruments.float_diamond` had been reporting all along
+    (v0.9 WP4). A rectangle's box is its outline, so it keeps the closed
+    form below — same answer, no float drift through stored geometry."""
     cx = el["x"] + el.get("width", 0) / 2.0
     cy = el["y"] + el.get("height", 0) / 2.0
     dx, dy = other_cx - cx, other_cy - cy
     if dx == 0 and dy == 0:
         return (cx, cy)
+    if el.get("type") in ("diamond", "ellipse"):
+        span = shape_clip(el, cx, cy, dx, dy)
+        if span is not None:
+            return (cx + dx * span[1], cy + dy * span[1])
     hw = max(el.get("width", 0) / 2.0, 1)
     hh = max(el.get("height", 0) / 2.0, 1)
     scale = min(hw / abs(dx) if dx else 1e9, hh / abs(dy) if dy else 1e9)
@@ -4654,6 +4664,235 @@ def marker_inset(etype):
     return 0.0
 
 
+def shape_norm(el, x, y, inset=0.0):
+    """How far a point sits from a node's centre, in outline units.
+
+    Each node shape is the unit ball of a different norm: the box is
+    L-infinity, the rhombus L1, the ellipse L2. Reporting the norm rather
+    than a boolean lets callers say `> 1` for outside, `== 1` for exactly
+    ON the drawn outline, and compare two points without a second call.
+
+    Args:
+        el: The target element (`type`, `x`, `y`, `width`, `height`).
+        x: Point x, in scene coordinates.
+        y: Point y, in scene coordinates.
+        inset: Pixels to shrink the outline by on each axis first, for
+            callers who mean STRICTLY inside.
+
+    Returns:
+        The norm, or `None` if the shrunk shape has no area.
+    """
+    a = el.get("width", 0) / 2.0 - inset
+    b = el.get("height", 0) / 2.0 - inset
+    if a <= 0 or b <= 0:
+        return None
+    px = abs(x - (el.get("x", 0) + el.get("width", 0) / 2.0)) / a
+    py = abs(y - (el.get("y", 0) + el.get("height", 0) / 2.0)) / b
+    etype = el.get("type")
+    if etype == "diamond":
+        return px + py
+    if etype == "ellipse":
+        return (px * px + py * py) ** 0.5
+    return max(px, py)
+
+
+def shape_clip(el, x0, y0, dx, dy, inset=0.0):
+    """Clip an infinite line to a node's RENDERED outline.
+
+    The one place that knows what the three node shapes actually are. A
+    rectangle fills its bounding box, but a rhombus fills half of it and
+    an ellipse ~79%, so a check that measures against the box measures a
+    shape nobody drew — in the diamond's corner region that box is 80px
+    of white canvas (v0.9 WP4). Cyrus–Beck four-plane clip for the box
+    and the rhombus (same loop, different plane set), the closed-form
+    conic for the ellipse.
+
+    The line is INFINITE: `t` is NOT clamped to `[0, 1]`, so one call
+    answers both "where does this segment enter the shape" and "how far
+    PAST its end does the shape begin". Pass a unit `(dx, dy)` and `t`
+    comes back in pixels.
+
+    Args:
+        el: The target element (`type`, `x`, `y`, `width`, `height`).
+        x0: Line origin x, in scene coordinates.
+        y0: Line origin y, in scene coordinates.
+        dx: Direction x — need not be normalised.
+        dy: Direction y.
+        inset: Pixels to shrink the outline by on each axis first.
+
+    Returns:
+        `(t0, t1)`, `t0 <= t1`, the parameter interval inside the shape,
+        or `None` if the line misses it (or the shape has no area).
+    """
+    a = el.get("width", 0) / 2.0 - inset
+    b = el.get("height", 0) / 2.0 - inset
+    if a <= 0 or b <= 0 or (dx == 0 and dy == 0):
+        return None
+    px = x0 - (el.get("x", 0) + el.get("width", 0) / 2.0)
+    py = y0 - (el.get("y", 0) + el.get("height", 0) / 2.0)
+    if el.get("type") == "ellipse":
+        qa = (dx / a) ** 2 + (dy / b) ** 2
+        qb = 2 * (px * dx / (a * a) + py * dy / (b * b))
+        qc = (px / a) ** 2 + (py / b) ** 2 - 1
+        disc = qb * qb - 4 * qa * qc
+        if disc < 0:
+            return None
+        root = disc ** 0.5
+        return ((-qb - root) / (2 * qa), (-qb + root) / (2 * qa))
+    # Half-planes n·P <= 1: the box's four edge normals, or the rhombus's
+    # four facet normals. Everything that is not an ellipse or a diamond
+    # (frames, images, embeds) is drawn as its box.
+    planes = (((1, 1), (1, -1), (-1, 1), (-1, -1))
+              if el.get("type") == "diamond" else
+              ((1, 0), (-1, 0), (0, 1), (0, -1)))
+    t0, t1 = float("-inf"), float("inf")
+    for sx, sy in planes:
+        nx, ny = sx / a, sy / b
+        room = 1.0 - (nx * px + ny * py)
+        den = nx * dx + ny * dy
+        if abs(den) < 1e-12:
+            if room < 0:
+                return None     # parallel to this facet and outside it
+            continue
+        t = room / den
+        if den > 0:
+            t1 = min(t1, t)     # this facet is where the line leaves
+        else:
+            t0 = max(t0, t)     # ...and this one is where it enters
+    return (t0, t1) if t0 <= t1 else None
+
+
+def shape_clearance(el, x, y, inset=0.0):
+    """Signed distance from a point to a node's RENDERED outline, in px.
+
+    The companion to `shape_clip`, and the one that says whether a
+    drawing is wrong. A clip reads the gap along ONE chosen direction,
+    which runs arbitrarily large — and numerically unstable — where that
+    direction grazes the outline: an arrow tail 8px off an ellipse's
+    shoulder measured 84px along its own approach axis, because the axis
+    happened to be the tangent at the ellipse's top. Clearance has no
+    direction to be wrong about. Fire on this; report the axis gap, which
+    is the number a reader can check by eye down the arrow.
+
+    First order — the implicit function over its gradient. EXACT for the
+    box and for the rhombus's facets (their boundaries are planes) and a
+    slight UNDER-estimate near the ellipse's, which errs toward silence.
+
+    Args:
+        el: The target element (`type`, `x`, `y`, `width`, `height`).
+        x: Point x, in scene coordinates.
+        y: Point y, in scene coordinates.
+        inset: Pixels to shrink the outline by on each axis first.
+
+    Returns:
+        Distance in px — positive outside, negative inside, 0 exactly on
+        the outline — or `None` if the shrunk shape has no area.
+    """
+    a = el.get("width", 0) / 2.0 - inset
+    b = el.get("height", 0) / 2.0 - inset
+    if a <= 0 or b <= 0:
+        return None
+    dx = abs(x - (el.get("x", 0) + el.get("width", 0) / 2.0))
+    dy = abs(y - (el.get("y", 0) + el.get("height", 0) / 2.0))
+    etype = el.get("type")
+    if etype == "diamond":
+        return (dx / a + dy / b - 1) / ((1 / (a * a) + 1 / (b * b)) ** 0.5)
+    if etype == "ellipse":
+        grad = 2 * ((dx / (a * a)) ** 2 + (dy / (b * b)) ** 2) ** 0.5
+        if grad < 1e-12:
+            return -min(a, b)       # dead centre of a round shape
+        return ((dx / a) ** 2 + (dy / b) ** 2 - 1) / grad
+    out = (max(dx - a, 0) ** 2 + max(dy - b, 0) ** 2) ** 0.5
+    return out if out else -min(a - dx, b - dy)
+
+
+def approach_axis(fromx, fromy, tox, toy):
+    """The axis an arrow travels along as it arrives at its node.
+
+    Snapped to the nearer cardinal, and that is the convention the
+    endpoint gap is measured against (`tests/test_mutants.py`, AXIS
+    CONVENTION): the number a reader checks is the white space straight
+    ahead of the arrowhead, and the eye reads a near-horizontal approach
+    as horizontal. Snapping is also what makes the measure survive the
+    defect it has to measure — a final segment tilted a few degrees off
+    by a dragged endpoint can miss the shape entirely along its own
+    extension, which would report an infinite gap for a 20px slip.
+
+    Args:
+        fromx: Where the arrow comes from — x of the previous path point.
+        fromy: Previous path point y.
+        tox: The bound endpoint's x.
+        toy: The bound endpoint's y.
+
+    Returns:
+        A unit `(dx, dy)`, one component zero. Degenerate input reads as
+        travelling right, matching the left-to-right default of `layout`.
+    """
+    dx, dy = tox - fromx, toy - fromy
+    if abs(dx) >= abs(dy):
+        return (-1.0 if dx < 0 else 1.0, 0.0)
+    return (0.0, -1.0 if dy < 0 else 1.0)
+
+
+def endpoint_gap(el, fromx, fromy, px, py):
+    """How far an arrow's bound endpoint misses its node's outline by.
+
+    Measured along the approach axis, so the number is the white space
+    (or the overshoot) a reader sees straight ahead of the arrowhead.
+
+    Args:
+        el: The node the arrow claims to bind.
+        fromx: The previous path point's x — where the arrow comes from.
+        fromy: The previous path point's y.
+        px: The bound endpoint's x.
+        py: The bound endpoint's y.
+
+    Returns:
+        `(outside, inside)` in px, at most one of them non-zero. Both
+        zero means the endpoint sits exactly ON the drawn outline.
+    """
+    ux, uy = approach_axis(fromx, fromy, px, py)
+    span = shape_clip(el, px, py, ux, uy)
+    if span is None:
+        # The approach axis misses the shape entirely — an endpoint level
+        # with a rhombus's empty corner, say. Fall back to the ray at the
+        # centre, which every shape here is convex around and so must
+        # cross.
+        cx = el.get("x", 0) + el.get("width", 0) / 2.0
+        cy = el.get("y", 0) + el.get("height", 0) / 2.0
+        dist = ((cx - px) ** 2 + (cy - py) ** 2) ** 0.5
+        if dist < 1e-9:
+            return (0.0, 0.0)
+        span = shape_clip(el, px, py, (cx - px) / dist, (cy - py) / dist)
+    if span is None:
+        return (0.0, 0.0)       # a node with no area: nothing to miss
+    t0, t1 = span
+    if t0 > 0:
+        return (t0, 0.0)        # stops short: the outline is t0px ahead
+    if t1 < 0:
+        return (-t1, 0.0)       # overshoots clean past the far side
+    return (0.0, -t0)           # -t0px past where the outline began
+
+
+def endpoint_tol(el, base):
+    """The endpoint-gap tolerance for one node, scaled to its size.
+
+    A flat 14px is 20% of a 60px pill and 5% of a 240px diamond — the
+    same slack reads as sloppy on one and invisible on the other. Scale
+    with the node's short side, but never TIGHTEN below the flat floor:
+    the binding gap it was sized for does not shrink with the node.
+
+    Args:
+        el: The node the arrow binds.
+        base: The flat floor, in px.
+
+    Returns:
+        The tolerance in px.
+    """
+    short = min(el.get("width", 0), el.get("height", 0))
+    return max(base, 0.10 * short)
+
+
 def marker_anchor(el, dx=0, dy=0, corner="br"):
     """Where a marker should sit to hug a shape's edge at one corner.
 
@@ -5473,6 +5712,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             gx1, gy1 = tgt["x"], tgt["y"]
             gx2 = tgt["x"] + tgt.get("width", 0)
             gy2 = tgt["y"] + tgt.get("height", 0)
+            tol = endpoint_tol(tgt, TOL)
+            pts = a.get("points") or []
+            seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
+                   for p in pts]
+            if key == "endBinding":
+                seq = seq[::-1]     # seq[0] is always the bound end now
             # Two distinct failure shapes (r4-1). Border distance says
             # whether the endpoint sits ON the perimeter — fanned attach
             # points land exactly on an edge and must stay legal. The
@@ -5481,10 +5726,29 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # barely-inside under border distance alone, so deeper
             # penetration produced LESS warning — the opposite of a
             # tolerance.
-            outside = ((max(gx1 - px, px - gx2, 0)) ** 2 +
-                       (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
-            inside = 0 if outside else max(
-                min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
+            #
+            # Both used to measure against the BBOX, with no type check.
+            # A rhombus fills half its box, so in the corner region the
+            # check ran anti-correlated with severity: an endpoint 80px
+            # of white canvas clear of the shape was silent, and one 50px
+            # OUTSIDE it was reported as 15px inside (v0.9 WP4). Shapes
+            # whose box is not their outline go through `shape_clip`; a
+            # rectangle's box IS its outline, so it keeps the box path
+            # rather than take a metric change no defect asked for.
+            if tgt.get("type") in ("diamond", "ellipse"):
+                # Attachment is judged by CLEARANCE and reported by the
+                # approach axis — see `shape_clearance` for why the axis
+                # alone cannot be trusted to judge.
+                clear = shape_clearance(tgt, px, py)
+                prev = seq[1] if len(seq) > 1 else (px, py)
+                outside, inside = (
+                    endpoint_gap(tgt, prev[0], prev[1], px, py)
+                    if clear is not None and abs(clear) > tol else (0, 0))
+            else:
+                outside = ((max(gx1 - px, px - gx2, 0)) ** 2 +
+                           (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
+                inside = 0 if outside else max(
+                    min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
             run = 0.0
             if not outside:
                 # Interior run adjacent to the endpoint: walk the path
@@ -5497,39 +5761,36 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # on a strictly-interior endpoint, so an arrow entering
                 # the top face and running 74px inside to a side-face
                 # endpoint measured clean (first mermaid-seeded dagre
-                # layout, v0.8).
-                pts = a.get("points") or []
-                seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
-                       for p in pts]
-                if key == "endBinding":
-                    seq = seq[::-1]
-                bx1, by1, bx2, by2 = gx1 + 1, gy1 + 1, gx2 - 1, gy2 - 1
+                # layout, v0.8). The clip is the shared `shape_clip` as
+                # of v0.9 WP4: inlined against the bbox it scored 49px of
+                # interior run for an approach that only ever crossed a
+                # rhombus's empty corner — on the one scene whose
+                # attachment is geometrically perfect.
                 for (p0x, p0y), (p1x, p1y) in zip(seq, seq[1:]):
                     ddx, ddy = p1x - p0x, p1y - p0y
-                    t0, t1 = 0.0, 1.0
-                    for lo, hi, dv, sv in ((bx1, bx2, ddx, p0x),
-                                           (by1, by2, ddy, p0y)):
-                        if abs(dv) < 1e-9:
-                            if sv < lo or sv > hi:
-                                t0, t1 = 1.0, 0.0
-                            continue
-                        ta, tb = (lo - sv) / dv, (hi - sv) / dv
-                        if ta > tb:
-                            ta, tb = tb, ta
-                        t0, t1 = max(t0, ta), min(t1, tb)
-                    if t1 > t0:
-                        run += ((ddx * ddx + ddy * ddy) ** 0.5) * (t1 - t0)
-                    if not (bx1 <= p1x <= bx2 and by1 <= p1y <= by2):
-                        break   # the path has left the box
-            if run > TOL * 2 and inside <= TOL:
+                    span = shape_clip(tgt, p0x, p0y, ddx, ddy, inset=1)
+                    if span is not None:
+                        t0 = max(span[0], 0.0)
+                        t1 = min(span[1], 1.0)
+                        if t1 > t0:
+                            run += (((ddx * ddx + ddy * ddy) ** 0.5) *
+                                    (t1 - t0))
+                    far = shape_norm(tgt, p1x, p1y, inset=1)
+                    if far is None or far > 1:
+                        break   # the path has left the shape
+            if run > tol * 2 and inside <= tol:
                 # crosses THROUGH: endpoint on or near the border, long
                 # interior approach — the r4-1 silent case and its
-                # multi-elbow sibling
+                # multi-elbow sibling. ROUNDED, not truncated: a length
+                # that comes back from a parametric clip lands a few ulps
+                # either side of the integer it is (72 arrived as
+                # 71.99999999999997), and `int` turns that into an
+                # off-by-one in the agent's face.
                 msg = ("arrow %s enters %s and runs %dpx inside it "
                        "before stopping (%s point) — it reads as "
                        "crossing through the box; pull the endpoint "
                        "back to the border"
-                       % (a["id"], name(tgt["id"]), int(run), side))
+                       % (a["id"], name(tgt["id"]), round(run), side))
                 if not server_owns_geometry(a):
                     warnings.append(
                         "user-shaped " + msg +
@@ -5538,12 +5799,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 else:
                     errors.append(msg)
                 continue
-            if max(outside, inside) > TOL:
+            if max(outside, inside) > tol:
                 msg = ("arrow %s claims to bind %s but its %s point ends "
                        "%dpx %s — re-route it (mod x/y on the node "
                        "re-routes 2-point arrows automatically)"
                        % (a["id"], name(tgt["id"]), side,
-                          int(outside or inside) or TOL,
+                          round(outside or inside) or round(tol),
                           "away" if outside else "inside the shape"))
                 if not server_owns_geometry(a):
                     warnings.append(

@@ -8061,6 +8061,145 @@ class TestCrossesThroughRun(Base):
                          lint["errors"] + lint["warnings"])
 
 
+def _box_anchor(el, other_cx, other_cy):
+    """`edge_anchor`'s pre-WP4 closed form, kept as an independent check.
+
+    Re-derived here rather than imported so the byte-identical claim for
+    box-filling shapes is tested against a second implementation and not
+    against the branch under test.
+
+    Args:
+        el: The element to anchor on.
+        other_cx: The other element's centre x.
+        other_cy: The other element's centre y.
+
+    Returns:
+        `(x, y)` on the bounding box's edge.
+    """
+    cx = el["x"] + el.get("width", 0) / 2.0
+    cy = el["y"] + el.get("height", 0) / 2.0
+    dx, dy = other_cx - cx, other_cy - cy
+    hw = max(el.get("width", 0) / 2.0, 1)
+    hh = max(el.get("height", 0) / 2.0, 1)
+    scale = min(hw / abs(dx) if dx else 1e9, hh / abs(dy) if dy else 1e9)
+    return (cx + dx * scale, cy + dy * scale)
+
+
+# The two shapes the WP4 clip exists for, at the sizes that made the
+# defects: the 200x100 rhombus of the endpoint mutants, and the 240x64
+# pill from the tearsheet fixture whose tail grazes its own tangent.
+_WP4_DIA = {"id": "d", "type": "diamond", "x": 300, "y": 300,
+            "width": 200, "height": 100, "customData": {"role": "node"}}
+_WP4_ELL = {"id": "e", "type": "ellipse", "x": 60, "y": 280,
+            "width": 240, "height": 64, "customData": {"role": "node"}}
+
+
+class TestInscribedShapeClip(Base):
+    """v0.9 WP4: the primitive that measures the drawn shape, not its box.
+
+    The endpoint mutants (`diamond_corner_silence` and siblings) carry
+    the lint's side of this. What lives here is everything they do NOT
+    reach: the clip's own arithmetic, the clearance gate that keeps a
+    grazing approach axis from inventing a gap, and the router anchor
+    that has to agree with the lint or the tool condemns its own output.
+    """
+
+    def test_clip_reads_the_rhombus_not_the_box(self):
+        """At y=305 the 200x100 rhombus spans x 390..410, not 300..500."""
+        t0, t1 = canvas.shape_clip(_WP4_DIA, 310, 305, 1, 0)
+        self.assertAlmostEqual(310 + t0, 390)
+        self.assertAlmostEqual(310 + t1, 410)
+
+    def test_norm_is_one_exactly_on_each_outline(self):
+        """The shared containment contract: 1.0 IS the drawn edge."""
+        # rhombus facet midpoint, ellipse's rightmost point, box corner
+        self.assertAlmostEqual(canvas.shape_norm(_WP4_DIA, 350, 325), 1.0)
+        self.assertAlmostEqual(canvas.shape_norm(_WP4_ELL, 300, 312), 1.0)
+        self.assertAlmostEqual(
+            canvas.shape_norm(dict(_WP4_DIA, type="rectangle"), 500, 400),
+            1.0)
+        # and the box's corner is OUTSIDE the two inscribed shapes
+        self.assertGreater(canvas.shape_norm(_WP4_DIA, 500, 400), 1.0)
+        self.assertGreater(canvas.shape_norm(_WP4_ELL, 300, 344), 1.0)
+        self.assertIsNone(canvas.shape_norm(_WP4_DIA, 400, 350, inset=60))
+
+    def test_clip_of_a_rectangle_is_its_box(self):
+        """A rectangle fills its box, so the clip must not move its edges."""
+        rect = dict(_WP4_DIA, type="rectangle")
+        t0, t1 = canvas.shape_clip(rect, 310, 305, 1, 0)
+        self.assertAlmostEqual(310 + t0, 300)
+        self.assertAlmostEqual(310 + t1, 500)
+
+    def test_clearance_is_exact_on_a_facet_and_zero_on_the_outline(self):
+        """The rhombus's facets are planes, so first order is the answer."""
+        # (350,325) is the top-left facet's midpoint: 0.5 + 0.5 == 1
+        self.assertAlmostEqual(canvas.shape_clearance(_WP4_DIA, 350, 325), 0)
+        # (310,305) is 0.8 outline-units out, over a gradient of 0.02236
+        self.assertAlmostEqual(canvas.shape_clearance(_WP4_DIA, 310, 305),
+                               35.777, places=3)
+        self.assertLess(canvas.shape_clearance(_WP4_DIA, 400, 350), 0)
+
+    def _tail_at(self, node, tail, head):
+        """One arrow whose START binds `node`, tail then head absolute."""
+        return [dict(node),
+                {"id": "far", "type": "rectangle", "x": 500, "y": 140,
+                 "width": 80, "height": 50, "customData": {"role": "node"}},
+                {"id": "a", "type": "arrow", "x": tail[0], "y": tail[1],
+                 "points": [[0, 0], [head[0] - tail[0], head[1] - tail[1]]],
+                 "startBinding": {"elementId": node["id"], "focus": 0,
+                                  "gap": 6},
+                 "customData": {"role": "edge"}}]
+
+    def test_a_grazing_approach_axis_does_not_invent_a_gap(self):
+        """8px off an ellipse's shoulder is 8px, not the 84px the axis says.
+
+        The tearsheet fixture's shape, and the over-fire this check came
+        within one commit of shipping: the tail sits on the box's top
+        edge, so the horizontal approach axis is the TANGENT at the
+        ellipse's top and clips 84px away — while the outline is 8px
+        below. Clearance is what decides; the axis only reports.
+        """
+        els = self._tail_at(_WP4_ELL, (264, 280), (516, 184))
+        self.assertLess(canvas.shape_clearance(_WP4_ELL, 264, 280), 14)
+        self.assertGreater(canvas.shape_clip(_WP4_ELL, 264, 280, -1, 0)[0],
+                           80)
+        lint = canvas.lint_layout(els)
+        self.assertFalse([m for m in lint["errors"] + lint["warnings"]
+                          if "claims to bind" in m],
+                         lint["errors"] + lint["warnings"])
+
+    def test_the_same_tail_pulled_clear_of_the_shape_does_fire(self):
+        """The live pole: 40px out on the same ellipse is still reported."""
+        els = self._tail_at(_WP4_ELL, (264, 240), (516, 184))
+        self.assertGreater(canvas.shape_clearance(_WP4_ELL, 264, 240), 14)
+        lint = canvas.lint_layout(els)
+        self.assertTrue([m for m in lint["errors"] + lint["warnings"]
+                         if "claims to bind" in m])
+
+    def test_tolerance_scales_with_the_node_but_never_tightens(self):
+        """14px is 20% of a 60px pill and 5% of a 240px diamond."""
+        pill = {"type": "ellipse", "width": 200, "height": 60}
+        big = {"type": "diamond", "width": 240, "height": 240}
+        self.assertEqual(canvas.endpoint_tol(pill, 14), 14)
+        self.assertEqual(canvas.endpoint_tol(big, 14), 24)
+
+    def test_router_anchors_on_the_outline_so_the_lint_stays_quiet(self):
+        """The anchor and the lint have to agree, or the tool self-condemns."""
+        for node in (_WP4_DIA, _WP4_ELL):
+            with self.subTest(shape=node["type"]):
+                ax, ay = canvas.edge_anchor(node, 900, 900)
+                self.assertAlmostEqual(
+                    canvas.shape_clearance(node, ax, ay), 0, places=6)
+
+    def test_router_anchor_on_a_rectangle_is_byte_identical(self):
+        """A box-filling shape must not drift through the new path."""
+        rect = dict(_WP4_DIA, type="rectangle")
+        for other in ((900, 900), (-40, 320), (400, -10), (401, 351)):
+            with self.subTest(other=other):
+                self.assertEqual(canvas.edge_anchor(rect, *other),
+                                 _box_anchor(rect, *other))
+
+
 class TestDeletionConsequenceSurface(Base):
     """v0.8 beats, beat 3: the facts existed on disk; no agent-facing
     surface named them, and lint was blind to half-unbound arrows."""
