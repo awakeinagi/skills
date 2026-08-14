@@ -2043,7 +2043,7 @@ def derived_roundness(arrow):
     2}`. A rendered curve bulges off the orthogonal segments the router
     and every geometry lint reason about, so the drawn line stopped
     being the computed line (the r5-14 class), and curvature degrades
-    the endpoint judgement that was this round's most repeated
+    the endpoint judgment that was this round's most repeated
     complaint. While arrows are sharp, stored geometry IS drawn
     geometry, which is what makes the stage-2 checks measure the picture
     the user actually sees. Stage 3 re-introduces curvature per-arrow

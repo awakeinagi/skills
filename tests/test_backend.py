@@ -2404,18 +2404,6 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
         self.assertEqual([i["code"] for i in store2.scene_repairs],
                          ["ART-011", "ART-011"])
 
-    def test_a_hand_authored_path_keeps_its_shape_through_a_load(self):
-        # The guard on the re-derivation above. `mod points` marks a path
-        # "authored" and the whole point of that mark is that no later
-        # pass reshapes it — a blanket flatten at load would have made
-        # the loader the one pass that ignores it.
-        els = [{"id": "a1", "type": "arrow", "x": 0, "y": 0,
-                "points": [[0, 0], [40, 30], [90, 30]],
-                "roundness": {"type": 2},
-                "customData": {"routed": "authored"}}]
-        back = canvas.rebuild_bound_elements(els)
-        self.assertEqual(back[0]["roundness"], {"type": 2})
-
 
 class TestClientRemeasure(Base):
     """Client font-metric re-measurement must never masquerade as user
@@ -3707,6 +3695,30 @@ class TestComposedKindsAndTooltips(Base):
                     if f["fact"] == "annotated")
         self.assertEqual(anno["author"], "agent")
         self.assertIn("my note", canvas.headline_for(anno))
+
+
+class TestDerivedRoundness(unittest.TestCase):
+    """v0.9 WP4 stage 1: who the load-time roundness derivation reaches.
+
+    `rebuild_bound_elements` re-derives a server-routed arrow's
+    roundness at load, which is the only reason the sharp switch reaches
+    artifacts frozen while elbows were curved. The reach is the whole
+    question, so it is tested on bare element lists rather than through
+    a project: what the derivation must NOT touch is not a property of
+    any one fixture.
+    """
+
+    def test_a_hand_authored_path_keeps_its_shape_through_a_load(self):
+        # The guard on the re-derivation. `mod points` marks a path
+        # "authored" and the whole point of that mark is that no later
+        # pass reshapes it — a blanket flatten at load would have made
+        # the loader the one pass that ignores it.
+        els = [{"id": "a1", "type": "arrow", "x": 0, "y": 0,
+                "points": [[0, 0], [40, 30], [90, 30]],
+                "roundness": {"type": 2},
+                "customData": {"routed": "authored"}}]
+        back = canvas.rebuild_bound_elements(els)
+        self.assertEqual(back[0]["roundness"], {"type": 2})
 
 
 class TestRouterV03(Base):
