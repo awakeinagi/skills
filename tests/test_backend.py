@@ -8206,7 +8206,7 @@ class TestInscribedShapeClip(Base):
         would pass the silence half on its own.
         """
         # (302,309)->(312,302) threads the diamond's empty top-left
-        # corner; y=350 is its own centreline.
+        # corner; y=350 is its own centerline.
         self.assertFalse(canvas._seg_hits_rect(302, 309, 312, 302, _WP4_DIA))
         self.assertTrue(canvas._seg_hits_rect(210, 350, 590, 350, _WP4_DIA))
         # the ellipse's corner void and its horizontal diameter

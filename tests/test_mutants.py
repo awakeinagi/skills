@@ -6826,7 +6826,7 @@ _register(Mutant(
 # Blind spot: an endpoint pinned to the diamond's exact center — the worst
 # possible binding — scored gap 0 and was never reported. FIXED by WP4
 # (task 16): the radial measure is gone, and the perpendicular distance to
-# the facet reads 44.7px at the centre of this 200x100 rhombus. The ±90%
+# the facet reads 44.7px at the center of this 200x100 rhombus. The ±90%
 # band admits [5, 95] and so still excludes both numbers that would mean the
 # fix went wrong: 0, the old answer, and 100, the axial penetration depth
 # `endpoint_gap` reports on this same scene.
@@ -7490,7 +7490,7 @@ class TestMutantCatalogue(unittest.TestCase):
         """An endpoint pinned dead-center is reported, 44.7px off the facet."""
         # The radial measure's `t == 0` guard returned r (0). FLIPPED by
         # WP4 (task 16): `_dist_to_diamond` reads the perpendicular
-        # distance to the facet, which the centre has no way to zero.
+        # distance to the facet, which the center has no way to zero.
         # The incidental `endpoint_gap` on this scene reads 100px inside
         # — the axial penetration depth task 15 made it measure — and is
         # a different check answering a different question.

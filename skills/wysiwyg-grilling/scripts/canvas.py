@@ -4751,6 +4751,19 @@ def shape_clip(el, x0, y0, dx, dy, inset=0.0):
         room = 1.0 - (nx * px + ny * py)
         den = nx * dx + ny * dy
         if abs(den) < 1e-12:
+            # `room == 0` — a line lying exactly ALONG this facet — falls
+            # through as a hit, and every interval below is closed. So a
+            # segment drawn on a node's border touches it. That is the
+            # one place `_seg_hits_rect` answers WIDER than the bounding
+            # box it replaced (v0.9 WP4 review, F1): the old ccw edge
+            # test used strict `>` and read the same segment as a miss.
+            # It is a real behavior change with a real consequence —
+            # fixture arrow `f-edgar-sentiment` re-routes 72px through
+            # exactly this case against a label's shrunk edge — and it is
+            # deliberate, not drift. Nothing pins it yet in either
+            # direction (`room < 0` vs `<= 0` leaves the suite green
+            # either way), so this comment is the interim record until
+            # the curator's tangency mutant lands.
             if room < 0:
                 return None     # parallel to this facet and outside it
             continue
@@ -5530,7 +5543,7 @@ def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     empty canvas the reader can see through. An arrow threading a
     diamond's corner void 36px clear of the facet, or one 27px clear of
     a circle, was reported as "passes through" in the same words used
-    for one driven down the centreline — and the router steered around
+    for one driven down the centerline — and the router steered around
     the same phantom, spending bends on space nothing occupies.
 
     Name kept for the callers' sake; `shape_clip` is where the shapes
