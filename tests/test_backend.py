@@ -2,6 +2,7 @@
 
 Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 """
+import argparse
 import contextlib
 import io
 import json
@@ -12,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
@@ -4903,6 +4905,271 @@ class TestPulledCadenceIsNotBlind(Base):
         self.assertEqual(self.app.api_state()["round"], before)
         self.assertEqual(self.app.api_state()["round"],
                          self.store.registry["round"])
+
+
+class TestTheQueuedEchoIsTheEchoWithheld(Base):
+    """A held batch hands back the whole reading (v0.9 WP3, r5-6).
+
+    A queued batch is fully validated at queue time, so the echo, the
+    lint findings and the notes all exist by the time the acknowledgement
+    is written. The notes were the half nobody handed over: the
+    already-gone-glyph NOTE is produced only by a `resolve_pin`, the
+    shape SKILL.md documents rides a drawing op, and a batch carrying a
+    drawing op is exactly the batch `pulled` holds — so the one cadence
+    where that note matters most was the one cadence that never printed
+    it (Task 7 review I1).
+    """
+
+    # every key of the reading an apply response owes, so a surface that
+    # grows a sixth line has to answer for it on both paths at once
+    READING = ("intent_echo", "notes", "layout_errors", "layout_warnings",
+               "layout_notes")
+
+    def setUp(self):
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.store = self.app.store
+        self.store.apply_batch(seed_flow_batch())
+        self.store.config["canvas_updates"] = "pulled"
+
+    def tearDown(self):
+        self.app.log_file.close()
+        super().tearDown()
+
+    def apply(self, ops, **kw):
+        b = {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ops}
+        b.update(kw)
+        try:
+            return self.app.handle_post("/api/apply", b)
+        except canvas._Err as e:
+            return dict(e.payload, status=e.status)
+
+    def both_ways(self, ops):
+        """Queue the batch, throw the queue away, then apply the same one.
+
+        Nothing commits while a batch is held, so the second run reads
+        the very head the first was answered against — which is what
+        makes the two readings comparable rather than merely similar.
+
+        Args:
+            ops: The op list to send twice.
+
+        Returns:
+            `(queued_response, applied_response)`.
+        """
+        queued = self.apply(ops)
+        self.app.handle_post("/api/pending/resolve",
+                             {"id": queued["pending_id"],
+                              "action": "discard"})
+        self.store.config["canvas_updates"] = "per-round"
+        return queued, self.apply(ops)
+
+    def gone_glyph_batch(self):
+        """One ❓ the user has already deleted, and the batch answering it.
+
+        Returns:
+            Ops that draw and resolve in one batch — a drawing op is
+            what makes it hold behind the banner at all, since a
+            pin-only revision commits under either cadence.
+        """
+        self.apply([{"op": "pin", "target": "payment", "id": "pin-pay",
+                     "question": "Card only?"}])
+        self.store.commit(
+            author="user", base_revn=self.store.head_revn(),
+            new_scenes={"checkout-flow": [e for e in self.scene()
+                                          if e["id"] != "pin-pay"]})
+        return [{"op": "mod", "id": "payment", "attrs": {"label": "Pay"}},
+                {"op": "resolve_pin", "id": "pin-pay"}]
+
+    def test_the_queued_reading_equals_the_applied_one(self):
+        queued, applied = self.both_ways(
+            [{"op": "mod", "id": "payment", "attrs": {"label": "Pay"}}])
+        self.assertTrue(queued["queued"])
+        self.assertTrue(queued["intent_echo"])
+        for k in self.READING:
+            self.assertEqual(queued[k], applied[k], k)
+
+    def test_a_held_resolve_of_a_vanished_glyph_says_so_at_queue_time(self):
+        r = self.apply(self.gone_glyph_batch())
+        self.assertTrue(r["queued"])
+        self.assertEqual(r["notes"],
+                         ["pin pin-pay resolved; its ❓ was already gone"])
+
+    def test_and_says_it_again_when_the_user_pulls_it(self):
+        # the queue-time note is provisional — the head can move under a
+        # held batch — so the apply that finally lands owes the same
+        # sentence for real, on the response its caller prints
+        r = self.apply(self.gone_glyph_batch())
+        out = self.app.handle_post("/api/pending/resolve",
+                                   {"id": r["pending_id"],
+                                    "action": "apply_now"})
+        self.assertEqual(out["notes"], r["notes"])
+        self.assertTrue(out["intent_echo"])
+
+    def test_the_whole_reading_matches_for_a_resolve_too(self):
+        queued, applied = self.both_ways(self.gone_glyph_batch())
+        for k in self.READING:
+            self.assertEqual(queued[k], applied[k], k)
+
+    def test_a_rejected_batch_returns_errors_and_no_reading(self):
+        # the control: an echo of a batch that was refused would be a
+        # reading of a revision nobody will ever see
+        r = self.apply([{"op": "mod", "id": "payment",
+                         "attrs": {"nonesuch": {"x": 1}}}])
+        self.assertEqual(r.get("status"), 422)
+        self.assertIn("unknown attribute", r["error"])
+        for k in self.READING:
+            self.assertNotIn(k, r)
+        self.assertEqual(self.app.pending, [])
+
+
+class TestQueuedLinesSayTheyAreProvisional(unittest.TestCase):
+    """`ECHO(queued)=` — a reading of a revision that has not happened.
+
+    Both branches of `cmd_apply` print through one helper, so a queued
+    reading came out byte-identical to a committed one: an agent
+    skimming for `ECHO=` had `QUEUED=true` two lines up and nothing on
+    the lines themselves to say the head could still move under them.
+    """
+
+    def lines(self, **kw):
+        """Print one response carrying every line the helper can emit."""
+        resp = {"intent_echo": ["op 0 (mod): payment moved"],
+                "consequences": ["arrow t3 lost its start binding"],
+                "notes": ["pin pin-a resolved; its ❓ was already gone"],
+                "layout_errors": ["e"], "layout_warnings": ["w"],
+                "layout_notes": ["n"]}
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas._print_layout(resp, **kw)
+        return buf.getvalue().splitlines()
+
+    def test_every_line_of_a_held_reading_is_marked(self):
+        self.assertEqual(self.lines(queued=True), [
+            "ECHO(queued)=op 0 (mod): payment moved",
+            "CONSEQUENCE(queued)=arrow t3 lost its start binding",
+            "NOTE(queued)=pin pin-a resolved; its ❓ was already gone",
+            "LAYOUT_ERROR(queued)=e", "LAYOUT_WARNING(queued)=w",
+            "LAYOUT_NOTE(queued)=n"])
+
+    def test_a_committed_reading_is_not(self):
+        # the silent half: the ordinary keys stay exactly as they were
+        self.assertEqual(self.lines(), [
+            "ECHO=op 0 (mod): payment moved",
+            "CONSEQUENCE=arrow t3 lost its start binding",
+            "NOTE=pin pin-a resolved; its ❓ was already gone",
+            "LAYOUT_ERROR=e", "LAYOUT_WARNING=w", "LAYOUT_NOTE=n"])
+
+
+class TestApplyPrintsWhichKindOfReadingItGot(Base):
+    """`cmd_apply` picks the marking, so the helper cannot be the only
+    thing tested — a call site that forgot the flag would still pass.
+
+    The server is patched rather than run: `server_alive` is an HTTP GET
+    and this measures what the command prints, not what a socket does.
+    """
+
+    def run_apply(self, resp):
+        """Drive `cmd_apply` against a canned server response.
+
+        Args:
+            resp: The payload `/api/apply` is pretending to return.
+
+        Returns:
+            The command's stdout, split into lines.
+        """
+        path = self.tmp / "batch.json"
+        path.write_text(json.dumps(
+            {"artifact": "checkout-flow", "ops": []}), encoding="utf-8")
+        self.project.state_path.write_text(json.dumps(
+            {"url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
+             "protocol_version": canvas.PROTOCOL_VERSION}), encoding="utf-8")
+        buf = io.StringIO()
+        with mock.patch.object(canvas, "server_alive", lambda s: True), \
+                mock.patch.object(canvas, "http_json",
+                                  lambda *a, **kw: resp), \
+                contextlib.redirect_stdout(buf):
+            canvas.cmd_apply(argparse.Namespace(
+                project=self.tmp, file=str(path), check=False, render=False))
+        return buf.getvalue().splitlines()
+
+    def test_a_queued_response_prints_a_marked_reading(self):
+        out = self.run_apply(
+            {"ok": True, "queued": True, "pending_id": 1,
+             "intent_echo": ["op 0 (mod): payment moved"],
+             "notes": ["pin pin-a resolved; its ❓ was already gone"]})
+        self.assertIn("QUEUED=true", out)
+        self.assertIn("ECHO(queued)=op 0 (mod): payment moved", out)
+        self.assertIn("NOTE(queued)=pin pin-a resolved; its ❓ was already "
+                      "gone", out)
+
+    def test_a_committed_response_prints_a_plain_one(self):
+        out = self.run_apply(
+            {"ok": True, "revn": 2, "short_id": "abc",
+             "intent_echo": ["op 0 (mod): payment moved"]})
+        self.assertIn("ECHO=op 0 (mod): payment moved", out)
+
+
+class TestTheCadenceIsOnTheResumeSurfaces(Base):
+    """`start` and `status` say which cadence is in force (v0.9 WP3).
+
+    Whether a batch commits or waits behind a banner decides how every
+    apply response should be read, and neither resume surface printed
+    it: the agent had to GET api/state and dig `config` out of the
+    payload, or infer a silently flipped toggle from the shape of the
+    answer it got back.
+    """
+
+    def with_server(self, fn, st=None):
+        """Run a CLI command against a live-looking server.
+
+        Args:
+            fn: The command function, called with a project namespace.
+            st: The `/api/state` payload to answer with.
+
+        Returns:
+            Stdout, split into lines.
+        """
+        self.project.state_path.write_text(json.dumps(
+            {"url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
+             "protocol_version": canvas.PROTOCOL_VERSION,
+             "catchup_revn": 0}), encoding="utf-8")
+        buf = io.StringIO()
+        with mock.patch.object(canvas, "server_alive", lambda s: True), \
+                mock.patch.object(canvas, "http_json",
+                                  lambda *a, **kw: st or {}), \
+                contextlib.redirect_stdout(buf):
+            fn()
+        return buf.getvalue().splitlines()
+
+    def status_lines(self, cadence):
+        return self.with_server(
+            lambda: canvas.cmd_status(argparse.Namespace(project=self.tmp)),
+            st={"config": {"canvas_updates": cadence}})
+
+    def start_lines(self, cfg):
+        self.project.config_path.write_text(json.dumps(cfg),
+                                            encoding="utf-8")
+        return self.with_server(lambda: canvas.cmd_start(
+            argparse.Namespace(project=self.tmp, no_browser=True)))
+
+    def test_status_names_a_pulled_cadence(self):
+        self.assertIn("CADENCE=pulled", self.status_lines("pulled"))
+
+    def test_status_names_a_per_round_one(self):
+        self.assertIn("CADENCE=per-round", self.status_lines("per-round"))
+
+    def test_start_names_the_cadence_too(self):
+        self.assertIn("CADENCE=pulled",
+                      self.start_lines({"canvas_updates": "pulled"}))
+
+    def test_a_value_the_loader_would_repair_reads_as_the_default(self):
+        # the loader resets an unknown cadence to per-round and rewrites
+        # the file (CFG-008), so printing the raw value would announce a
+        # cadence no server is running
+        self.assertIn("CADENCE=per-round",
+                      self.start_lines({"canvas_updates": "whenever"}))
 
 
 class TestArrowBindingLints(unittest.TestCase):

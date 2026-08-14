@@ -24,10 +24,19 @@ behind the pending-revision banner instead of landing — the response says so
 (`QUEUED=true`). That is success, not an error; the user chooses when.
 
 A queued batch is validated and linted **at queue time** and answers with
-the same `ECHO=` / `LAYOUT_*` lines an applied one does (v0.5) — read
-them. Before v0.5 nothing was checked until the *user* clicked Apply, so
-an impossible batch came back `QUEUED=true`, got narrated as drawn, and
-failed in the user's face minutes later.
+the same reading an applied one does — echo, consequences, notes and
+lint (v0.5) — read it. Before v0.5 nothing was checked until the *user*
+clicked Apply, so an impossible batch came back `QUEUED=true`, got
+narrated as drawn, and failed in the user's face minutes later.
+
+Every line of that reading is marked: `ECHO(queued)=`, `NOTE(queued)=`,
+`LAYOUT_WARNING(queued)=` and so on (v0.9). The mark is the whole point —
+it is a reading of the head the batch was queued *on*, and the user can
+save over that head before they pull the revision. Narrate it as a
+proposal, never as a drawing that exists. The unmarked keys come back
+when it actually lands: `canvas.py x-pending --apply` prints them, and
+the `agent_revision` event carries any `notes` when the user applies
+from the banner instead.
 
 **Fixing a queued revision:** re-send it with `supersedes: <pending_id>`
 so the corrected batch *replaces* the original. Without it the user is
@@ -304,6 +313,14 @@ open-pin count in the registry have to agree, and each exemption tried in
 turn left a ❓ standing under an id the registry had already marked
 resolved.
 
+A resolve that finds no ❓ anywhere — the user deleted the glyph first —
+still closes the record, and now says so:
+`NOTE=pin <id> resolved; its ❓ was already gone`. Read it: the silence
+was how a resolve aimed at the wrong artifact passed for a clean one. It
+rides a **queued** response too, marked `NOTE(queued)=`, since the batch
+carrying a resolve usually carries a drawing op — which is exactly the
+batch `pulled` cadence holds.
+
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.
 
@@ -392,6 +409,9 @@ it "agent asked a question" with no Apply action.
 
 - `canvas.py status` → `HEAD_REVN`, `ROUND`, `WHOSE_MOVE`, `ARTIFACTS`,
   `OPEN_PINS`, `OPEN_TRIPWIRES`, `EVENTS_LOG`, `DIRTY`, `PENDING`,
+  **`CADENCE`** (`per-round` or `pulled` — whether your next batch
+  commits or waits behind the banner; `start` prints it too, and the
+  user can flip it mid-session),
   **`LINT_DEBT`** (standing cross-artifact lint counts — drift in
   artifacts your batch didn't touch), **`PIN_DEBT`** (open/answered
   pins with age in rounds + how often their target changed; entries with

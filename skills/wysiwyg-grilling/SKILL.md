@@ -107,9 +107,9 @@ your next move. In order:
    before narrating; that repair is cosmetic-class, never a second
    proposal. A **queued** revision (`QUEUED=true`, dirty canvas or
    `pulled` cadence) is validated and echoed the same way, so read it the
-   same way — but it has not landed: narrate it as pending, never as
-   drawn. Correcting one means re-sending with `supersedes: <id>`, not
-   queueing a second.
+   same way — its lines come back marked `ECHO(queued)=` — but it has not
+   landed: narrate it as pending, never as drawn. Correcting one means
+   re-sending with `supersedes: <id>`, not queueing a second.
 3. **Narrate** (see contract below).
 4. **Draw Gate**: revise the canvas **only if structure, relationship, or
    flow carries the point better than words**. Purely verbal matters touch

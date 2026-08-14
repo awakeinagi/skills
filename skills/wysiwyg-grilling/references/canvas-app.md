@@ -28,7 +28,10 @@ Mention at most one per round, when its moment arrives. A tour is noise.
 **per-round / pulled** is a toggle *they* own. `per-round` lands your revisions
 on a clean canvas; `pulled` holds everything behind the banner until they ask.
 If they flip to `pulled`, they are telling you to stop moving things under
-them — read it as a request for a still canvas, not as disengagement.
+them — read it as a request for a still canvas, not as disengagement. Which
+one is in force is `CADENCE=` on `canvas.py start` and `canvas.py status`;
+they can flip it mid-session, so a `QUEUED=true` you did not expect is that
+toggle moving, not a bug.
 
 ## The rail (right-hand column)
 

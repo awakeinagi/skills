@@ -4475,6 +4475,9 @@ def consequence_lines(record):
     return out
 
 
+PIN_GLYPH_GONE = "pin %s resolved; its ❓ was already gone"
+
+
 def pin_glyph_notes(record, ops):
     """Name the resolves that found no ❓ to take down.
 
@@ -4501,9 +4504,36 @@ def pin_glyph_notes(record, ops):
     gone = {c["element"]["id"]
             for part in (record.get("artifacts") or {}).values()
             for c in part.get("changes") or [] if c.get("op") == "del"}
-    return ["pin %s resolved; its ❓ was already gone" % o.get("id")
-            for o in ops or []
+    return [PIN_GLYPH_GONE % o.get("id") for o in ops or []
             if o.get("op") == "resolve_pin" and o.get("id") not in gone]
+
+
+def staged_pin_glyph_notes(ops):
+    """The same accounting for a batch that has not been committed.
+
+    `pin_glyph_notes` reads the deletions out of a save record, which a
+    dry run and a queued batch do not have — and under `pulled` cadence
+    every batch carrying a drawing op is queued, so the one note the
+    resolve path can produce had no surface on the one cadence where a
+    revision waits longest (Task 7 review I1, v0.9 WP3).
+
+    `_validate_batch` has already answered the same question here: it
+    marks each `resolve_pin` with `glyph_removed` against the pre-op
+    scene and every other artifact, for the echo. Reading that mark
+    rather than asking a second, differently-worded question is what
+    keeps the staged note and the committed one from disagreeing about
+    one op.
+
+    Args:
+        ops: The validated op list — `check_batch`'s `ops`, carrying the
+            marks. Ops without one read as a glyph that was already
+            gone, which is what an unmarked `resolve_pin` means.
+
+    Returns:
+        One string per `resolve_pin` whose ❓ was already gone.
+    """
+    return [PIN_GLYPH_GONE % o.get("id") for o in ops or []
+            if o.get("op") == "resolve_pin" and not o.get("glyph_removed")]
 
 
 def mechanical_summary(facts, sentinel_suppressed):
@@ -8443,8 +8473,10 @@ class Store:
 
         Returns:
             `{"ok": bool, "errors": [str], "artifact": str | None,
-            "intent_echo": [str], "layout_errors": [str],
-            "layout_warnings": [str], "layout_notes": [str]}`. Never
+            "intent_echo": [str], "notes": [str], "layout_errors": [str],
+            "layout_warnings": [str], "layout_notes": [str]}` — the same
+            reading an applied batch answers with, `notes` included, so
+            neither surface can be the only one that says a thing. Never
             raises for a rejected batch — the errors come back in the
             payload so a caller can report them without a try/except.
         """
@@ -8469,8 +8501,9 @@ class Store:
             except BatchError as e:
                 return {"ok": False, "errors": list(e.errors),
                         "artifact": batch.get("artifact"), "intent_echo": [],
-                        "layout_errors": [], "layout_warnings": [],
-                        "layout_notes": [], "elements": []}
+                        "notes": [], "layout_errors": [],
+                        "layout_warnings": [], "layout_notes": [],
+                        "elements": []}
             aid = checked["artifact"]
             # registry ops are the other half of a batch and they failed
             # this way in the field (`set_budget` with arrows: 0). The
@@ -8494,7 +8527,7 @@ class Store:
                     reg_errors, reg_after = list(e.errors), saved
             if reg_errors:
                 return {"ok": False, "errors": reg_errors, "artifact": aid,
-                        "intent_echo": [], "layout_errors": [],
+                        "intent_echo": [], "notes": [], "layout_errors": [],
                         "layout_warnings": [], "layout_notes": [], "elements": []}
             atype = (checked["new_meta"].get(aid) or
                      self.artifact_meta.get(aid) or {}).get("artifact_type")
@@ -8503,6 +8536,9 @@ class Store:
             return {"ok": True, "errors": [], "artifact": aid,
                     "intent_echo": intent_echo(checked["ops"],
                                                checked["new_els"]),
+                    # a resolve that will find no ❓ to take down says so
+                    # before it is queued, not only after it lands
+                    "notes": staged_pin_glyph_notes(checked["ops"]),
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
                     "layout_notes": lint["notes"],
@@ -9742,10 +9778,17 @@ class ServerApp:
                       "Re-read state and redraw." % (trigger, e))
             raise
         self.drop_pending(entry["id"])
+        # the agent is not the one who clicked Apply, so the event log is
+        # the only surface it hears this on when the banner (rather than
+        # `x-pending`) is what pulled the revision. Written only when
+        # there is something to say — an empty list on every revision is
+        # noise in a stream an agent reads line by line.
+        notes = pin_glyph_notes(record, batch.get("ops") or [])
         self.events.append("agent_revision", revn=record["revn"],
                            short_id=record["short_id"], pin_only=pin_only,
                            headline=record["summary"]["headline"],
-                           from_pending=entry["id"])
+                           from_pending=entry["id"],
+                           **({"notes": notes} if notes else {}))
         return record
 
     def flush_deferred(self):
@@ -9787,6 +9830,49 @@ class ServerApp:
                 if v.get("status") == "waiting"],
         })
         return st
+
+    def applied_reading(self, batch, record):
+        """What a revision that has just landed says about itself.
+
+        The half of an apply response that is read rather than acted on,
+        in one place because two paths produce it: a batch that applied
+        on arrival, and one pulled off the banner. The second answered
+        with a revn and the changed ids and nothing else, so a revision
+        the user held for an hour landed with less to say than one that
+        went straight through — including the already-gone-glyph note,
+        which is unreachable any other way on the held path (Task 7 I1).
+
+        Each line is here for its own reason: the echo because the agent
+        cannot see its own drawing; `consequences` because deletion
+        fallout is suppressed from the headline as derived noise and the
+        v0.8 beats found the save file to be its only surface; `notes`
+        because a resolve that found no ❓ to take down looked identical
+        to a clean one (r5-17); the lint because a finding is worth most
+        in the round that caused it.
+
+        Args:
+            batch: The envelope that landed. Its ops carry the
+                `glyph_removed` marks `apply_batch` left on them, which
+                is what the echo and the notes read.
+            record: The save record `apply_batch` returned.
+
+        Returns:
+            The `intent_echo` / `consequences` / `notes` / `layout_*`
+            keys of an apply response.
+        """
+        ops = batch.get("ops") or []
+        aid = batch.get("artifact") or (batch.get("create") or {}).get("id")
+        scene = self.store.scenes.get(aid, []) if aid else []
+        # lint_lines carries cross-artifact findings too (v0.4) — and
+        # reuses the lint_debt cache the same response ships
+        lint = (self.store.lint_lines().get(aid) if aid else None) or \
+            {"errors": [], "warnings": [], "notes": []}
+        return {"intent_echo": intent_echo(ops, scene),
+                "consequences": consequence_lines(record),
+                "notes": pin_glyph_notes(record, ops),
+                "layout_errors": lint["errors"],
+                "layout_warnings": lint["warnings"],
+                "layout_notes": lint["notes"]}
 
     def handle_post(self, path, body):
         if path == "/api/heartbeat":
@@ -9857,6 +9943,12 @@ class ServerApp:
                                    if self.dirty else
                                    "cadence is set to pulled"),
                         "intent_echo": check["intent_echo"],
+                        # the tolerant branches that will quietly do
+                        # nothing, named while the batch is still a
+                        # proposal — under `pulled` every batch that
+                        # draws is held, so this was the cadence where
+                        # the note went missing (Task 7 I1)
+                        "notes": check["notes"],
                         "layout_errors": check["layout_errors"],
                         "layout_warnings": check["layout_warnings"],
                         "layout_notes": check["layout_notes"],
@@ -9884,28 +9976,10 @@ class ServerApp:
                                short_id=record["short_id"],
                                pin_only=pin_only,
                                headline=record["summary"]["headline"])
-            aid = body.get("artifact") or (body.get("create") or {}).get("id")
-            scene = self.store.scenes.get(aid, []) if aid else []
-            # lint_lines carries cross-artifact findings too (v0.4) —
-            # and reuses the lint_debt cache this response also ships
-            lint = (self.store.lint_lines().get(aid) if aid else None) or \
-                {"errors": [], "warnings": [], "notes": []}
-            return {"ok": True, "revn": record["revn"],
+            resp = {"ok": True, "revn": record["revn"],
                     "short_id": record["short_id"],
                     "summary": record["summary"],
                     "pin_only": pin_only,
-                    # deletion fallout, spelled out (v0.8 beats): the
-                    # facts are suppressed from the headline as derived
-                    # noise, so without this line the only surface that
-                    # named them was the save file on disk
-                    "consequences": consequence_lines(record),
-                    # a resolve that found no ❓ to take down says so —
-                    # the silence is what let r5-17 pass for a clean one
-                    "notes": pin_glyph_notes(record, body.get("ops") or []),
-                    "intent_echo": intent_echo(body.get("ops") or [], scene),
-                    "layout_errors": lint["errors"],
-                    "layout_warnings": lint["warnings"],
-                    "layout_notes": lint["notes"],
                     # tripwires fired by THIS batch — visible at fire time,
                     # not rounds later via status (v0.3 assessment bug)
                     "tripwires": record.get("tripwires") or [],
@@ -9919,6 +9993,8 @@ class ServerApp:
                     "open_tripwires": self.store.open_tripwires(),
                     "lint_debt": self.store.lint_debt(),
                     "pin_debt": self.store.pin_debt(self.queued_turn())}
+            resp.update(self.applied_reading(body, record))
+            return resp
         if path == "/api/pending/resolve":
             pid = body.get("id")
             action = body.get("action")
@@ -9932,10 +10008,14 @@ class ServerApp:
                     record = self.commit_pending(entry)
                 except (BatchError, StaleError) as e:
                     return err(422, str(e))
-                return {"ok": True, "revn": record["revn"],
-                        "changes": {aid: part.get("changes") or []
-                                    for aid, part in
-                                    (record.get("artifacts") or {}).items()}}
+                out = {"ok": True, "revn": record["revn"],
+                       "changes": {aid: part.get("changes") or []
+                                   for aid, part in
+                                   (record.get("artifacts") or {}).items()}}
+                # the reading the queue acknowledgement could only mark
+                # provisional, now that the revision has actually landed
+                out.update(self.applied_reading(entry["batch"], record))
+                return out
             if action == "after_save":
                 self.set_pending_deferred(pid)
                 return {"ok": True, "deferred": True}
@@ -10423,6 +10503,29 @@ def print_kv(**kw):
         print("%s=%s" % (k.upper(), v))
 
 
+def cadence_of(cfg):
+    """Which canvas-update cadence a config puts in force.
+
+    Whether a batch commits or waits behind the banner decides how every
+    apply response should be read, and the only way to find it out was to
+    GET api/state and dig it out of `config` — so a toggle the user
+    flipped mid-session was something the agent inferred from the shape
+    of the answers it got back, or missed (v0.9 WP3).
+
+    Args:
+        cfg: A config mapping, from `/api/state` or off disk. Anything
+            that is not one of the two known values reads as the default,
+            because that is what the loader repairs it to (CFG-008) —
+            printing the raw value would name a cadence no server is
+            running.
+
+    Returns:
+        `"per-round"` or `"pulled"`.
+    """
+    got = cfg.get("canvas_updates") if isinstance(cfg, dict) else None
+    return got if got in ("per-round", "pulled") else "per-round"
+
+
 def frontend_stamp_warning(project):
     """Maintainer convenience: if frontends/wysiwyg-grilling/ source exists
     beside the skill, compare its hash against the committed build stamp."""
@@ -10506,12 +10609,20 @@ def cmd_start(args):
         print("SERVER_CODE_STALE=the running server was started from an "
               "older canvas.py — run `canvas.py stop` then `start` to pick "
               "up the update (safe: all state is on disk)")
+    # off disk rather than out of the server: the loader normalizes the
+    # file at load and `/api/config` rewrites it, so it is current, and a
+    # banner that has already waited 20s for a port should not wait on a
+    # second request to say which cadence the session is resuming under
+    try:
+        cfg = read_json(project.config_path)
+    except (OSError, ValueError):
+        cfg = {}
     print_kv(url=url, port=state["port"], pid=state["pid"],
              protocol_version=state["protocol_version"],
              project=str(project.root),
              project_knowledge=str(project.pk),
              events_log=state.get("events_log", str(project.events_path)),
-             reused=str(reused).lower(),
+             reused=str(reused).lower(), cadence=cadence_of(cfg),
              catchup_revn=state.get("catchup_revn"),
              rollback=state.get("rollback"),
              stamp_warning=warning)
@@ -10542,6 +10653,10 @@ def cmd_status(args):
              round=st.get("round"), whose_move=st.get("whose_move"),
              artifacts=",".join(sorted((st.get("artifacts") or {}).keys())),
              dirty=str(st.get("dirty", False)).lower(),
+             # what PENDING means: under `pulled` a revision queues
+             # whether or not the canvas is dirty, so the count below is
+             # unreadable without it
+             cadence=cadence_of(st.get("config")),
              pending=len(st.get("pending") or []),
              open_pins=len([p for p in st.get("pins") or []
                             if p.get("status") == "open"]),
@@ -10815,28 +10930,35 @@ def cmd_wait(args):
     return 3
 
 
-def _print_layout(resp):
+def _print_layout(resp, queued=False):
     """Print the echo and layout findings of an apply/check response.
 
     Args:
         resp: Any payload carrying `intent_echo` and `layout_*` keys.
+        queued: Mark every line provisional. A held batch is read against
+            the head it was queued on, and the user can move that head
+            before they pull it — printed under the same keys, a reading
+            of a revision that has not happened was indistinguishable
+            from one that had (v0.9 WP3). `QUEUED=true` sits two lines
+            up, but these are the lines an agent skims.
     """
+    tag = "(queued)" if queued else ""
     for line in resp.get("intent_echo") or []:
-        print("ECHO=%s" % line)
+        print("ECHO%s=%s" % (tag, line))
     for line in resp.get("consequences") or []:
         # deletion fallout (v0.8): what this revision orphaned, spelled
         # out where the agent reads — narrate these in the same round
-        print("CONSEQUENCE=%s" % line)
+        print("CONSEQUENCE%s=%s" % (tag, line))
     for line in resp.get("notes") or []:
         # a tolerant branch that quietly did nothing (r5-17): the batch
         # landed, and this is what it did NOT have to do
-        print("NOTE=%s" % line)
+        print("NOTE%s=%s" % (tag, line))
     for e in resp.get("layout_errors") or []:
-        print("LAYOUT_ERROR=%s" % e)
+        print("LAYOUT_ERROR%s=%s" % (tag, e))
     for w in resp.get("layout_warnings") or []:
-        print("LAYOUT_WARNING=%s" % w)
+        print("LAYOUT_WARNING%s=%s" % (tag, w))
     for n in resp.get("layout_notes") or []:
-        print("LAYOUT_NOTE=%s" % n)
+        print("LAYOUT_NOTE%s=%s" % (tag, n))
 
 
 def cmd_apply(args):
@@ -10906,7 +11028,7 @@ def cmd_apply(args):
             # early for two more versions after that (r3-6)
             print_kv(queued="true", pending_id=resp.get("pending_id"),
                      reason=resp.get("reason"), hint=resp.get("hint"))
-            _print_layout(resp)
+            _print_layout(resp, queued=True)
             _print_standing(resp)
             return 0
         print_kv(revn=resp.get("revn"), short_id=resp.get("short_id"),
@@ -11942,6 +12064,11 @@ def cmd_x_pending(args):
             payload = {"error": str(e)}
         die("ERROR=%s" % payload.get("error", str(e)), 5)
     print_kv(resolved=pid, action=action, revn=resp.get("revn"))
+    # an applied revision owes its reading wherever it lands: the queue
+    # acknowledgement's echo and notes were marked provisional, and this
+    # is where they stop being (v0.9 WP3). `--defer` parks the entry, so
+    # there is nothing to read yet and the keys are simply absent.
+    _print_layout(resp)
     return 0
 
 
