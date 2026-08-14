@@ -2623,7 +2623,7 @@ class TestStoreIntegrity(unittest.TestCase):
         id site live. `referential_findings` also advertises exactly this
         tolerance in its own docstring ("Non-dict elements are tolerated
         and skipped") while reading untrusted on-disk JSON by design, and
-        `indexable` (canvas.py:403) is the one guard both sites now ask:
+        `indexable` (canvas.py:410) is the one guard both sites now ask:
         `validate_scene` quarantines the artifact, and the pass skips
         what it cannot index for the callers who hold a raw scene.
 
@@ -3880,7 +3880,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
         index was silently rewritten to zero and the element went to the
         FRONT. Probed on the shipped code: `reorder n3 index=-1` and
         `reorder n3 index=0` produced byte-identical scenes. All three
-        arms now ask `index_fault` (canvas.py:2337), which refuses the
+        arms now ask `index_fault` (canvas.py:2396), which refuses the
         bottom; the top is still clamped, because an index past the end
         has always meant "to the back" and still does.
 
@@ -3941,7 +3941,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
         `reorder` arm had the identical gate and took `True` as position
         1 too — recorded here rather than as a third entry, because a
         shared index predicate was the fix that flipped all of them, and
-        `index_fault` (canvas.py:2337) is now the only one.
+        `index_fault` (canvas.py:2396) is now the only one.
 
         DIRECTION is refusal with a named error, the answer both arms
         already gave every other invalid index. MAGNITUDE is that the

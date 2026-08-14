@@ -415,33 +415,68 @@ class TestFailurePathAtomicity(unittest.TestCase):
         A raise is tolerated HERE and only here: whether the dry run is
         allowed to raise at all is a different claim, pinned separately
         in tests/test_mutants.py. This one asks only that it wrote
-        nothing on its way out.
+        nothing on its way out, and that whenever it DID answer, it
+        answered no.
+
+        The `suppress` below covers the CALL and nothing else, and no
+        assertion may ever move inside it: an `AssertionError` is an
+        `Exception`, so a suppress wrapped around the verdict as well
+        swallowed the verdict. That was this test's first draft, and a
+        `check_batch` returning `ok` for every shape passed it. The
+        sentinel is how the answer gets judged out here instead — absent
+        because the call raised, which is tolerated, is a different
+        thing from present and wrong, which is not.
         """
+        missed = object()
         before = self.full_snapshot()
         for name, batch in self.rejection_shapes():
             with self.subTest(shape=name):
+                out: Any = missed
                 with contextlib.suppress(Exception):
                     out = self.store.check_batch(batch)
+                self.assertEqual(self.full_snapshot(), before,
+                                 "%s wrote something during a DRY RUN" % name)
+                if out is not missed:
                     self.assertFalse(out["ok"],
                                      "%s dry-ran as acceptable: %r"
                                      % (name, out))
-                self.assertEqual(self.full_snapshot(), before,
-                                 "%s wrote something during a DRY RUN" % name)
 
     def test_the_sweep_notices_an_accepted_batch(self) -> None:
         """The sweep's live pole: the snapshot really can tell writes apart.
 
-        Without it, a `full_snapshot` that returned a constant — or one
-        that quietly stopped reading the disk — would pass every shape
-        above forever. Asserted on both halves it compares: the live
-        store and the bytes under `project_knowledge/`.
+        Without it, a `full_snapshot` that returned a constant would
+        pass every shape above forever. Each half is asserted BY NAME
+        rather than through the blob, because the halves fail
+        independently: a snapshot whose `disk` map went empty still
+        differs across an accepted batch on its in-memory half alone,
+        and the disk half is the one carrying the files a rejected batch
+        must not reach.
+
+        The batch writes in both places on purpose — the `mod` rewrites
+        the artifact file, the `set_round` rewrites model.json — so a
+        snapshot that stopped reading either one is named here.
         """
-        before = self.full_snapshot()
-        self.store.apply_batch(self.mapping_then_round(7))
-        self.assertNotEqual(self.full_snapshot(), before)
-        self.assertIn(json.dumps(self.store.registry["mappings"][0],
-                                 sort_keys=True)[:20],
-                      self.full_snapshot())
+        art = str((self.project.artifacts_dir /
+                   "checkout-flow.excalidraw").relative_to(self.tmp))
+        reg = str(self.project.registry_path.relative_to(self.tmp))
+        before = json.loads(self.full_snapshot())
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "cart",
+                      "attrs": {"label": "Basket"}},
+                     {"op": "registry", "action": "set_round", "round": 7}]})
+        after = json.loads(self.full_snapshot())
+        for path in (art, reg):
+            self.assertIn(path, before["disk"],
+                          "the snapshot stopped reading %s — every rejection "
+                          "shape above now sweeps that file blind" % path)
+            self.assertNotEqual(
+                after["disk"][path], before["disk"][path],
+                "an accepted batch rewrote %s and the snapshot did not "
+                "notice" % path)
+        self.assertNotEqual(after["registry"], before["registry"])
+        self.assertNotEqual(after["scenes"], before["scenes"])
 
 
 class TestCrossArtifactPinResolution(unittest.TestCase):
