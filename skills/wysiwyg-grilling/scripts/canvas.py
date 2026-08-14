@@ -799,6 +799,38 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
     return out
 
 
+def merge_referential(lint, ref):
+    """Fold referential findings into a lint result, saying nothing twice.
+
+    `referential_findings` and `lint_layout` emit a BYTE-IDENTICAL
+    arrow-binding error, and they never collided for as long as the
+    referential pass ran only on the RAW disk scene: `validate_scene`
+    nulls a dangling binding at load (ART-005), so the repaired scene
+    `lint_layout` reads was clean and exactly one of the two ever spoke.
+    Recomputing the pass on the LIVE scenes (r5-19) puts both on the same
+    picture for any break that opens AFTER load, where nothing has nulled
+    anything, and the debt counted one broken arrow as two.
+
+    Deduped BETWEEN the two readings and never within either one, which
+    is the same rule `Store.referential_now` merges under: two arrows, or
+    one arrow dangling at both ends, are different sentences and all of
+    them stand.
+
+    Args:
+        lint: A lint result — `{"errors": [...], "warnings": [...],
+            "notes": [...]}` — which the referential findings join.
+        ref: Referential findings for the same scope, same shape.
+
+    Returns:
+        A new merged result; neither argument is modified.
+    """
+    out = {}
+    for k in ("errors", "warnings", "notes"):
+        said = set(lint[k])
+        out[k] = lint[k] + [m for m in ref[k] if m not in said]
+    return out
+
+
 # ---------------------------------------------------------------------------
 # migrations — named sets on every owned JSON kind; snapshot before migrating
 # ---------------------------------------------------------------------------
@@ -8867,8 +8899,7 @@ class Store:
                 # (r5-19); the load-time pre-repair report is inside it.
                 r = ref.get(aid)
                 if r:
-                    li = {k: li[k] + r[k]
-                          for k in ("errors", "warnings", "notes")}
+                    li = merge_referential(li, r)
                 lines[aid] = li
                 counts = {k: len(li[k])
                           for k in ("errors", "warnings", "notes")}
@@ -8877,8 +8908,7 @@ class Store:
             reg = project_lint(self.p, [], self.registry)
             rref = ref.get("registry")
             if rref:
-                reg = {k: reg[k] + rref[k]
-                       for k in ("errors", "warnings", "notes")}
+                reg = merge_referential(reg, rref)
             if any(reg[k] for k in ("errors", "warnings", "notes")):
                 debt["registry"] = {k: len(reg[k])
                                     for k in ("errors", "warnings",

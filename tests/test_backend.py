@@ -6592,6 +6592,11 @@ class TestReferentialIntegrity(Base):
         what is asserted, because `referential_findings` is the only pass
         that reports it — `lint_layout` backstops the arrow arm, so the
         same assertion there would pass with this bug fully intact.
+
+        That backstop reasoning is also how the arrow arm went unprobed
+        while the recompute doubled it, so it no longer stands alone:
+        `test_the_arrow_arm_is_reported_once_not_twice` below covers the
+        arm this one deliberately skips.
         """
         self.seed()
         self.user_delete_n2()
@@ -6604,6 +6609,44 @@ class TestReferentialIntegrity(Base):
         self.assertFalse(any("f#n2" in m for m in said.get("warnings", [])),
                          "the repair landed and the server still nags: %r"
                          % (said,))
+
+    def test_the_arrow_arm_is_reported_once_not_twice(self):
+        """Two passes, one byte-identical sentence, one broken arrow.
+
+        `referential_findings` and `lint_layout` emit the SAME arrow-
+        binding error, character for character. They never collided while
+        the referential pass ran only on the RAW disk scene:
+        `validate_scene` nulls a dangling binding at load (ART-005), so
+        the repaired scene `lint_layout` reads was clean and exactly one
+        of the two ever spoke. Recomputing the pass on the LIVE scenes
+        put both on the same picture for a break opened AFTER load, where
+        nothing has nulled anything, and one broken arrow counted as two
+        — the r5-19 two-surfaces disagreement inverted, server 2 against
+        a CLI reading of 1.
+
+        Asserted the way it was measured, and on the COUNT rather than on
+        "no duplicates", because a dedupe applied to the wrong list would
+        satisfy the weaker claim by dropping a finding.
+
+        Whole-debt equality is deliberately NOT asserted here. The two
+        readings genuinely differ by one warning — the fresh load nulled
+        the binding, so `lint_layout` calls that arrow half-bound where
+        the running store still holds the dangling reference and errors
+        on it. That difference predates this work and reproduces on the
+        parent commit; the arm under test is the one that must agree.
+        """
+        self.seed()
+        self.user_delete_n2()
+        got = self.store.lint_lines().get("f", {}).get("errors", [])
+        self.assertEqual(
+            len([m for m in got if "binds n2" in m]), 1,
+            "one broken arrow, reported twice — `referential_findings` "
+            "and `lint_layout` both spoke: %r" % (got,))
+        self.assertEqual(self.store.lint_debt().get("f", {}).get("errors"),
+                         canvas.Store(self.project).lint_debt()
+                         .get("f", {}).get("errors"),
+                         "the running store and a fresh load of the same "
+                         "disk disagree about how many errors there are")
 
     def test_the_running_store_and_a_fresh_load_agree_after_a_repair(self):
         """The symptom as it was measured: two readings, one moment.
