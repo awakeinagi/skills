@@ -256,11 +256,15 @@ auto-prunes the registry pin — but the leftover ❓ element stays on canvas
 until you remove it with an ordinary `del` in your next revision (tidying
 wreckage, not a proposal).
 
-A pin id names **one** question. Reusing an id the registry has already
-filed — open or resolved — is refused with an error naming it, because the
-resolve write-through is id-global: one answer would close two questions
-and take the unanswered one's ❓ off the canvas. Omit `id` and one is
-minted for you. Conversely `resolve_pin` takes the ❓ and nothing else —
+A pin id names **one** question. Reusing an id the registry has **ever**
+filed — whatever its status: open, answered, resolved or auto-pruned — is
+refused with an error naming it, because the resolve write-through is
+id-global: one answer would close two questions and take the unanswered
+one's ❓ off the canvas. Pruned ids are held back for the same reason they
+are pruned rather than deleted — the stale ❓ may still be standing on a
+canvas, and a resolve of the reused id would take it down as if it had
+been answered. Omit `id` and one is minted for you. Conversely
+`resolve_pin` takes the ❓ and nothing else —
 ids are minted per scene, so an ordinary element that happens to share the
 id, here or on another artifact, is left standing.
 

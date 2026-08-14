@@ -7790,7 +7790,7 @@ class Store:
 
     # -- the agent write path --------------------------------------------
     def _validate_batch(self, batch):
-        """Check a batch against current state, changing nothing.
+        """Check a batch against current state, storing nothing.
 
         Split out of `apply_batch` so the same work can back a dry run.
         A held revision used to reach the queue unvalidated, so the agent
@@ -7799,14 +7799,23 @@ class Store:
         minutes later, for a mistake it was too late to repair (v0.4
         capability assessment).
 
+        No stored state moves here, but this is not a pure read: each
+        `resolve_pin` op in `batch` is MARKED with `glyph_removed` (see
+        the stamp below, and `intent_echo`). The apply path wants that
+        mark on the very list its caller still holds, because the echo is
+        built from that list after `apply_batch` returns. `check_batch`
+        passes copies for the same reason, so a dry run leaves its
+        caller's batch exactly as it found it.
+
         Args:
             batch: Op-batch envelope — `base_revn`, `artifact` or `create`,
-                `ops`, and the optional `note`.
+                `ops`, and the optional `note`. Its `resolve_pin` ops are
+                written to, per above.
 
         Returns:
             The work already done while validating, so the caller need not
             repeat it: `artifact`, `new_els`, `new_meta`, `pin_reg`,
-            `registry_ops`, `pin_only` and `ops`.
+            `registry_ops`, `pin_only` and `ops` (the marked ops).
 
         Raises:
             BatchError: The envelope is malformed, names an unknown or
@@ -7929,6 +7938,13 @@ class Store:
             # taken). Written for every resolve and never read from the
             # caller — an agent that sent the key itself must not be able
             # to script its own echo.
+            # It is written into the CALLER's op dicts, which is the point
+            # rather than an oversight: every echo surface builds its
+            # lines from the list the caller still holds after
+            # `apply_batch` returns (server `/api/apply`, the offline CLI
+            # path), so a mark on a private copy would never reach them.
+            # A dry run must not do that, so `check_batch` hands in
+            # copies — see its own comment for what leaked without them.
             was_pin = {e["id"] for e in base_els if role_of(e) == "pin"}
             standing = {e["id"] for e in new_els}
             here = {e["id"] for e in new_els if role_of(e) == "pin"}
@@ -7975,7 +7991,8 @@ class Store:
         that has since moved is not an error here.
 
         Args:
-            batch: The same op-batch envelope `apply_batch` takes.
+            batch: The same op-batch envelope `apply_batch` takes. It is
+                left exactly as it arrived, unlike on the apply path.
 
         Returns:
             `{"ok": bool, "errors": [str], "artifact": str | None,
@@ -7985,6 +8002,21 @@ class Store:
             payload so a caller can report them without a try/except.
         """
         with self.lock:
+            # A dry run leaves nothing behind in its caller's batch
+            # either. `_validate_batch` marks the `resolve_pin` ops it is
+            # handed with `glyph_removed`, which the apply path needs on
+            # the caller's own list; here the same write would ride into
+            # `.pending/*.json`, because `/api/apply` checks the body and
+            # then queues that same dict. A derived value sitting in a
+            # persisted file is a standing invitation to trust it instead
+            # of recomputing it, and this one is only ever true of the
+            # head it was computed against. One level deep is enough:
+            # only the op dicts are written to. A malformed `ops` is
+            # passed through untouched so its own error still fires.
+            ops = batch.get("ops")
+            if isinstance(ops, list):
+                batch = dict(batch, ops=[dict(o) if isinstance(o, dict)
+                                         else o for o in ops])
             try:
                 checked = self._validate_batch(batch)
             except BatchError as e:

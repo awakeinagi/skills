@@ -4442,6 +4442,42 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         self.assertEqual(len(said), 1, said)
         self.assertIn("removed from canvas", said[0])
 
+    def test_a_dry_run_leaves_the_callers_batch_as_it_found_it(self) -> None:
+        """Which of the two paths may write on the batch it is handed.
+
+        The echo's answer travels on the `resolve_pin` op, because
+        `intent_echo` is handed a post-op scene and nothing else. On the
+        apply path that mark has to land on the CALLER's list — every
+        echo surface builds its lines from the list it still holds after
+        `apply_batch` returns — so the write there is the mechanism, and
+        the flipped echo red above is what measures it.
+
+        `check_batch` is a documented dry run, and the same write there
+        is a leak: `/api/apply` checks the body and then queues that very
+        dict, so the mark reached `.pending/*.json` and sat in a
+        persisted file as a derived value inviting some later reader to
+        trust it — while being true only of the head it was computed
+        against. Both halves are asserted together, because the contract
+        is the DIFFERENCE between them and either one alone would read as
+        a rule about marking rather than about dry runs.
+        """
+        store = self._store()
+        ops: list[dict[str, Any]] = [{"op": "resolve_pin", "id": "pin-a"}]
+        batch = {"base_revn": store.head_revn(), "artifact": "flow",
+                 "ops": ops}
+        before = json.dumps(batch, sort_keys=True)
+        checked = store.check_batch(batch)
+        self.assertTrue(checked["ok"], checked["errors"])
+        self.assertIn("removed from canvas", checked["intent_echo"][0])
+        self.assertEqual(
+            json.dumps(batch, sort_keys=True), before,
+            "the dry run wrote into the caller's batch, which `/api/apply` "
+            "then queues to disk: %r" % (batch,))
+        store.apply_batch(batch)
+        self.assertIs(ops[0].get("glyph_removed"), True,
+                      "the apply path must mark the caller's own ops — the "
+                      "echo is built from this list: %r" % (ops,))
+
     def test_the_echo_reports_a_removal_that_really_happened(self) -> None:
         """The echo's other pole: a glyph that WAS taken down is claimed.
 
