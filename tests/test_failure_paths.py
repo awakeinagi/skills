@@ -263,6 +263,186 @@ class TestFailurePathAtomicity(unittest.TestCase):
         self.assertEqual(len(self.store.registry["mappings"]), 1)
         self.assertEqual(self.store.registry["round"], 7)
 
+    # -- the sweep ---------------------------------------------------------
+    # Everything above is a case someone remembered to write, and each one
+    # watches the surfaces that mattered to the defect it came from. That is
+    # how the rejection shapes added since — a negative mapping index, a
+    # boolean one, a reused pin id, an op that is not an object — arrived
+    # with no atomicity case at all: they were fixed as REFUSALS, and
+    # nobody's checklist said "and now diff the state". The sweep closes
+    # that by running every known rejection shape through one comparison of
+    # everything observable, so the next op to grow a write is caught by a
+    # test nobody had to remember to write.
+
+    def full_snapshot(self) -> str:
+        """Every observable copy of the state, as one comparable blob.
+
+        The cases above each diff one or two surfaces — the live
+        registry, the registry file, the artifact file, the pin list.
+        This diffs all of them at once, including the bytes of every
+        file under `project_knowledge/`, because a sweep whose reach is
+        narrower than the writes it is sweeping for would go quiet
+        exactly where a new write appeared.
+
+        Returns:
+            JSON holding the in-memory registry, artifact meta, scenes
+            and head revision, plus every file under the project root
+            keyed by relative path.
+        """
+        disk = {str(p.relative_to(self.tmp)): p.read_bytes().hex()
+                for p in sorted(self.tmp.rglob("*")) if p.is_file()}
+        return json.dumps({"registry": self.store.registry,
+                           "meta": self.store.artifact_meta,
+                           "scenes": self.store.scenes,
+                           "head": self.store.head_revn(), "disk": disk},
+                          sort_keys=True, default=str)
+
+    def rejection_shapes(self) -> list[tuple[str, dict[str, Any]]]:
+        """Every batch shape the tool is known to refuse, one each.
+
+        Every shape carries a legitimate op BEFORE its illegal one, and
+        that is the whole discipline: a batch that is rejected on its
+        first op has nothing half-written to leave behind, so it would
+        sweep clean however leaky the path is. The write that must not
+        survive is the one the good op made.
+
+        The list is deliberately shape-by-shape rather than one entry
+        per fix, since two refusals from the same predicate can still
+        reach different write paths — `add_mapping` writes the registry,
+        `add` writes the scene, `pin` writes both.
+
+        Returns:
+            `(name, batch)` pairs on the current head revision.
+        """
+        base = self.store.head_revn()
+        mapping = {"op": "registry", "action": "add_mapping",
+                   "concept": "checkout",
+                   "elements": ["checkout-flow#cart"]}
+        node = {"op": "add", "element": {
+            "type": "rectangle", "id": "extra", "label": "Extra", "x": 480,
+            "y": 120, "width": 140, "height": 60, "role": "node"}}
+
+        def batch(*ops: Any) -> dict[str, Any]:
+            """Wrap ops in an envelope on the seeded artifact.
+
+            Args:
+                ops: The batch's ops, in order.
+
+            Returns:
+                An op-batch envelope.
+            """
+            return {"base_revn": base, "artifact": "checkout-flow",
+                    "ops": list(ops)}
+
+        return [
+            ("a non-integer round",
+             batch(mapping, {"op": "registry", "action": "set_round",
+                             "round": "two"})),
+            ("a negative mapping index",
+             batch(mapping, {"op": "registry", "action": "annotate_mapping",
+                             "index": -1, "note": "boom"})),
+            ("a boolean mapping index",
+             batch(mapping, {"op": "registry", "action": "remove_mapping",
+                             "index": True})),
+            ("a mapping index past the end",
+             batch(mapping, {"op": "registry", "action": "annotate_mapping",
+                             "index": 7, "note": "boom"})),
+            ("a negative reorder index",
+             batch(node, {"op": "reorder", "id": "cart", "index": -1})),
+            ("a non-integer reorder index",
+             batch(node, {"op": "reorder", "id": "cart", "index": "1"})),
+            ("a reused pin id",
+             batch({"op": "pin", "target": "cart", "id": "pin-dup",
+                    "question": "one cart, or one per seller?"},
+                   {"op": "pin", "target": "checkout", "id": "pin-dup",
+                    "question": "guest checkout?"})),
+            ("an unknown pin resolve",
+             batch(mapping, {"op": "resolve_pin", "id": "pin-nobody",
+                             "answer": "sure"})),
+            ("an unknown tripwire",
+             batch(mapping, {"op": "registry", "action": "resolve_tripwire",
+                             "id": "tw-nobody"})),
+            ("an unknown element to modify",
+             batch(node, {"op": "mod", "id": "nobody",
+                          "attrs": {"label": "boom"}})),
+            # crash-shaped rather than refusal-shaped: `check_batch` and
+            # `apply_batch` both raise `AttributeError` on this today
+            # (pinned red in tests/test_mutants.py). It sweeps here anyway
+            # because the claim is about STATE, not about which way the
+            # batch resolved — a crash that leaves half a batch behind is
+            # the worse version of the same wound.
+            ("an op that is not an object", batch(mapping, "just a string")),
+        ]
+
+    def test_every_rejection_shape_leaves_the_state_byte_identical(
+            self) -> None:
+        """The sweep: nothing a refused batch touched may survive it.
+
+        `Exception` rather than `BatchError` deliberately — the promise
+        is "no trace", which a batch that died of something else breaks
+        just as badly, and pinning the type here would have excluded the
+        crash-shaped shape that most needs the check.
+
+        The "was ACCEPTED" assertion is what stops this from decaying
+        into a test of nothing: a shape the tool stops refusing writes
+        legitimately, sweeps clean, and would otherwise read as a pass
+        while covering no rejection at all.
+        """
+        before = self.full_snapshot()
+        for name, batch in self.rejection_shapes():
+            with self.subTest(shape=name):
+                escaped = None
+                try:
+                    self.store.apply_batch(batch)
+                except Exception as exc:
+                    escaped = exc
+                self.assertIsNotNone(
+                    escaped, "%s was ACCEPTED — this shape no longer pins a "
+                    "rejection, so fix the batch or drop the entry" % name)
+                self.assertEqual(
+                    self.full_snapshot(), before,
+                    "%s left a write behind (%s: %s)"
+                    % (name, type(escaped).__name__, escaped))
+
+    def test_every_rejection_shape_dry_runs_without_writing(self) -> None:
+        """The same sweep through `--check`, which may not write either.
+
+        `check_batch` stages the same ops against the same store, so
+        every write path the sweep above walks is reachable from the dry
+        run too — and an agent that asked "would this land?" and got a
+        half-applied registry would have no reason to suspect it.
+
+        A raise is tolerated HERE and only here: whether the dry run is
+        allowed to raise at all is a different claim, pinned separately
+        in tests/test_mutants.py. This one asks only that it wrote
+        nothing on its way out.
+        """
+        before = self.full_snapshot()
+        for name, batch in self.rejection_shapes():
+            with self.subTest(shape=name):
+                with contextlib.suppress(Exception):
+                    out = self.store.check_batch(batch)
+                    self.assertFalse(out["ok"],
+                                     "%s dry-ran as acceptable: %r"
+                                     % (name, out))
+                self.assertEqual(self.full_snapshot(), before,
+                                 "%s wrote something during a DRY RUN" % name)
+
+    def test_the_sweep_notices_an_accepted_batch(self) -> None:
+        """The sweep's live pole: the snapshot really can tell writes apart.
+
+        Without it, a `full_snapshot` that returned a constant — or one
+        that quietly stopped reading the disk — would pass every shape
+        above forever. Asserted on both halves it compares: the live
+        store and the bytes under `project_knowledge/`.
+        """
+        before = self.full_snapshot()
+        self.store.apply_batch(self.mapping_then_round(7))
+        self.assertNotEqual(self.full_snapshot(), before)
+        self.assertIn(json.dumps(self.store.registry["mappings"][0],
+                                 sort_keys=True)[:20],
+                      self.full_snapshot())
+
 
 class TestCrossArtifactPinResolution(unittest.TestCase):
     """A pin is resolved where it LIVES, not where the batch is aimed.

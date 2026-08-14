@@ -2604,26 +2604,28 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertIn("checkout", said["warnings"][0])
         self.assertIn("flow#n1", said["warnings"][0])
 
-    @unittest.expectedFailure
     def test_red_a_non_hashable_id_takes_the_whole_project_down(
             self) -> None:
-        """One malformed value kills the load — at both id sites.
+        """One malformed value costs its own file — at both id sites.
 
-        `ids_by_aid` builds a SET of element ids (canvas.py:625) and the
-        files arm builds a set of used fileIds (canvas.py:643), so a
-        value that is not hashable raises `TypeError` out of a
-        comprehension nothing catches, and `Store.__init__` dies with it.
-        Probed on the shipped code: `{"x": 1}` in either field gives
-        `TypeError: unhashable type: 'dict'` and no artifact loads at
-        all — not the malformed one, not its healthy siblings.
+        `ids_by_aid` builds a SET of element ids and the files arm builds
+        a set of used fileIds, so a value that is not hashable raised
+        `TypeError` out of a comprehension nothing caught, and
+        `Store.__init__` died with it. Probed on the shipped code:
+        `{"x": 1}` in either field gave `TypeError: unhashable type:
+        'dict'` and no artifact loaded at all — not the malformed one,
+        not its healthy siblings.
 
         The reviewer asked for one entry over both sites and this is it,
         as a `subTest` per field: the two are one defect under one
         operator — a container where a string belongs — and a fix that
-        guarded only the newer files arm would leave the pre-existing id
-        site live. `referential_findings` also advertises exactly this
+        guarded only the newer files arm would have left the pre-existing
+        id site live. `referential_findings` also advertises exactly this
         tolerance in its own docstring ("Non-dict elements are tolerated
-        and skipped") while reading untrusted on-disk JSON by design.
+        and skipped") while reading untrusted on-disk JSON by design, and
+        `indexable` (canvas.py:403) is the one guard both sites now ask:
+        `validate_scene` quarantines the artifact, and the pass skips
+        what it cannot index for the callers who hold a raw scene.
 
         The outcome is the one `test_red_non_dict_save_record_takes_down
         _the_whole_store` established for the save loop and is asserted
@@ -2631,6 +2633,12 @@ class TestStoreIntegrity(unittest.TestCase):
         read is named. `except Exception` is deliberate and pins the
         outcome rather than the mechanism — any exception escaping the
         load is the same disaster for the user, whatever raised it.
+
+        The artifact leaves rather than the element, which is the same
+        ruling ART-000 already makes about a file that is not an object:
+        dropping just the element would hand back a repaired drawing the
+        user never wrote, while a quarantine leaves the bytes on disk to
+        be fixed by hand and says which file went.
         """
         for field in ("id", "fileId"):
             with self.subTest(field=field):
@@ -2651,33 +2659,35 @@ class TestStoreIntegrity(unittest.TestCase):
                 self.assertEqual(sorted(st.scenes), ["a"])
                 self.assertIn("b", " ".join(str(i) for i in st.issues))
 
-    @unittest.expectedFailure
     def test_red_an_integer_fileid_is_reported_in_both_directions(
             self) -> None:
-        """One image and its own blob draw both findings at once.
+        """One image and its own blob draw one finding, not two.
 
-        `used_files` and the `files` map are compared with `in`, so the
-        integer `123` never matches the key `"123"` and BOTH arms fire
+        `used_files` and the `files` map were compared with `in`, so the
+        integer `123` never matched the key `"123"` and BOTH arms fired
         about the same pair: a warning saying the image "carries no such
         file — re-import the image, or delete the element", and a note
-        saying the blob "is kept ... and no element shows it". Excalidraw
-        writes string fileIds, so this needs a hand-malformed or
-        foreign-tool document — which is the kind this function reads by
-        contract.
+        saying the blob "is kept ... and no element shows it".
+        Excalidraw writes string fileIds, so this needs a hand-malformed
+        or foreign-tool document — which is the kind this function reads
+        by contract.
 
         Low reachability is why it is one entry and not three, but it is
-        not why it would be harmless. The two findings are contradictory
-        ADVICE about one image: follow the note and the user deletes the
-        only blob the element names, turning a type confusion into real
-        data loss. That is the harm being pinned.
+        not why it would have been harmless. The two findings were
+        contradictory ADVICE about one image: follow the note and the
+        user deletes the only blob the element names, turning a type
+        confusion into real data loss. That is the harm being pinned.
 
         Asserted as "not both" rather than as a coercion, deliberately.
-        Two readings are defensible — the pair is matched and the
+        Two readings were defensible — the pair is matched and the
         comparison should be type-tolerant, or the pair is genuinely
-        unmatched and the note should not claim nothing shows that key —
-        and either fix flips this. Choosing between them belongs to the
-        work package that owns the pass. The neighbour below is what
-        keeps the cheap fix of muting one arm from satisfying it.
+        unmatched and the note should not claim nothing shows that key.
+        The second is what shipped: a fileId that is not a string does
+        not NAME that blob, so the dangling warning stands, while the
+        orphan note now matches on the key's text and no longer calls a
+        blob unshown when an element plainly points at it. The neighbour
+        below is what kept the cheap fix of muting one arm from
+        satisfying this.
         """
         els = [{"id": "img", "type": "image", "x": 0, "y": 0,
                 "width": 120, "height": 90, "fileId": 123}]
@@ -2691,19 +2701,20 @@ class TestStoreIntegrity(unittest.TestCase):
             "orphan note — the user is told to re-import the image and "
             "to delete the file it names: %r" % (said,))
 
-    @unittest.expectedFailure
     def test_red_the_gitignore_rewrite_edits_a_users_own_pattern(
             self) -> None:
-        """The one start that appends silently rewrites what git matches.
+        """The one start that appends leaves what git matches alone.
 
-        `ensure_tree` reads the file as `[ln.strip() for ln in ...]`
-        (canvas.py:278) and rebuilds it from that list, so on the single
-        start where `.pending/` or `.backups/` is missing — the legacy
-        project upgrade, which every existing project takes exactly once
-        — every preserved line loses its leading whitespace. Git treats
-        leading whitespace as part of the pattern, so `    build/` and
-        `build/` are different rules, and the file the user wrote is not
-        the file that comes back.
+        `ensure_tree` read the file as `[ln.strip() for ln in ...]` and
+        rebuilt it from that list, so on the single start where
+        `.pending/` or `.backups/` is missing — the legacy project
+        upgrade, which every existing project takes exactly once — every
+        preserved line lost its leading whitespace. Git treats leading
+        whitespace as part of the pattern, so `    build/` and `build/`
+        are different rules, and the file the user wrote was not the file
+        that came back. The lines are kept verbatim now and only the
+        membership LOOKUP is stripped, so an indented `.pending/` still
+        counts as already present.
 
         Trailing whitespace is deliberately NOT pinned here: git ignores
         it unless it is escaped, so stripping it is defensible and
@@ -2715,8 +2726,9 @@ class TestStoreIntegrity(unittest.TestCase):
         DIRECTION is that the append still happens — asserted in the
         same test because "leave the file alone" is trivially satisfied
         by doing nothing, and doing nothing is the bug this rewrite was
-        added to fix. The outcome is pinned, not the mechanism: appending
-        to the raw text instead of to a stripped list would satisfy both.
+        added to fix. The outcome is pinned, not the mechanism: any way
+        of appending to the raw lines instead of to a stripped list
+        satisfies both.
         """
         root = _scratch_project(self, {}, {})
         gi = root / "project_knowledge" / ".gitignore"
@@ -2824,45 +2836,45 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a", "b"])
         self.assertIn("f1", json.dumps(st.referential, default=str))
 
-    @unittest.expectedFailure
     def test_red_a_negative_replay_index_lands_in_the_interior(self) -> None:
-        """A corrupt record's index puts an element where nobody asked.
+        """A corrupt record's index resolves the way every other one does.
 
-        `replay_changes` clamps only the top: `idx = min(ch.get("index",
-        len(els)), len(els))` (canvas.py:3188), so a negative index goes
-        to `list.insert` unclamped and Python reads it as an offset from
-        the END. On a three-element list `-1` lands the element SECOND TO
-        LAST, which is neither the front nor the back and is not a
-        position any writer could have meant.
+        `replay_changes` clamped only the top: `idx = min(ch.get("index",
+        len(els)), len(els))`, so a negative index went to `list.insert`
+        unclamped and Python read it as an offset from the END. On a
+        three-element list `-1` landed the element SECOND TO LAST, which
+        is neither the front nor the back and is not a position any
+        writer could have meant.
 
-        What makes it nonsense rather than merely a convention is that
-        the other negative values disagree with it: `-5` on the same list
-        clamps to the front, because `insert` bottoms out at 0. Two
-        corrupt records carrying two negative indices get two unrelated
-        answers, and the arm thirty lines below in the SAME function
-        already does the right thing — the legacy reorder branch is
-        `max(0, min(ch["to_index"], len(els)))` (canvas.py:3220). The
-        missing `max(0, ...)` is an omission, not a decision.
+        What made it nonsense rather than merely a convention is that
+        the other negative values disagreed with it: `-5` on the same
+        list clamped to the front, because `insert` bottoms out at 0.
+        Two corrupt records carrying two negative indices got two
+        unrelated answers, while the arm thirty lines below in the SAME
+        function already did the right thing — the legacy reorder branch
+        is `max(0, min(ch["to_index"], len(els)))`. The missing `max(0,
+        ...)` was an omission, not a decision, and the add branch now
+        carries it too.
 
-        Save records are self-generated, so there is no live trigger —
+        Save records are self-generated, so there was no live trigger —
         but they are read back from DISK, which puts this in the same
         family as the malformed artifacts above. Probed end to end: with
         one add change's `index` hand-edited to `-1`, the project
-        reloads with `issues` EMPTY, `state_at` reconstructs
-        `['a', 'c', 'b', ...]` where the live scene holds
-        `['a', 'b', 'c', ...]`, and no lint fires on the reconstruction.
+        reloaded with `issues` EMPTY, `state_at` reconstructed
+        `['a', 'c', 'b', ...]` where the live scene held
+        `['a', 'b', 'c', ...]`, and no lint fired on the reconstruction.
         Element order is paint order, so a rollback to that revision
-        hands the user a differently-stacked drawing with nothing
+        handed the user a differently-stacked drawing with nothing
         anywhere saying the reconstruction disagreed with the record.
 
         MAGNITUDE is where the element lands. DIRECTION is that every
         negative index resolves the same way as `0` — asserted as
         agreement between `-1`, `-5` and `0` rather than as a literal
         position, so the claim is the consistency and not a chosen
-        convention. `max(0, ...)`, matching the arm below, flips it;
-        quarantining the record at load would be a larger change that
-        this test would have to be rewritten for, and the docstring says
-        so rather than leaving a future fixer guessing.
+        convention. `max(0, ...)`, matching the arm below, is what
+        flipped it; quarantining the record at load would be a larger
+        change that this test would have to be rewritten for, and the
+        docstring says so rather than leaving a future fixer guessing.
         """
         base = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
 
@@ -3857,38 +3869,40 @@ class TestBatchPathIntegrity(unittest.TestCase):
     # op's own index, and the type gate that lets a boolean through as a
     # position on either side.
 
-    @unittest.expectedFailure
     def test_red_a_negative_reorder_index_sends_the_element_to_the_front(
             self) -> None:
-        """`index: -1` moves the element instead of refusing to.
+        """`index: -1` is refused instead of moving the element.
 
-        The scene-op cousin of the two registry index arms Task 34 just
-        fixed, and the last place the sign half is missing. The guard is
-        `pos = max(0, min(pos, len(els)))` (canvas.py:2833), which does
-        not read `-1` the way Python subscripts do — it CLAMPS it — so a
-        negative index is silently rewritten to zero and the element goes
-        to the FRONT. Probed on the shipped code: `reorder n3 index=-1`
-        and `reorder n3 index=0` produce byte-identical scenes.
+        The scene-op cousin of the two registry index arms Task 34
+        fixed, and the last place the sign half was missing. The guard
+        was `pos = max(0, min(pos, len(els)))`, which does not read `-1`
+        the way Python subscripts do — it CLAMPED it — so a negative
+        index was silently rewritten to zero and the element went to the
+        FRONT. Probed on the shipped code: `reorder n3 index=-1` and
+        `reorder n3 index=0` produced byte-identical scenes. All three
+        arms now ask `index_fault` (canvas.py:2337), which refuses the
+        bottom; the top is still clamped, because an index past the end
+        has always meant "to the back" and still does.
 
         This is the weakest member of the family and is written that way
-        on purpose. Nothing crashes, nothing is deleted, and the save
-        record narrates the resulting order honestly — an agent reading
-        the record sees where the element really went. What it is silent
+        on purpose. Nothing crashed, nothing was deleted, and the save
+        record narrated the resulting order honestly — an agent reading
+        the record saw where the element really went. What it was silent
         about is that where it went is not where the op asked, and the
-        clamp makes every negative index mean the same thing, so an
-        agent that computed `-1` for "last" gets the exact opposite of
-        what it meant with nothing to tell it so.
+        clamp made every negative index mean the same thing, so an agent
+        that computed `-1` for "last" got the exact opposite of what it
+        meant with nothing to tell it so.
 
         DIRECTION is that the op is refused with a named error, matching
-        what the two registry arms now do — the same predicate, the same
+        what the two registry arms do — the same predicate, the same
         answer, so one convention covers all three. MAGNITUDE is that the
         stored order is untouched, asserted first because a refusal that
         still moved the element would leave the damage live.
 
-        The `index: True` case reaches the same arm and is accepted as
-        position 1; it is not asserted here because the boolean red below
-        owns that shape, and one fix that gives all three arms a shared
-        index predicate flips both.
+        The `index: True` case reaches the same arm and was accepted as
+        position 1; it is not asserted here because the boolean test
+        below owns that shape, and the one shared index predicate that
+        flipped this flipped that.
         """
         store, _ = self._store()
         self._with_nodes(store)
@@ -3907,31 +3921,30 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertIn("reorder", said)
         self.assertIn("index", said)
 
-    @unittest.expectedFailure
     def test_red_a_boolean_mapping_index_is_taken_as_a_position(
             self) -> None:
-        """`index: true` clears the type gate and lands on mapping 1.
+        """`index: true` is refused instead of landing on mapping 1.
 
         Task 34 gave both arms `not isinstance(idx, int) or not 0 <= idx
-        < len(...)` (canvas.py:7559, :7571), which closes the sign half
-        and leaves the type half open: `bool` is a subclass of `int` in
-        Python, so `True` is an `int`, and `0 <= True < 3` is `0 <= 1 <
-        3`. Probed on the shipped code, `remove_mapping index=true`
-        tombstones `beta` and `annotate_mapping index=true` writes the
-        note onto `beta` — a mapping the batch never named, on a JSON
-        value that is not a position at all.
+        < len(...)`, which closed the sign half and left the type half
+        open: `bool` is a subclass of `int` in Python, so `True` is an
+        `int`, and `0 <= True < 3` is `0 <= 1 < 3`. Probed on the shipped
+        code, `remove_mapping index=true` tombstoned `beta` and
+        `annotate_mapping index=true` wrote the note onto `beta` — a
+        mapping the batch never named, on a JSON value that is not a
+        position at all.
 
         Both arms are asserted under one entry as a `subTest`, following
         `test_an_index_past_the_end_is_rejected_with_a_named_error`
         directly above: one predicate, copied to two sites, and a fix to
-        either alone leaves the other live. The scene op's own `reorder`
-        arm has the identical gate (canvas.py:2827) and takes `True` as
-        position 1 too — recorded here rather than as a third entry,
-        because a shared index predicate is the fix that flips all of
-        them.
+        either alone would have left the other live. The scene op's own
+        `reorder` arm had the identical gate and took `True` as position
+        1 too — recorded here rather than as a third entry, because a
+        shared index predicate was the fix that flipped all of them, and
+        `index_fault` (canvas.py:2337) is now the only one.
 
         DIRECTION is refusal with a named error, the answer both arms
-        already give every other invalid index. MAGNITUDE is that the
+        already gave every other invalid index. MAGNITUDE is that the
         mapping list comes through untouched — same concepts, same
         order, no note — asserted first because it is the damage.
         """

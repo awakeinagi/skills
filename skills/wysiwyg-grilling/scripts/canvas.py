@@ -275,8 +275,7 @@ class Project:
         # created before .pending/ existed need it just as much.
         gi = self.pk / ".gitignore"
         try:
-            have = [ln.strip() for ln in
-                    gi.read_text("utf-8").splitlines()] if gi.exists() else []
+            kept = gi.read_text("utf-8").splitlines() if gi.exists() else []
         except (OSError, ValueError) as e:
             # a .gitignore this code cannot read is not this code's to
             # rewrite. Treating the failure as "empty" and writing the
@@ -289,9 +288,17 @@ class Project:
                 log("project_knowledge/.gitignore left alone, could not "
                     "read it: %s" % e)
             return
+        # the user's lines go back VERBATIM: git reads leading whitespace
+        # as part of the pattern, so `    build/` and `build/` are
+        # different rules, and rewriting the file from a stripped list
+        # changed what the user's own .gitignore matched — on the single
+        # start that appends, which every pre-.pending/ project takes
+        # exactly once. Only the LOOKUP is stripped, so an indented
+        # `.pending/` still counts as already there.
+        have = {ln.strip() for ln in kept}
         missing = [ln for ln in (".backups/", ".pending/") if ln not in have]
         if missing:
-            atomic_write(gi, "".join("%s\n" % ln for ln in have + missing))
+            atomic_write(gi, "".join("%s\n" % ln for ln in kept + missing))
 
     def name(self):
         return self.root.name
@@ -400,6 +407,30 @@ def validate_registry(reg):
     return reg, issues
 
 
+def indexable(el):
+    """Whether an element's `id` and `fileId` can be indexed by.
+
+    Both fields end up as SET members — the duplicate-id check below, the
+    id set and the used-file set the referential pass builds — so a
+    container in either one raises `TypeError` out of a comprehension
+    nothing catches. On the shipped code that cost the whole project:
+    `{"x": 1}` in one element's `id` and NO artifact loaded, not the
+    malformed one and not its healthy siblings.
+
+    Args:
+        el: One element dict, straight off disk and untrusted.
+
+    Returns:
+        True when both fields are values a set can hold.
+    """
+    try:
+        hash(el.get("id"))
+        hash(el.get("fileId"))
+    except TypeError:
+        return False
+    return True
+
+
 def validate_scene(doc, artifact_id):
     """Validate + repair a .excalidraw document. Returns (doc, issues)."""
     issues = []
@@ -424,6 +455,17 @@ def validate_scene(doc, artifact_id):
                             % artifact_id, "Drawing content was lost; if that is "
                             "surprising, restore from saves/ or git.", True))
         return doc, issues
+    # A document we cannot index is a document we cannot read. Dropping
+    # only the offending element would repair a file by hand-editing away
+    # content the user may want back, so this quarantines the artifact the
+    # way an unparseable one is quarantined: the project still opens, the
+    # file is named, and it stays on disk untouched for repair.
+    if any(isinstance(el, dict) and not indexable(el) for el in els):
+        return None, [Issue(
+            "ART-000", "%s: an element `id` or `fileId` is a container, not "
+            "a name — the artifact cannot be indexed" % artifact_id,
+            "The artifact file is unreadable; it will be ignored until "
+            "repaired by hand or overwritten.", False)]
     seen = set()
     kept = []
     for el in els:
@@ -622,15 +664,21 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
 
     ids_by_aid = {}
     for aid, els in raw_scenes.items():
+        # `indexable` is the same guard `validate_scene` quarantines on,
+        # and it is repeated here because this function reads a raw scene
+        # off disk by contract: a caller holding one directly must get the
+        # tolerance the docstring above promises, not a `TypeError` from
+        # inside a comprehension.
         ids_by_aid[aid] = {e.get("id") for e in els
-                           if isinstance(e, dict) and e.get("id")}
+                           if isinstance(e, dict) and e.get("id")
+                           and indexable(e)}
     for aid, els in sorted(raw_scenes.items()):
         ids = ids_by_aid[aid]
         files = (artifact_files or {}).get(aid)
         files = files if isinstance(files, dict) else {}
         used_files = set()
         for e in els:
-            if not isinstance(e, dict):
+            if not isinstance(e, dict) or not indexable(e):
                 continue
             # Soft-deleted elements are skipped HERE and nowhere else in
             # this pass: the other arms judge one element against another,
@@ -672,7 +720,18 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
                 add(aid, "notes",
                     "%s links_to artifact %r, which does not exist"
                     % (e.get("id"), link[len("artifact:"):]))
-        for fid in sorted(k for k in files if k not in used_files):
+        # matched as TEXT, because a JSON object's keys are text and an
+        # element's `fileId` need not be: the integer 123 never equals the
+        # key "123", so one image and its own blob earned BOTH findings at
+        # once — "no such file, re-import it" beside "no element shows it".
+        # Following the second is real data loss, so the two may not both
+        # stand. The dangling warning above is the one that keeps firing:
+        # a fileId that is not a string does not name that blob, whatever
+        # it looks like. This half only stops the note from claiming the
+        # blob is unshown when an element plainly points at it.
+        shown = {fid if isinstance(fid, str) else json.dumps(fid, default=str)
+                 for fid in used_files}
+        for fid in sorted(k for k in files if k not in shown):
             # Sized in the bytes it costs the file, not in decoded pixels:
             # this entry is re-serialized into the artifact on every save,
             # which is the whole harm of keeping it.
@@ -2334,6 +2393,36 @@ MOD_ATTRS = {
 }
 
 
+def index_fault(value, limit=None):
+    """Say why a JSON `index` is not a position, or None if it is one.
+
+    ONE predicate behind every `index` an agent can send — the scene
+    `reorder` op and both registry mapping arms — because three copies is
+    exactly how the sign half came to be fixed at two of the three and
+    the type half at none of them. `bool` is refused explicitly: it is an
+    `int` subclass, so `0 <= True < 3` reads as position 1 and a JSON
+    `true` lands on a mapping the batch never named.
+
+    Args:
+        value: The `index` field exactly as it came off the wire.
+        limit: One past the last legal position, or None when the caller
+            bounds the top itself — `reorder` clamps to the end so that
+            "put it at the back" needs no element count to say.
+
+    Returns:
+        A phrase naming the fault, ready to follow "op N (action): ", or
+        None when `value` is a position.
+    """
+    if not isinstance(value, int) or isinstance(value, bool):
+        return "needs an integer `index`, got %r" % (value,)
+    if value < 0:
+        return "needs an `index` of 0 or more, not %d" % value
+    if limit is not None and value >= limit:
+        return ("needs an `index` in 0..%d, got %d" % (limit - 1, value)
+                if limit else "names an `index` but the list is empty")
+    return None
+
+
 def arrow_label_anchor(arrow, label):
     """Where a bound label on an arrow actually lands, as (x, y).
 
@@ -2825,12 +2914,19 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             if el is None:
                 continue
             pos = op.get("index")
-            if not isinstance(pos, int):
-                errors.append("op %d (reorder %s): integer `index` required"
-                              % (i, op.get("id")))
+            # the top is still clamped — an index past the end means "to
+            # the back" and always has — but a negative one meant that
+            # too, silently, because the clamp bottomed out at 0. So an
+            # agent that computed -1 for "last" got the FRONT and nothing
+            # said otherwise. The bottom is a refusal now, matching what
+            # the two registry index arms answer.
+            fault = index_fault(pos)
+            if fault:
+                errors.append("op %d (reorder %s): %s"
+                              % (i, op.get("id"), fault))
                 continue
             els = [e for e in els if e["id"] != el["id"]]
-            pos = max(0, min(pos, len(els)))
+            pos = min(pos, len(els))
             els.insert(pos, el)
         elif kind == "pin":
             q = op.get("question")
@@ -3193,7 +3289,14 @@ def replay_changes(elements, changes):
     for ch in changes:
         op = ch["op"]
         if op == "add":
-            idx = min(ch.get("index", len(els)), len(els))
+            # clamped at BOTH ends, like the legacy reorder branch below:
+            # `insert` reads a negative index as an offset from the end,
+            # so a corrupt record carrying -1 rebuilt the scene with the
+            # element second to last while -5 put it at the front. Two
+            # unrelated answers to one unreadable number, and element
+            # order is paint order, so a rollback handed back a
+            # differently stacked drawing with nothing saying so.
+            idx = max(0, min(ch.get("index", len(els)), len(els)))
             els.insert(idx, dict(ch["element"]))
         elif op == "del":
             els = [e for e in els if e["id"] != ch["element"]["id"]]
@@ -6660,6 +6763,15 @@ class Store:
                 self.log("%s: %s %s" % ("repair" if i.repaired
                                         else "quarantine", i.code, i.msg))
             if doc is None:
+                # a quarantined artifact is not in `scenes`, so the raw
+                # copies of it go too: the referential pass would judge a
+                # picture the project does not have, and `raw_hashes` is
+                # compared key-for-key against the reconstructed scenes.
+                # An artifact quarantined before its elements were read
+                # was never in these maps at all; this is the same state.
+                raw_scenes.pop(aid, None)
+                raw_files.pop(aid, None)
+                self.raw_hashes.pop(aid, None)
                 continue
             doc, _ = apply_migrations(doc, "artifact", f, self.p, self.log)
             doc = normalize_scene_doc(doc)
@@ -7564,29 +7676,31 @@ class Store:
                                     "policy": pol})
                     continue
                 idx = op.get("index")
-                # BOTH halves: `idx >= len(...)` alone is false for every
-                # negative number, and Python then reads `-1` as a
-                # perfectly good subscript — so an index nobody could
-                # have meant either crashed on an empty list or, worse,
-                # landed silently on the newest mapping. A mapping index
-                # is a position in the stored order, and that order has
-                # no negative positions.
-                if not isinstance(idx, int) or not 0 <= idx < \
-                        len(reg["mappings"]):
-                    errors.append("registry op %d: annotate_mapping needs a "
-                                  "valid mapping `index` (see model.json "
-                                  "mappings order) or a `pattern` for a "
-                                  "class-level ruling" % i)
+                # ALL THREE halves, and none of them was free: `idx >=
+                # len(...)` alone is false for every negative number and
+                # Python then reads `-1` as a perfectly good subscript,
+                # while `isinstance(idx, int)` is true of `True` and
+                # `0 <= True < 3` is position 1. A mapping index is a
+                # position in the stored order; that order has no
+                # negative positions and no boolean ones. `index_fault`
+                # is shared with the scene `reorder` op so the three
+                # arms cannot drift apart again.
+                fault = index_fault(idx, len(reg["mappings"]))
+                if fault:
+                    errors.append("registry op %d: annotate_mapping %s — see "
+                                  "model.json mappings order, or send a "
+                                  "`pattern` for a class-level ruling"
+                                  % (i, fault))
                     continue
                 reg["mappings"][idx]["note"] = op.get("note")
                 reg["mappings"][idx]["kinds"] = self._parse_kinds(
                     op, i, errors)
             elif action == "remove_mapping":
                 idx = op.get("index")
-                if not isinstance(idx, int) or not 0 <= idx < \
-                        len(reg["mappings"]):     # sign half: see above
-                    errors.append("registry op %d: remove_mapping needs a "
-                                  "valid `index`" % i)
+                fault = index_fault(idx, len(reg["mappings"]))  # see above
+                if fault:
+                    errors.append("registry op %d: remove_mapping %s"
+                                  % (i, fault))
                     continue
                 tomb = reg["mappings"].pop(idx)
                 applied.append({"action": "mapping_tombstoned",

@@ -215,7 +215,11 @@ them.
 (bindings, frame membership). Deleting a mapped element tombstones the link
 into the save record: `{"op": "del", "id": "old-step"}`
 
-**reorder** — z-order: `{"op": "reorder", "id": "bg-panel", "index": 0}`
+**reorder** — z-order: `{"op": "reorder", "id": "bg-panel", "index": 0}`. The
+`index` is a position in the element order, which is paint order: 0 draws
+first (behind everything, as `bg-panel` wants) and an index past the end draws
+last. A negative index is refused — it used to clamp to 0 silently, so `-1`
+meaning "last" put the element behind everything instead.
 [KNOWN DEFECT 2026-08-12: reorder changes stored order (which replay and the
 web client honour) but has NO effect on the SVG export/snapshot across type
 boundaries — see the TestPaintOrder pin. Flips when render_svg paints in
