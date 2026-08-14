@@ -2560,21 +2560,22 @@ class TestStoreIntegrity(unittest.TestCase):
             {"flow": els}, registry or {}, artifact_files={"flow": files
                                                            or {}})
 
-    @unittest.expectedFailure
     def test_red_a_tombstone_hides_a_mapping_member_from_the_pass(
             self) -> None:
-        """A soft-deleted element leaves its mapping reading as resolved.
+        """A soft-deleted element left its mapping reading as resolved.
 
-        `ids_by_aid` is built from every element carrying an id
-        (canvas.py:625), tombstones included, and the pass then asks
-        whether a mapping's member is in that set. `normalize_scene_doc`
-        drops `isDeleted` elements at load, so the member is gone from
-        the loaded picture while the set that vouches for it still holds
-        its id — the mapping points into a hole and the pass says
-        nothing.
+        FLIPPED in v0.9 Task 9. `ids_by_aid` was built from every element
+        carrying an id, tombstones included, and the pass then asked
+        whether a mapping's member was in that set. `normalize_scene_doc`
+        drops `isDeleted` elements at load, so the member was gone from
+        the loaded picture while the set that vouched for it still held
+        its id — the mapping pointed into a hole and the pass said
+        nothing. The fix keeps tombstones out of `ids_by_aid` and skips
+        them as SUBJECTS too, so the pass judges the picture the load
+        will actually produce, in both directions.
 
-        The WP1 files arm skips tombstones and is the only arm that
-        does; its comment reasons that "the other arms judge one element
+        The WP1 files arm skipped tombstones and was the only arm that
+        did; its comment reasoned that "the other arms judge one element
         against another, and a deleted element's target went with it".
         That is true when both go, and false here: the mapping is in the
         registry, which no tombstone touches.
@@ -2582,11 +2583,11 @@ class TestStoreIntegrity(unittest.TestCase):
         This is the mapping arm rather than the arrow arm the Task 4
         report cited, and deliberately so — I probed all three. An arrow
         bound to a tombstone is silent in THIS pass but `lint_layout`
-        reports it correctly on the loaded scene, so the reader is
-        warned. The mapping arm has no such backstop: probed end to end,
-        `referential`, `issues` and `lint_layout` are all empty. The
-        `annotates` arm is uncovered the same way and the same
-        `isDeleted` filter fixes it, which is why it gets this sentence
+        reports it correctly on the loaded scene, so the reader was
+        warned. The mapping arm had no such backstop: probed end to end,
+        `referential`, `issues` and `lint_layout` were all empty. The
+        `annotates` arm was uncovered the same way and the same
+        `isDeleted` filter fixed it, which is why it gets this sentence
         instead of a second entry.
 
         MAGNITUDE is what the finding must name — the concept and the
@@ -2628,9 +2629,18 @@ class TestStoreIntegrity(unittest.TestCase):
         id site live. `referential_findings` also advertises exactly this
         tolerance in its own docstring ("Non-dict elements are tolerated
         and skipped") while reading untrusted on-disk JSON by design, and
-        `indexable` (canvas.py:410) is the one guard both sites now ask:
-        `validate_scene` quarantines the artifact, and the pass skips
-        what it cannot index for the callers who hold a raw scene.
+        `indexable` is the one guard both sites now ask: `validate_scene`
+        quarantines the artifact, and the pass skips what it cannot index
+        for the callers who hold a raw scene.
+
+        Fixed for THESE TWO FIELDS ONLY, which is the sentence this
+        docstring was missing and the sweep below was filed against: the
+        first `indexable` covered the two set-member fields and left the
+        four membership tests in the same function hashing unguarded
+        values. Task 9 widened it to all six. Read nothing here as saying
+        the family is closed — it is closed only for as long as nobody
+        hashes a seventh field, and `indexable`'s own docstring carries
+        that obligation.
 
         The outcome is the one `test_red_non_dict_save_record_takes_down
         _the_whole_store` established for the save loop and is asserted
@@ -2841,36 +2851,35 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a", "b"])
         self.assertIn("f1", json.dumps(st.referential, default=str))
 
-    @unittest.expectedFailure
     def test_red_four_reference_fields_are_still_unhashable_crash_sites(
             self) -> None:
-        """The guard covers two fields; its own function indexes six.
+        """The guard covered two fields; its own function indexes six.
 
-        `indexable` was added with the flipped red above and checks `id`
-        and `fileId` — the two fields that become SET MEMBERS. But
-        `validate_scene` goes on to test four more values FOR MEMBERSHIP
-        in that same `seen` set, and `x in some_set` hashes `x` just as
-        hard: `containerId` (canvas.py:484), `startBinding` and
-        `endBinding`'s `elementId` (:490), and each `boundElements` entry's
-        `id` (:496).
+        FLIPPED in v0.9 Task 9, by widening `indexable` to every value
+        `validate_scene` hashes. It had been added with the flipped red
+        above and checked `id` and `fileId` — the two fields that become
+        SET MEMBERS. But `validate_scene` goes on to test four more values
+        FOR MEMBERSHIP in that same `seen` set, and `x in some_set` hashes
+        `x` just as hard: `containerId`, `startBinding` and `endBinding`'s
+        `elementId`, and each `boundElements` entry's `id`.
 
         Probed on the shipped code, one element per field, `{"x": 1}` in
-        each: all four raise `TypeError: unhashable type: 'dict'` and
-        BRICK `Store()` outright. That is a worse outcome than the defect
-        the guard was written for, where the malformed artifact is
+        each: all four raised `TypeError: unhashable type: 'dict'` and
+        BRICKED `Store()` outright. That is a worse outcome than the
+        defect the guard was written for, where the malformed artifact is
         quarantined as ART-000 and its healthy sibling still loads — the
         same value in a guarded field loses one file, and in an unguarded
-        one loses the project.
+        one lost the project.
 
         This entry exists because two pieces of shipped prose read as if
         the family were closed: the comment above the guard says "A
         document we cannot index is a document we cannot read", and the
         flipped red's own docstring describes the crash in the past
-        tense. Neither is wrong about what it fixed; both invite the next
-        reader to stop looking. A sweep is the honest shape here — one
-        red per site would be four near-identical entries, and the
-        subTest form matches how this class already pins `id` and
-        `fileId` together.
+        tense. Neither was wrong about what it fixed; both invited the
+        next reader to stop looking, and both now carry the obligation
+        instead. A sweep is the honest shape here — one red per site would
+        be four near-identical entries, and the subTest form matches how
+        this class already pins `id` and `fileId` together.
 
         MAGNITUDE and DIRECTION are the outcome the guarded fields
         already have, asserted the same way: the project OPENS, and the
@@ -3066,19 +3075,19 @@ class TestStoreIntegrity(unittest.TestCase):
                 ch["index"] = value
         saves[-1].write_text(json.dumps(doc), encoding="utf-8")
 
-    @unittest.expectedFailure
     def test_red_a_non_integer_replay_index_kills_reconstruction(
             self) -> None:
-        """A corrupt record's index does not crash — it takes history down.
+        """A corrupt record's index does not crash — it took history down.
 
-        The sibling of the negative-index red Task 36 just flipped, at
-        the fault that fix did not cover. `index_fault` now refuses
-        strings, `None`, containers and bools everywhere an AGENT can
-        send an index, and `replay_changes` reads its index off DISK
-        instead: `min(ch.get("index", len(els)), len(els))`
-        (canvas.py:3188) compares whatever is there against an int, so a
-        string gives `TypeError: '<' not supported between instances of
-        'int' and 'str'`.
+        FLIPPED in v0.9 Task 9. The sibling of the negative-index red Task
+        36 flipped, at the fault that fix did not cover. `index_fault`
+        refuses strings, `None`, containers and bools everywhere an AGENT
+        can send an index, and `replay_changes` reads its index off DISK
+        instead: `min(ch.get("index", len(els)), len(els))` compared
+        whatever was there against an int, so a string gave `TypeError:
+        '<' not supported between instances of 'int' and 'str'`. The add
+        branch now applies `index_fault`'s TYPE half — and only that half,
+        since the negative case beside it is answered by the clamp.
 
         Pre-existing, and confirmed as such rather than assumed — it
         reproduces identically at `fce0b30`, before the shared predicate
@@ -3132,7 +3141,14 @@ class TestStoreIntegrity(unittest.TestCase):
                 "gone for a project that opens fine"
                 % ([i["code"] for i in reloaded.issues],
                    type(exc).__name__, exc))
-        self.assertEqual(len(rebuilt), 6)
+        # Counted off the live scene, not off a literal. This line held a
+        # bare `6` that no run had ever reached — `state_at` raised above
+        # it, `self.fail` ended the test there, and `expectedFailure` made
+        # a red out of the crash — so the number was never checked against
+        # a project that has three elements. Task 9's flip is what first
+        # executed it. The claim is unchanged: the whole project comes
+        # back, not a truncated one.
+        self.assertEqual(len(rebuilt), len(store.scenes["flow"]))
 
 
 # ---------------------------------------------------------------------------

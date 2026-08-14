@@ -408,24 +408,51 @@ def validate_registry(reg):
 
 
 def indexable(el):
-    """Whether an element's `id` and `fileId` can be indexed by.
+    """Whether every reference field the loader indexes by can be hashed.
 
-    Both fields end up as SET members — the duplicate-id check below, the
-    id set and the used-file set the referential pass builds — so a
-    container in either one raises `TypeError` out of a comprehension
-    nothing catches. On the shipped code that cost the whole project:
-    `{"x": 1}` in one element's `id` and NO artifact loaded, not the
-    malformed one and not its healthy siblings.
+    `id` and `fileId` become SET MEMBERS — the duplicate-id check below,
+    the id set and the used-file set the referential pass builds — and
+    `containerId`, both bindings' `elementId` and each `boundElements`
+    entry's `id` are then tested FOR MEMBERSHIP in that same set, which
+    hashes just as hard. A container in any of them raises `TypeError`
+    out of a comprehension nothing catches, and on the shipped code that
+    cost the whole project: `{"x": 1}` in one element's `id` and NO
+    artifact loaded, not the malformed one and not its healthy siblings.
+
+    The list is not closed by nature and has already been widened once:
+    the first version guarded the two set-member fields and left the four
+    membership tests live, which was the WORSE outcome of the two, since
+    a guarded field costs one quarantined artifact and an unguarded one
+    took the project. Anything that starts hashing a seventh belongs here
+    in the same change.
+
+    Judged unconditionally, and NOT narrowed to the values `validate_scene`
+    happens to reach: the widening was first written to skip a falsy
+    `containerId` on the reasoning that line's `if` never hashes one, and
+    `rebuild_bound_elements` — further down the same load, past every
+    quarantine — then hashed it anyway and took the project with a `[]`.
+    A field is either indexed by or it is not. Reading `hash` as the
+    question keeps this guard from having to track which caller asks it.
 
     Args:
         el: One element dict, straight off disk and untrusted.
 
     Returns:
-        True when both fields are values a set can hold.
+        True when every value the loader will index by is one a set can
+        hold. A `boundElements` that cannot be walked at all is False for
+        the same reason, since the repair loop below walks it the same way.
     """
     try:
         hash(el.get("id"))
         hash(el.get("fileId"))
+        hash(el.get("containerId"))
+        for battr in ("startBinding", "endBinding"):
+            b = el.get(battr)
+            if isinstance(b, dict):
+                hash(b.get("elementId"))
+        for b in el.get("boundElements") or []:
+            if isinstance(b, dict):
+                hash(b.get("id"))
     except TypeError:
         return False
     return True
@@ -460,9 +487,16 @@ def validate_scene(doc, artifact_id):
     # content the user may want back, so this quarantines the artifact the
     # way an unparseable one is quarantined: the project still opens, the
     # file is named, and it stays on disk untouched for repair.
+    #
+    # `indexable` is the whole list of fields hashed below, and keeping it
+    # that way is a standing obligation, not a settled fact: it first
+    # shipped covering the two set-member fields while four membership
+    # tests further down this function hashed unguarded values and killed
+    # the load outright. Any new field this function hashes goes into that
+    # predicate in the same change.
     if any(isinstance(el, dict) and not indexable(el) for el in els):
         return None, [Issue(
-            "ART-000", "%s: an element `id` or `fileId` is a container, not "
+            "ART-000", "%s: an element reference field is a container, not "
             "a name — the artifact cannot be indexed" % artifact_id,
             "The artifact file is unreadable; it will be ignored until "
             "repaired by hand or overwritten.", False)]
@@ -640,7 +674,10 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
     Args:
         raw_scenes: {artifact_id: elements} as read from disk, un-repaired.
             Non-dict elements are tolerated and skipped (corrupt scenes
-            still get the findings their readable parts support).
+            still get the findings their readable parts support), and so
+            are `isDeleted` tombstones: the picture judged here is the one
+            the load will produce, so a tombstone neither makes a
+            reference nor answers one.
         registry: The registry (mappings are read; may be None).
         artifact_ids: Known artifact ids for ``links_to`` checks; defaults
             to ``raw_scenes``' keys.
@@ -671,23 +708,30 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
         # inside a comprehension.
         ids_by_aid[aid] = {e.get("id") for e in els
                            if isinstance(e, dict) and e.get("id")
-                           and indexable(e)}
+                           and not e.get("isDeleted") and indexable(e)}
     for aid, els in sorted(raw_scenes.items()):
         ids = ids_by_aid[aid]
         files = (artifact_files or {}).get(aid)
         files = files if isinstance(files, dict) else {}
         used_files = set()
+        # Tombstones are not in the picture and are not judged as part of
+        # it, in EITHER direction: `normalize_scene_doc` drops `isDeleted`
+        # elements at load, so a deleted element neither makes a reference
+        # (skipped here) nor answers one (kept out of `ids_by_aid` above).
+        # The second half was missing and it was the load-bearing one — a
+        # registry mapping is not a scene and no tombstone touches it, so
+        # a mapping whose only member had been soft-deleted pointed into a
+        # hole while the id set went on vouching for it, and `referential`,
+        # `issues` and `lint_layout` were all silent together. What does
+        # NOT go with the element is its blob: Excalidraw keeps the file,
+        # which is why the orphan arm below reads `used_files` built from
+        # live elements only, and the commonest orphan there is gets named.
         for e in els:
-            if not isinstance(e, dict) or not indexable(e):
+            if not isinstance(e, dict) or e.get("isDeleted") \
+                    or not indexable(e):
                 continue
-            # Soft-deleted elements are skipped HERE and nowhere else in
-            # this pass: the other arms judge one element against another,
-            # and a deleted element's target went with it. A blob does not
-            # go with it — `normalize_scene_doc` drops the element at load
-            # and keeps the file — so letting a deleted image vouch for a
-            # blob would hide the commonest orphan there is.
             fid = e.get("fileId")
-            if fid and not e.get("isDeleted"):
+            if fid:
                 used_files.add(fid)
                 if fid not in files:
                     add(aid, "warnings",
@@ -3340,6 +3384,23 @@ def replay_changes(elements, changes):
     for ch in changes:
         op = ch["op"]
         if op == "add":
+            # A value that is not a position at all falls back to the
+            # default this same expression already documents for "no
+            # index given" — the end — rather than raising: `min` compares
+            # against an int, so a hand-edited `"2"` or `null` in one save
+            # record threw `TypeError` out of every path that
+            # reconstructs history. Nothing at load reads a change's
+            # index, so the project opened with `issues` EMPTY and then
+            # revert, checkout and rollback were all gone.
+            #
+            # The TYPE half of `index_fault` only, deliberately: it also
+            # refuses a NEGATIVE index, and this branch answers that one
+            # differently on purpose (see the clamp below). `bool` is
+            # refused with it for the same reason `index_fault` refuses
+            # it — `min(True, 3)` is position 1, an answer nobody wrote.
+            idx = ch.get("index", len(els))
+            if not isinstance(idx, int) or isinstance(idx, bool):
+                idx = len(els)
             # clamped at BOTH ends, like the legacy reorder branch below:
             # `insert` reads a negative index as an offset from the end,
             # so a corrupt record carrying -1 rebuilt the scene with the
@@ -3347,7 +3408,7 @@ def replay_changes(elements, changes):
             # unrelated answers to one unreadable number, and element
             # order is paint order, so a rollback handed back a
             # differently stacked drawing with nothing saying so.
-            idx = max(0, min(ch.get("index", len(els)), len(els)))
+            idx = max(0, min(idx, len(els)))
             els.insert(idx, dict(ch["element"]))
         elif op == "del":
             els = [e for e in els if e["id"] != ch["element"]["id"]]
@@ -6710,8 +6771,10 @@ class Store:
         # WP2 (report-and-repair): findings computed on the RAW disk
         # scenes before validate_scene repairs them, per-load and never
         # persisted — a persisted copy would go stale the moment a commit
-        # fixes the reference
+        # fixes the reference. It goes stale IN MEMORY the same way, which
+        # is what `referential_revn` bounds; see `referential_now`.
         self.referential = {}
+        self.referential_revn = None  # head revn the report above describes
         self.raw_hashes = {}          # {aid: scene_hash of the raw disk scene}
         self.scene_repairs = []       # load-time ART-* repairs, this load
         self.load()
@@ -6769,6 +6832,7 @@ class Store:
         self.artifact_meta = {}
         self.artifact_files = {}   # image blobs (fileId -> dataURL entry)
         self.referential = {}
+        self.referential_revn = None
         self.raw_hashes = {}
         self.scene_repairs = []
         raw_scenes = {}
@@ -6833,6 +6897,7 @@ class Store:
         self.referential = referential_findings(raw_scenes, reg,
                                                 set(self.scenes.keys()),
                                                 raw_files)
+        self.referential_revn = self.head_revn()
         for scope, tiers in sorted(self.referential.items()):
             for tier, msgs in tiers.items():
                 for msg in msgs:
@@ -8717,6 +8782,54 @@ class Store:
             self.log("reconciliation record %d written" % record["revn"])
             return record
 
+    def referential_now(self):
+        """Referential findings for the picture as it stands at head.
+
+        `self.referential` is the PRE-REPAIR report (r4-7): computed once
+        in `load`, on the RAW disk scenes, because `validate_scene` nulls
+        a dangling binding in memory and the finding would otherwise be
+        unreachable. That report is true of exactly one revision — the one
+        that was on disk when the store opened. `lint_debt` folded it into
+        every recompute regardless, so a long-lived server went on nagging
+        ERRORs for references a later commit had already repaired: server
+        said 2, CLI said none, disk said none (r5-19). The frozen set was
+        also blind FORWARD — a reference broken after load never appeared
+        at all until a restart.
+
+        So the pass is re-run here on every cache miss against the CURRENT
+        scenes, and the load-time set is merged in only while it still
+        describes the head revision. Past head the artifacts on disk were
+        written by this store from these scenes, so the live reading IS
+        the disk reading and the two surfaces agree again.
+
+        Every arm travels together — bindings, `annotates`, `links_to`,
+        both file arms and the registry mappings — because they come out
+        of one pass, and a recompute that dropped the `artifact_files`
+        argument would silently mute the file half on the server only.
+
+        Returns:
+            {scope: {"errors": [...], "warnings": [...], "notes": [...]}},
+            the shape `referential_findings` returns.
+        """
+        with self.lock:
+            live = referential_findings(self.scenes, self.registry,
+                                        set(self.scenes.keys()),
+                                        self.artifact_files)
+            if self.referential_revn != self.head_revn():
+                return live
+            out = {scope: {tier: list(msgs) for tier, msgs in tiers.items()}
+                   for scope, tiers in live.items()}
+            for scope, tiers in self.referential.items():
+                cur = out.setdefault(scope, {"errors": [], "warnings": [],
+                                             "notes": []})
+                for tier, msgs in tiers.items():
+                    # deduped against the live reading, never within
+                    # either one: a mapping that lists the same dead
+                    # member twice earns two warnings and always did.
+                    said = set(cur[tier])
+                    cur[tier].extend(m for m in msgs if m not in said)
+            return out
+
     def lint_debt(self):
         """Standing cross-artifact lint summary (live_test_2 B5 — apply
         reports only the touched artifact, so drift elsewhere stayed
@@ -8739,6 +8852,7 @@ class Store:
             except OSError:
                 pass
             cross = cross_lint(self.scenes, types, self.registry, terms)
+            ref = self.referential_now()
             for aid, els in sorted(self.scenes.items()):
                 li = project_lint(self.p, els, self.registry,
                                   artifact_type=types[aid], aid=aid)
@@ -8746,11 +8860,12 @@ class Store:
                 if x:
                     li = {k: li[k] + x[k]
                           for k in ("errors", "warnings", "notes")}
-                # WP2: load-time referential findings (computed on the
-                # RAW disk scene, before repairs) ride the same debt —
-                # the r4-7 unreachability was exactly these never
-                # reaching any surface the agent reads
-                r = self.referential.get(aid)
+                # WP2: referential findings ride the same debt — the r4-7
+                # unreachability was exactly these never reaching any
+                # surface the agent reads. `referential_now` is what
+                # keeps them tracking the revision the debt is keyed on
+                # (r5-19); the load-time pre-repair report is inside it.
+                r = ref.get(aid)
                 if r:
                     li = {k: li[k] + r[k]
                           for k in ("errors", "warnings", "notes")}
@@ -8760,7 +8875,7 @@ class Store:
                 if any(counts.values()):
                     debt[aid] = counts
             reg = project_lint(self.p, [], self.registry)
-            rref = self.referential.get("registry")
+            rref = ref.get("registry")
             if rref:
                 reg = {k: reg[k] + rref[k]
                        for k in ("errors", "warnings", "notes")}

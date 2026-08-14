@@ -6506,6 +6506,25 @@ class TestReferentialIntegrity(Base):
         return self.store.commit(author="user", new_scenes={"f": els},
                                  base_revn=self.store.head_revn())
 
+    def repair_n2(self, store=None):
+        """Put n2 back, the way a later commit repairs a broken reference.
+
+        Args:
+            store: Which store commits it — the r5-19 tests need the
+                repair to land on a store that OPENED on the damage,
+                which is the long-lived server this test class otherwise
+                has no reason to build.
+
+        Returns:
+            The commit record.
+        """
+        store = store or self.store
+        els = [json.loads(json.dumps(e)) for e in store.scenes["f"]]
+        els.append({"id": "n2", "type": "rectangle", "x": 300, "y": 0,
+                    "width": 100, "height": 50})
+        return store.commit(author="user", new_scenes={"f": els},
+                            base_revn=store.head_revn())
+
     def test_deletion_facts_name_every_broken_reference(self):
         self.seed()
         rec = self.user_delete_n2()
@@ -6557,6 +6576,60 @@ class TestReferentialIntegrity(Base):
         self.seed()
         store2 = canvas.Store(self.project)
         self.assertEqual(store2.referential, {})
+
+    def test_lint_debt_tracks_a_repair_with_no_restart(self):
+        """r5-19: the standing referential nag follows the head revision.
+
+        `self.referential` is assigned only in `load`, and `lint_debt`
+        folded that frozen set into every recompute — so a long-lived
+        server went on reporting a reference a later commit had already
+        repaired. Measured in the r5 assessment: server said 2 errors,
+        CLI said none, disk said none.
+
+        Both directions on ONE store with no restart between them: a
+        dangle opened after load reaches the debt, and the repair that
+        closes it takes the finding with it. The REGISTRY mapping arm is
+        what is asserted, because `referential_findings` is the only pass
+        that reports it — `lint_layout` backstops the arrow arm, so the
+        same assertion there would pass with this bug fully intact.
+        """
+        self.seed()
+        self.user_delete_n2()
+        said = self.store.lint_lines().get("registry", {})
+        self.assertTrue(any("f#n2" in m for m in said.get("warnings", [])),
+                        "a mapping member deleted AFTER load never reached "
+                        "the debt: %r" % (said,))
+        self.repair_n2()
+        said = self.store.lint_lines().get("registry", {})
+        self.assertFalse(any("f#n2" in m for m in said.get("warnings", [])),
+                         "the repair landed and the server still nags: %r"
+                         % (said,))
+
+    def test_the_running_store_and_a_fresh_load_agree_after_a_repair(self):
+        """The symptom as it was measured: two readings, one moment.
+
+        The r5 finding is a DISAGREEMENT — the server and the CLI, which
+        opens the project fresh, read the same disk differently. Asserted
+        as whole-debt equality rather than on one arm, since the point is
+        that no arm may drift; the arms travel together out of one pass
+        and a recompute that dropped `artifact_files` would mute the two
+        file arms on the server side only.
+
+        The repair lands on a store that OPENED on the damage, which is
+        the only arrangement that reproduces it: the frozen set has to be
+        non-empty before the commit for the commit to fail to clear it.
+        That the server nags first is asserted, not assumed — without it
+        the equality below is satisfied by two silent readings.
+        """
+        self.seed()
+        self.user_delete_n2()
+        server = canvas.Store(self.project)
+        self.assertTrue(server.lint_debt().get("registry"),
+                        "the damaged project must open with the pre-repair "
+                        "report — nothing is being measured otherwise")
+        self.repair_n2(server)
+        self.assertEqual(server.lint_debt(),
+                         canvas.Store(self.project).lint_debt())
 
     def test_referential_findings_unit_directions(self):
         raw = {"a": [
