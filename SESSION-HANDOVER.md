@@ -40,8 +40,8 @@ repos idea-mined with everything dispositioned; methodology documented in
   worktree*. Whatever is checked out here is the skill every agent on this
   machine discovers. Verify before any assessment work.
 - Health, re-measured 2026-08-13 after curator Batch D + follow-up: **~780+ unit tests (moving target — trust the SDD ledger, not this number)** (`python3 -m unittest discover -s tests`, ~9s) →
-  `OK (skipped=17, expected failures=26)`; with the render tier enabled
-  (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the render-enabled run `OK (expected failures=29)` — the 17 skips are the render tests,
+  `OK` (skips and expected-failure counts move with the drain — read them from the SDD ledger); with the render tier enabled
+  (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the render-enabled run `OK` — the 17 skips are the render tests,
   21 of them (ef=3); **12 Playwright e2e**; `uvx pre-commit run
   --all-files` green. The 29 expected failures (26 model + 3 render) are red
   *by intent* (see §1a). **The drain number is 27** (24 model + 3 render; live source of truth: the SDD ledger at .superpowers/sdd/2026-08-13-v0.9-work-packages/progress.md — THIS FILE's counts lag by design between gate seams) (Batch D added
