@@ -403,8 +403,10 @@ it "agent asked a question" with no Apply action.
 - `ROUND` and `WHOSE_MOVE` count the pending queue. Under `pulled`
   cadence nothing commits until the user applies, so a queued revision
   is still your move made and their move owed — and pins age against it.
-  Discard the queue and both go back; the committed value is
-  `committed_round` in `api/state` if you need the raw one.
+  Discard the queue and both go back. Apply and they stay: the revision
+  commits into the round the banner was showing, so no pin gets younger
+  because the user answered. The committed value is `committed_round` in
+  `api/state` if you need the raw one.
 - `GET <url>api/state` → everything (registry, config, scenes, saves,
   pins, tripwires, pending).
 - `GET <url>api/save-record/<revn>` → a full save record (also on disk:

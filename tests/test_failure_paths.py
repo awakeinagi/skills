@@ -790,8 +790,13 @@ class TestCrossArtifactPinResolution(unittest.TestCase):
                          ["resolved"])
 
 
-class TestPendingQueueDurability(unittest.TestCase):
-    """A revision queued behind the banner must outlive the server."""
+class PendingHarness:
+    """A restartable server app over a temp project, plus a queueable batch.
+
+    Two classes read the pending queue — one for what a *restart* does to
+    it, one for what an *Apply* does to the round — and both need the same
+    fixture, so it lives here rather than twice.
+    """
 
     def setUp(self) -> None:
         """Build a server app over a temp project and seed one artifact."""
@@ -838,6 +843,10 @@ class TestPendingQueueDurability(unittest.TestCase):
                 "artifact": "checkout-flow", "note": note,
                 "ops": [{"op": "mod", "id": "cart",
                          "attrs": {"label": "Cart (3 items)"}}]}
+
+
+class TestPendingQueueDurability(PendingHarness, unittest.TestCase):
+    """A revision queued behind the banner must outlive the server."""
 
     def test_a_queued_revision_survives_a_restart(self) -> None:
         """The measured failure: `PENDING=1` → stop → start → `PENDING=0`.
@@ -1142,6 +1151,171 @@ class TestPendingQueueDurability(unittest.TestCase):
         self.assertEqual([p["deferred"] for p in self.app.pending], [True])
         self.app.flush_deferred()
         self.assertEqual(self.app.pending, [])
+
+
+class TestRoundSurvivesAnApply(PendingHarness, unittest.TestCase):
+    """Answering the banner must not wind the session clock backwards.
+
+    `effective_round` is `committed + (1 if queued)`, so a queued
+    revision advertises the round it belongs to before it lands. The
+    commit's own auto-bump fires on the first agent commit after a
+    NON-agent one — which an apply-from-pending, landing on the agent's
+    own previous revision, is not. So the +1 evaporated at the moment
+    the user finally answered: the header fell from `Round 3+` back to
+    `Round 2` and every open pin got a round younger, which is the
+    standing-nag mechanism running in reverse (r5-2).
+    """
+
+    def an_open_pin(self) -> None:
+        """Ask a question on the seeded flow, so pin ageing has a subject."""
+        self.app.store.apply_batch(
+            {"base_revn": self.app.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "pin-total", "target": "cart",
+                      "question": "does the cart show a total?"}]})
+
+    def ages(self) -> dict[str, int]:
+        """Pin ages exactly as an agent reads them off an apply response.
+
+        Returns:
+            Age in rounds by pin id, queue included.
+        """
+        return {p["id"]: p["age_rounds"]
+                for p in self.app.store.pin_debt(self.app.queued_turn())}
+
+    def advertised(self) -> int:
+        """The round every agent-facing surface is showing right now.
+
+        Returns:
+            `effective_round`, queue included — what the header reads.
+        """
+        return self.app.store.effective_round(self.app.queued_turn())
+
+    def test_the_round_the_banner_advertised_is_the_round_that_commits(
+            self) -> None:
+        """The measured failure: Apply is a fall from `N+1` back to `N`."""
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        shown = self.advertised()
+        self.assertEqual(shown, self.app.store.registry["round"] + 1,
+                         "the banner was not advertising a round at all")
+        record = self.app.commit_pending(entry)
+        self.assertEqual(record["round"], shown,
+                         "the save landed in a round the agent had left")
+        self.assertEqual(self.app.store.registry["round"], shown)
+        self.assertEqual(self.advertised(), shown,
+                         "the header fell back a round on Apply")
+
+    def test_no_pin_gets_younger_across_an_apply(self) -> None:
+        """Ageing is the mechanism the round carries — and it ran backwards.
+
+        `age_rounds` is `effective_round - pin.round`, so the evaporating
+        +1 made a question that had been waiting a round read "age 0r"
+        again. A nag that resets itself every time the user answers the
+        banner cannot make an ignored question harder to ignore.
+        """
+        self.an_open_pin()
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        before = self.ages()
+        self.assertEqual(before, {"pin-total": 1},
+                         "the fixture is not ageing a pin to begin with")
+        self.app.commit_pending(entry)
+        after = self.ages()
+        for pid, age in before.items():
+            self.assertGreaterEqual(after.get(pid, -1), age,
+                                    "pin %s got younger across an Apply" % pid)
+
+    def test_a_discard_gives_the_round_back(self) -> None:
+        """Control: the reversal is the point of deriving it (documented).
+
+        Discard is the one exit that SHOULD un-advertise the round —
+        nothing committed, so `registry.json` must not record a round in
+        which nothing happened.
+        """
+        committed = self.app.store.registry["round"]
+        entry = self.app.queue_pending(self.a_revision(), pin_only=False)
+        self.assertEqual(self.advertised(), committed + 1)
+        self.app.drop_pending(entry["id"])
+        self.assertEqual(self.advertised(), committed,
+                         "a discarded revision kept its round")
+        self.assertEqual(self.app.store.registry["round"], committed)
+
+    def test_an_explicit_set_round_in_a_queued_batch_lands_exactly(
+            self) -> None:
+        """Control: the anti-stacking fix, in the direction this change adds.
+
+        An explicit `set_round` is the round, verbatim — the auto-bump
+        used to stack on top of it and hand the chat-only escape hatch
+        7 when it asked for 6 (v0.8 beats). Carrying the advertised
+        round forward is a second thing that could stack: the banner
+        shows 6 while the batch behind it says "we are still in 5", and
+        5 is the answer.
+        """
+        self.app.store.apply_batch(
+            {"base_revn": self.app.store.head_revn(),
+             "ops": [{"op": "registry", "action": "set_round", "round": 5}]})
+        batch = self.a_revision("still round five")
+        batch["ops"].append({"op": "registry", "action": "set_round",
+                             "round": 5})
+        entry = self.app.queue_pending(batch, pin_only=False)
+        self.assertEqual(self.advertised(), 6)
+        record = self.app.commit_pending(entry)
+        self.assertEqual(record["round"], 5,
+                         "the advertised round stacked on an explicit one")
+        self.assertEqual(self.app.store.registry["round"], 5)
+
+    def test_a_chat_only_set_round_still_lands_exactly(self) -> None:
+        """Control: the same fix in its original direction, nothing queued.
+
+        This is the shape v0.8 fixed — the first agent commit after a
+        USER save, where the auto-bump would otherwise fire on top of
+        the explicit round.
+        """
+        els = list(self.app.store.scenes["checkout-flow"])
+        self.app.store.commit(author="user", new_scenes={"checkout-flow": els},
+                              base_revn=self.app.store.head_revn())
+        record, _ = self.app.store.apply_batch(
+            {"base_revn": self.app.store.head_revn(),
+             "ops": [{"op": "registry", "action": "set_round", "round": 6}]})
+        self.assertEqual(record["round"], 6)
+        self.assertEqual(self.app.store.registry["round"], 6)
+        self.assertEqual(self.advertised(), 6)
+
+    def test_two_queued_revisions_are_one_agent_move(self) -> None:
+        """Control: one move may span several commits, so it is one round.
+
+        Both entries were queued against the same committed round and
+        the banner advertised one number for both. Deriving the target
+        at Apply time instead would read the second entry's own +1 and
+        ratchet — which is per-commit bumping, the thing round stamping
+        was introduced to stop (F-A2).
+        """
+        committed = self.app.store.registry["round"]
+        first = self.app.queue_pending(self.a_revision("the cart"), False)
+        second = self.a_revision("and the button")
+        second["ops"] = [{"op": "mod", "id": "checkout",
+                          "attrs": {"label": "Pay now"}}]
+        second = self.app.queue_pending(second, False)
+        self.assertEqual(self.advertised(), committed + 1)
+        self.app.commit_pending(first)
+        self.app.commit_pending(second)
+        self.assertEqual(self.app.store.registry["round"], committed + 1,
+                         "two batches of one move bought two rounds")
+        self.assertEqual(self.advertised(), committed + 1)
+
+    def test_the_advertised_round_survives_a_restart(self) -> None:
+        """The queue is durable, so what it advertises has to be too.
+
+        Otherwise the restart is a second way to lose the round: the
+        entry comes back, the banner redraws, and pulling it lands in
+        the round the session had already left.
+        """
+        self.app.queue_pending(self.a_revision(), pin_only=False)
+        shown = self.advertised()
+        self.restart()
+        self.assertEqual(self.advertised(), shown)
+        record = self.app.commit_pending(self.app.pending[0])
+        self.assertEqual(record["round"], shown)
+        self.assertEqual(self.app.store.registry["round"], shown)
 
 
 if __name__ == "__main__":

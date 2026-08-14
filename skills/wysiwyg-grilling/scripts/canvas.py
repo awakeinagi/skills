@@ -7042,9 +7042,11 @@ class Store:
     def commit(self, author, new_scenes, base_revn=None, selection=None,
                user_note=None, fork_name=None, registry_ops=None,
                new_meta=None, reconciliation=False, extra_facts=None,
-               resolved_pins=None, new_files=None):
+               resolved_pins=None, new_files=None, min_round=None):
         """The one write path. new_scenes: {artifact_id: element list}
-        (only changed artifacts need be present). Returns the save record."""
+        (only changed artifacts need be present). `min_round` is a floor
+        on the round this save is stamped with, for a caller that has
+        already advertised one. Returns the save record."""
         with self.lock:
             head = self.head_revn()
             branch = self.registry["head"]
@@ -7325,6 +7327,35 @@ class Store:
                                               new_map_keys)
             all_tripwires.extend(tripwires)
 
+            # the round this save lands in — an agent move OPENS the
+            # next round, and one move may span several commits, so
+            # only the FIRST agent commit after a non-agent one bumps
+            # (v0.1 acceptance finding F-A2: per-commit bumping read
+            # "round 10" during conversational round 2). Rounds are
+            # the session's unit of time and ADRs cite them as
+            # evidence; unstamped records made that unverifiable.
+            explicit_round = any(c.get("action") == "set_round" and
+                                 c.get("round") is not None
+                                 for c in reg_changes)
+            rnd = self.registry.get("round", 0)
+            if not explicit_round:
+                # An explicit set_round in THIS batch is the round,
+                # verbatim — the auto-bump used to stack on it, so the
+                # chat-only escape hatch asked for 6 and got 7 exactly
+                # when it mattered: on the first agent commit after a
+                # user turn (v0.8 beats). `min_round` is the second
+                # thing that must not stack on it.
+                if author == "agent" and \
+                        (self.records.get(base) or {}).get("author") != "agent":
+                    rnd += 1
+                # a revision pulled off the banner lands in the round the
+                # banner was ADVERTISING. `effective_round` derives that
+                # +1 from the queue, and draining the queue took it away
+                # again — the header fell back a round and every pin got
+                # younger at the moment the user answered (r5-2). The
+                # auto-bump cannot cover it: an apply lands on the
+                # agent's own previous revision.
+                rnd = max(rnd, min_round or 0)
             slug = slugify(next(iter(artifacts), "empty"))
             record = {
                 "migrations": ["0001-baseline"],
@@ -7332,25 +7363,7 @@ class Store:
                 "base_revn": base,
                 "branch": branch,
                 "author": author,
-                # the round this save lands in — an agent move OPENS the
-                # next round, and one move may span several commits, so
-                # only the FIRST agent commit after a non-agent one bumps
-                # (v0.1 acceptance finding F-A2: per-commit bumping read
-                # "round 10" during conversational round 2). Rounds are
-                # the session's unit of time and ADRs cite them as
-                # evidence; unstamped records made that unverifiable.
-                # An explicit set_round in THIS batch is the round,
-                # verbatim — the auto-bump used to stack on it, so the
-                # chat-only escape hatch asked for 6 and got 7 exactly
-                # when it mattered: on the first agent commit after a
-                # user turn (v0.8 beats).
-                "round": self.registry.get("round", 0) +
-                         (1 if author == "agent" and
-                          (self.records.get(base) or {}).get("author")
-                          != "agent" and
-                          not any(c.get("action") == "set_round" and
-                                  c.get("round") is not None
-                                  for c in reg_changes) else 0),
+                "round": rnd,
                 "saved_at": now_iso(),
                 # origin stamp (live_test_2 B7): multi-session writes must
                 # stay attributable
@@ -8497,11 +8510,16 @@ class Store:
                     # draw a batch nobody has committed (v0.6)
                     "elements": checked["new_els"]}
 
-    def apply_batch(self, batch):
+    def apply_batch(self, batch, min_round=None):
         """Validate-all-then-apply.
 
         Args:
             batch: Op-batch envelope — see `_validate_batch`.
+            min_round: Floor on the round the save is stamped with, for a
+                revision pulled off a banner that already advertised one.
+                A parameter rather than an envelope key on purpose: the
+                envelope is agent-authored, and the round it lands in is
+                not the agent's to assert except through `set_round`.
 
         Returns:
             `(record, pin_only)` — the save record, and whether the batch
@@ -8605,7 +8623,8 @@ class Store:
                 registry_ops=registry_ops,
                 new_meta=new_meta,
                 extra_facts={aid: reroutes} if reroutes else None,
-                resolved_pins=resolved_now)
+                resolved_pins=resolved_now,
+                min_round=min_round)
             for p in pin_reg:
                 self.registry["pins"].append({
                     "id": p["id"], "artifact": aid, "element": p["target"],
@@ -9011,7 +9030,10 @@ class Store:
 
         Derived rather than written, so discarding the queue reverses it
         with no arithmetic and `registry.json` never records a round in
-        which nothing committed.
+        which nothing committed. The other exit is not a reversal:
+        `commit_pending` carries this number into the commit as a floor,
+        because draining the queue would otherwise take the +1 back at
+        the moment the user answered it (r5-2).
 
         Args:
             queued: Whether a non-pin batch is waiting behind the banner.
@@ -9566,6 +9588,14 @@ class ServerApp:
                 entry["pin_only"] = bool(entry.get("pin_only"))
                 entry["deferred"] = bool(entry.get("deferred"))
                 entry.setdefault("supersedes", None)
+                # the advertised round is a floor `commit` takes a max()
+                # against, so a non-integer here would raise there — on
+                # the user's Apply, long after the file was read. An
+                # entry queued before this field existed simply has none
+                # and keeps the old behaviour.
+                if isinstance(entry.get("round"), bool) or \
+                        not isinstance(entry.get("round"), int):
+                    entry["round"] = None
                 if not isinstance(entry.get("queued_at"), str):
                     entry["queued_at"] = now_iso()
                 self.pending.append(entry)
@@ -9626,6 +9656,13 @@ class ServerApp:
                      "pin_only": pin_only, "deferred": False,
                      "supersedes": supersedes, "queued_at": now_iso()}
             self.pending.append(entry)
+            # the round the banner starts advertising the moment this
+            # entry joins the queue, kept so the apply can land in it.
+            # Read HERE rather than at apply time because a second batch
+            # of the same move is queued against the same committed
+            # round: deriving it later would read its own +1 too and
+            # ratchet a round per commit, which is F-A2 again.
+            entry["round"] = self.store.effective_round(self.queued_turn())
             self.persist_pending(entry)
             return entry
 
@@ -9676,6 +9713,10 @@ class ServerApp:
         every click and could not be got rid of (v0.4 capability
         assessment).
 
+        The save is stamped with the round the banner advertised while
+        the entry waited, not the one the queue is about to drain back
+        to — see `effective_round`.
+
         Args:
             entry: The queue entry to apply.
             trigger: What pulled it, for the failure event's message.
@@ -9691,7 +9732,8 @@ class ServerApp:
         batch = dict(entry["batch"])
         batch["base_revn"] = self.store.head_revn()
         try:
-            record, pin_only = self.store.apply_batch(batch)
+            record, pin_only = self.store.apply_batch(
+                batch, min_round=entry.get("round"))
         except (BatchError, StaleError) as e:
             self.drop_pending(entry["id"])
             self.events.append(
