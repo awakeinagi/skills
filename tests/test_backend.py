@@ -2369,6 +2369,53 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
         store2 = canvas.Store(self.project)
         self.assertIsNone(store2.catch_up())
 
+    def test_curved_era_arrows_load_sharp_and_mint_nothing(self):
+        # v0.9 WP4 stage 1. This fixture was frozen while every elbow
+        # rendered {"type": 2}, so it is the switch's real subject: six
+        # curved arrows sit on disk, and the flip only reaches them
+        # because `rebuild_bound_elements` re-derives roundness at load.
+        #
+        # The load-time re-derivation is the r5-13 hazard — a load-time
+        # repair that moves geometry mints a reconciliation on EVERY
+        # resume — so this asserts the whole no-mint chain, not just the
+        # shape: the repair set is unchanged (roundness is not a repair),
+        # and catch_up finds nothing across TWO loads. It cannot: the
+        # derived value is absent from both `content_fingerprint` and
+        # DEFAULT_SIGNIFICANT_ATTRS, and disk and replayed history run
+        # through the same derivation. Task 42's epoch work sharpens the
+        # stake, since a reconciliation would now also spend standing.
+        raw = json.loads((self.project.artifacts_dir
+                          / "tearsheet-flow.excalidraw").read_text())
+        # guard against a vacuous pass if the fixture is ever re-frozen
+        self.assertTrue(any(e.get("roundness") for e in raw["elements"]
+                            if e.get("type") in ("arrow", "line")),
+                        "fixture is no longer curved-era — this test would "
+                        "pass without proving anything")
+        for aid, els in self.store.scenes.items():
+            for e in els:
+                if e.get("type") in ("arrow", "line"):
+                    self.assertIsNone(e.get("roundness"),
+                                      "%s/%s loaded curved" % (aid, e["id"]))
+        self.assertEqual([i["code"] for i in self.store.scene_repairs],
+                         ["ART-011", "ART-011"])
+        self.assertIsNone(self.store.catch_up())
+        store2 = canvas.Store(self.project)
+        self.assertIsNone(store2.catch_up())
+        self.assertEqual([i["code"] for i in store2.scene_repairs],
+                         ["ART-011", "ART-011"])
+
+    def test_a_hand_authored_path_keeps_its_shape_through_a_load(self):
+        # The guard on the re-derivation above. `mod points` marks a path
+        # "authored" and the whole point of that mark is that no later
+        # pass reshapes it — a blanket flatten at load would have made
+        # the loader the one pass that ignores it.
+        els = [{"id": "a1", "type": "arrow", "x": 0, "y": 0,
+                "points": [[0, 0], [40, 30], [90, 30]],
+                "roundness": {"type": 2},
+                "customData": {"routed": "authored"}}]
+        back = canvas.rebuild_bound_elements(els)
+        self.assertEqual(back[0]["roundness"], {"type": 2})
+
 
 class TestClientRemeasure(Base):
     """Client font-metric re-measurement must never masquerade as user
@@ -6543,7 +6590,12 @@ class TestRouterTotalityAndSelfLoops(Base):
         self.assertEqual(len(arrow["points"]), 5)
         self.assertEqual(arrow["startBinding"]["elementId"], "n1")
         self.assertEqual(arrow["endBinding"]["elementId"], "n1")
-        self.assertEqual(arrow["roundness"], {"type": 2})
+        # SHARP since v0.9 WP4 stage 1 (was {"type": 2}). The self-loop
+        # is the most-elbowed path the router makes, and it is the one
+        # r5-14 named: curved, its erased corner left two truncated arcs
+        # a cold observer called "a stray L-shaped stub", where two
+        # right-angled stubs are completed by the eye.
+        self.assertIsNone(arrow["roundness"])
 
     def test_self_loop_reroute_is_idempotent(self):
         # The F1/obstacle post-passes call route_arrow again; a loop must

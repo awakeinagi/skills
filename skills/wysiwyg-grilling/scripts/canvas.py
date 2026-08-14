@@ -969,13 +969,26 @@ def rebuild_bound_elements(els):
     """boundElements is derived bookkeeping — recompute it from containerId
     and arrow bindings so it never needs diffing and always reconstructs.
 
-    Since v0.8 the same rule covers a server-routed arrow's ``roundness``
-    (None for a straight 2-point path, curved otherwise — route_arrow's
-    own rule): it was derived at WRITE time but replay kept the
-    creation-time value, so the file and its own replayed history
-    disagreed permanently — every fixture with a re-routed arrow minted a
-    phantom out-of-session reconciliation at load (WP2; the r4 headline
-    shape, found in remediation)."""
+    The same rule covers a server-routed arrow's ``roundness``
+    (`derived_roundness` — route_arrow's own rule): it was derived at
+    WRITE time but replay kept the creation-time value, so the file and
+    its own replayed history disagreed permanently — every fixture with
+    a re-routed arrow minted a phantom out-of-session reconciliation at
+    load (v0.8 WP2; the r4 headline shape, found in remediation).
+
+    That clause was stated here in v0.8 but only ever HALF implemented:
+    the divergence was silenced by dropping ``roundness`` from
+    `content_fingerprint`, and nothing re-derived it. v0.9 WP4 stage 1
+    finished it, because the fingerprint skip alone leaves a curved-era
+    project curved on disk forever — the switch to sharp would never
+    have reached a single existing artifact. Both halves are wanted: the
+    re-derivation propagates the rule, and the fingerprint skip is why
+    propagating it mints nothing.
+
+    Guarded by `server_owns_geometry`, so it reaches only arrows the
+    server routed. A hand-authored path (``mod points``) or one the user
+    reshaped on the canvas keeps whatever shape it carries — the point
+    is to propagate a DERIVED value, never to flatten someone's."""
     ix = {e["id"]: e for e in els}
     for e in els:
         e["boundElements"] = []
@@ -984,6 +997,8 @@ def rebuild_bound_elements(els):
             ix[e["containerId"]]["boundElements"].append(
                 {"id": e["id"], "type": "text"})
         if e.get("type") in ("arrow", "line"):
+            if server_owns_geometry(e):
+                e["roundness"] = derived_roundness(e)
             for battr in ("startBinding", "endBinding"):
                 b = e.get(battr)
                 if isinstance(b, dict) and b.get("elementId") in ix:
@@ -2015,6 +2030,38 @@ def server_owns_geometry(arrow):
     return len(arrow.get("points") or []) <= 2
 
 
+def derived_roundness(arrow):
+    """Say what `roundness` a server-routed arrow must carry.
+
+    Roundness on a routed arrow is derived, never authored, so this is
+    the ONE place the rule lives: `route_arrow` stamps it at write time
+    and `rebuild_bound_elements` re-derives it at load. Two copies of a
+    derived rule is exactly how the file and its own replayed history
+    came to disagree permanently about this field (v0.8 WP2).
+
+    Sharp since v0.9 WP4 stage 1 — every elbow used to render `{"type":
+    2}`. A rendered curve bulges off the orthogonal segments the router
+    and every geometry lint reason about, so the drawn line stopped
+    being the computed line (the r5-14 class), and curvature degrades
+    the endpoint judgement that was this round's most repeated
+    complaint. While arrows are sharp, stored geometry IS drawn
+    geometry, which is what makes the stage-2 checks measure the picture
+    the user actually sees. Stage 3 re-introduces curvature per-arrow
+    behind a violation gate, and it lands here — keeping roundness a
+    routing result rather than a second source of truth.
+
+    Args:
+        arrow: The routed arrow, with its final `points` already set.
+            Unread while the rule is uniform; it is the seam stage 3's
+            per-arrow gate needs, and reading the arrow at the one
+            derivation site is what keeps that stage a one-line change.
+
+    Returns:
+        The `roundness` value for `arrow` — None (sharp elbows) today.
+    """
+    return None
+
+
 def _snap_geom(arrow):
     """Round routed geometry to whole pixels BEFORE stamping. At-rest
     normalization rounds to 1px; a signature computed on fractional
@@ -2226,12 +2273,12 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
         path = min(_route_candidates(src, dst), key=score)
     x1, y1 = path[0]
     pts = [[px - x1, py - y1] for px, py in path]
-    arrow["roundness"] = None if len(pts) == 2 else {"type": 2}
     gap = 6
     arrow["x"], arrow["y"] = x1, y1
     arrow["width"] = max(abs(p[0]) for p in pts)
     arrow["height"] = max(abs(p[1]) for p in pts)
     arrow["points"] = pts
+    arrow["roundness"] = derived_roundness(arrow)   # derived, never authored
     arrow["startBinding"] = {"elementId": src["id"],
                              "focus": binding_focus(src, x1, y1),
                              "gap": gap}
