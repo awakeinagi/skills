@@ -267,10 +267,19 @@ id-global: one answer would close two questions and take the unanswered
 one's ❓ off the canvas. Pruned ids are held back for the same reason they
 are pruned rather than deleted — the stale ❓ may still be standing on a
 canvas, and a resolve of the reused id would take it down as if it had
-been answered. Omit `id` and one is minted for you. Conversely
-`resolve_pin` takes the ❓ and nothing else —
-ids are minted per scene, so an ordinary element that happens to share the
-id, here or on another artifact, is left standing.
+been answered. Omit `id` and one is minted for you — the minter dedupes
+against the registry as well as the scene, so the easy path cannot reissue
+a live pin's id either.
+
+Conversely `resolve_pin` takes the ❓ and nothing else. Ids are minted per
+scene, so an ordinary element that happens to share the id, here or on
+another artifact, is left standing — and a `resolve_pin` **naming** one is
+refused, because something that was never a question has nothing to
+resolve. A ❓ drawn by hand with no registry record still resolves
+normally. What the resolve does take is every ❓ carrying that id on any
+artifact, including one re-drawn under it later in the same batch: the
+glyph count on the canvas and the open-pin count in the registry have to
+agree.
 
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.

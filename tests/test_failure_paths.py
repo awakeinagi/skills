@@ -365,12 +365,14 @@ class TestFailurePathAtomicity(unittest.TestCase):
             ("an unknown element to modify",
              batch(node, {"op": "mod", "id": "nobody",
                           "attrs": {"label": "boom"}})),
-            # crash-shaped rather than refusal-shaped: `check_batch` and
-            # `apply_batch` both raise `AttributeError` on this today
-            # (pinned red in tests/test_mutants.py). It sweeps here anyway
-            # because the claim is about STATE, not about which way the
-            # batch resolved — a crash that leaves half a batch behind is
-            # the worse version of the same wound.
+            # crash-shaped until v0.9 Task 38: `check_batch` and
+            # `apply_batch` both raised a bare `AttributeError` on this,
+            # and it swept here anyway because the claim is about STATE,
+            # not about which way the batch resolved — a crash that
+            # leaves half a batch behind is the worse version of the same
+            # wound. It is an ordinary refusal now (pinned in
+            # tests/test_mutants.py), and the entry stays because the
+            # state claim is the one this sweep makes about every shape.
             ("an op that is not an object", batch(mapping, "just a string")),
         ]
 

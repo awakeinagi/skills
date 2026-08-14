@@ -2514,13 +2514,19 @@ def recenter_label(els, el):
                                         label.get("height", 0)) / 2, 4)
 
 
-def apply_ops(elements, ops, errors, pin_registry=None):
+def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
     """Apply a validated op batch to an element list. Returns new list.
     All validation errors are collected (LLM-addressed); caller rejects the
-    whole batch if any. Pure function: does not mutate input."""
+    whole batch if any. Pure function: does not mutate input.
+    `known_pins` is every pin id the project registry has ever filed —
+    element ids are per scene, but a pin id names one question across the
+    whole project, so the auto-minter dedupes against both (see below)."""
     els = [dict(e) for e in elements]
     index = {e["id"]: e for e in els}
     existing = set(index.keys())
+    # Copied, not aliased: `_validate_batch` hands in the very set it uses
+    # to refuse an explicit colliding id, and minting must not grow it.
+    pin_ids = set(known_pins or ())
 
     def resolve(eid, opi, verb):
         el = index.get(eid)
@@ -2946,8 +2952,24 @@ def apply_ops(elements, ops, errors, pin_registry=None):
                               "strings" % i)
                 continue
             anchor = index.get(target) if target else None
-            pid = op.get("id") or mint_id("pin-" + (target or q[:20]), "pin",
-                                          existing)
+            # The minter dedupes against the registry as well as the
+            # scene, because a pin id is a name for ONE question across
+            # the whole project while element ids are minted per scene.
+            # Deduping against the scene alone reissued a LIVE pin's id
+            # the moment two artifacts held a node of the same name: two
+            # questions landed under `pin-n1`, and one `resolve_pin`
+            # closed both and took both ❓. `_validate_batch` refuses that
+            # collision when the agent SPELLS the id, and cannot see this
+            # one — the minter runs here, after validation has read the
+            # ops, so the id does not exist yet to be refused. The
+            # refusal's own advice ("omit `id` and one will be minted")
+            # routed agents straight down this path.
+            pid = op.get("id")
+            if not pid:
+                pid = mint_id("pin-" + (target or q[:20]), "pin",
+                              existing | pin_ids)
+                existing.add(pid)          # mint_id only wrote the union
+            pin_ids.add(pid)
             px, py = pin_spot(anchor, els) if anchor else (40, 40)
             pin_el = dict(BASE_DEFAULTS)
             pin_el.update({
@@ -7933,8 +7955,9 @@ class Store:
 
         Raises:
             BatchError: The envelope is malformed, names an unknown or
-                duplicate artifact, resolves an unknown pin, or carries ops
-                that do not apply to the current scene.
+                duplicate artifact, resolves an unknown pin or an id that
+                is not a ❓, or carries ops that are not objects at all or
+                do not apply to the current scene.
         """
         with self.lock:
             errors = []
@@ -7948,6 +7971,19 @@ class Store:
             if not isinstance(ops, list) or (not ops and not create):
                 errors.append("batch: non-empty `ops` list (or a `create` "
                               "artifact block) required")
+            # Shape before content, because every arm below reads
+            # `o.get("op")`: a list holding a bare string broke
+            # `check_batch`'s promise that a rejected batch comes back in
+            # the payload, handing the agent `AttributeError: 'str' object
+            # has no attribute 'get'` from the dry run it reaches for
+            # precisely so it need not catch one. The POSITION carries the
+            # message — a non-dict has no op name to quote, and the index
+            # is the only thing that says which op to fix.
+            if isinstance(ops, list):
+                errors.extend(
+                    "op %d: every op must be an object with an `op` key, "
+                    "got %r" % (i, o)
+                    for i, o in enumerate(ops) if not isinstance(o, dict))
             new_meta = {}
             if create:
                 aid = aid or create.get("id") or slugify(create.get("name", ""))
@@ -7995,15 +8031,31 @@ class Store:
             base_els = self.scenes.get(aid, [])
             known_pins = {p["id"] for p in self.registry["pins"]}
             scene_ids = {e["id"] for e in base_els}
+            # The hatch beside the registry exists for a ❓ drawn straight
+            # onto the canvas, which has no record to be known by — so it
+            # asks the ROLE, the same question `apply_ops`' resolve arm
+            # and the cross-artifact scan ask. Ungated it accepted a
+            # resolve naming ANY element: the role gate on the arm stopped
+            # that from deleting the node, and what was left was a resolve
+            # that did nothing while the echo said "❓ glyph STILL on
+            # canvas" and the note beside it said "its ❓ was already
+            # gone" — the same two-surface disagreement the echo stamp
+            # below exists to end. Something that was never a question has
+            # nothing to resolve; say so where every other unresolvable id
+            # is already refused.
+            scene_pins = {e["id"] for e in base_els if role_of(e) == "pin"}
             minted = set()
             for i, o in enumerate(ops):
                 if o.get("op") == "resolve_pin" and \
                         o.get("id") not in known_pins and \
-                        o.get("id") not in scene_ids:
-                    errors.append(
-                        "op %d (resolve_pin): unknown pin %r (known: %s)"
-                        % (i, o.get("id"),
-                           ", ".join(sorted(known_pins)) or "none"))
+                        o.get("id") not in scene_pins:
+                    why = ("%r is on this artifact but is not a ❓ — a "
+                           "resolve takes a pin and nothing else"
+                           % (o.get("id"),)) if o.get("id") in scene_ids \
+                        else ("unknown pin %r (known: %s)"
+                              % (o.get("id"),
+                                 ", ".join(sorted(known_pins)) or "none"))
+                    errors.append("op %d (resolve_pin): %s" % (i, why))
                 # a pin id is a name for ONE question, and nothing used to
                 # say so: the resolve write-through and the cross-artifact
                 # scan are both id-global, so a second `pin` op reusing a
@@ -8025,7 +8077,8 @@ class Store:
                     minted.add(o["id"])
             pin_reg = []
             try:
-                new_els = apply_ops(base_els, ops, errors, pin_reg)
+                new_els = apply_ops(base_els, ops, errors, pin_reg,
+                                    known_pins=known_pins)
             except Exception as e:  # noqa: BLE001 — E-9 backstop
                 # No traceback ever reaches the agent: SKILL.md promises
                 # "errors name the offending op", and the r4-11 crash
@@ -8047,11 +8100,11 @@ class Store:
             # printed beside the record-derived note saying the opposite
             # (WP1). This is the only place both halves of the answer are
             # in reach: the PRE-op scene, and every other artifact for the
-            # cross-artifact deletion `apply_batch` is about to make (the
-            # `here` skip is mirrored, or a re-added ❓ would read as
-            # taken). Written for every resolve and never read from the
-            # caller — an agent that sent the key itself must not be able
-            # to script its own echo.
+            # cross-artifact deletion `apply_batch` is about to make (its
+            # skip is mirrored below, or a resolve satisfied on this very
+            # scene would read as having reached across too). Written for
+            # every resolve and never read from the caller — an agent that
+            # sent the key itself must not be able to script its own echo.
             # It is written into the CALLER's op dicts, which is the point
             # rather than an oversight: every echo surface builds its
             # lines from the list the caller still holds after
@@ -8061,14 +8114,13 @@ class Store:
             # copies — see its own comment for what leaked without them.
             was_pin = {e["id"] for e in base_els if role_of(e) == "pin"}
             standing = {e["id"] for e in new_els}
-            here = {e["id"] for e in new_els if role_of(e) == "pin"}
             for o in ops:
                 if o.get("op") != "resolve_pin":
                     continue
                 pid = o.get("id")
                 o["glyph_removed"] = bool(
                     (pid in was_pin and pid not in standing) or
-                    (pid not in here and
+                    (pid not in was_pin and
                      any(e["id"] == pid and role_of(e) == "pin"
                          for a2, els2 in self.scenes.items() if a2 != aid
                          for e in els2)))
@@ -8241,16 +8293,26 @@ class Store:
             # record that lost it would strand its ❓ in exactly the way
             # this fixes. Only a pin element is ever taken: ids are
             # minted per scene, so the same id on another artifact need
-            # not be the same thing — and `here`, which skips the scan,
-            # is gated on the same role for the same reason. Asking only
-            # whether the id survived let one batch resolve a foreign pin
-            # and then add any element reusing that id, putting it back
-            # in scope and skipping straight past the stranded ❓.
+            # not be the same thing. The scan is skipped only when the
+            # resolve was already satisfied HERE — when the ❓ stood on
+            # this artifact's scene as the batch arrived, so `apply_ops`
+            # has just taken it. That is a fact about the PRE-op scene,
+            # and reading it off the post-op one instead is how the id
+            # kept coming back into scope: an add reusing the resolved id
+            # skipped the scan and stranded the foreign ❓ (registry
+            # resolved, glyph drawn — r5-17 again). Gating that read on
+            # the pin role closed it for an ordinary namesake and left it
+            # open for a namesake that is itself a ❓. Nothing added after
+            # a resolve can un-resolve it, so nothing added is consulted;
+            # a ❓ re-drawn under the answered id is taken by the scan
+            # like every other one, which is what keeps the glyph count
+            # and the open-pin count equal.
             scenes = {aid: new_els}
-            here = {e["id"] for e in new_els if role_of(e) == "pin"}
+            was_pin_here = {eid for eid, e in was.items()
+                            if role_of(e) == "pin"}
             for o in ops:
                 pid = o.get("id")
-                if o.get("op") != "resolve_pin" or pid in here:
+                if o.get("op") != "resolve_pin" or pid in was_pin_here:
                     continue
                 for aid2 in self.scenes:
                     els2 = scenes.get(aid2, self.scenes[aid2])

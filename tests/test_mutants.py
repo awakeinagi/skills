@@ -4170,27 +4170,34 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     % (action, escaped))
                 self.assertIn(action, "\n".join(escaped.errors))
 
-    @unittest.expectedFailure
     def test_red_a_non_dict_op_escapes_check_batch_as_a_bare_crash(
             self) -> None:
-        """A dry run raises the one exception it promises never to raise.
+        """A dry run answers the op that is not an op, rather than dying.
 
         `check_batch`'s docstring is explicit — "Never raises for a
         rejected batch — the errors come back in the payload so a caller
-        can report them without a try/except" (canvas.py:8001) — and an
-        ops list holding anything but a dict breaks that promise before
-        validation starts: every arm reads `o.get("op")`, so a string
-        gives `AttributeError: 'str' object has no attribute 'get'`.
-        Probed on all four shapes an agent could plausibly send — a bare
-        string, an integer, `None`, and a nested list — and every one
-        escapes uncaught, from `apply_batch` as well.
+        can report them without a try/except" — and an ops list holding
+        anything but a dict used to break that promise before validation
+        started: every arm reads `o.get("op")`, so a string gave
+        `AttributeError: 'str' object has no attribute 'get'`. Probed on
+        all four shapes an agent could plausibly send — a bare string, an
+        integer, `None`, and a nested list — and every one escaped
+        uncaught, from `apply_batch` as well.
 
         The same class as the negative-index reds this file already
         holds: a batch must resolve one way or the other, and this one
-        resolves neither. It is worse on the dry-run path, because
+        resolved neither. It was worse on the dry-run path, because
         `--check` is what an agent reaches for precisely so it can ask
         "would this land?" without handling exceptions, and the answer it
-        gets is a traceback naming a Python builtin instead of an op.
+        got was a traceback naming a Python builtin instead of an op.
+
+        v0.9 Task 38 checks the SHAPE of every op before any arm reads
+        one, alongside the envelope's own `ops` check, so the batch is
+        refused through the same `BatchError` every other malformed op
+        takes. The rejection sweep in tests/test_failure_paths.py carries
+        this shape too and asserted only that no write survived it, since
+        a crash cannot be asked which way it resolved; it now goes down
+        the refusal path with the rest.
 
         DIRECTION is the whole claim and is asserted as the payload
         contract the docstring already makes: `ok` is False and the
@@ -4790,26 +4797,34 @@ class TestPinIdentityIntegrity(unittest.TestCase):
     # escape hatch beneath it, the minter that never consults the
     # registry, and the half of the new refusal nothing measures.
 
-    @unittest.expectedFailure
     def test_red_a_pin_role_shadowing_add_strands_the_foreign_glyph(
             self) -> None:
         """The shadow add, one field over: the namesake is a ❓ this time.
 
-        `here` admits pin-role elements deliberately (canvas.py:8021) —
-        that is the gate Task 7 added so an ordinary namesake could not
-        skip the cross-artifact scan. A namesake that IS a pin walks
-        straight through it: the id is back in scope, the scan is
-        skipped, and `flow`'s ❓ stands while the registry calls `pin-a`
+        The guard that skips the cross-artifact scan admitted pin-role
+        elements deliberately — that is the gate Task 7 added so an
+        ordinary namesake could not skip it. A namesake that IS a pin
+        walked straight through: the id was back in scope, the scan was
+        skipped, and `flow`'s ❓ stood while the registry called `pin-a`
         resolved. Probed on the shipped code: two glyphs on two canvases,
         `OPEN_PINS=0`. That is r5-17's signature exactly, reached through
-        the one hole the role gate leaves.
+        the one hole the role gate left.
 
         Pre-existing rather than Task 35's: the reviewer ran it against
         `HEAD~1` and `HEAD` and the outputs are byte-identical, echo and
         note included. `test_an_id_shadowing_add_cannot_hide_the_foreign
         _pin` (tests/test_failure_paths.py) pins the NODE-role version
         green; this is the same batch with `role` changed, so the two are
-        one family under two magnitudes and only the second is live.
+        one family under two magnitudes.
+
+        v0.9 Task 38 reads the guard off the PRE-op scene: the scan is
+        skipped only when the ❓ stood on this artifact as the batch
+        arrived, so `apply_ops` has already taken it. Nothing added after
+        a resolve can un-resolve it, so nothing added is consulted — and
+        the scan, which walks every artifact including this one, takes
+        the re-drawn ❓ along with the foreign one. Both namesake cases
+        now land where they should: the node survives the scan that
+        ignores it, the ❓ does not.
 
         MAGNITUDE is the parity that r5-17 is measured by — the glyph
         count across every scene equals the registry's open-pin count —
@@ -4818,13 +4833,11 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         is refused: the add itself is legitimate and a fix that rejected
         it would cost the agent a drawing op for no reason.
 
-        SEQUENCING, recorded so the next curator does not re-derive it:
-        the `here` mirror inside the echo stamp cannot be pinned until
-        this is fixed (reviewer's F-9/M9). Dropping that mirror breaks no
-        test today because the only scene that exercises it is this
-        broken one, and pinning echo text on a defective scene would
-        freeze the wrong sentence. It becomes pinnable the day this red
-        flips, and that is the moment to write it.
+        The echo stamp mirrors that same skip, and the mirror was
+        unpinnable while this scene was broken (reviewer's F-9/M9) —
+        pinning echo text on a defective scene freezes the wrong
+        sentence. `test_the_shadowed_resolve_reports_the_removal_it_made`
+        below is that pin, written the moment this flipped.
         """
         store = self._store()
         escaped = self._send(store, "other", [
@@ -4845,31 +4858,39 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "(drawn=%r, open=%r)" % (len(drawn), len(open_pins), drawn,
                                      open_pins))
 
-    @unittest.expectedFailure
     def test_red_a_resolve_naming_an_ordinary_element_is_accepted(
             self) -> None:
-        """The escape hatch under the role gate, and its new contradiction.
+        """The escape hatch under the role gate asks the role now too.
 
-        `_validate_batch` accepts a `resolve_pin` whose id names any
-        element on the scene, pin or not (canvas.py:7876,
-        `o.get("id") not in scene_ids`). Task 35's role gate stopped that
-        from DESTROYING the element — at `HEAD~1` the node and its label
-        were deleted — and the improvement is real. What it left is a
-        resolve that does nothing while two surfaces describe it
-        differently: probed, the echo says "op 0 (resolve_pin): m1
-        resolved (❓ glyph STILL on canvas)" and the note beside it says
-        "pin m1 resolved; its ❓ was already gone".
+        `_validate_batch` accepted a `resolve_pin` whose id named any
+        element on the scene, pin or not (`o.get("id") not in
+        scene_ids`). Task 35's role gate stopped that from DESTROYING the
+        element — at `HEAD~1` the node and its label were deleted — and
+        the improvement is real. What it left was a resolve that did
+        nothing while two surfaces described it differently: probed, the
+        echo said "op 0 (resolve_pin): m1 resolved (❓ glyph STILL on
+        canvas)" and the note beside it said "pin m1 resolved; its ❓ was
+        already gone".
 
         That is a fresh instance of the disagreement
         `test_red_the_echo_claims_a_removal_the_record_denies` banned —
         in a scene that red cannot reach, because it resolves a real pin.
-        The sentence pair is new with Task 35 even though the hatch is
+        The sentence pair was new with Task 35 even though the hatch was
         not, which is why it is filed here rather than as a regression.
+
+        v0.9 Task 38 gates the hatch on the same role every other arm of
+        the resolve path asks about: the id must name a ❓ on the scene,
+        or be one the registry knows. The hatch is narrowed and not
+        removed, because a ❓ drawn straight onto the canvas has no
+        record to be known by and must stay resolvable — which is what
+        `test_an_unregistered_glyph_on_the_scene_stays_resolvable` holds
+        it to. The error says which of the two it is, since "that is not
+        a ❓" and "no such pin" send an agent to different fixes.
 
         DIRECTION is the outcome asserted, and it is refusal: a resolve
         naming something that was never a question has nothing to
         resolve, and the same validator already refuses an unknown id
-        with a named error. Both the implementer and the reviewer lean
+        with a named error. Both the implementer and the reviewer leant
         the same way — role-gate the hatch — and the alternative reading
         (accept it, but say ONE thing) still leaves the agent an op that
         reports success for work nobody could do. MAGNITUDE is that the
@@ -4890,34 +4911,38 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "while the note says it was already gone" % (escaped,))
         self.assertIn("m1", "\n".join(escaped.errors))
 
-    @unittest.expectedFailure
     def test_red_the_auto_minter_reissues_a_live_pin_id(self) -> None:
-        """Omitting `id` walks around the refusal that exists to stop this.
+        """Omitting `id` no longer walks around the refusal.
 
-        `mint_id("pin-" + target, "pin", existing)` (canvas.py:2853)
-        dedupes against the batch artifact's SCENE ids and never against
-        the registry, and Task 35's new uniqueness check fires only when
-        `o.get("id")` is set. So the default path — the one an agent
-        takes when it does not care about the id — recreates the exact
-        corruption the check was written to prevent.
+        `mint_id("pin-" + target, "pin", existing)` deduped against the
+        batch artifact's SCENE ids and never against the registry, and
+        Task 35's uniqueness check fires only when `o.get("id")` is set.
+        So the default path — the one an agent takes when it does not
+        care about the id — recreated the exact corruption the check was
+        written to prevent.
 
         Probed on the shipped code, and this scene is the probe: two
         artifacts each holding a node called `n1`, one ordinary `pin` op
-        each with no id at all. Two open records land under `pin-n1`,
+        each with no id at all. Two open records landed under `pin-n1`,
         a ❓ on each canvas, `OPEN_PINS=2` — and one `resolve_pin pin-n1`
-        then marks BOTH resolved and takes BOTH glyphs. The user answered
+        then marked BOTH resolved and took BOTH glyphs. The user answered
         one question and the tool closed two, which is word for word what
         the duplicate-id red above describes. A single-artifact variant
-        reproduces too: pin `n1`, resolve it, pin `n1` again.
+        reproduced too: pin `n1`, resolve it, pin `n1` again.
 
-        The refusal's own error message routes agents here — "Pick
+        The refusal's own error message routed agents here — "Pick
         another id, or omit `id` and one will be minted" — so the
-        documented way out of the collision is the way into it.
+        documented way out of the collision was the way into it.
 
         The fix belongs at the MINTING site, which the implementer and
         the reviewer reached independently: the minter runs inside
         `apply_ops`, after validation has already read the ops, so a
         validation-time refusal cannot see an id that does not exist yet.
+        v0.9 Task 38 hands `apply_ops` every id the registry has filed
+        and mints against those as well as the scene's, which is the same
+        set the explicit-id refusal already consults — element ids are
+        per scene, a pin id names one question project-wide.
+
         MAGNITUDE is what the two batches file — two ids, two questions,
         two glyphs — and DIRECTION is that both stay open until each is
         answered, asserted as the r5-17 parity so a fix that minted two
@@ -5044,6 +5069,54 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         said = canvas.intent_echo(ops, store.scenes["flow"])
         self.assertEqual(len(said), 1, said)
         self.assertIn("removed from canvas", said[0])
+
+    def test_the_shadowed_resolve_reports_the_removal_it_made(self) -> None:
+        """The skip and its echo mirror, held in step on the one scene.
+
+        The reviewer's F-9: `apply_batch` decides whether to scan the
+        other artifacts, and `_validate_batch` decides what the echo will
+        SAY about that scan, from a mirrored copy of the same skip. Two
+        copies of one predicate, and the only batch that tells them apart
+        is this one — a resolve whose ❓ lives elsewhere, followed by an
+        add re-drawing a ❓ under the answered id. Everywhere else the
+        stamp's first clause settles the answer before the mirror is
+        consulted, so a mirror that drifted out of step would go
+        unmeasured.
+
+        Unwritable until `test_red_a_pin_role_shadowing_add_strands_the
+        _foreign_glyph` flipped: while the scan was being skipped here,
+        the honest echo was "still on canvas", and freezing that sentence
+        would have pinned the defect. Now the scan runs, takes the
+        foreign ❓ and the re-drawn one with it, and the two surfaces are
+        asserted against the state they describe rather than as wording —
+        the glyphs are gone, the note has nothing to report, and the echo
+        claims the removal. Reverting either copy to the post-op scene
+        breaks this: the echo then says the ❓ was already gone, or that
+        it is still standing, about a batch that took it down.
+
+        The add's own line is asserted too. An op whose element the scan
+        swallowed must not echo as a drawing that happened — that is the
+        same disagreement one op over, and it is the agent's only notice
+        that its ❓ did not survive its own resolve.
+        """
+        store = self._store()
+        ops: list[dict[str, Any]] = [
+            {"op": "resolve_pin", "id": "pin-a", "answer": "yes"},
+            {"op": "add", "element": {
+                "type": "text", "id": "pin-a", "text": "❓", "x": 500,
+                "y": 0, "width": 20, "height": 25, "role": "pin"}}]
+        record, _ = store.apply_batch({"base_revn": store.head_revn(),
+                                       "artifact": "other", "ops": ops})
+        self.assertEqual([self._glyphs(store, aid) for aid in
+                          sorted(store.scenes)], [[], []])
+        self.assertEqual(canvas.pin_glyph_notes(record, ops), [])
+        said = canvas.intent_echo(ops, store.scenes["other"])
+        self.assertIn(
+            "removed from canvas", said[0],
+            "the scan took the ❓ and the echo says otherwise: %r" % (said,))
+        self.assertIn("gone", said[1],
+                      "the re-drawn ❓ was swallowed by the scan and the "
+                      "echo reports it as drawn: %r" % (said,))
 
 
 # ---------------------------------------------------------------------------
