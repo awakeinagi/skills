@@ -95,7 +95,7 @@ _TEXT_OVERFLOW_RE = re.compile(
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
-    """One finding whose magnitude is the (buggy) crossing-pair count.
+    """One finding whose magnitude is the scene's crossing count.
 
     Args:
         els: The scene's element list.
@@ -103,10 +103,10 @@ def _collect_crossings(els: list[dict]) -> list[dict]:
     Returns:
         A single-item findings list for the `crossings_count` check.
     """
-    n, _pairs = instruments.edge_crossing_pairs(els)
+    n, _pairs = instruments.edge_crossings(els)
     return [{"check": "crossings_count", "element": None,
              "magnitude": float(n), "direction": None,
-             "raw": "crossing pairs=%d" % n}]
+             "raw": "crossings=%d" % n}]
 
 
 def _collect_corridors(els: list[dict]) -> list[dict]:
@@ -6698,10 +6698,10 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 after Task 9, `mutants list --red` reports 16 while
-# the suite reports 27 expected failures. The eleven outside live in five
+# re-measured 2026-08-14 after Task 13, `mutants list --red` reports 14 while
+# this file carries 24 expectedFailure methods. The ten outside live in five
 # classes — `TestLoadFindingsReachTheAgent` (4), `TestExportCompleteness` (2),
-# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (2)
+# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (1)
 # and `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
@@ -6825,15 +6825,20 @@ _register(Mutant(
                        magnitude=(50, 0.90)),
     neighbour=Neighbour(_diamond_stage, Silence("float_diamond"))))
 
-# Spurious: false_bidi reads the stored chord, so a curved elbow whose
-# rendered path bows away from it still reads as one bidirectional line.
-# Flips when WP4 samples the rendered PATH over the final stretch — NOT
-# the tangent at the arrowhead, which is (0,18) here, identical to the
-# chord, and would never flip this. With Catmull-Rom controls c1=(266.7,
-# 285) and c2=(250,294), the curve passes through (254.8,291.9): |dx|=4.8
-# off the x=250 chord line, breaking false_bidi's 2px collinearity
-# tolerance while the sharp neighbour, whose path IS its chord, keeps
-# firing.
+# Spurious: false_bidi read the stored chord, so a curved elbow whose
+# rendered path bows away from it still read as one bidirectional line.
+# FLIPPED by WP4 (task 13), which samples the rendered PATH over the
+# final stretch — NOT the tangent at the arrowhead, which points
+# straight down the chord here and would never have flipped it.
+# Derivation corrected in task 13 against the bundled renderer (roughjs
+# `generator.curve`, which pads by DUPLICATING the endpoints; the
+# original comment's c2 came from reflecting them): the final span's
+# Catmull-Rom controls are c1=(266.7,285) and c2=(250,297), and the
+# curve passes through (254.8,293.2) at t=0.6 and reaches x=257.4 at
+# t=1/3. Either derivation gives the same x profile — c2 sits on x=250
+# both ways — so |dx| up to 7.4 off the x=250 chord line breaks
+# false_bidi's 2px collinearity tolerance while the sharp neighbour,
+# whose path IS its chord, keeps firing.
 _register(Mutant(
     "curved_elbow_spurious_bidi",
     build=lambda: _opposed_pair(rounded=True),
@@ -7417,11 +7422,11 @@ class TestMutantCatalogue(unittest.TestCase):
         """An arrow through the rhombus body really does pass through it."""
         self._run_neighbour("foreign_diamond_corner_overfire")
 
-    @unittest.expectedFailure
     def test_mutant_four_crossings_pairbug(self) -> None:
-        """Four true crossings, counted as one pair."""
-        # Pair count masquerading as a crossing count; flips when WP4
-        # drops the double-break.
+        """Four true crossings, counted as four."""
+        # Was a pair count masquerading as a crossing count. FLIPPED by
+        # WP4 (task 13): `crossing_sites` enumerates every intersecting
+        # segment pair, so the double-break is gone.
         self._run("four_crossings_pairbug")
 
     def test_neighbour_four_crossings_pairbug(self) -> None:
@@ -7438,12 +7443,11 @@ class TestMutantCatalogue(unittest.TestCase):
         """An endpoint exactly on the facet is not a floating endpoint."""
         self._run_neighbour("float_diamond_center_zero")
 
-    @unittest.expectedFailure
     def test_mutant_curved_elbow_spurious_bidi(self) -> None:
-        """A curved elbow bowed off its own chord still reads as bidi."""
-        # Stored chord, not rendered path; flips when WP4 samples the
-        # rendered path over the final stretch (see the catalogue entry —
-        # the arrowhead tangent alone will not flip it).
+        """A curved elbow bowed off its own chord no longer reads as bidi."""
+        # Was read off the stored chord. FLIPPED by WP4 (task 13):
+        # `_final_stretch` samples the rendered path over the final span
+        # (the arrowhead tangent alone would not have flipped it).
         self._run("curved_elbow_spurious_bidi")
 
     def test_neighbour_curved_elbow_spurious_bidi(self) -> None:
