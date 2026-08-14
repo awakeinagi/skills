@@ -2949,6 +2949,147 @@ class TestStoreIntegrity(unittest.TestCase):
         n2 = next(e for e in st.scenes["b"] if e["id"] == "n2")
         self.assertEqual(n2["boundElements"], [])
 
+    def test_an_unwalkable_boundelements_quarantines_its_artifact(
+            self) -> None:
+        """A `boundElements` that is not iterable costs one file, not all.
+
+        `boundElements: 5` used to kill the whole load: `validate_scene`'s
+        repair loop walks it, and `for b in 5` raises `TypeError` where
+        nothing catches — so no artifact opened, malformed or healthy.
+        The guard now answers False for an element whose `boundElements`
+        cannot be walked at all, which routes it into the ART-000
+        quarantine every other unreadable shape takes.
+
+        Written from third hands deliberately. The fix was made inline by
+        the implementer who found it, on the exact line they were
+        hardening, and reviewed and probed at both poles by the reviewer
+        — an approved routing flex, not the normal path. The pin coming
+        from a third pair of hands is what keeps the discipline whole:
+        the acceptance test and the fix still do not share an author.
+
+        Both halves are asserted, because the quarantine alone is half a
+        result: `a` must still load, since losing the sibling too is the
+        outcome this replaced.
+        """
+        body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
+            {"id": "n2", "type": "rectangle", "x": 0, "y": 0, "width": 10,
+             "height": 10, "boundElements": 5}]})
+        st = self._load({"a": _GOOD_ARTIFACT, "b": body},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertIn("ART-000", {i["code"] for i in st.issues})
+        self.assertIn("b", " ".join(str(i) for i in st.issues))
+
+    def test_the_seventh_hash_site_is_guarded_end_to_end(self) -> None:
+        """`containerId` is hashed past every quarantine, so it is guarded.
+
+        The guard's list was widened from two fields to six, and the
+        seventh site is the one that decided the guard's SHAPE.
+        `rebuild_bound_elements` hashes `containerId` unconditionally —
+        `e.get("containerId") in ix` — and it runs further down the load,
+        past every quarantine, so a `[]` there survived a guard that had
+        been narrowed to skip falsy values on the reasoning that
+        `validate_scene`'s own `if el.get("containerId")` never hashes
+        one. The implementer's own probe caught that narrowing before it
+        shipped; the guard now asks `hash` unconditionally.
+
+        The lesson generalises past this field, which is why the pin is
+        here rather than only in prose: a guard cannot be scoped to the
+        conditions of any ONE caller, because the next caller down the
+        same load does not share them. `[]` is used rather than a dict
+        because it is the value that made the narrowing visible.
+        """
+        body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
+            {"id": "t1", "type": "text", "x": 0, "y": 0, "width": 10,
+             "height": 10, "containerId": []}]})
+        st = self._load({"a": _GOOD_ARTIFACT, "b": body},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual(sorted(st.scenes), ["a"])
+        self.assertIn("ART-000", {i["code"] for i in st.issues})
+
+    @unittest.expectedFailure
+    def test_red_a_branch_switch_leaves_the_load_report_standing(
+            self) -> None:
+        """A repaired reference is still reported, because head did not move.
+
+        `referential` is the PRE-REPAIR report, true of exactly the disk
+        state the store opened on, and `referential_now` merges it only
+        while `referential_revn == head_revn()`. That gate reads head
+        equality as "the artifacts on disk are still the ones I read",
+        and `switch_branch` breaks the implication: it rewrites every
+        artifact file from `state_at(b["head"])` WITHOUT moving head, so
+        the bytes under an unchanged revision number are new.
+
+        Probed end to end. A project whose disk copy carries a dangling
+        `endBinding` loads with the finding filed; a switch to a branch
+        forked at the same revision and back rewrites the file from the
+        committed state, where the binding is intact. Disk and memory
+        then both read `endBinding: n2` — the GHOST exists nowhere — and
+        `referential_now` still reports "arrow t1 binds GHOST at its end
+        point and that element no longer exists". That is r5-19's exact
+        shape, an ERROR nagged for a reference already repaired, reached
+        through a normal user flow rather than through a commit.
+
+        The Task-9 review filed this as "head_revn can move BACKWARD on a
+        branch switch". Backward movement is the reachable half of a
+        wider fault and, on its own, is not the one that bites: revns are
+        globally unique, so two branches share a head only when neither
+        has committed since the fork, and their reconstructed states are
+        then identical — which is why `lint_debt`'s cache, keyed the same
+        way, cannot be made to serve one branch's debt for another's
+        scenes. What does bite is head STAYING EQUAL while the content
+        under it is rewritten, and that is what this pins.
+
+        MAGNITUDE is what the surface reports — nothing about a
+        reference that no longer exists. DIRECTION is that the report
+        follows the SCENES rather than a revision number; keying the
+        freshness on the scenes themselves, or dropping the load-time set
+        when the files are rewritten, would each satisfy it.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-branch-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": nid, "label": nid.upper(),
+                "x": 300 * i, "y": 0, "width": 100, "height": 60,
+                "role": "node"}} for i, nid in enumerate(("n1", "n2"))]
+            + [{"op": "add", "element": {"type": "arrow", "id": "t1",
+                                         "from": "n1", "to": "n2"}}]})
+        head = store.head_revn()
+        store.registry["branches"].append(
+            {"name": "side", "head": head, "archived": False,
+             "forked_from": "main", "forked_at_revn": head})
+        store._save_registry()
+        path = tmp / "project_knowledge" / "artifacts" / "f.excalidraw"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        for e in doc["elements"]:
+            if e["id"] == "t1":
+                e["endBinding"] = {"elementId": "GHOST", "focus": 0,
+                                   "gap": 1}
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        reloaded = canvas.Store(canvas.Project(tmp))
+        self.assertIn(
+            "GHOST", json.dumps(reloaded.referential),
+            "the load did not file the pre-repair finding, so this scene "
+            "cannot measure whether it is dropped later")
+        reloaded.switch_branch("side")
+        reloaded.switch_branch("main")
+        live = next(e for e in reloaded.scenes["f"] if e["id"] == "t1")
+        self.assertEqual((live.get("endBinding") or {}).get("elementId"),
+                         "n2", "the round trip did not restore the "
+                         "committed binding, so nothing was repaired")
+        self.assertNotIn(
+            "GHOST", json.dumps(reloaded.referential_now()),
+            "the switch rewrote the file from the committed state and "
+            "the binding is whole on disk and in memory, but the "
+            "load-time report is still merged in and still names GHOST")
+
     def test_red_a_negative_replay_index_lands_in_the_interior(self) -> None:
         """A corrupt record's index resolves the way every other one does.
 
@@ -3111,11 +3252,21 @@ class TestStoreIntegrity(unittest.TestCase):
         that is the outcome the user feels; routing the field through
         `index_fault` and falling back to the default satisfies both, and
         quarantining the record at load would satisfy them too.
+
+        The value list carries both booleans because `index_fault`'s
+        `isinstance(value, bool)` clause is a separate branch from its
+        `isinstance(value, int)` one and had no test of its own (Task-9
+        review F3): `bool` subclasses `int`, so without that clause
+        `True` reads as position 1 and `False` as position 0, and the
+        two would land somewhere real instead of at the default. They
+        are the only values here that fail SILENTLY when the guard slips
+        — every other one raises — which is exactly why they are the
+        easiest to leave uncovered.
         """
         base = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
         default = [e["id"] for e in canvas.replay_changes(
             base, [{"op": "add", "element": {"id": "NEW"}}])]
-        for value in ("2", None, [], {}, 1.5):
+        for value in ("2", None, [], {}, 1.5, True, False):
             with self.subTest(index=value):
                 try:
                     got = canvas.replay_changes(
@@ -6318,10 +6469,10 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-13 after Task 41, `mutants list --red` reports 16 while
-# the suite reports 29 expected failures. The thirteen outside live in five
-# classes — `TestLoadFindingsReachTheAgent` (4), `TestStoreIntegrity` (4),
-# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2)
+# re-measured 2026-08-14 after Task 9, `mutants list --red` reports 16 while
+# the suite reports 27 expected failures. The eleven outside live in five
+# classes — `TestLoadFindingsReachTheAgent` (4), `TestExportCompleteness` (2),
+# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (2)
 # and `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
@@ -6334,6 +6485,22 @@ def _label_pair_stage() -> list[dict]:
 # last three reds — a class does not merely lose a number here, it leaves the
 # list, and nothing in the suite notices either way. Task 41 flipped that
 # class's final two, so it has now left; that is the shape to expect.
+#
+# AUTHORING RULE for the reds in this file, learned the expensive way in
+# v0.9 Task 9: nothing load-bearing may sit AFTER the line a red is expected
+# to fail on. `expectedFailure` stops the method at its first failure, so
+# every later assertion is dead code for the whole life of the red — it is
+# first executed on the day the defect is fixed, which is the worst possible
+# day to discover it was wrong. One such assertion carried a literal `6`
+# against a live value of `3` from the day it was written and nobody could
+# have known: the suite was green throughout, and the mutant was red for the
+# right reason at the line above it. Task 9 rewrote it to derive from the
+# live store instead.
+#
+# So: put the whole claim in the assertion that fails, or split the test in
+# two. A red whose tail is dead is a red that will hand its flipper a
+# failure unrelated to the fix they just landed, and they will reasonably
+# read that as their own bug.
 CATALOGUE: dict[str, Mutant] = {}
 
 
