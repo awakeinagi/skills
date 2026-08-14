@@ -1049,19 +1049,93 @@ class TestSnapshotPieces(Base):
         _, w2, _ = canvas.render_svg(els2)
         self.assertGreater(w2, 40 + 80)  # stored width + 2*pad
 
+    def fake_png(self, w, h):
+        """A structurally-valid PNG header of the given IHDR dimensions.
+
+        Args:
+            w: IHDR width.
+            h: IHDR height.
+
+        Returns:
+            Raw bytes — enough of a file for `validate_png` to read.
+        """
+        import struct
+        ihdr = struct.pack(">II5B", w, h, 8, 2, 0, 0, 0)
+        return (b"\x89PNG\r\n\x1a\n" +
+                struct.pack(">I", 13) + b"IHDR" + ihdr + b"\0\0\0\0" +
+                b"\0" * 64)
+
     def test_validate_png(self):
         ok, why = canvas.validate_png(b"definitely not a png")
         self.assertFalse(ok)
-        # minimal structurally-valid PNG header (10x10) with enough body
-        import struct
-        ihdr = struct.pack(">II5B", 10, 10, 8, 2, 0, 0, 0)
-        png = (b"\x89PNG\r\n\x1a\n" +
-               struct.pack(">I", 13) + b"IHDR" + ihdr + b"\0\0\0\0" +
-               b"\0" * 64)
+        png = self.fake_png(10, 10)
         ok, why = canvas.validate_png(png)
         self.assertTrue(ok, why)
         ok, why = canvas.validate_png(png, want_w=2000)
         self.assertFalse(ok)  # dimension mismatch is the strong signal
+
+    def test_a_raster_short_of_the_drawing_is_refused(self):
+        """The truncation half of `validate_png` (v0.9 WP4).
+
+        3000px of a 3640px drawing is 640px of picture missing, and the
+        old symmetric tolerance — 20% of the requested width, so 728px —
+        let it through as VALID=true with two nodes off the right edge.
+        A raster short of the drawing has content cut off it, so it
+        fails at 2px, the most an int-rounded scale can account for.
+        """
+        ok, why = canvas.validate_png(self.fake_png(3000, 200),
+                                      3640, 200, min_bpp=0)
+        self.assertFalse(ok, why)
+        self.assertIn("cuts a 3640px drawing short", why)
+
+    def test_a_raster_a_shade_over_the_drawing_is_fine(self):
+        # the other direction, and the reason it is not symmetric: extra
+        # pixels are ground, and cost bytes rather than content. The 2px
+        # slack under is int-rounding of a fit scale, not tolerance.
+        for png_w, want_w in ((3639, 3640), (3700, 3640)):
+            ok, why = canvas.validate_png(self.fake_png(png_w, 200),
+                                          want_w, 200, min_bpp=0)
+            self.assertTrue(ok, (png_w, want_w, why))
+
+    def test_the_window_can_hold_anything_render_svg_makes(self):
+        """The snapshot's two ceilings are ONE number now.
+
+        `rasterize_svg` opened a 3000x2000 window while `render_svg`
+        only scaled a drawing down past 4000x3000, and every drawing in
+        the gap was rendered at full size into a window too small to
+        hold it. Asserting the constants agree is the whole property —
+        with one number there is no gap to fall into.
+        """
+        els = [{"id": "a", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 100},
+               {"id": "b", "type": "rectangle", "x": 20000, "y": 9000,
+                "width": 200, "height": 100}]
+        _svg, w, h = canvas.render_svg(els)
+        self.assertLessEqual(w, canvas.RASTER_MAX_W)
+        self.assertLessEqual(h, canvas.RASTER_MAX_H)
+
+    def test_a_frame_titled_wireframe_is_captioned_once(self):
+        """r5-15: the export printed the artifact's name twice.
+
+        A frame paints its own `name` just above its top-left corner and
+        the caption goes a few pixels away at the drawing's top-left, so
+        a wireframe whose one screen frame carries the artifact's name
+        read it twice and the second looked like a second screen.
+        """
+        els = [{"id": "f", "type": "frame", "x": 0, "y": 0, "width": 400,
+                "height": 300, "name": "Signals Dashboard"}]
+        svg, _, _ = canvas.render_svg(els, title="Signals Dashboard")
+        self.assertEqual(svg.count(">Signals Dashboard<"), 1)
+
+    def test_a_frame_named_otherwise_keeps_the_caption(self):
+        # the differential: suppression is on the NAME, so a frame named
+        # for its screen rather than for the artifact says nothing about
+        # which artifact this is, and the caption still has to
+        els = [{"id": "f", "type": "frame", "x": 0, "y": 0, "width": 400,
+                "height": 300, "name": "SCREEN — Breach detail"}]
+        svg, _, _ = canvas.render_svg(els, title="Signals Dashboard")
+        self.assertIn(">Signals Dashboard<", svg)
+        self.assertIn(">SCREEN — Breach detail<", svg)
 
 
 def seed_sequence_batch(base_revn=0):

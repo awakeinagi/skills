@@ -786,23 +786,29 @@ class TestRenderMutants(unittest.TestCase):
 # Snapshot framing. Nothing above leaves this file's own `_shot`; the tests
 # below drive `canvas.py snapshot` end to end — a real Project, a real Store,
 # the real argv — because the defect they pin lives in that CLI's tier 2 and
-# nowhere else. `rasterize_svg` clamps the browser window to 3000px wide
-# (canvas.py:10003, `win_w = max(min(want_w, 3000), 320)`) while `render_svg`
-# only scales a drawing down past 4000px wide (canvas.py:4542), so anything
-# between those two numbers is rendered at full size into a window too narrow
-# to hold it and the overflow is simply not in the PNG. `validate_png` then
-# compares the file against the WINDOW, not against the drawing, so the
-# snapshot reports VALID=true and TIER=2 with pieces of the artifact missing.
-# That is what bit the ELK spike: the 12-node dagre arm lost `Hand to carrier`
-# and `Delivered` off the right edge (ELK-RESULTS.md, "What the eyes caught"
-# item 4).
+# nowhere else. `rasterize_svg` clamped the browser window to 3000px wide
+# (`win_w = max(min(want_w, 3000), 320)`) while `render_svg` only scaled a
+# drawing down past 4000px wide, so anything between those two numbers was
+# rendered at full size into a window too narrow to hold it and the overflow
+# was simply not in the PNG. `validate_png` then compared the file against the
+# WINDOW, not against the drawing, so the snapshot reported VALID=true and
+# TIER=2 with pieces of the artifact missing. That is what bit the ELK spike:
+# the 12-node dagre arm lost `Hand to carrier` and `Delivered` off the right
+# edge (ELK-RESULTS.md, "What the eyes caught" item 4).
+#
+# FIXED in v0.9 WP4 (task 20): one shared ceiling for both, and a
+# `validate_png` that measures the file against the drawing. These tests stay
+# as the regression — the two numbers below are the OLD clamps, held here as
+# literals so a re-narrowing of the window is caught by a scene that still
+# straddles them.
 # ---------------------------------------------------------------------------
 
-# Mirrors canvas.py:10003. Kept as a number here on purpose: importing the
-# clamp would make the test agree with the bug by construction.
+# The window clamp `rasterize_svg` used to carry. Kept as a number here on
+# purpose: importing the clamp would make the test agree with the bug by
+# construction, and it no longer exists in canvas.py to import.
 SNAP_WIN_CAP = 3000
-# Node spans (outer node x to outer node x) chosen either side of the cap and
-# both under render_svg's own 4000px scale-down, so the uniform-scale path
+# Node spans (outer node x to outer node x) chosen either side of the old cap
+# and both under render_svg's 4000px scale-down, so the uniform-scale path
 # never runs and PNG x is svg x minus minx exactly. Asserted, not assumed.
 WIDE_SPAN = 3400
 NARROW_SPAN = 1200
@@ -961,34 +967,50 @@ class TestSnapshotFraming(unittest.TestCase):
         """Remove the scratch directory — renders never enter the repo."""
         shutil.rmtree(self.workdir, ignore_errors=True)
 
-    @unittest.expectedFailure
     def test_mutant_snapshot_cap_drops_the_rightmost_node(self) -> None:
         """A drawing wider than the window cap loses its right-hand end.
 
-        The artifact wants 3640px; the window is clamped to 3000; the
-        rightmost node's whole column band is past the clamp, so its ink
-        count is 0 and the agent's only view of its own drawing is
-        missing a node it just placed — reported VALID=true.
+        FLIPPED by v0.9 WP4 (task 20), and flipped with this file's band
+        mapping UNTOUCHED — which was the whole design of the fix, for the
+        reasons the red version spelled out below. `rasterize_svg`'s window
+        clamp and `render_svg`'s own scale-down are now one shared ceiling
+        (`canvas.RASTER_MAX_W`/`_H`), so the window follows the drawing and
+        a 3640px drawing is rasterized into a 3640px window. `validate_png`
+        also stopped measuring the file against the WINDOW: it takes the
+        drawing's extent, and a raster short of it fails at 2px instead of
+        passing inside a 728px symmetric tolerance. Either half alone would
+        have left the product half-honest — the first without the second
+        puts the picture in the file but keeps the check that would not
+        have noticed, and the second without the first turns tier 2 into a
+        refusal for every wide drawing.
 
-        WHAT FLIPS THIS, precisely. The band is mapped 1:1 (PNG x == svg x
-        minus minx), so the only repair that turns this green untouched is
-        one where **the window follows the drawing** — raise or drop the
-        3000px clamp so a 3640px drawing is rasterized into a 3640px
-        window. Every other candidate needs work here too, and two of them
-        are traps:
+        What it pinned while red: the artifact wants 3640px; the window was
+        clamped to 3000; the rightmost node's whole column band was past
+        the clamp, so its ink count was 0 and the agent's only view of its
+        own drawing was missing a node it had just placed — reported
+        VALID=true.
+
+        WHAT FLIPPED THIS, precisely, and what would have been a lie. The
+        band is mapped 1:1 (PNG x == svg x minus minx), so **the window
+        follows the drawing** is the only repair that turns this green
+        untouched. Every other candidate needed work here too, and two of
+        them were traps:
 
         - **Scale-to-fit inside `rasterize_svg`** — the fix V0.9-PLAN
-          recommends first, and what the spike's own `fullshot2.py` did —
+          recommends first, and what the spike's own `fullshot.py` did —
           leaves this RED on a FIXED product. The whole drawing lands in a
           3000px PNG at 0.824x, so `n2`'s ink sits at PNG x 2835..2967
           while this band still looks at 3440..3600, off the right edge.
           Such a fix MUST rewrite `_rightmost_node_ink`'s band mapping in
-          the same change, or it will look like it failed.
+          the same change, or it will look like it failed. (WP4 kept
+          scale-to-fit as the arm past the shared ceiling — see
+          `rasterize_svg` — precisely so that arm never touches this
+          scene, which sits under it.)
         - **Naive proportional band scaling is NOT that rewrite.** Multiply
           the band by `png_w / want_w` and it lands at 2835..2967 — which
           on the UNFIXED 1:1 raster is the middle of the `n1 -> n2` arrow's
           horizontal run (svg-relative x 1900..3440). Measured against the
-          product as it stands today: 264 ink pixels, so the test would go
+          product as it stood: 264 ink pixels, so the test would have gone
           GREEN with two nodes still missing from the picture. Any band
           rewrite has to derive its mapping from the PNG the product
           actually produced AND be re-run against the unfixed product
@@ -996,19 +1018,21 @@ class TestSnapshotFraming(unittest.TestCase):
         - **Raising `render_svg`'s own 4000px threshold** takes the scene
           out of the regime this mutant measures. That does not flip it; it
           fails `TestSnapshotFramingRegime` loudly instead, which is the
-          intended signal.
+          intended signal — and it is still the signal now that the same
+          number bounds the window.
         - **A truncation warning alone** (V0.9-PLAN WP5's fallback
-          suggestion) changes stdout, not pixels, and leaves this red —
-          correctly, because the drawing is still not in the file. If the
-          project decides warn-only is the ship, this mutant does not
-          become a lie: re-point it at the warning on stdout, or retire it
-          with that decision as the reason. Do not delete it to get green.
+          suggestion) changes stdout, not pixels, and would have left this
+          red — correctly, because the drawing would still not be in the
+          file.
 
-        The regime guards this test used to carry inline moved OUT to
+        The regime guards this test carried inline while red live in
         `TestSnapshotFramingRegime`: inside an `expectedFailure` every
-        assertion reports identically as "expected failure", so a guard
+        assertion reported identically as "expected failure", so a guard
         here could never signal and would have let the test silently stop
-        measuring anything.
+        measuring anything. Green, that argument no longer applies, but the
+        split is kept — the regime is checkable without a browser and the
+        rot it catches happens in ordinary editing, where nobody has
+        `MUTANTS_RENDER=1` set.
         """
         ink, pw, want_w = _rightmost_node_ink(WIDE_SPAN, self.workdir)
         self.assertGreater(ink, 0, "the rightmost node left no ink in its "
@@ -1031,25 +1055,26 @@ class TestSnapshotFraming(unittest.TestCase):
 
 
 class TestSnapshotFramingRegime(unittest.TestCase):
-    """The wide scene must stay in the band of widths the red mutant means.
+    """The wide scene must stay in the band of widths the mutant means.
 
-    Deliberately NOT gated and deliberately NOT an `expectedFailure`, for
-    the same reason `TestRenderTierEvidence` is neither: this needs no
-    browser, and the rot it catches — the scene drifting out of the
-    regime, so the mutant measures nothing and still reports "expected
-    failure" — happens in ordinary editing, where nobody has
-    `MUTANTS_RENDER=1` set. Gated, it would notice months late; inside
-    the mutant, it could not notice at all.
+    Deliberately NOT gated, for the same reason `TestRenderTierEvidence`
+    is not: this needs no browser, and the rot it catches — the scene
+    drifting out of the regime, so the mutant measures nothing and still
+    reports green — happens in ordinary editing, where nobody has
+    `MUTANTS_RENDER=1` set. Gated, it would notice months late. While the
+    mutant was red it could not notice at all, since inside an
+    `expectedFailure` every assertion reports identically.
     """
 
     def test_wide_scene_sits_between_the_two_caps(self) -> None:
-        """`WIDE_SPAN` wants a width past the window clamp but under 4000.
+        """`WIDE_SPAN` wants a width past the old clamp but under 4000.
 
-        Both bounds are load-bearing. Under `SNAP_WIN_CAP` there is no
-        truncation to pin. Over 4000, `render_svg`'s own uniform
-        scale-down (canvas.py:4542) kicks in, PNG x stops being svg x
-        minus minx, and `_rightmost_node_ink`'s 1:1 band mapping silently
-        measures the wrong column.
+        Both bounds are load-bearing. Under `SNAP_WIN_CAP` the scene
+        never straddles the window clamp that used to truncate it, so a
+        re-narrowed window would go unnoticed. Over 4000, `render_svg`'s
+        uniform scale-down kicks in, PNG x stops being svg x minus minx,
+        and `_rightmost_node_ink`'s 1:1 band mapping silently measures
+        the wrong column.
         """
         root = Path(tempfile.mkdtemp(prefix="mutants-regime-"))
         try:

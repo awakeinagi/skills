@@ -50,6 +50,18 @@ PAPER_GROUND = "#faf8f2"
 # render_svg's canvas ground; also the backing painted under arrow
 # labels, which ride the stroke since v0.6 (see arrow_label_anchor)
 SVG_GROUND = "#fdfcf8"
+# The largest raster this skill will ever produce, in device pixels. ONE
+# ceiling, shared by the two places that used to hold their own:
+# `render_svg` scales a drawing down uniformly to fit it, and
+# `rasterize_svg` opens a browser window that big. They were 4000x3000
+# and 3000x2000, and the gap between them was a hole — a drawing between
+# the two was rendered at full size into a window too small to hold it
+# and the overflow was simply not in the PNG, reported `TIER=2
+# VALID=true` over a truncated picture (v0.9 WP4; the ELK spike lost two
+# nodes off the right edge this way). Same number in both places means a
+# drawing `render_svg` sized cannot overflow the window that rasterizes
+# it, which is the property, not a coincidence to be re-derived.
+RASTER_MAX_W, RASTER_MAX_H = 4000, 3000
 # Facts that can put two mapped views out of agreement about MEANING,
 # and so are worth asking "divergence, or should it propagate?" about.
 # Presentation-only verbs are deliberately absent: in the v0.5
@@ -5681,7 +5693,8 @@ def render_svg(els, title="", footnotes=False, glossary=None):
 
     Args:
         els: The artifact's elements.
-        title: Optional caption drawn top-left.
+        title: Optional caption drawn top-left, suppressed when a frame
+            in the drawing already carries the same name (r5-15).
         footnotes: Mark tooltip-bearing elements and print their text
             below the drawing, so an exported artifact carries its own
             detail instead of losing it with the hover.
@@ -5742,7 +5755,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     h += foot_h
     # cap raster size UNIFORMLY: the old independent min(w,4000)/min(h,3000)
     # clamp squashed the aspect ratio of anything wider than 4000px
-    scale = min(1.0, 4000.0 / w, 3000.0 / h)
+    scale = min(1.0, float(RASTER_MAX_W) / w, float(RASTER_MAX_H) / h)
     out = ["<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d' "
            "viewBox='%f %f %f %f'>" % (int(w * scale), int(h * scale),
                                        minx, miny, w, h),
@@ -5752,6 +5765,19 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     # them (v0.6) — collected once rather than per text element
     arrow_ids = {e["id"] for e in live
                  if e.get("type") in ("arrow", "line")}
+    # r5-15: never caption a drawing that already says its own name. A
+    # frame paints `name` just above its own top-left corner, which on a
+    # wireframe — one screen frame, wrapping everything — is a handful of
+    # pixels from where this caption goes, so the export read "Signals
+    # Dashboard" twice at the top left and the second one looked like a
+    # second screen. Matched on the NAME, not on position: a frame
+    # carrying the artifact's name is the artifact's title wherever it
+    # sits, and a wireframe whose frame is named for the screen rather
+    # than the artifact still wants the caption.
+    if title and any(e.get("type") == "frame" and
+                     (e.get("name") or "").strip() == title.strip()
+                     for e in live):
+        title = ""
     if title:
         out.append("<text x='%f' y='%f' font-size='13' fill='#999' "
                    "font-family='Nunito, sans-serif'>%s</text>"
@@ -5880,10 +5906,35 @@ def render_svg(els, title="", footnotes=False, glossary=None):
 
 def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):
     """Sanity-check a PNG: signature, IHDR dims, bytes-per-pixel floor.
+
     The demo's corrupted cold-start exports sat at ~0.03 bytes/px versus
     0.12+ for good renders of identical dimensions — but stripes compress
     unpredictably, so the floor is conservative and dimension mismatch is
-    the stronger signal."""
+    the stronger signal.
+
+    `want_w`/`want_h` are the DRAWING's extent, not the window someone
+    asked a browser for, and the two failure directions are not the same
+    failure. A raster SHORT of the drawing has the drawing's edge cut off
+    it — the picture is missing content and no amount of tolerance makes
+    that acceptable, so it fails at 2px, the most any int-rounding of a
+    scale can account for. A raster LARGER than the drawing is padded with
+    ground, which costs bytes and nothing else, so it keeps the loose
+    20%-or-64px band. Symmetric tolerance is what let a 3000px window
+    swallow a 3640px drawing and still report VALID=true with two nodes
+    off the right edge (v0.9 WP4): 640px short, against a 728px
+    allowance. `min_bpp` alone would not have caught it either — the
+    truncated file is a perfectly healthy PNG of the wrong picture.
+
+    Args:
+        data: Raw PNG bytes.
+        want_w: The drawing's width in device pixels, if known.
+        want_h: The drawing's height in device pixels, if known.
+        min_bpp: Bytes-per-pixel floor; 0 disables it.
+
+    Returns:
+        `(ok, detail)` — `detail` is the dimensions and density, or why
+        the file was refused.
+    """
     if len(data) < 33 or data[:8] != b"\x89PNG\r\n\x1a\n":
         return False, "not a PNG"
     if data[12:16] != b"IHDR":
@@ -5892,9 +5943,13 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):
     h = int.from_bytes(data[20:24], "big")
     if not w or not h:
         return False, "zero-sized PNG"
-    if want_w and abs(w - want_w) > max(64, want_w * 0.2):
+    if want_w and w + 2 < want_w:
+        return False, "width %d cuts a %dpx drawing short" % (w, want_w)
+    if want_h and h + 2 < want_h:
+        return False, "height %d cuts a %dpx drawing short" % (h, want_h)
+    if want_w and w - want_w > max(64, want_w * 0.2):
         return False, "width %d far from requested %d" % (w, want_w)
-    if want_h and abs(h - want_h) > max(64, want_h * 0.2):
+    if want_h and h - want_h > max(64, want_h * 0.2):
         return False, "height %d far from requested %d" % (h, want_h)
     bpp = len(data) / float(w * h)
     if min_bpp and bpp < min_bpp:
@@ -12165,17 +12220,41 @@ def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
     copy-the-project workaround, as the v0.4 agent had before it. Nothing
     third-party: it drives whatever chromium/chrome/edge/brave exists.
 
+    THE WINDOW FOLLOWS THE DRAWING (v0.9 WP4). It used to be clamped to
+    3000x2000 while `render_svg` only scaled a drawing down past
+    4000x3000, so anything between the two was rendered at full size into
+    a window too narrow to hold it and the overflow was not in the file at
+    all — `TIER=2 VALID=true` printed over a picture missing whatever sat
+    past 3000px. That is how the ELK spike lost `Hand to carrier` and
+    `Delivered` off the right edge, and the agent's only view of its own
+    drawing is this file. The window now opens to the drawing's full size
+    up to `RASTER_MAX_W`/`RASTER_MAX_H`, the same ceiling `render_svg`
+    already holds every drawing to, so a drawing this codebase can produce
+    can no longer overflow the window that rasterizes it.
+
+    Anything past that ceiling is SCALED to fit rather than cropped: a
+    smaller whole picture is a legible answer, half a picture is not. That
+    arm is unreachable through `cmd_snapshot` and `apply --check --render`
+    — both size their markup with `render_svg` — and exists because this
+    helper takes a width from its caller and must not truncate one it did
+    not choose. It is done with the browser's device scale factor rather
+    than by rewriting the markup, because the `url` branch has no markup
+    to rewrite; chromium's 0.5 floor on that factor is the one bound the
+    arm cannot beat, so it is clamped to rather than asked past, and the
+    detail line reports the scale that was really used.
+
     Args:
         svg: SVG source to rasterize.
         out_png: Destination path.
-        want_w: Intended pixel width (clamped to a sane window).
-        want_h: Intended pixel height.
+        want_w: The drawing's intended pixel width.
+        want_h: The drawing's intended pixel height.
         tag: Short slug used to name the scratch HTML file.
         url: Render straight from this URL instead of the SVG source,
             when a live server can serve it.
 
     Returns:
-        `(ok, detail)` — `detail` names the browser, or why it failed.
+        `(ok, detail)` — `detail` names the browser and, when the drawing
+        was scaled down to fit, says so; or why it failed.
     """
     browsers = find_browsers()
     if not browsers:
@@ -12192,27 +12271,47 @@ def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
         tmp_html = workdir / ("%s-render.html" % tag)
         tmp_html.write_text(html, encoding="utf-8")
         url = tmp_html.resolve().as_uri()
-    win_w = max(min(want_w, 3000), 320)
-    win_h = max(min(want_h, 2000), 200)
+    # `--window-size` is in CSS pixels and the shot comes back that many
+    # times the device scale factor, so ONE knob fits the whole drawing:
+    # open the window at the drawing's own size and shrink the pixels.
+    # Chromium FLOORS that factor at 0.5 and silently substitutes 0.5
+    # below it, so the fit is clamped there rather than asked for and
+    # missed — a drawing past 8000x6000 comes back whole at half size
+    # instead of cropped, which is the trade this whole change is about,
+    # and the detail line names the scale that was actually used. No
+    # caller here can reach it: both size their markup with `render_svg`,
+    # which never returns more than the same ceiling.
+    fit = max(0.5, min(1.0,
+                       float(RASTER_MAX_W) / want_w if want_w else 1.0,
+                       float(RASTER_MAX_H) / want_h if want_h else 1.0))
+    win_w, win_h = max(want_w, 320), max(want_h, 200)
+    png_w, png_h = int(win_w * fit), int(win_h * fit)
     why = "no browser produced a file"
     for browser in browsers:
         if work_png.exists():
             work_png.unlink()
         cmd = [browser, "--headless=new", "--disable-gpu",
                "--no-sandbox", "--disable-dev-shm-usage",
-               "--hide-scrollbars", "--force-device-scale-factor=1",
+               "--hide-scrollbars",
+               "--force-device-scale-factor=%.6f" % fit,
                "--screenshot=%s" % work_png,
                "--window-size=%d,%d" % (win_w, win_h), url]
         try:
             proc = subprocess.run(cmd, capture_output=True, timeout=40)
             if work_png.exists():
+                # measured against the DRAWING at the scale we asked for,
+                # never against the window: a file short of the drawing is
+                # a truncated picture and must not pass as tier 2
                 ok, detail = validate_png(work_png.read_bytes(),
-                                          win_w, win_h, min_bpp=0)
+                                          png_w, png_h, min_bpp=0)
                 if ok:
                     if work_png != out_png:
                         shutil.copyfile(str(work_png), str(out_png))
-                    return True, "%s, %s" % (os.path.basename(browser),
-                                             detail)
+                    return True, "%s, %s%s" % (
+                        os.path.basename(browser), detail,
+                        "" if fit >= 1.0 else
+                        ", the %dx%d drawing scaled to %.2fx"
+                        % (want_w, want_h, fit))
                 why = "%s render invalid (%s)" % (
                     os.path.basename(browser), detail)
             else:
