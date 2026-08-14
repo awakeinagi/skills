@@ -1503,16 +1503,30 @@ class TestExportCompleteness(unittest.TestCase):
     """`render_svg` emits every class it ships — or is caught not to."""
 
     def test_every_shipped_class_is_accounted_for(self) -> None:
-        """A newly shipped element class cannot arrive unpinned.
+        """A newly shipped element class cannot arrive UNPINNED.
 
         The table is hand-measured, so the one thing it cannot do is
-        notice a TENTH name in `ELEMENT_TYPES`. Without this, adding a
-        class the paint dispatch does not handle would repeat the exact
-        defect these tests exist to catch, and repeat it silently — which
-        is not hypothetical, because that is precisely how `freedraw` and
-        `image` sat unpainted until v0.9 WP4. Nine names, nine rows: an
-        unpainted tenth now has nowhere to hide, since a class with no
-        `paint` branch cannot be given a row that measures true.
+        notice a TENTH name in `ELEMENT_TYPES`. That is this test's whole
+        job and the limit of it: it catches a class nobody wrote a row
+        for. Adding one is how `freedraw` and `image` sat unpainted until
+        v0.9 WP4, so the pin is not hypothetical.
+
+        WHAT IT DOES NOT CATCH, said plainly because the temptation to
+        overstate it is real. A tenth class whose row is `{}` passes here
+        AND passes `test_shipped_classes_reach_the_export`, because `{}`
+        is what an unpainted class measures — set equality holds and the
+        exact-count sweep confirms a class owes nothing. Removing
+        `_DROPPED` in v0.9 WP4 did not remove that escape hatch; it
+        RESPELLED it as `{}`, and the new spelling is quieter than the
+        old one because it no longer has a name to grep for.
+
+        What closes it is one tier up: `test_mutants_render.
+        TestRenderParity.test_no_class_agrees_by_being_absent_from_both`
+        asserts markup != {} and ink > 0 for every name in
+        `ELEMENT_TYPES`, so a `{}` row fails there. That test is gated on
+        `MUTANTS_RENDER=1` and does NOT run in the every-commit suite —
+        which means an unpainted tenth class is caught on the render tier
+        and only there. Anyone adding a class should run it.
         """
         self.assertEqual(set(_EXPORT_MARKUP), set(canvas.ELEMENT_TYPES))
 
@@ -8714,10 +8728,9 @@ class TestCoverage(unittest.TestCase):
         them separate entries.
 
         Residual gap, stated so nobody reads this as full cover: the
-        non-CATALOGUE red classes (`TestStoreIntegrity`,
-        `TestShapeBlindAnnotationOverlap`,
-        `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity`,
-        `TestPinIdentityIntegrity`) never
+        non-CATALOGUE red classes (`TestShapeBlindAnnotationOverlap`,
+        `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity` — the
+        three that still carry reds, re-measured 2026-08-14) never
         reach `_register` and have no expectation objects to compare, so
         nothing here would notice two agents writing the same plain red
         test under different method names. What defends those classes is

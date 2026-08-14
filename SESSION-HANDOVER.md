@@ -63,16 +63,20 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** 26 model-tier
-`expectedFailure` reds + 3 render-tier: 16 catalog reds (`mutants list
---red` is authoritative) plus **ten non-catalog reds across four guarded
-classes** — Export 2, Store 5 (incl. the A1a TOTAL-LOSS pin: one `[]` save
-record bricks the whole project), PaintOrder 1, ShapeBlind 2 — enumerated
-with reasons at the `CATALOGUE` pointer in tests/test_mutants.py. Each red
+**What is red, and why that is the deliverable.** Re-measured 2026-08-14
+after Task 21: **16 model-tier `expectedFailure` reds + 3 render-tier**,
+matching the suite's `expected failures=16` default and `=19` under
+`MUTANTS_RENDER=1`. That splits as 8 catalog reds (`mutants list --red` is
+authoritative) plus **8 non-catalog reds across four guarded classes** —
+LoadFindings 4, ShapeBlind 2, BatchPath 1, and `TestSnapshotTierOne` 1,
+the last living in `tests/test_backend.py` rather than with the others —
+enumerated with reasons at the `CATALOGUE` pointer in tests/test_mutants.py.
+Export, Store and PaintOrder have all drained to zero and left that list.
+Each red
 seeds a known defect and asserts what the detector *should* say, so v0.9 has
 an executable definition of done. **Drain them to zero, flipping each in the
 same change as its fix** — an unexpected success IS the signal. Never delete
-a mutant to get green. `ASPIRATIONAL` holds 8 checks awaiting their lints
+a mutant to get green. `ASPIRATIONAL` holds 7 checks awaiting their lints
 (each flip must add a real other-pole neighbor). The **shape-blindness
 family is at FIVE pinned instances** (endpoint lint, `_seg_hits_rect`
 diamond + ellipse, `fit_label_in`, the text/node bbox checks); WP4's one
@@ -90,37 +94,58 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- The two **ASPIRATIONAL reds** (`phantom_passthrough_shared_attach`,
-  `diamond_label_overflows_shape`) flip when their LINTS land (WP4b e1;
-  WP4's shape-aware label check), not when any existing code changes — and
-  the flip change must give each a real other-pole neighbor. Their current
-  neighbors differ in kind: phantom's silence is *contingent* (the same
-  builder with a shared attach point fires the borrowed `shared_corridor`
-  check, so the quiet is evidence about the picture); the label mutant's is
-  *structural* (a scene with no arrows can never fire `endpoint_gap` —
-  liveness only).
+- **Seven of the eight catalog reds are ASPIRATIONAL** (re-measured
+  2026-08-14): they flip when their LINTS land, not when any existing code
+  changes, and each flip must give its mutant a real other-pole neighbor.
+  One per aspirational check, exactly — `framed_node_escapes_its_lane`
+  (`frame_containment`), `gray_text_on_ground` (`contrast_text`),
+  `near_miss_clearance` (`min_clearance`), `pale_stroke_node`
+  (`contrast_object`), `phantom_passthrough_shared_attach`
+  (`phantom_passthrough`, WP4b e1), `tiny_font_text` (`min_font`),
+  `unroled_text_over_node` (`text_overlaps_node`). The eighth,
+  `long_run_curve_hides_bidi` (`false_bidi`), is the only catalog red
+  against a check that already ships. Neighbor quality differs in kind and
+  the distinction is worth keeping: phantom's silence is *contingent* (the
+  same builder with a shared attach point fires the borrowed
+  `shared_corridor` check, so the quiet is evidence about the picture),
+  where a liveness-only neighbor is merely *structural*.
 - The **shape-blindness family** now has three pinned instances: the endpoint
   lint (bbox corners), `_seg_hits_rect` (over-fire), and `fit_label_in`
   (labels sized to the bbox overflow the inscribed diamond by a measured
   11px). Same root cause; WP4's one clipping primitive addresses all three.
 
+Catalog reds, transcribed from live `mutants list --red` on 2026-08-14 —
+**re-run it rather than trusting this table**, which is exactly the kind of
+hand copy that has gone stale here before (it named nine mutants of which
+eight had already flipped):
+
 | tier | red mutants |
 |---|---|
-| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi`, `phantom_passthrough_shared_attach`, `diamond_label_overflows_shape` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_snapshot_cap_drops_the_rightmost_node` |
+| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `long_run_curve_hides_bidi`, `near_miss_clearance`, `pale_stroke_node`, `phantom_passthrough_shared_attach`, `tiny_font_text`, `unroled_text_over_node` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_center_anchored_label_is_clipped_off_the_frame` |
+
+The render row is `@unittest.expectedFailure` method names rather than
+catalog ids because all three sit outside `CATALOGUE`; the third pins
+`parity_clipped`, the centered-text bounds clip that Task 22 owns.
 
 Three model rows came from the 2026-08-12 idea-mining arc via the
-**mutant-curator agent**, and two of them are gone from the table because
-Task 21 fixed what they pinned: `render_svg` painting nothing for
-`freedraw`/`image` (a genuine product defect the curator discovered). The
-survivor is `diamond_label_overflows_shape`, pinning `fit_label_in`'s
-inscribed-area blindness (confirmed live via the flowchartai mine). The
-curator + the `mutants` CLI skill live under gitignored `.claude/` —
-machine-local like the docs, discovery-registered.
+**mutant-curator agent**, and all three have since flipped: the two export
+reds Task 21 fixed (`render_svg` painting nothing for `freedraw`/`image`,
+a genuine product defect the curator discovered) and
+`diamond_label_overflows_shape`, `fit_label_in`'s inscribed-area blindness,
+which Task 17 fixed. That arc is fully drained. The curator + the `mutants`
+CLI skill live under gitignored `.claude/` — machine-local like the docs,
+discovery-registered.
 
-The last row of each tier came from the 2026-08-12 ELK spike, and both are red
-by an **absence** rather than by a wrong answer — but the two absences are
-different things and should not be read as one phenomenon.
+The 2026-08-12 ELK spike's red,
+`test_mutant_snapshot_cap_drops_the_rightmost_node`, **flipped in Task 20**
+when `rasterize_svg`'s window and `render_svg`'s scale-down became one
+shared ceiling. The surviving render red,
+`test_mutant_opacity_ghost_is_invisible_to_tier_one`, has a different
+source and a different shape: `render_svg` never reads `opacity`, so a node
+invisible on the canvas still contributes ink to tier 1. It flips when
+ablation runs against the tier-2 render, which honours opacity. The two
+were previously described here as one phenomenon; they are not.
 
 `phantom_passthrough_shared_attach` is red for a **missing check**: the
 picture is wrong and no detector in the harness can say so. Its `expect` names
