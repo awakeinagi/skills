@@ -9592,7 +9592,7 @@ class ServerApp:
                 # against, so a non-integer here would raise there — on
                 # the user's Apply, long after the file was read. An
                 # entry queued before this field existed simply has none
-                # and keeps the old behaviour.
+                # and keeps the old behavior.
                 if isinstance(entry.get("round"), bool) or \
                         not isinstance(entry.get("round"), int):
                     entry["round"] = None
