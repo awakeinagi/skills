@@ -48,7 +48,7 @@ FONT_LEGIBLE = 6       # Nunito — the default (no cursive anywhere; ADR 0001)
 FONT_HAND = 5          # Excalifont — ships, non-default
 PAPER_GROUND = "#faf8f2"
 # render_svg's canvas ground; also the backing painted under arrow
-# labels, which ride the stroke since v0.6 (see arrow_label_anchor)
+# labels, at their stored position (see arrow_label_slot)
 SVG_GROUND = "#fdfcf8"
 # The largest raster this skill will ever produce, in device pixels. ONE
 # ceiling, shared by the two places that used to hold their own:
@@ -60,7 +60,9 @@ SVG_GROUND = "#fdfcf8"
 # VALID=true` over a truncated picture (v0.9 WP4; the ELK spike lost two
 # nodes off the right edge this way). Same number in both places means a
 # drawing `render_svg` sized cannot overflow the window that rasterizes
-# it, which is the property, not a coincidence to be re-derived.
+# it, which is the property, not a coincidence to be re-derived. (The
+# ceiling can still be exceeded where chromium's 0.5 scale floor forces
+# a larger file — see the clamp inside `rasterize_svg`.)
 RASTER_MAX_W, RASTER_MAX_H = 4000, 3000
 # Facts that can put two mapped views out of agreement about MEANING,
 # and so are worth asking "divergence, or should it propagate?" about.

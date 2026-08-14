@@ -1103,8 +1103,11 @@ class TestSnapshotPieces(Base):
         `rasterize_svg` opened a 3000x2000 window while `render_svg`
         only scaled a drawing down past 4000x3000, and every drawing in
         the gap was rendered at full size into a window too small to
-        hold it. Asserting the constants agree is the whole property —
-        with one number there is no gap to fall into.
+        hold it. This asserts `render_svg`'s HALF of the shared-ceiling
+        property: its output never exceeds `RASTER_MAX_*`. That
+        `rasterize_svg` opens a window that big is pinned by the gated
+        snapshot-cap mutant, not here — re-narrowing `rasterize_svg` to
+        a literal would slip past this test.
         """
         els = [{"id": "a", "type": "rectangle", "x": 0, "y": 0,
                 "width": 200, "height": 100},
