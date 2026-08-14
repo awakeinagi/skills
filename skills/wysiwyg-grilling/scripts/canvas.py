@@ -7561,9 +7561,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # node with 80px of arrow across it.
                 n0 = tgt.get("x" if f_ax == 0 else "y", 0)
                 across = tgt.get("width" if f_ax == 0 else "height", 0)
-                lo, hi = ((f_pt[f_ax], g_pt[f_ax]) if f_sgn < 0
-                          else (g_pt[f_ax], f_pt[f_ax]))
-                bare = max(0.0, min(hi, n0 + across) - max(lo, n0))
+                back, fwd = ((f_pt[f_ax], g_pt[f_ax]) if f_sgn < 0
+                             else (g_pt[f_ax], f_pt[f_ax]))
+                bare = max(0.0, min(fwd, n0 + across) - max(back, n0))
                 covered = across - bare
                 if covered < 1:
                     continue    # feet on opposite borders: the box is
@@ -7573,10 +7573,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "they share a line and leave %dpx of the node's %dpx "
                     "bare, so %dpx of it has arrow drawn over it instead "
                     "of a border on each side. The pair reads as a direct "
-                    "relation and %s stops being a step in the flow: fan "
-                    "the feet onto opposite borders, or offset one line"
+                    "relation and the node stops being a step in the "
+                    "flow: fan the feet onto opposite borders, or offset "
+                    "one line"
                     % (fid, gid, name(tgt_id), round(bare), round(across),
-                       round(covered), name(tgt_id)))
+                       round(covered)))
 
     # stranded element: far outside everything else's bounding box
     if len(shapes) > 2:
