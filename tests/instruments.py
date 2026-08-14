@@ -48,7 +48,7 @@ CURVE_SAMPLES = 20
 
 NODE_TYPES = ("rectangle", "diamond", "ellipse")
 
-# Kieffer et al. (TVCG 2016) describe alignment as node centres sharing a
+# Kieffer et al. (TVCG 2016) describe alignment as node centers sharing a
 # coordinate; 6px is the tolerance the r5 measurement used, and the corpus
 # numbers in the v0.9 plan were taken with it.
 GRID_TOL = 6.0
@@ -62,10 +62,10 @@ SHALLOW_CROSSING_DEG = 2.5
 
 # Weights for the weighted sum, written down because a single number that
 # hides a 3-4 split is the practice the evaluation survey exists to
-# criticise. Rationale per line; they sum to 1.0.
+# criticize. Rationale per line; they sum to 1.0.
 WEIGHTS: dict[str, float] = {
     # Kieffer et al.'s runner-up, and the only literature metric that
-    # agreed with our own judgement on our own corpus (hand-laid scored
+    # agreed with our own judgment on our own corpus (hand-laid scored
     # ~2x the seed in both head-to-head pairs). Also the metric most
     # likely to expose the dagre gap: dagre aligns within layers, not
     # across them, which is the floating-diamond root cause.
@@ -577,12 +577,12 @@ def _decay(value: float, free: float, scale: float) -> float:
 
 
 def gridiness(elements: list[dict]) -> float:
-    """Score how many node centres share a coordinate with another node.
+    """Score how many node centers share a coordinate with another node.
 
     Kieffer et al.'s alignment metric, from their prose description
-    (centre-based, 6px tolerance) rather than their code. Second-best
+    (center-based, 6px tolerance) rather than their code. Second-best
     predictor of human preference in their study, and the one literature
-    metric that agreed with our judgement on our own corpus.
+    metric that agreed with our judgment on our own corpus.
 
     Args:
         elements: Full scene element list.
@@ -592,18 +592,18 @@ def gridiness(elements: list[dict]) -> float:
         for a drawing with fewer than two nodes, which has nothing to
         misalign.
     """
-    centres = [(n["x"] + n["width"] / 2.0, n["y"] + n["height"] / 2.0)
+    centers = [(n["x"] + n["width"] / 2.0, n["y"] + n["height"] / 2.0)
                for n in _nodes(elements)]
-    if len(centres) < 2:
+    if len(centers) < 2:
         return 1.0
     aligned = 0
-    for i, c in enumerate(centres):
-        for j, o in enumerate(centres):
+    for i, c in enumerate(centers):
+        for j, o in enumerate(centers):
             if i != j and (abs(c[0] - o[0]) <= GRID_TOL
                            or abs(c[1] - o[1]) <= GRID_TOL):
                 aligned += 1
                 break
-    return aligned / float(len(centres))
+    return aligned / float(len(centers))
 
 
 def bend_counts(elements: list[dict]) -> list[int]:
@@ -813,7 +813,7 @@ def compare_layouts(
     Two verdicts are computed over the same vector — a win/loss/tie count
     and a weighted sum — and a winner is named only when both point the
     same way. A single number hiding a 3-4 split is the practice the
-    layout-evaluation survey exists to criticise, and this instrument's
+    layout-evaluation survey exists to criticize, and this instrument's
     own corpus is the reason to take that seriously: its metrics are
     internally hostile, and papering over that with a sum is how a
     drawing that invents a relationship wins a scorecard.
@@ -825,14 +825,24 @@ def compare_layouts(
         weights: Metric weights; defaults to `WEIGHTS`.
 
     Returns:
-        `{"labels", "scores", "vector", "wins", "weighted", "count_winner",
-        "sum_winner", "winner", "reason", "gates"}`. `vector` maps each
-        metric to its `(a, b)` pair; `wins` counts them; `winner` is a
-        label or None, and `reason` says why when it is None.
+        `{"labels", "scores", "vector", "wins", "ties", "weighted",
+        "count_winner", "sum_winner", "winner", "reason", "gates"}`.
+        `vector` maps each metric to its `(a, b)` pair; `wins` counts the
+        metrics each label took and `ties` the rest; `winner` is a label
+        or None, and `reason` says why when it is None.
 
     Raises:
-        ValueError: If `weights` names a metric the vector does not have.
+        ValueError: If the two labels are the same, or if `weights` names
+            a metric the vector does not have.
     """
+    # Every per-label reading below is keyed by label, so two drawings
+    # sharing a name would silently collapse into one column and report a
+    # comparison of a drawing with itself. Ties are counted separately for
+    # the same reason: a label is user-supplied, so keeping "tie" in the
+    # same dict handed a drawing named "tie" every metric it drew.
+    if labels[0] == labels[1]:
+        raise ValueError("the two layouts need distinct labels; both are %r"
+                         % (labels[0],))
     wts = WEIGHTS if weights is None else weights
     sa, sb = score_layout(a), score_layout(b)
     unknown = set(wts) - set(sa["metrics"])
@@ -840,10 +850,11 @@ def compare_layouts(
         raise ValueError("weights name unknown metrics: %s"
                          % ", ".join(sorted(unknown)))
     vector = {k: (sa["metrics"][k], sb["metrics"][k]) for k in wts}
-    wins = {labels[0]: 0, labels[1]: 0, "tie": 0}
+    wins = {labels[0]: 0, labels[1]: 0}
+    ties = 0
     for va, vb in vector.values():
         if abs(va - vb) <= 1e-9:
-            wins["tie"] += 1
+            ties += 1
         else:
             wins[labels[0 if va > vb else 1]] += 1
     weighted = {labels[i]: sum(wts[k] * v[i] for k, v in vector.items())
@@ -871,7 +882,7 @@ def compare_layouts(
                   "which the other passes" % (winner, ", ".join(gates[winner])))
         winner = None
     return {"labels": labels, "scores": (sa, sb), "vector": vector,
-            "wins": wins, "weighted": weighted,
+            "wins": wins, "ties": ties, "weighted": weighted,
             "count_winner": count_winner, "sum_winner": sum_winner,
             "winner": winner, "reason": reason, "gates": gates}
 
@@ -897,7 +908,7 @@ def format_comparison(result: dict) -> str:
                                       result["weighted"][lb]))
     out.append("wins: %s=%d %s=%d tie=%d"
                % (la, result["wins"][la], lb, result["wins"][lb],
-                  result["wins"]["tie"]))
+                  result["ties"]))
     for label, s in zip((la, lb), result["scores"]):
         out.append("%s: compactness=%.4f (diagnostic, never scored), "
                    "defects=%d" % (label, s["diagnostics"]["compactness"],

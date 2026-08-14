@@ -1,7 +1,7 @@
 """Tests for the geometry instruments: the ports and the score vector.
 
 Two classes of assertion live here. `TestInstrumentPorts` pins the ported
-behaviour, including the bugs still preserved on purpose — the mutation
+behavior, including the bugs still preserved on purpose — the mutation
 catalogue (test_mutants.py) is what asserts a preserved bug is a bug.
 Everything below it covers WP4's rebuild: the rendered-path flattening,
 the fixed crossing counter, and one test per metric in the score vector.
@@ -16,12 +16,12 @@ from tests_helpers import el
 
 def _node(nid: str, cx: float, cy: float, w: float = 100, h: float = 60,
           kind: str = "rectangle") -> dict:
-    """Build a node shape centred on a given point.
+    """Build a node shape centered on a given point.
 
     Args:
         nid: Element id.
-        cx: Centre x.
-        cy: Centre y.
+        cx: Center x.
+        cy: Center y.
         w: Box width.
         h: Box height.
         kind: Element type.
@@ -194,13 +194,13 @@ class TestScoreVector(unittest.TestCase):
         """The weighted sum's weights are declared, not implicit."""
         self.assertAlmostEqual(sum(instruments.WEIGHTS.values()), 1.0)
 
-    def test_gridiness_counts_centres_within_six_px(self) -> None:
-        """Alignment is centre-based with a 6px tolerance, per Kieffer."""
+    def test_gridiness_counts_centers_within_six_px(self) -> None:
+        """Alignment is center-based with a 6px tolerance, per Kieffer."""
         def scene(last_cx: float) -> list[dict]:
-            """Four nodes, three of them sharing a centre column.
+            """Four nodes, three of them sharing a center column.
 
             Args:
-                last_cx: Centre x of the fourth node.
+                last_cx: Center x of the fourth node.
 
             Returns:
                 The four-node scene.
@@ -315,7 +315,8 @@ class TestWinnerDeclaration(unittest.TestCase):
         self.assertEqual(r["winner"], "clean")
         self.assertEqual(r["count_winner"], r["sum_winner"])
         self.assertEqual(set(r["vector"]), set(instruments.WEIGHTS))
-        self.assertEqual(sum(r["wins"].values()), len(instruments.WEIGHTS))
+        self.assertEqual(sum(r["wins"].values()) + r["ties"],
+                         len(instruments.WEIGHTS))
         self.assertGreater(r["weighted"]["clean"], r["weighted"]["crowded"])
 
     def test_a_split_verdict_declares_no_winner(self) -> None:
@@ -348,6 +349,29 @@ class TestWinnerDeclaration(unittest.TestCase):
         with self.assertRaises(ValueError):
             instruments.compare_layouts(_clean_scene(), _clean_scene(),
                                         weights={"compactness": 1.0})
+
+    def test_two_layouts_may_not_share_a_label(self) -> None:
+        """Equal labels would collapse the readings into one column."""
+        # Every per-label reading is keyed by label, so one name for two
+        # drawings reports a drawing compared against itself.
+        with self.assertRaises(ValueError) as caught:
+            instruments.compare_layouts(_clean_scene(), _crowded_scene(),
+                                        labels=("same", "same"))
+        self.assertIn("same", str(caught.exception))
+
+    def test_a_layout_named_tie_keeps_its_own_wins(self) -> None:
+        """Ties are counted outside the label namespace, so no label wins them."""
+        # Labels are user-supplied; while the tie count shared the wins
+        # dict, a drawing called "tie" collected every metric the two
+        # drew and then won the comparison on them.
+        r = instruments.compare_layouts(_clean_scene(), _crowded_scene(),
+                                        labels=("tie", "other"))
+        drawn = sum(1 for va, vb in r["vector"].values() if va == vb)
+        self.assertEqual(r["ties"], drawn)
+        self.assertEqual(set(r["wins"]), {"tie", "other"})
+        self.assertEqual(r["wins"]["tie"],
+                         sum(1 for va, vb in r["vector"].values() if va > vb))
+        self.assertEqual(r["winner"], "tie")
 
     def test_report_shows_the_whole_vector_side_by_side(self) -> None:
         """The reader gets every metric, both sums, and the compactness."""
