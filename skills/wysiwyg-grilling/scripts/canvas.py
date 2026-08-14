@@ -6187,6 +6187,24 @@ _PROGRESS_RE = re.compile(
 _STATUS_RE = re.compile(
     r"^(in progress|not started|completed|done)$", re.IGNORECASE)
 
+# near-miss spacing (v0.9 WP4). MEASURED against the 24 fixture artifacts
+# on 2026-08-14, which are the false-positive corpus for this check:
+#   floor  8 -> 0 findings      floor 16 -> 14 findings, ALL false
+#   floor 12 -> 0 findings      floor 20 -> 15 findings, 14 false
+# every one of those 14 is a 12px gutter, which is the wireframe row pitch
+# references/layout.md documents. So 12 is not a threshold, it is the
+# convention — and a floor OF 12 sits on its knife edge, where one grid
+# unit of drift turns fourteen correct layouts into warnings. 8 is two
+# grid units, one full unit of headroom below the convention, and still
+# catches every gap the 4px grid can express under it. The alternative
+# reading (floor 16, "a gutter must be more than a gutter") reproduces
+# the v0.5 assessment's "16 warnings, 13 false" almost to the number.
+CLEARANCE_FLOOR = 8
+# ...and the pair must SHARE a band on the other axis before a gap means
+# crowding at all: two boxes offset corner-to-corner are neighbours, not a
+# near miss, however close their corners come.
+CLEARANCE_BAND = 8
+
 
 def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     """Does segment (x1,y1)-(x2,y2) pass through el's (slightly shrunk)
@@ -6963,6 +6981,47 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     warnings.append(
                         "%s and %s overlap — separate them"
                         % (name(a["id"]), name(b["id"])))
+            else:
+                # NEAR MISS (v0.9 WP4). The arm above needs a real
+                # intersection, so 4px of clear space read exactly like
+                # 60px to every check we owned — errors, warnings AND
+                # notes (vskill mine M1). To a reader they are opposites:
+                # 60px is a layout, 4px is a slip nobody meant.
+                #
+                # It lives INSIDE this loop on purpose, so it inherits the
+                # two exemptions the loop head already spells out —
+                # declared nesting (`customData.parent`) and near-full
+                # containment between frame siblings — plus the one
+                # `shapes` applies above: decoration/label/pin/annotation
+                # roles never reach here, so a badge pinned to a card is
+                # furniture and says nothing about spacing. Those are two
+                # of the three intent channels the Cloud contradiction
+                # taught us this check needs BEFORE it ships (a bare
+                # distance threshold gates a correct drawing eventually,
+                # gets muted wholesale in week one and is never heard from
+                # again). The third is the explicit waiver below, which
+                # ships with it rather than after it.
+                #
+                # A gap of exactly ZERO is deliberate and stays silent:
+                # flush-stacked blocks share a drawn edge and read as one
+                # stack, which is how both tearsheet sheets stack their
+                # sections. It is the sliver of ground between 1px and the
+                # floor that reads as a mistake.
+                band, gap = (ox, -oy) if ox > oy else (oy, -ox)
+                if band <= CLEARANCE_BAND or not 0 < gap < CLEARANCE_FLOOR:
+                    continue      # corner-to-corner, flush, or clear
+                key = "clear:%s:%s:%s" % (aid or "<artifact>",
+                                          slugify(a["id"]),
+                                          slugify(b["id"]))
+                if waives and key in waives:
+                    continue
+                notes.append(
+                    "%s and %s are only %dpx apart (spacing floor %dpx) — "
+                    "nudge %s clear, sit them flush if they are one stack, "
+                    "or record the tightness with "
+                    "waive {action: waive, key: %r, reason: ...}"
+                    % (name(a["id"]), name(b["id"]), int(gap),
+                       CLEARANCE_FLOOR, b["id"], key))
     # annotations were excluded from the v0 overlap loop entirely — the
     # demo shipped a note lying across a node for five rounds
     annos = [e for e in els if e.get("type") == "text"
@@ -7065,18 +7124,70 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "Re-route the arrow or shorten the label"
                     % ((la.get("text") or "")[:24], name(n["id"])))
                 break
-    for t in annos:
+    # ROLE-BLIND as of v0.9 WP4. This loop used to walk `annos` alone —
+    # texts explicitly roled "annotation" — while `role_of` itself
+    # defaults everything unroled to "node". So the SAME text over the
+    # SAME node was reported when roled and invisible when not, and
+    # unroled is exactly what a pasted text arrives as: the blind spot
+    # pointed at the least instrumented direction there is (visualize-
+    # skill mine M2). The role now picks the WORDING, never whether we
+    # look — an annotation still gets its `annotates` advice, and
+    # anything else is told what it is covering and how much.
+    #
+    # Three kinds of text stay exempt, and each is positioned by
+    # something other than its author, so naming it would name the wrong
+    # element:
+    #   * a bound label (containerId) rides its container, and its
+    #     overlap IS the container's — judged by the pair loop above.
+    #     The one arm worth keeping, a bound ARROW label landing on a
+    #     foreign box, has its own check further up. Measured over the
+    #     24 fixture artifacts: 363 bound texts, of which 3 sit over a
+    #     node, all three a sticky note's own caption.
+    #   * composed content (value_of/attr_of/parent) is emitted INSIDE
+    #     its owner deliberately — a KPI value over its card is the
+    #     design, and v0.9 bands it above the node on purpose.
+    #   * decoration/label/pin roles are furniture, not content, which
+    #     is the same cut `shapes` makes at the top of this function.
+    for t in els:
+        if t.get("type") != "text":
+            continue
+        tcd = t.get("customData") or {}
+        if t.get("containerId") or tcd.get("value_of") or \
+                tcd.get("attr_of") or tcd.get("parent"):
+            continue
+        trole = role_of(t)
+        if trole in ("decoration", "label", "pin"):
+            continue
         for n in nodes:
             ox = min(t["x"] + t.get("width", 0),
                      n["x"] + n.get("width", 0)) - max(t["x"], n["x"])
             oy = min(t["y"] + t.get("height", 0),
                      n["y"] + n.get("height", 0)) - max(t["y"], n["y"])
-            if ox > 8 and oy > 4:
+            if not (ox > 8 and oy > 4):
+                continue
+            # BOTH arms carry the same measured overlap and lead with the
+            # same element — the text, which is the thing either remedy
+            # moves. That is deliberate: with geometry, magnitude and
+            # named element identical, the ONLY difference between the
+            # two sentences is the role, which is what the pair of
+            # mutants over this loop is for.
+            if trole == "annotation":
                 warnings.append(
-                    "annotation %r lies on top of %s — move it clear "
-                    "(and give it customData.annotates so it stays "
-                    "attached to its subject)"
-                    % ((t.get("text") or "")[:30], name(n["id"])))
+                    "annotation %s (%r) lies on top of %s — %dx%dpx of "
+                    "overlap (%dpx²). Move it clear (and give it "
+                    "customData.annotates so it stays attached to its "
+                    "subject)"
+                    % (t["id"], (t.get("text") or "")[:30], name(n["id"]),
+                       int(ox), int(oy), int(ox * oy)))
+            else:
+                warnings.append(
+                    "text %s (%r) covers %s — %dx%dpx of overlap "
+                    "(%dpx²), and nothing marks it as belonging there. "
+                    "Move it clear, bind it to the box (containerId) if "
+                    "it is that box's label, or role it \"annotation\" "
+                    "if it is a callout"
+                    % (t["id"], (t.get("text") or "")[:30], name(n["id"]),
+                       int(ox), int(oy), int(ox * oy)))
     # text that does not fit the box it is drawn in. MEASURED, not read
     # off the stored width: a stored extent is an estimate the client
     # re-derives, and trusting it is why three overflows shipped in the

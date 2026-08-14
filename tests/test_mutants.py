@@ -112,6 +112,31 @@ _TEXT_OVERFLOW_RE = re.compile(
 _LABEL_SHAPE_RE = re.compile(
     r"label (?P<element>[\w-]+) overhangs [\w-]+.*? by (?P<mag>\d+)px — "
     r"the (?:diamond|ellipse) is only \d+px across")
+# The two arms of the text/node overlap loop (canvas.py), which v0.9 WP4
+# (Task 23) made role-BLIND: every free text is measured against every node,
+# and the role picks which sentence comes out. The regexes are deliberately
+# near-identical — same element (the text), same magnitude (the overlap AREA,
+# the reading the shape overlap loop next door already uses) — so that when
+# the mutant pair below runs the SAME geometry through both, the only
+# difference on either side is which check spoke. Anything else the pair
+# proved would be an artefact of the templates rather than of the role gate.
+_TEXT_ON_NODE_RE = re.compile(
+    r"text (?P<element>[\w-]+) \(.+?\) covers [\w-]+.*? "
+    r"\((?P<mag>\d+)px²\), and nothing marks it as belonging there")
+_ANNOTATION_ON_NODE_RE = re.compile(
+    r"annotation (?P<element>[\w-]+) \(.+?\) lies on top of [\w-]+.*? "
+    r"\((?P<mag>\d+)px²\)\. Move it clear")
+# Near-miss spacing (canvas.py), the crowding arm of the shape pair loop.
+# MAGNITUDE is the clear gap itself and `element` is `b`, the LATER of the
+# two in scene order: unlike `_SHARED_ATTACH_RE`'s symmetric pair there IS a
+# non-arbitrary pick here, because scene order is paint order — `b` is drawn
+# over `a`, so it is the newer placement and the one the message tells you to
+# nudge. Both ids survive in `raw`. The floor is matched as a bare `\d+` and
+# not pinned: this regex reads what the check MEASURED, and the day the floor
+# is retuned the finding is still the same finding.
+_MIN_CLEARANCE_RE = re.compile(
+    r"are only (?P<mag>\d+)px apart \(spacing floor \d+px\) — "
+    r"nudge (?P<element>[\w-]+) clear")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -199,6 +224,20 @@ DETECTORS: dict[str, dict] = {
     # was built. No dirmap — this finding fails on one axis by
     # construction, the label's width against the body's chord.
     "label_overflows_shape": {"lint_re": _LABEL_SHAPE_RE},
+    # v0.9 WP4 (Task 23), the same move for the other two: the role-blind
+    # text/node arm and the near-miss spacing arm both left ASPIRATIONAL the
+    # day their checks landed. `annotation_overlaps_node` joins them from the
+    # other direction — it is the FIVE-ROUND-OLD arm of the same loop, and it
+    # left the enumerated-no-mutant ledger in the same change, because the
+    # role-blind mutant's control is exactly "this check reports the roled
+    # overlap" and an unregistered name is a thing no `FindingSpec` can
+    # assert: `collect_findings` never emits it, so the control could only
+    # ever have been a borrow from some other detector, which is the debt
+    # that flip owed.
+    # No dirmaps: all three findings carry one measured scalar and no axis.
+    "text_overlaps_node": {"lint_re": _TEXT_ON_NODE_RE},
+    "annotation_overlaps_node": {"lint_re": _ANNOTATION_ON_NODE_RE},
+    "min_clearance": {"lint_re": _MIN_CLEARANCE_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -1751,11 +1790,17 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
 
     A sibling of `ellipse_corner_overfire`, and outside `CATALOGUE` for a
     reason worth stating: an over-fire mutant asserts `Silence` on its
-    check, and neither `annotation_overlaps_node` (canvas.py) nor
-    `label_on_foreign_node` (:5576) has a `DETECTORS` entry — both sit in
-    `UNCOVERED`. A `Silence` on an unregistered check passes vacuously,
-    so the catalogue cannot hold these until those entries land. Read as
-    lint text instead, which needs no registry.
+    check, and `label_on_foreign_node` (canvas.py) has no `DETECTORS`
+    entry — it sits in `UNCOVERED`. A `Silence` on an unregistered check
+    passes vacuously, so the catalogue cannot hold that one until its
+    entry lands. Read as lint text instead, which needs no registry.
+
+    `annotation_overlaps_node` acquired an entry on 2026-08-14 (v0.9 WP4
+    Task 23, as the other pole of the role gate) and could now be moved
+    into `CATALOGUE` as a proper over-fire mutant. It stays here anyway,
+    for now: the two reds below share one base defect and one paragraph
+    of explanation, and splitting them across two homes would cost that
+    reading for no coverage. Logged for the curator, not silently kept.
 
     Both checks get their OWN red, over their own scene. They share a
     defect but not a code path — one reads a text's stored box, the other
@@ -1827,6 +1872,160 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
             _says_lies_on(_arrow_label_at(corner_clear=True)), [],
             "the arrow label is 16px clear of the circle and reported as "
             "landing on it")
+
+
+class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
+    """The quiet halves of Task 23's two checks, which its mutants cannot reach.
+
+    Both catalogue entries assert a FIRE, and `unroled_text_over_node`'s
+    neighbour asserts a fire too — the roled scene answering in the
+    annotation voice. That pair isolates the role gate exactly, and it is
+    blind in one direction by construction: a text/node check that fired
+    on EVERY text, overlap or not, satisfies the mutant AND satisfies the
+    neighbour, because the neighbour only asks that the annotation arm
+    speak on a scene where it should. The over-fire is what "16 warnings,
+    13 false" was made of, so it is asserted here directly.
+
+    `min_clearance`'s intent channels are the same shape of gap. Its
+    neighbour proves a 60px gap is silent; nothing in the catalogue
+    proves a 4px gap goes quiet when the drawing SAYS the tightness is
+    deliberate, and a check whose escape hatches do not work is a check
+    that gets muted wholesale in week one — the Cloud contradiction, in
+    the exact words of the mutant that asked for these channels.
+    """
+
+    def _lint(self, els: list[dict], **kw: Any) -> list[str]:
+        """Every lint line for a scene, across all three channels.
+
+        Args:
+            els: The scene's element list.
+            **kw: Passed through to `canvas.lint_layout`.
+
+        Returns:
+            errors + warnings + notes, concatenated.
+        """
+        lint = canvas.lint_layout(els, artifact_type="flow", **kw)
+        return lint["errors"] + lint["warnings"] + lint["notes"]
+
+    def _covers(self, els: list[dict]) -> list[str]:
+        """Lint lines from the role-blind text/node arm.
+
+        Args:
+            els: The scene's element list.
+
+        Returns:
+            The matching lines, one per claimed overlap.
+        """
+        return [ln for ln in self._lint(els)
+                if _TEXT_ON_NODE_RE.search(ln)]
+
+    def _crowds(self, els: list[dict], **kw: Any) -> list[str]:
+        """Lint lines from the near-miss clearance arm.
+
+        Args:
+            els: The scene's element list.
+            **kw: Passed through to `canvas.lint_layout`.
+
+        Returns:
+            The matching lines, one per crowded pair.
+        """
+        return [ln for ln in self._lint(els, **kw)
+                if _MIN_CLEARANCE_RE.search(ln)]
+
+    def test_a_text_beside_a_node_is_not_called_an_overlap(self) -> None:
+        """The role-blind arm has a quiet half: 40px clear says nothing."""
+        scene = _text_over_node(roled=False)
+        scene[1]["x"] = 240        # node ends at 200
+        self.assertEqual(self._covers(scene), [])
+
+    def test_a_bound_label_inside_its_own_container_is_not_an_overlap(
+            self) -> None:
+        """A label rides its container; reporting it names the wrong element.
+
+        This is the exemption the fixture replay measured as load-bearing
+        — the corpus holds 363 bound texts, and without this the arm
+        invents three findings about sticky notes captioning themselves.
+        """
+        scene = _text_over_node(roled=False)
+        scene[1]["containerId"] = "n1"
+        self.assertEqual(self._covers(scene), [])
+
+    def test_composed_content_inside_its_owner_is_not_an_overlap(self) -> None:
+        """A KPI value over its own card is the design, not a defect.
+
+        `value_of`/`attr_of` content is emitted inside its owner and
+        banded above it deliberately (v0.9 z-banding), so the overlap is
+        the point of it.
+        """
+        scene = _text_over_node(roled=False)
+        scene[1]["customData"] = {"value_of": "n1"}
+        self.assertEqual(self._covers(scene), [])
+
+    def test_a_flush_pair_is_a_stack_and_not_a_near_miss(self) -> None:
+        """Zero gap is a decision; the sliver above zero is the mistake.
+
+        Both tearsheet fixtures stack their sections edge to edge, which
+        is why exactly-flush is silent rather than the tightest possible
+        finding.
+        """
+        self.assertEqual(self._crowds(_near_miss_pair(gap=0)), [])
+
+    def test_the_documented_twelve_pixel_gutter_is_silent(self) -> None:
+        """references/layout.md's wireframe row pitch is not a defect.
+
+        The floor is 8 and not 12 precisely so that this gap has a grid
+        unit of headroom rather than sitting on the threshold: measured
+        against the 24 fixture artifacts, a floor of 16 turns fourteen of
+        these into findings and every one of them is false.
+        """
+        self.assertEqual(self._crowds(_near_miss_pair(gap=12)), [])
+
+    def test_a_corner_to_corner_pair_is_not_crowding(self) -> None:
+        """Boxes offset on both axes are neighbours, however near.
+
+        They share no band, so there is no sliver of ground between them
+        for a reader to misread — the gap is diagonal and reads as layout.
+        """
+        scene = _near_miss_pair(gap=4)
+        scene[1]["y"] = 120        # n1 is 60 tall: no shared band at all
+        self.assertEqual(self._crowds(scene), [])
+
+    def test_declared_nesting_exempts_a_tight_pair(self) -> None:
+        """Intent channel 1: `customData.parent` inherited from the pair loop.
+
+        A card declared inside its shelf is a composition, and the loop
+        head has skipped that pairing since v0.3 — putting the crowding
+        arm inside that loop is what buys it.
+        """
+        scene = _near_miss_pair(gap=4)
+        scene[1]["customData"] = {"role": "node", "parent": "n1"}
+        self.assertEqual(self._crowds(scene), [])
+
+    def test_a_decoration_beside_a_node_exempts_a_tight_pair(self) -> None:
+        """Intent channel 2: furniture roles never enter the pair loop.
+
+        A badge pinned against a card is the mutant's own example of a
+        deliberate near-touch, and `shapes` has excluded decorations from
+        this loop all along.
+        """
+        scene = _near_miss_pair(gap=4)
+        scene[1]["customData"] = {"role": "decoration"}
+        self.assertEqual(self._crowds(scene), [])
+
+    def test_a_recorded_waiver_exempts_a_tight_pair(self) -> None:
+        """Intent channel 3: the escape the check shipped WITH, not after.
+
+        The key the finding prints is the key the waive answers — asserted
+        here rather than assumed, because a waiver hint naming a key
+        nothing reads is the same silence wearing a helpful sentence.
+        """
+        scene = _near_miss_pair(gap=4)
+        [line] = self._crowds(scene, aid="a1")
+        key = re.search(r"key: '([^']+)'", line).group(1)
+        self.assertEqual(key, "clear:a1:n1:n2")
+        self.assertEqual(
+            self._crowds(scene, aid="a1",
+                         waives={key: {"reason": "badge sits tight"}}), [])
 
 
 class TestMermaidRoundTripIdentity(unittest.TestCase):
@@ -8016,12 +8215,22 @@ _register(Mutant(
 # excludes both single-axis readings (120 and 20) and any fraction-of-text
 # reading (1.0).
 #
-# FLIP CONSTRAINT: giving this mutant a real other-pole neighbour is blocked
-# on something outside it — the check its control exercises,
-# `annotation_overlaps_node` (canvas.py), has no DETECTORS entry and
-# sits in UNCOVERED. Until that lands there is no registered check to assert
-# the roled overlap firing, which is why the neighbour asserts liveness
-# instead of the pole it is actually demonstrating.
+# FLIPPED by v0.9 WP4 (Task 23) — the loop is role-blind now: it walks every
+# free text, and the role selects the SENTENCE rather than whether anything
+# is measured. The flip paid its debt in the same change: the old neighbour
+# was `Silence("endpoint_gap")` over an arrowless scene, which proved
+# liveness and nothing else, and `annotation_overlaps_node` — the check that
+# control was actually exercising — had no DETECTORS entry to assert against.
+# It has one now, drained from UNCOVERED here, and the neighbour asserts the
+# roled overlap FIRING, with the same element and the same 2400px² the mutant
+# asserts of the unroled one.
+#
+# That is the whole point of this pair: two scenes, identical geometry,
+# identical magnitude, identical named element, and the role is the single
+# bit that differs. A check that fired on every text/node pair would satisfy
+# the mutant and CONTRADICT the neighbour (it would speak in the wrong voice
+# on the roled scene); one that still gated on role would satisfy the
+# neighbour and fail the mutant. Neither pole can be passed by accident.
 _register(Mutant(
     "unroled_text_over_node",
     build=lambda: _text_over_node(roled=False),
@@ -8029,7 +8238,8 @@ _register(Mutant(
     expect=FindingSpec("text_overlaps_node", element="t1",
                        magnitude=(2400, 0.10)),
     neighbour=Neighbour(lambda: _text_over_node(roled=True),
-                        Silence("endpoint_gap"))))
+                        FindingSpec("annotation_overlaps_node", element="t1",
+                                    magnitude=(2400, 0.10)))))
 
 # Near-miss spacing — RED BY ABSENCE (vskill mine M1, 2026-08-12). The
 # overlap loop needs a real intersection, so 4px of clear space reads
@@ -8048,13 +8258,22 @@ _register(Mutant(
 # MAGNITUDE: the clear gap itself, 4px. The ±33% band excludes 0 (an
 # overlap-area reading, which is what today's loop would report) and 124
 # (edge to far edge).
+#
+# FLIPPED by v0.9 WP4 (Task 23). The check shipped INSIDE the shape pair
+# loop, so it inherits that loop's nesting exemptions and `shapes`' role
+# filter for free, and the waiver arm shipped with it rather than after it —
+# all three channels the paragraph above demanded, on day one. The neighbour
+# is no longer the arrowless `Silence("endpoint_gap")` liveness borrow: it is
+# `Silence("min_clearance")` over the SAME builder at 60px, the pole that
+# discriminates. A check that simply fired on every non-overlapping pair
+# would satisfy this mutant and fail that control.
 _register(Mutant(
     "near_miss_clearance",
     build=lambda: _near_miss_pair(gap=4),
     op="unchanged", args={},
     expect=FindingSpec("min_clearance", element="n2", magnitude=(4, 0.33)),
     neighbour=Neighbour(lambda: _near_miss_pair(gap=60),
-                        Silence("endpoint_gap"))))
+                        Silence("min_clearance"))))
 
 # Legibility — three RED BY ABSENCE mutants over one base scene
 # (docs/todo/contrast-and-min-font-lints.md, user-directed 2026-08-12;
@@ -8400,26 +8619,36 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same members inside the lane: nothing to report, nothing said."""
         self._run_neighbour("framed_node_escapes_its_lane")
 
-    @unittest.expectedFailure
     def test_mutant_unroled_text_over_node(self) -> None:
-        """A text with no role covering a node is invisible to every check."""
-        # The overlap check gates on role == "annotation"; flips when a
-        # role-blind text/node check lands and takes a DETECTORS entry.
+        """FLIPPED: a text with no role covering a node is now reported.
+
+        The overlap loop gated on role == "annotation" and `role_of`
+        defaults everything unroled to "node", so the same 2400px² was
+        reported when roled and silent when not. v0.9 WP4 made the loop
+        role-blind: the role picks the sentence, never whether we look.
+        """
         self._run("unroled_text_over_node")
 
     def test_neighbour_unroled_text_over_node(self) -> None:
-        """The same overlap with a role attached is reported by today's lint."""
+        """The same overlap with a role attached: the annotation arm speaks.
+
+        Same geometry, same 2400px², same named element — only the
+        check's name differs, which is the role gate and nothing else.
+        """
         self._run_neighbour("unroled_text_over_node")
 
-    @unittest.expectedFailure
     def test_mutant_near_miss_clearance(self) -> None:
-        """Two nodes 4px apart read exactly like two nodes 60px apart."""
-        # No near-miss check exists; flips when WP4's lands with the
-        # intent channel the catalogue entry describes.
+        """FLIPPED: two nodes 4px apart no longer read like two 60px apart.
+
+        The overlap arm needed a real intersection, so every positive gap
+        was silent however small. v0.9 WP4 added the crowding arm inside
+        the same pair loop, under an 8px floor measured against the
+        fixture corpus.
+        """
         self._run("near_miss_clearance")
 
     def test_neighbour_near_miss_clearance(self) -> None:
-        """A generous gap is silent, and correctly so."""
+        """A generous gap is silent, and now on the check that could speak."""
         self._run_neighbour("near_miss_clearance")
 
     @unittest.expectedFailure
@@ -8738,14 +8967,9 @@ ASPIRATIONAL: dict[str, str] = {
         "WP5 — no check compares a member's geometry against the frame its "
         "`frameId` names; lint_layout reads frameId for help slots and "
         "same-frame pairing only, never for containment",
-    "text_overlaps_node":
-        "WP4 — a role-BLIND text/node overlap check, not yet built; the "
-        "existing one gates on role_of(e) == 'annotation' (canvas.py) "
-        "and role_of defaults everything unroled to 'node' (3197)",
-    "min_clearance":
-        "WP4 — a near-miss check, not yet built; today's overlap loop needs "
-        "a real intersection, so any positive gap is silent however small. "
-        "Needs an intent channel before it can ship — see the mutant",
+    # (`text_overlaps_node` and `min_clearance` left this table on
+    # 2026-08-14, v0.9 WP4 Task 23: both checks landed, both took a
+    # `DETECTORS` entry, and both mutants flipped in the same change.)
     "contrast_text":
         "docs/todo/contrast-and-min-font-lints.md — WCAG 1.4.3 text "
         "contrast (4.5:1), not yet built. Opacity is SETTLED: fold it into "
@@ -8771,15 +8995,12 @@ ASPIRATIONAL: dict[str, str] = {
 #       builder with `shared=True` fires that check (see
 #       `merged_stroke_caught_by_corridor`), so the quiet means something
 #       about the picture.
-#   frame_containment, unroled_text_over_node — each neighbours
-#       `Silence("endpoint_gap")` over a scene with NO ARROWS, which
-#       proves liveness only: that check cannot fire there whatever the
-#       frames or texts do. They earn their keep by refusing to match
-#       over any run where a detector crashed, and nothing more.
-#       `unroled_text_over_node` has the stronger control of the two —
-#       its neighbour is the SAME overlap with a role attached, which
-#       the existing lint does report, so the pair isolates the role
-#       gate as the only variable.
+#   frame_containment — neighbours `Silence("endpoint_gap")` over a scene
+#       with NO ARROWS, which proves liveness only: that check cannot
+#       fire there whatever the frames do. It earns its keep by refusing
+#       to match over any run where a detector crashed, and nothing more.
+#       (`unroled_text_over_node` stood here too until Task 23 flipped it;
+#       see the second worked example at the foot of this block.)
 #
 # So when WP4b/WP5's lints land, dropping the `expectedFailure` is not the
 # whole change: give each mutant a real other-pole neighbour on the new
@@ -8793,6 +9014,22 @@ ASPIRATIONAL: dict[str, str] = {
 # borrow could not assert is the one that discriminates — a check that
 # simply fired on every diamond would have satisfied the old rectangle
 # control and fails this one.
+#
+# `near_miss_clearance` and `unroled_text_over_node` are the second and
+# third, flipped by Task 23, and they paid the debt in the two shapes it
+# comes in. `near_miss_clearance` took the same route as the example above:
+# `Silence("min_clearance")` over its own builder at 60px, the pole its
+# arrowless borrow could not reach. `unroled_text_over_node` took the OTHER
+# route, the one the flip debt is easy to read as forbidding — its neighbour
+# is not a Silence at all but a `FindingSpec` on a DIFFERENT check,
+# `annotation_overlaps_node`, which had to be drained from `UNCOVERED` in the
+# same change to exist as an assertion. That is legitimate here and worth
+# saying why: this mutant's defect is not "the check is missing", it is "the
+# check consults the role", and the poles of a GATE are gated and ungated,
+# not fired and silent. Both scenes fire; the question the pair settles is
+# which voice answers. A Silence-on-a-clear-text control would have been the
+# easy shape and would have proved something else — that the check has a
+# quiet half — which is not what five rounds of this bug were about.
 
 UNCOVERED: dict[str, str] = {
     # The one DETECTORS entry the day-one catalogue leaves unproven: every
@@ -8870,8 +9107,13 @@ UNCOVERED: dict[str, str] = {
     # proves it from DETECTORS, both poles.)
     "label_on_foreign_node":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
-    "annotation_overlaps_node":
-        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+    # (`annotation_overlaps_node`, canvas.py, left this table on 2026-08-14:
+    # `unroled_text_over_node`'s neighbour now proves it from DETECTORS with
+    # a magnitude, over the same geometry the mutant itself uses. It is the
+    # only row here drained by a NEIGHBOUR rather than by a mutant's own
+    # expectation, which `coverage_table` counts on purpose — the roled
+    # overlap firing IS the other pole of the role gate, not a control
+    # borrowed from somewhere else.)
     # (`text_overflow`, canvas.py, left this table on 2026-08-13:
     # `composed_row_overflows_its_box` and `wrapped_label_overflows_its_box`
     # now prove it from DETECTORS on BOTH code paths, each with a magnitude
@@ -9227,13 +9469,24 @@ class TestCoverage(unittest.TestCase):
         the regex matches both wordings, which
         `TestBorderCollinearExit` in tests/test_backend.py proves from
         both poles.
+
+        47 -> 49 on 2026-08-14 (v0.9 WP4, task 23): the near-miss
+        clearance note, and a SECOND arm on the text/node overlap loop —
+        the same measurement, worded for a text with no role. Both are
+        new templates and neither needs an `UNCOVERED` row: each arrived
+        with a `DETECTORS` entry and a proving mutant in this change,
+        which is what drained `text_overlaps_node` and `min_clearance`
+        out of `ASPIRATIONAL`. The same change also drained the
+        `annotation_overlaps_node` ROW from `UNCOVERED` without adding a
+        site — that template is five rounds old and only now has
+        something asserting it.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 47,
+        self.assertEqual(sites, 49,
                          "canvas.py lint_layout append-site count changed "
-                         "(47 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(49 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
