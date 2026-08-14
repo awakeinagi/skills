@@ -4183,27 +4183,33 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                           for p in store.registry["pins"]],
                          [("pin-a", "open")])
 
-    @unittest.expectedFailure
     def test_red_a_resolve_deletes_a_same_id_node_from_its_own_batch(
             self) -> None:
-        """A resolve takes down whatever shares the id, pin or not.
+        """A resolve takes down the ❓ and never a namesake.
 
-        `apply_ops`' resolve arm is `el = index.get(op.get("id"))`
+        `apply_ops`' resolve arm was `el = index.get(op.get("id"))`
         followed by an unconditional delete (canvas.py:2887). `index` is
-        the batch artifact's, keyed by id alone, so the arm never asks
-        what it is deleting. Task 7 added exactly that role gate to the
+        the batch artifact's, keyed by id alone, so the arm never asked
+        what it was deleting. Task 7 added exactly that role gate to the
         two places it thought about — the cross-artifact scan and the
         `here` set that skips it (canvas.py:8021-8029) — and left the
         arm those two feed into role-blind.
 
-        So a batch that adds a shape and then resolves a pin of the same
-        id deletes its own new shape. Probed on the shipped code: `other`
-        goes in holding `m1` and comes out holding `m1` and
+        So a batch that added a shape and then resolved a pin of the same
+        id deleted its own new shape. Probed on the shipped code: `other`
+        went in holding `m1` and came out holding `m1` and
         `pin-a-label` — the caption for a rectangle that was created and
-        destroyed inside one batch — while the save record names only
-        `add pin-a-label`, so nothing in the history says the shape ever
-        left. The foreign ❓ on `flow` is removed correctly; that half is
+        destroyed inside one batch — while the save record named only
+        `add pin-a-label`, so nothing in the history said the shape ever
+        left. The foreign ❓ on `flow` was removed correctly; that half is
         Task 7's and still works.
+
+        v0.9 Task 35 took the role-gate reading: the arm now asks
+        `role_of(el) == "pin"` before it deletes, which is the same
+        question the scan and the `here` guard above it already ask. The
+        add-first ordering this case sends is the one that reproduced —
+        resolve-then-add was already clean via e7a5527, and stays so in
+        `test_an_id_shadowing_add_cannot_hide_the_foreign_pin`.
 
         MAGNITUDE is what survives the batch, asserted in two parts
         because they fail independently: no label may be left pointing at
@@ -4234,28 +4240,33 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "no error, no record of the deletion, other=%r"
             % (self._ids(store, "other"),))
 
-    @unittest.expectedFailure
     def test_red_a_duplicate_pin_id_is_accepted_by_validation(self) -> None:
-        """A second `pin` op may reuse a live pin's id, and does.
+        """A second `pin` op reusing a live pin's id is refused.
 
-        `_validate_batch` checks a `resolve_pin` against the known pins
-        (canvas.py:7841) and checks a `pin` op against nothing of the
-        sort, so the id an open question already owns can be minted a
-        second time. Probed on the shipped code: `check_batch` answers
-        `ok=True` with no errors, the batch applies, and the registry
-        holds two records under `dup` — two different questions, on two
+        `_validate_batch` checked a `resolve_pin` against the known pins
+        (canvas.py:7841) and checked a `pin` op against nothing of the
+        sort, so the id an open question already owned could be minted a
+        second time. Probed on the shipped code: `check_batch` answered
+        `ok=True` with no errors, the batch applied, and the registry
+        held two records under one id — two different questions, on two
         different artifacts, sharing one name.
 
-        What that costs is downstream and total. The resolve
+        What that cost was downstream and total. The resolve
         write-through is id-global (canvas.py:8050), so ONE
-        `resolve_pin dup` marks both records resolved, and the
-        cross-artifact scan takes both glyphs. The user answered one
+        `resolve_pin dup` marked both records resolved, and the
+        cross-artifact scan took both glyphs. The user answered one
         question and the tool closed two, with the unanswered one gone
         from the canvas and counted nowhere. The same asymmetry is what
         the Task 7 re-check filed as R1: a `pin` op reusing a
-        just-resolved id is born `resolved` by that write-through, so a
-        brand-new question never reaches the open count while its ❓
-        stands on the canvas.
+        just-resolved id was born `resolved` by that write-through, so a
+        brand-new question never reached the open count while its ❓
+        stood on the canvas.
+
+        v0.9 Task 35 refuses the collision in `_validate_batch`, against
+        every id the registry has ever filed — R1 is why a resolved id
+        counts too — and against the ids minted earlier in the same
+        batch. An id spelled on some ordinary element stays free, which
+        is what the neighbour below holds the check to.
 
         DIRECTION is the outcome the reviewer named as the durable fix
         and it is asserted first: the duplicate op is REFUSED, with an
@@ -4281,23 +4292,29 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             % (len(self._pin_records(store, "pin-a")),
                [(p["id"], p["artifact"]) for p in store.registry["pins"]]))
 
-    @unittest.expectedFailure
     def test_red_the_echo_claims_a_removal_the_record_denies(self) -> None:
-        """The echo reports a deletion beside the note saying it never was.
+        """The echo and the note tell one story about one op.
 
-        `intent_echo`'s resolve arm reads absence from the batch scene as
+        `intent_echo`'s resolve arm read absence from the batch scene as
         success — `"❓ glyph removed from canvas" if eid not in ix`
         (canvas.py:4911) — but `ix` is the POST-op scene, where a glyph
         the user deleted last session is equally absent. So the one case
-        where nothing was removed is the case the line calls a removal.
+        where nothing was removed was the case the line called a removal.
 
         `pin_glyph_notes` was written for exactly this tolerance and gets
         it right, deriving the answer from the `del` changes the record
         actually carries. Both go into the same server response, so the
-        agent is handed "op 0 (resolve_pin): gone resolved (❓ glyph
+        agent was handed "op 0 (resolve_pin): gone resolved (❓ glyph
         removed from canvas)" and "pin gone resolved; its ❓ was already
-        gone" together, and has to guess which of its tool's two
+        gone" together, and had to guess which of its tool's two
         sentences about one op to believe.
+
+        The echo is handed a post-op scene and nothing else, and the two
+        cases are indistinguishable in one — this fixture and its
+        real-removal neighbour reach `intent_echo` with byte-equal
+        arguments. So v0.9 Task 35 settles the question in
+        `_validate_batch`, where the pre-op scene and the other artifacts
+        are both in reach, and marks the op; the echo reads the mark.
 
         MAGNITUDE for a surface is what the line must CONTAIN, and
         DIRECTION is which claim it makes; here they are the same
@@ -4371,6 +4388,59 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         self.assertEqual(sorted((p["id"], p["status"])
                                 for p in store.registry["pins"]),
                          [("pin-a", "open"), ("pin-b", "open")])
+
+    def test_two_pin_ops_in_one_batch_cannot_share_an_id(self) -> None:
+        """The collision the registry cannot see coming.
+
+        The duplicate red measures an id the registry ALREADY holds, so a
+        check written against `known_pins` alone flips it while leaving
+        this open — and this is the ordering an agent actually stumbles
+        into, drafting two questions about one screen in one batch. The
+        registry is read once, before the ops run, so the first `pin` op
+        is not in it when the second is checked; the batch's own minted
+        ids have to be carried alongside. Both ops are refused as a
+        batch, so neither question is filed under the shared name and
+        nothing lands half-asked.
+        """
+        store = self._store()
+        escaped = self._send(store, "other", [
+            {"op": "pin", "id": "pin-c", "target": "m1", "question": "One?"},
+            {"op": "pin", "id": "pin-c", "target": "m1", "question": "Two?"}])
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "two pin ops in one batch minted the same id (escaped=%r)"
+            % (escaped,))
+        self.assertIn("op 1", "\n".join(escaped.errors))
+        self.assertIn("pin-c", "\n".join(escaped.errors))
+        self.assertEqual(self._pin_records(store, "pin-c"), [])
+        self.assertEqual([e["id"] for e in store.scenes["other"]
+                          if canvas.role_of(e) == "pin"], [])
+
+    def test_a_foreign_resolve_reports_the_removal_it_reached_for(
+            self) -> None:
+        """The echo's cross-artifact pole: the ❓ went, and it says so.
+
+        `apply_batch` deletes a foreign ❓ from the artifact it lives on
+        (r5-17), so the removal is real and the record carries the `del`
+        — but it happens somewhere the echo's scene cannot show, because
+        that scene is the BATCH artifact's and the glyph was never in it.
+        An echo taught to distrust absence has to keep reaching for the
+        other artifacts or it would call every foreign resolve a
+        no-op, which is the third red's disagreement restored with the
+        sentences swapped. Asserted against the note in the same breath,
+        because agreement between the two is the whole property.
+        """
+        store = self._store()
+        ops: list[dict[str, Any]] = [{"op": "resolve_pin", "id": "pin-a",
+                                      "answer": "yes"}]
+        record, _ = store.apply_batch({"base_revn": store.head_revn(),
+                                       "artifact": "other", "ops": ops})
+        self.assertEqual([e["id"] for e in store.scenes["flow"]
+                          if canvas.role_of(e) == "pin"], [])
+        self.assertEqual(canvas.pin_glyph_notes(record, ops), [])
+        said = canvas.intent_echo(ops, store.scenes["other"])
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("removed from canvas", said[0])
 
     def test_the_echo_reports_a_removal_that_really_happened(self) -> None:
         """The echo's other pole: a glyph that WAS taken down is claimed.
@@ -4960,11 +5030,11 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 36
-# expected failures. The twenty outside live in seven classes —
+# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 33
+# expected failures. The seventeen outside live in six classes —
 # `TestStoreIntegrity` (6), `TestLoadFindingsReachTheAgent` (4),
-# `TestPinIdentityIntegrity` (3), `TestBatchPathIntegrity` (2),
-# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2) and
+# `TestBatchPathIntegrity` (2), `TestExportCompleteness` (2),
+# `TestShapeBlindAnnotationOverlap` (2) and
 # `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;

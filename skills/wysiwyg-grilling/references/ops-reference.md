@@ -256,6 +256,14 @@ auto-prunes the registry pin — but the leftover ❓ element stays on canvas
 until you remove it with an ordinary `del` in your next revision (tidying
 wreckage, not a proposal).
 
+A pin id names **one** question. Reusing an id the registry has already
+filed — open or resolved — is refused with an error naming it, because the
+resolve write-through is id-global: one answer would close two questions
+and take the unanswered one's ❓ off the canvas. Omit `id` and one is
+minted for you. Conversely `resolve_pin` takes the ❓ and nothing else —
+ids are minted per scene, so an ordinary element that happens to share the
+id, here or on another artifact, is left standing.
+
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.
 

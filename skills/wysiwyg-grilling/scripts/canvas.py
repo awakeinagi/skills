@@ -2884,8 +2884,16 @@ def apply_ops(elements, ops, errors, pin_registry=None):
             # merely out of reach from here. `apply_batch` resolves those
             # against the pin's own scene before it commits (r5-17); what
             # reaches this branch afterwards is a genuinely absent glyph.
+            # Only a ❓ is ever taken. Ids are minted per scene, so the id
+            # this resolve names may belong to something else entirely
+            # here — and a batch that adds a node and then resolves a pin
+            # of that id deleted its own new shape, leaving the caption
+            # standing over nothing and the save record saying only that
+            # a label was added (WP1). The cross-artifact scan and the
+            # `here` guard that skips it are gated on this same role for
+            # this same reason; this is the arm they both feed.
             el = index.get(op.get("id"))
-            if el is not None:
+            if el is not None and role_of(el) == "pin":
                 els = [e for e in els if e["id"] != el["id"]]
                 index.pop(el["id"], None)
 
@@ -4908,9 +4916,16 @@ def intent_echo(ops, els):
                          % (i, eid, op.get("target"),
                             (op.get("question") or "")[:50], state))
         elif kind == "resolve_pin":
+            # absence from this scene is not evidence of a removal — the
+            # pin may live on another artifact, or the user may have
+            # deleted the ❓ by hand sessions ago. `_validate_batch`
+            # answers that where the pre-op scene and the other artifacts
+            # are in reach and marks the op; this line only reads it, so
+            # the echo and the record can no longer disagree about one op.
             eid = op.get("id")
-            glyph = "❓ glyph removed from canvas" if eid not in ix \
-                else "❓ glyph STILL on canvas"
+            glyph = "❓ glyph removed from canvas" if op.get("glyph_removed") \
+                else "❓ glyph STILL on canvas" if eid in ix \
+                else "❓ glyph was already gone"
             lines.append("op %d (resolve_pin): %s resolved (%s)"
                          % (i, eid, glyph))
         elif kind == "registry":
@@ -7857,6 +7872,7 @@ class Store:
             base_els = self.scenes.get(aid, [])
             known_pins = {p["id"] for p in self.registry["pins"]}
             scene_ids = {e["id"] for e in base_els}
+            minted = set()
             for i, o in enumerate(ops):
                 if o.get("op") == "resolve_pin" and \
                         o.get("id") not in known_pins and \
@@ -7865,6 +7881,25 @@ class Store:
                         "op %d (resolve_pin): unknown pin %r (known: %s)"
                         % (i, o.get("id"),
                            ", ".join(sorted(known_pins)) or "none"))
+                # a pin id is a name for ONE question, and nothing used to
+                # say so: the resolve write-through and the cross-artifact
+                # scan are both id-global, so a second `pin` op reusing a
+                # live id meant one answer closed two questions and took
+                # the unasked one's ❓ off the canvas uncounted. Reusing a
+                # RESOLVED id is the same wound from the other side — the
+                # write-through marks the new question resolved at birth,
+                # so it never reaches the open count while its ❓ stands.
+                # Hence every id the registry has ever filed, not just the
+                # open ones; an id spelled on some ordinary element is
+                # still free, because ids are minted per scene.
+                elif o.get("op") == "pin" and o.get("id"):
+                    if o["id"] in known_pins or o["id"] in minted:
+                        errors.append(
+                            "op %d (pin): pin id %r is already in use — one "
+                            "id names one question, and resolving it would "
+                            "close both. Pick another id, or omit `id` and "
+                            "one will be minted." % (i, o["id"]))
+                    minted.add(o["id"])
             pin_reg = []
             try:
                 new_els = apply_ops(base_els, ops, errors, pin_reg)
@@ -7879,6 +7914,34 @@ class Store:
             registry_ops = [o for o in ops if o.get("op") == "registry"]
             if errors:
                 raise BatchError(errors)
+
+            # Whether a resolve took a ❓ down is settled HERE and rides on
+            # the op, because `intent_echo` is handed a post-op scene and
+            # nothing else — and a glyph the user deleted last session is
+            # absent from that scene in exactly the way one this batch
+            # removed is. So the tolerant resolve, the one case where
+            # nothing was removed, was the case the echo called a removal,
+            # printed beside the record-derived note saying the opposite
+            # (WP1). This is the only place both halves of the answer are
+            # in reach: the PRE-op scene, and every other artifact for the
+            # cross-artifact deletion `apply_batch` is about to make (the
+            # `here` skip is mirrored, or a re-added ❓ would read as
+            # taken). Written for every resolve and never read from the
+            # caller — an agent that sent the key itself must not be able
+            # to script its own echo.
+            was_pin = {e["id"] for e in base_els if role_of(e) == "pin"}
+            standing = {e["id"] for e in new_els}
+            here = {e["id"] for e in new_els if role_of(e) == "pin"}
+            for o in ops:
+                if o.get("op") != "resolve_pin":
+                    continue
+                pid = o.get("id")
+                o["glyph_removed"] = bool(
+                    (pid in was_pin and pid not in standing) or
+                    (pid not in here and
+                     any(e["id"] == pid and role_of(e) == "pin"
+                         for a2, els2 in self.scenes.items() if a2 != aid
+                         for e in els2)))
 
             drawing_ops = [o for o in ops if o.get("op") in
                            ("add", "mod", "del", "reorder")]
