@@ -6674,6 +6674,48 @@ class TestReferentialIntegrity(Base):
         self.assertEqual(server.lint_debt(),
                          canvas.Store(self.project).lint_debt())
 
+    def test_the_debt_follows_the_branch_a_switch_lands_on(self):
+        """The same disagreement, reached without a commit (v0.9 Task 42).
+
+        Both freshness gates — `referential_now`'s merge and `lint_debt`'s
+        cache — used to key on `head_revn()`, reading head equality as
+        "the artifacts on disk are still the ones I read".
+        `switch_branch` rewrites every artifact from `state_at(b["head"])`
+        WITHOUT moving head, so a switch to a branch forked at this
+        revision and back restores the committed scene under an unchanged
+        revision number, and both gates went on describing the departed
+        picture.
+
+        The damage is applied to the FILE rather than committed, because
+        a commit moves the revn and every branch's head with it — a
+        sibling at the same head is the only arrangement where the number
+        can stay still while the bytes change, and it is the ordinary one
+        (two branches share a head until one of them commits).
+
+        Asserted as whole-debt equality against a fresh load of the same
+        disk, the r5-19 idiom, because it takes both halves of the fix:
+        an invalidated cache still merges a stale referential report, and
+        a dropped referential report still hides behind a stale cache.
+        """
+        head = self.seed()
+        self.store.registry["branches"].append(
+            {"name": "side", "head": head, "archived": False,
+             "forked_from": "main", "forked_at_revn": head})
+        self.store._save_registry()
+        path = self.project.artifacts_dir / "f.excalidraw"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc["elements"] = [e for e in doc["elements"]
+                           if e["id"] != "n2" and e.get("containerId") != "n2"]
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        server = canvas.Store(self.project)
+        self.assertTrue(server.lint_debt().get("registry"),
+                        "the damaged project must open with the pre-repair "
+                        "report — nothing is being measured otherwise")
+        server.switch_branch("side")
+        server.switch_branch("main")
+        self.assertEqual(server.lint_debt(),
+                         canvas.Store(self.project).lint_debt())
+
     def test_referential_findings_unit_directions(self):
         raw = {"a": [
             {"id": "n1", "type": "rectangle"},

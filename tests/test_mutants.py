@@ -3007,25 +3007,28 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a"])
         self.assertIn("ART-000", {i["code"] for i in st.issues})
 
-    @unittest.expectedFailure
     def test_red_a_branch_switch_leaves_the_load_report_standing(
             self) -> None:
-        """A repaired reference is still reported, because head did not move.
+        """A repaired reference was still reported, head having not moved.
 
-        `referential` is the PRE-REPAIR report, true of exactly the disk
-        state the store opened on, and `referential_now` merges it only
-        while `referential_revn == head_revn()`. That gate reads head
-        equality as "the artifacts on disk are still the ones I read",
-        and `switch_branch` breaks the implication: it rewrites every
-        artifact file from `state_at(b["head"])` WITHOUT moving head, so
-        the bytes under an unchanged revision number are new.
+        FLIPPED in v0.9 Task 42. `referential` is the PRE-REPAIR report,
+        true of exactly the disk state the store opened on, and
+        `referential_now` merged it while `referential_revn ==
+        head_revn()`. That gate read head equality as "the artifacts on
+        disk are still the ones I read", and `switch_branch` breaks the
+        implication: it rewrites every artifact file from
+        `state_at(b["head"])` WITHOUT moving head, so the bytes under an
+        unchanged revision number are new. Both gates now key on
+        `Store.state_stamp` — the head revn paired with a counter of
+        artifact rewrites, which is the thing "the disk still holds what
+        I read" actually depends on.
 
         Probed end to end. A project whose disk copy carries a dangling
         `endBinding` loads with the finding filed; a switch to a branch
         forked at the same revision and back rewrites the file from the
         committed state, where the binding is intact. Disk and memory
         then both read `endBinding: n2` — the GHOST exists nowhere — and
-        `referential_now` still reports "arrow t1 binds GHOST at its end
+        `referential_now` still reported "arrow t1 binds GHOST at its end
         point and that element no longer exists". That is r5-19's exact
         shape, an ERROR nagged for a reference already repaired, reached
         through a normal user flow rather than through a commit.

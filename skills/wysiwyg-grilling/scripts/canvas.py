@@ -6800,13 +6800,14 @@ class Store:
         self.checkout_revn = None     # detached checkout point (memory only)
         self.reconciliation = None    # last catch-up record revn
         self._dry_run = False         # inside _sandbox(): writers are no-ops
+        self.state_epoch = 0          # rewrites under a head; `state_stamp`
         # WP2 (report-and-repair): findings computed on the RAW disk
         # scenes before validate_scene repairs them, per-load and never
         # persisted — a persisted copy would go stale the moment a commit
         # fixes the reference. It goes stale IN MEMORY the same way, which
-        # is what `referential_revn` bounds; see `referential_now`.
+        # is what `referential_stamp` bounds; see `referential_now`.
         self.referential = {}
-        self.referential_revn = None  # head revn the report above describes
+        self.referential_stamp = None  # state stamp the report describes
         self.raw_hashes = {}          # {aid: scene_hash of the raw disk scene}
         self.scene_repairs = []       # load-time ART-* repairs, this load
         self.load()
@@ -6864,7 +6865,7 @@ class Store:
         self.artifact_meta = {}
         self.artifact_files = {}   # image blobs (fileId -> dataURL entry)
         self.referential = {}
-        self.referential_revn = None
+        self.referential_stamp = None
         self.raw_hashes = {}
         self.scene_repairs = []
         raw_scenes = {}
@@ -6929,7 +6930,7 @@ class Store:
         self.referential = referential_findings(raw_scenes, reg,
                                                 set(self.scenes.keys()),
                                                 raw_files)
-        self.referential_revn = self.head_revn()
+        self.referential_stamp = self.state_stamp()
         for scope, tiers in sorted(self.referential.items()):
             for tier, msgs in tiers.items():
                 for msg in msgs:
@@ -6958,6 +6959,34 @@ class Store:
 
     def head_revn(self):
         return self.head_branch()["head"]
+
+    def state_stamp(self):
+        """What "nothing has changed since I last looked" actually means.
+
+        The freshness gates below (`referential_now`'s merge, `lint_debt`'s
+        cache) were keyed on `head_revn()` alone, on the argument that past
+        head the artifact files were written by this store from these
+        scenes. That argument is about the WRITES; head was only standing
+        in for them, and `switch_branch` breaks the substitution — it
+        rewrites every artifact from `state_at(b["head"])` WITHOUT moving
+        head, so the bytes under an unchanged revision number are new. The
+        load-time referential report then survived a switch and went on
+        naming a reference the live branch had whole (r5-19's shape,
+        reached through a normal user flow rather than a commit), and the
+        debt cache went on serving the departed branch's scenes.
+
+        `state_epoch` counts those rewrites, which is the thing the
+        argument actually rests on, and a branch switch advances it once
+        more on its own account — the branch-scoped registry sections move
+        with the scenes and an empty branch writes no file at all. Both
+        halves are kept because neither sees all of the other's changes: a
+        registry-only commit moves the revn without rewriting a file.
+
+        Returns:
+            (head revn, `state_epoch`). Opaque — compare for equality,
+            never for order; the epoch counts writes, not revisions.
+        """
+        return (self.head_revn(), self.state_epoch)
 
     def artifact_type(self, aid):
         return (self.artifact_meta.get(aid) or {}).get("artifact_type", "flow")
@@ -7452,6 +7481,9 @@ class Store:
     def _write_artifact(self, aid, els, meta):
         """Persist one artifact's scene + meta, and refresh the caches.
 
+        This is the single writer of an artifact file, so it is also where
+        `state_epoch` advances — the stamp the freshness gates read.
+
         Args:
             aid: Artifact id (also the filename stem).
             els: The scene's elements, pre-normalization.
@@ -7480,6 +7512,7 @@ class Store:
         write_json(self.p.artifacts_dir / (aid + ".excalidraw"), doc)
         self.scenes[aid] = doc["elements"]
         self.artifact_meta[aid] = doc["wysiwyg"]
+        self.state_epoch += 1
 
     def _by_element(self, diff, facts, consequences, new_els, old_els):
         new_ix = {e["id"]: e for e in new_els}
@@ -8693,6 +8726,11 @@ class Store:
                 self.artifact_meta.pop(aid, None)
             self.registry["head"] = name
             self.checkout_revn = None
+            # a switch moves the world, not the head: two branches share a
+            # head revn until one of them commits, so the stamp must move
+            # here even when no artifact was written — an empty branch and
+            # the branch-scoped registry sections change under it too.
+            self.state_epoch += 1
             self._save_registry()
             return b
 
@@ -8830,9 +8868,14 @@ class Store:
 
         So the pass is re-run here on every cache miss against the CURRENT
         scenes, and the load-time set is merged in only while it still
-        describes the head revision. Past head the artifacts on disk were
-        written by this store from these scenes, so the live reading IS
-        the disk reading and the two surfaces agree again.
+        describes the state on disk. Once this store has rewritten those
+        artifacts they hold these scenes, so the live reading IS the disk
+        reading and the two surfaces agree again.
+
+        "Still describes the state on disk" was read as head equality
+        alone, which `switch_branch` fools by rewriting every artifact
+        without moving head — see `state_stamp`, which is what the two
+        sides are compared on now.
 
         Every arm travels together — bindings, `annotates`, `links_to`,
         both file arms and the registry mappings — because they come out
@@ -8847,7 +8890,7 @@ class Store:
             live = referential_findings(self.scenes, self.registry,
                                         set(self.scenes.keys()),
                                         self.artifact_files)
-            if self.referential_revn != self.head_revn():
+            if self.referential_stamp != self.state_stamp():
                 return live
             out = {scope: {tier: list(msgs) for tier, msgs in tiers.items()}
                    for scope, tiers in live.items()}
@@ -8865,11 +8908,12 @@ class Store:
     def lint_debt(self):
         """Standing cross-artifact lint summary (live_test_2 B5 — apply
         reports only the touched artifact, so drift elsewhere stayed
-        invisible). Cached per head revn; the standing-nag principle:
-        any invariant that can drift through a side channel must be
-        recomputed on every apply, not checked at write time."""
+        invisible). Cached per `state_stamp` — a head revn alone let a
+        branch switch serve the departed branch's debt; the standing-nag
+        principle: any invariant that can drift through a side channel
+        must be recomputed on every apply, not checked at write time."""
         with self.lock:
-            key = self.head_revn()
+            key = self.state_stamp()
             cached = getattr(self, "_lint_debt_cache", None)
             if cached and cached[0] == key:
                 return cached[1]
