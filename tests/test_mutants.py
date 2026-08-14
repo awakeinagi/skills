@@ -2104,7 +2104,7 @@ _FILEREF_ARTIFACT = json.dumps({
 
 
 def _repair_pack(count: int) -> str:
-    """Build one artifact whose load files `count` ART-011 repairs.
+    """Build one artifact whose load files `count` label refits.
 
     The `/api/state` cap is a flat `issues[-20:]`, so nothing below 21
     issues can demonstrate an eviction at all — the flood has to be a
@@ -2119,7 +2119,8 @@ def _repair_pack(count: int) -> str:
 
     Returns:
         A serialized artifact document filing exactly `count` ART-011
-        repairs at load.
+        refits at load, each paired with the ART-012 confession its
+        container resize now files (v0.9 WP4) — `2 * count` issues.
     """
     els: list[dict[str, Any]] = []
     for i in range(count):
@@ -2426,7 +2427,7 @@ class TestStoreIntegrity(unittest.TestCase):
         claims to bind n1 … ends 60px inside the shape — re-route it",
         blaming the user's arrow for a move the loader made, and nothing
         in `issues` said the loader had resized anything with arrows on
-        it. `reroute_after_resize` now does both halves, so this asserts
+        it. `reroute_and_confess` now does both halves, so this asserts
         both: no endpoint finding survives the load, and the loader says
         out loud which shape it resized and which arrow it re-routed.
 
@@ -3749,20 +3750,28 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
             ["ART-000", "SAV-001"])
 
     def test_the_evicting_project_files_its_quarantine_first(self) -> None:
-        """The eviction red's premise: 21 issues, the drop at the front.
+        """The eviction red's premise: 41 issues, the drop at the front.
 
         Its error-red guard, ungated. That red asserts over what the cap
-        SERVES, so a fixture that stopped producing twenty repairs — a
-        moved ART-011 threshold, a rewritten refit — would leave the
-        quarantine inside the last twenty and flip the red green while
-        the endpoint stayed exactly as broken. This pins the arithmetic
-        instead: the drop is issue zero, twenty repairs follow it, and
-        21 is one more than the cap.
+        SERVES, so a fixture that stopped producing repairs — a moved
+        ART-011 threshold, a rewritten refit — would leave the quarantine
+        inside the last twenty and flip the red green while the endpoint
+        stayed exactly as broken. This pins the arithmetic instead: the
+        drop is issue zero, forty repairs follow it, and the total is
+        twice the cap plus one.
+
+        Forty, not twenty, since v0.9 WP4: each refit resizes its
+        container, and a load-time resize now confesses (ART-012) whether
+        or not an arrow rode on it. `_repair_pack` carries no arrows
+        deliberately, so those confessions all read "no arrow was bound
+        to it" — the pairing is what makes the count a checkable
+        consequence of the pack size rather than a magic number.
         """
         root = _scratch_project(self, {"a": "[]", "b": _repair_pack(20)},
                                 {"0001-x": _GOOD_SAVE})
         codes = [i["code"] for i in canvas.Store(canvas.Project(root)).issues]
-        self.assertEqual(codes, ["ART-000"] + ["ART-011"] * 20)
+        self.assertEqual(codes, ["ART-000"] + ["ART-011", "ART-012"] * 20)
+        self.assertGreater(len(codes), 20, "nothing is evicted below 21")
         self.assertEqual(sorted(canvas.Store(canvas.Project(root)).scenes),
                          ["b"])
 

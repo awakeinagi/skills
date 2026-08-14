@@ -1688,9 +1688,10 @@ class TestLoadRepairRerouteAndConfess(Base):
         before = json.loads(json.dumps(untouched))
         doc, issues = canvas.validate_scene(
             self.oversized([untouched]), "a")
-        self.assertEqual([i.code for i in issues], ["ART-011"],
-                         "nothing was resized-with-arrows, so nothing to "
-                         "confess")
+        # n1 was resized, so the confession fires — but it must say that
+        # nothing rode on n1, and a2 must come out byte-identical
+        self.assertEqual([i.code for i in issues], ["ART-011", "ART-012"])
+        self.assertIn("no arrow was bound to it", issues[1].msg)
         after = next(e for e in doc["elements"] if e["id"] == "a2")
         self.assertEqual(after, before)
 
@@ -1734,6 +1735,55 @@ class TestLoadRepairRerouteAndConfess(Base):
         self.assertTrue(issues[1].repaired)
         self.assertIn("resized n1 (120x60 to 120x136)", issues[1].msg)
         self.assertIn("re-routed a1", issues[1].msg)
+
+    def test_a_refit_that_resizes_nothing_confesses_nothing(self):
+        # The silent pole of the confession rule (fix round 1, F1). The
+        # rule is "every resize is confessed", NOT "every refit is" — so
+        # a box already tall enough to hold the wrapped label gets its
+        # label narrowed and nothing else, and ART-012 must stay quiet.
+        # Without this pole, filing the confession unconditionally would
+        # pass the resize-with-no-arrows test and tell the agent a shape
+        # had moved when it had not.
+        doc = self.oversized([])
+        tall = next(e for e in doc["elements"] if e["id"] == "n1")
+        tall["height"] = 200          # already deeper than the 136 refit
+        _, issues = canvas.validate_scene(doc, "a")
+        self.assertEqual([i.code for i in issues], ["ART-011"])
+        self.assertEqual(tall["height"], 200, "the box was not resized")
+
+    def test_a_declined_refit_leaves_the_label_where_it_was_drawn(self):
+        # Both directions of the no-op guard's second effect (fix round
+        # 1, F3). Skipping the repair also skips the re-centering under
+        # it, deliberately: geometry nobody needed to move is geometry
+        # the loader has no business moving.
+        #
+        # DECLINED — the tearsheet's own shape, a 153px label in a 160px
+        # box, which `fit_label_in` refuses to improve. It trips the
+        # trigger (153 > 160-16), so the repair path IS entered; the
+        # label must come out at the position and size it went in with.
+        drawn = {"type": "excalidraw", "version": 2, "elements": [
+            {"id": "c", "type": "rectangle", "x": 0, "y": 0, "width": 160,
+             "height": 64, "customData": {"role": "node"},
+             "boundElements": [{"id": "c-t", "type": "text"}]},
+            {"id": "c-t", "type": "text", "x": 10, "y": 30, "width": 153,
+             "height": 20, "text": "Pull market data",
+             "originalText": "Pull market data", "fontSize": 16,
+             "containerId": "c", "textAlign": "center"}]}
+        doc, issues = canvas.validate_scene(drawn, "a")
+        self.assertEqual([i.code for i in issues], [])
+        lbl = next(e for e in doc["elements"] if e["id"] == "c-t")
+        # (4, 22) is where the centring under the repair would have put
+        # it, so this position is chosen to tell the two apart
+        self.assertEqual((lbl["x"], lbl["y"], lbl["width"], lbl["height"]),
+                         (10, 30, 153, 20))
+        # ACCEPTED — the same path when the fitter does act still centres
+        # the label in the box it just grew, which is what makes the skip
+        # above a decision rather than a hole.
+        doc2, issues2 = canvas.validate_scene(self.oversized([]), "a")
+        self.assertEqual([i.code for i in issues2], ["ART-011", "ART-012"])
+        t1 = next(e for e in doc2["elements"] if e["id"] == "t1")
+        self.assertEqual((t1["x"], t1["y"], t1["width"], t1["height"]),
+                         (12, 8, 96, 120))
 
     def test_the_reroute_persists_instead_of_recurring(self):
         # The re-route is itself a load-time geometry change, which is
@@ -7385,13 +7435,13 @@ class TestReferentialIntegrity(Base):
                           base_revn=self.store.head_revn())
         store2 = canvas.Store(self.project)
         self.assertEqual([i["code"] for i in store2.scene_repairs],
-                         ["ART-011"])
+                         ["ART-011", "ART-012"])
         rec = store2.catch_up()
         self.assertIsNotNone(rec)
         self.assertEqual(rec["author"], "out-of-session")
         self.assertTrue(rec.get("reconciliation"))
-        self.assertEqual(len(rec.get("repairs") or []), 1)
-        self.assertIn("load-time repair: ART-011 ×1",
+        self.assertEqual(len(rec.get("repairs") or []), 2)
+        self.assertIn("load-time repair: ART-011 ×1, ART-012 ×1",
                       rec["summary"]["headline"])
         self.assertIn("no outside edits", rec["summary"]["headline"])
         store3 = canvas.Store(self.project)

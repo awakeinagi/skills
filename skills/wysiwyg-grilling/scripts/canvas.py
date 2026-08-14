@@ -609,9 +609,15 @@ def validate_scene(doc, artifact_id):
                 # better in this shape than the label as written, and
                 # the honest remedy is a wider node — which is what
                 # `lint_layout` already asks for. Filing a repair here
-                # claimed work that left nothing to persist, so the two
-                # tearsheet labels re-reported the same repair on every
-                # load, forever.
+                # claimed work that left nothing to persist, so five
+                # labels across three recorded projects re-reported the
+                # same repair on every load, forever.
+                #
+                # The `continue` also skips the re-centering below, and
+                # that is the point rather than a side effect: geometry
+                # nobody needed to move is geometry the loader has no
+                # business moving. A declined refit leaves the label
+                # exactly where it was drawn.
                 continue
             el["x"] = cont["x"] + max(
                 (cont.get("width", 0) - el.get("width", 0)) / 2, 4)
@@ -622,8 +628,8 @@ def validate_scene(doc, artifact_id):
                 "refit to wrap inside it" % (artifact_id, el["id"]),
                 "", True))
             if (cont.get("width", 0), cont.get("height", 0)) != was[2:]:
-                issues += reroute_after_resize(kept, cont, was[2:],
-                                               artifact_id)
+                issues += reroute_and_confess(kept, cont, was[2:],
+                                              artifact_id)
     doc["elements"] = kept
     return doc, issues
 
@@ -2379,8 +2385,8 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
         node["boundElements"] = bl
 
 
-def reroute_after_resize(els, node, before, artifact_id):
-    """Re-route the arrows bound to a shape a load-time repair resized.
+def reroute_and_confess(els, node, before, artifact_id):
+    """Own a resize a load-time repair made: re-route, then say so.
 
     A repair that grows a container moves its border out from under
     every endpoint sitting on that border, and the endpoint stays where
@@ -2391,6 +2397,15 @@ def reroute_after_resize(els, node, before, artifact_id):
     repair re-routes what it displaced and says so out loud. A load that
     changes geometry and stays quiet about it is the one thing this
     loader may never do.
+
+    Which is why the ART-012 issue is filed for EVERY resize, including
+    one that displaced no arrow at all. The first cut returned nothing
+    when the shape carried no bindings, and that made the docstring
+    above a lie in the commonest case: a note-less box growing 76px
+    taller is still a shape the user did not draw that way, and the
+    hint's "say so if you narrate this artifact" is exactly the sentence
+    that was being withheld. Re-routing is what this does when there is
+    something to re-route; confessing is what it is FOR.
 
     Arrows whose geometry is not the server's — hand-authored waypoints,
     bent unmarked paths (`server_owns_geometry`) — are left exactly as
@@ -2407,15 +2422,14 @@ def reroute_after_resize(els, node, before, artifact_id):
         artifact_id: Artifact the scene belongs to, named in the message.
 
     Returns:
-        `[Issue]` — one ART-012 naming the resize and what became of
-        each bound arrow, or `[]` when no arrow was bound to `node`.
+        `[Issue]` — always exactly one ART-012, naming the resize and
+        what became of each bound arrow. Callers gate on whether the box
+        actually changed; this does not second-guess that.
     """
     index = {e["id"]: e for e in els}
     bound = [e for e in els if e.get("type") == "arrow" and node["id"] in (
         (e.get("startBinding") or {}).get("elementId"),
         (e.get("endBinding") or {}).get("elementId"))]
-    if not bound:
-        return []
     obstacles = [e for e in els
                  if e.get("type") in ("rectangle", "diamond", "ellipse")
                  and role_of(e) not in ("label", "pin", "decoration",
@@ -2436,18 +2450,22 @@ def reroute_after_resize(els, node, before, artifact_id):
                                   and len(t.get("points") or []) >= 2])
         recenter_label(els, arrow)
         moved.append(arrow["id"])
-    did = ("re-routed %s" % ", ".join(sorted(moved)) if moved
-           else "re-routed nothing")
+    if moved:
+        did = "re-routed %s" % ", ".join(sorted(moved))
+    elif kept_as_drawn:
+        did = "re-routed nothing"
+    else:
+        did = "no arrow was bound to it"
     if kept_as_drawn:
         did += "; left %s as drawn" % ", ".join(sorted(kept_as_drawn))
     return [Issue(
         "ART-012", "%s: the label refit resized %s (%gx%g to %gx%g) — %s"
         % (artifact_id, node["id"], before[0], before[1],
            node.get("width", 0), node.get("height", 0), did),
-        "The loader moved this shape's border, so the endpoints on it "
-        "were the loader's to fix. %s is taller or wider than the user "
-        "last drew it — say so if you narrate this artifact.%s"
-        % (node["id"],
+        "%s%s is taller or wider than the user last drew it — say so if "
+        "you narrate this artifact.%s"
+        % ("The loader moved this shape's border, so the endpoints on it "
+           "were the loader's to fix. " if bound else "", node["id"],
            " The arrows left as drawn carry the user's own geometry; any "
            "endpoint finding on them is theirs to judge, not this "
            "repair's residue." if kept_as_drawn else ""),
