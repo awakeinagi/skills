@@ -8349,17 +8349,141 @@ class TestCrossesThroughRun(Base):
                           if "inside it" in e],
                          lint["errors"] + lint["warnings"])
 
-    def test_boundary_running_approach_stays_quiet(self):
-        """The r4-1 over-fire regression: an approach ALONG the border
-        accumulates no strictly-interior run."""
+    def test_boundary_running_approach_is_named_not_excused(self):
+        """The v0.8 silence, deliberately reversed by r5-5.
+
+        v0.8 pinned this scene SILENT: the strictly-interior walk (1px in
+        from the border) was chosen so that fanned attach points and
+        approaches lying along the border both scored zero, and this test
+        guarded the second half of that. Round 5 looked at the picture
+        and called that half a blind spot, not a tolerance — a 60px run
+        drawn flat along a box's own top edge merges into the outline and
+        reads as a line through the box, whichever end of the arrow it
+        belongs to (`r5-5`).
+
+        So the scene is unchanged and the verdict is inverted. What is
+        NOT reversed is the other half: `test_perpendicular_border_entry_
+        stays_quiet` above still pins the fan attach points silent, and
+        that is the pole this change had to leave alone.
+        """
         els = self._flow_with(
             [[0, 0], [0, 92], [60, 92]], ax=444, ay=384)
         lint = canvas.project_lint(
             self.project, els, registry=self.store.registry,
             artifact_type="flow", aid="t")
+        hits = [e for e in lint["errors"] + lint["warnings"]
+                if "runs 60px inside it" in e and "border" in e]
+        self.assertEqual(len(hits), 1,
+                         lint["errors"] + lint["warnings"])
+
+
+class TestBorderCollinearExit(Base):
+    """r5-5: an edge must not be drawn along the box it leaves.
+
+    The round-5 picture: an arrow leaves its source's right-edge midpoint
+    and, instead of stepping away, runs straight DOWN the border to the
+    corner and beyond. Half the source's right edge is then arrow and box
+    at once, and a reader sees a line passing through the box. Both
+    halves are here — the router must not produce the path, and the lint
+    must name it when hand-built geometry does.
+    """
+
+    def _pair(self, dst_y):
+        """Two 160x64 boxes, the destination's left face flush with the
+        source's right face and `dst_y` below it."""
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        dst = {"id": "d", "type": "rectangle", "x": 160, "y": dst_y,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        return src, dst
+
+    def _abs_points(self, arrow):
+        """The arrow's points in scene coordinates."""
+        return [(arrow["x"] + p[0], arrow["y"] + p[1])
+                for p in arrow["points"]]
+
+    def _scene(self, points, ax, ay):
+        """One 160x64 box and a hand-shaped arrow leaving it."""
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        far = {"id": "f", "type": "rectangle", "x": 400, "y": 300,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": "arrow", "x": ax, "y": ay,
+                 "points": points,
+                 "startBinding": {"elementId": "s", "focus": 0, "gap": 6},
+                 "endBinding": {"elementId": "f", "focus": 0, "gap": 6},
+                 "customData": {"role": "edge", "route": "server"}}
+        return [src, far, arrow]
+
+    def test_exit_along_its_own_border_is_named(self):
+        """The r5-5 geometry: 32px of arrow drawn on the source's edge.
+
+        The arrow starts at (160, 32) — the right edge's midpoint — and
+        drops to (160, 124). The first 32px of that drop are the border
+        itself, from the midpoint to the bottom-right corner. Every
+        strictly-interior measure scores it zero, because no part of the
+        run is ever a pixel inside the box.
+        """
+        els = self._scene([[0, 0], [0, 92], [240, 300]], ax=160, ay=32)
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        hits = [e for e in lint["errors"] + lint["warnings"]
+                if "runs 32px inside it" in e and "border" in e]
+        self.assertEqual(len(hits), 1,
+                         lint["errors"] + lint["warnings"])
+
+    def test_perpendicular_exit_stays_silent(self):
+        """The other pole: the same arrow, stepping off the edge first.
+
+        One variable moves — the exit runs AWAY from the border for 24px
+        before turning down — and the finding goes. Without this the
+        check could fire on every arrow bound to anything.
+        """
+        els = self._scene([[0, 0], [24, 0], [24, 92], [264, 300]],
+                          ax=160, ay=32)
+        lint = canvas.lint_layout(els, artifact_type="flow")
         self.assertFalse([e for e in lint["errors"] + lint["warnings"]
                           if "inside it" in e],
                          lint["errors"] + lint["warnings"])
+
+    def test_router_will_not_exit_along_the_source_border(self):
+        """The producing half: this pair used to route flat down the edge.
+
+        `_route_candidates` offers a Z-detour whose middle leg slides
+        past an obstacle at `(hx + ex) / 2`; when the destination's left
+        face is flush with the source's right face those two are the same
+        x, the detour collapses to a straight two-point drop, and being
+        the shortest and least bent candidate it wins every time.
+        """
+        src, dst = self._pair(92)
+        arrow = {"id": "a", "type": "arrow"}
+        canvas.route_arrow(arrow, src, dst)
+        pts = self._abs_points(arrow)
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            for box in (src, dst):
+                bx2 = box["x"] + box["width"]
+                by2 = box["y"] + box["height"]
+                flat = (abs(x1 - x2) < 0.5 and
+                        min(abs(x1 - box["x"]), abs(x1 - bx2)) < 0.5 and
+                        min(max(y1, y2), by2) - max(min(y1, y2),
+                                                    box["y"]) > 8)
+                self.assertFalse(
+                    flat, "segment %r runs along %s's border in %r"
+                          % (((x1, y1), (x2, y2)), box["id"], pts))
+
+    def test_router_still_takes_the_short_path_when_it_is_clean(self):
+        """The silent half: an ordinary offset pair keeps its L-elbow.
+
+        The border filter drops candidates; a filter that dropped too
+        many would push every pair onto a longer detour and this is what
+        would notice.
+        """
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 160, "height": 60}
+        dst = {"id": "d", "type": "rectangle", "x": 400, "y": 300,
+               "width": 160, "height": 60}
+        arrow = {"id": "a", "type": "arrow"}
+        canvas.route_arrow(arrow, src, dst)
+        self.assertEqual(len(arrow["points"]), 3)
 
 
 def _box_anchor(el, other_cx, other_cy):

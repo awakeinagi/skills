@@ -239,6 +239,76 @@ def _delta_components(w: int, h: int,
     return [c for c in components(w, h, mask) if c["area"] >= MIN_BLOB]
 
 
+def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Do two pieces of one connector's ink read as a stroke with a gap?
+
+    `ablation_continuity` fires when a connector's delta comes apart, and
+    the plain component count cannot tell the two cases apart. A label
+    backdrop parked mid-way along a STRAIGHT run breaks the ink too, and
+    that break is the tool's own idiom — the client breaks the arrow
+    behind every bound label and `render_svg` paints the ground back in
+    to match (`arrow_label_anchor`). What makes it readable is that the
+    two stubs are collinear across the gap: the eye continues one into
+    the other. Parked on the ELBOW instead, the same backdrop leaves a
+    horizontal stub and a vertical one pointing nowhere near each other,
+    and that is r5-14 — a connector that reads as two disconnected
+    pieces.
+
+    So the test is collinearity, not proximity: the pieces must be
+    SEPARATED along one axis and OVERLAP on the other. Overlap of one
+    row is enough and is deliberate — the claim is that the two runs
+    share a band, not that the band is any particular thickness, and a
+    threshold in stroke-widths would move with the build's
+    anti-aliasing. Measured on the scenes below, the mid-run pair
+    overlaps by 2 rows and the elbow pair misses by 11.
+
+    Args:
+        a: One component, with an inclusive `bbox` of `(x0, y0, x1, y1)`.
+        b: The other component, same shape.
+
+    Returns:
+        True if a reader completes the two into one stroke.
+    """
+    ax0, ay0, ax1, ay1 = a["bbox"]
+    bx0, by0, bx1, by1 = b["bbox"]
+    for (u0, u1, v0, v1), (w0, w1, z0, z1) in (
+            ((ax0, ax1, ay0, ay1), (bx0, bx1, by0, by1)),
+            ((ay0, ay1, ax0, ax1), (by0, by1, bx0, bx1))):
+        if max(u0, w0) > min(u1, w1) and max(v0, z0) <= min(v1, z1):
+            return True
+    return False
+
+
+def _reader_strokes(parts: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Group a delta's components into the strokes a reader counts.
+
+    `_delta_components` already merges the scraps one run comes apart
+    into; this merges the runs a backdrop broke but did not sever, so
+    the group count is "how many disconnected pieces does this connector
+    read as".
+
+    Args:
+        parts: The merged components, in any order.
+
+    Returns:
+        The groups, each a non-empty list of the components in it.
+    """
+    groups = [[p] for p in parts]
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(groups)):
+            for j in range(i + 1, len(groups)):
+                if any(_completed_by_eye(x, y)
+                       for x in groups[i] for y in groups[j]):
+                    groups[i] = groups[i] + groups.pop(j)
+                    merged = True
+                    break
+            if merged:
+                break
+    return groups
+
+
 def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
                       workdir: str) -> list[dict]:
     """Findings from ablating each named element out of the picture.
@@ -272,7 +342,9 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
         Findings shaped like `test_mutants.collect_findings` output:
         `{"check", "element", "magnitude", "direction", "raw"}`.
         `ablation_existence` carries magnitude 0.0 (the pixels it changed);
-        `ablation_continuity` carries the component count.
+        `ablation_continuity` carries the count of pieces the connector
+        READS as — components a reader completes across a gap are one
+        piece, per `_completed_by_eye`.
     """
     full = _shot(elements, workdir)
     w, h, _pix = read_png_gray(full)
@@ -286,29 +358,45 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
                 "raw": "removing %s changed no pixels — it is in the "
                        "model but not in the picture" % eid})
             continue
-        parts = _delta_components(w, h, blobs)
-        if len(parts) >= 2:
+        strokes = _reader_strokes(_delta_components(w, h, blobs))
+        if len(strokes) >= 2:
             findings.append({
                 "check": "ablation_continuity", "element": eid,
-                "magnitude": float(len(parts)), "direction": None,
+                "magnitude": float(len(strokes)), "direction": None,
                 "raw": "%s's ink comes apart in %d separated pieces %s — "
                        "something drawn over it severs the run"
-                       % (eid, len(parts), [c["bbox"] for c in parts])})
+                       % (eid, len(strokes),
+                          [c["bbox"] for g in strokes for c in g])})
     return findings
 
 
-def _elbow_with_label(label_on_corner: bool) -> list[dict]:
+def _elbow_with_label(where: str) -> list[dict]:
     """Two rects joined by an elbowed arrow carrying a bound edge label.
 
     The arrow runs right from `s1` to (360, 100), turns, and drops into
-    `s2`'s top edge. `label_on_corner` decides where the label's opaque
-    backdrop lands: centred on that turn, or clear of the stroke above the
-    horizontal run. Everything else about the two scenes is identical, so
-    a difference in the ablation delta is a difference the label made.
+    `s2`'s top edge. A SHORT elbow on purpose: the 280px path puts its
+    arc-length midpoint 20px from the turn, well inside a 60px label, so
+    the product's own placement rule lands the backdrop on the corner.
+
+    `where` decides what that backdrop covers, and nothing else about the
+    four scenes differs — so a difference in the ablation delta is a
+    difference the label's position made:
+
+    - `"corner"` — parked over the turn by hand. r5-14's picture: the
+      backdrop erases the elbow and both approaches.
+    - `"run"` — parked mid-way along the horizontal run by hand. The
+      backdrop breaks the ink here too, but collinearly, which is the
+      legitimate bound-label idiom rather than a defect.
+    - `"beside"` — clear of the stroke, above the horizontal run. The
+      backdrop touches no ink at all.
+    - `"routed"` — placed by `canvas.recenter_label`, i.e. by the
+      product. The only variant that measures where the server actually
+      puts a label rather than where this file does.
 
     Args:
-        label_on_corner: True to park the label box over the (160, 0)
-            corner; False to park it beside the run instead.
+        where: One of `"corner"`, `"run"`, `"beside"` or `"routed"`.
+            Anything else is a `KeyError` from the table below rather
+            than a scene with a silently defaulted label.
 
     Returns:
         The four-element scene: rects `s1`/`s2`, arrow `a1`, label `t1`.
@@ -322,12 +410,16 @@ def _elbow_with_label(label_on_corner: bool) -> list[dict]:
              startBinding={"elementId": "s1", "focus": 0, "gap": 1},
              endBinding={"elementId": "s2", "focus": 0, "gap": 1},
              customData={"role": "edge"})
-    lx, ly = (330, 90) if label_on_corner else (250, 60)
+    lx, ly = {"corner": (330, 90), "run": (250, 90), "beside": (250, 60),
+              "routed": (-999, -999)}[where]
     lbl = el(id="t1", type="text", x=lx, y=ly, width=60, height=20,
              text="then", fontSize=16, fontFamily=1, textAlign="center",
              verticalAlign="middle", containerId="a1", originalText="then")
     arr["boundElements"] = [{"id": "t1", "type": "text"}]
-    return [src, dst, arr, lbl]
+    scene = [src, dst, arr, lbl]
+    if where == "routed":
+        canvas.recenter_label(scene, arr)
+    return scene
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
@@ -448,13 +540,38 @@ class TestRenderMutants(unittest.TestCase):
 
     def test_ablation_continuity_neighbour_is_silent(self) -> None:
         """A label beside the arrow leaves the connector's delta whole."""
-        scene = _elbow_with_label(label_on_corner=False)
+        scene = _elbow_with_label("beside")
         finds = ablation_findings(scene, ["a1"], self.workdir)
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_continuity"], [])
         # An empty delta would satisfy that assertion too, so pin that the
         # arrow really did leave the picture: existence stays silent only
         # when ablating it changed pixels.
+        self.assertEqual([f for f in finds
+                          if f["check"] == "ablation_existence"], [])
+
+    def test_neighbour_a_label_on_a_straight_run_is_silent(self) -> None:
+        """The bound-label idiom: a backdrop mid-run is not a severed run.
+
+        The third pole of the r5-14 family, and the one that keeps the
+        exemption honest. `beside` above is silent because the backdrop
+        touches no ink; this scene's backdrop breaks the stroke exactly
+        as the elbow scene's does — same label, same size, same arrow,
+        moved 80px along the horizontal run — and it is still not a
+        defect, because the two stubs are collinear across the gap and
+        the eye completes them. Without `_completed_by_eye` this scene
+        fires, which is `ablation_continuity` reporting the tool's own
+        idiom (the client breaks every arrow behind its bound label) as
+        a broken drawing.
+
+        Written in the same change as the exemption on purpose: an
+        exemption whose only witness is the mutant it silences is
+        indistinguishable from switching the detector off.
+        """
+        scene = _elbow_with_label("run")
+        finds = ablation_findings(scene, ["a1"], self.workdir)
+        self.assertEqual([f for f in finds
+                          if f["check"] == "ablation_continuity"], [])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_existence"], [])
 
@@ -465,12 +582,46 @@ class TestRenderMutants(unittest.TestCase):
         is painted over the corner, so the arrow's ink arrives from the
         left, stops, and resumes below — two components where the model
         holds one connector.
+
+        Held apart from the mid-run scene above by geometry, not by a
+        magnitude: both break the ink in two, and only this one leaves
+        the pieces pointing nowhere near each other. Measured, the
+        horizontal stub ends at raster y 60 and the vertical stub starts
+        at 72.
         """
-        scene = _elbow_with_label(label_on_corner=True)
+        scene = _elbow_with_label("corner")
         finds = ablation_findings(scene, ["a1"], self.workdir)
         severed = [f for f in finds if f["check"] == "ablation_continuity"]
         self.assertEqual([f["element"] for f in severed], ["a1"])
         self.assertGreaterEqual(severed[0]["magnitude"], 2.0)
+
+    def test_the_product_keeps_its_own_label_off_the_elbow(self) -> None:
+        """r5-14 itself: where `recenter_label` puts a short elbow's label.
+
+        Every scene above places the label by hand, so all three pin the
+        DETECTOR and none of them pins the product. This one asks the
+        question r5-14 actually asked — six labels across three shipped
+        artifacts landed on their own corner — by handing the scene to
+        `canvas.recenter_label` and rendering whatever comes back.
+
+        Before the fix the anchor is the path's arc-length midpoint, 20px
+        from the turn, and the backdrop swallows the elbow: this is the
+        `corner` scene reproduced by the product rather than by the test,
+        and it fails here. After it, the anchor slides along the longest
+        segment until the corner is clear of the label's own box, and the
+        break lands mid-run where it reads as continuous.
+
+        The assertion is on PIXELS and not on the stored anchor
+        deliberately. r5-14's stored path was provably correct while the
+        picture was severed, so a test that read `label["x"]` back would
+        have agreed with the drawing that was wrong.
+        """
+        scene = _elbow_with_label("routed")
+        finds = ablation_findings(scene, ["a1"], self.workdir)
+        self.assertEqual([f for f in finds
+                          if f["check"] == "ablation_continuity"], [])
+        self.assertEqual([f for f in finds
+                          if f["check"] == "ablation_existence"], [])
 
 
 # ---------------------------------------------------------------------------

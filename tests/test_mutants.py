@@ -8763,13 +8763,22 @@ class TestCoverage(unittest.TestCase):
         (`diamond_label_overflows_shape`) in the same change, which is
         the outcome this pin exists to insist on rather than the drift
         it exists to catch.
+
+        46 -> 47 on 2026-08-14 (v0.9 WP4, task 19): a THIRD tier on the
+        crosses-through template, for a run drawn flat along the bound
+        node's own border (`r5-5`). No new row here either, and for a
+        different reason than above — this is not a new template but a
+        new channel for one `DETECTORS` already covers by `lint_re`, and
+        the regex matches both wordings, which
+        `TestBorderCollinearExit` in tests/test_backend.py proves from
+        both poles.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 46,
+        self.assertEqual(sites, 47,
                          "canvas.py lint_layout append-site count changed "
-                         "(46 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(47 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

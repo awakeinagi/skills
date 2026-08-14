@@ -2253,10 +2253,36 @@ def _route_candidates(src, dst):
     def interior(p, x1, y1, x2, y2):
         return x1 + 1 < p[0] < x2 - 1 and y1 + 1 < p[1] < y2 - 1
 
-    routed = [path for path in out
-              if not any(interior(p, sx1, sy1, sx2, sy2) or
-                         interior(p, dx1, dy1, dx2, dy2)
-                         for p in path[1:-1])]
+    # ...and a candidate whose SEGMENT lies flat along an endpoint box's
+    # own border draws the arrow and the outline on the same pixels, so
+    # half the border reads as connector and the arrow reads as passing
+    # through the box (v0.9 round 5, r5-5). The Z-detours are how it
+    # happens: their middle leg slides to `(hx + ex) / 2`, and when the
+    # destination's near face is flush with the source's exit face those
+    # two are the same coordinate, the detour collapses to a straight
+    # drop down the border, and being both the shortest and the least
+    # bent candidate it wins outright. A point ON the border is fine —
+    # every endpoint is one; what is refused is TRAVELLING along it.
+    def flat_on_border(p, q, x1, y1, x2, y2):
+        if abs(p[0] - q[0]) <= 0.5 and min(abs(p[0] - x1),
+                                           abs(p[0] - x2)) <= 0.5:
+            lo, hi = sorted((p[1], q[1]))
+            return min(hi, y2) - max(lo, y1) > 8
+        if abs(p[1] - q[1]) <= 0.5 and min(abs(p[1] - y1),
+                                           abs(p[1] - y2)) <= 0.5:
+            lo, hi = sorted((p[0], q[0]))
+            return min(hi, x2) - max(lo, x1) > 8
+        return False
+
+    def clean(path):
+        return (not any(interior(p, sx1, sy1, sx2, sy2) or
+                        interior(p, dx1, dy1, dx2, dy2)
+                        for p in path[1:-1]) and
+                not any(flat_on_border(p, q, sx1, sy1, sx2, sy2) or
+                        flat_on_border(p, q, dx1, dy1, dx2, dy2)
+                        for p, q in zip(path, path[1:])))
+
+    routed = [path for path in out if clean(path)]
     return routed or out
 
 
@@ -2725,6 +2751,78 @@ def index_fault(value, limit=None):
     return None
 
 
+# How much clear stroke a label's backdrop must leave between its own
+# edge and the nearest turn, in px. The backdrop `render_svg` paints is
+# the label's box plus 4px each side, so this is that padding with a
+# little room for the client's own break to be wider than ours.
+LABEL_CORNER_PAD = 8.0
+
+
+def _label_off_corner(arrow, label, segs, mx, my):
+    """Slide a label's anchor until no turn sits under its own box.
+
+    The arc-length midpoint is the right anchor and stays the answer
+    almost everywhere (see `arrow_label_anchor`); on a SHORT elbow it is
+    also, by arithmetic, close to the turn. The label's backdrop then
+    covers the corner and both approaches to it, and the connector reads
+    as two stubs pointing nowhere near each other — six labels across
+    three shipped artifacts in the v0.9 round-5 assessment (`r5-14`),
+    worst on a self-loop, whose stored path was provably correct the
+    whole time.
+
+    The break itself is not the defect and cannot be removed: the client
+    breaks every arrow behind its bound label. What this moves is WHERE
+    the break lands. On a straight run the two stubs are collinear and
+    the eye completes them; on a corner they are not. So the rule is to
+    keep the corner OUT of the label's box, sliding along the longest
+    segment the label fits on, and no further than that segment's own
+    ends require — the anchor stays as close to the arc midpoint as the
+    clearance allows, because the client will re-centre the drawn label
+    there and the two positions must not diverge more than they have to
+    (the v0.5 R2-8 failure was exactly an anchor rule that diverged from
+    the client's without bound).
+
+    A path with no segment long enough to hold the label keeps the arc
+    midpoint: there is nowhere better to put it, and inventing an
+    off-stroke position is the perpendicular lift v0.6 removed.
+
+    Args:
+        arrow: The arrow/line element, read for `x`/`y`.
+        label: The bound text element, read for `width`/`height`.
+        segs: `[(from_point, to_point, length)]` in the arrow's own
+            coordinates, as `arrow_label_anchor` builds them.
+        mx: The arc-length midpoint's x, in scene coordinates.
+        my: The arc-length midpoint's y.
+
+    Returns:
+        `(x, y)` for the label's CENTRE — the midpoint unchanged when no
+        turn sits under the label, else the slid anchor.
+    """
+    ax, ay = arrow.get("x", 0), arrow.get("y", 0)
+    hw = label.get("width", 0) / 2.0
+    hh = label.get("height", 0) / 2.0
+    # interior vertices only: an END point lives on a node's border by
+    # construction, and a label reaching it is a different complaint
+    corners = [(ax + b[0], ay + b[1]) for (_a, b, _ln) in segs[:-1]]
+    if not any(abs(cx - mx) < hw + LABEL_CORNER_PAD and
+               abs(cy - my) < hh + LABEL_CORNER_PAD for cx, cy in corners):
+        return (mx, my)
+    for (a, b, ln) in sorted(segs, key=lambda s: -s[2]):
+        if ln <= 0:
+            continue
+        ux, uy = (b[0] - a[0]) / ln, (b[1] - a[1]) / ln
+        # the label's half-extent ALONG this segment: its width on a
+        # horizontal run, its height on a vertical one, and the
+        # projection of the box between the two on a diagonal
+        need = abs(ux) * hw + abs(uy) * hh + LABEL_CORNER_PAD
+        if ln < need * 2:
+            continue                        # too short to host the label
+        x0, y0 = ax + a[0], ay + a[1]
+        t = min(max((mx - x0) * ux + (my - y0) * uy, need), ln - need)
+        return (x0 + ux * t, y0 + uy * t)
+    return (mx, my)
+
+
 def arrow_label_anchor(arrow, label):
     """Where a bound label on an arrow actually lands, as (x, y).
 
@@ -2749,6 +2847,13 @@ def arrow_label_anchor(arrow, label):
     a label's `backgroundColor` is NOT the lever here: it sits in
     `significant_attrs`, so writing it would narrate a style change on
     every reroute.
+
+    One exception, and only one: when the arc midpoint puts a TURN
+    inside the label's own box, the anchor slides along the stroke until
+    the turn is clear (`_label_off_corner`, v0.9 WP4 / `r5-14`). That is
+    a bias on the same rule, not a second rule — it moves nothing on a
+    straight arrow and nothing on an elbow long enough to hold its label
+    away from the corner, which is every scene the tests above pin.
 
     Args:
         arrow: The arrow/line element, with `x`, `y` and `points`.
@@ -2779,6 +2884,7 @@ def arrow_label_anchor(arrow, label):
         if mx is None:                       # float drift past the end
             mx = arrow["x"] + segs[-1][1][0]
             my = arrow["y"] + segs[-1][1][1]
+        mx, my = _label_off_corner(arrow, label, segs, mx, my)
     return (mx - label.get("width", 0) / 2,
             my - label.get("height", 0) / 2)
 
@@ -4944,6 +5050,36 @@ def shape_clip(el, x0, y0, dx, dy, inset=0.0):
     return (t0, t1) if t0 <= t1 else None
 
 
+def _clipped_len(el, x0, y0, dx, dy, seg, inset):
+    """How much of ONE segment lies within a node's shrunk outline, in px.
+
+    `shape_clip` clips an infinite line; a caller walking a polyline
+    wants the part of its own segment that is inside, which is the same
+    interval clamped to `[0, 1]`. Split out because the crosses-through
+    walk now asks for it twice per segment at two insets — strictly
+    interior, then flush with the outline — and the difference between
+    the two answers is what tells an interior run from a run drawn along
+    the border.
+
+    Args:
+        el: The target element (`type`, `x`, `y`, `width`, `height`).
+        x0: Segment start x, in scene coordinates.
+        y0: Segment start y.
+        dx: Segment delta x (start to end).
+        dy: Segment delta y.
+        seg: The segment's own length in px, since callers have it.
+        inset: Pixels to shrink the outline by on each axis first.
+
+    Returns:
+        The length in px, or 0.0 when the segment never enters.
+    """
+    span = shape_clip(el, x0, y0, dx, dy, inset=inset)
+    if span is None:
+        return 0.0
+    t0, t1 = max(span[0], 0.0), min(span[1], 1.0)
+    return seg * (t1 - t0) if t1 > t0 else 0.0
+
+
 def shape_clearance(el, x, y, inset=0.0):
     """Signed distance from a point to a node's RENDERED outline, in px.
 
@@ -6032,36 +6168,50 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                            (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
                 inside = 0 if outside else max(
                     min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
-            run = 0.0
+            run = on_border = 0.0
             if not outside:
                 # Interior run adjacent to the endpoint: walk the path
                 # from the bound end inward, summing each segment's
                 # STRICTLY-interior portion (1px in from the border, so
-                # fanned attach points and boundary-running approaches
-                # stay at zero — the r4-1 over-fire), stopping once the
-                # path leaves the box. The single-segment chord this
-                # replaces was blind to multi-elbow approaches and gated
-                # on a strictly-interior endpoint, so an arrow entering
-                # the top face and running 74px inside to a side-face
-                # endpoint measured clean (first mermaid-seeded dagre
-                # layout, v0.8). The clip is the shared `shape_clip` as
-                # of v0.9 WP4: inlined against the bbox it scored 49px of
-                # interior run for an approach that only ever crossed a
-                # rhombus's empty corner — on the one scene whose
-                # attachment is geometrically perfect.
+                # fanned attach points stay at zero — the r4-1
+                # over-fire), stopping once the path leaves the box. The
+                # single-segment chord this replaces was blind to
+                # multi-elbow approaches and gated on a strictly-interior
+                # endpoint, so an arrow entering the top face and running
+                # 74px inside to a side-face endpoint measured clean
+                # (first mermaid-seeded dagre layout, v0.8). The clip is
+                # the shared `shape_clip` as of v0.9 WP4: inlined against
+                # the bbox it scored 49px of interior run for an approach
+                # that only ever crossed a rhombus's empty corner — on
+                # the one scene whose attachment is geometrically
+                # perfect.
+                #
+                # A second measure alongside it, and it is the one v0.8
+                # left out: a segment can contribute NO strictly-interior
+                # length and still be drawn on the box, by lying along
+                # the border. 32px of arrow on a source's right edge is
+                # arrow and outline at once and reads as a line through
+                # the box (r5-5), and the interior walk scores it zero by
+                # construction. The un-inset clip sees it because that
+                # interval is CLOSED — a ray along a facet TOUCHES the
+                # node, the ruling `shape_clip` records and
+                # `test_a_ray_along_a_facet_touches_the_node` pins — so
+                # "no interior length, positive un-inset length" is
+                # exactly the on-border run. A perpendicular approach
+                # ending on the border scores zero on BOTH, which is what
+                # keeps the fan attach points silent.
                 for (p0x, p0y), (p1x, p1y) in zip(seq, seq[1:]):
                     ddx, ddy = p1x - p0x, p1y - p0y
-                    span = shape_clip(tgt, p0x, p0y, ddx, ddy, inset=1)
-                    if span is not None:
-                        t0 = max(span[0], 0.0)
-                        t1 = min(span[1], 1.0)
-                        if t1 > t0:
-                            run += (((ddx * ddx + ddy * ddy) ** 0.5) *
-                                    (t1 - t0))
+                    seg = (ddx * ddx + ddy * ddy) ** 0.5
+                    inner = _clipped_len(tgt, p0x, p0y, ddx, ddy, seg, 1)
+                    run += inner
+                    if not inner:
+                        on_border += _clipped_len(tgt, p0x, p0y, ddx, ddy,
+                                                  seg, 0)
                     far = shape_norm(tgt, p1x, p1y, inset=1)
                     if far is None or far > 1:
                         break   # the path has left the shape
-            if run > tol * 2 and inside <= tol:
+            if run + on_border > tol * 2 and inside <= tol:
                 # crosses THROUGH: endpoint on or near the border, long
                 # interior approach — the r4-1 silent case and its
                 # multi-elbow sibling. ROUNDED, not truncated: a length
@@ -6069,18 +6219,43 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # either side of the integer it is (72 arrived as
                 # 71.99999999999997), and `int` turns that into an
                 # off-by-one in the agent's face.
+                #
+                # Both wordings keep the same opening clause, because it
+                # is what the `crosses_through_bound` detector matches
+                # on; the tail is where they part, and it has to, since
+                # "pull the endpoint back to the border" is no advice at
+                # all to an arrow already drawn on it.
+                tail = ("it reads as crossing through the box; pull the "
+                        "endpoint back to the border" if run else
+                        "the run lies flat along the box's own border, "
+                        "so the two read as one line through the box; "
+                        "give the arrow an exit that steps off the edge")
                 msg = ("arrow %s enters %s and runs %dpx inside it "
-                       "before stopping (%s point) — it reads as "
-                       "crossing through the box; pull the endpoint "
-                       "back to the border"
-                       % (a["id"], name(tgt["id"]), round(run), side))
+                       "before stopping (%s point) — %s"
+                       % (a["id"], name(tgt["id"]),
+                          round(run + on_border), side, tail))
+                # An on-border run rides the WARNING tier even when the
+                # server owns the path, and the reason is not politeness.
+                # The endpoint is legally attached — it is on the border,
+                # which is where endpoints go — so what is wrong is
+                # legibility, not attachment, and the assessment scored
+                # it P2 against the interior case's P1. It also fires on
+                # ten arrows across three frozen fixtures, drawings that
+                # actually shipped: the ROUTER is where this class is now
+                # refused (`_route_candidates`), and stored geometry
+                # cannot be re-routed at load without minting the
+                # out-of-session revision r5-13 was fixed to stop. An
+                # error tier would turn every legacy project red on open
+                # with advice the loader is forbidden to take.
                 if not server_owns_geometry(a):
                     warnings.append(
                         "user-shaped " + msg +
                         " — not auto-routed (the path is the user's "
                         "geometry); re-route deliberately and narrate it")
-                else:
+                elif run:
                     errors.append(msg)
+                else:
+                    warnings.append(msg)
                 continue
             if max(outside, inside) > tol:
                 msg = ("arrow %s claims to bind %s but its %s point ends "
