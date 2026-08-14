@@ -1102,13 +1102,18 @@ class TestSnapshotFramingRegime(unittest.TestCase):
 # (tier 2) — and the first thing to say about that pair is what it cannot do.
 #
 # Tier 2 rasterizes tier 1's OWN OUTPUT, so every defect where tier 1 omits or
-# misstates content is inherited rather than caught. `freedraw` and `image`
-# reach neither path (test_mutants.TestExportCompleteness's two reds), and
-# reordering an element moves neither path (TestPaintOrder's red). A parity
-# sweep reports perfect agreement on all three, and that agreement is worth
-# nothing as independent evidence: it ATTESTS a defect already pinned
-# elsewhere. `test_dropped_classes_agree_by_being_absent_from_both` says so
-# out loud, because a green row in a parity table otherwise reads as health.
+# misstates content is inherited rather than caught. That limit is structural
+# and permanent; the three examples this section was written around are not.
+# `freedraw` and `image` reached neither path (test_mutants.
+# TestExportCompleteness's two reds) and reordering an element moved neither
+# path (TestPaintOrder's red) until v0.9 WP4 fixed all three in the dispatch.
+# The lesson outlived them: a parity sweep reported perfect agreement on all
+# three, and that agreement was worth nothing as independent evidence, because
+# it ATTESTED a defect already pinned elsewhere. Which is why the successor
+# test asserts PRESENCE in both paths rather than agreement between them —
+# `test_no_class_agrees_by_being_absent_from_both`. A green row in a parity
+# table reads as health whether or not it observed anything, so the way to
+# keep this section honest is to make every row observe something.
 #
 # What the pair CAN answer is the question tier 1 settles alone and can get
 # wrong: does the frame tier 1 chose actually contain the ink tier 1 emitted?
@@ -1346,14 +1351,16 @@ class TestRenderParity(unittest.TestCase):
         tier 2's ablation checks run on hand-built scenes rather than
         across the class list.
 
-        Two of the nine rows are VACUOUS, and should be read as such:
-        `freedraw` and `image` reach neither path, so both sides of the
-        assertion are False and those rows pass without observing
-        anything. They are swept all the same — see
-        `test_dropped_classes_agree_by_being_absent_from_both`, which
-        exists to say why that agreement attests a defect pinned
-        elsewhere rather than evidencing fidelity, and which names the
-        red to flip when the paint branches land.
+        No row is vacuous, and that is a claim rather than an accident.
+        Until v0.9 WP4 two of the nine were: `freedraw` and `image`
+        reached neither path, so both sides of the assertion were False
+        and those rows passed without observing anything. `assertEqual`
+        cannot tell the difference between "both paths drew it" and
+        "neither path drew it", so the sweep alone could never have
+        noticed them going quiet. `test_no_class_agrees_by_being_absent_
+        from_both` is what makes the difference checkable, and it is the
+        reason this docstring can now say "no row is vacuous" instead of
+        listing the exceptions.
         """
         for etype in sorted(canvas.ELEMENT_TYPES):
             with self.subTest(element_type=etype):
@@ -1366,31 +1373,41 @@ class TestRenderParity(unittest.TestCase):
                     "path claims it and the other does not"
                     % (etype, markup, ink))
 
-    def test_dropped_classes_agree_by_being_absent_from_both(self) -> None:
-        """Both dropped classes are absent from tier 1 AND tier 2 — agreed.
+    def test_no_class_agrees_by_being_absent_from_both(self) -> None:
+        """No class agrees with itself by being missing from both tiers.
 
-        Read this row correctly, because it is the one that could be
-        misquoted. It is NOT evidence that the two paths are faithful to
-        each other in any useful sense: tier 2 rasterizes tier 1's
-        output, so a class tier 1 never paints cannot appear in tier 2
-        either, and the agreement is arithmetic rather than observation.
-        It ATTESTS the defect `test_mutants.TestExportCompleteness`
-        already pins red and adds nothing to it. It is written down so
-        the sweep above cannot be summarized as "all nine classes agree"
-        without this caveat attached, and so that whoever lands the
-        missing paint branches is sent to both files at once.
+        FLIPPED IN MEANING by v0.9 WP4, and the direction of the flip is
+        the point. This was `test_dropped_classes_agree_by_being_absent_
+        from_both`, which pinned `freedraw` and `image` as absent from
+        tier 1 AND tier 2 and existed to say that the agreement was worth
+        nothing: tier 2 rasterizes tier 1's output, so a class tier 1
+        never paints cannot appear in tier 2 either, and the agreement
+        was arithmetic rather than observation. It ATTESTED a defect
+        pinned red elsewhere and added nothing to it.
+
+        Both paint branches landed, so the same scenes now measure the
+        opposite claim: every class `ELEMENT_TYPES` ships is PRESENT in
+        both paths. Kept rather than deleted with the reds it attested,
+        because the sweep above still cannot make this claim for itself —
+        `assertEqual(markup, ink)` is satisfied by False == False, so a
+        paint branch regressing to silence would turn a row vacuous and
+        the sweep would go on printing agreement. This is the assertion
+        that stays loud when that happens, and the tier-2 half is what
+        makes it more than a restatement of `test_mutants._EXPORT_MARKUP`:
+        markup that draws nothing would satisfy tier 1 alone.
         """
-        for etype in tm._DROPPED:
+        for etype in sorted(canvas.ELEMENT_TYPES):
             with self.subTest(element_type=etype):
-                self.assertEqual(tm._export_delta(tm._one_of(etype), "x-1"),
-                                 {})
-                self.assertEqual(
+                self.assertNotEqual(
+                    tm._export_delta(tm._one_of(etype), "x-1"), {},
+                    "%s emits no markup at all: tier 1 has stopped "
+                    "painting a class it ships, and the equivalence "
+                    "sweep's %s row has gone vacuous" % (etype, etype))
+                self.assertGreater(
                     _element_ink(tm._one_of(etype), "x-1", self.workdir)[0],
                     0,
-                    "%s now leaves ink, so the tier-1 paint branch has "
-                    "landed: flip test_mutants.TestExportCompleteness."
-                    "test_red_%s_never_reaches_the_export and re-read "
-                    "this attestation" % (etype, etype))
+                    "%s emits markup that rasterizes to nothing: tier 1 "
+                    "claims the class and tier 2 cannot see it" % etype)
 
     def test_parity_clip_is_red_by_measurement_not_by_error(self) -> None:
         """The red below is red for the reason it claims, and says so.

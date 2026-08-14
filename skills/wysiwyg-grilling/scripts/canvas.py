@@ -5713,7 +5713,14 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 "(empty artifact)</text></svg>"), 320, 80
     xs, ys, x2s, y2s = [], [], [], []
     for e in live:
-        if e.get("type") in ("arrow", "line"):
+        # bound what is actually PAINTED. For the three point-strung
+        # classes that is the polyline through `points`, not the stored
+        # box: a freedraw's stored width/height is Excalidraw's own
+        # summary of a stroke and the ink regularly overhangs it, so
+        # bounding by the box cropped the tail of the user's own mark out
+        # of the export (v0.9 WP4). Every other class is painted inside
+        # its box, so the box is the honest bound.
+        if e.get("type") in ("arrow", "line", "freedraw"):
             for p in e.get("points") or [[0, 0]]:
                 xs.append(e.get("x", 0) + p[0])
                 ys.append(e.get("y", 0) + p[1])
@@ -5819,13 +5826,18 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             out.append("<polygon points='%s' fill='%s' stroke='%s' "
                        "stroke-width='%s'%s/>" % (pts, fill, stroke, sw,
                                                   _svg_dash(e)))
-        elif et in ("arrow", "line"):
+        elif et in ("arrow", "line", "freedraw"):
             pts = e.get("points") or [[0, 0]]
             abs_pts = [(x + p[0], y + p[1]) for p in pts]
             path = " ".join("%f,%f" % p for p in abs_pts)
+            # a freehand stroke turns sharply and often, and a miter join
+            # throws a long spike off every such corner — the pencil gets
+            # round caps and joins, the ruled classes keep the default
+            caps = (" stroke-linecap='round' stroke-linejoin='round'"
+                    if et == "freedraw" else "")
             out.append("<polyline points='%s' fill='none' stroke='%s' "
-                       "stroke-width='%s'%s/>" % (path, stroke, sw,
-                                                  _svg_dash(e)))
+                       "stroke-width='%s'%s%s/>" % (path, stroke, sw, caps,
+                                                    _svg_dash(e)))
             if et == "arrow" and e.get("endArrowhead") and len(abs_pts) > 1:
                 (x1, y1), (x2, y2) = abs_pts[-2], abs_pts[-1]
                 dx, dy = x2 - x1, y2 - y1
@@ -5873,19 +5885,53 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                            "%s</text>"
                            % (tx, y + fs * 0.85 + li * lh, fs, stroke,
                               anchor, _svg_escape(line)))
+        elif et == "image":
+            # The picture's bytes live in the document's `files` map, a
+            # SIBLING of `elements` this renderer is never handed — so an
+            # image is drawn as the same X-box `kind: "image"` composes on
+            # the canvas (wireframe.md). That says "a picture sits here,
+            # this big" instead of leaving a hole the reader takes for
+            # empty canvas, which is what it did until v0.9 WP4. Fixed
+            # muted stroke rather than the element's own: an Excalidraw
+            # image carries `strokeColor: "transparent"`, so honouring it
+            # would paint the placeholder invisible.
+            out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                       "fill='none' stroke='#b8b2a5' stroke-width='1.5'/>"
+                       % (x, y, ew, eh))
+            for ax, ay, bx, by in ((x, y, x + ew, y + eh),
+                                   (x, y + eh, x + ew, y)):
+                out.append("<polyline points='%f,%f %f,%f' fill='none' "
+                           "stroke='#b8b2a5' stroke-width='1.5'/>"
+                           % (ax, ay, bx, by))
 
+    # Z-MODEL: the element array IS the paint order — one walk, no
+    # buckets. This used to be four type-filtered passes (frames, then
+    # connectors, then shapes, then text), which discarded array order
+    # across type boundaries and made `{"op": "reorder", "id": ...,
+    # "index": 0}` render-inert: a decoration declared beneath the drawing
+    # was painted OVER it and erased the connectors it was meant to sit
+    # behind, and no reordering of the two changed a byte of the markup
+    # (v0.9 WP4, TestPaintOrder). It also silently dropped any class
+    # without a `paint` branch.
+    #
+    # Array order is the model the rest of the system already speaks: the
+    # store, `reorder`, replay and the web client all read it that way, and
+    # `make_element` emits a container immediately before its bound label
+    # and its composed decorations, so those keep landing on top.
+    #
+    # And the semantic layering the buckets were reaching for already
+    # exists, one layer up and done properly: `normalize_z_order` bands an
+    # applied batch frames -> decorations -> arrows/lines -> nodes ->
+    # labels & pins, by ROLE rather than by type, with a stable sort so an
+    # explicit `reorder` survives. The buckets here re-derived a cruder
+    # version of that at paint time and overwrote it — which is how
+    # `role: decoration`, whose whole point is to sit beneath arrows, came
+    # out on top of them. So nothing re-sorts here, and deliberately: this
+    # renderer's job is to honour the order it is handed, and a renderer
+    # that second-guesses the array is one the drawing cannot be reasoned
+    # about from.
     for e in live:
-        if e.get("type") == "frame":
-            paint(e)
-    for e in live:
-        if e.get("type") in ("arrow", "line"):
-            paint(e)
-    for e in live:
-        if e.get("type") not in ("frame", "arrow", "line", "text"):
-            paint(e)
-    for e in live:
-        if e.get("type") == "text":
-            paint(e)
+        paint(e)
     for n, _lbl, _tip, e in notes:
         mx = e.get("x", 0) + e.get("width", 0) - 4
         my = e.get("y", 0) + 4

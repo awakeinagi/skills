@@ -97,11 +97,11 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // default node; text w/o container → annotation. `decoration` is
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
       // exempt from connector lints and budgets, painted beneath arrows.
-      // [KNOWN DEFECT 2026-08-12: the SVG export currently paints in
-      // type buckets and DISCARDS array order across types, so "beneath
-      // arrows" is not honoured there — pinned red by TestPaintOrder in
-      // tests/test_mutants.py; the web client is unaffected. Do not rely
-      // on cross-type z-order in exported/snapshot output until it flips.]
+      // "Beneath" is array position, not a type rule: put the decoration
+      // earlier in the element order and it paints first. The SVG export
+      // honours that as of v0.9 — it used to paint in type buckets and
+      // discard array order across them, so a backdrop erased the very
+      // connectors it was meant to sit behind.
   "kind": "button" | "nav" | "input" | "entity" | "image" | "store"
         | "kpi" | "checkbox" | "toggle" | "slider"
         | "help" | "sticky-bar" | "feedback" | …,
@@ -228,11 +228,10 @@ into the save record: `{"op": "del", "id": "old-step"}`
 `index` is a position in the element order, which is paint order: 0 draws
 first (behind everything, as `bg-panel` wants) and an index past the end draws
 last. A negative index is refused — it used to clamp to 0 silently, so `-1`
-meaning "last" put the element behind everything instead.
-[KNOWN DEFECT 2026-08-12: reorder changes stored order (which replay and the
-web client honour) but has NO effect on the SVG export/snapshot across type
-boundaries — see the TestPaintOrder pin. Flips when render_svg paints in
-array order.]
+meaning "last" put the element behind everything instead. Every reader of the
+order agrees since v0.9: the store, replay, the web client, and the SVG
+export/snapshot, which until then painted in type buckets and ignored
+`reorder` across type boundaries entirely.
 
 **pin** — element-anchored question (❓ on canvas + interactive rail entry;
 answers arrive as `pin_answer` events carrying the text):

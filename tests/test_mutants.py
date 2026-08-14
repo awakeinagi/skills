@@ -1481,24 +1481,22 @@ def _one_of(etype: str) -> list[dict]:
                **extra)]
 
 
-# What each class that survives export owes it, per instance — MEASURED
-# against live `render_svg` on 2026-08-12, not read off its source. An arrow
-# owes a stroke and its arrowhead; a frame owes its box and its name; a line
-# owes a stroke and no head. The two classes missing from this table are
-# missing on purpose: they owe nothing today, and that is the defect pinned
-# red below, so writing them here as `{}` would enshrine the bug as the spec.
+# What each class owes the export, per instance — MEASURED against live
+# `render_svg`, never read off its source: the seven that always survived on
+# 2026-08-12, and `freedraw` and `image` on 2026-08-14, when v0.9 WP4 gave
+# them paint branches and this file stopped needing a second table for the
+# classes that reached no export at all. An arrow owes a stroke and its
+# arrowhead; a frame owes its box and its name; a line owes a stroke and no
+# head; a freedraw owes the polyline through its `points`; an image owes the
+# X-box placeholder — a border and its two diagonals — because the picture's
+# bytes live in the document's `files` map, a sibling of `elements` that
+# `render_svg` is never handed.
 _EXPORT_MARKUP: dict[str, dict[str, int]] = {
     "rectangle": {"rect": 1}, "ellipse": {"ellipse": 1},
     "diamond": {"polygon": 1}, "line": {"polyline": 1},
     "arrow": {"polyline": 1, "polygon": 1}, "text": {"text": 1},
-    "frame": {"rect": 1, "text": 1}}
-
-# Shipped classes `render_svg`'s paint dispatch has no branch for. Note for
-# whoever writes those branches: the bounds loop reads `points` for arrows and
-# lines ONLY (canvas.py), so a freedraw contributes its STORED width and
-# height and not the extent of its stroke — paint it from `points` and any
-# part of the stroke overhanging that box lands outside the viewBox.
-_DROPPED = ("freedraw", "image")
+    "frame": {"rect": 1, "text": 1}, "freedraw": {"polyline": 1},
+    "image": {"rect": 1, "polyline": 2}}
 
 
 class TestExportCompleteness(unittest.TestCase):
@@ -1507,16 +1505,19 @@ class TestExportCompleteness(unittest.TestCase):
     def test_every_shipped_class_is_accounted_for(self) -> None:
         """A newly shipped element class cannot arrive unpinned.
 
-        Both tables are hand-measured, so the one thing neither can do is
-        notice a tenth name in `ELEMENT_TYPES`. Without this, adding a
+        The table is hand-measured, so the one thing it cannot do is
+        notice a TENTH name in `ELEMENT_TYPES`. Without this, adding a
         class the paint dispatch does not handle would repeat the exact
-        defect these tests exist to catch, and repeat it silently.
+        defect these tests exist to catch, and repeat it silently — which
+        is not hypothetical, because that is precisely how `freedraw` and
+        `image` sat unpainted until v0.9 WP4. Nine names, nine rows: an
+        unpainted tenth now has nowhere to hide, since a class with no
+        `paint` branch cannot be given a row that measures true.
         """
-        self.assertEqual(set(_EXPORT_MARKUP) | set(_DROPPED),
-                         set(canvas.ELEMENT_TYPES))
+        self.assertEqual(set(_EXPORT_MARKUP), set(canvas.ELEMENT_TYPES))
 
     def test_shipped_classes_reach_the_export(self) -> None:
-        """Every surviving class contributes exactly its own markup."""
+        """Every shipped class contributes exactly its own markup."""
         for etype, want in sorted(_EXPORT_MARKUP.items()):
             with self.subTest(element_type=etype):
                 self.assertEqual(_export_delta(_one_of(etype), "x-1"), want)
@@ -1588,53 +1589,40 @@ class TestExportCompleteness(unittest.TestCase):
         self.assertEqual(
             len(re.findall(r"<text[^>]*>\d+\. ", svg)), want)
 
-    def test_dropped_classes_are_red_by_measurement_not_by_error(self) -> None:
-        """The two reds below are red for the reason they claim.
+    # GONE with the flip below, on purpose and not silently:
+    # `test_dropped_classes_are_red_by_measurement_not_by_error` was this
+    # class's standing red-by-assertion guard, and it walked `_DROPPED`.
+    # Both reds are green as of v0.9 WP4 and `_DROPPED` is empty of
+    # meaning, so the guard had no subject left — it would have iterated
+    # nothing and passed forever, which is the shape of a test that reads
+    # as cover and gives none. Its own failure message named this removal
+    # as the correct response. What replaced its job: there is no red here
+    # to protect from error-masking, and `test_shipped_classes_reach_the_
+    # export` measures all nine classes at exact counts in every commit.
 
-        `@unittest.expectedFailure` swallows ERRORS as well as failures,
-        so a `render_svg` that started RAISING on these classes would go
-        on printing a healthy `x`: the pin would be gone and the run
-        would look identical (skill doctrine §6). `TestMutantCatalogue`'s
-        own guard cannot reach these — it walks `type(self)` and maps
-        method names onto `CATALOGUE`, and export reds are outside both —
-        so this is that guard's analog for this class, ungated on purpose
-        because it has to speak in every commit.
-
-        It doubles as the talkative half of unexpected-success detection:
-        `unittest` reports a red that has quietly gone green as an
-        anonymous "unexpected success", while this names the class and
-        says which decorator to drop.
-        """
-        for etype in _DROPPED:
-            with self.subTest(element_type=etype):
-                try:
-                    delta = _export_delta(_one_of(etype), "x-1")
-                except Exception as exc:
-                    self.fail("%s's red is red via %r, not a spec "
-                              "mismatch — that is a broken pin, not a "
-                              "defect pin" % (etype, exc))
-                self.assertEqual(
-                    delta, {},
-                    "%s now reaches the export as %r — flip the "
-                    "expectedFailure on "
-                    "test_red_%s_never_reaches_the_export"
-                    % (etype, delta, etype))
-
-    @unittest.expectedFailure
     def test_red_freedraw_never_reaches_the_export(self) -> None:
-        """A freehand stroke is in `ELEMENT_TYPES` and in no export.
+        """FLIPPED by v0.9 WP4 (Task 21). Kept its red-era name.
 
-        `paint` dispatches on rectangle/ellipse/diamond/arrow/line/text/
-        frame and returns silently for anything else, so a stroke the user
-        drew with the pencil is stored, is counted into the export's
-        bounds — and paints nothing, leaving a hole the reader takes for
-        empty canvas. The user's own mark is the case that stings: the
-        drawing is the truth (v0.6 WP1), and the agent narrates from a
-        snapshot the mark is missing from.
+        `paint` used to dispatch on rectangle/ellipse/diamond/arrow/line/
+        text/frame and return silently for anything else, so a stroke the
+        user drew with the pencil was stored, was counted into the
+        export's bounds — and painted nothing, leaving a hole the reader
+        took for empty canvas. The user's own mark was the case that
+        stung: the drawing is the truth (v0.6 WP1), and the agent
+        narrated from a snapshot the mark was missing from.
 
-        Asserted as "at least one tag", not an exact count, because
-        whether the fix emits `<polyline>` or `<path>` belongs to the WP
-        that owns the dispatch. Flips when that branch lands.
+        Two things landed together and both were needed. The dispatch now
+        walks the array once and paints a freedraw as the polyline
+        through its `points`; and the bounds loop reads those same
+        `points`, where before it took the STORED width and height for
+        everything but arrows and lines — a stroke that overhung its own
+        box had the overhang cropped by the viewBox, so a paint branch
+        alone would have drawn ink outside the window.
+
+        The assertion is unchanged from the red: "at least one tag", not
+        an exact count, because which tag was the fixing WP's call. The
+        exact count it chose is pinned by `_EXPORT_MARKUP` instead, so
+        this staying loose costs nothing.
         """
         delta = _export_delta(_one_of("freedraw"), "x-1")
         self.assertGreaterEqual(
@@ -1642,20 +1630,25 @@ class TestExportCompleteness(unittest.TestCase):
             "freedraw x-1 contributes no markup to the export: it is in "
             "ELEMENT_TYPES, it is in the model, it is not in the picture")
 
-    @unittest.expectedFailure
     def test_red_image_never_reaches_the_export(self) -> None:
-        """A pasted image is in the drawing and in no export.
+        """FLIPPED by v0.9 WP4 (Task 21). Kept its red-era name.
 
         Same missing branch as the stroke above, and the same silence,
-        but the reachability differs and matters: `make_element` refuses
+        but the reachability differed and mattered: `make_element` refuses
         op-made images outright (they would have no `fileId` to render),
         so every image in a scene got there because a person pasted or
-        dropped it on the canvas. That makes this the purest form of the
-        defect — the export drops only what the user put there by hand.
+        dropped it on the canvas. That made this the purest form of the
+        defect — the export dropped only what the user put there by hand.
 
-        Flips when the dispatch grows an `image` branch; whether that is
-        an `<image>` href or a labelled placeholder is the owning WP's
-        call, so only the count is pinned.
+        The dispatch's `image` branch paints the X-box placeholder rather
+        than an `<image>` href, and the reason is structural rather than
+        expedient: the bytes live in the document's `files` map, which is
+        a SIBLING of `elements`, and `render_svg` is handed the element
+        array alone. A placeholder says "a picture sits here, this big",
+        which is everything the geometry can honestly claim.
+
+        Assertion unchanged from the red — only the count is pinned here,
+        with the exact tags in `_EXPORT_MARKUP`.
         """
         delta = _export_delta(_one_of("image"), "x-1")
         self.assertGreaterEqual(
@@ -1867,11 +1860,15 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 # are "painted beneath arrows", and `:213`, the whole `reorder` op, whose one
 # job is z-order by array index.
 #
-# `render_svg` discards it. It paints in four type-buckets (frames, then
+# `render_svg` discarded it. It painted in four type-buckets (frames, then
 # arrows/lines, then other shapes, then text), so order
-# holds WITHIN a bucket and is thrown away ACROSS them. A decoration at index
-# 0 — declared behind everything — is painted last, over the connector it was
-# meant to sit behind, and erases it.
+# held WITHIN a bucket and was thrown away ACROSS them. A decoration at index
+# 0 — declared behind everything — was painted last, over the connector it was
+# meant to sit behind, and erased it. FIXED in v0.9 WP4 (Task 21): the
+# dispatch is one walk of `live` in array order, and the pin below flipped
+# green. The section is kept in its entirety because the tests are the
+# regression cover for it, and because the reasoning under "Why this was not
+# a cosmetic export bug" is what makes them worth keeping.
 #
 # Measured as EMISSION ORDER in the SVG string, not as pixels: later markup
 # paints over earlier markup, the string is cheap to assert, and no browser
@@ -1880,18 +1877,22 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 # (see the note on the red below) — but the render tier's own substrate is
 # this very SVG, which is why the model-tier pin comes first.
 #
-# Why this is not a cosmetic export bug. `tests/test_mutants_render.py`
+# Why this was not a cosmetic export bug. `tests/test_mutants_render.py`
 # rasterizes this SVG, rasterizes it again with one element omitted, and
 # diffs. An element occluded ONLY by the bucketing contributes zero pixels,
 # so ablating it changes nothing, so `ablation_existence` concludes a plainly
 # visible element is invisible. The tier whose whole claim is that it reads
-# the picture rather than the model can read an occlusion that is not on the
-# canvas. `export` (the user's handover artifact) and `snapshot` tier-3 (a
+# the picture rather than the model could read an occlusion that was not on
+# the canvas. `export` (the user's handover artifact) and `snapshot` tier-3 (a
 # headless agent's only eyes) read the same string.
 #
-# canvas.py already comments a "backing painted under arrow" special case
+# canvas.py already commented a "backing painted under arrow" special case
 # for label backdrops: the paint-order problem was seen, solved pointwise for
-# one element, and never generalized.
+# one element, and never generalized. That backdrop is still there and is
+# still pointwise, and deliberately so — it is not a z-order workaround but a
+# stroke-breaking effect the client performs and SVG has no notion of, so it
+# has no array position to express. Generalizing the DISPATCH was the fix;
+# the backdrop was never the thing to generalize.
 # ---------------------------------------------------------------------------
 
 # A fill no other part of a render emits, so its first occurrence in the SVG
@@ -1938,8 +1939,10 @@ def _paint_offsets(scene: list[dict]) -> tuple[int, int]:
     Raises:
         ValueError: If either element emitted no markup at all. Said out
             loud rather than returned as a -1, because a missing element
-            is the EXPORT-COMPLETENESS defect and a -1 would quietly sort
-            to the bottom of the stack and read as a paint-order answer.
+            is the EXPORT-COMPLETENESS defect — `TestExportCompleteness`'s
+            subject, green since v0.9 WP4 and a recurrence all the same if
+            this ever fires — and a -1 would quietly sort to the bottom of
+            the stack and read as a paint-order answer.
     """
     svg = canvas.render_svg(scene)[0]
     decor, stroke = svg.find(_DECOR_FILL), svg.find("<polyline")
@@ -1957,10 +1960,11 @@ class TestPaintOrder(unittest.TestCase):
     def test_a_decoration_declared_in_front_is_painted_in_front(self) -> None:
         """The contract's other pole, and it holds: index 1 paints last.
 
-        Green today, and green after the fix — which is exactly what makes
-        it the control. A "fix" that simply reversed the buckets, or one
-        that dropped array order in the other direction, would satisfy the
-        red below and break this. Both poles or neither.
+        Green before the fix and green after — which is exactly what
+        makes it the control, and it earned that keep. A "fix" that
+        simply reversed the buckets, or one that dropped array order in
+        the other direction, would have satisfied the flipped test below
+        and broken this. Both poles or neither.
         """
         decor, stroke = _paint_offsets(_backdrop_scene(behind=False))
         self.assertGreater(
@@ -1969,13 +1973,21 @@ class TestPaintOrder(unittest.TestCase):
             "over it")
 
     def test_array_order_is_honoured_within_one_type_bucket(self) -> None:
-        """Order is not lost everywhere — only across bucket boundaries.
+        """Order was never lost everywhere — only across bucket edges.
 
-        This is what makes the red below a bucketing defect rather than a
-        renderer that never reads the array: two rectangles land in one
-        bucket, and swapping them swaps the emission. Without this the red
-        could be "read" as `render_svg` having no notion of z-order at all,
-        and the fix would be scoped wrong.
+        This is what made the defect below a BUCKETING defect rather than
+        a renderer that never read the array: two rectangles landed in one
+        bucket, and swapping them swapped the emission. Without this the
+        red could have been "read" as `render_svg` having no notion of
+        z-order at all, and the fix would have been scoped wrong.
+
+        Kept, and its red-era name kept with it, though v0.9 WP4 left the
+        renderer with no buckets to be within: it is now the same claim
+        the flipped test below makes, asked of a pair the OLD dispatch
+        also got right. That is worth a test of its own — a regression
+        that reintroduced type bucketing would break the two of them for
+        visibly different reasons, and only this one says the array is
+        read at all.
         """
         pair = [el(id="r1", type="rectangle", x=0, y=0, width=100,
                    height=100, backgroundColor="#aaaaaa"),
@@ -1986,49 +1998,40 @@ class TestPaintOrder(unittest.TestCase):
         swapped = canvas.render_svg(pair[::-1])[0]
         self.assertLess(swapped.index("#bbbbbb"), swapped.index("#aaaaaa"))
 
-    def test_zorder_red_is_red_by_measurement_not_by_error(self) -> None:
-        """The red below is red for the reason it claims.
+    # GONE with the flip below, on purpose and not silently:
+    # `test_zorder_red_is_red_by_measurement_not_by_error` guarded this
+    # class's one red against `expectedFailure`'s error-masking, and its
+    # assertion was the DEFECT — decoration emitted after the connector.
+    # v0.9 WP4 fixed that, so the guard could only survive by asserting
+    # the bug, which is the one thing a guard must never do. Its own
+    # failure message named this removal as the correct response. What
+    # replaced its job: nothing needs to, because there is no red left in
+    # this class to mask, and `_paint_offsets` still REFUSES a scene where
+    # either element emitted nothing rather than sorting a -1 to the
+    # bottom of the stack — the error-vs-measurement distinction now lives
+    # where it is checked on every call instead of in one guard.
 
-        `@unittest.expectedFailure` swallows ERRORS as well as failures,
-        so a `render_svg` that stopped emitting the decoration entirely —
-        or stopped emitting the stroke — would go on printing a healthy
-        `x` while the pin measured nothing (skill doctrine §6). It also
-        gives the flip a voice: `unittest` reports a red gone green as an
-        anonymous "unexpected success", while this names the decorator to
-        drop and the WP that earned it.
-        """
-        try:
-            decor, stroke = _paint_offsets(_backdrop_scene(behind=True))
-        except Exception as exc:
-            self.fail("the z-order red is red via %r, not a measurement "
-                      "mismatch — that is a broken pin, not a defect pin"
-                      % exc)
-        self.assertGreater(
-            decor, stroke,
-            "the decoration at array index 0 is now painted BENEATH the "
-            "connector (%d < %d) — WP4 honoured array order: drop the "
-            "expectedFailure on "
-            "test_red_zorder_bucketing_occludes_connector"
-            % (decor, stroke))
-
-    @unittest.expectedFailure
     def test_red_zorder_bucketing_occludes_connector(self) -> None:
-        """A backdrop declared at the bottom of the stack erases the arrow.
+        """FLIPPED by v0.9 WP4 (Task 21). Kept its red-era name.
 
         `{"op": "reorder", "id": "bg-panel", "index": 0}` is documented as
         the way to put a panel behind the drawing, and against this
-        renderer it does nothing whatsoever: both orderings of the same two
-        elements emit byte-identical markup, because the arrow bucket runs
-        before the shape bucket either way. The picture then asserts
-        something the model never said — the connector is gone, and the
-        reader has no way to be suspicious of a stroke that leaves no mark.
+        renderer it used to do nothing whatsoever: both orderings of the
+        same two elements emitted byte-identical markup, because the arrow
+        bucket ran before the shape bucket either way. The picture then
+        asserted something the model never said — the connector was gone,
+        and the reader had no way to be suspicious of a stroke that leaves
+        no mark.
 
-        Asserted as emission order, not as a pixel diff, so the pin costs
-        no browser; the same defect is worth a render-tier sibling once
-        `ablation_existence` can be trusted not to be measuring this bug
-        (§(i.2): today it is the bug's own victim). Flips when the paint
-        dispatch walks `live` once in array order instead of four times by
-        type — the WP that owns `render_svg`, not this file.
+        The dispatch now walks `live` once in array order instead of four
+        times by type, so the decoration at index 0 is emitted first and
+        the arrow paints over it. Asserted as emission order rather than
+        as a pixel diff, which is why this pin costs no browser and why it
+        is still worth a render-tier sibling: `ablation_existence` could
+        not carry that sibling while it was the bug's own victim (§(i.2)),
+        and now that the bug is gone, nothing has been written to check
+        the same claim in pixels. Filed as a curator candidate, not
+        silently assumed covered.
         """
         decor, stroke = _paint_offsets(_backdrop_scene(behind=True))
         self.assertLess(
@@ -7248,19 +7251,18 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 in curator batch 13, `mutants list --red` reports 8
-# while this file carries 18 expectedFailure methods. The ten outside live
-# in five classes — `TestLoadFindingsReachTheAgent` (4),
-# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2),
-# `TestBatchPathIntegrity` (1) and `TestPaintOrder` (1) — and are outside
-# deliberately, because a Mutant is
+# re-measured 2026-08-14 after Task 21, `mutants list --red` reports 8 while
+# this file carries 15 expectedFailure methods. The seven outside live
+# in three classes — `TestLoadFindingsReachTheAgent` (4),
+# `TestShapeBlindAnnotationOverlap` (2) and `TestBatchPathIntegrity` (1) —
+# and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
 # the one below covers CATALOGUE alone.
 # And since curator batch 15 one red lives outside this file entirely —
 # `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
 # export is never measured against the drawing — so the suite's default line
-# reads `expected failures=19` against the 18 counted here. The two numbers
+# reads `expected failures=16` against the 15 counted here. The two numbers
 # are meant to differ by exactly that.
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
@@ -7269,7 +7271,9 @@ def _label_pair_stage() -> list[dict]:
 # classes / `TestPinIdentityIntegrity` (3)" after Task 40 flipped that class's
 # last three reds — a class does not merely lose a number here, it leaves the
 # list, and nothing in the suite notices either way. Task 41 flipped that
-# class's final two, so it has now left; that is the shape to expect.
+# class's final two, so it has now left; that is the shape to expect, and
+# Task 21 is the third instance: `TestExportCompleteness` and `TestPaintOrder`
+# both left in one commit.
 #
 # AUTHORING RULE for the reds in this file, learned the expensive way in
 # v0.9 Task 9: nothing load-bearing may sit AFTER the line a red is expected
@@ -8710,8 +8714,7 @@ class TestCoverage(unittest.TestCase):
         them separate entries.
 
         Residual gap, stated so nobody reads this as full cover: the
-        non-CATALOGUE red classes (`TestExportCompleteness`,
-        `TestStoreIntegrity`, `TestPaintOrder`,
+        non-CATALOGUE red classes (`TestStoreIntegrity`,
         `TestShapeBlindAnnotationOverlap`,
         `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity`,
         `TestPinIdentityIntegrity`) never

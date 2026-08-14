@@ -83,11 +83,13 @@ classes are defended by file-section convention + reviewer vigilance (id
 prefixes REJECTED — they disarm the duplicate-id guard). Structural notes for
 the flip author:
 
-- The two **export reds** (`test_red_freedraw_*`/`test_red_image_*`) live
-  OUTSIDE `CATALOGUE` by design (model detectors cannot observe `render_svg`
-  markup); their red-by-assertion protection is a bespoke companion test in
-  `TestExportCompleteness`, not Guard C. `mutants list --red` therefore shows
-  fewer reds than the suite carries — explained at the `CATALOGUE` definition.
+- The two **export reds** (`test_red_freedraw_*`/`test_red_image_*`) and the
+  **z-order red** FLIPPED in v0.9 WP4 Task 21 — `render_svg` paints in array
+  order and has branches for all nine classes. They lived OUTSIDE `CATALOGUE`
+  by design (model detectors cannot observe `render_svg` markup), which is
+  still why `mutants list --red` shows fewer reds than the suite carries —
+  explained at the `CATALOGUE` definition. `TestExportCompleteness` and
+  `TestPaintOrder` now carry no reds at all.
 - The two **ASPIRATIONAL reds** (`phantom_passthrough_shared_attach`,
   `diamond_label_overflows_shape`) flip when their LINTS land (WP4b e1;
   WP4's shape-aware label check), not when any existing code changes — and
@@ -104,15 +106,17 @@ the flip author:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi`, `phantom_passthrough_shared_attach`, `diamond_label_overflows_shape`, `test_red_freedraw_never_reaches_the_export`, `test_red_image_never_reaches_the_export` |
+| model (default suite) | `diamond_corner_silence`, `diamond_wrong_direction`, `diamond_facet_overfire`, `float_diamond_center_zero`, `foreign_diamond_corner_overfire`, `four_crossings_pairbug`, `curved_elbow_spurious_bidi`, `phantom_passthrough_shared_attach`, `diamond_label_overflows_shape` |
 | render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_snapshot_cap_drops_the_rightmost_node` |
 
-The last three model rows came from the 2026-08-12 idea-mining arc via the
-**mutant-curator agent**: the export reds pin `render_svg` painting nothing
-for `freedraw`/`image` (a genuine product defect the curator discovered), and
-the label red pins `fit_label_in`'s inscribed-area blindness (confirmed live
-via the flowchartai mine). The curator + the `mutants` CLI skill live under
-gitignored `.claude/` — machine-local like the docs, discovery-registered.
+Three model rows came from the 2026-08-12 idea-mining arc via the
+**mutant-curator agent**, and two of them are gone from the table because
+Task 21 fixed what they pinned: `render_svg` painting nothing for
+`freedraw`/`image` (a genuine product defect the curator discovered). The
+survivor is `diamond_label_overflows_shape`, pinning `fit_label_in`'s
+inscribed-area blindness (confirmed live via the flowchartai mine). The
+curator + the `mutants` CLI skill live under gitignored `.claude/` —
+machine-local like the docs, discovery-registered.
 
 The last row of each tier came from the 2026-08-12 ELK spike, and both are red
 by an **absence** rather than by a wrong answer — but the two absences are
