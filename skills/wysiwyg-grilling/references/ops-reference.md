@@ -269,7 +269,20 @@ are pruned rather than deleted — the stale ❓ may still be standing on a
 canvas, and a resolve of the reused id would take it down as if it had
 been answered. Omit `id` and one is minted for you — the minter dedupes
 against the registry as well as the scene, so the easy path cannot reissue
-a live pin's id either.
+a live pin's id either, and an explicit id colliding with one the same
+batch is about to mint is refused before either lands.
+
+The refusal is about the id, not about which op spells it. Drawing the ❓
+by hand — an `add` whose element carries `role: "pin"` — under a filed pin
+id is refused the same way, because the canvas would then show two
+questions where the registry holds one record and either glyph would
+answer for both. That includes re-drawing a question the same batch just
+resolved: a resolve is id-global, so nothing later in the batch can
+re-open it, and the whole batch is refused with an error naming both ops
+rather than the `add` being silently swallowed. Resolve it in one batch
+and ask the follow-up in the next, under its own id. An element that is
+NOT a ❓ may still carry the id — element ids are minted per scene, and
+only a pin id is project-wide.
 
 Conversely `resolve_pin` takes the ❓ and nothing else. Ids are minted per
 scene, so an ordinary element that happens to share the id, here or on
@@ -277,11 +290,11 @@ another artifact, is left standing — and a `resolve_pin` **naming** one is
 refused, because something that was never a question has nothing to
 resolve. A ❓ drawn by hand with no registry record still resolves
 normally. What the resolve does take is every ❓ carrying that id, on every
-artifact, however it got there — a duplicate an older version minted before
-the id check existed, or one re-drawn under the id later in the same batch.
-Nothing is exempted: the glyph count on the canvas and the open-pin count in
-the registry have to agree, and each exemption tried in turn left a ❓
-standing under an id the registry had already marked resolved.
+artifact, however it got there — typically a duplicate an older version
+minted before the id check existed, since a batch can no longer draw a new
+one. Nothing is exempted: the glyph count on the canvas and the open-pin
+count in the registry have to agree, and each exemption tried in turn left
+a ❓ standing under an id the registry had already marked resolved.
 
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.

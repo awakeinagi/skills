@@ -7956,8 +7956,11 @@ class Store:
         Raises:
             BatchError: The envelope is malformed, names an unknown or
                 duplicate artifact, resolves an unknown pin or an id that
-                is not a ❓, or carries ops that are not objects at all or
-                do not apply to the current scene.
+                is not a ❓, reuses a pin id the registry has filed or the
+                batch itself is about to mint — whether the id is spelled
+                on a `pin` op or drawn as a pin-role `add` — or carries
+                ops that are not objects at all or do not apply to the
+                current scene.
         """
         with self.lock:
             errors = []
@@ -8044,6 +8047,12 @@ class Store:
             # nothing to resolve; say so where every other unresolvable id
             # is already refused.
             scene_pins = {e["id"] for e in base_els if role_of(e) == "pin"}
+            # Which op closes which id, read before the walk because an
+            # `add` re-drawing a ❓ may sit on either side of the resolve
+            # that answered it, and the refusal has to name both halves or
+            # the agent cannot tell which one to drop.
+            closed_here = {o.get("id"): i for i, o in enumerate(ops)
+                           if o.get("op") == "resolve_pin"}
             minted = set()
             for i, o in enumerate(ops):
                 if o.get("op") == "resolve_pin" and \
@@ -8067,14 +8076,79 @@ class Store:
                 # Hence every id the registry has ever filed, not just the
                 # open ones; an id spelled on some ordinary element is
                 # still free, because ids are minted per scene.
-                elif o.get("op") == "pin" and o.get("id"):
-                    if o["id"] in known_pins or o["id"] in minted:
+                elif o.get("op") == "pin":
+                    pid = o.get("id")
+                    if pid and (pid in known_pins or pid in minted):
                         errors.append(
                             "op %d (pin): pin id %r is already in use — one "
                             "id names one question, and resolving it would "
                             "close both. Pick another id, or omit `id` and "
-                            "one will be minted." % (i, o["id"]))
-                    minted.add(o["id"])
+                            "one will be minted." % (i, pid))
+                    elif not pid:
+                        # The other ordering, which tracking SPELLED ids
+                        # alone cannot see: mint first, spell the same id
+                        # second. The minter runs in `apply_ops`, after
+                        # validation has finished reading, so the id does
+                        # not exist yet to be refused — and both questions
+                        # landed under it while ONE ❓ was drawn, leaving
+                        # the second unclickable and open forever. So the
+                        # id is predicted here, against the same seed and
+                        # the same taken set the minter will use. The one
+                        # difference is elements this batch ADDS, which
+                        # validation does not walk: a mint colliding with
+                        # one of those really lands on `-2` while this
+                        # predicts the bare form, so a later op spelling
+                        # the bare form is refused a shade early. Refusing
+                        # early is the safe side of that trade, and the
+                        # scene-id collision it stands in for would be
+                        # refused a line later anyway.
+                        seed = o.get("target")
+                        if not isinstance(seed, str) or not seed:
+                            q = o.get("question")
+                            seed = q[:20] if isinstance(q, str) else ""
+                        if seed:
+                            pid = mint_id("pin-" + seed, "pin",
+                                          scene_ids | known_pins | minted)
+                    if pid:
+                        minted.add(pid)
+                # The same wound through the other door. `op: pin` on a
+                # filed id is refused above; hand-drawing the identical ❓
+                # as `op: add` with `role: "pin"` was not, so the canvas
+                # ended up with two questions where the registry has one
+                # record and either glyph answered for both. A namesake
+                # that is NOT a ❓ stays legal — element ids are per scene
+                # and a pin id names one question project-wide, which is
+                # the whole distinction the resolve path's role gates
+                # exist to draw.
+                elif o.get("op") == "add":
+                    spec = o.get("element")
+                    if not isinstance(spec, dict):
+                        spec = {k: v for k, v in o.items() if k != "op"}
+                    eid = spec.get("id")
+                    role = spec.get("role") or \
+                        (spec.get("customData") or {}).get("role")
+                    if role == "pin" and eid and \
+                            (eid in known_pins or eid in minted):
+                        # Naming the resolve too, because closing a
+                        # question and re-drawing it under the same id is
+                        # the batch an agent actually sends, and the
+                        # losing op used to be swallowed: the resolve is
+                        # id-global, so nothing later can un-close it, and
+                        # the add came back echoed as "gone" — a sentence
+                        # about the canvas rather than about the op, which
+                        # invites sending the same add again.
+                        errors.append(
+                            "op %d (add): %r is a filed pin id and this "
+                            "element is a ❓ — %s Use a fresh id, or `op: "
+                            "pin` to ask a new question."
+                            % (i, eid,
+                               ("op %d resolves it in this same batch, and "
+                                "a batch cannot close a question and re-ask "
+                                "it under the one id."
+                                % (closed_here[eid],))
+                               if eid in closed_here else
+                               "one id names one question, and a second ❓ "
+                               "under it would answer for both."))
             pin_reg = []
             try:
                 new_els = apply_ops(base_els, ops, errors, pin_reg,
@@ -8307,6 +8381,18 @@ class Store:
             # for a skip to protect that the role gate does not already
             # protect, so a resolve takes every ❓ carrying that id, on
             # every artifact, however it got there.
+            # The pass over the batch's OWN artifact is uncovered by
+            # design as of v0.9 Task 40, and that is a decision rather
+            # than a discovery: the one scene that needed it was a batch
+            # re-drawing a ❓ under the id it had just resolved, and
+            # `_validate_batch` now refuses that outright, so every
+            # remaining glyph on this artifact is taken by `apply_ops`'
+            # own resolve arm before the scan looks. Measured — skipping
+            # this artifact breaks no test. It is kept anyway: dropping
+            # it means ADDING a third skip to the loop whose two previous
+            # skips each stranded a ❓, which is more code for less
+            # safety, and the uniform walk is the thing that made the
+            # last two orderings converge.
             scenes = {aid: new_els}
             for o in ops:
                 pid = o.get("id")

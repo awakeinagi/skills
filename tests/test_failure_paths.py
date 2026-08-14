@@ -63,12 +63,27 @@ class TestFailurePathAtomicity(unittest.TestCase):
     """A rejected batch must leave the state exactly as it found it."""
 
     def setUp(self) -> None:
-        """Build a store over a temp project and seed one artifact."""
+        """Build a store over a temp project, seed one artifact and one pin.
+
+        The pin is here rather than in `seed_batch`, which two other
+        classes share: only the sweep needs it, and it needs it to exist
+        BEFORE the batch under test, because `_validate_batch` reads the
+        registry once at the top. A shape whose leading legitimate op is
+        a `resolve_pin` is the one write path the sweep could not reach
+        without it, and it is the widest of them — the resolution rides
+        into the registry write-through and into every artifact holding
+        that ❓.
+        """
         self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-fail-"))
         self.project = canvas.Project(self.tmp)
         self.project.ensure_tree()
         self.store = canvas.Store(self.project)
         self.store.apply_batch(seed_batch())
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "pin-live", "target": "cart",
+                      "question": "one cart, or one per seller?"}]})
 
     def tearDown(self) -> None:
         """Drop the temp project and the process-level side files."""
@@ -359,6 +374,33 @@ class TestFailurePathAtomicity(unittest.TestCase):
             ("an unknown pin resolve",
              batch(mapping, {"op": "resolve_pin", "id": "pin-nobody",
                              "answer": "sure"})),
+            # v0.9 Task 40. The only shape whose leading legitimate ops
+            # are a RESOLVE and a `create`, which is what earns it an
+            # entry rather than folding into the reused-pin-id one above:
+            # a resolution reaches further than any other write here —
+            # the registry write-through marks the record, and the
+            # cross-artifact scan takes the ❓ off every artifact carrying
+            # the id — and a `create` writes a whole artifact file. A
+            # coherence check running even slightly later than validation
+            # would leave a closed question, a vanished glyph and a new
+            # artifact behind while still answering "refused".
+            # The ❓ is re-drawn onto the artifact being CREATED and not
+            # onto the pin's own, which is the difference between pinning
+            # this refusal and pinning an older one: on `checkout-flow`
+            # the same batch also trips "id already exists in this
+            # artifact", so it would sweep clean with the Task 40 check
+            # deleted and quietly stop covering it.
+            ("a resolve re-drawn under its own id",
+             {"base_revn": base, "artifact": "second-view",
+              "create": {"id": "second-view", "name": "Second View",
+                         "type": "flow"},
+              "ops": [mapping,
+                      {"op": "resolve_pin", "id": "pin-live",
+                       "answer": "one"},
+                      {"op": "add", "element": {
+                          "type": "text", "id": "pin-live", "text": "❓",
+                          "x": 600, "y": 120, "width": 20, "height": 25,
+                          "role": "pin"}}]}),
             ("an unknown tripwire",
              batch(mapping, {"op": "registry", "action": "resolve_tripwire",
                              "id": "tw-nobody"})),

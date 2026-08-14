@@ -4350,16 +4350,20 @@ class TestBatchPathIntegrity(unittest.TestCase):
 #                                                          until Task-38 F-2
 #   4. auto-mint colliding across two artifacts            green (Task 38)
 #   5. explicit id, then an auto-mint of the same          green (Task 38)
-#   6. auto-mint, THEN an explicit id of the same          RED  (F-5)
-#   7. `add` of a pin-role element under a filed id        RED  (F-6)
-#   8. resolve + same-id pin-role `add` in one batch       RED  (F-4 ruling)
+#   6. auto-mint, THEN an explicit id of the same          green (Task 40)
+#   7. `add` of a pin-role element under a filed id        green (Task 40)
+#   8. resolve + same-id pin-role `add` in one batch       green (Task 40)
 #   9. resolve naming an ordinary, non-pin element         green (Task 38)
 #
-# Doors 6-8 are the whole of what is still open, and 7 is the mechanism 8
-# rides in on, so one validation change closes both. Door 8 additionally
-# needs `test_a_pin_role_shadow_add_is_swallowed_in_either_order` re-authored
-# in the same commit — see the ENACTMENT NOTE on that red, which measures
-# what coverage the re-authoring costs.
+# Every door found so far is now shut, and the enumeration is still an
+# enumeration: it says these nine are covered, not that a tenth cannot
+# exist. Doors 7 and 8 closed together on one check, as this census
+# predicted — 7 is the mechanism 8 rides in on — and closing them made
+# the shadow scene illegal, which retired one test and re-authored
+# another. Both are recorded where they happened rather than here: see
+# the ENACTMENT paragraph on the door-8 red, and the retirement comment
+# standing where `test_the_shadowed_resolve_reports_the_removal_it_made`
+# used to be.
 # ---------------------------------------------------------------------------
 
 
@@ -4849,7 +4853,6 @@ class TestPinIdentityIntegrity(unittest.TestCase):
     # escape hatch beneath it, the minter that never consults the
     # registry, and the half of the new refusal nothing measures.
 
-    @unittest.expectedFailure
     def test_red_an_incoherent_pin_batch_is_swallowed_instead_of_refused(
             self) -> None:
         """One batch resolves a ❓ and re-draws it, and only one op is told.
@@ -4894,24 +4897,31 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         is the refusal itself, naming BOTH ops, since an error naming
         only one leaves the agent guessing which half to drop.
 
-        ENACTMENT NOTE for Task 40, because this red does not flip alone.
-        `test_a_pin_role_shadow_add_is_swallowed_in_either_order` below
-        asserts this same batch is ACCEPTED in both orders; that is the
-        interim behaviour and it is correct today, so it is left standing
-        rather than pre-emptively broken. When the refusal lands, that
-        test's scene becomes illegal and it must be re-authored in the
-        same change. Its durable half — a resolve takes the local ❓ and
-        the foreign one in one act — survives in
-        `test_a_legacy_duplicate_pin_id_gives_up_both_its_glyphs`, whose
-        legacy corpus stays legal because the old minter, not an add,
-        made its duplicate. I measured what would be lost: mutating the
-        scan to skip its own artifact fails three tests today, and two of
-        the three are shadow-scene tests that the refusal retires. After
-        enactment the legacy corpus reaches the batch artifact's glyph
-        through `apply_ops`' own index arm rather than the scan, so the
-        scan's own-artifact pass has no covering scene left. That is
-        acceptable — it becomes belt-and-braces — but it should be a
-        decision, not a discovery.
+        v0.9 Task 40 refuses it, and refuses it at the ADD rather than by
+        reasoning about the pair: an `add` carrying `role: "pin"` under an
+        id the registry has filed is turned away wherever it appears, so
+        door 7 below and this one close together, which is what the
+        census predicted. The message names the resolve as well when the
+        same batch carries one, since "you cannot re-ask this" and "you
+        cannot re-ask what you just closed" send an agent to different
+        repairs.
+
+        ENACTMENT, recorded because this red did not flip alone. The
+        curator's note named
+        `test_a_pin_role_shadow_add_is_swallowed_in_either_order`, which
+        asserted this same batch was ACCEPTED both ways; it is re-authored
+        just below as the refusal's own order-independence, which is the
+        same claim's shape with its direction re-ruled. A SECOND casualty
+        the note did not name was `test_the_shadowed_resolve_reports_the
+        _removal_it_made`, built on the same now-illegal scene — see the
+        retirement comment below it for what was measured before it went.
+        And the scan's own-artifact pass did lose its last covering scene
+        exactly as the note predicted (re-measured after re-authoring:
+        skipping the batch's own artifact now breaks nothing). It is KEPT
+        as belt-and-braces, uncovered by design — removing it would mean
+        adding a third skip to a loop whose own comment records two
+        earlier skips that each stranded a ❓, i.e. writing more code to
+        get less safety.
         """
         store = self._store()
         escaped = self._send(store, "other", [
@@ -4935,7 +4945,6 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                           for p in store.registry["pins"]],
                          [("pin-a", "open")])
 
-    @unittest.expectedFailure
     def test_red_an_explicit_id_may_collide_with_an_earlier_auto_mint(
             self) -> None:
         """The minter's other ordering: the mint happens after the check.
@@ -4965,6 +4974,16 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         question, so two distinct ids — and DIRECTION is refusal with the
         colliding id named, which is the answer the other ordering
         already gives.
+
+        v0.9 Task 40 does that tracking by PREDICTING the mint where the
+        `minted` set is kept, running the same `mint_id` against the same
+        seed and the same taken set the minter will use, so both
+        orderings now meet one check. Prediction rather than a second
+        refusal inside `apply_ops` because this is where the other
+        ordering is already answered, and one site giving one message
+        beats two sites agreeing. The prediction ignores elements the
+        batch itself ADDS, which the minter counts — documented at the
+        code, and it can only refuse a shade early, never admit.
         """
         store = self._store()
         escaped = self._send(store, "flow", [
@@ -4984,7 +5003,6 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "minted was accepted (escaped=%r)" % (escaped,))
         self.assertIn("pin-n1", "\n".join(escaped.errors))
 
-    @unittest.expectedFailure
     def test_red_the_add_door_admits_a_filed_pin_id(self) -> None:
         """Two doors to one wound, and only the spelled one is guarded.
 
@@ -5012,6 +5030,14 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         outcome for a project that already has one, but nothing should
         accept this at write time. MAGNITUDE is that no second ❓ is
         drawn under a filed id.
+
+        v0.9 Task 40 adds that door check beside the pin-door's, gated on
+        the element's ROLE and on nothing else — the namesake neighbour
+        below is what holds the gate to that, since ids are per scene and
+        only a ❓ can answer for a question. It reads `role` from the
+        terse spec or from `customData`, both of which
+        `make_element` accepts, because a check that saw only one
+        spelling would leave the door ajar in the other.
         """
         store = self._store()
         escaped = self._send(store, "other", [
@@ -5268,54 +5294,30 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         self.assertEqual(len(said), 1, said)
         self.assertIn("removed from canvas", said[0])
 
-    def test_the_shadowed_resolve_reports_the_removal_it_made(self) -> None:
-        """The echo's answer comes from the arriving state, not absence.
-
-        The reviewer's F-9: `apply_batch` scans the other artifacts for
-        the ❓, and `_validate_batch` decides separately what the echo
-        will SAY about that scan. Two reads of one question, and this is
-        the batch that tells them apart — a resolve whose ❓ lives
-        elsewhere, followed by an add re-drawing a ❓ under the answered
-        id. Absence from the post-op scene cannot answer it: the foreign
-        glyph was never in this scene, and the re-drawn one is gone from
-        it for a different reason (the scan took it). Only the state as
-        the batch ARRIVED distinguishes them, which is what the stamp
-        reads.
-
-        Unwritable until `test_red_a_pin_role_shadowing_add_strands_the
-        _foreign_glyph` flipped: while the scan was being skipped here,
-        the honest echo was "still on canvas", and freezing that sentence
-        would have pinned the defect. Now the scan runs, takes the
-        foreign ❓ and the re-drawn one with it, and the two surfaces are
-        asserted against the state they describe rather than as wording —
-        the glyphs are gone, the note has nothing to report, and the echo
-        claims the removal. Restoring either skip breaks this: the echo
-        then says the ❓ was already gone, or that it is still standing,
-        about a batch that took it down.
-
-        The add's own line is asserted too. An op whose element the scan
-        swallowed must not echo as a drawing that happened — that is the
-        same disagreement one op over, and it is the agent's only notice
-        that its ❓ did not survive its own resolve.
-        """
-        store = self._store()
-        ops: list[dict[str, Any]] = [
-            {"op": "resolve_pin", "id": "pin-a", "answer": "yes"},
-            {"op": "add", "element": {
-                "type": "text", "id": "pin-a", "text": "❓", "x": 500,
-                "y": 0, "width": 20, "height": 25, "role": "pin"}}]
-        record, _ = store.apply_batch({"base_revn": store.head_revn(),
-                                       "artifact": "other", "ops": ops})
-        self.assertEqual([self._glyphs(store, aid) for aid in
-                          sorted(store.scenes)], [[], []])
-        self.assertEqual(canvas.pin_glyph_notes(record, ops), [])
-        said = canvas.intent_echo(ops, store.scenes["other"])
-        self.assertIn(
-            "removed from canvas", said[0],
-            "the scan took the ❓ and the echo says otherwise: %r" % (said,))
-        self.assertIn("gone", said[1],
-                      "the re-drawn ❓ was swallowed by the scan and the "
-                      "echo reports it as drawn: %r" % (said,))
+    # RETIRED by v0.9 Task 40: `test_the_shadowed_resolve_reports_the
+    # _removal_it_made`, the reviewer's F-9 — the echo's answer comes from
+    # the arriving state rather than from absence. It read that off the
+    # one batch that could tell the two apart: a resolve whose ❓ lives
+    # elsewhere, followed by an add re-drawing a ❓ under the answered id,
+    # so the foreign glyph was never in the post-op scene and the re-drawn
+    # one was gone from it for a different reason. Task 40 refuses that
+    # batch, so the scene no longer exists to be measured, and no legal
+    # one replaces it: the add needs an id the registry has filed to
+    # shadow anything, and that is exactly what is now refused.
+    #
+    # Retired rather than re-authored because the property outlives the
+    # scene, which was measured and not assumed. Dropping either limb of
+    # the `glyph_removed` stamp still fails tests that stay legal — the
+    # cross-artifact limb fails `test_a_foreign_resolve_reports_the
+    # _removal_it_reached_for`, the pre-op-scene limb fails
+    # `test_the_echo_reports_a_removal_that_really_happened`,
+    # `test_an_unregistered_glyph_on_the_scene_stays_resolvable` and
+    # `test_echo_covers_every_op_kind` (tests/test_backend.py) — and the
+    # tolerant third state is `test_red_the_echo_claims_a_removal_the
+    # _record_denies`. What the retirement really costs is the assertion
+    # about the ADD's own echo line, and the refusal replaces that
+    # outright: the agent is now told by a named error which of its two
+    # ops lost, instead of having to read it out of an honest echo.
 
     def test_a_legacy_duplicate_pin_id_gives_up_both_its_glyphs(
             self) -> None:
@@ -5376,56 +5378,64 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                 self.assertIn("removed from canvas",
                               canvas.intent_echo(ops, store.scenes[aid])[0])
 
-    def test_a_pin_role_shadow_add_is_swallowed_in_either_order(
+    def test_a_pin_role_shadow_add_is_refused_in_either_order(
             self) -> None:
-        """The shadow add cannot hide the foreign ❓ from either position.
+        """The incoherent batch gets the same answer from either position.
 
-        `test_an_id_shadowing_add_cannot_hide_the_foreign_pin`
-        (tests/test_failure_paths.py) records that ORDER matters for the
-        node-role shadow — the add has to land after the resolve, or
-        `apply_ops` deletes the shadow itself. For a shadow that is a ❓
-        both orders have to reach the same place, and they did not while
-        a skip existed: resolve-then-add put the id back in scope and
-        suppressed the scan.
+        RE-AUTHORED by v0.9 Task 40, in the commit that landed the
+        refusal, per the ENACTMENT NOTE on
+        `test_red_an_incoherent_pin_batch_is_swallowed_instead_of_refused`.
+        Until then this asserted the same two batches were ACCEPTED both
+        ways and converged on an empty canvas — the correct thing to pin
+        while acceptance was the only outcome the contract allowed. The
+        re-rule made the scene illegal, so what survives is the shape of
+        the claim rather than its direction: whatever the answer is, the
+        two orders must give the SAME one.
 
-        With no skip the two converge, and the assertion is that
-        convergence. Add-then-resolve is taken by `apply_ops`' own
-        resolve arm; resolve-then-add survives that arm and is taken by
-        the cross-artifact scan, which walks the batch's own artifact
-        too. Either way no ❓ carrying the answered id is left anywhere,
-        which is the property, and the batch is accepted both times —
-        refusing it would flip the flipped red's DIRECTION.
+        That is worth a test of its own and not a duplicate of the two
+        reds, because the refusal is the first thing here that reads the
+        op list twice. The message names the resolve alongside the add,
+        and a check written as one forward walk could only find the
+        resolve when it came FIRST — add-first would fall back to the
+        generic wording and the agent would lose the pointer to the op it
+        has to drop. Only this test sends the add first.
+
+        The durable half of the retired version — a resolve takes the
+        local ❓ and the foreign one in one act — lives on in
+        `test_a_legacy_duplicate_pin_id_gives_up_both_its_glyphs`, whose
+        corpus stays legal because the old auto-minter, not an add, made
+        its duplicate.
         """
-        orders: tuple[tuple[str, list[dict[str, Any]]], ...] = (
-            ("resolve first", [{"op": "resolve_pin", "id": "pin-a",
-                                "answer": "yes"},
-                               {"op": "add", "element": {
-                                   "type": "text", "id": "pin-a",
-                                   "text": "❓", "x": 500, "y": 0,
-                                   "width": 20, "height": 25,
-                                   "role": "pin"}}]),
-            ("add first", [{"op": "add", "element": {
-                                "type": "text", "id": "pin-a", "text": "❓",
-                                "x": 500, "y": 0, "width": 20,
-                                "height": 25, "role": "pin"}},
-                           {"op": "resolve_pin", "id": "pin-a",
-                            "answer": "yes"}]))
-        for name, ops in orders:
+        shadow = {"op": "add", "element": {
+            "type": "text", "id": "pin-a", "text": "❓", "x": 500, "y": 0,
+            "width": 20, "height": 25, "role": "pin"}}
+        resolve = {"op": "resolve_pin", "id": "pin-a", "answer": "yes"}
+        orders: tuple[tuple[str, list[dict[str, Any]], str, str], ...] = (
+            ("resolve first", [resolve, shadow], "op 1", "op 0"),
+            ("add first", [shadow, resolve], "op 0", "op 1"))
+        for name, ops, loser, closer in orders:
             with self.subTest(order=name):
                 store = self._store()
                 escaped = self._send(store, "other", ops)
-                self.assertIsNone(escaped,
-                                  "the batch itself is legitimate: %r"
-                                  % (escaped,))
-                drawn = [eid for a in store.scenes
-                         for eid in self._glyphs(store, a)]
-                open_pins = [p["id"] for p in store.registry["pins"]
-                             if p["status"] in ("open", "answered")]
-                self.assertEqual(
-                    drawn, [],
-                    "%s: a ❓ under the answered id survived — the foreign "
-                    "one, the re-drawn one, or both: %r" % (name, drawn))
-                self.assertEqual(len(drawn), len(open_pins))
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "%s: the batch closes pin-a and re-draws it under the "
+                    "same id, and was accepted: %r" % (name, escaped))
+                said = "\n".join(escaped.errors)
+                self.assertIn("pin-a", said)
+                self.assertIn(loser, said,
+                              "%s: the refusal must name the add that lost: "
+                              "%r" % (name, said))
+                self.assertIn(
+                    closer, said,
+                    "%s: the refusal must name the resolve too, or the "
+                    "agent cannot see which half to drop — and finding it "
+                    "cannot depend on it coming first: %r" % (name, said))
+                self.assertEqual(self._glyphs(store, "flow"), ["pin-a"])
+                self.assertEqual(self._glyphs(store, "other"), [])
+                self.assertEqual([(p["id"], p["status"])
+                                  for p in store.registry["pins"]],
+                                 [("pin-a", "open")])
 
 
 # ---------------------------------------------------------------------------
