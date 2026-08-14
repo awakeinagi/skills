@@ -2824,6 +2824,101 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertEqual(sorted(st.scenes), ["a", "b"])
         self.assertIn("f1", json.dumps(st.referential, default=str))
 
+    @unittest.expectedFailure
+    def test_red_a_negative_replay_index_lands_in_the_interior(self) -> None:
+        """A corrupt record's index puts an element where nobody asked.
+
+        `replay_changes` clamps only the top: `idx = min(ch.get("index",
+        len(els)), len(els))` (canvas.py:3188), so a negative index goes
+        to `list.insert` unclamped and Python reads it as an offset from
+        the END. On a three-element list `-1` lands the element SECOND TO
+        LAST, which is neither the front nor the back and is not a
+        position any writer could have meant.
+
+        What makes it nonsense rather than merely a convention is that
+        the other negative values disagree with it: `-5` on the same list
+        clamps to the front, because `insert` bottoms out at 0. Two
+        corrupt records carrying two negative indices get two unrelated
+        answers, and the arm thirty lines below in the SAME function
+        already does the right thing — the legacy reorder branch is
+        `max(0, min(ch["to_index"], len(els)))` (canvas.py:3220). The
+        missing `max(0, ...)` is an omission, not a decision.
+
+        Save records are self-generated, so there is no live trigger —
+        but they are read back from DISK, which puts this in the same
+        family as the malformed artifacts above. Probed end to end: with
+        one add change's `index` hand-edited to `-1`, the project
+        reloads with `issues` EMPTY, `state_at` reconstructs
+        `['a', 'c', 'b', ...]` where the live scene holds
+        `['a', 'b', 'c', ...]`, and no lint fires on the reconstruction.
+        Element order is paint order, so a rollback to that revision
+        hands the user a differently-stacked drawing with nothing
+        anywhere saying the reconstruction disagreed with the record.
+
+        MAGNITUDE is where the element lands. DIRECTION is that every
+        negative index resolves the same way as `0` — asserted as
+        agreement between `-1`, `-5` and `0` rather than as a literal
+        position, so the claim is the consistency and not a chosen
+        convention. `max(0, ...)`, matching the arm below, flips it;
+        quarantining the record at load would be a larger change that
+        this test would have to be rewritten for, and the docstring says
+        so rather than leaving a future fixer guessing.
+        """
+        base = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+
+        def replayed(index: int) -> list[str]:
+            """Replay one add change at `index` and name the result.
+
+            Args:
+                index: The change's `index` field, as read from disk.
+
+            Returns:
+                The element ids of the reconstructed list, in order.
+            """
+            return [e["id"] for e in canvas.replay_changes(
+                base, [{"op": "add", "index": index,
+                        "element": {"id": "NEW"}}])]
+
+        self.assertEqual(
+            replayed(-1), replayed(0),
+            "index=-1 reconstructed %r while index=0 gives %r, and "
+            "index=-5 gives %r — three answers to one corrupt record"
+            % (replayed(-1), replayed(0), replayed(-5)))
+        self.assertEqual(replayed(-5), replayed(0))
+
+    def test_state_at_reconstructs_the_order_that_was_saved(self) -> None:
+        """The replay red's live pole, and its end-to-end guard.
+
+        Two jobs. It proves `replay_changes` reconstructs a real
+        project's stored order faithfully when the record is intact, so
+        the red measures a corrupt index rather than a replay that was
+        always wrong. And it is the error-red guard: the red calls
+        `replay_changes` directly on a three-item list, which would go on
+        passing if the whole reconstruction path were rewritten around
+        it, and this is what fails instead.
+
+        Asserted against the LIVE scene rather than a literal order,
+        because "replay reproduces what was committed" is the property
+        that matters and it survives any change to how the seed batch
+        happens to lay elements out.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-replay-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": nid, "x": 200 * i, "y": 0,
+                "width": 100, "height": 60, "role": "node"}}
+                for i, nid in enumerate(("a", "b", "c"))]})
+        rebuilt = store.state_at(store.head_revn())["flow"]["elements"]
+        self.assertEqual([e["id"] for e in rebuilt],
+                         [e["id"] for e in store.scenes["flow"]])
+
 
 # ---------------------------------------------------------------------------
 # The reporting surface (v0.9 re-review O-1, 2026-08-13; fixed in Task 33).
@@ -3389,6 +3484,42 @@ class TestBatchPathIntegrity(unittest.TestCase):
                          "concept": concept, "elements": ["flow#n1"]}]})
         return store
 
+    def _with_nodes(self, store: canvas.Store) -> canvas.Store:
+        """Add two more plain nodes, so the scene has an order to disturb.
+
+        The reorder red needs a list long enough that "the front" and
+        "somewhere in the middle" are different answers; `_store`'s
+        single node cannot tell them apart. They carry no labels, which
+        keeps the stored order short enough to assert in full — the
+        label elements a `label` would mint are just noise between the
+        positions the red is about.
+
+        Args:
+            store: A store from `_store`.
+
+        Returns:
+            The same store, so callers can chain the call.
+        """
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": nid, "x": 200 * i, "y": 200,
+                "width": 100, "height": 60, "role": "node"}}
+                for i, nid in enumerate(("n2", "n3"))]})
+        return store
+
+    def _ids(self, store: canvas.Store) -> list[str]:
+        """List the element ids in `flow`, in stored order.
+
+        Args:
+            store: The store to read.
+
+        Returns:
+            Every element id in the artifact's scene, in the order that
+            decides paint order — which is what a reorder op moves.
+        """
+        return [e["id"] for e in store.scenes["flow"]]
+
     def _send(self, store: canvas.Store,
               op: dict[str, Any]) -> Exception | None:
         """Apply one registry op and hand back whatever escaped, if any.
@@ -3408,10 +3539,27 @@ class TestBatchPathIntegrity(unittest.TestCase):
         Returns:
             The exception the batch raised, or `None` if it was applied.
         """
-        payload = dict(op, op="registry")
+        return self._send_ops(store, [dict(op, op="registry")])
+
+    def _send_ops(self, store: canvas.Store,
+                  ops: list[dict[str, Any]]) -> Exception | None:
+        """Apply a batch of raw ops and hand back whatever escaped.
+
+        The registry-op wrapper above delegates here so the scene-op reds
+        and the registry-op reds judge a rejection through one code path:
+        the claim they share is about WHICH exception reaches the caller,
+        and two helpers could drift on that answer.
+
+        Args:
+            store: The store to apply against, at its current head.
+            ops: The batch's op list, each carrying its own `op` key.
+
+        Returns:
+            The exception the batch raised, or `None` if it was applied.
+        """
         try:
             store.apply_batch({"base_revn": store.head_revn(),
-                               "artifact": "flow", "ops": [payload]})
+                               "artifact": "flow", "ops": ops})
         except Exception as exc:            # broad on purpose: see above
             return exc
         return None
@@ -3473,22 +3621,30 @@ class TestBatchPathIntegrity(unittest.TestCase):
 
     def test_the_seeded_store_holds_one_artifact_and_no_mappings(
             self) -> None:
-        """The baseline all three reds below are deviations from.
+        """The baseline every test in this class is a deviation from.
 
-        Each red measures what one batch changes about this store, so a
-        harness that quietly stopped being able to BUILD it — a `create`
-        block whose schema moved, an `add_mapping` that started rejecting
-        this element spelling — would leave all three `expectedFailure`s
-        passing while measuring nothing at all (doctrine §6). This is
-        their standing guard, and it covers both fixtures: the empty
-        mapping list the annotate red needs, and the two-mapping list the
-        remove red needs.
+        Each one measures what a single batch changes about this store,
+        so a harness that quietly stopped being able to BUILD it — a
+        `create` block whose schema moved, an `add_mapping` that started
+        rejecting this element spelling — would leave the class's
+        `expectedFailure`s passing while measuring nothing at all
+        (doctrine §6). This is their standing guard, and it covers all
+        three fixtures: the empty mapping list, the two-mapping list the
+        index reds need, and the three-element scene the reorder red
+        needs.
+
+        It guards the class's GREEN tests just as much, which is why it
+        outlived the three reds Task 34 flipped: those still assert what
+        a rejection leaves behind, and a store that failed to seed would
+        make "nothing was left behind" trivially true.
         """
         store, root = self._store()
         self.assertEqual(sorted(store.scenes), ["flow"])
         self.assertEqual(store.registry["mappings"], [])
         self.assertTrue((root / "project_knowledge" / "artifacts" /
                          "flow.excalidraw").exists())
+        self.assertEqual(self._ids(self._with_nodes(self._store()[0])),
+                         ["n1", "n2", "n3", "n1-label"])
         self.assertEqual(
             [m["concept"] for m in self._with_mappings(store)
              .registry["mappings"]], ["alpha", "beta"])
@@ -3694,6 +3850,152 @@ class TestBatchPathIntegrity(unittest.TestCase):
                           % (escaped,))
         self.assertEqual([m["concept"] for m in store.registry["mappings"]],
                          ["beta"])
+
+    # -- Two more from the same missing-sign-check family (v0.9 Task-34
+    # review, 2026-08-13). Task 34 closed both registry index arms; these
+    # are the two places the same predicate is still wrong — the SCENE
+    # op's own index, and the type gate that lets a boolean through as a
+    # position on either side.
+
+    @unittest.expectedFailure
+    def test_red_a_negative_reorder_index_sends_the_element_to_the_front(
+            self) -> None:
+        """`index: -1` moves the element instead of refusing to.
+
+        The scene-op cousin of the two registry index arms Task 34 just
+        fixed, and the last place the sign half is missing. The guard is
+        `pos = max(0, min(pos, len(els)))` (canvas.py:2833), which does
+        not read `-1` the way Python subscripts do — it CLAMPS it — so a
+        negative index is silently rewritten to zero and the element goes
+        to the FRONT. Probed on the shipped code: `reorder n3 index=-1`
+        and `reorder n3 index=0` produce byte-identical scenes.
+
+        This is the weakest member of the family and is written that way
+        on purpose. Nothing crashes, nothing is deleted, and the save
+        record narrates the resulting order honestly — an agent reading
+        the record sees where the element really went. What it is silent
+        about is that where it went is not where the op asked, and the
+        clamp makes every negative index mean the same thing, so an
+        agent that computed `-1` for "last" gets the exact opposite of
+        what it meant with nothing to tell it so.
+
+        DIRECTION is that the op is refused with a named error, matching
+        what the two registry arms now do — the same predicate, the same
+        answer, so one convention covers all three. MAGNITUDE is that the
+        stored order is untouched, asserted first because a refusal that
+        still moved the element would leave the damage live.
+
+        The `index: True` case reaches the same arm and is accepted as
+        position 1; it is not asserted here because the boolean red below
+        owns that shape, and one fix that gives all three arms a shared
+        index predicate flips both.
+        """
+        store, _ = self._store()
+        self._with_nodes(store)
+        escaped = self._send_ops(store, [{"op": "reorder", "id": "n3",
+                                          "index": -1}])
+        self.assertEqual(
+            self._ids(store), ["n1", "n2", "n3", "n1-label"],
+            "reorder index=-1 named no position anyone could have meant "
+            "and moved n3 to the front anyway")
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "reorder index=-1 was accepted (escaped=%r) — the record "
+            "narrates the new order as though it were asked for"
+            % (escaped,))
+        said = "\n".join(escaped.errors)
+        self.assertIn("reorder", said)
+        self.assertIn("index", said)
+
+    @unittest.expectedFailure
+    def test_red_a_boolean_mapping_index_is_taken_as_a_position(
+            self) -> None:
+        """`index: true` clears the type gate and lands on mapping 1.
+
+        Task 34 gave both arms `not isinstance(idx, int) or not 0 <= idx
+        < len(...)` (canvas.py:7559, :7571), which closes the sign half
+        and leaves the type half open: `bool` is a subclass of `int` in
+        Python, so `True` is an `int`, and `0 <= True < 3` is `0 <= 1 <
+        3`. Probed on the shipped code, `remove_mapping index=true`
+        tombstones `beta` and `annotate_mapping index=true` writes the
+        note onto `beta` — a mapping the batch never named, on a JSON
+        value that is not a position at all.
+
+        Both arms are asserted under one entry as a `subTest`, following
+        `test_an_index_past_the_end_is_rejected_with_a_named_error`
+        directly above: one predicate, copied to two sites, and a fix to
+        either alone leaves the other live. The scene op's own `reorder`
+        arm has the identical gate (canvas.py:2827) and takes `True` as
+        position 1 too — recorded here rather than as a third entry,
+        because a shared index predicate is the fix that flips all of
+        them.
+
+        DIRECTION is refusal with a named error, the answer both arms
+        already give every other invalid index. MAGNITUDE is that the
+        mapping list comes through untouched — same concepts, same
+        order, no note — asserted first because it is the damage.
+        """
+        for action, extra in (("remove_mapping", {}),
+                              ("annotate_mapping", {"note": "boom"})):
+            with self.subTest(action=action):
+                store, _ = self._store()
+                self._with_mappings(store)
+                escaped = self._send(store, dict(extra, action=action,
+                                                 index=True))
+                self.assertEqual(
+                    [(m["concept"], m.get("note"))
+                     for m in store.registry["mappings"]],
+                    [("alpha", None), ("beta", None)],
+                    "%s index=true was read as position 1 and landed on "
+                    "a mapping the batch never named" % (action,))
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "%s index=true was accepted (escaped=%r)"
+                    % (action, escaped))
+                self.assertIn(action, "\n".join(escaped.errors))
+
+    def test_a_zero_reorder_index_sends_the_element_to_the_front(
+            self) -> None:
+        """The reorder arm's live pole: asked properly, it moves it there.
+
+        The negative red's neighbour, differing in the SIGN of one field
+        and nothing else. Without it, a fix that refused every `reorder`
+        — or one that stopped moving anything — would flip that red and
+        read as a success while deleting the op. It also fixes the front
+        as legitimately reachable, which is what makes "index=-1 must not
+        send it to the front" a statement about the ASKING rather than
+        about the destination.
+        """
+        store, _ = self._store()
+        self._with_nodes(store)
+        escaped = self._send_ops(store, [{"op": "reorder", "id": "n3",
+                                          "index": 0}])
+        self.assertIsNone(escaped, "a valid reorder was refused: %r"
+                          % (escaped,))
+        self.assertEqual(self._ids(store), ["n3", "n1", "n2", "n1-label"])
+
+    def test_a_non_integer_mapping_index_is_refused(self) -> None:
+        """The type gate's live pole: a string index is turned away.
+
+        The boolean red's neighbour, and the sharpest control available
+        for it — `"1"` and `True` are both non-positions handed to the
+        same `isinstance(idx, int)` check, and only one of them is
+        refused today. So this proves the gate is reached and does fire,
+        which means the boolean red measures a hole in a LIVE check
+        rather than one that quietly stopped running.
+        """
+        store, _ = self._store()
+        self._with_mappings(store)
+        for action in ("annotate_mapping", "remove_mapping"):
+            with self.subTest(action=action):
+                escaped = self._send(store, {"action": action,
+                                             "index": "1"})
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "index='1' was not refused: %r" % (escaped,))
+                self.assertIn(action, "\n".join(escaped.errors))
+        self.assertEqual([m["concept"] for m in store.registry["mappings"]],
+                         ["alpha", "beta"])
 
     def test_an_accepted_create_and_rename_persists_normally(self) -> None:
         """The create red's neighbour: the same batch, minus the typo.
@@ -4660,8 +4962,8 @@ def _label_pair_stage() -> list[dict]:
 # Not every red in this file is a catalogue entry, and the gap is not small:
 # as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 36
 # expected failures. The twenty outside live in seven classes —
-# `TestStoreIntegrity` (5), `TestLoadFindingsReachTheAgent` (4),
-# `TestBatchPathIntegrity` (3), `TestPinIdentityIntegrity` (3),
+# `TestStoreIntegrity` (6), `TestLoadFindingsReachTheAgent` (4),
+# `TestPinIdentityIntegrity` (3), `TestBatchPathIntegrity` (2),
 # `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2) and
 # `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
