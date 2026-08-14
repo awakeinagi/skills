@@ -156,12 +156,11 @@ on a node, drawn as one unbroken 448px stroke through it — and fulfils the
 sweep survivor's **promote** disposition. Flip it by landing WP4b item 1's
 lint and giving it a `DETECTORS` entry.
 
-`test_mutant_snapshot_cap_drops_the_rightmost_node` is red for **missing ink**:
-the check works, and what is absent is the drawing itself. It drives
-`canvas.py snapshot` end to end and finds the rightmost node simply not in the
-PNG — `rasterize_svg` clamps the browser window to 3000px (canvas.py:10003)
-while `render_svg` only scales past 4000px, and `validate_png` checks the file
-against the *window*, so a truncated snapshot reports `VALID=true`.
+`test_mutant_snapshot_cap_drops_the_rightmost_node` was red for **missing
+ink** — the drawing itself absent from the PNG — until Task 20 made the
+raster window follow the drawing and `validate_png` measure against the
+drawing's extent; it drives `canvas.py snapshot` end to end and now proves
+the rightmost node is in the file.
 
 `collinear_overlap_corridor` is **green and must stay green** — it is the
 control saying `corridor.py` already works.
