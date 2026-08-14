@@ -8733,6 +8733,157 @@ class TestRouterInteriorElbows(Base):
         self.assertGreaterEqual(len(arrow["points"]), 3)
 
 
+class TestPhantomPassThrough(Base):
+    """WP4b e1: a node with a stroke drawn across it stops being a step.
+
+    The catalogue proves the ELK configuration end to end
+    (`phantom_passthrough_shared_attach`). These pin the scope decision
+    underneath it, which is the whole content of the check: the broad
+    reading — any collinear in/out pair on opposite borders — is the
+    normal correct flowchart, 70 findings over the 24 frozen artifacts,
+    and does not ship. What ships is the half where ink crosses the box.
+    """
+
+    def _rank(self, foot, node_w=80):
+        """A -> N -> Z on one rank line, with e2's foot placed by caller.
+
+        Args:
+            foot: Absolute x of e2's start point.
+            node_w: N's width, so a caller can vary what "across" means.
+
+        Returns:
+            The five-element scene.
+        """
+        return [
+            {"id": "A", "type": "rectangle", "x": 0, "y": 100,
+             "width": 80, "height": 40, "customData": {"role": "node"}},
+            {"id": "N", "type": "rectangle", "x": 200, "y": 100,
+             "width": node_w, "height": 40, "customData": {"role": "node"}},
+            {"id": "Z", "type": "rectangle", "x": 528, "y": 100,
+             "width": 80, "height": 40, "customData": {"role": "node"}},
+            {"id": "e1", "type": "arrow", "x": 80, "y": 120,
+             "points": [[0, 0], [120, 0]],
+             "startBinding": {"elementId": "A", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "N", "focus": 0, "gap": 1},
+             "customData": {"role": "edge", "route": "server"}},
+            {"id": "e2", "type": "arrow", "x": foot, "y": 120,
+             "points": [[0, 0], [528 - foot, 0]],
+             "startBinding": {"elementId": "N", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "Z", "focus": 0, "gap": 1},
+             "customData": {"role": "edge", "route": "server"}},
+        ]
+
+    def _hits(self, els):
+        """The phantom pass-through warnings a scene produces.
+
+        Args:
+            els: The scene's elements.
+
+        Returns:
+            The matching lint lines.
+        """
+        out = canvas.lint_layout(els, artifact_type="flow")
+        return [m for m in out["errors"] + out["warnings"] + out["notes"]
+                if "read as one stroke through" in m]
+
+    def test_both_feet_on_one_border_covers_the_whole_node(self):
+        """The ELK production configuration: 80px of N under the stroke."""
+        hits = self._hits(self._rank(200))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("80px of it has arrow drawn over it", hits[0])
+        self.assertIn("leave 0px of the node's 80px bare", hits[0])
+
+    def test_feet_on_opposite_borders_are_silent(self):
+        """The scope decision, as a test: this is the normal drawing.
+
+        One foot moves 80px, the arrows stay collinear and stay opposed,
+        and the only thing that changes is whether ink crosses the box.
+        A check built on the broad criterion passes every other
+        assertion in this class and fails this one.
+        """
+        self.assertEqual(self._hits(self._rank(280)), [])
+
+    def test_a_partial_overlap_reports_only_what_is_covered(self):
+        """The magnitude is the covered span, not the node and not the run.
+
+        e2's foot sits 50px inside N's left border, so it draws over the
+        remaining 30px and 50px of the node stays bare. Three other
+        readings are available in the same picture — 50, 80 and 448 —
+        and this excludes all of them.
+        """
+        hits = self._hits(self._rank(250))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("leave 50px of the node's 80px bare", hits[0])
+        self.assertIn("30px of it has arrow drawn over it", hits[0])
+
+    def test_a_leaving_foot_behind_the_arriving_one_covers_it_all(self):
+        """The case a naive foot-difference gets wrong by 20px.
+
+        e2 starts 20px OUTSIDE N's left border, so the two strokes
+        overlap on open canvas as well and the whole node has arrow
+        across it. The gap between the feet is 20px and the covered
+        span is 80px, not 60px — nothing about the node is bare.
+        """
+        hits = self._hits(self._rank(180))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("leave 0px of the node's 80px bare", hits[0])
+        self.assertIn("80px of it has arrow drawn over it", hits[0])
+
+    def test_a_turn_at_the_node_is_not_a_pass_through(self):
+        """N is a step when the eye has to turn at it, whatever the feet.
+
+        e2 leaves N's BOTTOM edge going down. The feet are 0px apart on
+        x, so an implementation that tested coincidence rather than a
+        shared axis would fire here — and would be reporting a corner.
+        """
+        els = self._rank(200)
+        els[4]["x"], els[4]["y"] = 240, 140
+        els[4]["points"] = [[0, 0], [0, 200]]
+        self.assertEqual(self._hits(els), [])
+
+    def test_a_self_loop_is_not_a_pass_through(self):
+        """One node at both ends is a loop, not a stroke passing by."""
+        node = {"id": "A", "type": "rectangle", "x": 0, "y": 100,
+                "width": 80, "height": 40, "customData": {"role": "node"}}
+        pts = canvas._self_loop_path(node)
+        x0, y0 = pts[0]
+        loop = {"id": "e1", "type": "arrow", "x": x0, "y": y0,
+                "points": [[p[0] - x0, p[1] - y0] for p in pts],
+                "startBinding": {"elementId": "A", "focus": 0, "gap": 1},
+                "endBinding": {"elementId": "A", "focus": 0, "gap": 1},
+                "customData": {"role": "edge", "route": "server"}}
+        self.assertEqual(self._hits([node, loop]), [])
+
+    def test_two_arrows_arriving_head_on_are_not_a_pass_through(self):
+        """Exactly one arriving and one leaving, or there is no relation.
+
+        Both arrowheads land on N from opposite sides. A reader sees a
+        convergence, not a stroke continuing past — there is nothing for
+        the completion to join into, because neither arrow goes anywhere
+        after N.
+        """
+        els = self._rank(200)
+        els[4]["startBinding"], els[4]["endBinding"] = (
+            {"elementId": "Z", "focus": 0, "gap": 1},
+            {"elementId": "N", "focus": 0, "gap": 1})
+        els[4]["x"], els[4]["points"] = 528, [[0, 0], [-328, 0]]
+        self.assertEqual(self._hits(els), [])
+
+    def test_the_frozen_fixtures_have_no_phantom_pass_throughs(self):
+        """The corpus pole, and the number the scope decision rests on.
+
+        Zero here against 70 under the broad criterion is the whole
+        argument for the narrowing: those 70 were every chained node of
+        every correct flow, and the finding's own remedy would have
+        degraded each of those drawings.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        for path in sorted(root.rglob("*.excalidraw")):
+            doc = json.loads(path.read_text())
+            self.assertEqual(self._hits(doc.get("elements") or []), [],
+                             path.name)
+
+
 class TestDegenerateArrowGeometry(Base):
     """WP4b e15: a malformed path is named before anything reads it.
 

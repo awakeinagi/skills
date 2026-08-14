@@ -67,6 +67,20 @@ _PASSES_THROUGH_RE = re.compile(
 # `[\w-]+` stops before the ` ('Label')` suffix `canvas.name()` appends.
 _SHARED_ATTACH_RE = re.compile(
     r"arrows [\w-]+ and [\w-]+ share an attach point on (?P<element>[\w-]+)")
+# WP4b's e1 (canvas.py), landed by task 24 and the second template naming
+# two arrows and one node — `element` is the NODE for the same reason as
+# above, and here it is also the thing the finding is ABOUT: the claim is
+# that this node stopped reading as a step. MAGNITUDE is the span of it
+# that has arrow drawn over it, which is the one number that separates
+# this check from its neighbours. The message carries three numbers on
+# purpose and the regex pins the third: the bare span (0 on the ELK
+# configuration) and the node's own width (80) are both legible readings
+# a wrong implementation could report, and so is the whole merged stroke
+# (448, the length `shared_corridor` and the spike both quote). Only
+# "how much of the node is covered" is this finding.
+_PHANTOM_RE = re.compile(
+    r"arrows [\w-]+ and [\w-]+ read as one stroke through "
+    r"(?P<element>[\w-]+).*?so (?P<mag>\d+)px of it has arrow drawn over")
 # The other symmetric-pair template, and the only one that names no third
 # party to blame: two labels, and the reader has to be told BOTH or the
 # finding says nothing actionable. So `element` is the quoted pair verbatim
@@ -212,6 +226,12 @@ DETECTORS: dict[str, dict] = {
     "crosses_through_bound": {"lint_re": _RUNS_INSIDE_RE},
     "passes_through_foreign": {"lint_re": _PASSES_THROUGH_RE},
     "shared_attach_point": {"lint_re": _SHARED_ATTACH_RE},
+    # v0.9 WP4b (task 24): the entry that flips
+    # `phantom_passthrough_shared_attach` out of red-by-absence, added in
+    # the same change as the lint it names. No dirmap — the finding is one
+    # covered span with no axis to report; which axis the pair shares is
+    # legible from the two arrow ids in `raw`.
+    "phantom_passthrough": {"lint_re": _PHANTOM_RE},
     "label_label_overlap": {"lint_re": _LABEL_OVERLAP_RE},
     # Batch D follow-up, 2026-08-13: left the enumerated-no-mutant ledger
     # when the pair below proved it fires, on both arms, with magnitude and
@@ -8169,29 +8189,58 @@ _register(Mutant(
 # picture, three different answers from the tooling.
 # ---------------------------------------------------------------------------
 
-# Phantom pass-through — RED BY ABSENCE. e1's end and e2's start are one
-# point on N, so the pair draws as a single unbroken stroke THROUGH the box:
-# a reader sees A -> Z and a decoration in the middle. e1 is the
-# highest-hit-rate class from the Aug 2026 scan, and the ELK spike produced
-# it in production. There is deliberately NO `phantom_passthrough` entry in
-# DETECTORS — the table lists detectors that exist, not ones we want — so
-# this mutant fails with "no finding of check='phantom_passthrough'" until
-# WP4b item 1's lint lands; flip it by adding that DETECTORS entry and
-# dropping the expectedFailure. It fulfils the "promote" disposition on
-# sweep survivor `move_node_onto_rank:chain:ebb2e1f6`, which found this same
-# configuration by accident and could only record it.
-# The neighbour cannot be the usual opposite pole (a Silence on a check with
-# no detector passes vacuously and proves nothing), so it asserts instead
-# what makes the control a control: with the feet 80px apart the picture is
-# genuinely two strokes, and `shared_corridor` — the one net that does exist
-# — says so by staying quiet.
+# Phantom pass-through — was RED BY ABSENCE, FLIPPED by v0.9 WP4 (task 24).
+# e1's end and e2's start are one point on N, so the pair draws as a single
+# unbroken stroke THROUGH the box: a reader sees A -> Z and a decoration in
+# the middle. e1 is the highest-hit-rate class from the Aug 2026 scan, and
+# the ELK spike produced it in production. There was deliberately NO
+# `phantom_passthrough` entry in DETECTORS — the table lists detectors that
+# exist, not ones we want — so this failed with "no finding of
+# check='phantom_passthrough'" until the lint landed. It fulfils the
+# "promote" disposition on sweep survivor
+# `move_node_onto_rank:chain:ebb2e1f6`, which found this configuration by
+# accident and could only record it.
+#
+# THE SURVIVOR DID NOT DIE WITH THE PROMOTION, and the plan said it would
+# (V0.9-PLAN.md WP4b item 1 predicted `test_live_sweep_reproduces_the_record`
+# failing loudly as the discovery-flip signal). The sweep cell and this
+# mutant turn out to be the two halves of e1 and only one of them ships:
+# the sweep's rank line leaves the feet on OPPOSITE borders with the whole
+# node between them, and reporting that is the broad criterion measured at
+# 70 findings over 24 shipped artifacts. The survivor is re-dispositioned
+# `promote` -> `allow` in this change with that number; the record is
+# unchanged and no sweep was re-run, because nothing about it went stale.
+#
+# MAGNITUDE added at the flip, and it is the assertion that makes this
+# entry discriminate rather than merely detect. 80px is how much of N has
+# arrow drawn over it — the whole node. The three other readings a wrong
+# implementation would report are all present in the same message or in the
+# neighbouring checks and are all excluded by the +-10% band: 0 (the gap
+# between the two feet), 80 is also the node's own width so that one
+# coincides here by construction and is disambiguated by the shared=False
+# control below, and 448 (the merged stroke's length, which is what
+# `shared_corridor` and the spike both quote about this same picture).
+#
+# THE OTHER POLE, paid for at the flip. The neighbour was
+# `Silence("shared_corridor")` over `_attach_chain(shared=False)` — a
+# contingent negative that proved something about the picture but nothing
+# about THIS check, because a Silence on a check with no detector passes
+# vacuously. It is now `Silence("phantom_passthrough")` over the same
+# builder, and that Silence bites: one foot moves 80px onto N's far border,
+# the two arrows stay collinear and stay opposed, and the ONLY thing that
+# changes is whether ink crosses the box. A check that fired on every
+# collinear in/out pair — which is the literature scan's own broad
+# criterion, and fires 70 times on 24 shipped artifacts — passes the old
+# neighbour and fails this one. The corridor pole is not lost: the two
+# mutants below still assert it over the same pair of scenes.
 _register(Mutant(
     "phantom_passthrough_shared_attach",
     build=lambda: _attach_chain(shared=True),
     op="unchanged", args={},
-    expect=FindingSpec("phantom_passthrough", element="N"),
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
-                        Silence("shared_corridor"))))
+                        Silence("phantom_passthrough"))))
 
 # The same merged stroke, caught by the net that exists today. No defect
 # here: `instruments.shared_corridors`' abutting-run case (overlap 0, both
@@ -8982,17 +9031,21 @@ class TestMutantCatalogue(unittest.TestCase):
         """Parallel arrows 40px apart are two strokes, not one."""
         self._run_neighbour("collinear_overlap_corridor")
 
-    @unittest.expectedFailure
     def test_mutant_phantom_passthrough_shared_attach(self) -> None:
-        """One 448px stroke through N, and no check names the pass-through."""
-        # No `phantom_passthrough` detector exists; flips when WP4b item 1's
-        # lint lands and earns its DETECTORS entry.
+        """FLIPPED (task 24): the pass-through is named, and measured.
+
+        No `phantom_passthrough` detector existed, so this was red by
+        absence. The lint landed with a DETECTORS entry in the same
+        change and reports the span of N that has arrow drawn over it —
+        80px, the whole node.
+        """
         self._run("phantom_passthrough_shared_attach")
 
     def test_neighbour_phantom_passthrough_shared_attach(self) -> None:
-        """Feet a node width apart draw two strokes, not one corridor."""
-        # Same control and same expectation as the other _attach_chain
-        # corridor mutant, deliberately — see `_run_neighbour`.
+        """Feet on opposite borders leave the box between them, and quiet."""
+        # UPGRADED at the flip from `Silence("shared_corridor")`, which
+        # was a borrow: it proved the picture was two strokes and nothing
+        # about this check. The two mutants below still assert that pole.
         self._run_neighbour("phantom_passthrough_shared_attach")
 
     def test_mutant_merged_stroke_caught_by_corridor(self) -> None:
@@ -9176,15 +9229,19 @@ RENDER_TIER = {
 
 # Check names a catalogue entry may name with no `DETECTORS` detector
 # behind them, mapped to why that is legitimate. Red-by-absence is a real
-# tactic — `phantom_passthrough_shared_attach` pins a defect the lint
-# cannot see yet, and stays red until the lint lands — but it is
+# tactic — `phantom_passthrough_shared_attach` pinned a defect the lint
+# could not see, stayed red for two days, and flipped when the lint landed
+# (task 24) — but it is
 # indistinguishable from a TYPO'd check name, which is red forever for no
 # reason. Worse, a typo'd check inside a `Silence` matches nothing and so
 # passes VACUOUSLY forever. This table is the difference: aspiration is
 # declared here with its reason, and anything else is a mistake.
 ASPIRATIONAL: dict[str, str] = {
-    "phantom_passthrough":
-        "WP4b item 1 — e1 phantom pass-through lint, not yet built",
+    # (`phantom_passthrough` left this table on 2026-08-14, v0.9 WP4 task
+    # 24: WP4b's e1 lint landed, took a `DETECTORS` entry, and the mutant
+    # flipped in the same change — with its borrowed neighbour replaced by
+    # this check's own quiet pole, which is the debt the block below says
+    # a flip owes.)
     "frame_containment":
         "WP5 — no check compares a member's geometry against the frame its "
         "`frameId` names; lint_layout reads frameId for help slots and "
@@ -9212,11 +9269,6 @@ ASPIRATIONAL: dict[str, str] = {
 # yet — every one borrows a detector that does exist. The borrowings are not
 # equally strong, and the flip work differs accordingly:
 #
-#   phantom_passthrough  — neighbour `Silence("shared_corridor")` over
-#       `_attach_chain(shared=False)` is a CONTINGENT negative: the same
-#       builder with `shared=True` fires that check (see
-#       `merged_stroke_caught_by_corridor`), so the quiet means something
-#       about the picture.
 #   frame_containment — neighbours `Silence("endpoint_gap")` over a scene
 #       with NO ARROWS, which proves liveness only: that check cannot
 #       fire there whatever the frames do. It earns its keep by refusing
@@ -9236,6 +9288,19 @@ ASPIRATIONAL: dict[str, str] = {
 # borrow could not assert is the one that discriminates — a check that
 # simply fired on every diamond would have satisfied the old rectangle
 # control and fails this one.
+#
+# `phantom_passthrough_shared_attach` is the fourth (task 24) and the only
+# one so far to pay the debt by DESIGNING the check around the control
+# rather than finding a control for the check. Its borrow was the
+# contingent `Silence("shared_corridor")` over `_attach_chain(shared=False)`
+# — quiet that meant something about the picture and nothing about this
+# check. The upgrade to `Silence("phantom_passthrough")` over the same
+# builder is only worth having because the lint was narrowed until that
+# Silence bites: the literature scan's broad criterion (any collinear
+# in/out pair on opposite borders) satisfies the OLD neighbour and fails
+# the new one, and measured 70 findings across 24 shipped artifacts. The
+# order matters and is the transferable part — write the other-pole
+# neighbour first and it tells you what the check may not be.
 #
 # `near_miss_clearance` and `unroled_text_over_node` are the second and
 # third, flipped by Task 23, and they paid the debt in the two shapes it
@@ -9734,13 +9799,19 @@ class TestCoverage(unittest.TestCase):
         the change that created the template rather than by the
         2026-08-12 enumeration, which is the outcome this pin exists to
         produce.
+
+        50 -> 51 on 2026-08-14 (v0.9 WP4, task 24): WP4b's e1 phantom
+        pass-through warning. No `UNCOVERED` row for this one — it
+        arrived with a `DETECTORS` entry and flipped
+        `phantom_passthrough_shared_attach` in the same change, which
+        also drained `phantom_passthrough` from `ASPIRATIONAL`.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 50,
+        self.assertEqual(sites, 51,
                          "canvas.py lint_layout append-site count changed "
-                         "(50 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(51 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
@@ -10256,11 +10327,34 @@ def run_sweep(write: bool = True) -> int:
 # with the reason why. "bug": the operator or predicate is wrong — fix it and
 # re-sweep rather than leaving the entry here.
 DISPOSITIONS: dict[str, tuple[str, str]] = {
+    # RE-DISPOSITIONED 2026-08-14 (v0.9 WP4, task 24), promote -> allow.
+    # The promotion was DELIVERED: the curated mutant exists
+    # (`phantom_passthrough_shared_attach`) and the WP4b e1 lint landed in
+    # canvas.py. The plan expected this survivor to die with it and
+    # `test_live_sweep_reproduces_the_record` to fail loudly as the flip
+    # signal for a discovery finding. It did not, and that is the result
+    # rather than a miss: the survivor and the mutant are the two HALVES of
+    # e1, and only one of them ships.
+    #
+    # `move_node_onto_rank` puts N's centreline on the rank and leaves e1's
+    # foot on N's left border and e2's on its right — collinear, opposed,
+    # 80px apart across an 80px node, so no ink touches the box. Reporting
+    # that is the literature scan's broad criterion, and it was implemented
+    # and measured before being cut: 70 findings across the 24 frozen
+    # artifacts, i.e. every chained node of every correct left-to-right
+    # flow, with a remedy ("offset one line from the other") that would
+    # make each of those drawings worse. The half that ships is the one
+    # with ink behind it, which is why the mutant's scene fires and this
+    # cell stays quiet.
     "move_node_onto_rank:chain:ebb2e1f6": (
-        "promote",
-        "e1 phantom pass-through — the highest-hit-rate class from the "
-        "Aug 2026 scan; promote to a curated mutant + WP4b candidate "
-        "lint rule (V0.9-PLAN.md WP4b item 1)"),
+        "allow",
+        "e1 phantom pass-through, BROAD half — collinear in/out on "
+        "opposite borders with the node's full width between them. "
+        "Deliberately unflagged: measured at 70 findings over 24 shipped "
+        "artifacts, so it describes the normal drawing rather than a "
+        "defect. The INK half is caught and curated "
+        "(`phantom_passthrough_shared_attach`, canvas.py's e1 lint). "
+        "Re-open only with a perceptual result that separates the two"),
 }
 
 

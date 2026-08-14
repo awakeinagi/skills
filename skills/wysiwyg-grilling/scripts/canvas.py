@@ -7478,6 +7478,106 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                            "the auto-fan could not move them: "
                            + "; ".join(why) if why else
                            "the auto-fan ran and left them together"))
+    # ---- WARNING: phantom pass-through (WP4b e1) ---------------------
+    # One arrow arrives at N and another leaves it on the same line, and
+    # their feet are closer together than N is wide — so between them
+    # there is ARROW drawn over the node rather than a border on each
+    # side, and the pair reads as one unbroken stroke passing through the
+    # box. The reader takes the direct relation and N stops being a step
+    # in the flow: in a flowchart that SILENTLY DELETES A STEP, the
+    # failure mode nobody reviews for, because you cannot notice a box
+    # you have stopped reading as a box. Rank-based layout manufactures
+    # it — the 2026-08-12 ELK spike shipped one unbroken 448px stroke
+    # through `auth-succeeded`, both feet on the same border.
+    #
+    # THE BROAD READING WAS BUILT AND REJECTED, and the number is worth
+    # keeping so nobody re-derives it. The literature scan's criterion is
+    # collinear in/out edges on OPPOSITE borders, no ink requirement,
+    # on the argument that good continuation completes the stroke across
+    # the occluding box (Ware et al. 2002 for continuity as a top
+    # predictor of path-tracing difficulty; orthogonal routing as its
+    # worst case, since accidental collinearity is the norm when every
+    # segment is one of two orientations). Implemented, it produced 70
+    # findings across the 24 frozen artifacts — every chained node of
+    # every correct left-to-right flow. That is not a defect class, it is
+    # the normal drawing, and the remedy the finding offers ("offset one
+    # line from the other") would make each of those pictures worse. A
+    # check whose repair degrades the drawing is noise however true its
+    # premise, so what ships is the half with ink behind it. No study
+    # measures either configuration directly; the ink half at least does
+    # not require the reader to complete anything.
+    #
+    # O(deg^2) per node, over FEET rather than arrows, so a node whose
+    # two edges both bind it at their far ends is judged on the segments
+    # a reader actually follows.
+    NEAR_AXIS = 0.25    # ~14 degrees; below it "which axis" is a guess
+    SAME_LINE = 12      # px, borrowed from the shared-attach window
+    #                     above and deliberately conservative: two lines
+    #                     joined by ink across a node are easier to merge
+    #                     than two feet at a point, so this errs quiet.
+    feet = {}
+    for a in arrows:
+        sb_el = (a.get("startBinding") or {}).get("elementId")
+        eb_el = (a.get("endBinding") or {}).get("elementId")
+        if sb_el is not None and sb_el == eb_el:
+            continue        # a self-loop leaves and re-enters one node
+        seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
+               for p in (a.get("points") or [])
+               if isinstance(p, (list, tuple)) and len(p) >= 2]
+        if len(seq) < 2:
+            continue
+        for arriving, tgt_id, foot, inward in ((False, sb_el, seq[0], seq[1]),
+                                               (True, eb_el, seq[-1],
+                                                seq[-2])):
+            if not tgt_id or tgt_id not in ix:
+                continue
+            dx, dy = inward[0] - foot[0], inward[1] - foot[1]
+            hi, lo = max(abs(dx), abs(dy)), min(abs(dx), abs(dy))
+            if hi < 1 or lo > NEAR_AXIS * hi:
+                continue    # degenerate or diagonal: no axis to share
+            axis = 0 if abs(dx) > abs(dy) else 1
+            step = dx if axis == 0 else dy
+            feet.setdefault(tgt_id, []).append(
+                (a["id"], arriving, axis, 1 if step > 0 else -1, foot))
+    for tgt_id, fs in feet.items():
+        tgt = ix[tgt_id]
+        for fid, f_arr, f_ax, f_sgn, f_pt in fs:
+            for gid, g_arr, g_ax, g_sgn, g_pt in fs:
+                if fid == gid or not f_arr or g_arr:
+                    continue    # exactly one arriving, one leaving
+                if f_ax != g_ax or f_sgn == g_sgn:
+                    continue    # one line, and each stroke on its own end
+                if abs(f_pt[1 - f_ax] - g_pt[1 - f_ax]) > SAME_LINE:
+                    continue
+                # What is DRAWN over the node, computed as what is not.
+                # The stroke whose body runs in -axis covers everything
+                # up to its foot and the other covers everything from
+                # its own foot on, so the only bare span is between
+                # them — and it can be empty from either direction. The
+                # difference of the two feet looks like the same number
+                # and is not: with the leaving foot BEHIND the arriving
+                # one the strokes overlap outside the node as well, and
+                # subtracting the gap would report 60px of cover on a
+                # node with 80px of arrow across it.
+                n0 = tgt.get("x" if f_ax == 0 else "y", 0)
+                across = tgt.get("width" if f_ax == 0 else "height", 0)
+                lo, hi = ((f_pt[f_ax], g_pt[f_ax]) if f_sgn < 0
+                          else (g_pt[f_ax], f_pt[f_ax]))
+                bare = max(0.0, min(hi, n0 + across) - max(lo, n0))
+                covered = across - bare
+                if covered < 1:
+                    continue    # feet on opposite borders: the box is
+                    #             between them and terminates both
+                warnings.append(
+                    "arrows %s and %s read as one stroke through %s — "
+                    "they share a line and leave %dpx of the node's %dpx "
+                    "bare, so %dpx of it has arrow drawn over it instead "
+                    "of a border on each side. The pair reads as a direct "
+                    "relation and %s stops being a step in the flow: fan "
+                    "the feet onto opposite borders, or offset one line"
+                    % (fid, gid, name(tgt_id), round(bare), round(across),
+                       round(covered), name(tgt_id)))
+
     # stranded element: far outside everything else's bounding box
     if len(shapes) > 2:
         for e in shapes:
