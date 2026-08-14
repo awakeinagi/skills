@@ -9262,6 +9262,21 @@ UNCOVERED: dict[str, str] = {
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "decoration_overhang":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+    # Added 2026-08-14 (v0.9 WP4, task 24) with the template itself, which
+    # is what this ledger is for: WP4b's e15 arrived with no CATALOGUE
+    # mutant because no defect indicts it — it is input hygiene, and the
+    # catalogue's unit is a defect the checks got WRONG. Both poles of all
+    # four arms are proven ungated in
+    # tests/test_backend.TestDegenerateArrowGeometry, including the
+    # 24-fixture corpus staying silent, so the gap this row names is
+    # narrow and specific: nothing asserts a MAGNITUDE for these findings
+    # through `collect_findings`, so a rewrite that kept the wording and
+    # lost the arithmetic would pass the catalogue. Draining it needs a
+    # DETECTORS entry with a `lint_re` over the fault clauses.
+    "degenerate_arrow":
+        "landed 2026-08-14 (WP4b e15) with unit tests on both poles but "
+        "no CATALOGUE mutant — hygiene, not a missed defect; drain it "
+        "with a DETECTORS lint_re over the fault clauses",
     "half_unbound_endpoint":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
@@ -9699,13 +9714,22 @@ class TestCoverage(unittest.TestCase):
         `annotation_overlaps_node` ROW from `UNCOVERED` without adding a
         site — that template is five rounds old and only now has
         something asserting it.
+
+        49 -> 50 on 2026-08-14 (v0.9 WP4, task 24): WP4b's e15
+        degenerate-arrow warning. ONE site for four arms, deliberately —
+        the faults co-occur on a broken path and the repair is one edit,
+        so the message lists them and the ledger gets one row. That row
+        IS added (`degenerate_arrow`), and it is the first here added by
+        the change that created the template rather than by the
+        2026-08-12 enumeration, which is the outcome this pin exists to
+        produce.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 49,
+        self.assertEqual(sites, 50,
                          "canvas.py lint_layout append-site count changed "
-                         "(49 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(50 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

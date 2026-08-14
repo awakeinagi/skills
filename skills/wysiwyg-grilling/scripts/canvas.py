@@ -6340,6 +6340,114 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "re-issue the shape or drop the stroke"
                 % (deco["id"], int(spill), name(host["id"])))
 
+    # ---- WARNING: degenerate arrow geometry (WP4b e15) ----------------
+    # This runs FIRST of the arrow checks because every one of them
+    # starts by asking the points list a question a malformed list
+    # cannot answer: the endpoint gap reads `seq[0]`/`seq[-1]`, the
+    # interior walk zips consecutive pairs, and the direction reads the
+    # final segment. On degenerate input they all return a number, and
+    # the number is noise — which is worse than a crash, because noise
+    # inside a tolerance band reads as health.
+    #
+    # ONE warning per arrow listing every fault, not one per fault. The
+    # four shapes co-occur by construction — a duplicated final point IS
+    # a zero-length final segment — and the repair is the same single
+    # move whichever combination fired, so four warnings would be four
+    # times the noise for one edit. The final-segment clause is
+    # suppressed when that pair is already reported as a duplicate, so a
+    # 2-point arrow collapsed onto one pixel says one thing, not three.
+    #
+    # HEAD_SEG is a storage number, not a perceptual one, which is the
+    # only kind we can defend here (no study measures arrowhead
+    # direction against segment length). `_round_geom` rounds every
+    # stored coordinate to a whole pixel, so each end of the final
+    # segment can sit half a pixel off where the router put it: up to
+    # 1px of perpendicular error across a segment of length L, an
+    # arrowhead direction uncertain by atan(1/L). That is 45 degrees at
+    # 1px, 14 at 4px and 6 at 10px. At 4px and below the head points
+    # where the rounding sent it rather than where the path goes.
+    HEAD_SEG = 4.0
+    SAME_PT = 0.5       # sub-pixel: the same stored pixel after rounding
+
+    def pt_gap(p, q):
+        """Distance between two absolute points, in px.
+
+        Args:
+            p: First point as `(x, y)`.
+            q: Second point as `(x, y)`.
+
+        Returns:
+            The Euclidean distance.
+        """
+        return ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5
+
+    for a in arrows:
+        seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
+               for p in (a.get("points") or [])
+               if isinstance(p, (list, tuple)) and len(p) >= 2]
+        faults = []
+        if len(seq) < 2:
+            faults.append("it stores %d point(s), so there is no segment "
+                          "to draw a head along" % len(seq))
+        else:
+            dups = [i + 1 for i, (p, q) in enumerate(zip(seq, seq[1:]))
+                    if pt_gap(p, q) < SAME_PT]
+            if dups:
+                faults.append(
+                    "point%s %s repeat%s the point before (a zero-length "
+                    "segment)"
+                    % ("s" if len(dups) > 1 else "",
+                       ", ".join(str(i + 1) for i in dups),
+                       "" if len(dups) > 1 else "s"))
+            fin = pt_gap(seq[-2], seq[-1])
+            if SAME_PT <= fin < HEAD_SEG:
+                faults.append(
+                    "its final segment is %.1fpx long, below the %dpx at "
+                    "which whole-pixel rounding leaves the head's "
+                    "direction uncertain by 14 degrees" % (fin, HEAD_SEG))
+            if len(seq) > 2 and pt_gap(seq[0], seq[-1]) < SAME_PT:
+                faults.append("it starts and ends on the same point, so it "
+                              "goes nowhere")
+        # The head past the far outline of the node it binds: the stroke
+        # enters one side and the arrowhead lands out the other. The
+        # endpoint check below cannot see this one — it computes the
+        # interior run only `if not outside`, and a head a few px past
+        # the far border IS outside, so the run is never measured, while
+        # the gap itself is under `tol` and stays silent. A 3px overshoot
+        # on an 80px node therefore reads as a clean attachment while the
+        # picture shows the arrow crossing the whole box.
+        sb = (a.get("startBinding") or {}).get("elementId")
+        eb = (a.get("endBinding") or {}).get("elementId")
+        tgt = ix.get(eb) if eb and eb != sb else None
+        if tgt is not None and len(seq) >= 2:
+            (qx, qy), (hx, hy) = seq[-2], seq[-1]
+            ddx, ddy = hx - qx, hy - qy
+            seg = (ddx * ddx + ddy * ddy) ** 0.5
+            norm = shape_norm(tgt, hx, hy)
+            span = (shape_clip(tgt, qx, qy, ddx / seg, ddy / seg)
+                    if seg > 0 else None)
+            if norm is not None and norm > 1 and span is not None \
+                    and span[1] < seg - 1 \
+                    and min(span[1], seg) > max(span[0], 0.0):
+                faults.append(
+                    "its head sits %dpx past %s's far outline, having "
+                    "crossed the whole node"
+                    % (round(seg - span[1]), name(tgt["id"])))
+        if faults:
+            # WARNING and not ERROR, on the same reasoning the on-border
+            # run below records: what is wrong is the stored path, the
+            # repair is to re-issue it, and stored geometry cannot be
+            # re-routed at load without minting an out-of-session
+            # revision. An error tier would turn legacy projects red on
+            # open with advice the loader is forbidden to take.
+            warnings.append(
+                "arrow %s has degenerate geometry — %s. Every check that "
+                "reads this path (attachment, interior run, direction) "
+                "measures the malformed version, so repair this before "
+                "reading the rest: re-issue the arrow, or `mod points` it "
+                "onto distinct waypoints"
+                % (a["id"], "; ".join(faults)))
+
     # ---- ERROR: detached endpoints (server-routed) --------------------
     # An arrow that LOOKS like a relationship but binds nothing (v0.8,
     # D8): the r4-11 workaround hand-authored a labeled domain loop with

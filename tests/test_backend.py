@@ -8733,6 +8733,183 @@ class TestRouterInteriorElbows(Base):
         self.assertGreaterEqual(len(arrow["points"]), 3)
 
 
+class TestDegenerateArrowGeometry(Base):
+    """WP4b e15: a malformed path is named before anything reads it.
+
+    Every arrow check downstream of this one — the endpoint gap, the
+    interior run, the crossing count, the direction read — begins by
+    asking the points list a question a degenerate list cannot answer,
+    and each of them answers anyway. The number that comes back is noise
+    sitting inside a tolerance band, which is health's exact shape.
+
+    Both poles are here for all four arms, and the overshoot arm carries
+    a second assertion the other three do not need: that the endpoint
+    check it sits next to is genuinely silent on that scene. That is the
+    hole it exists to close, so if it ever stops being a hole this class
+    should say so rather than keep a rule nothing needs.
+    """
+
+    def _chain(self, pts, ax=80, ay=120, bind=True):
+        """A -> N on one rank line, with the arrow's geometry supplied.
+
+        Args:
+            pts: The arrow's `points`, relative to `(ax, ay)`.
+            ax: The arrow's own x origin.
+            ay: The arrow's own y origin.
+            bind: Whether to bind the arrow's ends to A and N.
+
+        Returns:
+            The three-element scene: nodes A and N, arrow e1.
+        """
+        arrow = {"id": "e1", "type": "arrow", "x": ax, "y": ay,
+                 "points": pts,
+                 "customData": {"role": "edge", "route": "server"}}
+        if bind:
+            arrow["startBinding"] = {"elementId": "A", "focus": 0, "gap": 1}
+            arrow["endBinding"] = {"elementId": "N", "focus": 0, "gap": 1}
+        return [
+            {"id": "A", "type": "rectangle", "x": 0, "y": 100,
+             "width": 80, "height": 40, "customData": {"role": "node"}},
+            {"id": "N", "type": "rectangle", "x": 200, "y": 100,
+             "width": 80, "height": 40, "customData": {"role": "node"}},
+            arrow,
+        ]
+
+    def _lint(self, els):
+        """Run the layout lint over a flow scene.
+
+        Args:
+            els: The scene's elements.
+
+        Returns:
+            The concatenated errors and warnings.
+        """
+        out = canvas.lint_layout(els, artifact_type="flow")
+        return out["errors"] + out["warnings"]
+
+    def _degenerate(self, els):
+        """The degenerate-geometry warnings a scene produces.
+
+        Args:
+            els: The scene's elements.
+
+        Returns:
+            The matching lint lines.
+        """
+        return [m for m in self._lint(els) if "degenerate geometry" in m]
+
+    def test_a_well_formed_arrow_is_silent(self):
+        """The other pole for all four arms at once.
+
+        A straight two-point arrow from A's right edge to N's left edge:
+        distinct points, a 120px final segment, distinct endpoints, and
+        a head that stops on the border it binds. Nothing here is
+        degenerate and the check must say nothing, or every assertion
+        below is satisfied by a rule that fires on every arrow.
+        """
+        self.assertEqual(self._degenerate(self._chain([[0, 0], [120, 0]])),
+                         [])
+
+    def test_a_near_zero_final_segment_is_named_with_its_length(self):
+        """A 2px last leg: the head's direction is rounding, not routing.
+
+        The magnitude is asserted because the floor is derived from the
+        storage (whole-pixel rounding) rather than picked, so a check
+        that reported the whole path's length, or the elbow leg's, would
+        be measuring something else and passing this by existence.
+        """
+        hits = self._degenerate(
+            self._chain([[0, 0], [118, 0], [120, 0]]))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("final segment is 2.0px long", hits[0])
+
+    def test_a_duplicated_waypoint_is_named_by_its_index(self):
+        """A repeated interior point, reported 1-based as the agent sees it."""
+        hits = self._degenerate(
+            self._chain([[0, 0], [60, 0], [60, 0], [120, 0]]))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("point 3 repeats the point before", hits[0])
+
+    def test_a_path_that_returns_to_its_start_is_named(self):
+        """Coincident endpoints on an unbound arrow: it goes nowhere.
+
+        Unbound on purpose — a self-loop binds one node at both ends and
+        `_self_loop_path` gives it five DISTINCT points, so it is not
+        this fault and must not be caught by it.
+        """
+        hits = self._degenerate(self._chain(
+            [[0, 0], [60, 0], [60, 40], [0, 0]], bind=False))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("starts and ends on the same point", hits[0])
+
+    def test_a_routed_self_loop_is_not_a_closed_path(self):
+        """The control for the arm above, on the shape that looks like it."""
+        node = {"id": "A", "type": "rectangle", "x": 0, "y": 100,
+                "width": 80, "height": 40, "customData": {"role": "node"}}
+        pts = canvas._self_loop_path(node)
+        x0, y0 = pts[0]
+        loop = {"id": "e1", "type": "arrow", "x": x0, "y": y0,
+                "points": [[p[0] - x0, p[1] - y0] for p in pts],
+                "startBinding": {"elementId": "A", "focus": 0, "gap": 1},
+                "endBinding": {"elementId": "A", "focus": 0, "gap": 1},
+                "customData": {"role": "edge", "route": "server"}}
+        self.assertEqual(self._degenerate([node, loop]), [])
+
+    def test_a_head_past_the_far_outline_is_named_with_the_overshoot(self):
+        """3px past N's far edge, having crossed all 80px of the node."""
+        hits = self._degenerate(self._chain([[0, 0], [203, 0]]))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("head sits 3px past N's far outline", hits[0])
+
+    def test_the_endpoint_check_alone_is_silent_on_that_overshoot(self):
+        """Why the arm exists: the neighbouring check cannot reach it.
+
+        The interior-run walk is gated on `not outside`, and a head past
+        the far border IS outside, so the run is never measured; the gap
+        itself is 3px against a 14px tolerance, so the attachment arm
+        stays quiet too. Between them a stroke drawn straight through an
+        80px box reads as a clean binding.
+        """
+        lint = self._lint(self._chain([[0, 0], [203, 0]]))
+        self.assertEqual(
+            [m for m in lint if "claims to bind" in m
+             or ("runs" in m and "inside it" in m)], [], lint)
+
+    def test_one_broken_arrow_reports_one_warning(self):
+        """A 2-point arrow collapsed onto one pixel says one thing.
+
+        The three point-list arms co-occur by construction here — the
+        only pair is a duplicate, so the final segment is zero-length and
+        the endpoints coincide — and the repair is one edit. The
+        final-segment clause is suppressed when that pair is already
+        reported as a duplicate, which is what keeps this at one clause
+        rather than three.
+        """
+        hits = self._degenerate(
+            self._chain([[0, 0], [0, 0]], bind=False))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("repeats the point before", hits[0])
+        self.assertNotIn("final segment", hits[0])
+
+    def test_the_frozen_fixtures_have_no_degenerate_arrows(self):
+        """The corpus pole: drawings that shipped are all well formed.
+
+        A hygiene check is only useful if it is quiet on healthy input,
+        and 24 committed artifacts are the largest healthy input we have.
+        The day this fails, either the router has started emitting
+        degenerate paths or the floor is too generous — both worth a
+        loud test rather than a note.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        seen = 0
+        for path in sorted(root.rglob("*.excalidraw")):
+            doc = json.loads(path.read_text())
+            seen += 1
+            self.assertEqual(
+                self._degenerate(doc.get("elements") or []), [], path.name)
+        self.assertGreaterEqual(seen, 20, "fixture corpus went missing")
+
+
 class TestCrossesThroughRun(Base):
     """v0.8: the interior-run walk sees what the chord could not."""
 
