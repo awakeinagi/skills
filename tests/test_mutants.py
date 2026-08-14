@@ -66,14 +66,14 @@ _SHARED_ATTACH_RE = re.compile(
 # finding says nothing actionable. So `element` is the quoted pair verbatim
 # — `'settled and reconciled n' and 'queued'` — in scene order, which is the
 # strongest identity this message affords. It affords no MAGNITUDE at all
-# (canvas.py:5558 reports the collision and not how many pixels of it),
+# (canvas.py reports the collision and not how many pixels of it),
 # which is why the mutant below asserts the pair and not a number; putting
 # the overlap depth into that template is the standing proposal in
 # docs/research/visualize-skill_idea_mining_2026-08-12.md O2, and the day
 # it lands this spec should tighten to a magnitude.
 _LABEL_OVERLAP_RE = re.compile(
     r"labels (?P<element>.+) overlap — nudge one clear")
-# The clipped-text lint (canvas.py:5637), whose template is the richest one
+# The clipped-text lint (canvas.py), whose template is the richest one
 # here: it carries a 2-D need AND a 2-D allowance AND which axis failed.
 # `element` is the OWNER, not the text — the text is quoted as CONTENT and
 # carries no id, so the box is the only element named, and it is also the one
@@ -829,7 +829,7 @@ def relabel(scene: list[dict], container_id: str, text: str) -> list[dict]:
     — and keeps whatever the write path decides, so the label's stored
     `width` is the production number and not a number a test author chose.
     A mutant built on it therefore pins the write path and the lint
-    together: `lint_layout`'s `drawn_box` (canvas.py:5546) trusts stored
+    together: `lint_layout`'s `drawn_box` (canvas.py) trusts stored
     width, so the day a write path stops recomputing it, the collision
     checks go quiet and this operator stops producing the finding its
     mutant asserts. That is the alarm; a forged scene cannot raise it.
@@ -1407,7 +1407,7 @@ def _export_delta(els: list[dict], eid: str) -> dict[str, int]:
     The subtraction is exact only because this renders at `render_svg`'s
     DEFAULTS. Ablating an element shrinks the viewport, and under
     `footnotes=True` the note block wraps to that width
-    (canvas.py:4524-4529), so a narrower scene can rewrap a note onto more
+    (canvas.py), so a narrower scene can rewrap a note onto more
     lines and move the `text` count for reasons that have nothing to do
     with `eid`. Pass footnotes through here and the counts stop being
     attributable — measure that path by counting markers against notes
@@ -1471,7 +1471,7 @@ _EXPORT_MARKUP: dict[str, dict[str, int]] = {
 
 # Shipped classes `render_svg`'s paint dispatch has no branch for. Note for
 # whoever writes those branches: the bounds loop reads `points` for arrows and
-# lines ONLY (canvas.py:4498), so a freedraw contributes its STORED width and
+# lines ONLY (canvas.py), so a freedraw contributes its STORED width and
 # height and not the extent of its stroke — paint it from `points` and any
 # part of the stroke overhanging that box lands outside the viewBox.
 _DROPPED = ("freedraw", "image")
@@ -1720,7 +1720,7 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
 
     A sibling of `ellipse_corner_overfire`, and outside `CATALOGUE` for a
     reason worth stating: an over-fire mutant asserts `Silence` on its
-    check, and neither `annotation_overlaps_node` (canvas.py:5593) nor
+    check, and neither `annotation_overlaps_node` (canvas.py) nor
     `label_on_foreign_node` (:5576) has a `DETECTORS` entry — both sit in
     `UNCOVERED`. A `Silence` on an unregistered check passes vacuously,
     so the catalogue cannot hold these until those entries land. Read as
@@ -1746,7 +1746,7 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
             self) -> None:
         """An annotation 16px clear of the circle is called an overlap.
 
-        Both text/node checks — `label_on_foreign_node` (canvas.py:5580)
+        Both text/node checks — `label_on_foreign_node` (canvas.py)
         and `annotation_overlaps_node` (:5593) — intersect raw
         `x/y/width/height` rectangles with no shape term at all, so an
         ellipse is its bounding box to both of them. Here the annotation
@@ -1778,7 +1778,7 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
         """A bound arrow label 16px clear of the circle is called an overlap.
 
         The sibling check, pinned separately on purpose.
-        `label_on_foreign_node` (canvas.py:5576-5578) runs the same raw
+        `label_on_foreign_node` (canvas.py) runs the same raw
         rectangle intersection as `annotation_overlaps_node`, against the
         same unfiltered `nodes` set, and until this method existed the
         `"lands on"` arm of `_says_lies_on` matched nothing in either
@@ -1807,7 +1807,7 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
         No defect claimed: this is the protection itself, pinned so it
         cannot be refactored away quietly. `--relayout` round-trips a flow
         through mermaid and maps dagre's answer back with
-        `sk["id"][2:] in ix` (canvas.py:10583), so identity lives in that
+        `sk["id"][2:] in ix` (canvas.py), so identity lives in that
         `n_` prefix and nothing is ever matched by label. Were it matched
         by label instead, two nodes reading "Review" would swap positions
         on every re-layout and the drawing would rearrange itself for
@@ -1843,8 +1843,8 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 # are "painted beneath arrows", and `:213`, the whole `reorder` op, whose one
 # job is z-order by array index.
 #
-# `render_svg` discards it. It paints in four type-buckets (canvas.py:4642-
-# 4653: frames, then arrows/lines, then other shapes, then text), so order
+# `render_svg` discards it. It paints in four type-buckets (frames, then
+# arrows/lines, then other shapes, then text), so order
 # holds WITHIN a bucket and is thrown away ACROSS them. A decoration at index
 # 0 — declared behind everything — is painted last, over the connector it was
 # meant to sit behind, and erases it.
@@ -1865,7 +1865,7 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 # canvas. `export` (the user's handover artifact) and `snapshot` tier-3 (a
 # headless agent's only eyes) read the same string.
 #
-# canvas.py:50 already comments a "backing painted under arrow" special case
+# canvas.py already comments a "backing painted under arrow" special case
 # for label backdrops: the paint-order problem was seen, solved pointwise for
 # one element, and never generalized.
 # ---------------------------------------------------------------------------
@@ -2384,8 +2384,8 @@ class TestStoreIntegrity(unittest.TestCase):
         """A repair moves the shape and leaves its bound arrow behind.
 
         ART-011 refits an oversized label by calling `fit_label_in`
-        (canvas.py:485), which GROWS the container to fit the wrapped text
-        (canvas.py:969-971). Here `n1` goes from 60px tall to 136px. The
+        (canvas.py), which GROWS the container to fit the wrapped text
+        (canvas.py). Here `n1` goes from 60px tall to 136px. The
         arrow bound to its bottom edge is not re-routed, so an endpoint
         that was exactly on the border ends up interior by the time the
         load finishes — geometry the user never wrote.
@@ -3499,7 +3499,7 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
 
         `cmd_start` reaches its print through one of two paths — spawn a
         server, or reuse a live one — and both end at the SAME `print_kv`
-        call (canvas.py:9822), so the reuse path measures the surface
+        call (canvas.py), so the reuse path measures the surface
         without a subprocess, a port, or a 20-second wait. `server_alive`
         is what selects between them and it is an HTTP GET, so it is
         patched rather than answered: the alternative is a real listener,
@@ -3526,7 +3526,7 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         """Build the `ServerApp` for a project without listening on a port.
 
         `ServerApp.__init__` loads the store and then the pending queue
-        (canvas.py:8807), and `serve` is a separate call, so the PND-001
+        (canvas.py), and `serve` is a separate call, so the PND-001
         producer runs here with no socket bound. The log handle is closed
         on cleanup because the constructor opens one per app and these
         tests build two over one project.
@@ -3587,7 +3587,7 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
     def test_red_a_quarantine_falls_off_the_served_state(self) -> None:
         """Twenty repairs push the dropped file off the resume surface.
 
-        `public_state` ships `self.issues[-20:]` (canvas.py:8696) and
+        `public_state` ships `self.issues[-20:]` (canvas.py) and
         `cmd_status` prints whatever that carries, so the resume surface
         shows the twenty MOST RECENT issues and a quarantine is filed
         early — at the artifact that failed to load, before any later
@@ -3626,7 +3626,7 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         """The first surface an agent runs on resume says nothing happened.
 
         `cmd_start` prints its `URL=`/`CATCHUP_REVN=` block and stops
-        (canvas.py:9822). It is what an agent runs FIRST when resuming a
+        (canvas.py). It is what an agent runs FIRST when resuming a
         session, and probed on the shipped code it is silent about a
         quarantined artifact — the drop is reachable only from a later
         `status`, which an agent that got a working URL has no reason to
@@ -3663,7 +3663,7 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
             self) -> None:
         """The one quarantine `lint` cannot see, and it is unrecoverable.
 
-        PND-001 is filed by `ServerApp.load_pending` (canvas.py:8931),
+        PND-001 is filed by `ServerApp.load_pending` (canvas.py),
         not by `Store.load`, and `cmd_lint` builds a bare `Store` — so
         the queue's own quarantine reaches the one surface that needs no
         server nowhere at all. What makes it worse than a reach gap is
@@ -3913,7 +3913,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
 
         The reds turn on WHICH exception reaches the caller: `BatchError`
         becomes the 422 the CLI prints as an `ERROR=` line
-        (canvas.py:8944), and nothing else is converted at all. So the
+        (canvas.py), and nothing else is converted at all. So the
         exception has to be a value to assert about, not something an
         `assertRaises` narrows to one type in advance — catching only
         `BatchError` would let the crash these pin propagate and turn an
@@ -4255,7 +4255,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
         index was silently rewritten to zero and the element went to the
         FRONT. Probed on the shipped code: `reorder n3 index=-1` and
         `reorder n3 index=0` produced byte-identical scenes. All three
-        arms now ask `index_fault` (canvas.py:2396), which refuses the
+        arms now ask `index_fault` (canvas.py), which refuses the
         bottom; the top is still clamped, because an index past the end
         has always meant "to the back" and still does.
 
@@ -4316,7 +4316,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
         `reorder` arm had the identical gate and took `True` as position
         1 too — recorded here rather than as a third entry, because a
         shared index predicate was the fix that flipped all of them, and
-        `index_fault` (canvas.py:2396) is now the only one.
+        `index_fault` (canvas.py) is now the only one.
 
         DIRECTION is refusal with a named error, the answer both arms
         already gave every other invalid index. MAGNITUDE is that the
@@ -4413,6 +4413,82 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertTrue(out["ok"], out["errors"])
         self.assertEqual(out["errors"], [])
         self.assertIn("n9", "\n".join(out["intent_echo"]))
+
+    @unittest.expectedFailure
+    def test_red_an_accepted_mod_reports_success_and_changes_nothing(
+            self) -> None:
+        """`mod roundness` on a routed arrow lands nowhere and says nothing.
+
+        The B1 class `MOD_ATTRS`' own comment exists to name — "`el[attr]
+        = value` catch-all was how `mod attrs.kind` no-oped with a
+        success echo (live_test_2 B1)" — reached through a different
+        attribute. `roundness` is in `MOD_ATTRS`, so the op validates
+        with zero errors; on a server-routed arrow the routing post-pass
+        re-derives the value immediately, and again at load.
+
+        Probed on the shipped code: `roundness` is `None` before and
+        `None` after, the batch is accepted, and the echo answers `op 0
+        (mod roundness): arrow e1 binds a → b` — a true sentence about
+        the arrow that says nothing about the attribute being discarded.
+        The save record carries no entry for the artifact at all, since
+        nothing changed, so the history does not record the op either.
+        Rectangle roundness is unaffected and stays authored.
+
+        On the parent this op WORKED for elbowed arrows, because the old
+        routing rule happened to produce `{"type": 2}`; the WP4 switch
+        made the coincidence stop holding, so it now always drops. The
+        review filed it minor and it is: `references/ops-reference.md`
+        documents `roundness` only for rounded rectangles, and the lines
+        beside it say an arrow's geometry and bindings are computed. So
+        this is an UNDOCUMENTED capability silently lost, not a promise
+        broken — which is why the pin is the B1 rule rather than the
+        feature.
+
+        DIRECTION is that an accepted op changed something, or the batch
+        said why not; either answer is honest and silence is not. It is
+        written as a single claim rather than a branch: refused is fine,
+        accepted-and-applied is fine, accepted-and-dropped is the defect.
+        MAGNITUDE, for an op, is the attribute it named actually holding
+        the value it named. "Derived, never authored" is a defensible
+        ruling for this attribute — it just has to be SAID, and a refusal
+        naming `roundness` would flip this as readily as making it stick.
+        """
+        store, _ = self._store()
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n2", "label": "N2", "x": 400,
+                "y": 200, "width": 100, "height": 60, "role": "node"}},
+                {"op": "add", "element": {"type": "arrow", "id": "e1",
+                                          "from": "n1", "to": "n2"}}]})
+        escaped = self._send_ops(store, [
+            {"op": "mod", "id": "e1", "attrs": {"roundness": {"type": 2}}}])
+        arrow = next(e for e in store.scenes["flow"] if e["id"] == "e1")
+        self.assertTrue(
+            escaped is not None or arrow.get("roundness") == {"type": 2},
+            "the mod was accepted with no error and `roundness` is still "
+            "%r — the echo reports the arrow and never says the "
+            "attribute was discarded" % (arrow.get("roundness"),))
+
+    def test_a_mod_of_an_authored_attribute_takes_effect(self) -> None:
+        """The live pole: an attribute the server does not derive sticks.
+
+        The neighbour, and the reason the red above is about `roundness`
+        on a ROUTED arrow rather than about `mod` in general. `mod` is
+        not broken — a label change lands, is echoed, and rides the save
+        record — so a fix that started refusing every `mod` would flip
+        that red while deleting the op. This also fixes the contrast the
+        red's message rests on: the same batch shape, a different
+        attribute, and the value is there afterwards.
+        """
+        store, _ = self._store()
+        escaped = self._send_ops(store, [
+            {"op": "mod", "id": "n1", "attrs": {"label": "N1 renamed"}}])
+        self.assertIsNone(escaped, "a plain label mod was refused: %r"
+                          % (escaped,))
+        labels = [e.get("text") for e in store.scenes["flow"]
+                  if e.get("containerId") == "n1"]
+        self.assertEqual(labels, ["N1 renamed"])
 
     def test_a_zero_reorder_index_sends_the_element_to_the_front(
             self) -> None:
@@ -4700,6 +4776,286 @@ class TestQueuedRoundIntegrity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# The WP4 geometry rulings (Task 15 and 16 reviews, 2026-08-14). Four
+# decisions the shape-clipping work made deliberately and left unmeasured —
+# each one verified here by mutating the shipped code and watching the whole
+# suite stay green first, which is how all four were found in the first
+# place rather than by reading.
+#
+# These are RULINGS, not defects, so every entry is green on arrival and
+# says which way the ruling went. That is the point: a decision nothing
+# measures is indistinguishable from an accident, and the next person to
+# touch the geometry cannot tell which of these numbers they are allowed to
+# move. Two of the four are `test_backend.py`'s subject at a different
+# layer — the router's own assertions live there — and are written here
+# against the INSTRUMENTS and the gate instead, deliberately: the
+# instruments are the independent measure of what canvas.py draws, and
+# `float_diamond` reading the true outline is what caught `edge_anchor`
+# anchoring on the bounding box months before the lint agreed.
+# ---------------------------------------------------------------------------
+
+
+class TestRouterGeometryRulings(unittest.TestCase):
+    """Four WP4 decisions, each pinned the way it was decided."""
+
+    def _diamond(self) -> dict[str, Any]:
+        """The 200x100 rhombus every endpoint mutant in this file uses.
+
+        Returns:
+            A diamond node at (300,300), so a = 100 and b = 50 and the
+            perpendicular centre-to-facet distance is 44.72136.
+        """
+        return {"type": "diamond", "id": "d1", "x": 300, "y": 300,
+                "width": 200, "height": 100,
+                "customData": {"role": "node"}}
+
+    def test_the_router_anchors_a_diamond_on_its_outline(self) -> None:
+        """Task 15's fix, measured by the instrument that caught the bug.
+
+        `edge_anchor` used to return a point on the bounding BOX, which
+        on a rhombus is out in the empty corner — the seeded mermaid flow
+        shipped an arrow attaching 19.1px clear of the shape it claimed
+        to bind. `float_diamond` had been reporting it the whole time.
+
+        So the pin is written at the instrument layer rather than as a
+        second clearance assertion: the detector that was right before
+        the router was must read zero on what the router now produces.
+        Both poles are asserted from one scene — the old box anchor still
+        earns a finding, the new outline anchor earns none — so a
+        `float_diamond` that had simply stopped firing cannot pass this.
+        """
+        node = self._diamond()
+        ax, ay = canvas.edge_anchor(node, 900, 900)
+        cx = node["x"] + node["width"] / 2.0
+        cy = node["y"] + node["height"] / 2.0
+        dx, dy = 900 - cx, 900 - cy
+        scale = min((node["width"] / 2.0) / abs(dx),
+                    (node["height"] / 2.0) / abs(dy))
+        box = (cx + dx * scale, cy + dy * scale)
+        self.assertNotAlmostEqual(
+            ax, box[0], places=3,
+            msg="the outline anchor and the box anchor agree here, so "
+                "this scene cannot tell the two apart")
+        for name, (x, y) in (("outline", (ax, ay)), ("box", box)):
+            with self.subTest(anchor=name):
+                arrow = el(id="a1", type="arrow", x=x, y=y, width=1,
+                           height=1, points=[[0, 0], [1, 1]],
+                           customData={"role": "edge"},
+                           startBinding={"elementId": "d1", "focus": 0,
+                                         "gap": 1})
+                found = instruments.float_diamond([node, arrow])
+                if name == "outline":
+                    self.assertEqual(found, [], "the router anchored off "
+                                     "the drawn outline: %r" % (found,))
+                else:
+                    self.assertEqual(len(found), 1, found)
+                    self.assertGreater(found[0]["gap"], 12)
+
+    def test_a_rectangle_never_reaches_the_shape_clip(self) -> None:
+        """The type gate is asserted directly, not through its arithmetic.
+
+        `test_router_anchor_on_a_rectangle_is_byte_identical`
+        (tests/test_backend.py) pins that a rectangle keeps the closed
+        form, and the Task-15 review showed its four probe points all
+        land in the bit-exact set — widening the gate to admit
+        rectangles passes it today. I re-measured: the two paths agree
+        exactly at those four points and differ only by one ULP anywhere
+        they differ at all (326.28992628992626 against 326.2899262899263),
+        so no choice of probe point makes that test robust.
+
+        The gate is therefore asserted as a gate. `shape_clip` is spied
+        on, and the claim is that a rectangle never consults it while a
+        diamond always does — immune to float drift, and it fails on the
+        widening the arithmetic cannot see. The rectangle's ANSWER stays
+        `test_backend.py`'s subject; this pins the path it takes to get
+        there.
+        """
+        rect = dict(self._diamond(), type="rectangle")
+        for node in (rect, self._diamond()):
+            with self.subTest(shape=node["type"]):
+                seen = self._anchor_consults_shape_clip(node)
+                self.assertEqual(
+                    seen, node["type"] == "diamond",
+                    "%s: shape_clip consulted=%s — the type gate admits "
+                    "the wrong set" % (node["type"], seen))
+
+    def _anchor_consults_shape_clip(self, node: dict[str, Any]) -> bool:
+        """Whether anchoring on `node` reaches `canvas.shape_clip`.
+
+        A factory rather than a closure built in the caller's loop: a
+        spy defined inside the loop would capture the loop variable and
+        answer for whichever iteration ran last (ruff B023, which this
+        repo treats as defect-shaped rather than stylistic).
+
+        Args:
+            node: The element to anchor on.
+
+        Returns:
+            True if `shape_clip` was called during the anchor.
+        """
+        seen: list[tuple[Any, ...]] = []
+        real = canvas.shape_clip
+
+        def spy(*args: Any, **kw: Any) -> Any:
+            """Record the call, then answer as the real one does.
+
+            Args:
+                *args: Forwarded to `canvas.shape_clip`.
+                **kw: Forwarded to `canvas.shape_clip`.
+
+            Returns:
+                Whatever `canvas.shape_clip` returns.
+            """
+            seen.append(args)
+            return real(*args, **kw)
+
+        with mock.patch.object(canvas, "shape_clip", spy):
+            canvas.edge_anchor(node, 900, 900)
+        return bool(seen)
+
+    def test_the_endpoint_tolerance_scales_with_the_node(self) -> None:
+        """A 20px gap on a 300px node is silent BY DESIGN, and that is new.
+
+        Task 15 replaced a flat 14px endpoint tolerance with
+        `endpoint_tol`, which never tightens below the flat floor and
+        scales at 10% of the node's short side. The consequence is a
+        DIRECTION change nothing guarded: a 20px-off endpoint on a
+        300x300 rectangle was an ERROR before and is silence now.
+
+        The Task-15 review named this "the one I would actually want
+        encoded", and it is ruled INTENDED — the same slack reads as
+        sloppy on a 60px pill and invisible on a 240px diamond, which is
+        the brief's own argument. So it is pinned AS intended, with both
+        poles on one scene: silent above the flat floor and below the
+        scaled one, still firing above the scaled one. Without the
+        second half a fix that muted `endpoint_gap` entirely would read
+        as correct.
+
+        The small node is asserted alongside because the floor is a
+        FLOOR: the same 20px gap must keep firing where the node is too
+        small to earn the extra slack, which is what stops the scaling
+        from being read as a blanket loosening.
+        """
+        self.assertEqual(canvas.endpoint_tol({"width": 300,
+                                              "height": 300}, 14), 30)
+        self.assertEqual(canvas.endpoint_tol({"width": 120,
+                                              "height": 120}, 14), 14)
+        for size, gap, fires in ((300, 20, False), (300, 35, True),
+                                 (120, 20, True)):
+            with self.subTest(size=size, gap=gap):
+                said = self._gap_finding(size, gap)
+                self.assertEqual(
+                    bool(said), fires,
+                    "%dx%d node, %dpx gap, tolerance %g: %s"
+                    % (size, size, gap,
+                       canvas.endpoint_tol({"width": size,
+                                            "height": size}, 14),
+                       said or "silent"))
+
+    def _gap_finding(self, size: int, gap: int) -> list[str]:
+        """Lint one scene whose arrow ends `gap` px short of a node.
+
+        Both ends are bound so the half-unbound rule stays out of the
+        way — it fires on a one-sided binding and would answer for the
+        endpoint check it is not.
+
+        Args:
+            size: The bound node's width and height.
+            gap: How far short of the node's left facet the arrow stops.
+
+        Returns:
+            The endpoint-gap messages naming the arrow, if any.
+        """
+        y = 300 + size / 2.0
+        src = el(id="n0", type="rectangle", x=0, y=y - 30, width=60,
+                 height=60, customData={"role": "node"})
+        tgt = el(id="n1", type="rectangle", x=300, y=300, width=size,
+                 height=size, customData={"role": "node"})
+        arrow = el(id="a1", type="arrow", x=60, y=y, width=240 - gap,
+                   height=0, points=[[0, 0], [240 - gap, 0]],
+                   customData={"role": "edge"},
+                   startBinding={"elementId": "n0", "focus": 0, "gap": 1},
+                   endBinding={"elementId": "n1", "focus": 0, "gap": 1})
+        li = canvas.lint_layout([src, tgt, arrow])
+        return [m for m in li["errors"] + li["warnings"]
+                if "a1" in m and "point ends" in m]
+
+    def test_a_ray_along_a_facet_touches_the_node(self) -> None:
+        """The closed-interval ruling, pinned where the branch actually is.
+
+        Task 16's review proved the exact-tangency region unguarded in
+        BOTH directions: flipping `shape_clip`'s parallel-plane branch
+        from `room < 0` to `room <= 0` changed nothing across all 782
+        tests, while the region demonstrably re-routes a real fixture
+        arrow by 72px. The ruling recorded in the fix round is that the
+        interval is CLOSED — a path lying exactly along a facet TOUCHES
+        the node — and this is that ruling made executable.
+
+        Written against `shape_clip` rather than against the review's
+        `_seg_hits_rect` reproducer, and the difference matters. I wrote
+        this pin on `_seg_hits_rect(102, 0, 102, 400, ...)` first,
+        applied the `<=` mutation, and it did not move: that reproducer
+        demonstrates the OLD-versus-NEW predicate change the review was
+        arguing about, and it never reaches the parallel-plane branch,
+        so a pin built on it would have looked like a guard and held
+        nothing. The branch is only reachable when the ray is parallel
+        to a facet plane AND `room` is exactly zero, which means starting
+        the ray ON the border and pointing it along.
+
+        Both poles, on integer geometry so rounding cannot drift them:
+        a ray starting on the left border going straight down returns a
+        span, and one starting a pixel OUTSIDE it returns None. The
+        second half is what keeps the ruling from being read as "the
+        parallel branch always hits" — outside is still outside — and it
+        is the pole the mutation leaves alone, so it also proves the
+        scene reaches the branch at all.
+        """
+        node = {"type": "rectangle", "x": 100, "y": 100,
+                "width": 200, "height": 100}
+        for label, px, py, dx, dy, touches in (
+                ("on the left border, pointing along it", 100, 0, 0, 1,
+                 True),
+                ("on the top border, pointing along it", 200, 100, 1, 0,
+                 True),
+                ("a pixel outside the left border", 99, 0, 0, 1, False),
+                ("a pixel above the top border", 200, 99, 1, 0, False)):
+            with self.subTest(ray=label):
+                span = canvas.shape_clip(node, px, py, dx, dy)
+                self.assertEqual(
+                    span is not None, touches,
+                    "a ray %s got %r; the closed interval says a path on "
+                    "the border touches and one outside it does not"
+                    % (label, span))
+
+    def test_the_inset_outline_is_where_the_hit_test_turns_over(
+            self) -> None:
+        """The consequence the review reproduced, kept as its own claim.
+
+        The reviewer's integer reproducer, and deliberately a SEPARATE
+        entry from the ruling above: this one pins where the inset
+        outline sits, which is what `_seg_hits_rect` answers, and the
+        mutation on the parallel branch does not touch it. Keeping them
+        apart is the honest split — one test cannot pin two independent
+        decisions, and merging them would have let this half's green
+        vouch for the other half's silence.
+
+        The 200x100 rectangle insets to x=102 and x=298, and the two
+        neighbouring integers on each side are asserted with the border
+        itself so a fix cannot move the inset while keeping the
+        turnover.
+        """
+        node = {"type": "rectangle", "x": 100, "y": 100,
+                "width": 200, "height": 100}
+        for x, hits in ((101, False), (102, True), (298, True),
+                        (299, False)):
+            with self.subTest(x=x):
+                self.assertEqual(
+                    canvas._seg_hits_rect(x, 0, x, 400, node), hits,
+                    "a segment on x=%d %s the inset outline"
+                    % (x, "must hit" if hits else "must miss"))
+
+
+# ---------------------------------------------------------------------------
 # Pin identity (v0.9 Task-7 review, 2026-08-13; findings M2, R1 and the
 # report's own disclosure, each reproduced by the reviewer against the
 # shipped code). The class above judges what a batch does to the MODEL;
@@ -4973,11 +5329,11 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         """A resolve takes down the ❓ and never a namesake.
 
         `apply_ops`' resolve arm was `el = index.get(op.get("id"))`
-        followed by an unconditional delete (canvas.py:2887). `index` is
+        followed by an unconditional delete (canvas.py). `index` is
         the batch artifact's, keyed by id alone, so the arm never asked
         what it was deleting. Task 7 added exactly that role gate to the
         two places it thought about — the cross-artifact scan and the
-        `here` set that skips it (canvas.py:8021-8029) — and left the
+        `here` set that skips it (canvas.py) — and left the
         arm those two feed into role-blind.
 
         So a batch that added a shape and then resolved a pin of the same
@@ -5029,7 +5385,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         """A second `pin` op reusing a live pin's id is refused.
 
         `_validate_batch` checked a `resolve_pin` against the known pins
-        (canvas.py:7841) and checked a `pin` op against nothing of the
+        (canvas.py) and checked a `pin` op against nothing of the
         sort, so the id an open question already owned could be minted a
         second time. Probed on the shipped code: `check_batch` answered
         `ok=True` with no errors, the batch applied, and the registry
@@ -5037,7 +5393,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         different artifacts, sharing one name.
 
         What that cost was downstream and total. The resolve
-        write-through is id-global (canvas.py:8050), so ONE
+        write-through is id-global (canvas.py), so ONE
         `resolve_pin dup` marked both records resolved, and the
         cross-artifact scan took both glyphs. The user answered one
         question and the tool closed two, with the unanswered one gone
@@ -5082,7 +5438,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
 
         `intent_echo`'s resolve arm read absence from the batch scene as
         success — `"❓ glyph removed from canvas" if eid not in ix`
-        (canvas.py:4911) — but `ix` is the POST-op scene, where a glyph
+        (canvas.py) — but `ix` is the POST-op scene, where a glyph
         the user deleted last session is equally absent. So the one case
         where nothing was removed was the case the line called a removal.
 
@@ -6242,7 +6598,7 @@ def _labelled_shape(shape: str) -> list[dict]:
     """One 200x100 node carrying a bound label right at the fitter's budget.
 
     `fit_label_in` allots a label `width - 24` whatever the container's
-    shape (canvas.py:962), so at 200px wide the budget is 176px and this
+    shape (canvas.py), so at 200px wide the budget is 176px and this
     label's measured 171px clears it — the fitter returns early and never
     wraps, resizes or grows anything. On a RECTANGLE that is right: the
     bbox is the shape, and the label has 29px to spare. On a DIAMOND the
@@ -6305,8 +6661,8 @@ def _text_over_node(roled: bool) -> list[dict]:
     """A free text lying across a node, with and without a role.
 
     `role_of` defaults to `"node"` for anything carrying no explicit role
-    (canvas.py:3197), and the annotation/node overlap check gates on
-    `role_of(e) == "annotation"` (canvas.py:5523). So the SAME text over
+    (canvas.py), and the annotation/node overlap check gates on
+    `role_of(e) == "annotation"` (canvas.py). So the SAME text over
     the SAME node is reported when it is roled and invisible when it is
     not — and unroled is what arrives when a user pastes text onto the
     canvas, the least instrumented direction there is.
@@ -6390,7 +6746,7 @@ def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
 def _composed_row(text: str) -> list[dict]:
     """An entity node carrying one composed attribute row.
 
-    The SINGLE-LINE arm of `text_overflow` (canvas.py:5623): a text
+    The SINGLE-LINE arm of `text_overflow` (canvas.py): a text
     claimed by an owner through `customData.value_of` is a composed row —
     a KPI value, an entity attribute — which the renderer emits on one
     line and never wraps, so width alone decides whether it fits. The
@@ -6707,11 +7063,12 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 in curator batch 11, `mutants list --red` reports 15
-# while this file carries 25 expectedFailure methods. The ten outside live in
-# five classes — `TestLoadFindingsReachTheAgent` (4),
+# re-measured 2026-08-14 in curator batch 12, `mutants list --red` reports 9
+# while this file carries 20 expectedFailure methods. The eleven outside live
+# in six classes — `TestLoadFindingsReachTheAgent` (4),
 # `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2),
-# `TestStoreIntegrity` (1) and `TestPaintOrder` (1) — and are outside
+# `TestBatchPathIntegrity` (1), `TestPaintOrder` (1) and
+# `TestStoreIntegrity` (1) — and are outside
 # deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
@@ -6830,6 +7187,16 @@ _register(Mutant(
 # band admits [5, 95] and so still excludes both numbers that would mean the
 # fix went wrong: 0, the old answer, and 100, the axial penetration depth
 # `endpoint_gap` reports on this same scene.
+#
+# CURATOR RULING on the magnitude's sign (Task-16 report concern 2, batch 12):
+# unsigned is right, and no direction mutant is owed. The remedy for an
+# endpoint 50px inside a diamond and one 50px outside is the same — put it on
+# the outline — so the side adds nothing a fix would act on, and
+# `endpoint_gap` already carries direction for the user-facing lint. The
+# contradiction the concern was raised about is already gone: `instruments`'
+# header no longer calls `abs()` a preserved bug, and `_dist_to_diamond`
+# documents the unsigned choice with its reasoning. Nothing to fix, and this
+# note exists so the question is not re-opened from the old header text.
 _register(Mutant(
     "float_diamond_center_zero",
     build=_diamond_stage,
@@ -6953,7 +7320,7 @@ _register(Mutant(
                         Silence("shared_corridor"))))
 
 # The shared-attach lint, proven — the first organic UNCOVERED drain. Its
-# firing conditions (canvas.py:5646-5694): two arrows bound to the same node
+# firing conditions (canvas.py): two arrows bound to the same node
 # at either end, neither a self-loop, whose attach points on that node sit
 # within 12px on both axes. Here they are the same point, and both arrows
 # are server-routed 2-pointers, so nothing disqualifies them and the message
@@ -6973,8 +7340,8 @@ _register(Mutant(
 # idea-mine, 2026-08-12: docs/research/flowchartai_idea_mining_2026-08-12.md
 # OP1). The endpoint lint measured to the bbox; the through-node test used the
 # bbox; and `fit_label_in` budgets every container `width - 24` alike
-# (canvas.py:962). canvas.py already knows better IN THE SAME FILE:
-# `marker_inset` (canvas.py:4200) returns 0.5 for a diamond and 1-1/sqrt(2)
+# (canvas.py). canvas.py already knows better IN THE SAME FILE:
+# `marker_inset` (canvas.py) returns 0.5 for a diamond and 1-1/sqrt(2)
 # for an ellipse precisely because "the box's corner is empty canvas for
 # them" — and nothing on the label path ever asks it. Prior art for the fix:
 # flowchartai's diamond safeAreaRatio.
@@ -7020,7 +7387,7 @@ _register(Mutant(
 # containment, and nothing in `lint_layout` ever tests it. Three of the
 # frameId sites there serve help-slot lookup, same-frame pairing and the
 # unconnected-node note; a fourth, the dot-row/progress tell
-# (canvas.py:5389-5405), IS geometric — it groups a frame's small members and
+# (canvas.py), IS geometric — it groups a frame's small members and
 # compares their y against `fr.y + height * 0.25` — but it is hunting for a
 # row of dots, never asking whether a member lies inside the frame at all. No
 # site tests containment. Verified live — this scene and its control
@@ -7028,7 +7395,7 @@ _register(Mutant(
 # with its members in it from a lane whose member is 80px below it.
 #
 # The producer is confirmed too: `--relayout`'s move set is
-# rect/diamond/ellipse (canvas.py:10581) and never frames, so re-laying a
+# rect/diamond/ellipse (canvas.py) and never frames, so re-laying a
 # framed flow walks members out of a lane that stays put. That half is a
 # WP5 defect and is NOT pinned here — pinning it means stubbing
 # `_mermaid_convert` and `cmd_apply` around a CLI command, which binds the
@@ -7049,8 +7416,8 @@ _register(Mutant(
 
 # The role gate on text checks — RED BY ABSENCE (visualize-skill mine M2,
 # 2026-08-12). `role_of` defaults everything unroled to "node"
-# (canvas.py:3197) and the text/node overlap check gates on
-# role_of(e) == "annotation" (canvas.py:5523), so the same text over the
+# (canvas.py) and the text/node overlap check gates on
+# role_of(e) == "annotation" (canvas.py), so the same text over the
 # same node is reported when roled and silent when not. Verified live: with
 # `role="annotation"` the lint says "annotation 'pasted note' lies on top of
 # n1"; with no role at all it says nothing. Unroled is what a user's pasted
@@ -7064,7 +7431,7 @@ _register(Mutant(
 #
 # FLIP CONSTRAINT: giving this mutant a real other-pole neighbour is blocked
 # on something outside it — the check its control exercises,
-# `annotation_overlaps_node` (canvas.py:5592), has no DETECTORS entry and
+# `annotation_overlaps_node` (canvas.py), has no DETECTORS entry and
 # sits in UNCOVERED. Until that lands there is no registered check to assert
 # the roled overlap firing, which is why the neighbour asserts liveness
 # instead of the pole it is actually demonstrating.
@@ -7161,9 +7528,9 @@ _register(Mutant(
 # Shape-blindness, the ELLIPSE (found during the visualize-skill idea-mine,
 # 2026-08-12 — docs/research/visualize-skill_idea_mining_2026-08-12.md §(i.3),
 # where their renderer's checks were turned back on ours). Same uncalled
-# helper as the diamond cases: `marker_inset` (canvas.py:4200) already returns
+# helper as the diamond cases: `marker_inset` (canvas.py) already returns
 # 1-1/sqrt(2) for an ellipse, on the stated grounds that "the box's corner is
-# empty canvas for them", and `_seg_hits_rect` (canvas.py:4839) never asks it
+# empty canvas for them", and `_seg_hits_rect` (canvas.py) never asks it
 # — it rejects against the bounding box and nothing else. 4 of 4 corner probes
 # false-positived.
 #
@@ -7177,8 +7544,8 @@ _register(Mutant(
 # the ellipse is not weaker at all.)
 #
 # No magnitude to assert: `passes_through_foreign` reports the fact and no
-# number (the through-node crossing walk in `lint_layout`, canvas.py:6192 —
-# the old 5474 here had drifted two releases), so what this pins is the POLE
+# number (the through-node crossing walk in `lint_layout`), so what this
+# pins is the POLE
 # — silence — and the neighbour carries the firing proof. The corner arrow's
 # 27.3px of clear
 # canvas is derived in `_ellipse_stage`. FIXED by WP4 (task 16) in the same
@@ -7200,7 +7567,7 @@ _register(Mutant(
 # entry says "the drawing is wrong today". This one says "the drawing is
 # right today, for a reason nothing was guarding".
 #
-# `drawn_box` (canvas.py:5546) measures a label by its stored `width`. That
+# `drawn_box` (canvas.py) measures a label by its stored `width`. That
 # is safe only while every write path recomputes it, and three things say the
 # dependency is undefended: the load-time repairs that refit labels (ART-011)
 # and re-glue detached ones (ART-007) both explicitly skip arrow-type
@@ -7224,12 +7591,12 @@ _register(Mutant(
 # ---------------------------------------------------------------------------
 # The clipped-text lint, PROVEN — both arms, the second organic drain off the
 # enumerated ledger (Batch D follow-up, 2026-08-13; review item 1). Detector
-# coverage on `text_overflow` (canvas.py:5637) was zero: the check has shipped
+# coverage on `text_overflow` (canvas.py) was zero: the check has shipped
 # since v0.4, has been enumerated as unproven since 2026-08-12, and nothing
 # had ever asserted that it fires, on either arm, with any number.
 #
 # Two mutants rather than one because the check has TWO code paths, not two
-# messages. `single_line` (canvas.py:5623) is true only for composed rows
+# messages. `single_line` (canvas.py) is true only for composed rows
 # (`value_of` / `attr_of`), which measure raw `text_dims` against a 16px pad;
 # everything else — bound labels, sticky notes, fixed-width text, the common
 # case — is wrapped to `room_w` first and judged on the resulting height with
@@ -7243,7 +7610,7 @@ _register(Mutant(
 #
 # THE SHAPE ARM IS ABSENT, AND IT IS NOT A NEW DEFECT — determination for the
 # review's second half, evidence first. `room_w`/`room_h` come from the
-# owner's bbox on every container type (canvas.py:5626-5627), so a diamond or
+# owner's bbox on every container type (canvas.py), so a diamond or
 # ellipse is credited with room its drawn body does not have. Measured on the
 # scene the catalogue ALREADY pins for this: `_labelled_shape("diamond")` is a
 # 200x100 rhombus carrying a 171px label at y=40..60, where the rhombus is
@@ -7254,7 +7621,7 @@ _register(Mutant(
 #
 # So this is not shape-blindness instance SIX. It is the same defect
 # `label_overflows_shape` already pins, seen from the checker side rather than
-# the producer side (`fit_label_in`, canvas.py:962), and what it adds is the
+# the producer side (`fit_label_in`, canvas.py), and what it adds is the
 # NAME OF THE SHIPPED CHECK that should host the fix. Consequence, flagged in
 # V0.9-PLAN WP4 and repeated here because nothing automated enforces it: if
 # WP4 puts the shape term inside `text_overflow`, then `label_overflows_shape`
@@ -7723,7 +8090,7 @@ ASPIRATIONAL: dict[str, str] = {
         "same-frame pairing only, never for containment",
     "text_overlaps_node":
         "WP4 — a role-BLIND text/node overlap check, not yet built; the "
-        "existing one gates on role_of(e) == 'annotation' (canvas.py:5523) "
+        "existing one gates on role_of(e) == 'annotation' (canvas.py) "
         "and role_of defaults everything unroled to 'node' (3197)",
     "min_clearance":
         "WP4 — a near-miss check, not yet built; today's overlap loop needs "
@@ -7779,103 +8146,103 @@ UNCOVERED: dict[str, str] = {
 
     # lint_layout message templates with no DETECTORS entry (enumerated
     # 2026-08-12 by grepping errors.append/warnings.append/notes.append
-    # over canvas.py:4868-5800 — lint_layout's body. The three templates
+    # over `lint_layout`'s body. The three templates
     # DETECTORS already covers via lint_re — endpoint_gap,
     # crosses_through_bound, passes_through_foreign — are excluded here;
-    # project_lint (canvas.py:6361-6403) delegates to lint_layout,
+    # project_lint (canvas.py) delegates to lint_layout,
     # lint_glossary and lint_registry and has no direct appends of its
     # own, so it contributes no rows).
     "budget_override_note":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4900",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "decoration_overhang":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4956",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "half_unbound_endpoint":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4982",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:4993",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "dangling_binding":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5016",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "source_to_sink":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5130",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "flow_black_hole":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5140",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "flow_miracle":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5146",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "message_travels_up":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5158",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "message_budget":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5163",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "duplicate_screen_title":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5188",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "variant_label_mismatch":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5231",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "submit_precedes_inputs":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5250",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "input_missing_label":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5261",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "input_asterisk_required":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5266",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "uniform_input_widths":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5275",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "sticky_bar_over_inputs":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5286",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "help_presence_missing":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5300",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "help_slot_drift":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5318",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "target_size_too_close":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5366",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "progress_indicator_present":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5413",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "label_wider_than_run":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5436",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "arrow_points_both_ways":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5442",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "diagonal_arrow":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5453",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "grown_label_overlap":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5513",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "shape_overlap":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5518",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "annotation_budget":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5526",
-    # (`label_label_overlap`, canvas.py:5558, left this table on
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+    # (`label_label_overlap`, canvas.py, left this table on
     # 2026-08-12: the visualize-skill mine's §(i.4) exposed the stored-width
     # dependency underneath it and `stale_label_width_hides_collision` now
     # proves it from DETECTORS, both poles.)
     "label_on_foreign_node":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5579",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "annotation_overlaps_node":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5592",
-    # (`text_overflow`, canvas.py:5637, left this table on 2026-08-13:
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+    # (`text_overflow`, canvas.py, left this table on 2026-08-13:
     # `composed_row_overflows_its_box` and `wrapped_label_overflows_its_box`
     # now prove it from DETECTORS on BOTH code paths, each with a magnitude
     # and an axis. The bbox-naive `room_w` underneath it is recorded at those
     # entries as an arm of `label_overflows_shape`, not as a defect of its
     # own.)
-    # (`shared_attach_point`, canvas.py:5688, left this table on
+    # (`shared_attach_point`, canvas.py, left this table on
     # 2026-08-12: the ELK spike fired it in production and
     # `shared_attach_point_fan_failed` now proves it from DETECTORS.)
     "stranded_element":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5707",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "offgrid_elements":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5721",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "opacity_not_style":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5727",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unlabeled_decision_branch":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5743",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unconnected_nodes":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5756",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "screen_node_budget":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5765",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "node_budget_whole_artifact":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5770",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "arrow_budget":
-        "enumerated 2026-08-12; no proving mutant yet — canvas.py:5775",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
 
-    # ART-### repair codes: validate_scene (canvas.py:374-495) and the
-    # project-load JSON guard (canvas.py:6504).
-    # (`not_a_json_object`, ART-000, canvas.py:378, left this table on
+    # ART-### repair codes: validate_scene (canvas.py) and the
+    # project-load JSON guard (canvas.py).
+    # (`not_a_json_object`, ART-000, canvas.py, left this table on
     # 2026-08-13. It has no CATALOGUE mutant and will not get one — the
     # subject is a LOAD, so there is no element list to mutate and
     # `mutants new` declines it — but the hand-kept quadruples prove it
@@ -7888,30 +8255,30 @@ UNCOVERED: dict[str, str] = {
     # "No proving mutant" was still literally true and would have stayed
     # true forever, which is how the row read as a gap it is not.)
     "elements_not_a_list": "enumerated 2026-08-12; no proving mutant yet — "
-                           "ART-001, canvas.py:394",
+                           "ART-001, validate_scene",
     "malformed_element_dropped":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-002, canvas.py:402",
+        "ART-002, validate_scene",
     "duplicate_element_id_dropped":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-003, canvas.py:406",
+        "ART-003, validate_scene",
     "dangling_container_detached":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-004, canvas.py:415",
+        "ART-004, validate_scene",
     "dangling_binding_cleared":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-005, canvas.py:421",
+        "ART-005, validate_scene",
     "invalid_json_ignored": "enumerated 2026-08-12; no proving mutant yet — "
-                            "ART-006, canvas.py:6504",
+                            "ART-006, the project-load JSON guard",
     "detached_label_recentered":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-007, canvas.py:471",
+        "ART-007, validate_scene",
     "label_in_text_element_merged":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-010, canvas.py:448",
+        "ART-010, validate_scene",
     "label_wider_than_container_refit":
         "enumerated 2026-08-12; no proving mutant yet — "
-        "ART-011, canvas.py:491",
+        "ART-011, validate_scene",
 }
 
 
