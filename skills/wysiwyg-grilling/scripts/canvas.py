@@ -579,6 +579,19 @@ def validate_scene(doc, artifact_id):
     # a bound label wider than its container clips at the container's
     # bounds — refit (write-time rule applied retroactively; idempotent
     # because fit_label_in leaves width <= inner)
+    #
+    # The trigger is `width - 16` — the padding BOTH note creators write
+    # (the client's addStickyNote and `_x_user_note`) — not the `- 24`
+    # the fitter budgets. A label inset 8px a side is drawn whole, and a
+    # rule stricter than the geometry the client itself posts repaired
+    # every note anybody had ever made on its first load: all 7 load
+    # repairs standing across the four recorded sessions were this 8px
+    # disagreement, and each one minted an out-of-session reconciliation
+    # the user never caused (r5-13). Re-padding the creators would have
+    # fixed none of them — those notes are already on disk. The two
+    # numbers stay apart deliberately: the rule fires on what CLIPS, the
+    # fitter aims at the tighter budget, so a refit lands well clear of
+    # the trigger and cannot oscillate across loads.
     for el in kept:
         cid = el.get("containerId")
         cont = by_id.get(cid) if cid else None
@@ -586,8 +599,20 @@ def validate_scene(doc, artifact_id):
                 cont.get("type") not in ("rectangle", "diamond", "ellipse",
                                          "frame"):
             continue
-        if el.get("width", 0) > max(60, cont.get("width", 160) - 24):
+        if el.get("width", 0) > max(60, cont.get("width", 160) - 16):
+            was = (el.get("width"), el.get("height"),
+                   cont.get("width", 0), cont.get("height", 0))
             fit_label_in(cont, el)
+            if was == (el.get("width"), el.get("height"),
+                       cont.get("width", 0), cont.get("height", 0)):
+                # the fitter declined: no wrap of this label sits any
+                # better in this shape than the label as written, and
+                # the honest remedy is a wider node — which is what
+                # `lint_layout` already asks for. Filing a repair here
+                # claimed work that left nothing to persist, so the two
+                # tearsheet labels re-reported the same repair on every
+                # load, forever.
+                continue
             el["x"] = cont["x"] + max(
                 (cont.get("width", 0) - el.get("width", 0)) / 2, 4)
             el["y"] = cont["y"] + max(
@@ -596,6 +621,9 @@ def validate_scene(doc, artifact_id):
                 "ART-011", "%s: label %s was wider than its container — "
                 "refit to wrap inside it" % (artifact_id, el["id"]),
                 "", True))
+            if (cont.get("width", 0), cont.get("height", 0)) != was[2:]:
+                issues += reroute_after_resize(kept, cont, was[2:],
+                                               artifact_id)
     doc["elements"] = kept
     return doc, issues
 
@@ -2349,6 +2377,81 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
               if not (b.get("id") == arrow["id"] and b.get("type") == "arrow")]
         bl.append({"id": arrow["id"], "type": "arrow"})
         node["boundElements"] = bl
+
+
+def reroute_after_resize(els, node, before, artifact_id):
+    """Re-route the arrows bound to a shape a load-time repair resized.
+
+    A repair that grows a container moves its border out from under
+    every endpoint sitting on that border, and the endpoint stays where
+    it was drawn — interior by the time the load finishes. `endpoint_gap`
+    then reports "arrow a1 claims to bind n1 … ends 60px inside the
+    shape — re-route it", blaming the USER's arrow for a move the LOADER
+    made. That misattribution, not the resize, is the harm: so the
+    repair re-routes what it displaced and says so out loud. A load that
+    changes geometry and stays quiet about it is the one thing this
+    loader may never do.
+
+    Arrows whose geometry is not the server's — hand-authored waypoints,
+    bent unmarked paths (`server_owns_geometry`) — are left exactly as
+    drawn and NAMED in the issue instead, as is an arrow with only one
+    end bound, which the router has no pair to route between. The loader
+    may repair its own damage; it may not redraw someone's line to hide
+    it, or go quiet about a line it could not reach.
+
+    Args:
+        els: The scene's elements after the repair. Obstacles are read
+            from it and the routed arrows are mutated in place.
+        node: The container the repair resized.
+        before: `(width, height)` the container had before the repair.
+        artifact_id: Artifact the scene belongs to, named in the message.
+
+    Returns:
+        `[Issue]` — one ART-012 naming the resize and what became of
+        each bound arrow, or `[]` when no arrow was bound to `node`.
+    """
+    index = {e["id"]: e for e in els}
+    bound = [e for e in els if e.get("type") == "arrow" and node["id"] in (
+        (e.get("startBinding") or {}).get("elementId"),
+        (e.get("endBinding") or {}).get("elementId"))]
+    if not bound:
+        return []
+    obstacles = [e for e in els
+                 if e.get("type") in ("rectangle", "diamond", "ellipse")
+                 and role_of(e) not in ("label", "pin", "decoration",
+                                        "annotation")]
+    soft = [e for e in els if e.get("type") == "text"
+            and (e.get("containerId") or role_of(e) == "annotation")]
+    moved, kept_as_drawn = [], []
+    for arrow in bound:
+        src = index.get((arrow.get("startBinding") or {}).get("elementId"))
+        dst = index.get((arrow.get("endBinding") or {}).get("elementId"))
+        if src is None or dst is None or not server_owns_geometry(arrow):
+            kept_as_drawn.append(arrow["id"])
+            continue
+        route_arrow(arrow, src, dst, obstacles, soft_obstacles=soft,
+                    other_arrows=[(t["id"], t.get("x", 0), t.get("y", 0),
+                                   t.get("points") or [])
+                                  for t in els if t.get("type") == "arrow"
+                                  and len(t.get("points") or []) >= 2])
+        recenter_label(els, arrow)
+        moved.append(arrow["id"])
+    did = ("re-routed %s" % ", ".join(sorted(moved)) if moved
+           else "re-routed nothing")
+    if kept_as_drawn:
+        did += "; left %s as drawn" % ", ".join(sorted(kept_as_drawn))
+    return [Issue(
+        "ART-012", "%s: the label refit resized %s (%gx%g to %gx%g) — %s"
+        % (artifact_id, node["id"], before[0], before[1],
+           node.get("width", 0), node.get("height", 0), did),
+        "The loader moved this shape's border, so the endpoints on it "
+        "were the loader's to fix. %s is taller or wider than the user "
+        "last drew it — say so if you narrate this artifact.%s"
+        % (node["id"],
+           " The arrows left as drawn carry the user's own geometry; any "
+           "endpoint finding on them is theirs to judge, not this "
+           "repair's residue." if kept_as_drawn else ""),
+        True)]
 
 
 def binding_focus(node, px, py):

@@ -1641,6 +1641,167 @@ class TestTextInTextRepair(Base):
         self.assertTrue(any("ART-010" == i.code for i in issues))
 
 
+class TestLoadRepairRerouteAndConfess(Base):
+    """v0.9 WP4: a load-time repair that resizes a shape owns what it
+    moved. The ART-011 refit grows a container to fit a wrapped label,
+    which drags the border out from under every arrow endpoint sitting
+    on it; `endpoint_gap` then reported the stranded endpoint against
+    the USER's arrow. The repair now re-routes what it displaced
+    (ART-012) — and the trigger stops firing on the 8px note padding
+    that made every note-bearing project repair itself on load."""
+
+    LONG = "Escalate to the compliance review board immediately"
+
+    def oversized(self, arrows):
+        """A 120x60 box with a 400px label, plus the given arrows.
+
+        Args:
+            arrows: Arrow elements to append to the scene.
+
+        Returns:
+            A scene document ready for `validate_scene`.
+        """
+        return {"type": "excalidraw", "version": 2, "elements": [
+            {"id": "n1", "type": "rectangle", "x": 0, "y": 0, "width": 120,
+             "height": 60, "customData": {"role": "node"},
+             "boundElements": [{"id": "t1", "type": "text"}]},
+            {"id": "t1", "type": "text", "x": 4, "y": 20, "width": 400,
+             "height": 20, "text": self.LONG, "originalText": self.LONG,
+             "fontSize": 16, "containerId": "n1", "textAlign": "center"},
+            {"id": "far", "type": "rectangle", "x": 400, "y": 0,
+             "width": 120, "height": 60, "customData": {"role": "node"}},
+            {"id": "far2", "type": "rectangle", "x": 400, "y": 300,
+             "width": 120, "height": 60, "customData": {"role": "node"}},
+            *arrows]}
+
+    def test_an_arrow_on_an_untouched_shape_is_left_alone(self):
+        # Control for the re-route's blast radius: `far -> far2` is bound
+        # to two shapes the refit never touches, so the repair must not
+        # so much as re-derive its geometry. Without this a re-route that
+        # simply routed every arrow in the scene would pass the flip.
+        untouched = {"id": "a2", "type": "arrow", "x": 460, "y": 60,
+                     "width": 0, "height": 240, "points": [[0, 0], [0, 240]],
+                     "startBinding": {"elementId": "far", "focus": 0,
+                                      "gap": 1},
+                     "endBinding": {"elementId": "far2", "focus": 0,
+                                    "gap": 1}}
+        before = json.loads(json.dumps(untouched))
+        doc, issues = canvas.validate_scene(
+            self.oversized([untouched]), "a")
+        self.assertEqual([i.code for i in issues], ["ART-011"],
+                         "nothing was resized-with-arrows, so nothing to "
+                         "confess")
+        after = next(e for e in doc["elements"] if e["id"] == "a2")
+        self.assertEqual(after, before)
+
+    def test_a_hand_authored_arrow_is_named_not_redrawn(self):
+        # The other half of the ownership rule. A bent, unmarked path is
+        # the user's geometry (`server_owns_geometry`), so the loader may
+        # not straighten it to tidy up after itself — it says what it did
+        # and hands the arrow back. Silently redrawing someone's line to
+        # make a finding go away is the same misattribution wearing the
+        # opposite coat.
+        drawn = {"id": "a3", "type": "arrow", "x": 60, "y": 300,
+                 "width": 80, "height": 240,
+                 "points": [[0, 0], [80, -120], [0, -240]],
+                 "startBinding": {"elementId": "far2", "focus": 0, "gap": 1},
+                 "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}
+        before = json.loads(json.dumps(drawn))
+        doc, issues = canvas.validate_scene(self.oversized([drawn]), "a")
+        self.assertEqual([i.code for i in issues], ["ART-011", "ART-012"])
+        said = issues[1]
+        self.assertIn("left a3 as drawn", said.msg)
+        self.assertIn("re-routed nothing", said.msg)
+        self.assertIn("the user's own geometry", said.hint)
+        after = next(e for e in doc["elements"] if e["id"] == "a3")
+        self.assertEqual(after["points"], before["points"])
+        self.assertEqual((after["x"], after["y"]), (before["x"], before["y"]))
+
+    def test_the_confession_names_the_shape_and_the_size_it_became(self):
+        # The misattribution half, asserted on its wording: before this,
+        # `issues` said only that a LABEL had been refit, and nothing
+        # anywhere said the loader had resized a shape carrying arrows.
+        # An agent reading the load had no way to know the drawing had
+        # moved, which is what let `endpoint_gap`'s "re-route it" land on
+        # the user as an instruction about their own work.
+        routed = {"id": "a1", "type": "arrow", "x": 60, "y": 300,
+                  "width": 0, "height": 240, "points": [[0, 0], [0, -240]],
+                  "startBinding": {"elementId": "far2", "focus": 0,
+                                   "gap": 1},
+                  "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}
+        _, issues = canvas.validate_scene(self.oversized([routed]), "a")
+        self.assertEqual([i.code for i in issues], ["ART-011", "ART-012"])
+        self.assertTrue(issues[1].repaired)
+        self.assertIn("resized n1 (120x60 to 120x136)", issues[1].msg)
+        self.assertIn("re-routed a1", issues[1].msg)
+
+    def test_the_reroute_persists_instead_of_recurring(self):
+        # The re-route is itself a load-time geometry change, which is
+        # the r5-13 hazard class — so it has to answer the same question
+        # the refit does: does it settle? First load repairs and
+        # re-routes, the reconciliation carries both codes and writes the
+        # result down, and the second load has nothing left to do. A
+        # re-route that fired on every load would mint a revision on
+        # every resume and, since Task 42, spend referential standing
+        # doing it.
+        els = self.oversized([
+            {"id": "a1", "type": "arrow", "x": 60, "y": 300, "width": 0,
+             "height": 240, "points": [[0, 0], [0, -240]],
+             "startBinding": {"elementId": "far2", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}])
+        self.store.commit(author="user", new_scenes={"f": els["elements"]},
+                          base_revn=0)
+        store = canvas.Store(self.project)
+        self.assertEqual([i["code"] for i in store.scene_repairs],
+                         ["ART-011", "ART-012"])
+        rec = store.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertIn("ART-011 ×1, ART-012 ×1", rec["summary"]["headline"])
+        store2 = canvas.Store(self.project)
+        self.assertEqual(store2.scene_repairs, [],
+                         "the re-route recurs — every resume mints a "
+                         "reconciliation for geometry already settled")
+        self.assertIsNone(store2.catch_up())
+        first = next(e for e in store.scenes["f"] if e["id"] == "a1")
+        a1 = next(e for e in store2.scenes["f"] if e["id"] == "a1")
+        self.assertEqual((a1["x"], a1["y"], a1["points"]),
+                         (first["x"], first["y"], first["points"]),
+                         "the second load re-routed the arrow again")
+        # and the settled path is a correct one, not merely a stable one
+        warned = [w for w in canvas.project_lint(
+            self.project, store2.scenes["f"], registry=store2.registry,
+            artifact_type=store2.artifact_type("f"), aid="f")["warnings"]
+            if "inside the shape" in w]
+        self.assertEqual(warned, [])
+
+    def test_a_client_shaped_note_loads_untouched_twice(self):
+        # The r5-13 constant, pinned by construction rather than by
+        # fixture: this is exactly what `addStickyNote` posts — a 180x90
+        # box with a 164px label, w-16 — and the loader must have
+        # nothing to say about it, on this load or any later one. If
+        # anybody re-tightens the rule to w-24, the message names the
+        # arithmetic instead of leaving a fixture count to be re-baselined.
+        note = [{"id": "note", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 180, "height": 90, "customData": {"role": "note"},
+                 "boundElements": [{"id": "note-label", "type": "text"}]},
+                {"id": "note-label", "type": "text", "x": 8, "y": 8,
+                 "width": 164, "height": 74, "text": "keep this as drawn",
+                 "originalText": "keep this as drawn", "fontSize": 14,
+                 "containerId": "note", "autoResize": False}]
+        self.store.commit(author="user", new_scenes={"f": note},
+                          base_revn=0)
+        for load in (1, 2):
+            store = canvas.Store(self.project)
+            self.assertEqual(store.issues, [],
+                             "load %d repaired a note the client itself "
+                             "posts: 164 = 180 - 16, and the rule triggers "
+                             "above 180 - 16" % load)
+            self.assertIsNone(store.catch_up(),
+                              "load %d minted a reconciliation" % load)
+            lbl = next(e for e in store.scenes["f"] if e["id"] == "note-label")
+            self.assertEqual((lbl["width"], lbl["height"]), (164, 74))
+
+
 class TestTermConceptViewDebt(Base):
     """Post-acceptance wiring: settled terms mint concepts (ADR 0007) and
     view debt is a registry mechanism (`owed`, ADR 0006) paid down as
@@ -2206,30 +2367,34 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
             "argus-run-flow", "dashboard", "enrichment-pipeline",
             "publication-flow"])
 
-    def test_loader_repairs_are_label_refits_only(self):
-        # Five ART-011 label-wider-than-container refits, nothing else —
-        # the load-time repair surface WP2 makes loud.
-        self.assertEqual([i.get("code") for i in self.store.issues],
-                         ["ART-011"] * 5)
+    def test_the_load_repairs_nothing_and_reports_nothing(self):
+        # FLIPPED by v0.9 WP4 (was: five ART-011 label refits, nothing
+        # else). All five were sticky notes at the client's own w-16
+        # padding, tripping a rule that repaired above w-24 — the r5-13
+        # 8px false positive, five times over on one recorded session.
+        # With the rule at w-16 this project loads exactly as its author
+        # left it.
+        #
+        # Asserted over `issues`, not `scene_repairs`, so a quarantine
+        # would fail it too: the claim is that the richest real session
+        # on record gives the loader nothing to say.
+        self.assertEqual([i.get("code") for i in self.store.issues], [])
 
-    def test_catchup_names_its_repairs_and_converges(self):
-        # FLIPPED BY WP2 (was: pinned the phantom). With derived noise
-        # (z-order, int/float representation, roundness) out of the
-        # comparison, this fixture's ONLY divergence is the loader's own
-        # 5 label refits — so the one reconciliation must take the
-        # repair-only attribution path, name the repairs, and CONVERGE.
-        # Pre-WP2 every load minted a fresh phantom out-of-session
-        # record here.
-        rec = self.store.catch_up()
-        self.assertIsNotNone(rec)
-        self.assertEqual(rec["author"], "out-of-session")
-        self.assertTrue(rec.get("reconciliation"))
-        self.assertEqual(len(rec.get("repairs") or []), 5)
-        self.assertIn("load-time repair", rec["summary"]["headline"])
-        self.assertIn("no outside edits", rec["summary"]["headline"])
+    def test_catchup_mints_nothing_on_either_load(self):
+        # FLIPPED TWICE. WP2 turned this fixture's phantom into a named
+        # repair-only reconciliation (5 refits, converging on the second
+        # load). v0.9 WP4 removed the refits themselves — all five were
+        # the r5-13 note-padding false positive — so the honest end
+        # state is no reconciliation at all: resuming this project
+        # writes nothing, which is what a resume should do.
+        #
+        # The repair-only headline it used to be the only cover for now
+        # lives on a scene that genuinely needs a refit
+        # (`TestReferentialIntegrity`), because a fixture that loads
+        # clean cannot exercise an attribution path for repairs.
+        self.assertIsNone(self.store.catch_up())
         store2 = canvas.Store(self.project)
-        self.assertIsNone(store2.catch_up(),
-                          "reconciliation did not converge")
+        self.assertIsNone(store2.catch_up())
 
     def test_standing_lint_is_the_arms_deliberate_record(self):
         # Arm 3 left the admin-console reading-order warnings standing on
@@ -2279,12 +2444,14 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
         # without changing anything" while committing — r4b save 0028's
         # live shape). The divergences were all derived machinery
         # (z-order, int/float representation, replayed roundness); with
-        # those canonicalized, this project needs no reconciliation, and
-        # the one real load repair reaches the agent as a REPAIR line
-        # instead of a fake out-of-session edit.
+        # those canonicalized, this project needs no reconciliation.
+        #
+        # The surviving ART-011 was the last thing the loader still said
+        # about this project, and v0.9 WP4 established it was the r5-13
+        # note-padding false positive — one sticky note at the client's
+        # own w-16 padding. Silence is now the whole claim.
         self.assertIsNone(self.store.catch_up())
-        self.assertEqual([i["code"] for i in self.store.scene_repairs],
-                         ["ART-011"])
+        self.assertEqual(self.store.scene_repairs, [])
 
     def test_no_lint_errors_anywhere(self):
         for aid, r in self.lint_all().items():
@@ -2339,29 +2506,30 @@ class TestArgusR5Fixture(FixtureReplayBase):
                  for b in self.store.registry["branches"]}
         self.assertEqual(names, {"main": False, "alt-0022": True})
 
-    def test_sticky_note_forces_a_repair_on_every_load(self):
-        # PINS r5-13. Both note creators (the client's addStickyNote and
-        # x-as-user note) pad the label by w-16, while the ART-011 rule
-        # repairs anything wider than w-24 — an 8px disagreement that is
-        # structural, so the repair is guaranteed on the FIRST load of
-        # every note anyone has ever made and never persists.
+    def test_sticky_note_survives_a_load_untouched(self):
+        # FLIPPED by v0.9 WP4, exactly as the old body demanded: this
+        # used to PIN r5-13, asserting the repair and the reconciliation
+        # the defect guaranteed. Both note creators (the client's
+        # addStickyNote and `_x_user_note`) pad the label by w-16 while
+        # the ART-011 rule repaired anything wider than w-24 — an 8px
+        # disagreement that was structural, so a refit was guaranteed on
+        # the first load of every note anyone had ever made, and the
+        # refit moved geometry, so `catch_up` minted an out-of-session
+        # reconciliation the user never caused.
         #
-        # Worse, the repair mutates geometry, so the replayed history no
-        # longer matches the loaded scene and `catch_up` mints an
-        # out-of-session reconciliation on EVERY resume. The headline is
-        # honest about why (the v0.8 WP2 fix), which is the only reason
-        # this is a P2 and not a P1.
-        #
-        # When r5-13 is fixed this test must flip to: repairs == [] and
-        # catch_up() is None. Leave it failing loudly rather than
-        # deleting it — a green suite that stopped asserting anything is
-        # how the defect comes back.
-        self.assertEqual([i["code"] for i in self.store.scene_repairs],
-                         ["ART-011"])
-        rec = self.store.catch_up()
-        self.assertIsNotNone(rec)
-        self.assertIn("ART-011", rec["summary"]["headline"])
-        self.assertIn("no outside edits", rec["summary"]["headline"])
+        # The rule now triggers at w-16, the padding the client itself
+        # posts, so this note is what the user drew and stays that way.
+        # Both loads are asserted, not just the first: a repair that
+        # fires once and persists would satisfy the second alone, and
+        # the r5-13 harm was the FIRST load minting a revision.
+        self.assertEqual(self.store.scene_repairs, [])
+        self.assertIsNone(self.store.catch_up())
+        note = next(e for e in self.store.scenes["daily-run"]
+                    if e["id"] == "usernote-43435b73-t")
+        self.assertEqual((note["width"], note["height"]), (214, 35))
+        store2 = canvas.Store(self.project)
+        self.assertEqual(store2.scene_repairs, [])
+        self.assertIsNone(store2.catch_up())
 
 
 class TestAcceptanceTearsheetFixture(FixtureReplayBase):
@@ -2370,20 +2538,32 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
     FIXTURE = "acceptance-tearsheet"
 
     def test_replays_and_converges_without_reconciliation(self):
-        # FLIPPED TWICE. WP2 turned this fixture's phantom into a named
-        # repair-only reconciliation; WP4's real font metrics then made
+        # FLIPPED THREE TIMES. WP2 turned this fixture's phantom into a
+        # named repair-only reconciliation; WP4's real font metrics made
         # the ART-011 refits CONVERGE memory to the replayed history (the
         # old 0.6-em estimate was what disagreed with the client), so
-        # nothing diverges at all: repairs still fire and are reported,
-        # and catch_up finds nothing to reconcile — on every load.
+        # repairs fired, were reported, and nothing diverged.
+        #
+        # v0.9 WP4 stopped them firing, and for the sharper reason: both
+        # refits changed NOTHING. `fit_label_in` declined them (no wrap
+        # of a 153px label sits any better in a 160px box than the label
+        # as written), and the loader filed a repair anyway. A repair
+        # that mutates nothing has nothing to persist, so these two
+        # re-reported themselves on every load of this project forever —
+        # the recurring half of r5-13, with no geometry damage to make
+        # it visible. The remaining honest report is `lint_layout`'s:
+        # the remedy for a label that will not wrap is a wider node.
         self.assertEqual(self.store.head_revn(), 15)
         self.assertEqual(sorted(self.store.scenes), [
             "tearsheet-failures", "tearsheet-flow", "tearsheet-sheet"])
-        self.assertEqual([i["code"] for i in self.store.scene_repairs],
-                         ["ART-011", "ART-011"])
+        self.assertEqual(self.store.scene_repairs, [])
         self.assertIsNone(self.store.catch_up())
         store2 = canvas.Store(self.project)
         self.assertIsNone(store2.catch_up())
+        # the label the loader used to claim it had refit is untouched
+        lbl = next(e for e in self.store.scenes["tearsheet-flow"]
+                   if e["id"] == "pull-market-data-label")
+        self.assertEqual((lbl["width"], lbl["height"]), (153, 20))
 
     def test_curved_era_arrows_load_sharp_and_mint_nothing(self):
         # v0.9 WP4 stage 1. This fixture was frozen while every elbow
@@ -2400,6 +2580,12 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
         # DEFAULT_SIGNIFICANT_ATTRS, and disk and replayed history run
         # through the same derivation. Task 42's epoch work sharpens the
         # stake, since a reconciliation would now also spend standing.
+        #
+        # The repair set was two ART-011s when this was written and is
+        # empty since v0.9 WP4 fixed both (see the test above). The
+        # claim is unchanged — re-deriving roundness adds no repair —
+        # but an empty list is a weaker witness for it, so the roundness
+        # assertion above stays the load-bearing one.
         raw = json.loads((self.project.artifacts_dir
                           / "tearsheet-flow.excalidraw").read_text())
         # guard against a vacuous pass if the fixture is ever re-frozen
@@ -2412,13 +2598,11 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
                 if e.get("type") in ("arrow", "line"):
                     self.assertIsNone(e.get("roundness"),
                                       "%s/%s loaded curved" % (aid, e["id"]))
-        self.assertEqual([i["code"] for i in self.store.scene_repairs],
-                         ["ART-011", "ART-011"])
+        self.assertEqual(self.store.scene_repairs, [])
         self.assertIsNone(self.store.catch_up())
         store2 = canvas.Store(self.project)
         self.assertIsNone(store2.catch_up())
-        self.assertEqual([i["code"] for i in store2.scene_repairs],
-                         ["ART-011", "ART-011"])
+        self.assertEqual(store2.scene_repairs, [])
 
 
 class TestClientRemeasure(Base):
@@ -7164,6 +7348,57 @@ class TestReferentialIntegrity(Base):
         self.assertEqual(len(out["a"]["notes"]), 2)  # note + links_to
         self.assertEqual(len(out["registry"]["warnings"]), 1)
         self.assertIn("a#ghost", out["registry"]["warnings"][0])
+
+    def test_repair_only_reconciliation_names_its_repairs_and_converges(self):
+        """A load-time repair reconciles as a repair, and then stops.
+
+        The standing home of the repair-only attribution path since v0.9
+        WP4. It used to ride the recorded fixtures, but all seven of
+        their load repairs turned out to be the r5-13 note-padding false
+        positive, and a project that loads clean cannot exercise an
+        attribution path for repairs — so the scene is built here, and
+        built BROKEN on purpose: a 400px label in a 120px box, which the
+        fitter really does wrap and really does grow the box for.
+
+        `commit` writes the artifact and the save from the same
+        elements, so disk and replayed history agree BEFORE the load —
+        which is the whole premise of `repair_only`. The divergence the
+        second store sees is the loader's own work and nothing else.
+
+        The last assertion is the one r5-13 was about: the repair has to
+        PERSIST. A repair that reconciles and then fires again on the
+        next load mints a fresh revision on every resume, which is how a
+        note-bearing project accumulated a reconciliation per resume —
+        and, since Task 42, spends referential standing doing it.
+        """
+        self.seed()
+        text = "Escalate to the compliance review board immediately"
+        els = [json.loads(json.dumps(e)) for e in self.store.scenes["f"]]
+        els += [{"id": "wide", "type": "rectangle", "x": 0, "y": 200,
+                 "width": 120, "height": 60, "customData": {"role": "node"},
+                 "boundElements": [{"id": "wide-t", "type": "text"}]},
+                {"id": "wide-t", "type": "text", "x": 4, "y": 220,
+                 "width": 400, "height": 20, "text": text,
+                 "originalText": text, "fontSize": 16,
+                 "containerId": "wide", "textAlign": "center"}]
+        self.store.commit(author="user", new_scenes={"f": els},
+                          base_revn=self.store.head_revn())
+        store2 = canvas.Store(self.project)
+        self.assertEqual([i["code"] for i in store2.scene_repairs],
+                         ["ART-011"])
+        rec = store2.catch_up()
+        self.assertIsNotNone(rec)
+        self.assertEqual(rec["author"], "out-of-session")
+        self.assertTrue(rec.get("reconciliation"))
+        self.assertEqual(len(rec.get("repairs") or []), 1)
+        self.assertIn("load-time repair: ART-011 ×1",
+                      rec["summary"]["headline"])
+        self.assertIn("no outside edits", rec["summary"]["headline"])
+        store3 = canvas.Store(self.project)
+        self.assertEqual(store3.scene_repairs, [],
+                         "the repair did not persist — it recurs on every "
+                         "load, and each one mints a reconciliation")
+        self.assertIsNone(store3.catch_up())
 
     def test_genuine_outside_edit_still_reconciles_as_one(self):
         # Control: a real out-of-session edit keeps the classic

@@ -2324,10 +2324,11 @@ class TestStoreIntegrity(unittest.TestCase):
         self.assertIn("ART-011", codes, "the real repair must still be "
                       "reported (issues=%r)" % (codes,))
         self.assertEqual(
-            [i["code"] for i in st.scene_repairs], ["ART-011"],
-            "ART-011 refit the label and belongs in scene_repairs; ART-000 "
-            "touched nothing and must not be counted as repair work "
-            "(scene_repairs=%r)" % (st.scene_repairs,))
+            [i["code"] for i in st.scene_repairs], ["ART-011", "ART-012"],
+            "ART-011 refit the label and ART-012 re-routed the arrow that "
+            "refit displaced (v0.9 WP4) — both belong in scene_repairs; "
+            "ART-000 touched nothing and must not be counted as repair "
+            "work (scene_repairs=%r)" % (st.scene_repairs,))
 
     def test_quarantine_alone_makes_catch_up_claim_no_repairs(self) -> None:
         """With only a drop to report, no resume narration says "repair".
@@ -2385,11 +2386,17 @@ class TestStoreIntegrity(unittest.TestCase):
     def test_art011_repair_grows_the_container(self) -> None:
         """The load-time refit really does resize a shape.
 
-        The red below measures what that resize leaves behind, so this
+        The test below measures what that resize leaves behind, so this
         pins the resize itself: if ART-011 ever stops firing on this
-        artifact — a threshold moves, the repair is rewritten — the red
-        would go quiet for a reason that has nothing to do with arrow
-        re-routing, and read as a fix.
+        artifact — a threshold moves, the repair is rewritten — the one
+        below would go quiet for a reason that has nothing to do with
+        arrow re-routing, and read as health.
+
+        That is not hypothetical. v0.9 WP4 moved the very threshold this
+        guards against, from `width - 24` to `width - 16`, and this scene
+        was checked against the new number deliberately rather than
+        assumed past it: a 400px label in a 120px box trips any rule
+        either constant could express, so the flip below stayed earned.
         """
         st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT},
                         {"0001-x": _GOOD_SAVE})
@@ -2397,34 +2404,36 @@ class TestStoreIntegrity(unittest.TestCase):
         n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
         self.assertEqual(n1["height"], 136)
 
-    @unittest.expectedFailure
-    def test_red_art011_repair_strands_the_bound_arrow(self) -> None:
-        """A repair moves the shape and leaves its bound arrow behind.
+    def test_art011_repair_reroutes_the_arrow_it_displaced(self) -> None:
+        """FLIPPED by v0.9 WP4. A repair re-routes what it moves.
 
         ART-011 refits an oversized label by calling `fit_label_in`
-        (canvas.py), which GROWS the container to fit the wrapped text
-        (canvas.py). Here `n1` goes from 60px tall to 136px. The
-        arrow bound to its bottom edge is not re-routed, so an endpoint
-        that was exactly on the border ends up interior by the time the
-        load finishes — geometry the user never wrote.
+        (canvas.py), which GROWS the container to fit the wrapped text.
+        Here `n1` goes from 60px tall to 136px. The arrow bound to its
+        bottom edge used not to be re-routed, so an endpoint that was
+        exactly on the border ended up interior by the time the load
+        finished — geometry the user never wrote.
 
-        Two numbers describe that endpoint and both are right: it sits
+        Two numbers described that endpoint and both were right: it sat
         76px above the grown bottom edge (y=136) and 60px below the top
-        one (y=0). The lint reports the NEARER edge, so its message says
+        one (y=0). The lint reports the NEARER edge, so its message said
         60px; the 76px figure is how far the border travelled out from
-        under it. They are not in conflict and neither is the magnitude
-        this test asserts — it asserts no finding at all.
+        under it. They were not in conflict and neither was the
+        magnitude this test asserts — it asserts no finding at all.
 
-        `endpoint_gap` DOES report the consequence, so this is not a
-        silence; it is a MISATTRIBUTION. The message says "arrow a1 claims
-        to bind n1 … ends 60px inside the shape — re-route it", blaming
-        the user's arrow for a move the loader made. Nothing in `issues`
-        says the loader resized anything with arrows on it.
+        `endpoint_gap` DID report the consequence, so this was never a
+        silence; it was a MISATTRIBUTION. The message said "arrow a1
+        claims to bind n1 … ends 60px inside the shape — re-route it",
+        blaming the user's arrow for a move the loader made, and nothing
+        in `issues` said the loader had resized anything with arrows on
+        it. `reroute_after_resize` now does both halves, so this asserts
+        both: no endpoint finding survives the load, and the loader says
+        out loud which shape it resized and which arrow it re-routed.
 
-        Asserted as the absence of that endpoint finding, because a repair
-        that re-routes what it moves leaves nothing to report. Flips when
-        the refit re-routes bound arrows — or when it declines to grow a
-        container that has any.
+        Still asserted as the ABSENCE of the endpoint finding rather than
+        as a path, because the claim is that the repair leaves nothing to
+        report — a fix that re-routed to some other wrong place would
+        satisfy an equality on ART-012 alone.
         """
         st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT},
                         {"0001-x": _GOOD_SAVE})
@@ -2434,6 +2443,11 @@ class TestStoreIntegrity(unittest.TestCase):
             gaps, [],
             "the ART-011 refit grew n1 and left a1 behind: %s"
             % [f["raw"] for f in gaps])
+        said = [i for i in st.issues if i["code"] == "ART-012"]
+        self.assertEqual(len(said), 1, "the resize went unconfessed: %r"
+                         % (st.issues,))
+        self.assertIn("n1", said[0]["msg"])
+        self.assertIn("a1", said[0]["msg"])
 
     def test_red_dangling_file_reference_is_reported(self) -> None:
         """An image whose fileId names no file in `files` is reported.
