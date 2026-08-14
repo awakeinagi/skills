@@ -6508,27 +6508,36 @@ def _single_crossing_scene() -> list[dict]:
     return [flat, diag]
 
 
-def _opposed_pair(rounded: bool) -> list[dict]:
-    """Two elbowed arrows whose 18px final segments meet head-on at x=250.
+def _opposed_pair(rounded: bool, run: int = 18) -> list[dict]:
+    """Two elbowed arrows whose final segments meet head-on at x=250.
 
     Both final chords are vertical on x=250 and point at each other,
     heads 2px apart — the false-bidi signature. `rounded` decides
     whether those elbows render as curves (type-2 roundness), which
     bends the visible approach away from the stored chord.
 
+    `run` lengthens those final segments without moving the heads or
+    the horizontal legs, so the BOW stays 7.4px — it is set by the
+    100px horizontal leg through `c1 = P1 + (P2-P0)/6`, not by the
+    vertical run — while the segment it sits on grows. That is the one
+    variable separating the two curve mutants: the same absolute
+    deviation is most of a short leg and a rounding error on a long one.
+
     Args:
         rounded: True for type-2 roundness, False for sharp elbows.
+        run: Length of each final segment. The default 18 is the
+            original scene; the heads stay 2px apart at any value.
 
     Returns:
         The two-arrow scene.
     """
     shape = {"type": 2} if rounded else None
-    top = el(id="ea", type="arrow", x=150, y=282, width=100, height=18,
-             points=[[0, 0], [100, 0], [100, 18]], roundness=shape,
-             customData={"role": "edge"})
-    bot = el(id="eb", type="arrow", x=150, y=320, width=100, height=18,
-             points=[[0, 0], [100, 0], [100, -18]], roundness=shape,
-             customData={"role": "edge"})
+    top = el(id="ea", type="arrow", x=150, y=300 - run, width=100,
+             height=run, points=[[0, 0], [100, 0], [100, run]],
+             roundness=shape, customData={"role": "edge"})
+    bot = el(id="eb", type="arrow", x=150, y=302 + run, width=100,
+             height=run, points=[[0, 0], [100, 0], [100, -run]],
+             roundness=shape, customData={"role": "edge"})
     return [top, bot]
 
 
@@ -6698,11 +6707,12 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 after Task 13, `mutants list --red` reports 14 while
-# this file carries 24 expectedFailure methods. The ten outside live in five
-# classes — `TestLoadFindingsReachTheAgent` (4), `TestExportCompleteness` (2),
-# `TestShapeBlindAnnotationOverlap` (2), `TestStoreIntegrity` (1)
-# and `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
+# re-measured 2026-08-14 in curator batch 11, `mutants list --red` reports 15
+# while this file carries 25 expectedFailure methods. The ten outside live in
+# five classes — `TestLoadFindingsReachTheAgent` (4),
+# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2),
+# `TestStoreIntegrity` (1) and `TestPaintOrder` (1) — and are outside
+# deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
 # the one below covers CATALOGUE alone.
@@ -6835,10 +6845,20 @@ _register(Mutant(
 # original comment's c2 came from reflecting them): the final span's
 # Catmull-Rom controls are c1=(266.7,285) and c2=(250,297), and the
 # curve passes through (254.8,293.2) at t=0.6 and reaches x=257.4 at
-# t=1/3. Either derivation gives the same x profile — c2 sits on x=250
-# both ways — so |dx| up to 7.4 off the x=250 chord line breaks
-# false_bidi's 2px collinearity tolerance while the sharp neighbour,
-# whose path IS its chord, keeps firing.
+# t=1/3, so |dx| up to 7.4 off the x=250 chord line breaks false_bidi's
+# 2px collinearity tolerance while the sharp neighbour, whose path IS
+# its chord, keeps firing.
+#
+# RATIFIED by the curator (batch 11), re-derived rather than read: the
+# pad choice reaches ONLY c2 — c1 is `P1 + (P2-P0)/6`, which the trailing
+# pad cannot touch — and c2's x is 250 under both pads because P1, P2 and
+# both candidate P3s share x=250. So the x profile is
+# `250 + 50*(1-t)^2*t` either way, peaking at 200/27 = 7.407 at t=1/3,
+# and the encoded expectation never depended on which pad was assumed.
+# The y profile DOES differ (293.23 duplicated against 291.94 reflected),
+# which is why the old numbers were worth correcting rather than
+# tolerating: they were harmless to this entry's assertion and would
+# have misled the next reader who needed a y.
 _register(Mutant(
     "curved_elbow_spurious_bidi",
     build=lambda: _opposed_pair(rounded=True),
@@ -6846,6 +6866,30 @@ _register(Mutant(
     expect=Silence("false_bidi"),
     neighbour=Neighbour(lambda: _opposed_pair(rounded=False),
                         FindingSpec("false_bidi"))))
+
+# Blind spot, and the cost of the fix above (task 13 review F2).
+# `_reads_as_line` measures the off-axis spread of the WHOLE final span
+# against a flat 2px band, so the 7.4px bow disqualifies the span at any
+# length — and the bow is set by the 100px HORIZONTAL leg, not by the
+# vertical run, so it does not shrink as the run grows. At run=200 the
+# two arrows are straight on x=250 for their last quarter (dx +0.45 at
+# t=0.9), collinear, opposed, heads 2px apart: a reader sees one
+# bidirectional line and the check cannot report one at any run length.
+# The discriminator this entry exists to force is RELATIVE, not
+# absolute: 7.4px is most of an 18px approach and a rounding error on a
+# 200px one. Its neighbour is the entry ABOVE — the same scene at
+# run=18, which must stay silent — so widening the band flips this and
+# breaks that, and only a fix that reads deviation against the span it
+# sits on satisfies both. Corpus impact today is zero (the review
+# reimplemented the old chord reading over the r5 artifacts: old 0,
+# new 0), so this is a standing blind spot rather than a live miss.
+_register(Mutant(
+    "long_run_curve_hides_bidi",
+    build=lambda: _opposed_pair(rounded=True, run=200),
+    op="unchanged", args={},
+    expect=FindingSpec("false_bidi"),
+    neighbour=Neighbour(lambda: _opposed_pair(rounded=True),
+                        Silence("false_bidi"))))
 
 # No defect: the corridor instrument already reads collinear overlap
 # correctly, so this one guards the behavior rather than indicting it.
@@ -7453,6 +7497,17 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_curved_elbow_spurious_bidi(self) -> None:
         """Sharp opposed elbows genuinely read as one bidirectional line."""
         self._run_neighbour("curved_elbow_spurious_bidi")
+
+    @unittest.expectedFailure
+    def test_mutant_long_run_curve_hides_bidi(self) -> None:
+        """200px straight on the chord, and the whole-span read says curve."""
+        # The 2px band is absolute and the span is not; flips when the
+        # deviation is read against the length it sits on.
+        self._run("long_run_curve_hides_bidi")
+
+    def test_neighbour_long_run_curve_hides_bidi(self) -> None:
+        """The short approach really is mostly bow — silence is right there."""
+        self._run_neighbour("long_run_curve_hides_bidi")
 
     def test_mutant_collinear_overlap_corridor(self) -> None:
         """300px of collinear overlap reads as one shared corridor."""
