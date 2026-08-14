@@ -4476,6 +4476,230 @@ class TestBatchPathIntegrity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# The queued round (v0.9 Task-10 review, F1 and F2, 2026-08-14). Both are
+# GREEN on arrival and both were found by MUTATING a shipped fix rather than
+# by reading it: the review deleted each guard in turn and the whole suite
+# stayed green. The logic is right; nothing measured it. That is the same
+# shape as the `scene_ids` term and the minter seed in the pin family — a
+# line doing silent, load-bearing work — and it earns the same treatment.
+#
+# The fixture is written out here rather than imported from
+# `tests/test_failure_paths.py`'s `PendingHarness`. Copying ~20 lines is the
+# cheaper of the two costs: importing one test module into another couples
+# this file's fixtures to a refactor in a file this agent does not own, and
+# the harness there carries restart machinery neither of these needs.
+# ---------------------------------------------------------------------------
+
+
+class TestQueuedRoundIntegrity(unittest.TestCase):
+    """A revision waiting behind the banner lands in an honest round."""
+
+    def _app(self) -> Any:
+        """Stand a server app over a throwaway project holding one node.
+
+        `ServerApp` rather than `Store` because the pending queue is the
+        subject: `queue_pending` stamps the advertised round and
+        `load_pending` is the only reader of a queue file. No socket is
+        bound — `serve` is a separate call — so this costs a temp
+        directory and nothing else.
+
+        Returns:
+            The app, its seed batch already applied.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-round-"))
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        app = canvas.ServerApp(project)
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        self.addCleanup(self._drop_side_files, project)
+        self.addCleanup(app.log_file.close)
+        app.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        return app
+
+    def _drop_side_files(self, project: canvas.Project) -> None:
+        """Remove the per-process files a `ServerApp` leaves outside the tree.
+
+        The state, events and log paths are derived from a hash of the
+        project root and live in a shared runtime directory, so they
+        survive the temp tree's removal and would accumulate across runs.
+
+        Args:
+            project: The project whose side files should be removed.
+        """
+        for path in (project.state_path, project.events_path,
+                     project.log_path):
+            if path.exists():
+                path.unlink()
+
+    def _queue(self, app: Any) -> dict[str, Any]:
+        """Queue one drawing revision behind the banner.
+
+        `dirty` is forced True because that is what makes a batch HOLD
+        rather than apply, and holding is the only way an entry acquires
+        a stamped round to go stale.
+
+        Args:
+            app: The app from `_app`.
+
+        Returns:
+            The queue entry, carrying the round the banner advertised.
+        """
+        app.dirty = True
+        return app.queue_pending(
+            {"base_revn": app.store.head_revn(), "artifact": "f",
+             "note": "queued", "ops": [{"op": "mod", "id": "n1",
+                                        "attrs": {"label": "N1 (edited)"}}]},
+            pin_only=False)
+
+    def _advance_round(self, app: Any) -> None:
+        """Move the committed round on without going through the queue.
+
+        A user save followed by an agent commit is what bumps `round`:
+        the auto-bump fires when an agent commit follows a non-agent
+        one. `dirty` is cleared first so these do not hold behind the
+        banner themselves — which is the whole interleaving, an ordinary
+        turn happening while a revision waits.
+
+        TWO turns, not one, and the count is load-bearing: the banner
+        advertises one round AHEAD, so a single turn only brings the
+        committed round level with the stamped floor, where a floor and
+        an assignment agree. The second turn is what puts the session
+        past it. The caller asserts that gap as its premise rather than
+        trusting this count.
+
+        Args:
+            app: The app from `_app`, with an entry already queued.
+        """
+        app.dirty = False
+        for i in range(2):
+            app.store.commit(author="user", new_scenes={},
+                             user_note="a user save")
+            app.store.apply_batch({
+                "base_revn": app.store.head_revn(), "artifact": "f",
+                "ops": [{"op": "mod", "id": "n1",
+                         "attrs": {"label": "N1 (theirs %d)" % i}}]})
+
+    def test_the_queue_stamps_the_round_it_advertised(self) -> None:
+        """The premise both tests below deviate from, asserted ungated.
+
+        Each of them measures what happens to a stamped round, so a
+        fixture that stopped stamping one — a `queue_pending` that no
+        longer holds under `dirty`, a `round` key that moved — would
+        make both pass while measuring nothing. This pins the stamp
+        itself: the entry carries a round, and it is one AHEAD of the
+        committed one, because the banner advertises the round the
+        session will be in once the user answers.
+        """
+        app = self._app()
+        entry = self._queue(app)
+        self.assertEqual(len(app.pending), 1)
+        self.assertEqual(entry.get("round"),
+                         app.store.registry.get("round", 0) + 1)
+
+    def test_a_stale_advertised_round_never_pulls_the_commit_backward(
+            self) -> None:
+        """The floor is a floor, not an assignment.
+
+        `commit` takes `rnd = max(rnd, min_round or 0)`, and the `max`
+        is the whole of it. The advertised round is a FLOOR so that
+        draining the queue cannot take back the +1 the banner promised
+        (r5-2); but the session keeps moving while an entry waits, so by
+        the time the user answers, that floor can be BELOW the committed
+        round. A blind `rnd = min_round` would then drag the save
+        backward into a round that has already closed — r5-2's harm from
+        the other side, and the review proved both that mutation and the
+        line's outright deletion leave the whole suite green.
+
+        The interleaving is built rather than asserted about: queue under
+        a dirty canvas so the entry holds, then run an ordinary
+        user-then-agent turn that does NOT go through the queue, which
+        bumps the committed round past the stamped one. The staleness is
+        asserted as a PREMISE first — without it this scene proves
+        nothing, since a floor equal to the round is satisfied by either
+        implementation.
+
+        Both directions are then pinned in one assertion: the record
+        lands on the CURRENT round. Higher than the floor rules out the
+        blind override; equal to the live round rules out the deletion,
+        which would leave it stuck one below.
+        """
+        app = self._app()
+        entry = self._queue(app)
+        stamped = entry.get("round")
+        self._advance_round(app)
+        committed = app.store.registry.get("round")
+        self.assertLess(
+            stamped, committed,
+            "the committed round did not overtake the stamped floor, so "
+            "this scene cannot tell a floor from an assignment")
+        record = app.commit_pending(entry)
+        self.assertEqual(
+            record.get("round"), committed,
+            "a queued revision landed in round %r while the session is "
+            "in %r — the stale floor it advertised pulled the save back "
+            "into a round that had already closed"
+            % (record.get("round"), committed))
+
+    def test_a_malformed_stamped_round_is_coerced_on_restore(self) -> None:
+        """A hand-edited queue file cannot poison the user's Apply.
+
+        `load_pending` coerces a non-integer stamped round to `None`,
+        and the reason is the distance between the two events: the file
+        is READ at start-up and the value is USED much later, inside
+        `commit`'s `max()`, at the moment the user clicks Apply. A
+        string there raises `TypeError` in a place with no relation to
+        the file that caused it, and the user's click is what surfaces
+        it.
+
+        The values are chosen for the three distinct ways the guard
+        earns its keep, which is why they are not all "junk": `"3"`
+        CRASHES the `max()`, `2.5` would stamp a FLOAT round onto a save
+        record, and `True` is the quiet one — `bool` is an `int`, so it
+        passes an `isinstance` check and silently means round 1. `[]`
+        and `None` are harmless today (both are falsy, so `min_round or
+        0` swallows them) and are kept as the controls that show the
+        guard is not merely rejecting everything.
+
+        Asserted end to end, through the restart the queue exists to
+        survive: the entry comes back with `round` None, and the Apply
+        that follows lands without raising and in the session's own
+        round.
+        """
+        for value in ("3", 2.5, True, [], None):
+            with self.subTest(round=value):
+                app = self._app()
+                entry = self._queue(app)
+                path = (app.project.pk / ".pending" /
+                        ("%d.json" % entry["id"]))
+                doc = json.loads(path.read_text(encoding="utf-8"))
+                doc["round"] = value
+                path.write_text(json.dumps(doc), encoding="utf-8")
+                app.log_file.close()
+                restarted = canvas.ServerApp(app.project)
+                self.addCleanup(restarted.log_file.close)
+                self.assertEqual(len(restarted.pending), 1)
+                self.assertIsNone(
+                    restarted.pending[0].get("round"),
+                    "a %s round survived the restore and is about to "
+                    "reach commit's max()" % type(value).__name__)
+                expected = restarted.store.registry.get("round", 0)
+                try:
+                    record = restarted.commit_pending(restarted.pending[0])
+                except Exception as exc:
+                    self.fail(
+                        "the user's Apply died on a queue file written "
+                        "with round=%r (%s: %s)"
+                        % (value, type(exc).__name__, exc))
+                self.assertEqual(record.get("round"), expected)
+
+
+# ---------------------------------------------------------------------------
 # Pin identity (v0.9 Task-7 review, 2026-08-13; findings M2, R1 and the
 # report's own disclosure, each reproduced by the reviewer against the
 # shipped code). The class above judges what a batch does to the MODEL;
