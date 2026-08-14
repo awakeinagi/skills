@@ -12301,9 +12301,10 @@ def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
         try:
             proc = subprocess.run(cmd, capture_output=True, timeout=40)
             if work_png.exists():
-                # measured against the DRAWING at the scale we asked for,
-                # never against the window: a file short of the drawing is
-                # a truncated picture and must not pass as tier 2
+                # measured against the DRAWING at the scale we asked for
+                # (via the 200px-floored window for drawings shorter than
+                # that): a file short of the drawing is a truncated
+                # picture and must not pass as tier 2
                 ok, detail = validate_png(work_png.read_bytes(),
                                           png_w, png_h, min_bpp=0)
                 if ok:
