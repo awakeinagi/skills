@@ -8869,6 +8869,85 @@ class TestPhantomPassThrough(Base):
         els[4]["x"], els[4]["points"] = 528, [[0, 0], [-328, 0]]
         self.assertEqual(self._hits(els), [])
 
+    def _shaped(self, kind, foot_a, foot_b, y):
+        """A -> N -> Z where N is any node shape and the line is chosen.
+
+        Args:
+            kind: N's element type.
+            foot_a: Absolute x where e1's head lands.
+            foot_b: Absolute x where e2's foot starts.
+            y: The shared line both arrows run on.
+
+        Returns:
+            The five-element scene.
+        """
+        els = self._rank(200)
+        els[1]["type"] = kind
+        els[3]["y"], els[4]["y"] = y, y
+        els[3]["points"] = [[0, 0], [foot_a - 80, 0]]
+        els[4]["x"] = foot_b
+        els[4]["points"] = [[0, 0], [528 - foot_b, 0]]
+        return els
+
+    def test_feet_on_a_diamonds_own_outline_are_silent(self):
+        """Shape blindness, instance seven — and it was self-inflicted.
+
+        A rhombus fills half its box, so at quarter height its real
+        chord is 40px inside an 80px box. Two arrows terminating
+        CORRECTLY on that outline sit 40px apart with the whole body
+        between them and no ink on the shape at all. Reading the box
+        called those 40px of corner void "arrow drawn over the node"
+        and offered a remedy that would have degraded a drawing that
+        was already right — the exact failure this check was narrowed
+        to avoid (task 24 review, F1).
+        """
+        self.assertEqual(self._hits(self._shaped("diamond", 220, 260, 110)),
+                         [])
+
+    def test_feet_on_an_ellipses_own_outline_are_silent(self):
+        """The same, on the shape whose chord shrinks more gently."""
+        self.assertEqual(
+            self._hits(self._shaped("ellipse", 211.4, 268.6, 106)), [])
+
+    def test_a_rectangle_reads_the_same_off_the_centre_line(self):
+        """The control that keeps the fix from being a blanket exemption.
+
+        A box's bbox IS its outline at every height, so the clip returns
+        the same interval the old bbox reading did and nothing about the
+        ordinary case moves. Without this, suppressing the check on
+        anything off-centre would satisfy the two tests above.
+        """
+        self.assertEqual(self._hits(self._shaped("rectangle", 200, 280, 110)),
+                         [])
+        hits = self._hits(self._shaped("rectangle", 200, 240, 110))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("40px of it has arrow drawn over it", hits[0])
+
+    def test_ink_across_a_diamond_fires_against_its_real_chord(self):
+        """The other pole: the check still bites on inset shapes.
+
+        On the centre line the diamond's chord is its full 80px and e2
+        starts at the centre, so 40px of the shape carries arrow. The
+        magnitude is measured against the CHORD, which the row below
+        proves: at quarter height the same 20px of ink is reported
+        against a 40px node rather than an 80px one.
+        """
+        hits = self._hits(self._shaped("diamond", 200, 240, 120))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("leave 40px of the node's 80px bare", hits[0])
+        self.assertIn("40px of it has arrow drawn over it", hits[0])
+
+        hits = self._hits(self._shaped("diamond", 220, 240, 110))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("leave 20px of the node's 40px bare", hits[0])
+        self.assertIn("20px of it has arrow drawn over it", hits[0])
+
+    def test_ink_across_an_ellipse_fires_too(self):
+        """The third shape, so the fix is not diamond-specific."""
+        hits = self._hits(self._shaped("ellipse", 200, 240, 120))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("40px of it has arrow drawn over it", hits[0])
+
     def test_the_frozen_fixtures_have_no_phantom_pass_throughs(self):
         """The corpus pole, and the number the scope decision rests on.
 
@@ -8975,11 +9054,25 @@ class TestDegenerateArrowGeometry(Base):
         self.assertIn("final segment is 2.0px long", hits[0])
 
     def test_a_duplicated_waypoint_is_named_by_its_index(self):
-        """A repeated interior point, reported 1-based as the agent sees it."""
+        """A repeated interior point, reported 1-based as the agent sees it.
+
+        With the count and its denominator (task 24 review, F2): "1 of
+        3" and "3 of 3" are different repairs on paths whose index list
+        alone reads the same way.
+        """
         hits = self._degenerate(
             self._chain([[0, 0], [60, 0], [60, 0], [120, 0]]))
         self.assertEqual(len(hits), 1, hits)
-        self.assertIn("point 3 repeats the point before", hits[0])
+        self.assertIn("point 3 repeats the point before — 1 of its 3 "
+                      "segments have zero length", hits[0])
+
+    def test_several_duplicates_report_the_count_not_just_the_list(self):
+        """The pole that makes the denominator load-bearing."""
+        hits = self._degenerate(self._chain(
+            [[0, 0], [60, 0], [60, 0], [60, 0], [120, 0]]))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("points 3, 4 repeat the point before — 2 of its 4 "
+                      "segments have zero length", hits[0])
 
     def test_a_path_that_returns_to_its_start_is_named(self):
         """Coincident endpoints on an unbound arrow: it goes nowhere.
@@ -8987,11 +9080,16 @@ class TestDegenerateArrowGeometry(Base):
         Unbound on purpose — a self-loop binds one node at both ends and
         `_self_loop_path` gives it five DISTINCT points, so it is not
         this fault and must not be caught by it.
+
+        The magnitude is the INK (task 24 review, F2): 60 + 40 + 72.1 =
+        172px of stroke that arrives back where it started, which is
+        what says whether a reader sees a stray tick or a whole loop.
         """
         hits = self._degenerate(self._chain(
             [[0, 0], [60, 0], [60, 40], [0, 0]], bind=False))
         self.assertEqual(len(hits), 1, hits)
-        self.assertIn("starts and ends on the same point", hits[0])
+        self.assertIn("starts and ends on the same point, so its 172px of "
+                      "stroke goes nowhere", hits[0])
 
     def test_a_routed_self_loop_is_not_a_closed_path(self):
         """The control for the arm above, on the shape that looks like it."""

@@ -6393,12 +6393,17 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             dups = [i + 1 for i, (p, q) in enumerate(zip(seq, seq[1:]))
                     if pt_gap(p, q) < SAME_PT]
             if dups:
+                # The count and its denominator, not just the indices:
+                # every finding says what it MEASURED (backlog-7), and
+                # "1 of 4" and "3 of 4" are different repairs on paths
+                # the index list alone reads the same way.
                 faults.append(
-                    "point%s %s repeat%s the point before (a zero-length "
-                    "segment)"
+                    "point%s %s repeat%s the point before — %d of its %d "
+                    "segments have zero length"
                     % ("s" if len(dups) > 1 else "",
                        ", ".join(str(i + 1) for i in dups),
-                       "" if len(dups) > 1 else "s"))
+                       "" if len(dups) > 1 else "s",
+                       len(dups), len(seq) - 1))
             fin = pt_gap(seq[-2], seq[-1])
             if SAME_PT <= fin < HEAD_SEG:
                 faults.append(
@@ -6406,8 +6411,14 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "which whole-pixel rounding leaves the head's "
                     "direction uncertain by 14 degrees" % (fin, HEAD_SEG))
             if len(seq) > 2 and pt_gap(seq[0], seq[-1]) < SAME_PT:
-                faults.append("it starts and ends on the same point, so it "
-                              "goes nowhere")
+                # The magnitude is the ink: a closed path is not "no
+                # arrow", it is this many px of stroke that arrives back
+                # where it started, and the number is what says whether
+                # a reader sees a stray tick or a whole loop.
+                drawn = sum(pt_gap(p, q) for p, q in zip(seq, seq[1:]))
+                faults.append("it starts and ends on the same point, so "
+                              "its %dpx of stroke goes nowhere"
+                              % round(drawn))
         # The head past the far outline of the node it binds: the stroke
         # enters one side and the arrowhead lands out the other. The
         # endpoint check below cannot see this one — it computes the
@@ -7526,12 +7537,16 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                if isinstance(p, (list, tuple)) and len(p) >= 2]
         if len(seq) < 2:
             continue
-        for arriving, tgt_id, foot, inward in ((False, sb_el, seq[0], seq[1]),
-                                               (True, eb_el, seq[-1],
-                                                seq[-2])):
+        # `outward`, because that is the direction it names: the
+        # neighbouring point along the path is the one AWAY from the
+        # node, and the sign test below is a test of which side of the
+        # node each stroke's body lies on.
+        for arriving, tgt_id, foot, outward in (
+                (False, sb_el, seq[0], seq[1]),
+                (True, eb_el, seq[-1], seq[-2])):
             if not tgt_id or tgt_id not in ix:
                 continue
-            dx, dy = inward[0] - foot[0], inward[1] - foot[1]
+            dx, dy = outward[0] - foot[0], outward[1] - foot[1]
             hi, lo = max(abs(dx), abs(dy)), min(abs(dx), abs(dy))
             if hi < 1 or lo > NEAR_AXIS * hi:
                 continue    # degenerate or diagonal: no axis to share
@@ -7549,6 +7564,35 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     continue    # one line, and each stroke on its own end
                 if abs(f_pt[1 - f_ax] - g_pt[1 - f_ax]) > SAME_LINE:
                     continue
+                # The node's span ALONG THIS LINE, from `shape_clip` and
+                # never from the bounding box (v0.9 WP4 task 24 review,
+                # F1 — shape-blindness instance seven, and this one was
+                # self-inflicted). A rhombus fills half its box and an
+                # ellipse ~79%, so off the centre lines the box is empty
+                # canvas: two arrows terminating correctly on a
+                # diamond's own outline at quarter height sit 40px
+                # apart on a box 80px wide, and the box reading called
+                # 40px of that void "arrow drawn over the node". The
+                # remedy it then offered would have degraded a drawing
+                # that was already right — the exact failure this check
+                # was narrowed to avoid. A rectangle's box IS its
+                # outline, so the clip returns the same interval there
+                # and nothing about the ordinary case moves.
+                #
+                # The line is taken at the MIDPOINT of the two feet's
+                # off-axis coordinates: they are within SAME_LINE of
+                # each other by the test above, and the merged stroke a
+                # reader completes runs between them.
+                mid = (f_pt[1 - f_ax] + g_pt[1 - f_ax]) / 2.0
+                org = ((tgt.get("x", 0), mid) if f_ax == 0
+                       else (mid, tgt.get("y", 0)))
+                span = shape_clip(tgt, org[0], org[1],
+                                  1 if f_ax == 0 else 0,
+                                  0 if f_ax == 0 else 1)
+                if span is None:
+                    continue    # the shared line misses the shape
+                s0 = org[f_ax] + span[0]
+                across = span[1] - span[0]
                 # What is DRAWN over the node, computed as what is not.
                 # The stroke whose body runs in -axis covers everything
                 # up to its foot and the other covers everything from
@@ -7559,15 +7603,14 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # one the strokes overlap outside the node as well, and
                 # subtracting the gap would report 60px of cover on a
                 # node with 80px of arrow across it.
-                n0 = tgt.get("x" if f_ax == 0 else "y", 0)
-                across = tgt.get("width" if f_ax == 0 else "height", 0)
                 back, fwd = ((f_pt[f_ax], g_pt[f_ax]) if f_sgn < 0
                              else (g_pt[f_ax], f_pt[f_ax]))
-                bare = max(0.0, min(fwd, n0 + across) - max(back, n0))
+                bare = max(0.0, min(fwd, s0 + across) - max(back, s0))
                 covered = across - bare
                 if covered < 1:
-                    continue    # feet on opposite borders: the box is
-                    #             between them and terminates both
+                    continue    # feet on the outline either side: the
+                    #             body is between them and terminates
+                    #             both
                 warnings.append(
                     "arrows %s and %s read as one stroke through %s — "
                     "they share a line and leave %dpx of the node's %dpx "
