@@ -6716,6 +6716,84 @@ class TestReferentialIntegrity(Base):
         self.assertEqual(server.lint_debt(),
                          canvas.Store(self.project).lint_debt())
 
+    def two_damaged_artifacts(self):
+        """Two artifacts, each with a raw-only dangling binding, one pinned.
+
+        The damage is written to the FILES rather than committed, because
+        the point is a finding that exists ONLY in the bytes on disk:
+        `validate_scene` nulls the binding in memory, so the live pass is
+        silent about it and the load-time report is the only thing that
+        has it.
+
+        Returns:
+            A store opened on the damage, with `pin-b` open on artifact b.
+        """
+        for aid in ("a", "b"):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(), "artifact": aid,
+                "create": {"id": aid, "name": aid.upper(), "type": "flow",
+                           "concept": aid, "concept_name": aid.upper()},
+                "ops": [{"op": "add", "element": {
+                    "type": "rectangle", "id": aid + n, "label": n.upper(),
+                    "x": 300 * i, "y": 0, "width": 100, "height": 60,
+                    "role": "node"}} for i, n in enumerate(("n1", "n2"))]
+                + [{"op": "add", "element": {
+                    "type": "arrow", "id": aid + "t1",
+                    "from": aid + "n1", "to": aid + "n2"}}]})
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "b",
+            "ops": [{"op": "pin", "target": "bn1", "id": "pin-b",
+                     "question": "why?"}]})
+        for aid in ("a", "b"):
+            path = self.project.artifacts_dir / (aid + ".excalidraw")
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            for e in doc["elements"]:
+                if e["id"] == aid + "t1":
+                    e["endBinding"] = {"elementId": "GHOST", "focus": 0,
+                                       "gap": 1}
+            path.write_text(json.dumps(doc), encoding="utf-8")
+        return canvas.Store(self.project)
+
+    def test_one_artifacts_write_does_not_spend_anothers_finding(self):
+        """A standing finding outlives a write to the artifact next door.
+
+        The freshness rule is per-scope for a reason. A store-wide "some
+        file was written" reads `answer_pin` on artifact b — which rewrites
+        b's file and nothing else — as grounds to drop the pre-repair
+        report for a, whose bytes on disk still carry the dangling binding
+        and whose finding a fresh load still reports. That is r5-19
+        inverted: not a nag that outlived its subject, but an ERROR that
+        vanished while it was still true.
+
+        Both directions in one arrangement, because a rule that keeps too
+        much and a rule that keeps too little both satisfy half of it:
+        a's finding SURVIVES b's write, and b's own finding GOES with it —
+        `answer_pin` rewrote b's file from the repaired memory scene, so
+        the damage the report described is genuinely off the disk.
+
+        The whole-debt equality is the binding claim and the r5-19 idiom:
+        the running store and a fresh load of the same disk must read it
+        the same way. Both readings are asserted to be non-trivial first,
+        since two matching silences would satisfy the equality alone.
+        """
+        server = self.two_damaged_artifacts()
+        self.assertEqual(
+            sorted(server.referential), ["a", "b"],
+            "both artifacts must open with a pre-repair finding — "
+            "nothing is being measured otherwise")
+        server.answer_pin("pin-b", "because")
+        now = server.referential_now()
+        self.assertIn("GHOST", json.dumps(now.get("a", {})),
+                      "a was never written and its binding still dangles "
+                      "on disk, but answering a pin on b dropped its "
+                      "standing finding")
+        self.assertNotIn("GHOST", json.dumps(now.get("b", {})),
+                         "answering the pin rewrote b's file from the "
+                         "repaired scene, so b's pre-repair finding is "
+                         "spent and must not still be merged in")
+        self.assertEqual(server.lint_debt(),
+                         canvas.Store(self.project).lint_debt())
+
     def test_referential_findings_unit_directions(self):
         raw = {"a": [
             {"id": "n1", "type": "rectangle"},

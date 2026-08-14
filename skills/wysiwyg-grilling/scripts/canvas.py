@@ -6805,9 +6805,10 @@ class Store:
         # scenes before validate_scene repairs them, per-load and never
         # persisted — a persisted copy would go stale the moment a commit
         # fixes the reference. It goes stale IN MEMORY the same way, which
-        # is what `referential_stamp` bounds; see `referential_now`.
+        # is what the two fields below bound; see `referential_now`.
         self.referential = {}
-        self.referential_stamp = None  # state stamp the report describes
+        self.referential_revn = None  # head revn the report describes
+        self.referential_spent = set()  # scopes rewritten since that read
         self.raw_hashes = {}          # {aid: scene_hash of the raw disk scene}
         self.scene_repairs = []       # load-time ART-* repairs, this load
         self.load()
@@ -6865,7 +6866,8 @@ class Store:
         self.artifact_meta = {}
         self.artifact_files = {}   # image blobs (fileId -> dataURL entry)
         self.referential = {}
-        self.referential_stamp = None
+        self.referential_revn = None
+        self.referential_spent = set()
         self.raw_hashes = {}
         self.scene_repairs = []
         raw_scenes = {}
@@ -6930,7 +6932,7 @@ class Store:
         self.referential = referential_findings(raw_scenes, reg,
                                                 set(self.scenes.keys()),
                                                 raw_files)
-        self.referential_stamp = self.state_stamp()
+        self.referential_revn = self.head_revn()
         for scope, tiers in sorted(self.referential.items()):
             for tier, msgs in tiers.items():
                 for msg in msgs:
@@ -6961,26 +6963,30 @@ class Store:
         return self.head_branch()["head"]
 
     def state_stamp(self):
-        """What "nothing has changed since I last looked" actually means.
+        """`lint_debt`'s cache key: has anything at all moved under me?
 
-        The freshness gates below (`referential_now`'s merge, `lint_debt`'s
-        cache) were keyed on `head_revn()` alone, on the argument that past
-        head the artifact files were written by this store from these
+        The cache was keyed on `head_revn()` alone, on the argument that
+        past head the artifact files were written by this store from these
         scenes. That argument is about the WRITES; head was only standing
         in for them, and `switch_branch` breaks the substitution — it
         rewrites every artifact from `state_at(b["head"])` WITHOUT moving
-        head, so the bytes under an unchanged revision number are new. The
-        load-time referential report then survived a switch and went on
-        naming a reference the live branch had whole (r5-19's shape,
-        reached through a normal user flow rather than a commit), and the
-        debt cache went on serving the departed branch's scenes.
+        head, so the bytes under an unchanged revision number are new and
+        the memo went on serving the departed branch's debt. `state_epoch`
+        counts those rewrites, and a branch switch advances it once more on
+        its own account: the branch-scoped registry sections move with the
+        scenes, and a switch to an empty branch writes no file at all.
+        Both halves are kept because neither sees all of the other's
+        changes — a registry-only commit moves the revn without rewriting
+        a file.
 
-        `state_epoch` counts those rewrites, which is the thing the
-        argument actually rests on, and a branch switch advances it once
-        more on its own account — the branch-scoped registry sections move
-        with the scenes and an empty branch writes no file at all. Both
-        halves are kept because neither sees all of the other's changes: a
-        registry-only commit moves the revn without rewriting a file.
+        Store-wide is right HERE and wrong for `referential_now`, which is
+        why the two no longer share a gate. The debt is one whole-project
+        recompute, so any change anywhere must invalidate it and the cost
+        of an unnecessary one is a recompute. A referential finding is
+        per-scope evidence about one file, and spending every scope for a
+        write to one of them deletes standing findings that are still true
+        on disk. Conservative means "drop it" for a memo and "keep it" for
+        a report; do not merge these two gates back together.
 
         Returns:
             (head revn, `state_epoch`). Opaque — compare for equality,
@@ -7482,7 +7488,8 @@ class Store:
         """Persist one artifact's scene + meta, and refresh the caches.
 
         This is the single writer of an artifact file, so it is also where
-        `state_epoch` advances — the stamp the freshness gates read.
+        both freshness records move: `state_epoch` for `lint_debt`'s memo,
+        and `referential_spent` for the ONE scope this call replaced.
 
         Args:
             aid: Artifact id (also the filename stem).
@@ -7513,6 +7520,10 @@ class Store:
         self.scenes[aid] = doc["elements"]
         self.artifact_meta[aid] = doc["wysiwyg"]
         self.state_epoch += 1
+        # THIS artifact's pre-repair findings are spent and no others —
+        # they described bytes this line just replaced. The registry's go
+        # with it: its mappings name elements that live in here.
+        self.referential_spent.update((aid, "registry"))
 
     def _by_element(self, diff, facts, consequences, new_els, old_els):
         new_ix = {e["id"]: e for e in new_els}
@@ -8729,8 +8740,11 @@ class Store:
             # a switch moves the world, not the head: two branches share a
             # head revn until one of them commits, so the stamp must move
             # here even when no artifact was written — an empty branch and
-            # the branch-scoped registry sections change under it too.
+            # the branch-scoped registry sections change under it too. For
+            # the same reason every scope is spent, not just the rewritten
+            # ones: a switch replaces the whole picture, deletions and all.
             self.state_epoch += 1
+            self.referential_spent.update(self.referential)
             self._save_registry()
             return b
 
@@ -8867,15 +8881,28 @@ class Store:
         at all until a restart.
 
         So the pass is re-run here on every cache miss against the CURRENT
-        scenes, and the load-time set is merged in only while it still
-        describes the state on disk. Once this store has rewritten those
-        artifacts they hold these scenes, so the live reading IS the disk
-        reading and the two surfaces agree again.
+        scenes, and a scope's load-time findings are merged in only while
+        the file they were read from is still the file on disk. Once this
+        store has rewritten it, it holds these scenes, so the live reading
+        IS the disk reading and the two surfaces agree again.
 
-        "Still describes the state on disk" was read as head equality
-        alone, which `switch_branch` fools by rewriting every artifact
-        without moving head — see `state_stamp`, which is what the two
-        sides are compared on now.
+        That has two conditions, and reading either one as the whole of it
+        makes the debt disagree with a fresh load of the same disk:
+
+        - `referential_revn` — a COMMIT rewrites the artifacts it changed
+          and can invalidate an untouched artifact's finding besides (a
+          `links_to` is answered across artifacts), so head moving spends
+          the whole report, as it always has;
+        - `referential_spent` — head moving is not necessary. A branch
+          switch rewrites every artifact from `state_at(b["head"])`
+          WITHOUT moving head, and `answer_pin` rewrites ONE. So the
+          writers record what they rewrote and only those scopes are
+          spent; an artifact nobody has written keeps its finding, which
+          is exactly what a fresh load would still report of it.
+
+        Scope-at-a-time is the whole point: a store-wide "something was
+        written" spends artifact `a`'s standing for a write to `b` and
+        drops a finding that is still true on disk.
 
         Every arm travels together — bindings, `annotates`, `links_to`,
         both file arms and the registry mappings — because they come out
@@ -8890,11 +8917,13 @@ class Store:
             live = referential_findings(self.scenes, self.registry,
                                         set(self.scenes.keys()),
                                         self.artifact_files)
-            if self.referential_stamp != self.state_stamp():
+            if self.referential_revn != self.head_revn():
                 return live
             out = {scope: {tier: list(msgs) for tier, msgs in tiers.items()}
                    for scope, tiers in live.items()}
             for scope, tiers in self.referential.items():
+                if scope in self.referential_spent:
+                    continue
                 cur = out.setdefault(scope, {"errors": [], "warnings": [],
                                              "notes": []})
                 for tier, msgs in tiers.items():

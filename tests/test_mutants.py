@@ -3018,10 +3018,12 @@ class TestStoreIntegrity(unittest.TestCase):
         disk are still the ones I read", and `switch_branch` breaks the
         implication: it rewrites every artifact file from
         `state_at(b["head"])` WITHOUT moving head, so the bytes under an
-        unchanged revision number are new. Both gates now key on
-        `Store.state_stamp` — the head revn paired with a counter of
-        artifact rewrites, which is the thing "the disk still holds what
-        I read" actually depends on.
+        unchanged revision number are new. The writers now record what
+        they rewrote: `referential_spent` names the scopes whose file is
+        no longer the one the report was read from, and a switch spends
+        every scope because it replaces the whole picture. `lint_debt`'s
+        memo, which was keyed the same way and went stale over the same
+        switch, keys on `Store.state_stamp` instead.
 
         Probed end to end. A project whose disk copy carries a dangling
         `endBinding` loads with the finding filed; a switch to a branch
