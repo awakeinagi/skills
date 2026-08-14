@@ -4354,16 +4354,36 @@ class TestBatchPathIntegrity(unittest.TestCase):
 #   7. `add` of a pin-role element under a filed id        green (Task 40)
 #   8. resolve + same-id pin-role `add` in one batch       green (Task 40)
 #   9. resolve naming an ordinary, non-pin element         green (Task 38)
+#  10. `pin` op spelling an ordinary ELEMENT's scene id    RED (Task-40
+#                                                          report, concern 2)
 #
-# Every door found so far is now shut, and the enumeration is still an
-# enumeration: it says these nine are covered, not that a tenth cannot
-# exist. Doors 7 and 8 closed together on one check, as this census
-# predicted — 7 is the mechanism 8 rides in on — and closing them made
-# the shadow scene illegal, which retired one test and re-authored
-# another. Both are recorded where they happened rather than here: see
-# the ENACTMENT paragraph on the door-8 red, and the retirement comment
-# standing where `test_the_shadowed_resolve_reports_the_removal_it_made`
-# used to be.
+# The tenth door arrived, which is the point of writing this as an
+# enumeration. The row above it read "every door found so far is now
+# shut ... it says these nine are covered, not that a tenth cannot
+# exist", and a tenth existed. That sentence cost nothing to write and
+# would have cost a reader real time had it said "closed" instead.
+#
+# Door 10 is door 7's mirror — 7 guards the `add` side against a filed
+# PIN id, 10 is a `pin` op walking onto an ordinary ELEMENT's id, and
+# `make_element` already refuses exactly that collision for an `add`.
+# One-of-two-doors is now the shape of four separate entries here (1/7,
+# 7/10), which is worth knowing before the next id check is written on
+# one side only.
+#
+# Doors 7 and 8 closed together on one check, as this census predicted —
+# 7 is the mechanism 8 rides in on — and closing them made the shadow
+# scene illegal, which retired one test and re-authored another. Both
+# are recorded where they happened rather than here: see the ENACTMENT
+# paragraph on the door-8 red, and the retirement comment standing where
+# `test_the_shadowed_resolve_reports_the_removal_it_made` used to be.
+#
+# Deliberately NOT a census row: a `pin` op whose `target` is not a
+# string (`test_red_a_non_string_pin_target_arrives_as_an_internal_
+# error`). It reaches the E-9 backstop and the batch is refused whole,
+# so it produces neither of the two harms this census tracks — no second
+# question under one id, no ❓ outliving its answer. It is filed with
+# this family because it is the same op's field, and saying why it is
+# not a door keeps the census meaning what it says.
 # ---------------------------------------------------------------------------
 
 
@@ -5053,6 +5073,265 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "the `pin` op form of this id is refused and the `add` form "
             "was accepted (escaped=%r)" % (escaped,))
         self.assertIn("pin-a", "\n".join(escaped.errors))
+
+    @unittest.expectedFailure
+    def test_red_a_pin_op_may_spell_an_ordinary_elements_id(self) -> None:
+        """The tenth door: the question is filed and never drawn.
+
+        Door 7 guards the `add` side — an `add` of a ❓ under a filed PIN
+        id is refused. This is the mirror nobody enumerated: a `pin` op
+        spelling an id that an ordinary ELEMENT already owns on the
+        scene. Nothing checks it. `_validate_batch` compares a spelled
+        pin id against the registry and against the batch's own mints,
+        never against the artifact's element ids.
+
+        What lands is worse than a duplicate. Probed on the shipped
+        code: the registry files `('n1', 'open')`, `apply_ops` appends a
+        ❓ under `n1`, and the commit path's id-dedupe keeps the
+        rectangle that was already there — so ZERO ❓ are drawn for the
+        new question while the record says it is open. It cannot be
+        seen, cannot be clicked, and cannot be answered; it is open
+        forever. The echo then says `op 0 (pin): n1 targets n1 — ...
+        (❓ on canvas)`, which is false in the one direction that would
+        have let the agent notice.
+
+        One-of-two-doors again, and the other door is already right
+        beside it: `make_element` refuses this exact collision for an
+        `add`, with `op 0: id 'n1' already exists in this artifact`. The
+        neighbour below pins that wording as shipped, so a fix here can
+        reuse it rather than invent one.
+
+        MAGNITUDE is what the batch leaves — no registry record, the
+        element untouched — asserted first because an accepted batch
+        that filed the record is the damage. DIRECTION is refusal naming
+        the id, matching the `add` door.
+        """
+        store = self._store()
+        escaped = self._send(store, "flow", [
+            {"op": "pin", "id": "n1", "target": "n1",
+             "question": "Invisible?"}])
+        self.assertEqual(
+            [(p["id"], p["status"]) for p in store.registry["pins"]],
+            [("pin-a", "open")],
+            "a question was filed under an ordinary element's id and no "
+            "❓ was drawn for it (glyphs=%r) — it is open forever and "
+            "cannot be clicked" % (self._glyphs(store, "flow"),))
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "a pin op spelling the rectangle's own id was accepted "
+            "(escaped=%r)" % (escaped,))
+        self.assertIn("n1", "\n".join(escaped.errors))
+
+    @unittest.expectedFailure
+    def test_red_a_non_string_pin_target_arrives_as_an_internal_error(
+            self) -> None:
+        """A wrong field type is reported as a Python exception.
+
+        The `pin` op type-checks `detail` and `examples` and names the
+        field when either is wrong. `target` is checked by neither: it
+        goes straight into `"pin-" + (target or q[:20])` and then into a
+        set, so a dict, a list or a number reaches the E-9 backstop and
+        comes back as `internal error applying ops — TypeError: can only
+        concatenate str (not "int") to str`.
+
+        The batch IS refused and nothing partial lands, so this is a
+        message defect rather than a data one — which is why it is minor
+        and why the assertion is about what the error SAYS. The E-9
+        backstop exists for faults nobody predicted; a field whose type
+        is wrong is not one of those, and an agent handed a `TypeError`
+        about string concatenation has no way to learn that `target` was
+        the problem. Pre-existing, identical at `b06812f`.
+
+        Task 40 makes it worth pinning now rather than later: its
+        prediction site type-guards the seed (`isinstance(seed, str)`)
+        while the minter it must stay in step with does not, so the two
+        sites disagree about this input by construction.
+
+        MAGNITUDE is what the message names — the op and the field.
+        DIRECTION is that it is a validation error rather than the
+        internal-error envelope, asserted as the absence of that
+        envelope so a fix is free to word the field error itself.
+        """
+        for target in ({"x": 1}, 42, ["a"]):
+            with self.subTest(target=target):
+                store = self._store()
+                escaped = self._send(store, "flow", [
+                    {"op": "pin", "target": target, "question": "Q?"}])
+                self.assertIsInstance(escaped, canvas.BatchError,
+                                      "%r" % (escaped,))
+                said = "\n".join(escaped.errors)
+                self.assertNotIn(
+                    "internal error", said,
+                    "a wrong field type reached the unpredicted-fault "
+                    "backstop: %r" % (said,))
+                self.assertIn("target", said)
+
+    def test_the_echo_says_gone_for_an_element_its_batch_removed(
+            self) -> None:
+        """`intent_echo`'s missing-element branch, rehomed after a retirement.
+
+        Not a pin-identity claim, and here anyway: this branch's only
+        test was the shadow-batch echo case, which THIS family retired
+        when Task 40 made that scene illegal. Proven by the reviewer at
+        both revisions — before the retirement, replacing `describe`'s
+        missing-element return broke exactly one test; after it, nothing.
+        The family that orphaned the branch owes it a home, and moving it
+        somewhere tidier would lose that provenance.
+
+        The scene is the plainest one that reaches it: add an element and
+        delete it in the same batch, so the echo describes op 0 against a
+        final scene the element is not in. Both lines are asserted, since
+        the `del` line is what proves the element really went — an echo
+        saying "gone" about an element that never existed would satisfy
+        the first assertion alone.
+        """
+        store = self._store()
+        ops: list[dict[str, Any]] = [
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "tmp1", "label": "T", "x": 400,
+                "y": 0, "width": 60, "height": 40, "role": "node"}},
+            {"op": "del", "id": "tmp1"}]
+        self.assertIsNone(self._send(store, "flow", ops))
+        said = canvas.intent_echo(ops, store.scenes["flow"])
+        self.assertEqual(said[0], "op 0 (add): tmp1: gone")
+        self.assertIn("tmp1 deleted", said[1])
+
+    def test_the_mint_prediction_counts_the_scene_it_will_land_in(
+            self) -> None:
+        """Door 6's guard reads scene ids, and dropping that term reopens it.
+
+        The prediction in `_validate_batch` re-runs `mint_id` on the
+        minter's seed against `scene_ids | known_pins | minted`. The
+        `scene_ids` term is the one an eye skips: it is there because
+        the mint lands in a SCENE, so an ordinary element already
+        holding the natural id pushes the real mint to `-2`, and a
+        prediction that ignored the scene would predict the bare form and
+        fail to refuse a later op spelling the `-2`. Verified by
+        mutation: dropping that term leaves the whole suite green and
+        files two records under one id with one ❓ drawn.
+
+        The predicted id is DERIVED here rather than written down, by
+        minting it once on an identical store and then spelling it back.
+        That is what makes this a cross-site agreement test rather than a
+        literal: a deliberate change to the seed on BOTH sides keeps it
+        green, and a change on one side alone fails it, which is exactly
+        the failure the two `KEEP IN STEP` comments are guarding against
+        in prose.
+        """
+        probe = self._store()
+        self._send(probe, "flow", [{"op": "add", "element": {
+            "type": "rectangle", "id": "pin-n1", "label": "Namesake",
+            "x": 600, "y": 0, "width": 60, "height": 40, "role": "node"}}])
+        self.assertIsNone(self._send(probe, "flow", [
+            {"op": "pin", "target": "n1", "question": "First?"}]))
+        minted = [p["id"] for p in probe.registry["pins"]
+                  if p["id"] != "pin-a"]
+        self.assertEqual(len(minted), 1, minted)
+        self.assertNotEqual(minted[0], "pin-n1",
+                            "the scene namesake did not push the mint "
+                            "aside, so this scene cannot test the term")
+        store = self._store()
+        self._send(store, "flow", [{"op": "add", "element": {
+            "type": "rectangle", "id": "pin-n1", "label": "Namesake",
+            "x": 600, "y": 0, "width": 60, "height": 40, "role": "node"}}])
+        escaped = self._send(store, "flow", [
+            {"op": "pin", "target": "n1", "question": "First?"},
+            {"op": "pin", "id": minted[0], "target": "n1",
+             "question": "Second?"}])
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "an explicit id equal to the one this batch really mints "
+            "(%r) was accepted — the prediction is not counting the "
+            "scene" % (minted[0],))
+        self.assertEqual([p["id"] for p in store.registry["pins"]],
+                         ["pin-a"])
+
+    def test_the_minter_and_its_prediction_derive_one_seed(self) -> None:
+        """The two sites agree on the seed, or door 6 reopens silently.
+
+        `apply_ops` mints from `target or q[:20]`; `_validate_batch`
+        predicts from the same expression written a second time. Nothing
+        fails if they disagree — the reviewer drifted the apply site to
+        `q[:12]` and the whole suite stayed green while two records
+        landed under one id. The two `KEEP IN STEP` comments are the
+        current guard, and prose is not a guard.
+
+        Encoding judged rather than assumed: a direct cross-site
+        assertion would be the better shape, and it is not reachable —
+        both seeds are inline expressions inside long functions, not
+        callables a test can hold side by side, and asserting on source
+        text would pin the spelling instead of the behaviour. So the
+        agreement is measured through the one place it is observable: an
+        id the apply site really mints must be an id the prediction
+        really refuses.
+
+        A question with no `target` is used because the seed only
+        matters when it falls back to the question, and it is long
+        enough that the truncation is load-bearing — at `q[:20]` and
+        `q[:12]` the slugs differ. Deriving the id keeps a coordinated
+        change to both sides green, which is the point: this pins
+        agreement, not a length.
+        """
+        question = "Which cart widget do we mean here exactly"
+        probe = self._store()
+        self.assertIsNone(self._send(probe, "flow", [
+            {"op": "pin", "question": question}]))
+        minted = [p["id"] for p in probe.registry["pins"]
+                  if p["id"] != "pin-a"]
+        self.assertEqual(len(minted), 1, minted)
+        store = self._store()
+        escaped = self._send(store, "flow", [
+            {"op": "pin", "question": question},
+            {"op": "pin", "id": minted[0], "question": "Second?"}])
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "the apply site minted %r and the prediction did not refuse "
+            "it — the two seeds have drifted apart" % (minted[0],))
+        self.assertIn(minted[0], "\n".join(escaped.errors))
+        self.assertEqual([p["id"] for p in store.registry["pins"]],
+                         ["pin-a"])
+
+    def test_the_add_door_reads_every_spelling_of_the_pin_role(
+            self) -> None:
+        """A ❓ is a ❓ however the op spells its role.
+
+        Door 7 refuses an `add` of a pin-role element under a filed pin
+        id, and `role` reaches that check by three routes: the element
+        spec's own `role`, its `customData.role` — which is where the
+        role actually lives once an element is on the canvas — and the
+        flat op form, where the element's attributes sit on the op
+        itself. The red that opened door 7 uses the first. The other two
+        were unpinned, and the reviewer showed each mutation leaves the
+        suite green while reopening the door; I re-ran both and confirm
+        it.
+
+        `customData` is the spelling that matters most in practice: it
+        is what a round-tripped element carries, so an agent copying a ❓
+        off the canvas and re-adding it comes through that route and no
+        other. Both are asserted under one entry because they are one
+        predicate reading one field three ways, and the shipped message
+        is asserted with them so a fix cannot satisfy this by refusing
+        the add for some unrelated reason.
+        """
+        spellings: dict[str, dict[str, Any]] = {
+            "customData": {"op": "add", "element": {
+                "type": "text", "id": "pin-a", "text": "❓", "x": 500,
+                "y": 0, "width": 20, "height": 25,
+                "customData": {"role": "pin"}}},
+            "flat op form": {"op": "add", "type": "text", "id": "pin-a",
+                             "text": "❓", "x": 500, "y": 0, "width": 20,
+                             "height": 25, "role": "pin"},
+        }
+        for spelling, op in spellings.items():
+            with self.subTest(spelling=spelling):
+                store = self._store()
+                escaped = self._send(store, "other", [op])
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "a ❓ spelled through %s slipped past the add door "
+                    "(escaped=%r)" % (spelling, escaped))
+                self.assertIn("filed pin id", "\n".join(escaped.errors))
+                self.assertEqual(self._glyphs(store, "other"), [])
 
     def test_an_ordinary_namesake_of_a_filed_pin_id_stays_legal(
             self) -> None:
@@ -6004,10 +6283,11 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-13 after v0.9 Task 40, `mutants list --red` reports 16
-# while the suite reports 29 expected failures. The thirteen outside live in
-# five classes — `TestLoadFindingsReachTheAgent` (4), `TestStoreIntegrity`
-# (4), `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2)
+# re-measured 2026-08-13 after the Task-40 review round, `mutants list --red`
+# reports 16 while the suite reports 31 expected failures. The fifteen outside
+# live in six classes — `TestLoadFindingsReachTheAgent` (4),
+# `TestStoreIntegrity` (4), `TestExportCompleteness` (2),
+# `TestPinIdentityIntegrity` (2), `TestShapeBlindAnnotationOverlap` (2)
 # and `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
