@@ -7010,6 +7010,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 band, gap = (ox, -oy) if ox > oy else (oy, -ox)
                 if band <= CLEARANCE_BAND or not 0 < gap < CLEARANCE_FLOOR:
                     continue      # corner-to-corner, flush, or clear
+                # slugified in the KEY (a registry token, following the
+                # `var:` waive above) and raw in the nudge target (an
+                # element id, so `mod` can find it). Identical for every
+                # id in play; the day one needs slugifying they diverge
+                # on purpose rather than by accident.
                 key = "clear:%s:%s:%s" % (aid or "<artifact>",
                                           slugify(a["id"]),
                                           slugify(b["id"]))
@@ -7134,31 +7139,38 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # look — an annotation still gets its `annotates` advice, and
     # anything else is told what it is covering and how much.
     #
-    # Three kinds of text stay exempt, and each is positioned by
-    # something other than its author, so naming it would name the wrong
-    # element:
-    #   * a bound label (containerId) rides its container, and its
-    #     overlap IS the container's — judged by the pair loop above.
-    #     The one arm worth keeping, a bound ARROW label landing on a
-    #     foreign box, has its own check further up. Measured over the
-    #     24 fixture artifacts: 363 bound texts, of which 3 sit over a
-    #     node, all three a sticky note's own caption.
-    #   * composed content (value_of/attr_of/parent) is emitted INSIDE
-    #     its owner deliberately — a KPI value over its card is the
-    #     design, and v0.9 bands it above the node on purpose.
+    # Three kinds of text stay exempt, and the exemptions are NOT the
+    # same shape, because what places the text is not the same thing:
+    #   * a bound label (containerId) is placed by the RENDERER, which
+    #     re-centres it in its container — the stored coordinate is not
+    #     what anybody sees, so the label cannot drift off its owner and
+    #     its overlap IS the container's, judged by the pair loop above.
+    #     Exempt WHOLESALE, therefore, and not just against its own
+    #     container: a bound label over a foreign node means the
+    #     CONTAINER is over that node. Measured over the 24 fixture
+    #     artifacts: scoping this one to the container reports 3 sticky
+    #     notes for captioning themselves and finds nothing new.
+    #     (Bound ARROW labels, whose drawn position really can leave
+    #     their arrow, have their own check further up.)
+    #   * composed content (value_of/attr_of/parent) is placed by US, at
+    #     authoring time, and stored — so it CAN drift off its owner,
+    #     which is the v0.5 R2-10 class the decoration-drift check above
+    #     exists for. Exempt only against the owner it NAMES: a KPI value
+    #     over its own card is the design, and the same value over the
+    #     card next door is the bug.
     #   * decoration/label/pin roles are furniture, not content, which
     #     is the same cut `shapes` makes at the top of this function.
     for t in els:
-        if t.get("type") != "text":
-            continue
-        tcd = t.get("customData") or {}
-        if t.get("containerId") or tcd.get("value_of") or \
-                tcd.get("attr_of") or tcd.get("parent"):
+        if t.get("type") != "text" or t.get("containerId"):
             continue
         trole = role_of(t)
         if trole in ("decoration", "label", "pin"):
             continue
+        tcd = t.get("customData") or {}
+        owns = {tcd.get("value_of"), tcd.get("attr_of"), tcd.get("parent")}
         for n in nodes:
+            if n["id"] in owns:
+                continue
             ox = min(t["x"] + t.get("width", 0),
                      n["x"] + n.get("width", 0)) - max(t["x"], n["x"])
             oy = min(t["y"] + t.get("height", 0),

@@ -1907,8 +1907,22 @@ class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
         lint = canvas.lint_layout(els, artifact_type="flow", **kw)
         return lint["errors"] + lint["warnings"] + lint["notes"]
 
+    # Both filters below match a FIXED phrase of the template and never
+    # the detector regex, and that is the whole reason this class is not
+    # vacuous. `_TEXT_ON_NODE_RE`/`_MIN_CLEARANCE_RE` read a magnitude as
+    # `\d+`, which is right for them — `FindingSpec` should demand a
+    # well-formed number — but it makes them blind to exactly the failure
+    # these tests exist to catch. A check that over-fires on a text 40px
+    # CLEAR of the node computes a negative overlap and says "covers n1 —
+    # -40x20px of overlap (-800px²)": a real, loud, wrong warning that the
+    # detector regex cannot match. Filtering through it would compare
+    # [] == [] and pass. Caught in review of the first round of this task,
+    # by deleting the overlap guard and watching all nine tests stay green.
+    _COVERS = "and nothing marks it as belonging there"
+    _CROWDS = "(spacing floor "
+
     def _covers(self, els: list[dict]) -> list[str]:
-        """Lint lines from the role-blind text/node arm.
+        """Lint lines from the role-blind text/node arm, well-formed or not.
 
         Args:
             els: The scene's element list.
@@ -1916,11 +1930,10 @@ class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
         Returns:
             The matching lines, one per claimed overlap.
         """
-        return [ln for ln in self._lint(els)
-                if _TEXT_ON_NODE_RE.search(ln)]
+        return [ln for ln in self._lint(els) if self._COVERS in ln]
 
     def _crowds(self, els: list[dict], **kw: Any) -> list[str]:
-        """Lint lines from the near-miss clearance arm.
+        """Lint lines from the near-miss arm, well-formed or not.
 
         Args:
             els: The scene's element list.
@@ -1929,8 +1942,7 @@ class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
         Returns:
             The matching lines, one per crowded pair.
         """
-        return [ln for ln in self._lint(els, **kw)
-                if _MIN_CLEARANCE_RE.search(ln)]
+        return [ln for ln in self._lint(els, **kw) if self._CROWDS in ln]
 
     def test_a_text_beside_a_node_is_not_called_an_overlap(self) -> None:
         """The role-blind arm has a quiet half: 40px clear says nothing."""
@@ -1950,6 +1962,20 @@ class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
         scene[1]["containerId"] = "n1"
         self.assertEqual(self._covers(scene), [])
 
+    def test_a_bound_label_over_a_FOREIGN_node_is_still_exempt(self) -> None:
+        """And the container exemption is wholesale, unlike the composed one.
+
+        A bound label is placed by the RENDERER, which re-centres it in
+        its container — so it cannot drift, and a label over a foreign
+        node means the CONTAINER is over that node, which the shape pair
+        loop reports about the container. Scoping this exemption to the
+        named container is what re-introduces the three sticky-note
+        findings the corpus replay measured.
+        """
+        scene = _text_over_node(roled=False)
+        scene[1]["containerId"] = "far-away-box"
+        self.assertEqual(self._covers(scene), [])
+
     def test_composed_content_inside_its_owner_is_not_an_overlap(self) -> None:
         """A KPI value over its own card is the design, not a defect.
 
@@ -1960,6 +1986,28 @@ class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
         scene = _text_over_node(roled=False)
         scene[1]["customData"] = {"value_of": "n1"}
         self.assertEqual(self._covers(scene), [])
+
+    def test_composed_content_that_DRIFTED_off_its_owner_is_reported(
+            self) -> None:
+        """The composed exemption is scoped to the owner it names, and only it.
+
+        Composed rows are placed by us and STORED, so unlike a bound
+        label they really can end up somewhere nobody meant — a value
+        sitting on the card next door is the v0.5 R2-10 drift class, the
+        one the decoration-drift check exists for, wearing a text. The
+        first round of this task exempted the tag wholesale and made that
+        unreportable by construction; caught in review.
+
+        Asserted on all three tag kinds, because they are three separate
+        `dict.get` calls and a scoping fix can land on one of them.
+        """
+        for tag in ("value_of", "attr_of", "parent"):
+            with self.subTest(tag=tag):
+                scene = _text_over_node(roled=False)
+                scene[1]["customData"] = {tag: "far-away-box"}
+                self.assertEqual(len(self._covers(scene)), 1,
+                                 "a %s text drifted onto n1 goes unreported"
+                                 % tag)
 
     def test_a_flush_pair_is_a_stack_and_not_a_near_miss(self) -> None:
         """Zero gap is a decision; the sliver above zero is the mistake.
