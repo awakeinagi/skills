@@ -276,10 +276,12 @@ scene, so an ordinary element that happens to share the id, here or on
 another artifact, is left standing — and a `resolve_pin` **naming** one is
 refused, because something that was never a question has nothing to
 resolve. A ❓ drawn by hand with no registry record still resolves
-normally. What the resolve does take is every ❓ carrying that id on any
-artifact, including one re-drawn under it later in the same batch: the
-glyph count on the canvas and the open-pin count in the registry have to
-agree.
+normally. What the resolve does take is every ❓ carrying that id, on every
+artifact, however it got there — a duplicate an older version minted before
+the id check existed, or one re-drawn under the id later in the same batch.
+Nothing is exempted: the glyph count on the canvas and the open-pin count in
+the registry have to agree, and each exemption tried in turn left a ❓
+standing under an id the registry had already marked resolved.
 
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.

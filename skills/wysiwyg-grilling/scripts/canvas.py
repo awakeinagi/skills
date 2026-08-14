@@ -8100,11 +8100,12 @@ class Store:
             # printed beside the record-derived note saying the opposite
             # (WP1). This is the only place both halves of the answer are
             # in reach: the PRE-op scene, and every other artifact for the
-            # cross-artifact deletion `apply_batch` is about to make (its
-            # skip is mirrored below, or a resolve satisfied on this very
-            # scene would read as having reached across too). Written for
-            # every resolve and never read from the caller — an agent that
-            # sent the key itself must not be able to script its own echo.
+            # cross-artifact deletion `apply_batch` is about to make. Both
+            # halves are asked of the state as the batch ARRIVED, which is
+            # what keeps them in step with a scan that takes every ❓
+            # carrying the id and skips nothing. Written for every resolve
+            # and never read from the caller — an agent that sent the key
+            # itself must not be able to script its own echo.
             # It is written into the CALLER's op dicts, which is the point
             # rather than an oversight: every echo surface builds its
             # lines from the list the caller still holds after
@@ -8120,10 +8121,9 @@ class Store:
                 pid = o.get("id")
                 o["glyph_removed"] = bool(
                     (pid in was_pin and pid not in standing) or
-                    (pid not in was_pin and
-                     any(e["id"] == pid and role_of(e) == "pin"
-                         for a2, els2 in self.scenes.items() if a2 != aid
-                         for e in els2)))
+                    any(e["id"] == pid and role_of(e) == "pin"
+                        for a2, els2 in self.scenes.items() if a2 != aid
+                        for e in els2))
 
             drawing_ops = [o for o in ops if o.get("op") in
                            ("add", "mod", "del", "reorder")]
@@ -8291,28 +8291,26 @@ class Store:
             # is found by looking for the glyph, not by reading the pin
             # record's `artifact` — nothing validates that key, and a
             # record that lost it would strand its ❓ in exactly the way
-            # this fixes. Only a pin element is ever taken: ids are
-            # minted per scene, so the same id on another artifact need
-            # not be the same thing. The scan is skipped only when the
-            # resolve was already satisfied HERE — when the ❓ stood on
-            # this artifact's scene as the batch arrived, so `apply_ops`
-            # has just taken it. That is a fact about the PRE-op scene,
-            # and reading it off the post-op one instead is how the id
-            # kept coming back into scope: an add reusing the resolved id
-            # skipped the scan and stranded the foreign ❓ (registry
-            # resolved, glyph drawn — r5-17 again). Gating that read on
-            # the pin role closed it for an ordinary namesake and left it
-            # open for a namesake that is itself a ❓. Nothing added after
-            # a resolve can un-resolve it, so nothing added is consulted;
-            # a ❓ re-drawn under the answered id is taken by the scan
-            # like every other one, which is what keeps the glyph count
-            # and the open-pin count equal.
+            # this fixes. Only a pin element is ever taken, and that role
+            # gate is the whole protection needed: ids are minted per
+            # scene, so an ordinary element sharing the id — here or
+            # anywhere else — is left standing.
+            # The scan runs for EVERY resolve, with no skip. Two skips
+            # were tried and both stranded a ❓ under the id being
+            # resolved: reading the post-op scene let an add reusing that
+            # id put it back in scope, and reading the PRE-op scene let a
+            # resolve whose own ❓ stood here suppress the scan while a
+            # same-id ❓ on another artifact — the legacy shape the old
+            # auto-minter produced — stayed drawn with its record marked
+            # resolved. Both are r5-17's signature: registry resolved,
+            # glyph drawn, the counts disagreeing. There is nothing left
+            # for a skip to protect that the role gate does not already
+            # protect, so a resolve takes every ❓ carrying that id, on
+            # every artifact, however it got there.
             scenes = {aid: new_els}
-            was_pin_here = {eid for eid, e in was.items()
-                            if role_of(e) == "pin"}
             for o in ops:
                 pid = o.get("id")
-                if o.get("op") != "resolve_pin" or pid in was_pin_here:
+                if o.get("op") != "resolve_pin":
                     continue
                 for aid2 in self.scenes:
                     els2 = scenes.get(aid2, self.scenes[aid2])

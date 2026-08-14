@@ -4451,6 +4451,34 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         return [e["id"] for e in store.scenes[artifact]
                 if e.get("containerId") and e["containerId"] not in live]
 
+    def _legacy_twin(self, store: canvas.Store) -> None:
+        """Give `other` a second ❓ filed under `pin-a`, as stored data.
+
+        The corpus the OLD auto-minter left behind: it deduped against
+        the batch artifact's scene alone, so two artifacts holding a node
+        of the same name got two questions under one pin id. Task 38
+        stopped that being reachable through ops — the minter consults
+        the registry and the explicit-id check refuses the spelling — so
+        the state can only be built the way a legacy project carries it,
+        as elements and records written straight into the store.
+
+        That is the point rather than a shortcut: the fix does not
+        retro-repair the projects the bug already wrote, and a resolve
+        aimed at one of these has to take both glyphs or it strands one.
+
+        Args:
+            store: A store from `_store`, mutated in place to hold a
+                second `pin-a` ❓ on `other` with its own open record.
+        """
+        twin = dict(next(e for e in store.scenes["flow"]
+                         if canvas.role_of(e) == "pin"))
+        twin["x"], twin["y"] = 300, 300
+        store.registry["pins"].append(dict(store.registry["pins"][0],
+                                           artifact="other",
+                                           question="And this one?"))
+        store.commit(author="user",
+                     new_scenes={"other": [*store.scenes["other"], twin]})
+
     def _pin_records(self, store: canvas.Store,
                      pid: str) -> list[dict[str, Any]]:
         """Collect every registry pin filed under one id.
@@ -5071,17 +5099,18 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         self.assertIn("removed from canvas", said[0])
 
     def test_the_shadowed_resolve_reports_the_removal_it_made(self) -> None:
-        """The skip and its echo mirror, held in step on the one scene.
+        """The echo's answer comes from the arriving state, not absence.
 
-        The reviewer's F-9: `apply_batch` decides whether to scan the
-        other artifacts, and `_validate_batch` decides what the echo will
-        SAY about that scan, from a mirrored copy of the same skip. Two
-        copies of one predicate, and the only batch that tells them apart
-        is this one — a resolve whose ❓ lives elsewhere, followed by an
-        add re-drawing a ❓ under the answered id. Everywhere else the
-        stamp's first clause settles the answer before the mirror is
-        consulted, so a mirror that drifted out of step would go
-        unmeasured.
+        The reviewer's F-9: `apply_batch` scans the other artifacts for
+        the ❓, and `_validate_batch` decides separately what the echo
+        will SAY about that scan. Two reads of one question, and this is
+        the batch that tells them apart — a resolve whose ❓ lives
+        elsewhere, followed by an add re-drawing a ❓ under the answered
+        id. Absence from the post-op scene cannot answer it: the foreign
+        glyph was never in this scene, and the re-drawn one is gone from
+        it for a different reason (the scan took it). Only the state as
+        the batch ARRIVED distinguishes them, which is what the stamp
+        reads.
 
         Unwritable until `test_red_a_pin_role_shadowing_add_strands_the
         _foreign_glyph` flipped: while the scan was being skipped here,
@@ -5090,9 +5119,9 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         foreign ❓ and the re-drawn one with it, and the two surfaces are
         asserted against the state they describe rather than as wording —
         the glyphs are gone, the note has nothing to report, and the echo
-        claims the removal. Reverting either copy to the post-op scene
-        breaks this: the echo then says the ❓ was already gone, or that
-        it is still standing, about a batch that took it down.
+        claims the removal. Restoring either skip breaks this: the echo
+        then says the ❓ was already gone, or that it is still standing,
+        about a batch that took it down.
 
         The add's own line is asserted too. An op whose element the scan
         swallowed must not echo as a drawing that happened — that is the
@@ -5117,6 +5146,116 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         self.assertIn("gone", said[1],
                       "the re-drawn ❓ was swallowed by the scan and the "
                       "echo reports it as drawn: %r" % (said,))
+
+    def test_a_legacy_duplicate_pin_id_gives_up_both_its_glyphs(
+            self) -> None:
+        """The corpus the old minter wrote, resolved from either side.
+
+        Task 38's first attempt at the shadow hole moved the scan's skip
+        from the post-op scene to the PRE-op one, which closed the hole
+        and opened its mirror: with the ❓ standing HERE the skip fired,
+        and a same-id ❓ on another artifact was never scanned for. That
+        is r5-17 restored on exactly the state the minter bug produced —
+        registry resolved, foreign glyph drawn, the counts disagreeing —
+        and reproducing it needed no exotic scene, just the two-artifact
+        corpus any project that ran the old minter already carries.
+
+        The skip is gone entirely. The scan's role gate was always the
+        thing protecting an ordinary namesake, and every skip tried on
+        top of it stranded a ❓ under the very id being resolved.
+
+        Both artifacts issue the resolve, because the two are not
+        symmetric in the code: one path finds the ❓ in `apply_ops`' own
+        index and the other reaches it only through the cross-artifact
+        scan, and a skip reintroduced on either reading would show up in
+        exactly one of these. The registry is asserted alongside the
+        canvas — parity is a claim about the two agreeing, so a fix that
+        cleared the glyphs while leaving a record open would fail here.
+        """
+        for aid in ("flow", "other"):
+            with self.subTest(resolved_from=aid):
+                store = self._store()
+                self._legacy_twin(store)
+                self.assertEqual(
+                    [self._glyphs(store, a) for a in sorted(store.scenes)],
+                    [["pin-a"], ["pin-a"]],
+                    "the legacy corpus did not build: two ❓ under one id "
+                    "is the whole premise")
+                ops: list[dict[str, Any]] = [{"op": "resolve_pin",
+                                              "id": "pin-a",
+                                              "answer": "yes"}]
+                record, _ = store.apply_batch(
+                    {"base_revn": store.head_revn(), "artifact": aid,
+                     "ops": ops})
+                drawn = [eid for a in store.scenes
+                         for eid in self._glyphs(store, a)]
+                open_pins = [p["id"] for p in store.registry["pins"]
+                             if p["status"] in ("open", "answered")]
+                self.assertEqual(
+                    drawn, [],
+                    "a resolve from %r left a ❓ under the answered id "
+                    "standing on the other artifact: %r" % (aid, drawn))
+                self.assertEqual(len(drawn), len(open_pins),
+                                 "canvas and registry disagree about how "
+                                 "many questions are open (drawn=%r, "
+                                 "open=%r)" % (drawn, open_pins))
+                self.assertEqual(
+                    [p["status"] for p in self._pin_records(store, "pin-a")],
+                    ["resolved", "resolved"])
+                self.assertEqual(canvas.pin_glyph_notes(record, ops), [])
+                self.assertIn("removed from canvas",
+                              canvas.intent_echo(ops, store.scenes[aid])[0])
+
+    def test_a_pin_role_shadow_add_is_swallowed_in_either_order(
+            self) -> None:
+        """The shadow add cannot hide the foreign ❓ from either position.
+
+        `test_an_id_shadowing_add_cannot_hide_the_foreign_pin`
+        (tests/test_failure_paths.py) records that ORDER matters for the
+        node-role shadow — the add has to land after the resolve, or
+        `apply_ops` deletes the shadow itself. For a shadow that is a ❓
+        both orders have to reach the same place, and they did not while
+        a skip existed: resolve-then-add put the id back in scope and
+        suppressed the scan.
+
+        With no skip the two converge, and the assertion is that
+        convergence. Add-then-resolve is taken by `apply_ops`' own
+        resolve arm; resolve-then-add survives that arm and is taken by
+        the cross-artifact scan, which walks the batch's own artifact
+        too. Either way no ❓ carrying the answered id is left anywhere,
+        which is the property, and the batch is accepted both times —
+        refusing it would flip the flipped red's DIRECTION.
+        """
+        orders: tuple[tuple[str, list[dict[str, Any]]], ...] = (
+            ("resolve first", [{"op": "resolve_pin", "id": "pin-a",
+                                "answer": "yes"},
+                               {"op": "add", "element": {
+                                   "type": "text", "id": "pin-a",
+                                   "text": "❓", "x": 500, "y": 0,
+                                   "width": 20, "height": 25,
+                                   "role": "pin"}}]),
+            ("add first", [{"op": "add", "element": {
+                                "type": "text", "id": "pin-a", "text": "❓",
+                                "x": 500, "y": 0, "width": 20,
+                                "height": 25, "role": "pin"}},
+                           {"op": "resolve_pin", "id": "pin-a",
+                            "answer": "yes"}]))
+        for name, ops in orders:
+            with self.subTest(order=name):
+                store = self._store()
+                escaped = self._send(store, "other", ops)
+                self.assertIsNone(escaped,
+                                  "the batch itself is legitimate: %r"
+                                  % (escaped,))
+                drawn = [eid for a in store.scenes
+                         for eid in self._glyphs(store, a)]
+                open_pins = [p["id"] for p in store.registry["pins"]
+                             if p["status"] in ("open", "answered")]
+                self.assertEqual(
+                    drawn, [],
+                    "%s: a ❓ under the answered id survived — the foreign "
+                    "one, the re-drawn one, or both: %r" % (name, drawn))
+                self.assertEqual(len(drawn), len(open_pins))
 
 
 # ---------------------------------------------------------------------------
