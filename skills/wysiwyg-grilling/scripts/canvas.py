@@ -3640,25 +3640,45 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
     return els
 
 
+# Composed-part tags whose element is CONTENT — the thing its owner
+# exists to SHOW (a KPI tile's value, an entity's attribute rows) — as
+# opposed to furniture drawn on the owner (`box_of`, `track_of`,
+# `thumb_of`, `chk_of`, `body_of`, `x_of`) or a standalone backdrop.
+# `_deco` stamps `role: "decoration"` on all of them, and that role means
+# one thing only: exempt from the lints that judge authored content. It
+# used to ALSO mean "paint underneath", and the two are unrelated — a
+# composed value banded beneath its owner is painted out by the very tile
+# it belongs to the moment that tile is given an opaque `backgroundColor`
+# (v0.9 WP4 task 44; the live canvas drew it that way all along). The
+# band is derived from the part tag so the role keeps its single meaning
+# and nothing is re-roled.
+CONTENT_PART_KEYS = ("value_of", "attr_of")
+
+
 def normalize_z_order(els):
     """Paint order (layout.md): frames → decorations → arrows/lines →
-    nodes → bound labels & pins. Excalidraw renders array order, so an
-    arrow appended after its nodes paints ON TOP of them — every diagram
-    in the capability assessment had all arrows z-above all nodes. The
-    sort is stable: explicit `reorder` ops survive within their band;
+    nodes → composed content → bound labels & pins. Excalidraw renders
+    array order, so an arrow appended after its nodes paints ON TOP of
+    them — every diagram in the capability assessment had all arrows
+    z-above all nodes. Composed CONTENT (`CONTENT_PART_KEYS`) bands
+    ABOVE its owner instead of down with the furniture, so a tile's own
+    value survives the tile's fill; furniture and backdrops keep banding
+    beneath, and furniture keeps its declared order against its own box.
+    The sort is stable: explicit `reorder` ops survive within their band;
     cross-band placement rides `role: decoration`."""
     def band(e):
-        role = (e.get("customData") or {}).get("role")
+        cd = e.get("customData") or {}
+        role = cd.get("role")
         if e.get("type") == "frame":
             return 0
         if role == "decoration":
-            return 1
+            return 4 if any(cd.get(k) for k in CONTENT_PART_KEYS) else 1
         if e.get("type") in ("arrow", "line"):
             return 2
         if role == "pin":
-            return 4
+            return 5
         if e.get("type") == "text" and e.get("containerId"):
-            return 4
+            return 5
         return 3
     return sorted(els, key=band)
 
@@ -5922,14 +5942,14 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     # And the semantic layering the buckets were reaching for already
     # exists, one layer up and done properly: `normalize_z_order` bands an
     # applied batch frames -> decorations -> arrows/lines -> nodes ->
-    # labels & pins, by ROLE rather than by type, with a stable sort so an
-    # explicit `reorder` survives. The buckets here re-derived a cruder
-    # version of that at paint time and overwrote it — which is how
-    # `role: decoration`, whose whole point is to sit beneath arrows, came
-    # out on top of them. So nothing re-sorts here, and deliberately: this
-    # renderer's job is to honour the order it is handed, and a renderer
-    # that second-guesses the array is one the drawing cannot be reasoned
-    # about from.
+    # composed content -> labels & pins, by ROLE and part tag rather than
+    # by type, with a stable sort so an explicit `reorder` survives. The
+    # buckets here re-derived a cruder version of that at paint time and
+    # overwrote it — which is how a `role: decoration` backdrop, whose
+    # whole point is to sit beneath arrows, came out on top of them. So
+    # nothing re-sorts here, and deliberately: this renderer's job is to
+    # honour the order it is handed, and a renderer that second-guesses
+    # the array is one the drawing cannot be reasoned about from.
     for e in live:
         paint(e)
     for n, _lbl, _tip, e in notes:

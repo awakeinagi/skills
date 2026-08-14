@@ -2281,10 +2281,19 @@ class TestPaintOrder(unittest.TestCase):
         unasserted.
 
         Declared here in reverse so a sort that did nothing at all would
-        fail rather than pass by luck, and it carries TWO band-4 members
-        because the docstring's "stable" is load-bearing: an explicit
-        `reorder` is meant to survive inside a band, and only a tie can
-        show that.
+        fail rather than pass by luck, and it carries TWO top-band
+        members because the docstring's "stable" is load-bearing: an
+        explicit `reorder` is meant to survive inside a band, and only a
+        tie can show that.
+
+        Extended by task 44 with the two poles of the decoration split.
+        `c1` is composed CONTENT (a `value_of` part) and must land above
+        the node band: banded down with the furniture, it was painted out
+        by its own owner the moment that owner took an opaque fill. `w1`
+        is composed FURNITURE (a `body_of` wave) and must stay down in
+        band 1 with the standalone backdrop `d1` — the tie between those
+        two is also what pins that furniture keeps its declared order
+        against its own box, the ordering task 21 §6 gained.
 
         Residual gap, stated so nobody reads this as full cover: this
         pins what the function COMPUTES, and the function runs on the op
@@ -2300,20 +2309,51 @@ class TestPaintOrder(unittest.TestCase):
                customData={"role": "pin"}),
             el(id="t1", type="text", x=0, y=0, width=40, height=20,
                text="then", containerId="a1"),
+            el(id="c1", type="text", x=0, y=0, width=40, height=20,
+               text="42%", customData={"role": "decoration",
+                                       "value_of": "n1"}),
             el(id="n1", type="rectangle", x=0, y=0, width=100, height=50,
                customData={"role": "node"}),
             el(id="a1", type="arrow", x=0, y=0, width=100, height=0,
                points=[[0, 0], [100, 0]], customData={"role": "edge"}),
             el(id="d1", type="rectangle", x=0, y=0, width=100, height=50,
                customData={"role": "decoration"}),
+            el(id="w1", type="line", x=0, y=0, width=80, height=3,
+               points=[[0, 0], [80, 0]],
+               customData={"role": "decoration", "body_of": "n1"}),
             el(id="f1", type="frame", x=0, y=0, width=200, height=100,
                name="Lane")]
         self.assertEqual(
             [e["id"] for e in canvas.normalize_z_order(scene)],
-            ["f1", "d1", "a1", "n1", "p1", "t1"],
+            ["f1", "d1", "w1", "a1", "n1", "c1", "p1", "t1"],
             "layout.md's paint order is frames -> decorations -> "
-            "arrows/lines -> nodes -> bound labels & pins, and the sort "
-            "is stable within a band")
+            "arrows/lines -> nodes -> composed content -> bound labels & "
+            "pins, and the sort is stable within a band")
+
+    def test_a_backdrop_decoration_still_bands_beneath_what_it_backs(self
+                                                                     ) -> None:
+        """The control task 44's split owes: backdrops did NOT come up.
+
+        The pin above reads ids out of a sort; this reads the PICTURE,
+        and it is the pole that would have caught the lazy version of the
+        split (band every composed part up, or band the whole role up).
+        The scene is `_backdrop_scene`'s covering pole — an opaque
+        decoration panel declared AFTER the connector it is meant to sit
+        behind, which is the arrangement layout.md prescribes for
+        parallel edges — put through the banding rather than rendered
+        raw. The banding is what has to move it back under the stroke,
+        and if backdrops had been lifted with the content the panel would
+        paint over the connector and erase it, which is the r5 finding
+        that made `normalize_z_order` exist.
+        """
+        decor, stroke = _paint_offsets(
+            canvas.normalize_z_order(_backdrop_scene(behind=False)))
+        self.assertLess(
+            decor, stroke,
+            "an untagged `role: decoration` panel is a backdrop: the "
+            "banding must put it beneath the connector it backs, but its "
+            "markup is emitted at %d, after the stroke's at %d"
+            % (decor, stroke))
 
 
 # ---------------------------------------------------------------------------

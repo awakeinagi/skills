@@ -87,9 +87,13 @@ low-opacity `role: decoration` backdrop line with the real arrows offset
 ±10px along it.
 
 **Z-order** (now ENFORCED by a normalization pass on every apply):
-frames → decorations → arrows/lines → nodes → bound labels & pins.
-Explicit `reorder` ops survive within their band; cross-band placement
-rides `role: decoration`.
+frames → decorations → arrows/lines → nodes → composed content → bound
+labels & pins. Composed CONTENT is a composite's own value or attribute
+rows (`value_of`, `attr_of`); it bands above its owner so an opaque tile
+cannot paint out the number it exists to show. Composed FURNITURE
+(X-box strokes, toggle tracks, body waves) and standalone backdrops band
+with the decorations, beneath. Explicit `reorder` ops survive within
+their band; cross-band placement rides `role: decoration`.
 
 ## Budgets (lint NOTE → view suggestion)
 

@@ -97,6 +97,9 @@ on concept `report` clears the umbrella's `wireframe` debt.
       // default node; text w/o container → annotation. `decoration` is
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
       // exempt from connector lints and budgets, painted beneath arrows.
+      // A composite's own CONTENT (a kpi/input `value`, an entity's
+      // attribute rows) carries the same exemption but bands ABOVE its
+      // owner, so an opaque tile never paints out its own number.
       // "Beneath" is array position, not a type rule: put the decoration
       // earlier in the element order and it paints first. The SVG export
       // honours that as of v0.9 — it used to paint in type buckets and

@@ -895,17 +895,21 @@ def _kpi_tile(fill: str) -> list[dict]:
 
     `_deco` stamps `role: "decoration"` on the value text, the same role
     it stamps on genuine furniture (X-box strokes, wavy body lines), and
-    `normalize_z_order` bands every decoration at 1 — beneath nodes at 3.
-    So the tile's own CONTENT is declared under its own container.
+    `normalize_z_order` used to band every decoration at 1 — beneath
+    nodes at 3 — so the tile's own CONTENT was declared under its own
+    container. Task 44 split that band by part tag: `value_of` and
+    `attr_of` are content and ride above the node band, furniture and
+    backdrops stay beneath.
 
     Args:
         fill: The owner rectangle's `backgroundColor`. `"transparent"`
-            is the whole corpus today; an opaque colour is the defect,
-            and `#e9e5da` is the reference example both `add` and `mod`
-            document.
+            is the whole corpus today; an opaque colour is what the
+            defect needed, and `#e9e5da` is the reference example both
+            `add` and `mod` document.
 
     Returns:
-        The composed tile in paint order: `k1-value`, `k1`, `k1-label`.
+        The composed tile in paint order: `k1`, `k1-value`, `k1-label`
+        (before task 44: `k1-value`, `k1`, `k1-label`).
 
     Raises:
         RuntimeError: If `make_element` rejected the spec. Said out loud
@@ -938,68 +942,64 @@ class TestComposedContentVisibility(unittest.TestCase):
         """Remove the scratch directory — renders never enter the repo."""
         shutil.rmtree(self.workdir, ignore_errors=True)
 
-    def test_composed_value_red_is_red_by_measurement_not_by_error(self
-                                                                   ) -> None:
-        """The red below is red for the reason it claims, and says so.
+    def test_composed_value_survives_its_opaque_owner_by_measurement(self
+                                                                     ) -> None:
+        """The flipped red's magnitude, measured rather than inferred.
 
-        Two jobs the `expectedFailure` next door cannot do for itself.
-        First, `@unittest.expectedFailure` swallows ERRORS as well as
-        failures (skill doctrine §6), so a `make_element` that began
-        refusing this spec, or a composition that stopped emitting a
-        `-value` element at all, would print an identical healthy `x`
-        with nothing measured. Second, this is where the defect's
-        magnitude is asserted: the value's ablation ink is 0 px, which is
-        the finding's whole content, and the transparent-owner neighbour
-        reads 309 px on the same string in the same font.
+        This is what the red's own red-by-measurement guard became when
+        task 44 flipped it, and it is here for the same reason the guard
+        was: the red asserts `ablation_findings(...) == []`, and silence
+        is what you also get from a scene with no `k1-value` in it at
+        all. `ablation_existence` cannot fire on an element that was
+        never composed, so a `make_element` that stopped emitting the
+        value row would turn the red vacuously green. The guard used to
+        pin the defect's magnitude at 0 px of ablation ink; this pins the
+        fix's, and it is deliberately the SAME number the
+        transparent-owner neighbour reads (309 px, 2026-08-14) — same
+        string, same font, same size, so an opaque fill now costs the
+        value nothing at all.
         """
-        try:
-            scene = _kpi_tile("#e9e5da")
-            finds = ablation_findings(scene, ["k1-value"], self.workdir)
-            ink = _element_ink(scene, "k1-value", self.workdir)[0]
-        except Exception as exc:
-            self.fail("the composed-content red is red via %r, not a "
-                      "measurement — that is a broken pin, not a defect "
-                      "pin" % exc)
-        self.assertEqual(
-            [(f["check"], f["element"], f["magnitude"]) for f in finds],
-            [("ablation_existence", "k1-value", 0.0)],
-            "ablation_existence no longer fires on the buried value — if "
-            "the decoration band was split, drop the expectedFailure on "
-            "test_mutant_composed_value_hides_under_its_opaque_owner")
-        self.assertEqual(ink, 0)
+        ink = _element_ink(_kpi_tile("#e9e5da"), "k1-value", self.workdir)[0]
+        self.assertAlmostEqual(
+            ink, 309, delta=31,
+            msg="the tile's own value measured %d px of ablation ink under "
+                "an opaque owner; 0 px is the task 44 defect returning and "
+                "anything else means the composition changed" % ink)
 
-    @unittest.expectedFailure
     def test_mutant_composed_value_hides_under_its_opaque_owner(self) -> None:
-        """A KPI tile's value is painted beneath the tile. Task 44 owns it.
+        """FLIPPED by v0.9 WP4 (Task 44). Kept its red-era name.
 
         Curator batch 16 item 5, from the Task 21 review (F2),
-        2026-08-14. `_deco` overloads `role: "decoration"` to mean two
+        2026-08-14. `_deco` overloaded `role: "decoration"` to mean two
         unrelated things — "exempt from the lints that judge authored
-        content" and "paint underneath" — and composed CONTENT is stamped
-        with it alongside genuine furniture. `normalize_z_order` then
-        bands the whole role at 1, under nodes at 3, so a tile's value
-        text is declared beneath the tile that owns it and an opaque
-        `backgroundColor` finishes the job.
+        content" and "paint underneath" — and composed CONTENT was
+        stamped with it alongside genuine furniture. `normalize_z_order`
+        then banded the whole role at 1, under nodes at 3, so a tile's
+        value text was declared beneath the tile that owned it and an
+        opaque `backgroundColor` finished the job.
 
-        This is a PRODUCT defect the render tier can already see, not a
-        detector miss: `ablation_existence` fires correctly and says so
-        next door. It is also live rather than theoretical. The live
-        canvas has hidden these values all along — the frontend applies
-        the server's element order verbatim — and it was the export's
-        old text-last bucket that masked it; v0.9 WP4 stopped masking it,
-        which is how it was found. All 29 composed value/attr texts in
-        the corpus have transparent owners today, and `backgroundColor`
-        is a documented first-class property of both `add` and `mod`, so
-        one op on any of them buries its own content.
+        This was a PRODUCT defect the render tier could already see, not
+        a detector miss: `ablation_existence` fired correctly on it. It
+        was live rather than theoretical. The live canvas had hidden
+        these values all along — the frontend applies the server's
+        element order verbatim — and it was the export's old text-last
+        bucket that masked it; v0.9 WP4 stopped masking it, which is how
+        it was found. All 29 composed value/attr texts in the corpus
+        have transparent owners today, and `backgroundColor` is a
+        documented first-class property of both `add` and `mod`, so one
+        op on any of them buried its own content.
 
-        Flips when **Task 44** splits the overload so composed content
-        bands above its owner rather than with the furniture. That is the
-        WP that owns `_deco` and `normalize_z_order`; this file only
-        measures. Two things that will NOT flip it, deliberately: giving
-        the value an opaque fill of its own would hide the banding rather
-        than fix it, and reinstating a text-last pass in `render_svg`
-        would restore the export/canvas disagreement WP4 removed — the
-        export would show a value the user cannot see.
+        Task 44 split the overload where the overload was: the band, not
+        the role. `normalize_z_order` now reads the PART TAG, so
+        `value_of` and `attr_of` — a composite's own content — band above
+        the node that owns them, while furniture (`box_of`, `track_of`,
+        `body_of`, …) and standalone backdrops keep banding beneath. The
+        role still means exactly one thing, and it is the lint
+        exemption. Two things that were rejected as fixes, deliberately:
+        giving the value an opaque fill of its own would have hidden the
+        banding rather than fixed it, and reinstating a text-last pass in
+        `render_svg` would have restored the export/canvas disagreement
+        WP4 removed — the export would show a value the user cannot see.
         """
         scene = _kpi_tile("#e9e5da")
         finds = ablation_findings(scene, ["k1-value"], self.workdir)
