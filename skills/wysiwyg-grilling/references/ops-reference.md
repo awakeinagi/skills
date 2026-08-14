@@ -290,11 +290,14 @@ another artifact, is left standing — and a `resolve_pin` **naming** one is
 refused, because something that was never a question has nothing to
 resolve. A ❓ drawn by hand with no registry record still resolves
 normally. What the resolve does take is every ❓ carrying that id, on every
-artifact, however it got there — typically a duplicate an older version
-minted before the id check existed, since a batch can no longer draw a new
-one. Nothing is exempted: the glyph count on the canvas and the open-pin
-count in the registry have to agree, and each exemption tried in turn left
-a ❓ standing under an id the registry had already marked resolved.
+artifact, however it got there — a duplicate an older version minted before
+the id check existed, or a pair of hand-drawn ❓ sharing an id no pin record
+ever claimed, which is still perfectly possible: the refusals above are
+about ids the REGISTRY has filed, so they say nothing about an id it has
+never seen. Nothing is exempted: the glyph count on the canvas and the
+open-pin count in the registry have to agree, and each exemption tried in
+turn left a ❓ standing under an id the registry had already marked
+resolved.
 
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.

@@ -2958,12 +2958,23 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
             # Deduping against the scene alone reissued a LIVE pin's id
             # the moment two artifacts held a node of the same name: two
             # questions landed under `pin-n1`, and one `resolve_pin`
-            # closed both and took both ❓. `_validate_batch` refuses that
-            # collision when the agent SPELLS the id, and cannot see this
-            # one — the minter runs here, after validation has read the
-            # ops, so the id does not exist yet to be refused. The
-            # refusal's own advice ("omit `id` and one will be minted")
-            # routed agents straight down this path.
+            # closed both and took both ❓. The refusal's own advice
+            # ("omit `id` and one will be minted") routed agents straight
+            # down this path, which is why the dedupe lives here and not
+            # only at the explicit-id door.
+            # KEEP IN STEP with `_validate_batch`, which PREDICTS this
+            # mint — see the `elif not pid` arm of its op walk, and the
+            # pointer back to here in its comment. It re-runs `mint_id`
+            # on the same seed and the same taken set spelled just below,
+            # so that an explicit id colliding with one this batch is
+            # about to mint is refused before either lands (v0.9 Task 40;
+            # the mint happens here, after validation has read the ops,
+            # so predicting it is the only way validation can see it).
+            # The two sites are one algorithm written twice and NOTHING
+            # FAILS IF THEY DISAGREE: drift the seed here — `q[:20]` to
+            # `q[:12]`, say — and the prediction silently stops matching,
+            # which reopens that collision with the whole suite green.
+            # Change one, change the other, in the same commit.
             pid = op.get("id")
             if not pid:
                 pid = mint_id("pin-" + (target or q[:20]), "pin",
@@ -8093,7 +8104,12 @@ class Store:
                         # landed under it while ONE ❓ was drawn, leaving
                         # the second unclickable and open forever. So the
                         # id is predicted here, against the same seed and
-                        # the same taken set the minter will use. The one
+                        # the same taken set the minter will use — KEEP IN
+                        # STEP with that minter (the `kind == "pin"` arm
+                        # of `apply_ops`, which carries the matching
+                        # warning): the two are one algorithm written
+                        # twice, and a seed changed on one side alone
+                        # reopens the collision with the suite green. The one
                         # difference is elements this batch ADDS, which
                         # validation does not walk: a mint colliding with
                         # one of those really lands on `-2` while this

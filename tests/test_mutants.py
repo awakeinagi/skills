@@ -6004,19 +6004,21 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# as of 2026-08-13 `mutants list --red` reports 16 while the suite reports 32
-# expected failures. The sixteen outside live in six classes —
-# `TestLoadFindingsReachTheAgent` (4), `TestStoreIntegrity` (4),
-# `TestPinIdentityIntegrity` (3), `TestExportCompleteness` (2),
-# `TestShapeBlindAnnotationOverlap` (2) and
-# `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
+# re-measured 2026-08-13 after v0.9 Task 40, `mutants list --red` reports 16
+# while the suite reports 29 expected failures. The thirteen outside live in
+# five classes — `TestLoadFindingsReachTheAgent` (4), `TestStoreIntegrity`
+# (4), `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2)
+# and `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
 # the one below covers CATALOGUE alone.
 # These counts are a hand enumeration and drift silently, so re-measure them
-# rather than trusting them: on 2026-08-12 this read "(5)" for
-# `TestStoreIntegrity`, and four of those five had since been flipped green by
-# WP1 fixes with the comment left behind.
+# rather than trusting them. Twice caught stale now, and the second time is
+# the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
+# when WP1 had already flipped four of the five, and it still read "32 / six
+# classes / `TestPinIdentityIntegrity` (3)" after Task 40 flipped that class's
+# last three reds — a class does not merely lose a number here, it leaves the
+# list, and nothing in the suite notices either way.
 CATALOGUE: dict[str, Mutant] = {}
 
 
