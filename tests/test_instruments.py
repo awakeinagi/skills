@@ -196,6 +196,60 @@ class TestRenderedPath(unittest.TestCase):
         self.assertEqual(instruments.false_bidi(curved), [])
 
 
+class TestTiltBand(unittest.TestCase):
+    """v0.9 WP4 task 24: the straightness band scales with the span.
+
+    `long_run_curve_hides_bidi` proves the consequence at the catalogue
+    level — a 200px approach reports the bidi its 18px twin correctly
+    hides. These pin the rule underneath it, which the mutant pair can
+    only sample at two points.
+    """
+
+    def _bowed(self, extent: float, bow: float) -> list[tuple[float, float]]:
+        """A vertical stretch of `extent` bowing `bow` px off its axis.
+
+        Args:
+            extent: On-axis (y) length of the stretch.
+            bow: Off-axis (x) displacement at the midpoint.
+
+        Returns:
+            A three-point stretch in absolute coordinates.
+        """
+        return [(250.0, 0.0), (250.0 + bow, extent / 2.0), (250.0, extent)]
+
+    def test_the_two_rules_agree_at_the_bands_own_crossover(self) -> None:
+        """At 28px the ratio is the ported 2px band, exactly.
+
+        28px is the shortest final span in the frozen corpus, which is
+        where the constant was set so that nothing shorter changes
+        behaviour at all.
+        """
+        self.assertAlmostEqual(instruments.TILT_RATIO * 28.0,
+                               instruments.FLAT_BAND, places=9)
+
+    def test_below_the_crossover_the_flat_band_still_rules(self) -> None:
+        """A 2.5px bow on an 18px span is a curve, as it always was."""
+        self.assertTrue(instruments._reads_as_line(self._bowed(18, 1.9), 1))
+        self.assertFalse(instruments._reads_as_line(self._bowed(18, 2.5), 1))
+
+    def test_above_it_the_same_bow_reads_as_a_line(self) -> None:
+        """7.4px is 41% of an 18px approach and 3.7% of a 200px one."""
+        self.assertFalse(instruments._reads_as_line(self._bowed(18, 7.4), 1))
+        self.assertTrue(instruments._reads_as_line(self._bowed(200, 7.4), 1))
+
+    def test_the_band_never_narrows(self) -> None:
+        """One-directional by construction: `false_bidi` cannot lose a hit.
+
+        Every stretch the flat 2px band admitted is still admitted at
+        every length, which is the property that lets this land as a
+        blind-spot closure with no over-fire surface to argue about.
+        """
+        for extent in (1, 4, 18, 28, 100, 200, 668):
+            self.assertTrue(
+                instruments._reads_as_line(self._bowed(extent, 2.0), 1),
+                extent)
+
+
 class TestScoreVector(unittest.TestCase):
     """Each headline metric, and the [0, 1] contract they all share."""
 

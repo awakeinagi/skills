@@ -14,6 +14,10 @@ Fixed by WP4, each flipping its catalogue mutant:
     than the path the renderer draws, so a curved elbow bowed well off
     its own chord still read as one bidirectional line
     (`curved_elbow_spurious_bidi`);
+  - and the straightness band that fix introduced was flat, so the SAME
+    bow disqualified an 18px approach and a 200px one — a genuine
+    head-on pair went unreported at any run length. The band now scales
+    with the span it sits on (`long_run_curve_hides_bidi`, task 24);
   - `float_diamond` measured radially from the node center, so its
     answer turned on the direction the endpoint lay in and an endpoint
     at the exact center scored 0 and was never reported — it now reads
@@ -425,25 +429,66 @@ def _final_stretch(
     return stretches[-1] if stretches else None
 
 
+FLAT_BAND = 2.0
+# The band the ported code applied at every length, kept as a FLOOR so
+# nothing this function used to call a line stops being one.
+TILT_RATIO = 1 / 14.0
+# ...and the ratio that floor implies at 28px, the shortest final span
+# in the 24-artifact frozen corpus (measured 2026-08-14; median 176,
+# max 668). 28px is where the two rules agree, so above it the band is
+# a constant 4.1 degrees of tilt instead of a constant 2px of
+# displacement.
+#
+# THIS NUMBER IS THEORY-MOTIVATED, NOT MEASURED — the same caveat
+# `false_bidi` carries about its whole premise. No perception result
+# gives the angle at which a bowed stroke stops reading as a straight
+# one; the curvature-detection literature would put it an order of
+# magnitude tighter and call 3.7% of bow discriminable, which is the
+# opposite verdict from the one the blind spot demands. What IS
+# defensible is the shape of the rule rather than its constant: a fixed
+# pixel band is a fixed ANGLE only at one length, and it varied 37-fold
+# in strictness across one corpus (11% of tilt admitted at 28px, 0.3%
+# at 668px) purely as an artifact of how long the span happened to be.
+
+
 def _reads_as_line(
     stretch: list[tuple[float, float]], idx: int,
 ) -> bool:
     """Test whether a rendered stretch reads as one straight axis line.
 
     A straight chord's spread on the off-axis is exactly the endpoint
-    difference the ported code compared, so this is the same 2px test
-    for every arrow the old one judged correctly — it only stops giving
-    a curve the benefit of its chord.
+    difference the ported code compared, so at spans of 28px and under
+    this is bit-for-bit the same 2px test — it only stops giving a curve
+    the benefit of its chord.
+
+    Above that the band grows with the span, and it has to: the bow on a
+    curved elbow is set by the leg BEFORE it, not by the span it lands
+    on, so a flat band read the same 7.4px displacement as
+    disqualifying whether it sat on 18px of approach or 200px of it.
+    At 200px the last quarter is dead straight on the axis, the heads
+    are 2px apart, and a reader sees one bidirectional line the check
+    could not report at any length (`long_run_curve_hides_bidi`). The
+    discriminator is therefore relative: 7.4px is most of an 18px
+    approach and a rounding error on a 200px one.
+
+    `max` and not a replacement, so the change is one-directional —
+    every stretch the flat band admitted is still admitted, and
+    `false_bidi` can only gain findings from this, never lose them. That
+    is what keeps `curved_elbow_spurious_bidi` silent: at 18px the band
+    is still exactly 2px, and 7.4px of bow still disqualifies it.
 
     Args:
         stretch: The sampled stretch in absolute coordinates.
         idx: 0 to test horizontality (spread in y), 1 for verticality.
 
     Returns:
-        True if the whole stretch stays inside a 2px band.
+        True if the whole stretch stays inside the band its own length
+        earns — 2px, or 1/14 of its on-axis extent, whichever is wider.
     """
     off = [p[1 - idx] for p in stretch]
-    return max(off) - min(off) <= 2
+    on = [p[idx] for p in stretch]
+    extent = max(on) - min(on)
+    return max(off) - min(off) <= max(FLAT_BAND, TILT_RATIO * extent)
 
 
 def false_bidi(elements: list[dict]) -> list[dict]:

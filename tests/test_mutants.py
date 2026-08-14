@@ -8123,21 +8123,28 @@ _register(Mutant(
                         FindingSpec("false_bidi"))))
 
 # Blind spot, and the cost of the fix above (task 13 review F2).
-# `_reads_as_line` measures the off-axis spread of the WHOLE final span
-# against a flat 2px band, so the 7.4px bow disqualifies the span at any
-# length — and the bow is set by the 100px HORIZONTAL leg, not by the
-# vertical run, so it does not shrink as the run grows. At run=200 the
-# two arrows are straight on x=250 for their last quarter (dx +0.45 at
-# t=0.9), collinear, opposed, heads 2px apart: a reader sees one
-# bidirectional line and the check cannot report one at any run length.
-# The discriminator this entry exists to force is RELATIVE, not
+# FLIPPED by v0.9 WP4 (task 24). `_reads_as_line` measured the off-axis
+# spread of the WHOLE final span against a flat 2px band, so the 7.4px
+# bow disqualified the span at any length — and the bow is set by the
+# 100px HORIZONTAL leg, not by the vertical run, so it did not shrink as
+# the run grew. At run=200 the two arrows are straight on x=250 for
+# their last quarter (dx +0.45 at t=0.9), collinear, opposed, heads 2px
+# apart: a reader saw one bidirectional line and the check could not
+# report one at any run length.
+#
+# The discriminator this entry existed to force is RELATIVE, not
 # absolute: 7.4px is most of an 18px approach and a rounding error on a
 # 200px one. Its neighbour is the entry ABOVE — the same scene at
 # run=18, which must stay silent — so widening the band flips this and
-# breaks that, and only a fix that reads deviation against the span it
-# sits on satisfies both. Corpus impact today is zero (the review
-# reimplemented the old chord reading over the r5 artifacts: old 0,
-# new 0), so this is a standing blind spot rather than a live miss.
+# breaks that. The fix that satisfies both takes the WIDER of the old
+# 2px and 1/14 of the stretch's own on-axis extent: at 18px the band is
+# still exactly 2px (neighbour unchanged, bit for bit), at 200px it is
+# 14.3px and admits the bow. `max` rather than a replacement makes the
+# change one-directional — `false_bidi` can gain findings from it and
+# never lose one — and the corpus confirms it: 1 finding before, the
+# SAME 1 after (`argus-r4-arm3`'s `r-run-signal`/`r-run-rerun` pair,
+# measured 2026-08-14). This was a standing blind spot rather than a
+# live miss, and closing it cost no over-fire.
 _register(Mutant(
     "long_run_curve_hides_bidi",
     build=lambda: _opposed_pair(rounded=True, run=200),
@@ -8951,11 +8958,15 @@ class TestMutantCatalogue(unittest.TestCase):
         """Sharp opposed elbows genuinely read as one bidirectional line."""
         self._run_neighbour("curved_elbow_spurious_bidi")
 
-    @unittest.expectedFailure
     def test_mutant_long_run_curve_hides_bidi(self) -> None:
-        """200px straight on the chord, and the whole-span read says curve."""
-        # The 2px band is absolute and the span is not; flips when the
-        # deviation is read against the length it sits on.
+        """FLIPPED (task 24): the band grew with the span and this fired.
+
+        The 2px band was absolute and the span was not, so the same
+        7.4px bow disqualified an 18px approach and a 200px one alike.
+        `_reads_as_line` now takes the wider of 2px and 1/14 of the
+        stretch's own on-axis extent, which admits 7.4px on 200px of run
+        and still refuses it on 18px — the neighbour below.
+        """
         self._run("long_run_curve_hides_bidi")
 
     def test_neighbour_long_run_curve_hides_bidi(self) -> None:
