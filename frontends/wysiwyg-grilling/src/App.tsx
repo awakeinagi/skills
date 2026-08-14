@@ -83,6 +83,98 @@ const restoreForRender = (els: any[]) =>
     refreshDimensions: true, repairBindings: true,
   } as any);
 
+/** Clear air between an imported diagram and the drawing already there. */
+const IMPORT_GAP = 120;
+
+/** How far one imported node may grow to save a chopped word, in px.
+ *
+ * Mermaid's own default node separation, so a repair can spend the gap
+ * mermaid left between two nodes and never more than it — the widening
+ * cannot walk one box into its neighbour. Where a word still does not fit
+ * inside that, the label is left as the converter made it: the picture is
+ * no worse, and a node overlapping another is not a better answer.
+ */
+const IMPORT_WIDEN_CAP = 50;
+
+/** The font the import asks mermaid for, and the floor a repair may take
+ * one chopped label down to. Shrinking is the second lever and it is only
+ * ever spent on the labels that are still broken after the box has grown
+ * as far as it may: text a size or two down reads; text with a word cut in
+ * half does not, at any size. */
+const IMPORT_FONT_SIZE = 20;
+const IMPORT_FONT_FLOOR = 12;
+
+/** Did the converter break a WORD to make this label fit its box?
+ *
+ * Excalidraw re-measures a bound label in its own font and wraps it to the
+ * container's width, and where a single word is wider than that width it
+ * breaks the word itself. Mermaid sized the box in a different font, so
+ * `b{different?}` arrived as a 143px diamond holding `differe\nnt?` — the
+ * CLI path fed the same text produces a clean label (v0.9 WP4, `r5-10`).
+ *
+ * Joining the lines with spaces reconstructs `originalText` exactly when
+ * every break is at a space, and cannot when one is not, which is the whole
+ * test — no font metrics, no threshold.
+ */
+const choppedAWord = (e: any) =>
+  e.type === "text" && e.containerId &&
+  typeof e.text === "string" && e.text.includes("\n") &&
+  e.text.split("\n").join(" ") !== (e.originalText || e.text);
+
+/** Convert mermaid skeletons, repairing any box that chopped a word.
+ *
+ * Convert, ask which labels came back with a word cut in half, adjust only
+ * those skeletons, convert again — so nothing here has to know how wide a
+ * glyph is; the converter's own wrapper answers that on the next pass. Each
+ * broken label gets the box widened once (by `IMPORT_WIDEN_CAP`, no more,
+ * so the growth stays inside the gap mermaid left) and then, if it is still
+ * chopped, a smaller font one step at a time down to `IMPORT_FONT_FLOOR`.
+ * Width first because a bigger box is what the user would have drawn; font
+ * second because it costs no geometry at all and cannot collide.
+ *
+ * The adjustments are keyed on the LABEL TEXT, not the skeleton id: the
+ * converter is free to mint its own ids, and a repair that silently matches
+ * nothing is worse than no repair because it looks like one. Two nodes
+ * carrying the same label are adjusted together, which is right — the same
+ * text in the same size box breaks the same way.
+ *
+ * The loop is bounded by the font floor and returns the last conversion
+ * either way: where a word fits in no box mermaid's gaps can afford, the
+ * widest box at the smallest font is still the least bad picture.
+ * @param skeletons - Skeletons from `parseMermaidToExcalidraw`.
+ * @param convert - `convertToExcalidrawElements`.
+ * @returns Converted elements.
+ */
+const widenChoppedContainers = (skeletons: any[], convert: any): any[] => {
+  const base = JSON.stringify(skeletons);
+  const grown = new Set<string>();
+  const shrunk = new Map<string, number>();
+  const build = () => convert(JSON.parse(base).map((s: any) => {
+    const text = s.label?.text;
+    if (text === undefined) return s;
+    const out = { ...s, label: { ...s.label } };
+    if (grown.has(text) && out.width) out.width += IMPORT_WIDEN_CAP;
+    const size = shrunk.get(text);
+    if (size) out.label.fontSize = size;
+    return out;
+  }));
+  let converted = build();
+  const steps = 1 + Math.ceil(
+    (IMPORT_FONT_SIZE - IMPORT_FONT_FLOOR) / 2);
+  for (let pass = 0; pass < steps; pass++) {
+    const bad: string[] = converted.filter(choppedAWord)
+      .map((e: any) => e.originalText as string);
+    if (!bad.length) break;
+    for (const text of bad) {
+      if (!grown.has(text)) { grown.add(text); continue; }
+      shrunk.set(text, Math.max(
+        IMPORT_FONT_FLOOR, (shrunk.get(text) ?? IMPORT_FONT_SIZE) - 2));
+    }
+    converted = build();
+  }
+  return converted;
+};
+
 /** Where a marker sits so it hugs a shape's bottom-right EDGE.
  *
  * A rectangle fills its bounding box; a diamond and an ellipse do not, so
@@ -1328,9 +1420,10 @@ export default function App() {
           import("@excalidraw/excalidraw"),
         ]);
       const { elements: skeletons, files } = await parseMermaidToExcalidraw(def, {
-        themeVariables: { fontSize: "20px" },
+        themeVariables: { fontSize: `${IMPORT_FONT_SIZE}px` },
       });
-      const converted = convertToExcalidrawElements(skeletons as any);
+      const converted = widenChoppedContainers(
+        skeletons as any, convertToExcalidrawElements);
       if (!converted.length) throw new Error("the diagram converted to nothing");
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const e of converted) {
@@ -1338,15 +1431,37 @@ export default function App() {
         maxX = Math.max(maxX, e.x + (e.width || 0));
         maxY = Math.max(maxY, e.y + (e.height || 0));
       }
-      const c = sceneCenter();
-      const dx = Math.round(c.x - (minX + maxX) / 2);
-      const dy = Math.round(c.y - (minY + maxY) / 2);
+      // r5-10: land CLEAR of what is already drawn. The import used to
+      // centre on the viewport, which on any artifact you were looking
+      // at meant 36 shapes straight on top of the one you had open —
+      // "your paste landed directly on the Daily Run". Right of
+      // everything live, top-aligned with it, and the view follows.
+      const live = (apiRef.current?.getSceneElements() || [])
+        .filter((e: any) => !e.isDeleted);
+      let dx: number, dy: number;
+      if (live.length) {
+        let right = -Infinity, top = Infinity;
+        for (const e of live) {
+          right = Math.max(right, e.x + (e.width || 0));
+          top = Math.min(top, e.y);
+        }
+        dx = Math.round(right + IMPORT_GAP - minX);
+        dy = Math.round(top - minY);
+      } else {
+        const c = sceneCenter();
+        dx = Math.round(c.x - (minX + maxX) / 2);
+        dy = Math.round(c.y - (minY + maxY) / 2);
+      }
       const shifted = converted.map((e: any) => ({ ...e, x: e.x + dx, y: e.y + dy }));
       if (files && apiRef.current?.addFiles) apiRef.current.addFiles(Object.values(files));
       insertElements(shifted);
+      apiRef.current?.scrollToContent(shifted as any,
+        { fitToViewport: true, viewportZoomFactor: 0.85 });
       setMermaidOpen(false);
       setMermaidText("");
-      toast("Diagram imported — it's your drawing now; Save to record it.");
+      toast(live.length
+        ? "Diagram imported clear of what was already there — it's your drawing now; Save to record it."
+        : "Diagram imported — it's your drawing now; Save to record it.");
     } catch (e: any) {
       toast(`Mermaid import failed: ${e?.message || e}`);
     } finally {
