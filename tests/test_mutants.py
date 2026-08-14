@@ -2335,8 +2335,13 @@ class TestPaintOrder(unittest.TestCase):
         """The control task 44's split owes: backdrops did NOT come up.
 
         The pin above reads ids out of a sort; this reads the PICTURE,
-        and it is the pole that would have caught the lazy version of the
-        split (band every composed part up, or band the whole role up).
+        and it is the pole that fails if the split is done by lifting the
+        whole ROLE. It does not reach the other lazy variant — lifting
+        every `*_of`-tagged part — and should not be quoted as if it did:
+        this panel is an UNTAGGED `role: decoration`, so it stays in band
+        1 through that variant and this test passes. The pin above is
+        what catches that one, through its `w1` (`body_of`) member.
+
         The scene is `_backdrop_scene`'s covering pole — an opaque
         decoration panel declared AFTER the connector it is meant to sit
         behind, which is the arrangement layout.md prescribes for

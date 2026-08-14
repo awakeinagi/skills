@@ -947,17 +947,25 @@ class TestComposedContentVisibility(unittest.TestCase):
         """The flipped red's magnitude, measured rather than inferred.
 
         This is what the red's own red-by-measurement guard became when
-        task 44 flipped it, and it is here for the same reason the guard
-        was: the red asserts `ablation_findings(...) == []`, and silence
-        is what you also get from a scene with no `k1-value` in it at
-        all. `ablation_existence` cannot fire on an element that was
-        never composed, so a `make_element` that stopped emitting the
-        value row would turn the red vacuously green. The guard used to
-        pin the defect's magnitude at 0 px of ablation ink; this pins the
-        fix's, and it is deliberately the SAME number the
-        transparent-owner neighbour reads (309 px, 2026-08-14) — same
-        string, same font, same size, so an opaque fill now costs the
-        value nothing at all.
+        task 44 flipped it, and the job it does now is a different one.
+        The guard's original job is gone: it existed because
+        `@unittest.expectedFailure` swallows ERRORS as well as failures
+        (skill doctrine §6), and dropping that marker is what removed the
+        hazard — the red reports its own breakage now, including a
+        composition that stopped emitting `k1-value` at all, which makes
+        `ablation_existence` fire on the missing id and the red FAIL.
+
+        What the red cannot see is DEGRADATION. It asserts silence, and
+        silence is the answer for a value that is in the picture at all,
+        however little of it: a font-size or clipping regression that
+        left 100 px of the 309 showing keeps the red green and fails only
+        here. Magnitude is this test's whole contribution, and the number
+        moved rather than the purpose — the guard pinned the defect's
+        magnitude at 0 px of ablation ink, this pins the fix's. It is
+        deliberately the SAME number the transparent-owner neighbour
+        reads (309 px, 2026-08-14), same string, same font, same size, so
+        the pair together says an opaque fill costs the value nothing at
+        all.
         """
         ink = _element_ink(_kpi_tile("#e9e5da"), "k1-value", self.workdir)[0]
         self.assertAlmostEqual(
