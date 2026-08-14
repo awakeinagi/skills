@@ -1710,8 +1710,8 @@ class TestExportCompleteness(unittest.TestCase):
             "model, it widens the bounds, it is not in the picture")
 
 
-def _annotation_at(corner_clear: bool) -> list[dict]:
-    """A circle and an annotation, in its empty bbox corner or on its body.
+def _annotation_at(corner_clear: bool, roled: bool = True) -> list[dict]:
+    """A circle and a text, in its empty bbox corner or on its body.
 
     The circle is 400x400 at (300,250) — centre (500,450), r=200 — so the
     bounding box corner is 82.8px deep, wide enough to park a readable
@@ -1719,18 +1719,28 @@ def _annotation_at(corner_clear: bool) -> list[dict]:
     At (302,252) the 70x24 annotation's nearest point is 16.0px clear of
     the circle; at (460,420) it lies across the body, 194px inside.
 
+    `roled` is the ONE base scene both arms of the role-blind loop share
+    (curator batch 19, 2026-08-14). The loop measures the same rectangle
+    intersection for either, and the role only picks which sentence comes
+    out, so giving each arm its own circle would have invited the two
+    scenes to drift apart on a geometry that has to stay identical for
+    the pair to say anything.
+
     Args:
-        corner_clear: True to park the annotation in the empty corner.
+        corner_clear: True to park the text in the empty corner.
+        roled: True for `role="annotation"` (the `annotation_overlaps_node`
+            voice), False for an unroled text — which is what a pasted
+            text arrives as, and what `text_overlaps_node` answers about.
 
     Returns:
-        The two-element scene: circle `n1`, then annotation `t1`.
+        The two-element scene: circle `n1`, then text `t1`.
     """
     tx, ty = (302, 252) if corner_clear else (460, 420)
     return [el(id="n1", type="ellipse", x=300, y=250, width=400, height=400,
                customData={"role": "node"}),
             el(id="t1", type="text", x=tx, y=ty, width=70, height=24,
                text="see note", fontSize=16,
-               customData={"role": "annotation"})]
+               customData={"role": "annotation"} if roled else {})]
 
 
 def _arrow_label_at(corner_clear: bool) -> list[dict]:
@@ -1772,7 +1782,16 @@ def _arrow_label_at(corner_clear: bool) -> list[dict]:
 
 
 def _says_lies_on(scene: list[dict]) -> list[str]:
-    """Lint warnings claiming a text sits on a node.
+    """Lint warnings claiming a text sits on a node, in any of three voices.
+
+    One phrase per template, and all three are FIXED prose rather than
+    the detector regexes: an over-firing arm on a scene where the text is
+    clear computes a NEGATIVE overlap and says "-40x20px of overlap
+    (-800px²)", and `_TEXT_ON_NODE_RE` reads its magnitude as a bare digit
+    run, which cannot match a leading minus. Filtering through the regex
+    would compare `[] == []` and pass over exactly the failure these reds
+    exist to catch — the lesson the Task 23 review paid for next door in
+    `TestTextOverlapAndClearanceQuietHalves`.
 
     Args:
         scene: The scene to lint.
@@ -1782,7 +1801,8 @@ def _says_lies_on(scene: list[dict]) -> list[str]:
     """
     lint = canvas.lint_layout(scene, artifact_type="flow")
     return [w for w in lint["warnings"]
-            if "lies on top" in w or "lands on" in w]
+            if "lies on top" in w or "lands on" in w
+            or "nothing marks it as belonging there" in w]
 
 
 class TestShapeBlindAnnotationOverlap(unittest.TestCase):
@@ -1796,17 +1816,29 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
     entry lands. Read as lint text instead, which needs no registry.
 
     `annotation_overlaps_node` acquired an entry on 2026-08-14 (v0.9 WP4
-    Task 23, as the other pole of the role gate) and could now be moved
-    into `CATALOGUE` as a proper over-fire mutant. It stays here anyway,
-    for now: the two reds below share one base defect and one paragraph
-    of explanation, and splitting them across two homes would cost that
-    reading for no coverage. Logged for the curator, not silently kept.
+    Task 23, as the other pole of the role gate), and `text_overlaps_node`
+    with it, so two of the three reds below COULD now be `CATALOGUE`
+    over-fire mutants. CURATOR RULING, batch 19, 2026-08-14: they stay
+    here, and the reason is now stronger than "one paragraph". The
+    family may not be split across two homes, because the third red
+    pins `label_on_foreign_node`, which has no `DETECTORS` entry and
+    therefore CANNOT move — a `Silence` on an unregistered check passes
+    vacuously. Moving the two that can would leave a three-arm family
+    with two homes, one of them holding the arm most likely to be
+    forgotten by a fix. The cost is real and is accepted knowingly: these
+    three get no dedupe fingerprint and no `Silence`-over-crash refusal.
+    A crash is still caught, by the ungated liveness partner each red is
+    paired with below.
 
-    Both checks get their OWN red, over their own scene. They share a
-    defect but not a code path — one reads a text's stored box, the other
-    resolves a bound label through `arrow_label_anchor` first — so a fix
-    can land on one and miss the other, and one red covering both would
-    stay red and say nothing about which.
+    Each check gets its OWN red, over its own scene, and that per-arm
+    shape IS the batch-19 constraint rather than a departure from it: a
+    partial `marker_inset` fix cannot turn this family green, because
+    whichever arm it teaches turns that arm's red into an UNEXPECTED
+    SUCCESS — a hard failure that names the flip — while the arms it did
+    not teach stay red. One red covering all three would stay red and say
+    nothing about which. The three do not share a code path: the two
+    overlap arms read a text's stored box (one loop, `lint_layout`), the
+    label arm resolves a bound label through `arrow_label_anchor` first.
     """
 
     def test_an_annotation_on_the_body_is_reported(self) -> None:
@@ -1835,14 +1867,56 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
         drawn shape — the geometry is already in canvas.py as
         `marker_inset` (4200).
 
-        This method pins `annotation_overlaps_node` ONLY; its sibling has
-        its own red below, because a fix could teach one and not the
-        other.
+        This method pins `annotation_overlaps_node` ONLY; its two
+        siblings have their own reds below, because a fix could teach one
+        and not the others.
         """
         self.assertEqual(
             _says_lies_on(_annotation_at(corner_clear=True)), [],
             "the annotation is 16px clear of the circle and reported as "
             "on it")
+
+    def test_an_unroled_text_on_the_body_is_reported(self) -> None:
+        """The role-blind arm fires where it should, and its red needs it to.
+
+        Without this, a `lint_layout` that stopped measuring unroled
+        texts — which is precisely the state Task 23 found it in — would
+        turn the red below green and read as a fix.
+        """
+        self.assertTrue(
+            _says_lies_on(_annotation_at(corner_clear=False, roled=False)))
+
+    @unittest.expectedFailure
+    def test_red_unroled_text_clear_of_a_circle_is_reported_as_on_it(
+            self) -> None:
+        """An UNROLED text 16px clear of the circle is called an overlap.
+
+        Curator batch 19, from the Task 23 report §8 item 1 and the
+        review's standing instruction, 2026-08-14. Task 23 made the
+        text/node loop role-blind — the right fix, and it multiplied this
+        bug's reach at the same time. The loop measures `ox`/`oy` as a raw
+        rectangle intersection BEFORE it consults the role, so the
+        blindness the red above pins for annotations now applies to every
+        unroled text on the canvas, which is what a pasted text is. Same
+        void, same 16.0px of clear space, same fabricated area (1680px²);
+        the only thing that changes is which voice fabricates it:
+
+            annotation t1 ('see note') lies on top of n1 — 70x24px …
+            text t1 ('see note') covers n1 — 70x24px …
+
+        Pinned as its own method rather than folded into the red above
+        BECAUSE the two share that code path. A fix that put the shape
+        term inside the `trole == "annotation"` branch instead of ahead of
+        the role test would flip that red, look complete, and leave every
+        unroled text exactly as blind — so the family is only green when
+        both arms have been taught. Flips when the loop tests the drawn
+        shape: `marker_inset`/`shape_norm` (canvas.py) already return
+        1-1/sqrt(2) and the ellipse's L2 norm, and neither is called here.
+        """
+        self.assertEqual(
+            _says_lies_on(_annotation_at(corner_clear=True, roled=False)), [],
+            "the text is 16px clear of the circle and reported as covering "
+            "it, with 1680px² of overlap that is not there")
 
     def test_an_arrow_label_on_the_body_is_reported(self) -> None:
         """The label arm fires where it should, and its red needs it to."""
@@ -7484,6 +7558,38 @@ def _near_miss_pair(gap: float) -> list[dict]:
                height=60, customData={"role": "node"})]
 
 
+def _clearance_pair_shaped(kind: str) -> list[dict]:
+    """Two 100x100 shapes whose BOXES clear by 4px, offset down by 80.
+
+    The offset is the whole scene. Side by side at the same `y`, a
+    rhombus pair's facing vertices are 4px apart too and the check would
+    be right; stagger the second shape by 80 and the two drawn outlines
+    part company while the bounding boxes do not. Across the entire
+    shared band (y 80..100, 20px of it, comfortably over `CLEARANCE_BAND`)
+    the facing facets run parallel and exactly 84px apart — verified with
+    `shape_norm`, which reads 1.000 on both boundary points at y=80, 90
+    and 100. The two boxes still clear by 4.
+
+    A separate builder from `_near_miss_pair` on purpose: that scene is
+    aligned, box-filling and minimized against a different confound
+    (`offgrid_elements`), and its geometry is load-bearing for
+    `near_miss_clearance`'s magnitude. This one needs a shape and a
+    stagger, which are the two things that scene must not have.
+
+    Args:
+        kind: The Excalidraw type for both shapes — `"diamond"` for the
+            defect, `"rectangle"` for the control, and nothing else is
+            varied between them.
+
+    Returns:
+        The two-element scene: nodes `n1` and `n2`.
+    """
+    return [el(id="n1", type=kind, x=0, y=0, width=100, height=100,
+               customData={"role": "node"}),
+            el(id="n2", type=kind, x=104, y=80, width=100, height=100,
+               customData={"role": "node"})]
+
+
 def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
                   font_size: int = 16) -> list[dict]:
     """A node and a free text on the ground, styled to order.
@@ -7829,8 +7935,8 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 after Task 21, `mutants list --red` reports 8 while
-# this file carries 15 expectedFailure methods. The seven outside live
+# re-measured 2026-08-14 after curator batch 19, `mutants list --red` reports
+# 7 while this file carries 15 expectedFailure methods. The eight outside live
 # in the three classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
@@ -7844,7 +7950,11 @@ def _label_pair_stage() -> list[dict]:
 # `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
 # export is never measured against the drawing — so the suite's default line
 # reads `expected failures=16` against the 15 counted here. The two numbers
-# are meant to differ by exactly that.
+# are meant to differ by exactly that. (16 and 15 also happened to be the
+# reading before Task 23; they are not the same 16 and 15. That task flipped
+# two and curator batch 19 added two, once on each side of the CATALOGUE
+# boundary — which is a fair warning that matching totals prove nothing here
+# and only the split is worth reading.)
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
@@ -8323,6 +8433,40 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _near_miss_pair(gap=60),
                         Silence("min_clearance"))))
 
+# Shape-blindness, instance SIX — the newest check inherits the oldest bug
+# (curator batch 19, from the Task 23 report §8 item 3, 2026-08-14). The
+# check landed on 2026-08-14 and was shape-blind the same day: it reads
+# `ox`/`oy` off stored bounding boxes, so it says "only 4px apart" about a
+# rhombus pair whose drawn facets never come within 84px of each other,
+# and it says it in the same words it uses for two boxes that really are
+# touching. This is the OVER-FIRE pole of `near_miss_clearance` directly
+# above — that entry proved the check speaks, this one asks whether it
+# speaks about the picture — and it is the crowding half of the family
+# whose overlap half `TestShapeBlindAnnotationOverlap` holds.
+#
+# It gets its own entry rather than a rider on the diamond endpoint
+# mutants for the reason those got one from the ellipse: WP4's shape
+# clipping went into `_seg_hits_rect` and `marker_inset`'s callers, and
+# `lint_layout`'s pair loop calls neither. A fix that taught every ARROW
+# check about rhombus edges and stopped could go green with node-to-node
+# spacing exactly as blind as it is today.
+#
+# No magnitude to assert, because the correct reading is nothing at all:
+# 84px of clear ground is a layout, not a slip, and the pole is silence.
+# The neighbour carries the number. It is the SAME builder with `kind`
+# switched to rectangle — boxes that fill their boxes, where 4px stored
+# really is 4px drawn — so the pair is a single-variable experiment on
+# the shape term, and a fix that suppressed the check wholesale satisfies
+# this mutant and fails that control.
+_register(Mutant(
+    "diamond_clearance_overfire",
+    build=lambda: _clearance_pair_shaped("diamond"),
+    op="unchanged", args={},
+    expect=Silence("min_clearance"),
+    neighbour=Neighbour(lambda: _clearance_pair_shaped("rectangle"),
+                        FindingSpec("min_clearance", element="n2",
+                                    magnitude=(4, 0.33)))))
+
 # Legibility — three RED BY ABSENCE mutants over one base scene
 # (docs/todo/contrast-and-min-font-lints.md, user-directed 2026-08-12;
 # independently corroborated by the excalidraw-mcp mine O4/M5). Ops allow
@@ -8698,6 +8842,25 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_near_miss_clearance(self) -> None:
         """A generous gap is silent, and now on the check that could speak."""
         self._run_neighbour("near_miss_clearance")
+
+    @unittest.expectedFailure
+    def test_mutant_diamond_clearance_overfire(self) -> None:
+        """Two rhombi 84px of clear ground apart are called 4px apart."""
+        # The crowding arm measures stored boxes, so a shape that does
+        # not fill its box is reported on geometry nobody drew. Flips
+        # when the pair loop clips to the outline `marker_inset` and
+        # `shape_norm` already describe.
+        self._run("diamond_clearance_overfire")
+
+    def test_neighbour_diamond_clearance_overfire(self) -> None:
+        """The same two boxes as rectangles really are 4px apart, and are told.
+
+        Single-variable against the mutant: identical ids, coordinates
+        and extents, `kind` the only difference. A fix that silenced the
+        check rather than teaching it about shapes passes the mutant and
+        fails here.
+        """
+        self._run_neighbour("diamond_clearance_overfire")
 
     @unittest.expectedFailure
     def test_mutant_gray_text_on_ground(self) -> None:
@@ -9154,7 +9317,15 @@ UNCOVERED: dict[str, str] = {
     # dependency underneath it and `stale_label_width_hides_collision` now
     # proves it from DETECTORS, both poles.)
     "label_on_foreign_node":
-        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout. "
+        "Sharpened by curator batch 19, 2026-08-14: a red DOES pin it "
+        "(TestShapeBlindAnnotationOverlap's arrow-label arm), but that red "
+        "asserts the OVER-FIRE pole — it says the check speaks where it "
+        "should not. Nothing has ever watched it speak where it should, "
+        "with a magnitude, which is what this row means and why the red "
+        "does not drain it. Draining it needs a DETECTORS entry first, and "
+        "that is also the one thing keeping the three-arm shape-blindness "
+        "family in one hand-authored class instead of CATALOGUE.",
     # (`annotation_overlaps_node`, canvas.py, left this table on 2026-08-14:
     # `unroled_text_over_node`'s neighbour now proves it from DETECTORS with
     # a magnitude, over the same geometry the mutant itself uses. It is the
@@ -9296,7 +9467,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestLoadFindingsReachTheAgent": 4,
-                             "TestShapeBlindAnnotationOverlap": 2}
+                             "TestShapeBlindAnnotationOverlap": 3}
 
 # The one class whose reds ARE catalogue entries, excluded from the
 # comparison above. Named rather than inlined so a rename of the class shows

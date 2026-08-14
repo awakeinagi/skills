@@ -64,13 +64,14 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-14
-after curator batch 18 (which added the wrapped-text bottom-overrun red the
-Task 22 cycle turned up; Task 22 itself flipped the centered-label clip, so
-the render count went 4 → 3 → 4 and only the membership changed):
+after curator batch 19 (Task 23 flipped `unroled_text_over_node` and
+`near_miss_clearance`, taking the model count 16 → 14; batch 19 then added
+two, one on each side of the CATALOGUE boundary, taking it back to 16 — the
+total is a coincidence, only the split is worth reading):
 **16 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
-`expected failures=16` default and `=20` under `MUTANTS_RENDER=1`. That splits as 8 catalog reds (`mutants list --red` is
-authoritative) plus **8 non-catalog reds across four guarded classes** —
-LoadFindings 4, ShapeBlind 2, BatchPath 1, and `TestSnapshotTierOne` 1,
+`expected failures=16` default and `=20` under `MUTANTS_RENDER=1`. That splits as 7 catalog reds (`mutants list --red` is
+authoritative) plus **9 non-catalog reds across four guarded classes** —
+LoadFindings 4, ShapeBlind 3, BatchPath 1, and `TestSnapshotTierOne` 1,
 the last living in `tests/test_backend.py` rather than with the others —
 enumerated with reasons at the `CATALOGUE` pointer in tests/test_mutants.py.
 Export, Store and PaintOrder have all drained to zero and left that list.
@@ -78,12 +79,18 @@ Each red
 seeds a known defect and asserts what the detector *should* say, so v0.9 has
 an executable definition of done. **Drain them to zero, flipping each in the
 same change as its fix** — an unexpected success IS the signal. Never delete
-a mutant to get green. `ASPIRATIONAL` holds 7 checks awaiting their lints
+a mutant to get green. `ASPIRATIONAL` holds 5 checks awaiting their lints
 (each flip must add a real other-pole neighbor). The **shape-blindness
-family is at FIVE pinned instances** (endpoint lint, `_seg_hits_rect`
-diamond + ellipse, `fit_label_in`, the text/node bbox checks); WP4's one
+family is at SIX pinned instances** (endpoint lint, `_seg_hits_rect`
+diamond + ellipse, `fit_label_in`, the text/node bbox checks — now three
+arms, annotation, unroled text and arrow label — and, since curator batch
+19, `min_clearance`, which reads stored boxes and calls two rhombi 84px
+apart "only 4px apart"); WP4's one
 inscribed-shape primitive addresses all of them, and is not done until the
-ellipse and label-arm mutants flip too. The dedupe-by-defect guard protects
+ellipse, label-arm and crowding mutants flip too. The clipping so far has
+gone into `_seg_hits_rect` and `marker_inset`'s callers, and `lint_layout`'s
+text loop and shape pair loop call neither — which is exactly why those two
+have their own pins. The dedupe-by-defect guard protects
 the catalog against same-defect-different-id collisions; the non-catalog
 classes are defended by file-section convention + reviewer vigilance (id
 prefixes REJECTED — they disarm the duplicate-id guard). Structural notes for
@@ -96,25 +103,33 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- **Seven of the eight catalog reds are ASPIRATIONAL** (re-measured
+- **Five of the seven catalog reds are ASPIRATIONAL** (re-measured
   2026-08-14): they flip when their LINTS land, not when any existing code
   changes, and each flip must give its mutant a real other-pole neighbor.
   One per aspirational check, exactly — `framed_node_escapes_its_lane`
   (`frame_containment`), `gray_text_on_ground` (`contrast_text`),
-  `near_miss_clearance` (`min_clearance`), `pale_stroke_node`
+  `pale_stroke_node`
   (`contrast_object`), `phantom_passthrough_shared_attach`
-  (`phantom_passthrough`, WP4b e1), `tiny_font_text` (`min_font`),
-  `unroled_text_over_node` (`text_overlaps_node`). The eighth,
-  `long_run_curve_hides_bidi` (`false_bidi`), is the only catalog red
-  against a check that already ships. Neighbor quality differs in kind and
+  (`phantom_passthrough`, WP4b e1), `tiny_font_text` (`min_font`).
+  (`near_miss_clearance`/`min_clearance` and
+  `unroled_text_over_node`/`text_overlaps_node` were the sixth and seventh
+  until Task 23 landed both lints and flipped both.) The other two,
+  `long_run_curve_hides_bidi` (`false_bidi`) and `diamond_clearance_overfire`
+  (`min_clearance`), are catalog reds
+  against checks that already ship — the second is a check Task 23 shipped
+  the same day, over-firing on shapes that do not fill their bounding box.
+  Neighbor quality differs in kind and
   the distinction is worth keeping: phantom's silence is *contingent* (the
   same builder with a shared attach point fires the borrowed
   `shared_corridor` check, so the quiet is evidence about the picture),
   where a liveness-only neighbor is merely *structural*.
-- The **shape-blindness family** now has three pinned instances: the endpoint
-  lint (bbox corners), `_seg_hits_rect` (over-fire), and `fit_label_in`
-  (labels sized to the bbox overflow the inscribed diamond by a measured
-  11px). Same root cause; WP4's one clipping primitive addresses all three.
+- The **shape-blindness family** count above (six) supersedes an older
+  three-instance sentence that stood here — the endpoint lint (bbox
+  corners), `_seg_hits_rect` (over-fire) and `fit_label_in` (labels sized to
+  the bbox overflow the inscribed diamond by a measured 11px) were the first
+  three. Same root cause throughout; one clipping primitive addresses all
+  six, but it has to be CALLED from each site, which is what the per-site
+  pins measure.
 
 Catalog reds, transcribed from live `mutants list --red` on 2026-08-14 —
 **re-run it rather than trusting this table**, which is exactly the kind of
@@ -123,7 +138,7 @@ eight had already flipped):
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `long_run_curve_hides_bidi`, `near_miss_clearance`, `pale_stroke_node`, `phantom_passthrough_shared_attach`, `tiny_font_text`, `unroled_text_over_node` |
+| model (default suite) | `diamond_clearance_overfire`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `long_run_curve_hides_bidi`, `pale_stroke_node`, `phantom_passthrough_shared_attach`, `tiny_font_text` |
 | render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom`, `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner` |
 
 The render row is `@unittest.expectedFailure` method names rather than
