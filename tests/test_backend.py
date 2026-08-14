@@ -5881,6 +5881,140 @@ class TestArrowLabelAnchor(Base):
         self.assertTrue(any("overlap" in w and "labels" in w
                             for w in warns), warns)
 
+    def two_labels(self, pts_b, bx=0, by=0):
+        """A balanced 200+200 elbow plus a second arrow, both labelled.
+
+        Args:
+            pts_b: The second arrow's points, in its own coordinates.
+            bx: The second arrow's x origin.
+            by: The second arrow's y origin.
+
+        Returns:
+            The element list, labels already re-centred.
+        """
+        els = [{"id": "a1", "type": "arrow", "x": 0, "y": 0, "width": 0,
+                "height": 0, "points": [[0, 0], [200, 0], [200, 200]],
+                "startBinding": {}, "endBinding": {}},
+               {"id": "a1-label", "type": "text", "x": -999, "y": -999,
+                "width": 60, "height": 20, "text": "lblA",
+                "originalText": "lblA", "containerId": "a1"},
+               {"id": "a2", "type": "arrow", "x": bx, "y": by, "width": 0,
+                "height": 0, "points": pts_b,
+                "startBinding": {}, "endBinding": {}},
+               {"id": "a2-label", "type": "text", "x": -999, "y": -999,
+                "width": 60, "height": 20, "text": "lblB",
+                "originalText": "lblB", "containerId": "a2"}]
+        canvas.recenter_label(els, els[0])
+        canvas.recenter_label(els, els[2])
+        return els
+
+    def overlaps(self, els):
+        """The label↔label warnings a scene produces.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The matching warning strings.
+        """
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        return [w for w in warns if "labels" in w and "overlap" in w]
+
+    def test_labels_clear_in_both_channels_are_silent(self):
+        """F11: never pair one label's canvas box with another's export.
+
+        Two balanced 200+200 elbows offset in x, each with a 60x20
+        label. Both labels are at their anchors on the canvas and both
+        at their slots in the export, so those are the only two
+        configurations that exist; at these offsets the labels miss each
+        other by 2px and 10px in BOTH of them. The cross product the
+        two-position rewrite shipped also paired A's canvas box with B's
+        export box — a 38px stagger apart — and read 36px and 28px of
+        overlap off a screen nobody will ever see, so a drawing that is
+        clear everywhere was told to nudge one clear. Silent on the
+        corpus, so this was a hole opened rather than a fixture broken
+        (task 19 re-review, F11).
+        """
+        for d in (62, 70):
+            els = self.two_labels([[0, 0], [200, 0], [200, 200]], bx=d)
+            a_anchor = canvas.arrow_label_anchor(els[0], els[1])[0]
+            b_anchor = canvas.arrow_label_anchor(els[2], els[3])[0]
+            a_slot = canvas.arrow_label_slot(els[0], els[1])[0]
+            b_slot = canvas.arrow_label_slot(els[2], els[3])[0]
+            # the premise: clear in each channel on its own, and the two
+            # channels really are staggered, or this proves nothing
+            self.assertLess(a_anchor + 60, b_anchor, d)
+            self.assertLess(a_slot + 60, b_slot, d)
+            self.assertGreater(a_anchor - a_slot, 30, d)
+            self.assertEqual(self.overlaps(els), [], d)
+
+    def test_a_same_channel_overlap_still_fires(self):
+        # control for the above: the same two elbows, close enough that
+        # the labels collide in both channels at once
+        self.assertTrue(
+            self.overlaps(self.two_labels([[0, 0], [200, 0], [200, 200]],
+                                          bx=20)))
+
+    def test_an_overlap_on_the_canvas_alone_fires(self):
+        # a straight arrow's label sits at one position in both
+        # channels, placed over the elbow label's ANCHOR only — visible
+        # to the user, invisible in every export
+        self.assertTrue(self.overlaps(
+            self.two_labels([[0, 0], [200, 0]], bx=130)))
+
+    def test_an_overlap_in_the_export_alone_fires(self):
+        # the mirror: over the elbow label's SLOT only, so the collision
+        # is in the snapshot the agent takes and not on the user's screen
+        self.assertTrue(self.overlaps(
+            self.two_labels([[0, 0], [200, 0]], bx=30)))
+
+    def geometry_row(self, pts):
+        """The `x-geometry --diff` row for one elbow's bound label.
+
+        Args:
+            pts: The arrow's points, in its own coordinates.
+
+        Returns:
+            The single printed row.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "c", "concept_name": "C"}, "ops": []})
+        arrow, text = self.elbow("lbl", pts)
+        canvas.recenter_label([arrow, text], arrow)
+        self.store.commit(author="agent", new_scenes={"f": [arrow, text]},
+                          base_revn=self.store.head_revn())
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas.cmd_x_geometry(argparse.Namespace(
+                project=self.tmp, artifact="f", diff=True))
+        rows = buf.getvalue().splitlines()
+        self.assertEqual(len(rows), 1, rows)
+        return rows[0]
+
+    def test_x_geometry_prints_both_positions_when_they_differ(self):
+        """F12: the `drawn=` column named a position no snapshot shows.
+
+        `render_svg` paints text at its stored x/y, so every export and
+        every headless look shows the SLOT, while this column is derived
+        from the canvas anchor. On a biased label those are up to 49px
+        apart, and the agent comparing the number against the picture it
+        just took would find them disagreeing with no way to tell why.
+        Both, or the column lies by omission (task 19 re-review, F12).
+        """
+        row = self.geometry_row([[0, 0], [200, 0], [200, 200]])
+        self.assertIn("drawn=(170,-10)", row)     # the canvas anchor
+        self.assertIn("export=(132,-10)", row)    # the stored slot
+        self.assertIn("drift=38px", row)
+
+    def test_x_geometry_names_one_position_when_they_agree(self):
+        # the silent half: a straight arrow needs no bias, so the two
+        # channels coincide and the row must not imply a divergence
+        row = self.geometry_row([[0, 0], [200, 0]])
+        self.assertIn("drawn=(70,-10)", row)
+        self.assertNotIn("export=", row)
+
     def test_svg_paints_a_backing_under_an_arrow_label(self):
         arrow, text = self.elbow("scored by", [[0, 0], [300, 0]])
         canvas.recenter_label([arrow, text], arrow)

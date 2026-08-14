@@ -5823,10 +5823,14 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
             lh = fs * (e.get("lineHeight") or 1.25)
-            # a label bound to an arrow rides its stroke (v0.6 — see
-            # arrow_label_anchor). The client breaks the arrow behind it;
-            # this renderer has no such notion, so paint the ground back
-            # in or the export shows a line struck through its own label.
+            # a label bound to an arrow rides its stroke (v0.6). This
+            # paints at the STORED coordinate, so the position under this
+            # backdrop is `arrow_label_slot` and not `arrow_label_anchor`
+            # — those are two functions since v0.9 WP4 and this renderer
+            # is the reason the second one exists. The client breaks the
+            # arrow behind the label; this renderer has no such notion, so
+            # paint the ground back in or the export shows a line struck
+            # through its own label.
             if arrow_ids and e.get("containerId") in arrow_ids:
                 twid = max(text_dims(ln2, fs)[0] for ln2 in lines) \
                     if lines else 0
@@ -6346,15 +6350,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # F6). `crosses_through_bound`'s `lint_re` was widened
                 # to accept this second opening instead.
                 #
-                # The magnitude is the SUM in both wordings while the
-                # wording and the tier come from `run` alone. A path
-                # with both an interior run and an on-border run would
-                # therefore report the interior sentence over a total —
-                # deliberate, since the interior half is the more severe
-                # reading and a message quoting only part of what is
-                # drawn on the box would understate it. Not reachable
-                # today: the walk's `far > 1` break ends it first, and
-                # the review could not construct a mixed case.
+                # The wording and the tier come from `run` alone, and the
+                # interior sentence quotes the SUM. A path with both an
+                # interior run and an on-border run would therefore
+                # report the interior sentence over a total — deliberate,
+                # since the interior half is the more severe reading and
+                # a message quoting only part of what is drawn on the box
+                # would understate it. The on-border sentence prints
+                # `on_border` because it is only reached with `run` at
+                # zero, where the two are the same number. Neither case
+                # is reachable together today: the walk's `far > 1` break
+                # ends it first, and the review could not construct a
+                # mixed case.
                 if run:
                     msg = ("arrow %s enters %s and runs %dpx inside it "
                            "before stopping (%s point) — it reads as "
@@ -6851,24 +6858,45 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     ix_all = {e["id"]: e for e in els}
 
     def label_boxes(t):
-        """Every rect a label occupies, as `[(x1, y1, x2, y2), ...]`."""
+        """A label's rect in each CHANNEL, canvas first then export.
+
+        Always two rects, `[(x1, y1, x2, y2), (x1, y1, x2, y2)]`, and the
+        index is the channel: `[0]` is what the client paints, `[1]` what
+        the export and every snapshot show. They are equal for anything
+        but a bound arrow label, which is the only element whose drawn
+        and stored positions can differ.
+
+        Args:
+            t: The bound text element.
+
+        Returns:
+            `[canvas_rect, export_rect]` as `(x1, y1, x2, y2)` pairs.
+        """
         cont = ix_all.get(t.get("containerId"))
         if cont is not None and cont.get("type") in ("arrow", "line"):
-            spots = {arrow_label_anchor(cont, t), arrow_label_slot(cont, t)}
+            spots = (arrow_label_anchor(cont, t), arrow_label_slot(cont, t))
         else:
-            spots = {(t["x"], t["y"])}
+            spots = ((t["x"], t["y"]), (t["x"], t["y"]))
         return [(x, y, x + t.get("width", 0), y + t.get("height", 0))
-                for x, y in sorted(spots)]
+                for x, y in spots]
 
     bound_labels = [e for e in els if e.get("type") == "text"
                     and e.get("containerId")]
     boxes = {t["id"]: label_boxes(t) for t in bound_labels}
     for i_, la in enumerate(bound_labels):
         for lb in bound_labels[i_ + 1:]:
+            # WITHIN a channel, never across: `zip` and not the cross
+            # product. On the canvas both labels are at their anchors and
+            # in the export both are at their slots, so (A drawn, B
+            # stored) describes a configuration that exists on no screen
+            # — the channel-pairing form of the per-box rule spelled out
+            # below. The cross product fired on two 200+200 elbows 62px
+            # apart whose labels miss each other by 2px in BOTH channels
+            # (task 19 re-review, F11).
             if any(min(ax2, bx2) - max(ax1, bx1) > 6 and
                    min(ay2, by2) - max(ay1, by1) > 4
-                   for ax1, ay1, ax2, ay2 in boxes[la["id"]]
-                   for bx1, by1, bx2, by2 in boxes[lb["id"]]):
+                   for (ax1, ay1, ax2, ay2), (bx1, by1, bx2, by2)
+                   in zip(boxes[la["id"]], boxes[lb["id"]])):
                 warnings.append(
                     "labels %r and %r overlap — nudge one clear"
                     % ((la.get("text") or "")[:24],
@@ -13070,7 +13098,17 @@ def cmd_x_geometry(args):
     the wrong one is how a label sitting inside a foreign box linted
     clean for a whole session — then how the assessor's own hand-rolled
     remeasurement produced two confident false overlaps. Derive it from
-    the same helper the renderer and the lints use, or don't derive it.
+    the helpers the renderer and the lints use, or don't derive it.
+
+    Since v0.9 WP4 there are TWO of those helpers, not one:
+    `arrow_label_anchor` is the canvas position and `arrow_label_slot`
+    the stored one that `render_svg` paints, so a biased label is drawn
+    up to 49px apart in the two channels. Printing only the canvas
+    number would name a position the agent cannot see in any snapshot it
+    takes (task 19 re-review, F12). So `drawn=` stays the canvas
+    position and an `export=` pair joins it whenever the two differ;
+    where they agree — every label on a straight arrow, and every elbow
+    unbalanced enough to need no bias — the row is unchanged.
 
     Args:
         args: Parsed CLI args — `project`, `artifact`, `diff`.
@@ -13089,11 +13127,12 @@ def cmd_x_geometry(args):
     ix = {e["id"]: e for e in els}
     for e in els:
         cont = ix.get(e.get("containerId"))
-        drawn = None
+        drawn = slot = None
         wrap_note = None
         if e.get("type") == "text" and cont is not None and \
                 cont.get("type") in ("arrow", "line"):
             drawn = arrow_label_anchor(cont, e)
+            slot = arrow_label_slot(cont, e)
         if e.get("type") == "text" and e.get("autoResize") is False:
             # WP4 (r4-12): composed value texts were silently out of this
             # command's scope — x-geometry printed NOTHING about the '62'
@@ -13110,7 +13149,14 @@ def cmd_x_geometry(args):
             e.get("width", 0), e.get("height", 0))
         if drawn is not None:
             dx = ((e["x"] - drawn[0]) ** 2 + (e["y"] - drawn[1]) ** 2) ** 0.5
-            row += "  drawn=(%d,%d) drift=%dpx" % (drawn[0], drawn[1], dx)
+            here, there = ("(%d,%d)" % tuple(drawn), "(%d,%d)" % tuple(slot))
+            # compared as PRINTED: a sub-pixel bias the row cannot show
+            # would otherwise emit two identical pairs and read as a
+            # divergence that is not there
+            row += "  drawn=" + here
+            if there != here:
+                row += " export=" + there
+            row += " drift=%dpx" % dx
         if wrap_note:
             row += "  " + wrap_note
         print(row)
