@@ -2263,6 +2263,14 @@ def _route_candidates(src, dst):
     # drop down the border, and being both the shortest and the least
     # bent candidate it wins outright. A point ON the border is fine —
     # every endpoint is one; what is refused is TRAVELLING along it.
+    #
+    # Axis-aligned segments only, while the LINT's measure goes through
+    # `shape_clip` and so also sees a diagonal lying along a diamond's
+    # facet. The asymmetry is the safe one — the measure is broader than
+    # the producer's filter, so nothing this emits escapes notice — and
+    # it is bounded by the fact that every candidate built above is
+    # orthogonal (task 19 review, F9). A diagonal-emitting router would
+    # need this widened to match.
     def flat_on_border(p, q, x1, y1, x2, y2):
         if abs(p[0] - q[0]) <= 0.5 and min(abs(p[0] - x1),
                                            abs(p[0] - x2)) <= 0.5:
@@ -2762,27 +2770,54 @@ def _label_off_corner(arrow, label, segs, mx, my):
     """Slide a label's anchor until no turn sits under its own box.
 
     The arc-length midpoint is the right anchor and stays the answer
-    almost everywhere (see `arrow_label_anchor`); on a SHORT elbow it is
-    also, by arithmetic, close to the turn. The label's backdrop then
-    covers the corner and both approaches to it, and the connector reads
-    as two stubs pointing nowhere near each other — six labels across
-    three shipped artifacts in the v0.9 round-5 assessment (`r5-14`),
-    worst on a self-loop, whose stored path was provably correct the
-    whole time.
+    almost everywhere (see `arrow_label_anchor`); on a NEAR-BALANCED
+    elbow it is also, by arithmetic, close to the turn. The label's
+    backdrop then covers the corner and both approaches to it, and the
+    connector reads as two stubs pointing nowhere near each other — six
+    labels across three shipped artifacts in the v0.9 round-5 assessment
+    (`r5-14`), worst on a self-loop, whose stored path was provably
+    correct the whole time.
+
+    Balance, not length, is the predicate, and the distinction cost a
+    wrong claim in the first round of this fix. A symmetric elbow's arc
+    midpoint IS its turn at any scale — a 400+400 elbow is biased
+    exactly as far as a 200+200 one. Writing `h` for the label's
+    half-extent along the run, the bias fires whenever
+    `|L1 - L2| < 2 * (h + LABEL_CORNER_PAD)`: a 76px band of leg
+    imbalance for a 60x20 label on a horizontal-dominant elbow, 36px on
+    a vertical-dominant one. "Long elbows are unaffected" is false.
 
     The break itself is not the defect and cannot be removed: the client
     breaks every arrow behind its bound label. What this moves is WHERE
     the break lands. On a straight run the two stubs are collinear and
     the eye completes them; on a corner they are not. So the rule is to
-    keep the corner OUT of the label's box, sliding along the longest
-    segment the label fits on, and no further than that segment's own
-    ends require — the anchor stays as close to the arc midpoint as the
-    clearance allows, because the client will re-centre the drawn label
-    there and the two positions must not diverge more than they have to
-    (the v0.5 R2-8 failure was exactly an anchor rule that diverged from
-    the client's without bound).
+    keep the corner OUT of the label's box, sliding no further than the
+    clearance requires.
 
-    A path with no segment long enough to hold the label keeps the arc
+    The host segment is the longest one ADJACENT TO THE OFFENDING TURN,
+    which is what keeps the slide short (task 19 review, Ruling 1).
+    Picking the longest segment of the whole path instead can land the
+    anchor on a limb with nothing to do with the turn: measured on a
+    5-point path, 203.6px from the arc midpoint, because the clamp
+    bounds the anchor to its own segment and not to the midpoint's
+    neighbourhood. Adjacency closes that by construction — the turn
+    projects onto an adjacent segment at `t = 0` or `t = ln`, so the
+    clamp returns exactly `need` and the anchor lands EXACTLY the
+    clearance away from the turn.
+
+    Care with what that guarantees, because the first round of this fix
+    shipped a bound it had not measured. What is exact is the distance
+    from the TURN. The distance from the arc MIDPOINT equals it only
+    when the midpoint sits on the turn (the balanced elbow); otherwise
+    the midpoint's own offset adds, and the offset is itself under the
+    clearance since that is the trigger window. Measured: the corpus's
+    72 bound arrow labels never exceed 1.00x the clearance, and over
+    4296 synthetic L/Z/U paths the worst is 1.62x — 22 cases above 1.00x,
+    all of them the last-resort tail below. Bounded by the clearance,
+    then, not equal to it, and either way nothing like the unbounded
+    divergence of the v0.6 rule this must not become.
+
+    A path where no segment at all can hold the label keeps the arc
     midpoint: there is nowhere better to put it, and inventing an
     off-stroke position is the perpendicular lift v0.6 removed.
 
@@ -2804,10 +2839,35 @@ def _label_off_corner(arrow, label, segs, mx, my):
     # interior vertices only: an END point lives on a node's border by
     # construction, and a label reaching it is a different complaint
     corners = [(ax + b[0], ay + b[1]) for (_a, b, _ln) in segs[:-1]]
-    if not any(abs(cx - mx) < hw + LABEL_CORNER_PAD and
-               abs(cy - my) < hh + LABEL_CORNER_PAD for cx, cy in corners):
+
+    def clear(x, y):
+        return not any(abs(cx - x) < hw + LABEL_CORNER_PAD and
+                       abs(cy - y) < hh + LABEL_CORNER_PAD
+                       for cx, cy in corners)
+
+    if clear(mx, my):
         return (mx, my)
-    for (a, b, ln) in sorted(segs, key=lambda s: -s[2]):
+    # segments touching a turn that is under the label: `segs[i]` ends at
+    # corner i and `segs[i + 1]` leaves it. Ordered by length, then by
+    # index so a tie is resolved the same way on every run.
+    hit = [i for i, (cx, cy) in enumerate(corners)
+           if abs(cx - mx) < hw + LABEL_CORNER_PAD and
+           abs(cy - my) < hh + LABEL_CORNER_PAD]
+    near = sorted({i for k in hit for i in (k, k + 1)},
+                  key=lambda i: (-segs[i][2], i))
+    # PREFER adjacent, not adjacent-only. When neither neighbour of the
+    # turn is long enough — a short jog between two long limbs — the
+    # remaining segments are tried before giving up, because the choice
+    # there is not "near anchor vs far anchor" but "far anchor vs the
+    # label left sitting on the elbow", and the second is the defect
+    # this whole function exists for. Measured over 4296 synthetic
+    # paths: 2 reach this tail, 0 of the corpus's 72 labels do, so the
+    # exact-clearance bound above holds everywhere it is claimed and
+    # this line is what keeps the rare path from silently losing the fix.
+    rest = sorted((i for i in range(len(segs)) if i not in set(near)),
+                  key=lambda i: (-segs[i][2], i))
+    for i in [*near, *rest]:
+        (a, b, ln) = segs[i]
         if ln <= 0:
             continue
         ux, uy = (b[0] - a[0]) / ln, (b[1] - a[1]) / ln
@@ -2819,7 +2879,12 @@ def _label_off_corner(arrow, label, segs, mx, my):
             continue                        # too short to host the label
         x0, y0 = ax + a[0], ay + a[1]
         t = min(max((mx - x0) * ux + (my - y0) * uy, need), ln - need)
-        return (x0 + ux * t, y0 + uy * t)
+        slid = (x0 + ux * t, y0 + uy * t)
+        # clearing THIS turn can still leave the next one under the
+        # label when the segment beyond is short, so the post-condition
+        # is checked rather than assumed
+        if clear(*slid):
+            return slid
     return (mx, my)
 
 
@@ -2838,29 +2903,48 @@ def arrow_label_anchor(arrow, label):
     silent (v0.5 assessment R2-8). `render_svg` draws text at its stored
     position, so the exported SVG and the live canvas disagreed too.
 
-    Everything that places or checks an arrow label now goes through
-    here, so stored position, SVG and canvas agree by construction. The
-    label rides the stroke: the client already breaks the arrow behind a
-    bound label, and `render_svg` paints a ground-coloured backing to
-    match — the "opaque background" half of connector rule 2, rather
-    than the perpendicular offset the client will not honour. Note that
-    a label's `backgroundColor` is NOT the lever here: it sits in
-    `significant_attrs`, so writing it would narrate a style change on
-    every reroute.
+    This is the DRAWN position and nothing else — what the client will
+    paint, on any path, regardless of what the store holds. Every check
+    that asks "where is this label on the canvas" must come here, which
+    is the property that makes those checks sound: reading `label["x"]`
+    instead is R2-8 verbatim. The label rides the stroke: the client
+    already breaks the arrow behind a bound label, and `render_svg`
+    paints a ground-coloured backing to match — the "opaque background"
+    half of connector rule 2, rather than the perpendicular offset the
+    client will not honour. Note that a label's `backgroundColor` is NOT
+    the lever here: it sits in `significant_attrs`, so writing it would
+    narrate a style change on every reroute.
 
-    One exception, and only one: when the arc midpoint puts a TURN
-    inside the label's own box, the anchor slides along the stroke until
-    the turn is clear (`_label_off_corner`, v0.9 WP4 / `r5-14`). That is
-    a bias on the same rule, not a second rule — it moves nothing on a
-    straight arrow and nothing on an elbow long enough to hold its label
-    away from the corner, which is every scene the tests above pin.
+    What we STORE is `arrow_label_slot`, and since v0.9 WP4 the two can
+    differ by the corner bias. They were the same function for one
+    commit and that was a mistake: folding the bias in here silently
+    re-pointed `lint_layout`'s label checks and `x-geometry`'s `drawn=`
+    column at the stored position, re-opening R2-8's silence on a scene
+    the suite already owns (task 19 review, F1). Keep the two apart.
 
     Args:
         arrow: The arrow/line element, with `x`, `y` and `points`.
         label: The bound text element, read for `width`/`height`.
 
     Returns:
-        `(x, y)` for the label's top-left corner.
+        `(x, y)` for the label's top-left corner, as the client draws it.
+    """
+    mx, my, _segs = _arc_midpoint(arrow)
+    return (mx - label.get("width", 0) / 2,
+            my - label.get("height", 0) / 2)
+
+
+def _arc_midpoint(arrow):
+    """The point half way along a path by arc length, and its segments.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y` and `points`.
+
+    Returns:
+        `(x, y, segs)` in scene coordinates, where `segs` is
+        `[(from_point, to_point, length)]` in the arrow's OWN
+        coordinates — the caller that biases off a corner needs them and
+        would otherwise rebuild them.
     """
     pts = arrow.get("points") or [[0, 0]]
     segs, total = [], 0.0
@@ -2871,19 +2955,53 @@ def arrow_label_anchor(arrow, label):
         segs.append((pts[i - 1], pts[i], ln))
         total += ln
     if not segs:
-        mx, my = arrow.get("x", 0), arrow.get("y", 0)
-    else:
-        want, mx, my = total / 2, None, None
-        for (a, b, ln) in segs:
-            if want <= ln or ln <= 0:
-                t = (want / ln) if ln else 0.0
-                mx = arrow["x"] + a[0] + (b[0] - a[0]) * t
-                my = arrow["y"] + a[1] + (b[1] - a[1]) * t
-                break
-            want -= ln
-        if mx is None:                       # float drift past the end
-            mx = arrow["x"] + segs[-1][1][0]
-            my = arrow["y"] + segs[-1][1][1]
+        return (arrow.get("x", 0), arrow.get("y", 0), segs)
+    want, mx, my = total / 2, None, None
+    for (a, b, ln) in segs:
+        if want <= ln or ln <= 0:
+            t = (want / ln) if ln else 0.0
+            mx = arrow["x"] + a[0] + (b[0] - a[0]) * t
+            my = arrow["y"] + a[1] + (b[1] - a[1]) * t
+            break
+        want -= ln
+    if mx is None:                           # float drift past the end
+        mx = arrow["x"] + segs[-1][1][0]
+        my = arrow["y"] + segs[-1][1][1]
+    return (mx, my, segs)
+
+
+def arrow_label_slot(arrow, label):
+    """Where we STORE a bound arrow label, as (x, y).
+
+    The arc midpoint, biased off any turn that would sit under the label
+    (`_label_off_corner`, v0.9 WP4 / `r5-14`). It moves nothing on a
+    straight arrow and nothing on an elbow whose legs are unbalanced
+    enough to put the midpoint clear of the turn; where it does move,
+    the export stops painting an opaque backdrop over the elbow and the
+    connector stops reading as two disconnected stubs.
+
+    **This is not where the client draws the label** — that is
+    `arrow_label_anchor`, and on a biased label the two differ by up to
+    the clearance (half the label's extent along the run, plus
+    `LABEL_CORNER_PAD`; see `_label_off_corner` for the measured
+    bound). Ten of the corpus's 72 bound arrow labels are in that
+    population, 13 to 49px apart. The divergence is real and has a cost: it is
+    the export and the canvas disagreeing, which is the R2-8 shape at
+    small amplitude. It buys the export's legibility, the checks read
+    BOTH positions so neither channel can hide an overlap
+    (`label_boxes` in `lint_layout`), and closing it for good means
+    biasing the PATH so its own arc midpoint clears the turn — a router
+    change, and a backlog row, not this function's job.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y` and `points`.
+        label: The bound text element, read for `width`/`height`.
+
+    Returns:
+        `(x, y)` for the label's top-left corner, as we store it.
+    """
+    mx, my, segs = _arc_midpoint(arrow)
+    if segs:
         mx, my = _label_off_corner(arrow, label, segs, mx, my)
     return (mx - label.get("width", 0) / 2,
             my - label.get("height", 0) / 2)
@@ -2902,7 +3020,7 @@ def recenter_label(els, el):
     if label is None:
         return
     if el.get("type") in ("arrow", "line"):
-        label["x"], label["y"] = arrow_label_anchor(el, label)
+        label["x"], label["y"] = arrow_label_slot(el, label)
     else:
         label["x"] = el["x"] + max((el.get("width", 0) -
                                     label.get("width", 0)) / 2, 4)
@@ -6220,20 +6338,38 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # 71.99999999999997), and `int` turns that into an
                 # off-by-one in the agent's face.
                 #
-                # Both wordings keep the same opening clause, because it
-                # is what the `crosses_through_bound` detector matches
-                # on; the tail is where they part, and it has to, since
-                # "pull the endpoint back to the border" is no advice at
-                # all to an arrow already drawn on it.
-                tail = ("it reads as crossing through the box; pull the "
-                        "endpoint back to the border" if run else
-                        "the run lies flat along the box's own border, "
-                        "so the two read as one line through the box; "
-                        "give the arrow an exit that steps off the edge")
-                msg = ("arrow %s enters %s and runs %dpx inside it "
-                       "before stopping (%s point) — %s"
-                       % (a["id"], name(tgt["id"]),
-                          round(run + on_border), side, tail))
+                # TWO sentences, not one with a swapped tail. An arrow
+                # drawn ON a border does not run INSIDE the box, and the
+                # first round of this change said both in one breath to
+                # keep a test regex matching — an agent-facing message
+                # made inaccurate to satisfy a detector (task 19 review,
+                # F6). `crosses_through_bound`'s `lint_re` was widened
+                # to accept this second opening instead.
+                #
+                # The magnitude is the SUM in both wordings while the
+                # wording and the tier come from `run` alone. A path
+                # with both an interior run and an on-border run would
+                # therefore report the interior sentence over a total —
+                # deliberate, since the interior half is the more severe
+                # reading and a message quoting only part of what is
+                # drawn on the box would understate it. Not reachable
+                # today: the walk's `far > 1` break ends it first, and
+                # the review could not construct a mixed case.
+                if run:
+                    msg = ("arrow %s enters %s and runs %dpx inside it "
+                           "before stopping (%s point) — it reads as "
+                           "crossing through the box; pull the endpoint "
+                           "back to the border"
+                           % (a["id"], name(tgt["id"]),
+                              round(run + on_border), side))
+                else:
+                    msg = ("arrow %s runs %dpx along %s's own border "
+                           "(%s point) — arrow and outline are drawn on "
+                           "the same pixels, so the two read as one line "
+                           "through the box; give the arrow an exit that "
+                           "steps off the edge"
+                           % (a["id"], round(on_border), name(tgt["id"]),
+                              side))
                 # An on-border run rides the WARNING tier even when the
                 # server owns the path, and the reason is not politeness.
                 # The endpoint is legally attached — it is on the border,
@@ -6699,26 +6835,40 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # differ: the client re-centres it on the path (arrow_label_anchor),
     # and reading `la["x"]` instead is why a label sitting inside a
     # foreign box linted clean in the v0.5 assessment (R2-8).
+    #
+    # As of v0.9 WP4 there are TWO drawn positions, not one, and both are
+    # measured. `arrow_label_slot` biases the stored anchor off a turn so
+    # the export stops painting over the elbow, and `render_svg` paints
+    # what is stored — so the canvas shows the arc midpoint while every
+    # export, snapshot and headless look shows the slot. A label that
+    # lands on a foreign box in EITHER channel is the defect this check
+    # exists for, so it fires on either. Measuring only the slot would
+    # re-open R2-8 exactly (task 19 review, F1: demonstrated on a 200+200
+    # elbow, silent where the un-biased anchor warns); measuring only the
+    # midpoint would let the export drift unwatched. Neither position is
+    # read off `t["x"]` for an arrow label — both are derived from the
+    # path, so a stale stored coordinate cannot invent an overlap.
     ix_all = {e["id"]: e for e in els}
 
-    def drawn_box(t):
-        """The label's on-canvas rect as `(x1, y1, x2, y2)`."""
+    def label_boxes(t):
+        """Every rect a label occupies, as `[(x1, y1, x2, y2), ...]`."""
         cont = ix_all.get(t.get("containerId"))
-        lx, ly = t["x"], t["y"]
         if cont is not None and cont.get("type") in ("arrow", "line"):
-            lx, ly = arrow_label_anchor(cont, t)
-        return (lx, ly, lx + t.get("width", 0), ly + t.get("height", 0))
+            spots = {arrow_label_anchor(cont, t), arrow_label_slot(cont, t)}
+        else:
+            spots = {(t["x"], t["y"])}
+        return [(x, y, x + t.get("width", 0), y + t.get("height", 0))
+                for x, y in sorted(spots)]
 
     bound_labels = [e for e in els if e.get("type") == "text"
                     and e.get("containerId")]
-    boxes = {t["id"]: drawn_box(t) for t in bound_labels}
+    boxes = {t["id"]: label_boxes(t) for t in bound_labels}
     for i_, la in enumerate(bound_labels):
-        ax1, ay1, ax2, ay2 = boxes[la["id"]]
         for lb in bound_labels[i_ + 1:]:
-            bx1, by1, bx2, by2 = boxes[lb["id"]]
-            ox = min(ax2, bx2) - max(ax1, bx1)
-            oy = min(ay2, by2) - max(ay1, by1)
-            if ox > 6 and oy > 4:
+            if any(min(ax2, bx2) - max(ax1, bx1) > 6 and
+                   min(ay2, by2) - max(ay1, by1) > 4
+                   for ax1, ay1, ax2, ay2 in boxes[la["id"]]
+                   for bx1, by1, bx2, by2 in boxes[lb["id"]]):
                 warnings.append(
                     "labels %r and %r overlap — nudge one clear"
                     % ((la.get("text") or "")[:24],
@@ -6733,13 +6883,16 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             continue
         ends = {(cont.get("startBinding") or {}).get("elementId"),
                 (cont.get("endBinding") or {}).get("elementId")}
-        ax1, ay1, ax2, ay2 = boxes[la["id"]]
         for n in nodes:
             if n["id"] in ends:
                 continue
-            ox = min(ax2, n["x"] + n.get("width", 0)) - max(ax1, n["x"])
-            oy = min(ay2, n["y"] + n.get("height", 0)) - max(ay1, n["y"])
-            if ox > 8 and oy > 4:
+            # per BOX, never per axis: one position's x-overlap paired
+            # with another's y-overlap describes a rect neither label
+            # occupies
+            if any(min(ax2, n["x"] + n.get("width", 0)) - max(ax1, n["x"]) > 8
+                   and min(ay2, n["y"] + n.get("height", 0))
+                   - max(ay1, n["y"]) > 4
+                   for ax1, ay1, ax2, ay2 in boxes[la["id"]]):
                 warnings.append(
                     "arrow label %r lands on %s, which is neither end of "
                     "its arrow — the label reads as that box's caption. "

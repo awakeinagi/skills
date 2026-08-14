@@ -47,8 +47,14 @@ _ENDPOINT_RE = re.compile(
     r"arrow (?P<element>[\w-]+) claims to bind .+ but its "
     r"(?:start|end) point ends (?P<mag>\d+)px "
     r"(?P<dir>away|inside the shape)")
+# Two openings, one check. v0.9 WP4 gave `crosses_through_bound` a second
+# sentence for a run drawn flat ALONG the bound node's border, because the
+# first one ("enters X and runs Npx inside it") is false of an arrow that
+# never goes inside. Widened here rather than distorting the message to fit
+# the regex, which is what the fix's first round did (task 19 review, F6).
 _RUNS_INSIDE_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) enters .+ and runs (?P<mag>\d+)px inside")
+    r"arrow (?P<element>[\w-]+) (?:enters .+ and runs|runs) "
+    r"(?P<mag>\d+)px (?:inside|along .+ own border)")
 _PASSES_THROUGH_RE = re.compile(
     r"arrow (?P<element>[\w-]+) passes through .+, which is neither its "
     r"source nor destination")

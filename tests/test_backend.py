@@ -5761,6 +5761,83 @@ class TestArrowLabelAnchor(Base):
         self.assertTrue(any("arrow label" in w and "neither end" in w
                             for w in warns), warns)
 
+    def test_a_biased_label_still_warns_on_the_foreign_box_it_is_drawn_in(
+            self):
+        """F1: the corner bias must not buy silence from this check.
+
+        The v0.9 WP4 bias slides the STORED anchor off a turn so the
+        export stops painting over the elbow. The client does not follow
+        — it re-centres on the arc midpoint and discards our x/y — so on
+        a balanced elbow the two positions genuinely differ, and a check
+        reading only the stored one goes quiet on a label the user can
+        see sitting inside a foreign box. That is R2-8 verbatim, and it
+        is what the first round of this fix shipped: measured here, the
+        stored box spans x 132..192 (clear of the foreign box) while the
+        drawn box spans 170..230 (inside it).
+
+        The check now measures BOTH positions and fires on either. The
+        scene is the reviewer's: a 200+200 elbow, balanced, so the arc
+        midpoint lands exactly on the turn and the bias is maximal.
+        """
+        arrow, text = self.elbow("numbers", [[0, 0], [200, 0], [200, 200]])
+        canvas.recenter_label([arrow, text], arrow)
+        drawn = canvas.arrow_label_anchor(arrow, text)
+        # the premise: the two positions really have come apart here, or
+        # this scene would pass for reasons that have nothing to do with
+        # the fix
+        self.assertNotAlmostEqual(text["x"], drawn[0], delta=1)
+        els = [
+            {"id": "src", "type": "rectangle", "x": -200, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "dst", "type": "rectangle", "x": 140, "y": 240,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "foreign", "type": "rectangle", "x": 196, "y": -30,
+             "width": 160, "height": 60, "customData": {"role": "node"}},
+            arrow, text]
+        warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
+        self.assertTrue(any("arrow label" in w and "neither end" in w
+                            for w in warns), warns)
+
+    def test_a_balanced_long_elbow_is_biased_too(self):
+        """F3: length is not the predicate — leg imbalance is.
+
+        The class above only ever exercised 400+100 and 400+200 elbows,
+        which are lopsided enough that the arc midpoint clears the turn
+        on its own, so nothing here entered the biasing regime at all.
+        A symmetric elbow's arc midpoint IS its turn at any scale: this
+        400+400 path is biased by exactly the same 38px as a 200+200
+        one, which is what makes "long elbows are unaffected" false.
+        """
+        arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 400]])
+        self.assertAlmostEqual(canvas.arrow_label_anchor(arrow, text)[0] + 30,
+                               400, delta=1)
+        x, y = canvas.arrow_label_slot(arrow, text)
+        # slid back along the horizontal leg by half the label's width
+        # plus the pad, and no further — the divergence IS the clearance
+        self.assertAlmostEqual(x + 30, 362, delta=1)
+        self.assertAlmostEqual(y + 10, 0, delta=1)
+
+    def test_the_host_segment_is_adjacent_to_the_offending_turn(self):
+        """Ruling 1: not the longest segment of the whole path.
+
+        The reviewer's five-point path. Its longest segments are the two
+        400px horizontal limbs, and the turn under the label is between
+        the two 200px vertical ones — so "longest overall" put the
+        anchor on a limb with nothing to do with the turn, 203.6px from
+        the arc midpoint against a claimed bound of 38. Adjacency makes
+        that bound true by construction: the turn projects onto an
+        adjacent segment at one of its ends, so the clamp returns
+        exactly the clearance.
+        """
+        arrow, text = self.elbow(
+            "x", [[0, 0], [400, 0], [400, 200], [400, 400], [0, 400]])
+        mx, my = canvas.arrow_label_anchor(arrow, text)
+        x, y = canvas.arrow_label_slot(arrow, text)
+        self.assertEqual((mx + 30, my + 10), (400, 200))
+        self.assertAlmostEqual(x + 30, 400, delta=1)   # same vertical limb
+        self.assertAlmostEqual(y + 10, 182, delta=1)   # 18px = hh + pad
+        self.assertLessEqual(((x - mx) ** 2 + (y - my) ** 2) ** 0.5, 18.5)
+
     def test_label_on_its_own_endpoint_is_silent(self):
         # differential control: the same geometry, but the box under the
         # label IS the arrow's destination — that is not a mislabel
@@ -8340,13 +8417,19 @@ class TestCrossesThroughRun(Base):
                          lint["errors"] + lint["warnings"])
 
     def test_perpendicular_border_entry_stays_quiet(self):
-        """The silent half: a fan attach point entered from outside."""
+        """The silent half: a fan attach point entered from outside.
+
+        Both wordings are excluded, not just the interior one: since
+        v0.9 WP4 this check has a second sentence for a run along the
+        border, and matching only "inside it" would let this control
+        pass over the very finding the fan attach point must not draw.
+        """
         els = self._flow_with([[0, 0], [0, 92]], ax=520, ay=384)
         lint = canvas.project_lint(
             self.project, els, registry=self.store.registry,
             artifact_type="flow", aid="t")
         self.assertFalse([e for e in lint["errors"] + lint["warnings"]
-                          if "inside it" in e],
+                          if "inside it" in e or "own border" in e],
                          lint["errors"] + lint["warnings"])
 
     def test_boundary_running_approach_is_named_not_excused(self):
@@ -8372,9 +8455,13 @@ class TestCrossesThroughRun(Base):
             self.project, els, registry=self.store.registry,
             artifact_type="flow", aid="t")
         hits = [e for e in lint["errors"] + lint["warnings"]
-                if "runs 60px inside it" in e and "border" in e]
+                if "runs 60px along" in e and "own border" in e]
         self.assertEqual(len(hits), 1,
                          lint["errors"] + lint["warnings"])
+        # and it does NOT claim the arrow went inside the box, which is
+        # the thing an arrow drawn on a border never does
+        self.assertFalse([e for e in lint["errors"] + lint["warnings"]
+                          if "inside it" in e])
 
 
 class TestBorderCollinearExit(Base):
@@ -8427,7 +8514,7 @@ class TestBorderCollinearExit(Base):
         els = self._scene([[0, 0], [0, 92], [240, 300]], ax=160, ay=32)
         lint = canvas.lint_layout(els, artifact_type="flow")
         hits = [e for e in lint["errors"] + lint["warnings"]
-                if "runs 32px inside it" in e and "border" in e]
+                if "runs 32px along" in e and "own border" in e]
         self.assertEqual(len(hits), 1,
                          lint["errors"] + lint["warnings"])
 
@@ -8442,8 +8529,43 @@ class TestBorderCollinearExit(Base):
                           ax=160, ay=32)
         lint = canvas.lint_layout(els, artifact_type="flow")
         self.assertFalse([e for e in lint["errors"] + lint["warnings"]
-                          if "inside it" in e],
+                          if "inside it" in e or "own border" in e],
                          lint["errors"] + lint["warnings"])
+
+    def test_a_server_routed_border_exit_warns_and_does_not_error(self):
+        """The tier itself, named — not inherited from a fixture.
+
+        The two lint tests above build 3+ point paths, so
+        `server_owns_geometry` reads them as the user's geometry and
+        they exercise the user-shaped branch. The one judgement call in
+        this change — an on-border run stays a WARNING even when the
+        server owns the path, because the endpoint is legally attached
+        and the complaint is legibility — was defended only by three
+        fixtures' `test_no_lint_errors_anywhere` failing if it were
+        flipped (task 19 review, F7). This asserts it directly.
+
+        Two points and no `routed` mark, which `server_owns_geometry`
+        reads as server-owned: the same geometry the old router emitted
+        for a flush pair, which is where these came from.
+        """
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        dst = {"id": "d", "type": "rectangle", "x": 160, "y": 92,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": "arrow", "x": 160, "y": 32,
+                 "points": [[0, 0], [0, 92]],
+                 "startBinding": {"elementId": "s", "focus": 0, "gap": 6},
+                 "endBinding": {"elementId": "d", "focus": 0, "gap": 6},
+                 "customData": {"role": "edge"}}
+        self.assertTrue(canvas.server_owns_geometry(arrow))
+        lint = canvas.lint_layout([src, dst, arrow], artifact_type="flow")
+        named = [e for e in lint["warnings"] if "own border" in e]
+        self.assertTrue(named, lint["errors"] + lint["warnings"])
+        self.assertFalse([e for e in lint["errors"] if "own border" in e],
+                         lint["errors"])
+        # not the user-shaped wording either — that prefix would mean the
+        # tier was reached for the wrong reason
+        self.assertFalse([e for e in named if e.startswith("user-shaped")])
 
     def test_router_will_not_exit_along_the_source_border(self):
         """The producing half: this pair used to route flat down the edge.
