@@ -1141,6 +1141,148 @@ class TestSnapshotPieces(Base):
         self.assertIn(">SCREEN — Breach detail<", svg)
 
 
+# content bbox 3560x100 -> the tab frames 3640x180 at scale 1
+TAB_WIDE = [{"type": "rectangle", "id": "l", "x": 0, "y": 0,
+             "width": 200, "height": 100, "role": "node"},
+            {"type": "rectangle", "id": "r", "x": 3360, "y": 0,
+             "width": 200, "height": 100, "role": "node"}]
+# content bbox 8000x100 -> the tab frames 8080x180, while render_svg
+# scales the same drawing down to fit RASTER_MAX_W
+TAB_HUGE = [{"type": "rectangle", "id": "l", "x": 0, "y": 0,
+             "width": 200, "height": 100, "role": "node"},
+            {"type": "rectangle", "id": "r", "x": 7800, "y": 0,
+             "width": 200, "height": 100, "role": "node"}]
+
+
+class TestSnapshotTierOne(Base):
+    """The connected tab's export — the tier the agent gets FIRST.
+
+    v0.9 WP4 taught `validate_png` that a raster short of the drawing has
+    content cut off it, and wired the yardstick into tier 2. Tier 1 calls
+    it with `min_bpp` only, so the tier the agent reaches first, and
+    quotes as the picture, is checked for health and never for
+    completeness. These tests drive `cmd_snapshot` with a fake tab: the
+    transport is faked, the decision under test — what tier 1 does with
+    the bytes — is the shipped one.
+
+    The yardstick is the EXPORT path's, not `render_svg`'s. The tab
+    exports through `exportToBlob` with `exportPadding: 40` and no
+    `exportScale` (App.tsx, screenshot servicing), so it frames to the
+    content's own bounding box plus 40px each side, at scale 1 —
+    independent of the caption, footnotes and uniform downscale that set
+    `render_svg`'s dimensions. Curator batch 15, item 1 (2026-08-14).
+    """
+
+    def fat_png(self, w, h):
+        """A PNG header of the given IHDR dims, padded past the bpp floor.
+
+        Tier 1 keeps a 0.05 bytes/px floor against the fonts-race
+        corruption, so a header-sized file is refused for a reason that
+        has nothing to do with these tests.
+
+        Args:
+            w: IHDR width.
+            h: IHDR height.
+
+        Returns:
+            Raw bytes sitting at ~0.06 bytes/px.
+        """
+        import struct
+        ihdr = struct.pack(">II5B", w, h, 8, 2, 0, 0, 0)
+        head = (b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" +
+                ihdr + b"\0\0\0\0")
+        return head + b"\0" * max(0, int(w * h * 0.06) - len(head))
+
+    def snapshot(self, els, png_w, png_h):
+        """Run `cmd_snapshot` against a tab that answers with one PNG.
+
+        The fake stands in for the transport only: health, the screenshot
+        request, and the shot file landing in `shots_dir` are exactly the
+        three things the real tab does. Headless is off so a refusal at
+        tier 1 falls to the deterministic SVG tier rather than needing a
+        browser.
+
+        Args:
+            els: Elements to seed the artifact with.
+            png_w: IHDR width of the PNG the tab hands back.
+            png_h: IHDR height of the PNG the tab hands back.
+
+        Returns:
+            Everything `cmd_snapshot` printed.
+        """
+        self.store.apply_batch(
+            {"base_revn": 0, "artifact": "a",
+             "create": {"id": "a", "name": "A", "type": "flow"},
+             "ops": [{"op": "add", "element": dict(e)} for e in els]})
+        self.project.shots_dir.mkdir(parents=True, exist_ok=True)
+        self.project.state_path.write_text(
+            json.dumps({"url": "http://127.0.0.1:9/"}), encoding="utf-8")
+
+        def fake_http(url, payload=None, timeout=10.0):
+            if url.endswith("api/health"):
+                return {"ok": True}
+            if url.endswith("api/screenshot/request"):
+                (self.project.shots_dir / "shot-7.png").write_bytes(
+                    self.fat_png(png_w, png_h))
+                return {"id": 7}
+            if url.endswith("api/state"):
+                return {"screenshot_requests": []}
+            raise AssertionError("unexpected call: %s" % url)
+
+        args = argparse.Namespace(
+            project=str(self.tmp), artifact="a",
+            out=str(self.tmp / "snap.png"), tab_timeout=8, no_tab=False,
+            no_headless=True)
+        buf = io.StringIO()
+        with mock.patch.object(canvas, "http_json", fake_http), \
+                contextlib.redirect_stdout(buf):
+            canvas.cmd_snapshot(args)
+        return buf.getvalue()
+
+    @unittest.expectedFailure
+    def test_tier_1_refuses_a_tab_export_short_of_the_drawing(self):
+        """Tier 1 takes a raster 640px short of the drawing (RED).
+
+        The v0.9 WP4 shape, on the other tier: 3000px of a drawing the
+        tab frames at 3640px is 640px of picture missing off the right
+        edge, and tier 1 reports `VALID=true` over it. One assertion,
+        carrying both magnitude and direction — the NOTE can only be
+        printed by a refusal, and it names 3000 against 3640, i.e. short
+        rather than padded. Nothing follows it: while this is red the
+        method stops here.
+        """
+        out = self.snapshot(TAB_WIDE, 3000, 180)
+        self.assertIn("width 3000 cuts a 3640px drawing short", out, out)
+
+    def test_tier_1_accepts_a_full_content_tab_export(self):
+        """The live half: a complete export is taken, at tier 1.
+
+        Without this the red above passes the day `cmd_snapshot` stops
+        reaching tier 1 at all — a dead path and a fixed one look
+        identical from a refusal.
+        """
+        out = self.snapshot(TAB_WIDE, 3640, 180)
+        self.assertIn("TIER=1", out)
+        self.assertIn("VALID=true", out)
+
+    def test_tier_1_keeps_the_export_of_a_downscaled_drawing(self):
+        """The other pole, and the reason the fix is not a dims pass.
+
+        `render_svg` caps a drawing at `RASTER_MAX_*` and hands back
+        4000x89 for this one, while the tab — framing to content at
+        scale 1 — legitimately returns 8080x180. Handing tier 1
+        `render_svg`'s dimensions would refuse that file as "far from
+        requested", so this asserts the export the user can see is whole
+        stays accepted. On the TIER line, not on `VALID`: every tier
+        including the SVG fallback reports `VALID=true`, so a refusal
+        here reads as a pass unless the tier is named.
+        """
+        _svg, w, h = canvas.render_svg([dict(e) for e in TAB_HUGE])
+        self.assertEqual((w, h), (4000, 89))  # the mismatch is the point
+        out = self.snapshot(TAB_HUGE, 8080, 180)
+        self.assertIn("TIER=1", out, out)
+
+
 def seed_sequence_batch(base_revn=0):
     ops = []
     for i, (aid, label, kind) in enumerate(

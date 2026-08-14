@@ -7257,6 +7257,11 @@ def _label_pair_stage() -> list[dict]:
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
 # the one below covers CATALOGUE alone.
+# And since curator batch 15 one red lives outside this file entirely —
+# `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
+# export is never measured against the drawing — so the suite's default line
+# reads `expected failures=19` against the 18 counted here. The two numbers
+# are meant to differ by exactly that.
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
