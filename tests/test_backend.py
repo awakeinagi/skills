@@ -8235,6 +8235,109 @@ class TestInscribedShapeClip(Base):
         self.assertFalse(canvas._seg_hits_rect(310, 305, 310, 305, _WP4_DIA))
 
 
+class TestShapeAwareLabelRoom(Base):
+    """v0.9 WP4 (task 17): the label half of the same primitive.
+
+    `diamond_label_overflows_shape` carries the lint's side. What lives
+    here is the arithmetic that mutant only sees one point of, and the
+    two FITTER properties it cannot see at all — the mutant's scene is
+    built by hand and never calls `fit_label_in`.
+    """
+
+    def test_band_width_reproduces_the_catalogue_derivations(self):
+        """The four numbers the catalogue derived by hand, off the clip.
+
+        These are quoted in `diamond_label_overflows_shape`'s entry as
+        the reason the ellipse is the weaker case and needs no mutant of
+        its own. If the helper and the prose ever disagree, the prose is
+        what the next reader will trust, so pin the agreement.
+        """
+        dia = {"type": "diamond", "x": 0, "y": 0, "width": 200,
+               "height": 100}
+        # a 20px label centred in a 200x100 rhombus: 160px, not 200px
+        self.assertAlmostEqual(canvas.shape_band_width(dia, 40, 60), 160.0)
+        # ...and 200px at the centre line, which is what made it invisible
+        self.assertAlmostEqual(canvas.shape_band_width(dia, 50, 50), 200.0)
+        ell = dict(dia, type="ellipse")
+        self.assertAlmostEqual(canvas.shape_band_width(ell, 40, 60),
+                               195.959, places=3)
+        self.assertAlmostEqual(
+            canvas.shape_band_width(dict(ell, height=60), 20, 40),
+            188.562, places=3)
+        # a rectangle IS its box, at every band
+        self.assertAlmostEqual(
+            canvas.shape_band_width(dict(dia, type="rectangle"), 40, 60),
+            200.0)
+
+    def test_fitter_leaves_a_label_no_wrap_can_improve(self):
+        """On a 240x80 diamond the label that fits unwrapped is untouched.
+
+        The rule this pins is BEST candidate, not LAST. Wrapping buys
+        width by spending height, and height is what a rhombus charges
+        for: here the 171px label has a 180px chord at its own 20px band
+        and fits, but every wrap available to it is taller and therefore
+        narrower-roomed, and a walk that took its fixpoint would wrap
+        this to 60px and hang it 30px outside a shape it was already
+        inside.
+        """
+        cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
+                "width": 240, "height": 80}
+        lbl = {"id": "t1", "type": "text", "text": "Send for second review",
+               "originalText": "Send for second review", "fontSize": 16,
+               "width": 171, "height": 20, "containerId": "n1"}
+        canvas.fit_label_in(cont, lbl)
+        self.assertEqual((lbl["width"], lbl["height"]), (171, 20))
+        self.assertEqual(cont["height"], 80, "nothing to grow for")
+        self.assertNotIn("autoResize", lbl,
+                         "a label left alone must not be pinned fixed-width")
+
+    def test_box_containers_keep_the_budget_they_always_had(self):
+        """A rectangle still gets `width - 24` and wraps exactly as before.
+
+        The shape term must be inert where the bbox IS the shape, or WP4
+        would have re-laid every rectangle label in every artifact. The
+        fixture replay says it did not; this says why.
+        """
+        text = "Escalate to the regional compliance desk for manual review"
+        cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 160, "height": 60}
+        lbl = {"id": "t1", "type": "text", "text": text,
+               "originalText": text, "fontSize": 16,
+               "width": canvas.text_dims(text, 16)[0], "height": 20,
+               "containerId": "n1"}
+        canvas.fit_label_in(cont, lbl)
+        self.assertEqual(lbl["width"], 136)          # 160 - 24
+        self.assertEqual(lbl["height"],
+                         canvas.text_dims(
+                             canvas.wrap_label_text(text, 136, 16), 16)[1])
+        self.assertIs(lbl["autoResize"], False)
+        self.assertEqual(cont["height"], lbl["height"] + 16)
+        self.assertAlmostEqual(canvas.label_budget(cont, lbl["height"]), 136)
+
+    def test_the_check_is_silent_on_a_rectangle_by_construction(self):
+        """`marker_inset` gates it, so the box case stays `text_overflow`'s.
+
+        Reporting both would double-count the same pixels under two
+        names — and the rectangle arm of `text_overflow` is already
+        pinned green by `composed_row`/`wrapped_label`.
+        """
+        text = "Send for second review"
+        els = [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 200, "height": 100, "customData": {"role": "node"},
+                "boundElements": [{"id": "t1", "type": "text"}]},
+               {"id": "t1", "type": "text", "x": 14, "y": 40, "width": 171,
+                "height": 20, "text": text, "originalText": text,
+                "fontSize": 16, "containerId": "n1"}]
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        self.assertEqual([w for w in lint["warnings"] if "overhangs" in w],
+                         [])
+        # the same label on the diamond it was sized for DOES report
+        els[0]["type"] = "diamond"
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        self.assertEqual(
+            len([w for w in lint["warnings"] if "overhangs" in w]), 1)
+
+
 class TestDeletionConsequenceSurface(Base):
     """v0.8 beats, beat 3: the facts existed on disk; no agent-facing
     surface named them, and lint was blind to half-unbound arrows."""
