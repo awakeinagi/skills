@@ -27,6 +27,18 @@ released skill is self-contained.
 4. **Dev tooling must not become a runtime dependency.** Linters and type
    checkers run via `uvx`/`pre-commit`, never via `pyproject.toml`
    `dependencies`.
+5. **The stdlib restriction is scoped to the skill bundle
+   (`skills/wysiwyg-grilling/`) — nothing else** (ruled 2026-08-14).
+   Tests, instruments, and repo tooling MAY take third-party dependencies,
+   entered through a `pyproject.toml` dev dependency group (so `uv run`
+   picks them up and `dependencies = []` stays empty), never through
+   anything the skill ships and never as an import in `canvas.py`. Two
+   things this ruling does NOT change: the test framework stays stdlib
+   `unittest` (the mutation harness's flip contract is built on
+   `expectedFailure`'s unexpected-success semantics — do not migrate to
+   pytest), and any test file that gains a third-party import should
+   degrade loudly (a clear skip naming the missing package), since bare
+   `python3 -m unittest` on an uninstalled clone is no longer guaranteed.
 
 ## Documentation standard
 
