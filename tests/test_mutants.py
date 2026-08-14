@@ -8697,10 +8697,23 @@ RENDER_TIER = {
         "test_mutant_label_backdrop_severs_connector",
     # Named at the FIRING proof, not at the red mutant beside it: the mutant
     # asserts the post-fix silence, and a silence proves nothing (see
-    # `test_silence_only_mutant_does_not_prove_its_check`).
+    # `test_silence_only_mutant_does_not_prove_its_check`). v0.9 WP4 (Task 22)
+    # moved this off `test_parity_clip_is_red_by_measurement_not_by_error`,
+    # which fixing the bounds loop made false — that test asserted the check
+    # FIRES on a centered label the export used to clip, and it no longer
+    # does. The replacement is weaker in one specific way, recorded here
+    # because this string is what a reader takes for the state of the
+    # evidence: `parity_clipped` fires only on a frame that does not contain
+    # its own ink, which is a tier-1 defect by definition, so with tier 1
+    # correct NO scene produces the finding and there is no finding-level
+    # fire left to name. What is named instead is the two-frame ink
+    # comparison the finding is assembled from, exercised against a frame the
+    # test itself shortens. Its other part, the edge attribution, is pinned
+    # ungated in `TestRenderParityRegime.
+    # test_the_edge_attribution_still_names_the_side_ink_escapes`.
     "parity_clipped":
         "test_mutants_render.TestRenderParity."
-        "test_parity_clip_is_red_by_measurement_not_by_error",
+        "test_the_clip_instrument_still_sees_ink_leave_a_short_frame",
 }
 
 # Check names a catalogue entry may name with no `DETECTORS` detector

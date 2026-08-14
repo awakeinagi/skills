@@ -5747,8 +5747,8 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 x2s.append(e.get("x", 0) + p[0])
                 y2s.append(e.get("y", 0) + p[1])
         else:
-            xs.append(e.get("x", 0))
-            ys.append(e.get("y", 0))
+            ex, ey = e.get("x", 0), e.get("y", 0)
+            x1 = ex
             ew2, eh2 = e.get("width", 0), e.get("height", 0)
             if e.get("type") == "text":
                 # stored text extents are estimates; real glyph advance
@@ -5758,8 +5758,23 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 tw, th = text_dims(e.get("text") or "",
                                    e.get("fontSize", 16))
                 ew2, eh2 = max(ew2, tw), max(eh2, th)
-            x2s.append(e.get("x", 0) + ew2)
-            y2s.append(e.get("y", 0) + eh2)
+                if e.get("textAlign") == "center":
+                    # ...and the same estimate overhangs LEFTWARD, which
+                    # v0.3 left raw (v0.9 WP4). `paint` anchors a
+                    # centered text at `x + width/2` and runs the glyphs
+                    # both ways from there, so a stored width narrower
+                    # than the drawn string puts the leading glyphs left
+                    # of `x` — off the viewport this loop is computing,
+                    # and the export then showed a headless label with
+                    # nothing to be suspicious of. `min` keeps this a
+                    # WIDENING only: where the stored width is honest or
+                    # generous the bound stays at `x`, so no drawing that
+                    # framed correctly gets its frame pulled in.
+                    x1 = min(x1, ex + (e.get("width", 0) - tw) / 2.0)
+            xs.append(x1)
+            ys.append(ey)
+            x2s.append(ex + ew2)
+            y2s.append(ey + eh2)
     pad = 40
     notes = collect_footnotes(live) if footnotes else []
     gloss = list(glossary or []) if footnotes else []

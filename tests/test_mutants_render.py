@@ -1557,6 +1557,86 @@ class TestSnapshotFramingRegime(unittest.TestCase):
                         "column" % want_w)
 
 
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestRasterizeScaleToFit(unittest.TestCase):
+    """`rasterize_svg`'s other arm: past the ceiling, shrink don't crop.
+
+    NOT A MUTANT — nothing here is expected to fail and nothing pins a
+    defect. What it pins is an arm no other test can reach. Task 20 gave
+    `rasterize_svg` a window that follows the drawing up to
+    `RASTER_MAX_W`/`_H` and a scale-to-fit branch beyond it, and both
+    callers — `cmd_snapshot` and `apply --check --render` — size their
+    markup with `render_svg`, which holds every drawing to that same
+    ceiling. So no route through the product can make `fit < 1.0`, and
+    the branch, the chromium 0.5 floor it clamps to, and the scale it
+    reports in its detail line all shipped with zero coverage (the Task
+    20 review's deferred item F4, discharged by Task 22).
+
+    Unreachable is not dead: the helper takes a width from its CALLER and
+    the docstring's promise is that it will not truncate one it did not
+    choose. The next caller to hand it a number `render_svg` did not
+    choose is the one that finds out, and this is what it will find out
+    against. Called directly for exactly that reason — driving it through
+    a CLI is impossible by construction here.
+    """
+
+    def setUp(self) -> None:
+        """Make a scratch directory for this test's renders."""
+        self.workdir = _mkworkdir()
+
+    def tearDown(self) -> None:
+        """Remove the scratch directory — renders never enter the repo."""
+        shutil.rmtree(self.workdir, ignore_errors=True)
+
+    def test_a_drawing_past_the_ceiling_comes_back_whole_and_smaller(self
+                                                                    ) -> None:
+        """9000x400 rasterizes to 4500x200 with its far edge still in it.
+
+        9000 wide is past `RASTER_MAX_W` by a ratio of 0.444, under
+        chromium's 0.5 floor on the device scale factor — so this also
+        pins the CLAMP rather than only the scale: asking for 0.444 and
+        getting 0.5 silently substituted is the one bound the arm cannot
+        beat, and the file must come back at the scale that was really
+        used or `validate_png` would reject a picture that is fine.
+
+        The far-edge marker is what makes this about wholeness instead of
+        arithmetic. A crop to 4500 CSS px would produce a PNG of exactly
+        these dimensions with the right-hand half of the drawing missing,
+        and the dimension assertion alone cannot tell those apart — which
+        is precisely the failure Task 20 was about.
+        """
+        svg = ("<svg xmlns='http://www.w3.org/2000/svg' width='9000' "
+               "height='400' viewBox='0 0 9000 400'>"
+               "<rect x='0' y='0' width='9000' height='400' fill='%s'/>"
+               "<rect x='8600' y='100' width='300' height='200' "
+               "fill='#1e1e1e'/></svg>" % canvas.SVG_GROUND)
+        out = Path(self.workdir) / "past-the-ceiling.png"
+        ok, detail = canvas.rasterize_svg(svg, out, 9000, 400, "scalefit")
+        self.assertTrue(ok, "the scale-to-fit arm produced no valid "
+                            "raster: %s" % detail)
+        w, h, pix = read_png_gray(out.read_bytes())
+        self.assertEqual(
+            (w, h), (4500, 200),
+            "a 9000x400 drawing came back %dx%d: the arm is meant to "
+            "clamp to chromium's 0.5 floor, so the file is the drawing "
+            "halved — anything else is a crop or an unhonoured scale"
+            % (w, h))
+        self.assertIn(
+            "scaled to 0.50x", detail,
+            "the detail line does not report the scale that was used "
+            "(%r): a reader told VALID=true about a picture silently "
+            "shrunk has no way to know why it is small" % detail)
+        # The marker occupies svg x 8600..8900, so at 0.5x it is PNG x
+        # 4300..4450 — inside a whole picture, off the end of a cropped one.
+        ink = sum(1 for y in range(h) for x in range(4300, 4450)
+                  if pix[y * w + x] < 192)
+        self.assertGreater(ink, 0,
+                           "the far-edge marker left no ink: the drawing "
+                           "was cropped to %dpx rather than scaled into it"
+                           % w)
+
+
 # ---------------------------------------------------------------------------
 # Render parity (Batch D item 1, 2026-08-13; backlog item 15, out of the
 # visualize-skill mine's renderer-fidelity finding). The doctrine it comes
@@ -1585,21 +1665,36 @@ class TestSnapshotFramingRegime(unittest.TestCase):
 # short frame loses ink off an edge, and the difference between them is that
 # loss, counted in pixels.
 #
-# WHAT THIS FOUND. `render_svg`'s bounds loop (canvas.py:4497-4515) takes the
-# MAX side from `max(stored, text_dims(...))` — v0.3's fix for the "real glyph
-# advance regularly overhangs" stored extents, whose comment sits right there.
-# The MIN side never got the same treatment: it is `xs.append(e.get("x", 0))`,
-# the raw origin. For a `textAlign: center` text that is wrong by
+# WHAT THIS FOUND, and v0.9 WP4 (Task 22) FIXED. `render_svg`'s bounds loop
+# took the MAX side from `max(stored, text_dims(...))` — v0.3's fix for the
+# "real glyph advance regularly overhangs" stored extents, whose comment sits
+# right there. The MIN side never got the same treatment: it was the raw
+# origin, `e.get("x", 0)`. For a `textAlign: center` text that is wrong by
 # construction, because `paint` anchors such a text at `x + width/2` and runs
-# its glyphs BOTH ways from there (canvas.py:4620): when the drawn string is
-# wider than the stored width, the leading glyphs are painted to the left of
-# `x`, outside the viewBox, and the SVG viewport clips them off. Half of v0.3's
-# fix is missing, on the side nobody measured.
+# its glyphs BOTH ways from there: when the drawn string is wider than the
+# stored width, the leading glyphs were painted to the left of `x`, outside
+# the viewBox, and the SVG viewport clipped them off. Half of v0.3's fix was
+# missing, on the side nobody measured. The min side now takes the leftward
+# run, floored at `x` so the change can only widen a frame.
+#
+# WHAT THAT COST THIS SECTION, since it shapes everything below. A frame that
+# does not contain its own ink is the only thing `parity_clipped` fires on,
+# and that is a tier-1 defect by definition — so with tier 1 correct, no scene
+# here makes the finding fire, and both surviving scenes assert silence. The
+# instrument is therefore proven at the level of its PARTS rather than its
+# findings: `test_the_clip_instrument_still_sees_ink_leave_a_short_frame`
+# manufactures a short frame with a negative `_element_ink` pad, and
+# `TestRenderParityRegime` pins `_clipped_edges` ungated. Read those two
+# before concluding a silent parity table means anything.
 # ---------------------------------------------------------------------------
 
-# Extra margin per side for the generous frame. It only has to exceed the
-# largest overhang any scene here produces (56px); 200 leaves headroom without
-# growing the raster enough to slow the diff down.
+# Extra margin per side for the generous frame. It has to exceed the largest
+# overhang any scene here produces, which since Task 22 fixed the bounds loop
+# is none — so what it really guards is the day a scene overhangs again, and
+# 200 leaves headroom for one without growing the raster enough to slow the
+# diff down. Kept generous deliberately: a pad too small to clear the next
+# overhang would report a partial magnitude, which reads as a small defect
+# rather than as an instrument that could not see the whole of a large one.
 PARITY_PAD = 200
 
 _SVG_DIMS = re.compile(r"width='(\d+)' height='(\d+)' viewBox='"
@@ -1787,6 +1882,49 @@ def _left_edge_label(stored_width: int) -> list[dict]:
                textAlign="center", strokeColor="#1e1e1e")]
 
 
+# How much smaller than tier 1's own frame the instrument probe is measured
+# in. Big enough that the cut is far outside anti-aliasing and MIN_BLOB, small
+# enough that the probe keeps about half its ink (121372 px whole, 61380 px
+# tightened, measured 2026-08-14) — a cut that took all of it would read the
+# same as an instrument that had gone blind.
+_TIGHTEN = 100
+
+
+def _short_frame_probe() -> list[dict]:
+    """A big filled box and a spare, for measuring a frame against ink.
+
+    Nothing here is a defect scene: `render_svg` frames this drawing
+    correctly and the test tightens the frame itself. The box is filled
+    rather than merely stroked so that a frame cutting into it removes
+    SOME of its ink instead of all of it — an outline lies entirely on
+    its own boundary, so a viewport pulled inside it loses every side but
+    one and the measurement becomes about which strokes survived rather
+    than about how much picture did.
+
+    The fill is dark ON PURPOSE and is not a style choice. `tolerant_diff`
+    counts a pixel as ink below luminance 192, so an ordinary pale
+    Excalidraw fill is invisible to it and the probe would silently go
+    back to measuring its own outline — which is how the first draft of
+    this scene behaved, at 2772 px where the area is 120000.
+
+    `n1` is the spare, and it is not decoration. `_element_ink` ablates
+    by dropping the element and re-rendering; ablating `r1` out of a
+    one-element scene leaves NO live elements, and `render_svg` answers
+    that with its "(empty artifact)" placeholder — whose text would then
+    show up in the diff as ink belonging to `r1`. Its position also sets
+    the frame's right edge well clear of the box, so the tightening cuts
+    the box on three sides rather than four and what survives is a window
+    onto the middle of it rather than a ring of clipped strokes.
+
+    Returns:
+        The two-element scene: box `r1`, then spare `n1`.
+    """
+    return [el(id="r1", type="rectangle", x=0, y=0, width=400, height=300,
+               strokeColor="#1e1e1e", backgroundColor="#6b7280"),
+            el(id="n1", type="rectangle", x=600, y=0, width=120, height=60,
+               strokeColor="#1e1e1e", customData={"role": "node"})]
+
+
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
                              "(starts a headless browser)")
 class TestRenderParity(unittest.TestCase):
@@ -1872,61 +2010,123 @@ class TestRenderParity(unittest.TestCase):
                     "%s emits markup that rasterizes to nothing: tier 1 "
                     "claims the class and tier 2 cannot see it" % etype)
 
-    def test_parity_clip_is_red_by_measurement_not_by_error(self) -> None:
-        """The red below is red for the reason it claims, and says so.
+    def test_the_clip_instrument_still_sees_ink_leave_a_short_frame(self
+                                                                    ) -> None:
+        """Ink outside the frame is still measured as ink outside the frame.
 
-        Two jobs the `expectedFailure` next door cannot do for itself.
-        First, `@unittest.expectedFailure` swallows ERRORS as well as
-        failures (skill doctrine §6), so a `_reframe` that began raising
-        — on a scaled scene, on a changed `<svg>` tag — would print an
-        identical healthy `x` with nothing measured at all. Second, this
-        is the only place `parity_clipped` is asserted to FIRE, with its
-        magnitude and its direction: the mutant asserts the post-fix
-        silence, and a check proven only by a silence is not proven
-        (`test_mutants.TestCoverage.
-        test_silence_only_mutant_does_not_prove_its_check`).
+        REPLACES `test_parity_clip_is_red_by_measurement_not_by_error`,
+        which Task 22 could not keep. That test held the flipped mutant's
+        scene against the OPPOSITE claim — `parity_clipped` fires on
+        `_left_edge_label(20)`, direction `left`, magnitude 170 — and the
+        fix makes every word of it false. It had two jobs and only one of
+        them survives the product being correct. The first was that
+        `@unittest.expectedFailure` swallows ERRORS as well as failures
+        (skill doctrine §6), so a `_reframe` that began raising would have
+        printed a healthy `x` with nothing measured; the flip discharges
+        that outright, because the mutant is an ordinary test now and an
+        exception in it is a loud error. The second is this one.
+
+        The second job: `parity_clipped` must not be a check that only
+        ever proves silences. Both remaining scenes — the flipped mutant
+        and its honest-width neighbour — now assert NO finding, and an
+        instrument that had gone blind would satisfy both while reporting
+        health forever (`test_mutants.TestCoverage.test_silence_only_
+        mutant_does_not_prove_its_check` is the same rule one tier up).
+
+        What it cost to keep that job honestly, stated plainly because it
+        is a real reduction. `parity_clipped` fires only on a frame that
+        does not contain its own ink, which is the definition of a tier-1
+        defect — so once tier 1 is right, NO scene makes the finding fire,
+        and an end-to-end fire-proof is only available while the product
+        is broken. The two candidates were both refused: borrowing an
+        unfixed defect from elsewhere in `render_svg` would tie this test
+        to a bug someone else is expected to fix, which is the same
+        attestation trap this section's header warns about, and
+        hand-rolling the frame arithmetic would prove the copy rather than
+        the instrument. So the fire is proven one level down, at the two
+        parts the finding is assembled from: the two-frame ink
+        measurement here, and `_clipped_edges`' edge attribution in
+        `TestRenderParityRegime` — which is ungated, so it guards this in
+        every commit rather than only under `MUTANTS_RENDER=1`.
+
+        The short frame is manufactured by the test rather than borrowed:
+        a NEGATIVE pad through `_element_ink` is the same `_reframe` the
+        instrument uses for its generous frame, asked for a viewport
+        `_TIGHTEN` px smaller per side instead of larger. The drawing is
+        correct; only the frame it is measured against is not.
         """
-        try:
-            finds = parity_findings(_left_edge_label(20), ["t1"],
-                                    self.workdir)
-        except Exception as exc:
-            self.fail("the parity red is red via %r, not a measurement "
-                      "mismatch — that is a broken pin, not a defect pin"
-                      % exc)
-        self.assertEqual(
-            [(f["check"], f["element"], f["direction"]) for f in finds],
-            [("parity_clipped", "t1", "left")],
-            "parity_clipped no longer fires on the clipped label — if the "
-            "bounds loop learned about center anchoring, drop the "
-            "expectedFailure on "
-            "test_mutant_center_anchored_label_is_clipped_off_the_frame")
-        # 170px of 820 (measured 2026-08-13). The +-10% band excludes 0
-        # (no loss), 650 (the part that survives) and 820 (the whole
-        # label), so a check that reported any of those instead fails.
-        self.assertAlmostEqual(finds[0]["magnitude"], 170, delta=17)
+        scene = _short_frame_probe()
+        whole = _element_ink(scene, "r1", self.workdir, pad=PARITY_PAD)[0]
+        framed = _element_ink(scene, "r1", self.workdir)[0]
+        tight = _element_ink(scene, "r1", self.workdir, pad=-_TIGHTEN)[0]
+        self.assertEqual(framed, whole,
+                         "the honest frame already loses ink off this "
+                         "probe: %d of %d px — the scene has drifted out "
+                         "of its regime and the tightened measurement "
+                         "below no longer isolates the frame"
+                         % (whole - framed, whole))
+        # The probe is a 400x300 filled box; tightening by _TIGHTEN leaves
+        # a 340x180 window onto it. Both bounds are load-bearing: an
+        # instrument that lost the whole element would satisfy `less than
+        # whole`, and one that ignored the frame entirely would satisfy
+        # `more than nothing`.
+        self.assertLess(tight, whole,
+                        "a frame %dpx short on every side lost no ink at "
+                        "all (%d px both ways): the two-frame comparison "
+                        "parity_clipped is built on has stopped seeing "
+                        "the frame" % (_TIGHTEN, whole))
+        self.assertGreater(tight, 0,
+                           "the tightened frame lost the element entirely "
+                           "rather than part of it: %d px became 0, so "
+                           "this measures a blind instrument and a clipped "
+                           "one identically" % whole)
 
-    @unittest.expectedFailure
     def test_mutant_center_anchored_label_is_clipped_off_the_frame(self
-                                                                  ) -> None:
-        """A label wider than its stored width loses its head off the frame.
+                                                                   ) -> None:
+        """FLIPPED by v0.9 WP4 (Task 22). Kept its red-era name.
 
-        The picture then asserts something the model never said: the
-        drawing reads "considerably wider label" where the model holds
-        "a considerably wider label", and the reader has no way to be
+        A label wider than its stored width used to lose its head off the
+        frame. The picture then asserted something the model never said:
+        the drawing read "considerably wider label" where the model held
+        "a considerably wider label", and the reader had no way to be
         suspicious of glyphs that leave no mark. Absence is the one
         defect a reader cannot notice, and this export is the agent's own
         view of its own drawing.
 
-        Flips when `render_svg`'s bounds loop gives its MIN side the
-        treatment v0.3 gave the max side — accounting for a centered
-        text's leftward run, `x + width/2 - text_dims(...)/2`, instead of
-        the raw `x`. That is the WP that owns `render_svg`, not this
-        file. Two things that will NOT flip it, deliberately: widening
-        the fixed 40px pad only moves the threshold this scene has
-        already cleared by 46px, and clamping the anchor to `x` would
-        flip it while changing where every centered label in every
-        drawing sits — which `test_shipped_classes_agree_on_what_they
-        _render` and the model tier's label checks would both notice.
+        The bug was half of v0.3's fix. That assessment established that
+        stored text extents are estimates the real glyph advance
+        regularly overhangs, and patched the bounds loop's MAX side to
+        take `max(stored, text_dims(...))`; the MIN side stayed the raw
+        `x`, so the identical overhang going LEFT was never bounded. It
+        only becomes visible under `textAlign: center`, because that is
+        the anchoring where an underestimated width moves ink to the left
+        of `x` instead of merely leaving slack to its right. Task 22 gave
+        the min side the same treatment, as `min(x, x + width/2 -
+        text_dims(...)/2)` — the leftward run of the centered anchor,
+        floored at `x` so an honest or generous stored width leaves the
+        bound where it was and no correctly-framed drawing has its frame
+        pulled in.
+
+        Two things that were rejected as fixes, and the red carried both
+        as traps because each would have turned this test green while
+        leaving the defect. Widening the fixed 40px pad only moves a
+        threshold — this scene clears it by 46px — and a threshold moved
+        is a threshold the next label crosses; the frame would go on
+        losing whatever exceeded the new number, silently, which is the
+        failure mode rather than the magnitude. Clamping the paint anchor
+        to `x` would have flipped this by MOVING every centered label in
+        every drawing: the bounds loop was what was wrong about the
+        geometry, not the geometry.
+
+        The corpus says how live this was and how quietly. 39 of the 388
+        centered labels in `tests/fixtures` store a width narrower than
+        their own string, overhanging by up to 30.5px per side — yet the
+        fix moves no fixture's markup at all, because in every one of the
+        39 some other element sets the drawing's minimum x and the 40px
+        pad swallows the run. The closest is 9.5px from having mattered.
+        That is why this needed a scene built to put the label at the
+        left edge: the defect was never rare, only never load-bearing
+        until the wrong label was the leftmost thing drawn.
         """
         finds = parity_findings(_left_edge_label(20), ["t1"], self.workdir)
         self.assertEqual(
@@ -1958,34 +2158,125 @@ class TestRenderParityRegime(unittest.TestCase):
 
     Ungated for the reason `TestSnapshotFramingRegime` is ungated: it
     needs no browser, and the rot it catches — a font-metric or bounds
-    change quietly taking the scene out of its regime, so the red
-    measures nothing and still reports "expected failure" — happens in
-    ordinary editing, where nobody has `MUTANTS_RENDER=1` set.
+    change quietly taking the scene out of its regime, so the mutant
+    measures nothing and still reports green — happens in ordinary
+    editing, where nobody has `MUTANTS_RENDER=1` set. Since Task 22
+    flipped that mutant this class carries a second job as well, and the
+    reason it lands here is the same one: `_clipped_edges` is the only
+    part of the clip instrument that can be checked without a browser,
+    and it is now the only place the instrument is asked to report a
+    clip rather than the absence of one.
     """
 
     def test_the_wide_label_still_overhangs_the_frame_on_the_left(self
                                                                  ) -> None:
-        """`_WIDE_LABEL` drawn at 16px still runs left of the viewBox.
+        """`_WIDE_LABEL` drawn at 16px still runs left of `x` minus the pad.
 
-        Both halves are load-bearing. If `text_dims` stops returning 192
-        the arithmetic below is about a different string; and if the
-        leftward run stops clearing the renderer's fixed 40px pad there
-        is no clip left to pin, whatever the mutant goes on reporting.
+        Both halves are load-bearing, and what they guard SURVIVED the
+        Task 22 flip with its sense inverted. While the mutant was red
+        this said "the label still reaches past the pad, so there is a
+        clip left to pin". Green, the leftward run is still exactly the
+        regime — the mutant's claim is that a label overhanging this far
+        is framed ANYWAY, and a scene whose label stopped overhanging
+        would satisfy that claim while observing nothing. If `text_dims`
+        stops returning 192 the arithmetic below is about a different
+        string; if the drawn left edge climbs back inside `x - SVG_PAD`
+        the bounds loop's min side is no longer being asked for anything.
         """
         self.assertEqual(canvas.text_dims(_WIDE_LABEL, 16),
                          (_WIDE_LABEL_W, 20),
                          "the font metrics moved: re-measure _WIDE_LABEL_W "
-                         "and the 170px magnitude in "
-                         "test_parity_clip_is_red_by_measurement_not_by_"
-                         "error")
+                         "— the drawn-left arithmetic below and in "
+                         "test_the_bounds_loop_frames_the_centered_label_"
+                         "it_used_to_clip both derive from it")
         # `paint` centers the text on x + width/2 = 10 and runs the glyphs
-        # 96px each way, so the drawn left edge is at -86 while the frame
-        # starts at minx = x - SVG_PAD = -40.
+        # 96px each way, so the drawn left edge is at -86, where a raw-`x`
+        # frame would have started at minx = x - SVG_PAD = -40.
         drawn_left = 20 / 2 - _WIDE_LABEL_W / 2
         self.assertLess(drawn_left, -SVG_PAD,
                         "the centered label no longer reaches past the "
-                        "%dpx pad (left edge %g): the clip mutant has "
-                        "nothing to measure" % (SVG_PAD, drawn_left))
+                        "%dpx pad (left edge %g): the clip mutant is inside "
+                        "the frame for a reason that has nothing to do with "
+                        "the fix it pins" % (SVG_PAD, drawn_left))
+
+    def test_the_bounds_loop_frames_the_centered_label_it_used_to_clip(self
+                                                                      ) -> None:
+        """The fix, read off the markup rather than off the pixels.
+
+        The mutant next door proves this in ink and needs a browser to do
+        it; this proves it in arithmetic and runs in every commit. It is
+        the same claim from the other side — the viewBox origin sits at
+        or left of the label's drawn left edge — and it is the assertion
+        that stays loud if the min-side widening is reverted while
+        `MUTANTS_RENDER` is unset, which is how the defect would come
+        back unnoticed.
+        """
+        svg = canvas.render_svg(_left_edge_label(20))[0]
+        dims = _SVG_DIMS.search(svg)
+        self.assertIsNotNone(dims, "cannot parse the <svg> tag")
+        minx = float(dims.group(3))
+        drawn_left = 20 / 2 - _WIDE_LABEL_W / 2
+        self.assertLessEqual(
+            minx, drawn_left,
+            "the viewBox starts at %g but the centered label's glyphs "
+            "start at %g: render_svg is framing its own markup short on "
+            "the left again" % (minx, drawn_left))
+
+    def test_the_honest_label_keeps_the_frame_the_raw_origin_gave_it(self
+                                                                    ) -> None:
+        """The widening is a widening: an honest width moves no frame.
+
+        The control for the test above, in the same arithmetic. The min
+        side is floored at `x`, so a stored width that matches or exceeds
+        the drawn string leaves the origin exactly where the raw-origin
+        loop put it — `x - SVG_PAD`. Without this a fix that framed every
+        centered label by its glyph run would pass the test above while
+        shifting the viewBox of every drawing in the corpus.
+        """
+        for width, label in ((_WIDE_LABEL_W, "honest"), (400, "generous")):
+            with self.subTest(stored_width=label):
+                svg = canvas.render_svg(_left_edge_label(width))[0]
+                minx = float(_SVG_DIMS.search(svg).group(3))
+                self.assertEqual(minx, float(-SVG_PAD),
+                                 "a %s stored width moved the viewBox "
+                                 "origin to %g: the min side is no longer "
+                                 "floored at x" % (label, minx))
+
+    def test_the_edge_attribution_still_names_the_side_ink_escapes(self
+                                                                   ) -> None:
+        """`_clipped_edges` reports each side, and "" only when contained.
+
+        The half of the clip instrument that needs no browser, and the
+        reason it is pinned at all is the Task 22 flip. `parity_clipped`
+        now has no scene in this file that makes it emit a finding — the
+        mutant and its honest-width neighbour are both SILENCES, because
+        the finding fires only on a frame short of its own ink and tier 1
+        no longer produces one. An `_clipped_edges` that returned "" for
+        everything would leave both of them green with the instrument
+        blind, and a check proven only by silences is not proven
+        (`test_mutants.TestCoverage.test_silence_only_mutant_does_not_
+        prove_its_check` is the same rule one tier up).
+
+        The frame here is 100x50 inset 10px into a generous raster, so
+        the contained bbox and each escaping one differ by a single pixel
+        on a single side — the boundary itself, which is where an
+        off-by-one in the comparison lives.
+        """
+        pad, w, h = 10, 100, 50
+        inside = (pad, pad, pad + w - 1, pad + h - 1)
+        self.assertEqual(_clipped_edges(inside, pad, w, h), "")
+        for name, bbox in (("top", (pad, pad - 1, pad + w - 1, pad + h - 1)),
+                           ("left", (pad - 1, pad, pad + w - 1, pad + h - 1)),
+                           ("right", (pad, pad, pad + w, pad + h - 1)),
+                           ("bottom", (pad, pad, pad + w - 1, pad + h))):
+            with self.subTest(edge=name):
+                self.assertEqual(_clipped_edges(bbox, pad, w, h), name)
+        self.assertEqual(
+            _clipped_edges((pad - 1, pad - 1, pad + w, pad + h), pad, w, h),
+            "top+left+right+bottom",
+            "ink escaping on every side must name every side: a direction "
+            "that reports one of them is a finding the reader will chase "
+            "to the wrong edge")
 
 
 # ---------------------------------------------------------------------------
