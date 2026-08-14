@@ -2290,10 +2290,22 @@ class TestPaintOrder(unittest.TestCase):
         `c1` is composed CONTENT (a `value_of` part) and must land above
         the node band: banded down with the furniture, it was painted out
         by its own owner the moment that owner took an opaque fill. `w1`
-        is composed FURNITURE (a `body_of` wave) and must stay down in
-        band 1 with the standalone backdrop `d1` — the tie between those
-        two is also what pins that furniture keeps its declared order
-        against its own box, the ordering task 21 §6 gained.
+        is composed FURNITURE (a `body_of` wave) and stays down in band 1
+        with the standalone backdrop `d1` — the tie between those two is
+        also what pins that furniture keeps its declared order against
+        its own box, the ordering task 21 §6 gained.
+
+        `w1`'s position is TODAY'S RATIFIED BOUNDARY, not a settled
+        contract, and this pin is the model-tier half of a disagreement
+        the catalogue holds on purpose: curator batch 17's render red
+        `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner`
+        says in pixels that furniture banded beneath its owner is painted
+        out by the owner's fill exactly as the content was, and worse,
+        because the buried glyph carries STATE. Whoever takes that fix
+        moves `w1` in this expected order in the same change — measured,
+        not guessed: patching `band()` to read the whole part vocabulary
+        fails this test and flips that red, and those are the only two
+        places in the suite that move.
 
         Residual gap, stated so nobody reads this as full cover: this
         pins what the function COMPUTES, and the function runs on the op
