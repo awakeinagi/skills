@@ -4354,8 +4354,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
 #   7. `add` of a pin-role element under a filed id        green (Task 40)
 #   8. resolve + same-id pin-role `add` in one batch       green (Task 40)
 #   9. resolve naming an ordinary, non-pin element         green (Task 38)
-#  10. `pin` op spelling an ordinary ELEMENT's scene id    RED (Task-40
-#                                                          report, concern 2)
+#  10. `pin` op spelling an ordinary ELEMENT's scene id    green (Task 41)
 #
 # The tenth door arrived, which is the point of writing this as an
 # enumeration. The row above it read "every door found so far is now
@@ -4368,7 +4367,10 @@ class TestBatchPathIntegrity(unittest.TestCase):
 # `make_element` already refuses exactly that collision for an `add`.
 # One-of-two-doors is now the shape of four separate entries here (1/7,
 # 7/10), which is worth knowing before the next id check is written on
-# one side only.
+# one side only. Task 41 shut 10 by copying `make_element`'s message
+# rather than writing a second one, which is the cheap half of that
+# lesson: when two doors open on one wound, they should also answer in
+# one voice.
 #
 # Doors 7 and 8 closed together on one check, as this census predicted —
 # 7 is the mechanism 8 rides in on — and closing them made the shadow
@@ -4379,11 +4381,12 @@ class TestBatchPathIntegrity(unittest.TestCase):
 #
 # Deliberately NOT a census row: a `pin` op whose `target` is not a
 # string (`test_red_a_non_string_pin_target_arrives_as_an_internal_
-# error`). It reaches the E-9 backstop and the batch is refused whole,
-# so it produces neither of the two harms this census tracks — no second
-# question under one id, no ❓ outliving its answer. It is filed with
-# this family because it is the same op's field, and saying why it is
-# not a door keeps the census meaning what it says.
+# error`). It reached the E-9 backstop until Task 41 named the field,
+# and either way the batch is refused whole, so it produces neither of
+# the two harms this census tracks — no second question under one id, no
+# ❓ outliving its answer. It is filed with this family because it is the
+# same op's field, and saying why it is not a door keeps the census
+# meaning what it says.
 # ---------------------------------------------------------------------------
 
 
@@ -5074,7 +5077,6 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "was accepted (escaped=%r)" % (escaped,))
         self.assertIn("pin-a", "\n".join(escaped.errors))
 
-    @unittest.expectedFailure
     def test_red_a_pin_op_may_spell_an_ordinary_elements_id(self) -> None:
         """The tenth door: the question is filed and never drawn.
 
@@ -5101,6 +5103,16 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         neighbour below pins that wording as shipped, so a fix here can
         reuse it rather than invent one.
 
+        v0.9 Task 41 refuses it in `_validate_batch`'s pin arm, one `elif`
+        below the check for an id the registry has filed and the one for
+        an id this batch is about to mint — the same walk, asking the
+        third thing an id can already be. The sentence is
+        `make_element`'s, word for word rather than reworded — one
+        collision read from two sides, so an agent that has met the `add`
+        form has already been told what to do about this one. Only the
+        prefix differs, since every error that walk raises names its op
+        kind.
+
         MAGNITUDE is what the batch leaves — no registry record, the
         element untouched — asserted first because an accepted batch
         that filed the record is the damage. DIRECTION is refusal naming
@@ -5122,7 +5134,6 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "(escaped=%r)" % (escaped,))
         self.assertIn("n1", "\n".join(escaped.errors))
 
-    @unittest.expectedFailure
     def test_red_a_non_string_pin_target_arrives_as_an_internal_error(
             self) -> None:
         """A wrong field type is reported as a Python exception.
@@ -5146,6 +5157,14 @@ class TestPinIdentityIntegrity(unittest.TestCase):
         prediction site type-guards the seed (`isinstance(seed, str)`)
         while the minter it must stay in step with does not, so the two
         sites disagree about this input by construction.
+
+        v0.9 Task 41 checks the field where `question`, `detail` and
+        `examples` are already checked — the same arm, immediately before
+        the two lines that reach for `target` — and names it in
+        `index_fault`'s voice. Which also ends the disagreement above: the
+        minter can no longer be handed a non-string seed either, so the
+        prediction's guard and the minter now agree by refusal rather than
+        by one side coping.
 
         MAGNITUDE is what the message names — the op and the field.
         DIRECTION is that it is a validation error rather than the
@@ -6283,11 +6302,10 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-13 after the Task-40 review round, `mutants list --red`
-# reports 16 while the suite reports 31 expected failures. The fifteen outside
-# live in six classes — `TestLoadFindingsReachTheAgent` (4),
-# `TestStoreIntegrity` (4), `TestExportCompleteness` (2),
-# `TestPinIdentityIntegrity` (2), `TestShapeBlindAnnotationOverlap` (2)
+# re-measured 2026-08-13 after Task 41, `mutants list --red` reports 16 while
+# the suite reports 29 expected failures. The thirteen outside live in five
+# classes — `TestLoadFindingsReachTheAgent` (4), `TestStoreIntegrity` (4),
+# `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2)
 # and `TestPaintOrder` (1) — and are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
@@ -6298,7 +6316,8 @@ def _label_pair_stage() -> list[dict]:
 # when WP1 had already flipped four of the five, and it still read "32 / six
 # classes / `TestPinIdentityIntegrity` (3)" after Task 40 flipped that class's
 # last three reds — a class does not merely lose a number here, it leaves the
-# list, and nothing in the suite notices either way.
+# list, and nothing in the suite notices either way. Task 41 flipped that
+# class's final two, so it has now left; that is the shape to expect.
 CATALOGUE: dict[str, Mutant] = {}
 
 

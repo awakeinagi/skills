@@ -2951,6 +2951,24 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                 errors.append("op %d (pin): examples must be a list of "
                               "strings" % i)
                 continue
+            # `target` is the one field of this op nothing type-checked,
+            # and both lines below reach for it: a dict or a list is
+            # unhashable in the `index` lookup, and anything non-string
+            # breaks the `"pin-" + ...` seed. So a wrong type came back as
+            # `internal error applying ops — TypeError: unhashable type:
+            # 'dict'` from the E-9 backstop, which exists for faults
+            # NOBODY PREDICTED — and an agent handed a Python type name
+            # has no way to learn which field it got wrong. The batch was
+            # always refused whole; this only makes the refusal say what
+            # to fix. The mint prediction in `_validate_batch` keeps its
+            # own `isinstance` guard on the seed and still needs it — it
+            # runs before this arm does — but the input the two sites
+            # disagreed about by construction is now refused outright.
+            if target is not None and not isinstance(target, str):
+                errors.append("op %d (pin): needs a string `target` (the "
+                              "id of the element the ❓ hangs beside), "
+                              "got %r" % (i, target))
+                continue
             anchor = index.get(target) if target else None
             # The minter dedupes against the registry as well as the
             # scene, because a pin id is a name for ONE question across
@@ -7969,8 +7987,9 @@ class Store:
                 duplicate artifact, resolves an unknown pin or an id that
                 is not a ❓, reuses a pin id the registry has filed or the
                 batch itself is about to mint — whether the id is spelled
-                on a `pin` op or drawn as a pin-role `add` — or carries
-                ops that are not objects at all or do not apply to the
+                on a `pin` op or drawn as a pin-role `add` — spells a pin
+                id an element on the scene already owns, or carries ops
+                that are not objects at all or do not apply to the
                 current scene.
         """
         with self.lock:
@@ -8095,6 +8114,24 @@ class Store:
                             "id names one question, and resolving it would "
                             "close both. Pick another id, or omit `id` and "
                             "one will be minted." % (i, pid))
+                    # The mirror of the `add` door below: that one guards
+                    # an element walking onto a filed PIN id, this one a
+                    # `pin` op walking onto an ordinary ELEMENT's id.
+                    # `make_element` refuses exactly this collision for an
+                    # `add`, so the SENTENCE is its sentence word for
+                    # word — same clash read from the other side, and an
+                    # agent that has met one has met both. Only the prefix
+                    # differs, because every error this walk raises names
+                    # the op kind. Unguarded it was worse than a
+                    # duplicate: the record was filed, `apply_ops`
+                    # appended a ❓ under the taken id, and the commit
+                    # path's id-dedupe kept the element that was already
+                    # there — so ZERO ❓ were drawn for a question the
+                    # registry called open, with the echo saying "❓ on
+                    # canvas". It could not be seen, clicked or answered.
+                    elif pid and pid in scene_ids:
+                        errors.append("op %d (pin): id %r already exists in "
+                                      "this artifact" % (i, pid))
                     elif not pid:
                         # The other ordering, which tracking SPELLED ids
                         # alone cannot see: mint first, spell the same id

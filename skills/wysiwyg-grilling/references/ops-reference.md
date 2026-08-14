@@ -282,7 +282,12 @@ re-open it, and the whole batch is refused with an error naming both ops
 rather than the `add` being silently swallowed. Resolve it in one batch
 and ask the follow-up in the next, under its own id. An element that is
 NOT a ❓ may still carry the id — element ids are minted per scene, and
-only a pin id is project-wide.
+only a pin id is project-wide. That tolerance does not run the other way:
+a `pin` op whose `id` is already spelled by an element on the artifact it
+lands on is refused with the same `id ... already exists in this
+artifact` an `add` is, because the scene keeps the element it already
+has and the ❓ is dropped — the question would be filed open with nothing
+drawn for it to click.
 
 Conversely `resolve_pin` takes the ❓ and nothing else. Ids are minted per
 scene, so an ordinary element that happens to share the id, here or on
