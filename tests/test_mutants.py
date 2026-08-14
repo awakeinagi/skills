@@ -1914,6 +1914,13 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 # (canvas.py's SVG_GROUND) and every default style are different colours.
 _DECOR_FILL = "#ffd8a8"
 
+# The same trick for a NODE, so a frame and the node it contains can be told
+# apart in one string. The frame's own markup has no element-controlled
+# colour to look for — `paint` hard-codes #94a3b8 for its dashed border and
+# #64748b for its name — so the frame is found by that border colour and the
+# node by this fill, and neither string can be the other's.
+_NODE_FILL = "#a8d8ff"
+
 
 def _backdrop_scene(behind: bool) -> list[dict]:
     """A decoration and a connector that overlap, stacked either way round.
@@ -1966,6 +1973,127 @@ def _paint_offsets(scene: list[dict]) -> tuple[int, int]:
             "completeness, not paint order"
             % ("decoration" if decor < 0 else "connector"))
     return decor, stroke
+
+
+def _framed_child_scene(frame_first: bool) -> list[dict]:
+    """A frame and the one node inside it, stacked either way round.
+
+    The smallest drawing that can state the frame half of the contract:
+    one frame, one member node filling most of it, and nothing else — no
+    labels, no siblings, so the only thing that can decide which is
+    painted over which is the array order the caller chose.
+
+    The node overlaps the frame's TOP-LEFT corner deliberately: that is
+    where `paint` puts a frame's name text, so a frame painted late lands
+    both its dashed border and its caption on the member's own ink.
+
+    Args:
+        frame_first: True to declare the frame at index 0, where
+            `normalize_z_order` bands it (band 0) and where it must stay
+            under its children; False to declare it after the node.
+
+    Returns:
+        The two-element scene, in the requested array order.
+    """
+    frame = el(id="f1", type="frame", x=0, y=0, width=200, height=100,
+               name="Lane")
+    node = el(id="n1", type="rectangle", x=0, y=0, width=160, height=60,
+              backgroundColor=_NODE_FILL, frameId="f1",
+              customData={"role": "node"})
+    return [frame, node] if frame_first else [node, frame]
+
+
+def _frame_offsets(scene: list[dict]) -> tuple[int, int]:
+    """Where the frame and its member node land in the emitted SVG.
+
+    Args:
+        scene: A scene built by `_framed_child_scene`.
+
+    Returns:
+        `(frame_offset, node_offset)` as character positions in the
+        rendered SVG. The LARGER offset is painted later, and so on top.
+
+    Raises:
+        ValueError: If either element emitted no markup at all — export
+            completeness rather than paint order, said out loud for the
+            reason `_paint_offsets` says it.
+    """
+    svg = canvas.render_svg(scene)[0]
+    frame, node = svg.find("#94a3b8"), svg.find(_NODE_FILL)
+    if frame < 0 or node < 0:
+        raise ValueError(
+            "the scene emitted no %s at all — that is export "
+            "completeness, not paint order"
+            % ("frame" if frame < 0 else "node"))
+    return frame, node
+
+
+def _bound_label_scene(label_last: bool) -> list[dict]:
+    """A connector and its bound label, stacked either way round.
+
+    The smallest drawing that can state the bound-label half of the
+    contract. `make_element` emits a container immediately before its
+    bound label, so the product's own path always produces the
+    `label_last=True` order — but a client save carries client order and
+    never passes `normalize_z_order`, so the other order is reachable
+    without any op saying so.
+
+    What is at stake is not only the glyphs. A label bound to an arrow is
+    painted over an opaque ground rect, because the client breaks the
+    stroke behind the label and this renderer has no such notion
+    (canvas.py `paint`, the `arrow_ids` branch). Emitted BEFORE the
+    arrow, backdrop and glyphs both go down first and the stroke is drawn
+    straight across them: the r5-14 "connector struck through its own
+    label" picture, arrived at by ordering instead of by placement.
+
+    Args:
+        label_last: True for the product's order, arrow then label;
+            False to put the label first, where the stroke covers it.
+
+    Returns:
+        The two-element scene, in the requested array order.
+    """
+    arrow = el(id="a1", type="arrow", x=0, y=0, width=200, height=0,
+               points=[[0, 0], [200, 0]], customData={"role": "edge"},
+               boundElements=[{"id": "t1", "type": "text"}])
+    label = el(id="t1", type="text", x=70, y=-10, width=60, height=20,
+               text="then", originalText="then", fontSize=16,
+               textAlign="center", containerId="a1")
+    return [arrow, label] if label_last else [label, arrow]
+
+
+def _label_offsets(scene: list[dict]) -> tuple[int, int]:
+    """Where the connector and its bound label land in the emitted SVG.
+
+    Args:
+        scene: A scene built by `_bound_label_scene`.
+
+    Returns:
+        `(connector_offset, label_offset)` as character positions in the
+        rendered SVG. The label's position is its BACKDROP's, not its
+        glyphs': the backdrop is the piece the stroke has to stay off,
+        and it is emitted first of the two, so it is the earlier of the
+        label's marks and the honest one to compare against.
+
+    Raises:
+        ValueError: If either element emitted no markup at all — export
+            completeness rather than paint order, said out loud for the
+            reason `_paint_offsets` says it.
+    """
+    svg = canvas.render_svg(scene)[0]
+    stroke, glyphs = svg.find("<polyline"), svg.find(">then<")
+    backdrop = svg.rfind("fill='%s' stroke='none'" % canvas.SVG_GROUND,
+                         0, glyphs) if glyphs >= 0 else -1
+    if stroke < 0 or glyphs < 0:
+        raise ValueError(
+            "the scene emitted no %s at all — that is export "
+            "completeness, not paint order"
+            % ("connector" if stroke < 0 else "label"))
+    if backdrop < 0:
+        raise ValueError(
+            "the label emitted no ground backdrop — the stroke-breaking "
+            "effect this scene is about is not in the markup at all")
+    return stroke, backdrop
 
 
 class TestPaintOrder(unittest.TestCase):
@@ -2054,6 +2182,138 @@ class TestPaintOrder(unittest.TestCase):
             "everything — but its markup is emitted at %d, after the "
             "connector's at %d: it is painted OVER the arrow and erases "
             "it (ops-reference.md:90, :213)" % (decor, stroke))
+
+    def test_a_frame_declared_first_is_painted_under_its_children(self
+                                                                  ) -> None:
+        """Curator batch 16 item 2 (Task 21 §8.2), 2026-08-14.
+
+        Once the dispatch became a single array walk, a frame's position
+        in the stack became purely an array question — and nothing asked
+        it. All 11 recorded fixture frames satisfy the invariant and
+        `normalize_z_order` bands frames at 0, so the op path is safe;
+        this pins that the RENDERER agrees, which is the half array order
+        made load-bearing.
+
+        Low blast radius on purpose, and worth saying so rather than
+        overselling the pin: a frame is `fill='none'`, so a frame painted
+        late does not black out its members. What it does put over them
+        is a dashed border and a caption, which is why this scene parks
+        the node on the corner where the caption goes.
+        """
+        frame, node = _frame_offsets(_framed_child_scene(frame_first=True))
+        self.assertLess(
+            frame, node,
+            "frame 'f1' is declared at array index 0 — beneath its own "
+            "members — but its markup is emitted at %d, after the "
+            "member node's at %d: its dashed border and its name are "
+            "painted over the node they contain" % (frame, node))
+
+    def test_a_frame_declared_last_is_painted_over_its_children(self) -> None:
+        """The frame contract's other pole, and the control that earns it.
+
+        Without it the pin above is satisfied by a renderer that emitted
+        frames first unconditionally — a bucket by another name, and the
+        exact thing v0.9 WP4 removed. Both poles or neither.
+        """
+        frame, node = _frame_offsets(_framed_child_scene(frame_first=False))
+        self.assertGreater(
+            frame, node,
+            "a frame declared AFTER its member must be painted over it")
+
+    def test_a_bound_label_declared_last_is_painted_over_its_arrow(self
+                                                                   ) -> None:
+        """Curator batch 16 item 3 (Task 21 §8.3), 2026-08-14.
+
+        The same exposure as the frame pin above, on the element pair
+        where the picture actually suffers. `make_element` emits a
+        container immediately before its bound label, so the product's
+        own path is safe — but nothing tested that it stays safe, in
+        either direction, and a client save carries client order without
+        passing `normalize_z_order`.
+
+        Asserted against the label's BACKDROP rather than its glyphs
+        because the backdrop is the thing the ordering defeats: it exists
+        to paint the stroke back out from under the label, and a stroke
+        emitted after it simply paints back in — the r5-14 struck-through
+        connector reached by ordering rather than by placement.
+
+        The render tier cannot carry this one, and that is measured, not
+        assumed: at the product's own stroke widths the label's ablation
+        ink is 51px in BOTH orders (2026-08-14), because a 2px stroke
+        laid across 16px glyphs falls inside `tolerant_diff`'s one-pixel
+        slack. The signal only clears the floor at stroke widths
+        Excalidraw does not offer (measured 60px vs 12px at sw=6, 144px
+        vs 0 at sw=12). Emission order says the same thing exactly, at no
+        browser cost.
+        """
+        stroke, backdrop = _label_offsets(_bound_label_scene(label_last=True))
+        self.assertLess(
+            stroke, backdrop,
+            "label 't1' is declared after arrow 'a1' but its ground "
+            "backdrop is emitted at %d, before the stroke at %d: the "
+            "stroke is painted back across the label it was broken for"
+            % (backdrop, stroke))
+
+    def test_a_bound_label_declared_first_is_painted_under_its_arrow(self
+                                                                    ) -> None:
+        """The bound-label contract's other pole: the defect, pinned live.
+
+        The control for the pin above — the array is read here too, not
+        special-cased for bound text — and simultaneously the record of
+        what the bad order looks like, so a future reader can see that
+        the renderer really will draw the stroke over the label when told
+        to. This is why the invariant is worth holding upstream, in
+        `normalize_z_order`, which the pin below covers.
+        """
+        stroke, backdrop = _label_offsets(_bound_label_scene(label_last=False))
+        self.assertGreater(
+            stroke, backdrop,
+            "a label declared BEFORE its arrow must be painted under it")
+
+    def test_normalize_z_order_bands_the_whole_drawing(self) -> None:
+        """The z-model itself, pinned — it had no test at all until now.
+
+        Curator batch 16, items 2 and 3 share this one: the renderer
+        honours whatever order it is handed (the pins above), so the
+        thing that makes a frame sit under its children and a bound label
+        over its arrow is this function and nothing else. It is what
+        v0.9 WP4's dispatch defers to, and every band in it was
+        unasserted.
+
+        Declared here in reverse so a sort that did nothing at all would
+        fail rather than pass by luck, and it carries TWO band-4 members
+        because the docstring's "stable" is load-bearing: an explicit
+        `reorder` is meant to survive inside a band, and only a tie can
+        show that.
+
+        Residual gap, stated so nobody reads this as full cover: this
+        pins what the function COMPUTES, and the function runs on the op
+        and tidy paths only (canvas.py:3639, :10355). A user save carries
+        client order straight to disk — the catch-up path says so in as
+        many words — so a frame appended after its children by the client
+        is still reachable, and no check anywhere refuses it. That is a
+        product decision (nothing normalizes on the save path), not a
+        defect this pin can encode.
+        """
+        scene = [
+            el(id="p1", type="rectangle", x=0, y=0, width=10, height=10,
+               customData={"role": "pin"}),
+            el(id="t1", type="text", x=0, y=0, width=40, height=20,
+               text="then", containerId="a1"),
+            el(id="n1", type="rectangle", x=0, y=0, width=100, height=50,
+               customData={"role": "node"}),
+            el(id="a1", type="arrow", x=0, y=0, width=100, height=0,
+               points=[[0, 0], [100, 0]], customData={"role": "edge"}),
+            el(id="d1", type="rectangle", x=0, y=0, width=100, height=50,
+               customData={"role": "decoration"}),
+            el(id="f1", type="frame", x=0, y=0, width=200, height=100,
+               name="Lane")]
+        self.assertEqual(
+            [e["id"] for e in canvas.normalize_z_order(scene)],
+            ["f1", "d1", "a1", "n1", "p1", "t1"],
+            "layout.md's paint order is frames -> decorations -> "
+            "arrows/lines -> nodes -> bound labels & pins, and the sort "
+            "is stable within a band")
 
 
 # ---------------------------------------------------------------------------
@@ -7267,9 +7527,12 @@ def _label_pair_stage() -> list[dict]:
 # Not every red in this file is a catalogue entry, and the gap is not small:
 # re-measured 2026-08-14 after Task 21, `mutants list --red` reports 8 while
 # this file carries 15 expectedFailure methods. The seven outside live
-# in three classes — `TestLoadFindingsReachTheAgent` (4),
-# `TestShapeBlindAnnotationOverlap` (2) and `TestBatchPathIntegrity` (1) —
-# and are outside deliberately, because a Mutant is
+# in the three classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# curator batch 16 is a CHECKED structure rather than a sentence — read the
+# counts there, and see
+# `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
+# for why this paragraph no longer states them itself.
+# They are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
 # the one below covers CATALOGUE alone.
@@ -8642,6 +8905,62 @@ def coverage_table() -> list[tuple[str, str, str]]:
     return rows
 
 
+# The classes in THIS file whose reds are hand-authored plain tests rather
+# than CATALOGUE entries, with how many each carries. Declared once, here,
+# because it is the list the dedupe guard's residual-gap paragraph and the
+# `CATALOGUE` section comment both state in prose — and both have now been
+# caught stating it WRONGLY three times (2026-08-12 `TestStoreIntegrity` at
+# five when WP1 had flipped four; after Task 40 `TestPinIdentityIntegrity`
+# still listed with three when it had none; Task 21 leaving
+# `TestExportCompleteness` and `TestPaintOrder` behind in the list after
+# emptying them). A class does not merely lose a number when its last red
+# flips — it LEAVES this list, and nothing in the suite noticed either way
+# until `test_the_hand_authored_red_classes_are_the_ones_that_exist` below.
+#
+# Counts and not just names, deliberately: a new red inside one of these
+# classes is precisely the event that also needs those two comments updated,
+# so it should cost one line here and be loud about it.
+#
+# What this does NOT do, so it is not mistaken for the fix to backlog row 27:
+# it makes the DISCLOSURE self-checking, not the dedupe. The reds in these
+# classes still never reach `_register`, still have no expectation objects to
+# fingerprint, and two agents could still write the same plain red test under
+# different method names with nothing to notice. That exposure is unchanged;
+# what changed is that the sentence admitting it can no longer go stale.
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
+                             "TestLoadFindingsReachTheAgent": 4,
+                             "TestShapeBlindAnnotationOverlap": 2}
+
+# The one class whose reds ARE catalogue entries, excluded from the
+# comparison above. Named rather than inlined so a rename of the class shows
+# up as a failing enumeration instead of as a phantom hand-authored class.
+CATALOGUE_RED_CLASS = "TestMutantCatalogue"
+
+
+def red_bearing_classes() -> dict[str, int]:
+    """Every TestCase in this module carrying an `expectedFailure`, counted.
+
+    Reads `__unittest_expecting_failure__`, the attribute the decorator
+    sets, off each class's OWN dict — inherited methods would otherwise
+    be counted once per subclass and attribute a red to a class that
+    never wrote one.
+
+    Returns:
+        Class name -> number of red methods defined on it. Classes with
+        no reds are absent, which is the state a drained class must
+        reach.
+    """
+    found: dict[str, int] = {}
+    for name, obj in globals().items():
+        if not (isinstance(obj, type) and issubclass(obj, unittest.TestCase)):
+            continue
+        reds = sum(1 for attr in vars(obj).values()
+                   if getattr(attr, "__unittest_expecting_failure__", False))
+        if reds:
+            found[name] = reds
+    return found
+
+
 class TestCoverage(unittest.TestCase):
     """Spec §3: every detector is proven or named, never silently unproven."""
 
@@ -8728,10 +9047,10 @@ class TestCoverage(unittest.TestCase):
         them separate entries.
 
         Residual gap, stated so nobody reads this as full cover: the
-        non-CATALOGUE red classes (`TestShapeBlindAnnotationOverlap`,
-        `TestLoadFindingsReachTheAgent`, `TestBatchPathIntegrity` — the
-        three that still carry reds, re-measured 2026-08-14) never
-        reach `_register` and have no expectation objects to compare, so
+        non-CATALOGUE red classes — `HAND_AUTHORED_RED_CLASSES`, and it
+        is that constant rather than a list retyped here, because this
+        very sentence has gone stale three times — never reach
+        `_register` and have no expectation objects to compare, so
         nothing here would notice two agents writing the same plain red
         test under different method names. What defends those classes is
         a per-agent FILE-SECTION convention plus reviewer vigilance — no
@@ -8764,6 +9083,38 @@ class TestCoverage(unittest.TestCase):
             "(same expectation, operator, args and base scene): %s — "
             "merge them, or give the second one the distinct magnitude "
             "or direction that is its reason to exist" % dups)
+
+    def test_the_hand_authored_red_classes_are_the_ones_that_exist(self
+                                                                   ) -> None:
+        """Curator batch 16 item 4 (Task 21 §8.4), 2026-08-14.
+
+        The guard above discloses a residual gap by naming the classes it
+        cannot cover, and the `CATALOGUE` section comment enumerates the
+        same classes with per-class counts. Both were hand transcriptions
+        of a fact the interpreter can be asked for directly, and both had
+        drifted three times — the file's own note says nothing in the
+        suite notices, which is what this is.
+
+        The enumeration is now derived and compared, so a red that flips
+        (or a new one that lands) fails HERE with the corrected list in
+        the message, instead of leaving two paragraphs quietly describing
+        a suite that no longer exists. That is the whole claim: it makes
+        the disclosure honest, it does not extend the dedupe fingerprint
+        to these classes — see `HAND_AUTHORED_RED_CLASSES` on why those
+        are different jobs, and feature-backlog row 27 for the second.
+        """
+        found = red_bearing_classes()
+        self.assertEqual(
+            {k: v for k, v in found.items() if k != CATALOGUE_RED_CLASS},
+            HAND_AUTHORED_RED_CLASSES,
+            "the hand-authored reds in this file have moved: measured %s "
+            "against a declared %s. Update HAND_AUTHORED_RED_CLASSES, the "
+            "residual-gap paragraph in "
+            "test_no_two_mutants_encode_the_same_defect, and the counts in "
+            "the CATALOGUE section comment — they are one fact stated in "
+            "three places, which is why this drifts"
+            % ({k: v for k, v in sorted(found.items())
+                if k != CATALOGUE_RED_CLASS}, HAND_AUTHORED_RED_CLASSES))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""

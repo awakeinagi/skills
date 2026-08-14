@@ -64,9 +64,9 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-14
-after Task 21: **16 model-tier `expectedFailure` reds + 3 render-tier**,
-matching the suite's `expected failures=16` default and `=19` under
-`MUTANTS_RENDER=1`. That splits as 8 catalog reds (`mutants list --red` is
+after Task 21, render tier re-counted after curator batch 16: **16
+model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
+`expected failures=16` default and `=20` under `MUTANTS_RENDER=1`. That splits as 8 catalog reds (`mutants list --red` is
 authoritative) plus **8 non-catalog reds across four guarded classes** —
 LoadFindings 4, ShapeBlind 2, BatchPath 1, and `TestSnapshotTierOne` 1,
 the last living in `tests/test_backend.py` rather than with the others —
@@ -122,11 +122,13 @@ eight had already flipped):
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `long_run_curve_hides_bidi`, `near_miss_clearance`, `pale_stroke_node`, `phantom_passthrough_shared_attach`, `tiny_font_text`, `unroled_text_over_node` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_center_anchored_label_is_clipped_off_the_frame` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_center_anchored_label_is_clipped_off_the_frame`, `test_mutant_composed_value_hides_under_its_opaque_owner` |
 
 The render row is `@unittest.expectedFailure` method names rather than
-catalog ids because all three sit outside `CATALOGUE`; the third pins
-`parity_clipped`, the centered-text bounds clip that Task 22 owns.
+catalog ids because all four sit outside `CATALOGUE`; the third pins
+`parity_clipped`, the centered-text bounds clip that Task 22 owns, and the
+fourth is curator batch 16's, from the Task 21 review's F2 — a composed KPI
+value banded beneath its own opaque owner, which **Task 44** owns.
 
 Three model rows came from the 2026-08-12 idea-mining arc via the
 **mutant-curator agent**, and all three have since flipped: the two export

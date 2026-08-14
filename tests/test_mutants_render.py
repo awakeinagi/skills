@@ -783,6 +783,253 @@ class TestRenderMutants(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Paint order, read as pixels. `test_mutants.TestPaintOrder` asserts the same
+# contract as EMISSION ORDER in the SVG string, which is cheap, exact and runs
+# on every commit — so why measure it again with a browser? Because emission
+# order is a claim about markup and occlusion is a claim about the picture,
+# and the two come apart the moment anything is transparent, clipped, or
+# painted in the colour of the paper. The string can say "the connector went
+# down after the panel" while the reader sees no connector.
+#
+# Both classes below share their base scenes with the model tier on purpose
+# (skill doctrine: dedupe families onto one base scene rather than deleting
+# either member) — `test_mutants._backdrop_scene` for the first, and the
+# product's own `make_element` composition for the second.
+#
+# One thing this tier reads that the other cannot, and it decides both
+# entries: `tolerant_diff` binarises at luminance 192, so INK is what is
+# darker than that. The pale panel these scenes use is above the floor and is
+# therefore paper, not a mark. That is exactly the right instrument for the
+# question "does the panel erase the connector" — the only ink in the answer
+# is the connector's own — and exactly the wrong one for "is the panel there",
+# which nothing here asks.
+#
+# Both classes reach forward to `_element_ink`, which is defined with the
+# parity section below because that is what needed a reframing ablation
+# first. It is the plain one here (`pad=0`, tier 1's own frame) and it is
+# left where it is rather than moved up, so the parity section's helpers stay
+# together.
+# ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestPaintOrderInPixels(unittest.TestCase):
+    """A decoration at index 0 leaves the connector visible — in the raster."""
+
+    def setUp(self) -> None:
+        """Make a scratch directory for this test's renders."""
+        self.workdir = _mkworkdir()
+
+    def tearDown(self) -> None:
+        """Remove the scratch directory — renders never enter the repo."""
+        shutil.rmtree(self.workdir, ignore_errors=True)
+
+    def test_a_decoration_at_index_zero_leaves_the_connector_in_the_picture(
+            self) -> None:
+        """Curator batch 16 item 1 (Task 21 §8.1), 2026-08-14. GREEN.
+
+        The pixel sibling `test_mutants.TestPaintOrder.
+        test_red_zorder_bucketing_occludes_connector` asked for and could
+        not have. While the bucketing defect was live, this measurement
+        was the defect's own victim: a connector erased by a panel it was
+        declared beneath contributes no ink, so `ablation_existence`
+        reported a plainly visible element invisible, and a test asserting
+        the correct answer here could not be told apart from one asserting
+        the broken detector. v0.9 WP4 cleared that, so the claim is
+        writable at last — and until now nothing had written it. This pins
+        the fix in the tier whose whole claim is that it reads the
+        picture.
+
+        Measured 2026-08-14, and both halves matter: the connector's
+        ablation ink is 348 px with the panel at index 0 and 0 px with the
+        panel at index 1. The magnitude is asserted as well as the
+        detector's silence, because silence alone would also be produced
+        by a scene that drew nothing at all — and 0 px is precisely the
+        other pole's reading.
+
+        Sole-failure verified by reverting `render_svg`'s dispatch to the
+        four type-filtered buckets in a throwaway tree: this test fails
+        and the index-1 pole below does not, because the buckets painted
+        shapes after arrows either way round.
+        """
+        scene = tm._backdrop_scene(behind=True)
+        self.assertEqual(
+            ablation_findings(scene, ["e1"], self.workdir), [],
+            "the connector is declared AFTER the panel that covers it and "
+            "must survive into the raster")
+        ink = _element_ink(scene, "e1", self.workdir)[0]
+        # 348px measured; the +-10% band excludes 0 (erased entirely),
+        # which is the whole defect and is what the other pole reads.
+        self.assertAlmostEqual(ink, 348, delta=35)
+
+    def test_neighbour_a_decoration_at_index_one_erases_it(self) -> None:
+        """The other pole: declared in front, the panel really does cover.
+
+        The control the pin above needs, and the only thing standing
+        between it and an instrument that reports every element as
+        present. One variable moves — which of two elements is declared
+        first — so the difference in verdict is the array order and
+        nothing else. It is also this scene's proof that
+        `ablation_existence` is alive here at all: a detector that had
+        stopped firing would let the pin above pass forever.
+        """
+        scene = tm._backdrop_scene(behind=False)
+        self.assertEqual(
+            [(f["check"], f["element"], f["magnitude"])
+             for f in ablation_findings(scene, ["e1"], self.workdir)],
+            [("ablation_existence", "e1", 0.0)])
+        self.assertEqual(_element_ink(scene, "e1", self.workdir)[0], 0)
+
+
+def _kpi_tile(fill: str) -> list[dict]:
+    """A `kind: "kpi"` tile, composed by the product, with the given fill.
+
+    Built through `canvas.make_element` and ordered by
+    `canvas.normalize_z_order` rather than assembled by hand, because the
+    defect below is not a scene anyone drew — it is what the composition
+    and the banding produce between them, and a hand-built stack would be
+    this file asserting its own arrangement. One documented `mod
+    backgroundColor` on any of the corpus's 29 composed value texts
+    reaches it.
+
+    `_deco` stamps `role: "decoration"` on the value text, the same role
+    it stamps on genuine furniture (X-box strokes, wavy body lines), and
+    `normalize_z_order` bands every decoration at 1 — beneath nodes at 3.
+    So the tile's own CONTENT is declared under its own container.
+
+    Args:
+        fill: The owner rectangle's `backgroundColor`. `"transparent"`
+            is the whole corpus today; an opaque colour is the defect,
+            and `#e9e5da` is the reference example both `add` and `mod`
+            document.
+
+    Returns:
+        The composed tile in paint order: `k1-value`, `k1`, `k1-label`.
+
+    Raises:
+        RuntimeError: If `make_element` rejected the spec. Said out loud
+            because a rejected spec returns an empty list, and an empty
+            scene would make every measurement below vacuously agree
+            with itself — including the red's, which would then be a
+            broken pin reading as a healthy one.
+    """
+    ids: set[str] = set()
+    errors: list[str] = []
+    parts = canvas.make_element(
+        {"id": "k1", "type": "rectangle", "x": 0, "y": 0, "width": 160,
+         "height": 80, "label": "Revenue", "kind": "kpi", "value": "42%",
+         "backgroundColor": fill}, ids, errors)
+    if errors or not parts:
+        raise RuntimeError("make_element refused the kpi tile: %s" % errors)
+    return canvas.normalize_z_order(parts)
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestComposedContentVisibility(unittest.TestCase):
+    """A tile's own value must survive its owner's fill."""
+
+    def setUp(self) -> None:
+        """Make a scratch directory for this test's renders."""
+        self.workdir = _mkworkdir()
+
+    def tearDown(self) -> None:
+        """Remove the scratch directory — renders never enter the repo."""
+        shutil.rmtree(self.workdir, ignore_errors=True)
+
+    def test_composed_value_red_is_red_by_measurement_not_by_error(self
+                                                                   ) -> None:
+        """The red below is red for the reason it claims, and says so.
+
+        Two jobs the `expectedFailure` next door cannot do for itself.
+        First, `@unittest.expectedFailure` swallows ERRORS as well as
+        failures (skill doctrine §6), so a `make_element` that began
+        refusing this spec, or a composition that stopped emitting a
+        `-value` element at all, would print an identical healthy `x`
+        with nothing measured. Second, this is where the defect's
+        magnitude is asserted: the value's ablation ink is 0 px, which is
+        the finding's whole content, and the transparent-owner neighbour
+        reads 309 px on the same string in the same font.
+        """
+        try:
+            scene = _kpi_tile("#e9e5da")
+            finds = ablation_findings(scene, ["k1-value"], self.workdir)
+            ink = _element_ink(scene, "k1-value", self.workdir)[0]
+        except Exception as exc:
+            self.fail("the composed-content red is red via %r, not a "
+                      "measurement — that is a broken pin, not a defect "
+                      "pin" % exc)
+        self.assertEqual(
+            [(f["check"], f["element"], f["magnitude"]) for f in finds],
+            [("ablation_existence", "k1-value", 0.0)],
+            "ablation_existence no longer fires on the buried value — if "
+            "the decoration band was split, drop the expectedFailure on "
+            "test_mutant_composed_value_hides_under_its_opaque_owner")
+        self.assertEqual(ink, 0)
+
+    @unittest.expectedFailure
+    def test_mutant_composed_value_hides_under_its_opaque_owner(self) -> None:
+        """A KPI tile's value is painted beneath the tile. Task 44 owns it.
+
+        Curator batch 16 item 5, from the Task 21 review (F2),
+        2026-08-14. `_deco` overloads `role: "decoration"` to mean two
+        unrelated things — "exempt from the lints that judge authored
+        content" and "paint underneath" — and composed CONTENT is stamped
+        with it alongside genuine furniture. `normalize_z_order` then
+        bands the whole role at 1, under nodes at 3, so a tile's value
+        text is declared beneath the tile that owns it and an opaque
+        `backgroundColor` finishes the job.
+
+        This is a PRODUCT defect the render tier can already see, not a
+        detector miss: `ablation_existence` fires correctly and says so
+        next door. It is also live rather than theoretical. The live
+        canvas has hidden these values all along — the frontend applies
+        the server's element order verbatim — and it was the export's
+        old text-last bucket that masked it; v0.9 WP4 stopped masking it,
+        which is how it was found. All 29 composed value/attr texts in
+        the corpus have transparent owners today, and `backgroundColor`
+        is a documented first-class property of both `add` and `mod`, so
+        one op on any of them buries its own content.
+
+        Flips when **Task 44** splits the overload so composed content
+        bands above its owner rather than with the furniture. That is the
+        WP that owns `_deco` and `normalize_z_order`; this file only
+        measures. Two things that will NOT flip it, deliberately: giving
+        the value an opaque fill of its own would hide the banding rather
+        than fix it, and reinstating a text-last pass in `render_svg`
+        would restore the export/canvas disagreement WP4 removed — the
+        export would show a value the user cannot see.
+        """
+        scene = _kpi_tile("#e9e5da")
+        finds = ablation_findings(scene, ["k1-value"], self.workdir)
+        self.assertEqual(
+            finds, [],
+            "the tile's own value is painted under the tile: %s"
+            % [f["raw"] for f in finds])
+
+    def test_neighbour_a_transparent_owner_leaves_its_value_visible(self
+                                                                    ) -> None:
+        """The other pole: the same tile, the same value, no fill.
+
+        The control that keeps the red meaningful — one variable moves,
+        the owner's `backgroundColor` — and the whole corpus's current
+        state, which is the reason the 24-artifact replay came back
+        pixel-clean and the hazard went unnoticed. Without it the red
+        would be satisfied by a renderer that drew no composed content at
+        all.
+        """
+        scene = _kpi_tile("transparent")
+        self.assertEqual(
+            ablation_findings(scene, ["k1-value"], self.workdir), [])
+        # Silence has to mean "the value is in the picture", never
+        # "nothing was drawn either way", so pin that there was ink:
+        # 309px measured 2026-08-14, the same glyphs the red loses.
+        self.assertAlmostEqual(
+            _element_ink(scene, "k1-value", self.workdir)[0], 309, delta=31)
+
+
+# ---------------------------------------------------------------------------
 # Snapshot framing. Nothing above leaves this file's own `_shot`; the tests
 # below drive `canvas.py snapshot` end to end — a real Project, a real Store,
 # the real argv — because the defect they pin lives in that CLI's tier 2 and
