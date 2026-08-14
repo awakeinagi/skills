@@ -8711,6 +8711,13 @@ RENDER_TIER = {
     # correct product. The attribution half is pinned ungated besides, in
     # `TestRenderParityRegime.
     # test_the_edge_attribution_still_names_the_side_ink_escapes`.
+    # Curator batch 18 then found tier 1 is NOT correct on the vertical
+    # axis — a wrapped text overruns its frame's bottom — so a DRAWING
+    # fires this check again today, pinned with its magnitude in
+    # `test_the_bottom_overrun_is_red_by_measurement_not_by_error`. The
+    # pointer deliberately stays here anyway: that fire is a live defect
+    # someone is expected to fix, and a record that would go dark on the
+    # day the product got better is not a record of the check.
     "parity_clipped":
         "test_mutants_render.TestRenderParity."
         "test_the_clip_instrument_still_sees_ink_leave_a_short_frame",

@@ -1684,11 +1684,21 @@ class TestRasterizeScaleToFit(unittest.TestCase):
 # missing, on the side nobody measured. The min side now takes the leftward
 # run, floored at `x` so the change can only widen a frame.
 #
+# WHAT IT FOUND NEXT, still live: the same disagreement on the OTHER axis.
+# The loop sizes a text by `text_dims` of the UNWRAPPED string while `paint`
+# WRAPS it whenever `autoResize is False and width > 0`, so a bound reserving
+# one line's height is drawn four lines deep and the tail leaves the bottom of
+# the frame. Pinned red as `test_mutant_wrapped_text_overruns_the_frames_
+# bottom` (curator batch 18); the fix is unowned and teaching the loop about
+# wrapping is what flips it. Read that mutant before the paragraph below,
+# which was written when this section held no live defect and is worded for
+# the day it goes back to that state.
+#
 # HOW THIS SECTION STAYS HONEST ONCE THE DEFECT IS FIXED, since it shapes
 # everything below. A frame that does not contain its own ink is the only
 # thing `parity_clipped` fires on, and that is a tier-1 defect by definition —
-# so with tier 1 correct no DRAWING here makes the finding fire, and both
-# scenes that ask the product question assert silence. Silence is not proof:
+# so with tier 1 correct no DRAWING here makes the finding fire, and every
+# scene that asks the product question asserts silence. Silence is not proof:
 # a `parity_findings` that inverted its gate or returned `[]` unconditionally
 # would leave this whole section green with the instrument blind, which is the
 # same vacuity `test_no_class_agrees_by_being_absent_from_both` exists to
@@ -1705,10 +1715,9 @@ class TestRasterizeScaleToFit(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 # Extra margin per side for the generous frame. It has to exceed the largest
-# overhang any scene here produces, which since Task 22 fixed the bounds loop
-# is none — so what it really guards is the day a scene overhangs again, and
-# 200 leaves headroom for one without growing the raster enough to slow the
-# diff down. Kept generous deliberately: a pad too small to clear the next
+# overhang any scene here produces, which is the wrapped text's fourth line —
+# one 20px line below a frame this pad clears ten times over. Kept generous
+# deliberately: a pad too small to clear the next
 # overhang would report a partial magnitude, which reads as a small defect
 # rather than as an instrument that could not see the whole of a large one.
 PARITY_PAD = 200
@@ -1854,8 +1863,11 @@ def parity_findings(elements: list[dict], ids: Iterable[str],
             actually chose. A NEGATIVE value measures a frame the caller
             has deliberately made too small, which is how this function
             can be asked to assemble a real finding while tier 1 is
-            correct: after Task 22 no scene makes it fire on its own, and
-            a finding proven only by its own silence is not proven. The
+            correct, and a finding proven only by its own silence is not
+            proven. A live defect does currently make it fire unaided
+            (the wrapped-text bottom overrun, curator batch 18), but that
+            is evidence with an expiry date and the seam is what remains
+            once the bounds loop learns about wrapping. The
             generous reference frame is unaffected, so `PARITY_PAD` must
             stay larger than any `frame_pad` a caller shrinks by.
 
@@ -1929,6 +1941,61 @@ def _left_edge_label(stored_width: int) -> list[dict]:
             el(id="t1", type="text", x=0, y=200, width=stored_width,
                height=20, text=_WIDE_LABEL, fontSize=16,
                textAlign="center", strokeColor="#1e1e1e")]
+
+
+# The body text the bottom-overrun mutant hangs on: the string, the stored
+# box width `paint` wraps it inside, and the line count that wrap produces
+# at fontSize 16. Written as numbers rather than computed, for the reason
+# `_WIDE_LABEL_W` is — a scene that derives its own regime from the code
+# under test cannot notice when that code moves it out of the regime.
+# `TestRenderParityRegime` is where all three are checked.
+_WRAPPED_LABEL = "alpha beta gamma delta epsilon zeta eta theta"
+_WRAPPED_BOX_W = 100
+_WRAPPED_LINES = 4
+
+
+def _wrapped_body_text(auto_resize: bool) -> list[dict]:
+    """A fixed-width text long enough to wrap, plus an ablation spare.
+
+    `paint` wraps a text when `autoResize is False and width > 0`, and
+    `render_svg`'s bounds loop sizes one by `text_dims` of the whole
+    UNWRAPPED string — so the two disagree about the same element by
+    construction, and `auto_resize` is the single variable that turns the
+    disagreement on. Four lines is the smallest count that reaches past
+    the frame: the loop bounds the text at its unwrapped height of 20 and
+    the pad adds 40, so ink is framed down to y=60, while `paint` puts
+    baselines every 20px from 13.6 — the third line's descenders still
+    land inside, the fourth does not.
+
+    `textAlign` is left DELIBERATELY, and not for symmetry with the
+    centered scene next door: it keeps this mutant on the vertical axis
+    alone. A centered text would also exercise the min-side widening Task
+    22 landed, and two mechanisms in one scene is one mutant reporting
+    about two defects.
+
+    `n1` is the spare and it is load-bearing for the same reason it is in
+    `_short_frame_probe`: `_element_ink` ablates by dropping the element
+    and re-rendering, and ablating `t1` out of a one-element scene leaves
+    `render_svg` with nothing live, whose "(empty artifact)" placeholder
+    text would then be counted as `t1`'s own ink. Its box also sets the
+    drawing's right edge well clear of the text, so the frame is generous
+    horizontally and what this measures is the bottom.
+
+    Args:
+        auto_resize: The text's `autoResize`. `False` is the mutant —
+            `paint` wraps and the bound does not. `True` is the
+            neighbour: one unwrapped line, which is exactly the extent
+            the bounds loop measured.
+
+    Returns:
+        The two-element scene: text `t1`, then spare `n1`.
+    """
+    return [el(id="t1", type="text", x=0, y=0, width=_WRAPPED_BOX_W,
+               height=20, text=_WRAPPED_LABEL, fontSize=16,
+               autoResize=auto_resize, textAlign="left",
+               strokeColor="#1e1e1e"),
+            el(id="n1", type="rectangle", x=400, y=0, width=120, height=20,
+               strokeColor="#1e1e1e")]
 
 
 # How much smaller than tier 1's own frame the instrument probe is measured
@@ -2076,11 +2143,17 @@ class TestRenderParity(unittest.TestCase):
         exception in it is a loud error. The second is this one.
 
         The second job: `parity_clipped` must not be a check that only
-        ever proves silences. Both remaining scenes — the flipped mutant
-        and its honest-width neighbour — now assert NO finding, and an
+        ever proves silences. The two scenes that ask the product
+        question about a CORRECT frame — the flipped mutant and its
+        honest-width neighbour — both assert NO finding, and an
         instrument that had gone blind would satisfy both while reporting
         health forever (`test_mutants.TestCoverage.test_silence_only_
         mutant_does_not_prove_its_check` is the same rule one tier up).
+        The bottom-overrun red added in curator batch 18 does make the
+        finding fire on a drawing, which is why its scaffold can assert a
+        magnitude — but that is a live defect someone is expected to fix,
+        so it is evidence with an expiry date and this test is written to
+        outlast it.
 
         What it cost to keep that job honestly. `parity_clipped` fires
         only on a frame that does not contain its own ink, which is the
@@ -2235,6 +2308,135 @@ class TestRenderParity(unittest.TestCase):
         # never "absent from both frames".
         self.assertGreater(_element_ink(scene, "t1", self.workdir)[0], 0)
 
+    def test_the_bottom_overrun_is_red_by_measurement_not_by_error(self
+                                                                   ) -> None:
+        """The red below is red for the reason it claims, and says so.
+
+        The job `@unittest.expectedFailure` cannot do for itself: it
+        swallows ERRORS as well as failures (skill doctrine §6), so a
+        `_reframe` that began raising — on a scaled scene, on a changed
+        `<svg>` tag — would print an identical healthy `x` with nothing
+        measured at all. Modelled on the scaffold Task 22's flip retired
+        (`test_parity_clip_is_red_by_measurement_not_by_error`), which is
+        also what says how this one ends: it is the MUTANT's evidence and
+        not the check's, so it dies in the commit that flips the mutant,
+        where every word of it becomes false at once.
+
+        It is deliberately NOT this file's fire-proof for
+        `parity_clipped`. That job belongs to
+        `test_the_clip_instrument_still_sees_ink_leave_a_short_frame`,
+        which manufactures a short frame through `parity_findings`'
+        `frame_pad` seam and so keeps working against a correct product.
+        Tying the permanent proof to a live defect instead is the
+        attestation trap this section's header warns about — the fire
+        here is real, but it is somebody's bug and it is meant to stop.
+        """
+        try:
+            finds = parity_findings(_wrapped_body_text(False), ["t1"],
+                                    self.workdir)
+        except Exception as exc:
+            self.fail("the bottom-overrun red is red via %r, not a "
+                      "measurement mismatch — that is a broken pin, not a "
+                      "defect pin" % exc)
+        self.assertEqual(
+            [(f["check"], f["element"], f["direction"]) for f in finds],
+            [("parity_clipped", "t1", "bottom")],
+            "parity_clipped no longer fires on the wrapped text — if the "
+            "bounds loop learned about wrapping, drop the "
+            "expectedFailure on "
+            "test_mutant_wrapped_text_overruns_the_frames_bottom")
+        # 281px of 1421 (measured 2026-08-14 on Chrome for Testing
+        # 151.0.7922.34; headless_shell 131.0.6778.33 reads 283 of 1414,
+        # so the +-10% band covers the build spread the section header
+        # documents with room to spare). It excludes 0 (no loss), 1140
+        # (the part that survives) and 1421 (the whole text), so a check
+        # that reported any of those instead fails here.
+        self.assertAlmostEqual(finds[0]["magnitude"], 281, delta=28)
+
+    @unittest.expectedFailure
+    def test_mutant_wrapped_text_overruns_the_frames_bottom(self) -> None:
+        """A wrapped text is painted below the frame drawn around it.
+
+        RED, and the fix is UNOWNED as of curator batch 18 — no v0.9 work
+        package covers it, so scheduling or deferring it is a Task 24 gate
+        decision. Found during the Task 22 cycle (report §8 C1, review §7)
+        and confirmed pre-existing there: the repro reads identically on
+        `d0cfcd8` and on the fixed `0b7e7ba`.
+
+        The same root shape Task 22 fixed — `render_svg`'s bounds loop
+        disagreeing with what `paint` actually does — on the other axis
+        and through a different mechanism, which is why that fix does not
+        touch it. The loop sizes a text by `text_dims` of the UNWRAPPED
+        string; `paint` WRAPS it whenever `autoResize is False and
+        width > 0`. So the loop reserves one line's height and the
+        renderer draws four, and the tail runs off the bottom of the
+        viewBox the loop just computed. Measured on this scene: the frame
+        ends at drawing y=60 and the baselines are 13.6, 33.6, 53.6 and
+        73.6.
+
+        What the reader loses is a whole line of the text, and loses it
+        the way absence is always lost — with nothing left behind to be
+        suspicious of. This export is the agent's own view of its own
+        drawing, so a drawing that says "alpha beta gamma delta epsilon
+        zeta" is what the agent reads, while the model holds two more
+        words it will never see it dropped.
+
+        THE FRAME IS SIMULTANEOUSLY TOO WIDE, and the asymmetry is the
+        point rather than a curiosity. The same unwrapped measurement
+        gives the loop 338px of width for glyphs that occupy 100, which
+        is slack: a frame larger than its ink loses nothing and the
+        reader is never lied to. Only the vertical error costs picture.
+        A fix must therefore teach the loop to measure the WRAPPED
+        extents — both of them — rather than pad the bottom, and the trap
+        is that widening `render_svg`'s 40px pad turns this test green
+        while leaving the defect, exactly as it would have for Task 22's:
+        a threshold moved is a threshold the next text crosses, silently.
+
+        AMENDMENT (Task 22 review F2, 2026-08-14) — the min side shares
+        this root cause and belongs to the same fix. Task 22's leftward
+        widening for a centered label is computed from that same
+        unwrapped width, so for a label `paint` wraps, the frame is
+        widened leftward by a run the glyphs never make: 119px of dead
+        margin on the reviewer's synthetic scene. In the corpus, 15 of
+        the 39 under-stored centered labels are also wrapped, with
+        spurious widenings up to 30.5px. All 15 are LATENT — none is its
+        drawing's leftmost element, which is why the fixture replay is
+        still byte-identical — and all 15 are slack rather than clipping,
+        so the direction is provably safe (the unwrapped width bounds any
+        wrapped line's width, so even an unbreakable long word stays
+        covered). No separate mutant, deliberately: it is one defect with
+        two symptoms, and whoever teaches the loop about wrapping fixes
+        both or has not finished.
+        """
+        finds = parity_findings(_wrapped_body_text(False), ["t1"],
+                                self.workdir)
+        self.assertEqual(
+            finds, [],
+            "the tail of a wrapped text is painted below the viewBox "
+            "render_svg computed for its own markup: %s"
+            % [f["raw"] for f in finds])
+
+    def test_neighbour_unwrapped_text_is_framed_whole(self) -> None:
+        """With `autoResize` on, the bound and the drawn text agree.
+
+        The other pole, and the control that keeps the red above
+        meaningful: same string, same box, same position, and the single
+        variable is whether `paint` wraps. `autoResize: True` is the
+        branch where it does not, so the one unwrapped line it draws is
+        precisely the extent the bounds loop measured — which makes the
+        red's silence mean "the loop measured the wrong thing" rather
+        than "this scene is too big for its frame".
+
+        Without it the red would be satisfied by a renderer that framed
+        nothing correctly, or by an instrument that reported a clip on
+        every scene it was shown.
+        """
+        scene = _wrapped_body_text(True)
+        self.assertEqual(parity_findings(scene, ["t1"], self.workdir), [])
+        # A text that drew nothing at all would satisfy that too: silence
+        # has to mean "framed whole", never "absent from both frames".
+        self.assertGreater(_element_ink(scene, "t1", self.workdir)[0], 0)
+
 
 class TestRenderParityRegime(unittest.TestCase):
     """The parity scene must keep measuring what it was built to measure.
@@ -2325,18 +2527,60 @@ class TestRenderParityRegime(unittest.TestCase):
                                  "origin to %g: the min side is no longer "
                                  "floored at x" % (label, minx))
 
+    def test_the_body_text_still_wraps_to_more_lines_than_it_is_bound_for(
+            self) -> None:
+        """`_WRAPPED_LABEL` still wraps to four lines past a one-line bound.
+
+        The regime guard for the bottom-overrun red, and it outlives that
+        red on purpose: all three claims are about `paint` and the font
+        metrics, which the fix does not touch, so this keeps saying the
+        scene exercises wrapping long after the bounds loop learns to
+        measure it. Green today and green after the flip.
+
+        If `text_dims` stops returning 338 the wrap is about a different
+        string; if the greedy wrap stops producing four lines the scene
+        may no longer reach past the bound at all; and if the last
+        baseline climbs back above the bound the mutant is inside its
+        frame for a reason that has nothing to do with the defect it
+        pins. The third is the one that would go quiet most easily — a
+        `lineHeight` default change moves it without touching either
+        number above.
+        """
+        self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (338, 20),
+                         "the font metrics moved: re-measure the wrapped "
+                         "scene's regime, and the magnitude pinned in "
+                         "test_the_bottom_overrun_is_red_by_measurement_"
+                         "not_by_error with it")
+        lines = canvas.wrap_label_text(_WRAPPED_LABEL, _WRAPPED_BOX_W,
+                                       16).split("\n")
+        self.assertEqual(len(lines), _WRAPPED_LINES,
+                         "paint wraps this text to %d lines, not the %d "
+                         "the scene was built around: %r"
+                         % (len(lines), _WRAPPED_LINES, lines))
+        # `paint` puts line i's baseline at y + fs*0.85 + i*fs*lineHeight,
+        # so the fourth is at 73.6 — against a frame the bounds loop ends
+        # at the text's UNWRAPPED height plus the pad, i.e. drawing y 60.
+        last_baseline = 16 * 0.85 + (_WRAPPED_LINES - 1) * 16 * 1.25
+        self.assertGreater(
+            last_baseline, 20 + SVG_PAD,
+            "the last line's baseline is at %g, inside the y=%d bottom a "
+            "one-line bound plus the %dpx pad gives this scene: nothing "
+            "here is drawn outside its frame any more"
+            % (last_baseline, 20 + SVG_PAD, SVG_PAD))
+
     def test_the_edge_attribution_still_names_the_side_ink_escapes(self
                                                                    ) -> None:
         """`_clipped_edges` reports each side, and "" only when contained.
 
         The half of the clip instrument that needs no browser, and the
-        reason it is pinned at all is the Task 22 flip. `parity_clipped`
-        now has no scene in this file that makes it emit a finding — the
-        mutant and its honest-width neighbour are both SILENCES, because
-        the finding fires only on a frame short of its own ink and tier 1
-        no longer produces one. An `_clipped_edges` that returned "" for
-        everything would leave both of them green with the instrument
-        blind, and a check proven only by silences is not proven
+        reason it is pinned at all is the Task 22 flip. The two scenes
+        that ask about a correct frame — the centered-label mutant and
+        its honest-width neighbour — are both SILENCES, because the
+        finding fires only on a frame short of its own ink and the
+        min-side fix stopped tier 1 producing one there. An
+        `_clipped_edges` that returned "" for everything would leave both
+        of them green with the instrument blind, and a check proven only
+        by silences is not proven
         (`test_mutants.TestCoverage.test_silence_only_mutant_does_not_
         prove_its_check` is the same rule one tier up).
 

@@ -64,8 +64,9 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-14
-after curator batch 17 (which added the composed-FURNITURE red Task 44's
-content fix left behind):
+after curator batch 18 (which added the wrapped-text bottom-overrun red the
+Task 22 cycle turned up; Task 22 itself flipped the centered-label clip, so
+the render count went 4 → 3 → 4 and only the membership changed):
 **16 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
 `expected failures=16` default and `=20` under `MUTANTS_RENDER=1`. That splits as 8 catalog reds (`mutants list --red` is
 authoritative) plus **8 non-catalog reds across four guarded classes** —
@@ -123,11 +124,21 @@ eight had already flipped):
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `long_run_curve_hides_bidi`, `near_miss_clearance`, `pale_stroke_node`, `phantom_passthrough_shared_attach`, `tiny_font_text`, `unroled_text_over_node` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_center_anchored_label_is_clipped_off_the_frame`, `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom`, `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner` |
 
 The render row is `@unittest.expectedFailure` method names rather than
 catalog ids because all four sit outside `CATALOGUE`; the third pins
-`parity_clipped`, the centered-text bounds clip that Task 22 owns. Curator
+`parity_clipped`, and it is the SECOND mutant to do so. Task 22 fixed the
+first — `test_mutant_center_anchored_label_is_clipped_off_the_frame`, the
+centered label whose leading glyphs fell off the min side — and its own
+cycle turned up the same root cause on the other axis: `render_svg`'s bounds
+loop sizes a text by the UNWRAPPED string while `paint` wraps it, so four
+lines are drawn where one line's height was reserved and the tail leaves the
+frame's bottom. Curator batch 18 pinned that, with the review's min-side
+amendment recorded on the same entry (a wrapped centered label also gets
+dead left margin from the same unwrapped measurement — slack, not clipping,
+and one fix settles both). **It has no owner**: teaching the bounds loop
+about wrapping is a Task 24 gate decision to schedule or defer. Curator
 batch 16's fourth entry — `test_mutant_composed_value_hides_under_its_opaque_owner`,
 from the Task 21 review's F2, a composed KPI value banded
 beneath its own opaque owner — **flipped green in Task 44**, which split
