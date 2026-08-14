@@ -262,6 +262,54 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
     anti-aliasing. Measured on the scenes below, the mid-run pair
     overlaps by 2 rows and the elbow pair misses by 11.
 
+    KNOWN TOO BROAD (curator batch 14, from the Task 19 review, F5,
+    2026-08-14). Read literally this is a BBOX predicate, not a
+    collinearity one: separated on one axis, overlapping by >=1 unit on
+    the other, with NO bound on how far apart the pieces are and no
+    look at where either piece's ENDS point. Three consequences, each
+    reproduced:
+
+    - Synthetic. An L-shaped remnant `(122,59,283,120)` merges with a
+      horizontal stub `(350,100,400,101)` 67px to its right, and with a
+      vertical stub `(200,200,201,300)` 80px below it; a T-corner pair
+      merges on one row of shared band.
+    - Reachable in PIXELS, not only on paper. Any remnant containing a
+      TURN has a bbox tall AND wide, so it overlaps a distant stub on
+      one axis by construction — which is what
+      `test_mutant_l_shaped_remnant_hides_a_severed_back_edge` pins on
+      `_back_edge_with_label("turn")`: the same erased-elbow picture the
+      2-segment `corner` scene fires on, silently merged here. The
+      reviewer's own sweep did NOT reach it (a corner-label sweep from
+      y=90 to y=70 reconnects the scene genuinely at y=78, and a Z-path
+      broken on either turn leaves the pieces separated on BOTH axes, so
+      the check fires correctly); the back edge reaches it because its
+      third segment turns back UNDER the remnant instead of away from it.
+    - The discrimination that does work rests on a thin measurement:
+      one scene, an 11-row miss against a 1-row trip point. A build
+      whose anti-aliasing fattens a stub by 11 rows silences the elbow
+      mutant, and nothing here would say so.
+
+    Why this is NOT a predicate tweak, measured rather than guessed: by
+    the time a component reaches here, the ink's SHAPE is already gone.
+    `tolerant_diff` computes a per-pixel residual and returns only each
+    blob's area and bbox; `_delta_components` then fills those bboxes
+    solid, so every "component" is a rectangle and the L above reads as
+    122..280 on every one of its rows. No function of these bboxes can
+    tell the back edge's severed turn from its legitimate mid-leg break
+    — both are two L's, y-separated, x-overlapping. VERIFIED in a
+    throwaway tree: carrying the true residual through and comparing
+    the ink within 4px of the two FACING edges flips the mutant green
+    and leaves the whole render tier green (820 tests, sole change).
+    That is the shape of the fix and it belongs to WP4; the cost is
+    plumbing the residual mask out of `tolerant_diff`.
+
+    Residual, recorded with the class rather than as an open defect: a
+    foreign opaque shape covering a straight run is not lost, because
+    `passes_through_foreign` owns exactly that class on the lint tier —
+    but it IS lost when the foreign shape's STORED geometry shows no
+    overlap, which is F1's class, and this tier was meant to be the
+    backstop for precisely that. F1 itself closed at 636da5d.
+
     Args:
         a: One component, with an inclusive `bbox` of `(x0, y0, x1, y1)`.
         b: The other component, same shape.
@@ -420,6 +468,57 @@ def _elbow_with_label(where: str) -> list[dict]:
     if where == "routed":
         canvas.recenter_label(scene, arr)
     return scene
+
+
+def _back_edge_with_label(where: str) -> list[dict]:
+    """Two stacked rects joined by a back edge that turns TWICE.
+
+    `_elbow_with_label` above has one turn, so a backdrop anywhere on it
+    leaves two STRAIGHT stubs and `_completed_by_eye` judges them on the
+    geometry it was written for. This scene adds the third segment that
+    the judgement was never tested against: `s1` exits right, the run
+    drops down the right margin, then turns back LEFT into `s2`'s right
+    edge — the ordinary back-edge routing for a node returning to one
+    stacked above it. Break it on the lower turn and one remnant is
+    L-shaped (top run plus the vertical leg), and an L's bbox is tall
+    AND wide, so it overlaps the far stub on an axis it never shares a
+    stroke with. That is the whole point of the scene; nothing else
+    about it differs from the elbow family.
+
+    `where` moves the label and nothing else, so a difference in verdict
+    is a difference the label's position made:
+
+    - `"turn"` — over the lower turn at (360, 220). The erased-elbow
+      picture: the leg stops in mid-air and a separate arrow arrives
+      from the right. Identical in class to `_elbow_with_label
+      ("corner")`, which fires.
+    - `"leg"` — mid-way down the vertical leg. The legitimate bound-label
+      idiom on this path, and where `canvas.recenter_label` puts this
+      scene's label of its own accord (measured: x=330, y=150), so the
+      neighbour is the product's own placement without depending on it.
+
+    Args:
+        where: `"turn"` or `"leg"`. Anything else is a `KeyError` rather
+            than a scene with a silently defaulted label.
+
+    Returns:
+        The four-element scene: rects `s1`/`s2`, arrow `a1`, label `t1`.
+    """
+    src = el(id="s1", type="rectangle", x=120, y=80, width=80, height=40,
+             customData={"role": "node"})
+    dst = el(id="s2", type="rectangle", x=120, y=200, width=80, height=40,
+             customData={"role": "node"})
+    arr = el(id="a1", type="arrow", x=200, y=100, width=160, height=120,
+             points=[[0, 0], [160, 0], [160, 120], [0, 120]],
+             startBinding={"elementId": "s1", "focus": 0, "gap": 1},
+             endBinding={"elementId": "s2", "focus": 0, "gap": 1},
+             customData={"role": "edge"})
+    lbl = el(id="t1", type="text", x=330, y={"turn": 210, "leg": 150}[where],
+             width=60, height=20, text="then", fontSize=16, fontFamily=1,
+             textAlign="center", verticalAlign="middle", containerId="a1",
+             originalText="then")
+    arr["boundElements"] = [{"id": "t1", "type": "text"}]
+    return [src, dst, arr, lbl]
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
@@ -622,6 +721,65 @@ class TestRenderMutants(unittest.TestCase):
                           if f["check"] == "ablation_continuity"], [])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_existence"], [])
+
+    def test_neighbour_back_edge_label_on_the_leg_is_silent(self) -> None:
+        """A backdrop mid-way down the back edge's leg is the idiom, not a cut.
+
+        The live pole of the pair below, and the half that constrains the
+        fix. Both remnants here are L-shaped — the top run plus the leg's
+        upper half, the leg's lower half plus the bottom run — so the
+        cheap narrowing "an L-shaped remnant is never completed by eye"
+        would over-fire on this scene and report the tool's own bound
+        label as a severed connector. What makes it readable is that the
+        two facing ENDS are collinear down the leg at x~358 and 25 raster
+        rows apart, which is the property `_completed_by_eye` claims to
+        test and does not.
+        """
+        scene = _back_edge_with_label("leg")
+        finds = ablation_findings(scene, ["a1"], self.workdir)
+        self.assertEqual([f for f in finds
+                          if f["check"] == "ablation_continuity"], [])
+        # Silence is only meaningful if the arrow drew something at all.
+        self.assertEqual([f for f in finds
+                          if f["check"] == "ablation_existence"], [])
+
+    @unittest.expectedFailure
+    def test_mutant_l_shaped_remnant_hides_a_severed_back_edge(self) -> None:
+        """A remnant with a turn in it merges with a stub it never touches.
+
+        Curator batch 14, from the Task 19 review (F5), 2026-08-14. Same
+        defect class as `test_mutant_label_backdrop_severs_connector` and
+        the same picture — a bound label's opaque backdrop parked on an
+        elbow, the run arriving, stopping, and resuming somewhere the eye
+        cannot follow it to — but on a path with a second turn, and
+        `ablation_continuity` says nothing.
+
+        Why the extra turn is the whole scene: broken on the lower turn,
+        this connector's ink comes back as an L (122,59,280,167) and a
+        bottom stub (122,176,258,183). The two are separated in y by 9
+        rows, which is the severance, and OVERLAP in x for 136 columns —
+        not because they share a stroke, but because the L is 158 columns
+        wide and swallows the stub's range whole. `_completed_by_eye`
+        reads that overlap as "the eye continues one into the other" and
+        `_reader_strokes` merges them into one, so the finding is never
+        emitted. The 2-segment `corner` scene escapes this only because
+        two straight stubs give it two thin bboxes.
+
+        Expected: `ablation_continuity` on `a1` with magnitude 2.0 — the
+        count of pieces a reader sees, and 2 is the count in the raster,
+        asserted as a whole projection rather than by indexing into an
+        empty list so this is red BY ASSERTION and not by IndexError.
+
+        Fix ownership is WP4's, not this file's, and the neighbour above
+        is the constraint on it: whatever replaces the bbox test must
+        still complete a break on the leg, so the property to reach for
+        is where the facing ends POINT, not how big the pieces are.
+        """
+        scene = _back_edge_with_label("turn")
+        finds = ablation_findings(scene, ["a1"], self.workdir)
+        self.assertEqual([(f["check"], f["element"], f["magnitude"])
+                          for f in finds],
+                         [("ablation_continuity", "a1", 2.0)])
 
 
 # ---------------------------------------------------------------------------
