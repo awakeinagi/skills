@@ -2405,6 +2405,132 @@ class TestStoreIntegrity(unittest.TestCase):
         n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
         self.assertEqual(n1["height"], 136)
 
+    # -- Two CLASS pins from the v0.9 Task-18 cycle (2026-08-14), written
+    # from third hands. The instances are fixed and covered by the tests
+    # that came with the fixes; these encode the rules those instances
+    # were instances OF, which is the half a same-hands test cannot carry.
+
+    def _labelled(self, text: str, node_w: int, node_h: int,
+                  label_w: int = 400) -> str:
+        """Serialize one node carrying one bound label.
+
+        Args:
+            text: The label's text, which decides whether a refit is
+                needed at all.
+            node_w: The container's width.
+            node_h: The container's height — the dimension a refit grows,
+                so it is what decides whether a resize happens.
+            label_w: The label box's stored width.
+
+        Returns:
+            The artifact document, as the bytes a load would read.
+        """
+        return json.dumps({"type": "excalidraw", "version": 2, "elements": [
+            {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+             "width": node_w, "height": node_h,
+             "customData": {"role": "node"},
+             "boundElements": [{"id": "t1", "type": "text"}]},
+            {"id": "t1", "type": "text", "x": 10, "y": 40, "width": label_w,
+             "height": 20, "text": text, "originalText": text,
+             "fontSize": 16, "containerId": "n1", "textAlign": "center"}]})
+
+    def test_a_repaired_flag_is_evidence_something_changed(self) -> None:
+        """No repair is filed for work the loader decided not to do.
+
+        The CLASS behind Task 18's fiction repairs. `fit_label_in` walks
+        the wrap budgets and can conclude that the label as written is
+        already the best it can get — the `keep` return — at which point
+        it changes nothing. ART-011 used to be filed anyway, with
+        `repaired=True`, so five instances across three fixtures
+        re-reported a repair that had never happened on every load
+        forever, and the replay test blessed it as expected output.
+
+        The rule this pins is not about ART-011: a `repaired` flag is a
+        claim that the loader CHANGED something, so a load that changed
+        nothing must file nothing. Asserted over `issues` as a whole
+        rather than against that one code, so a second repair filed on a
+        no-op path is caught the day it is added.
+
+        The scene is a DECLINED refit, per the Task-18 disclosure that
+        the claim must be entirely fictional: an 86px label on a 90x60
+        diamond is wide enough that the loader calls the fitter, and the
+        fitter then finds no wrap that sits better than the label as
+        written and returns having changed nothing. A repair filed there
+        could point at no changed byte.
+
+        Getting that scene took measuring rather than reasoning. My
+        first attempt used a label that comfortably fits, which never
+        reaches the fitter at all — the loader gates on `el.width >
+        max(60, cont.width - 16)` — so no mutation of the repair guard
+        could have made it fire, and the test would have been green
+        forever while proving nothing. The pin below is therefore
+        asserted with its own premise: the fitter was reached, and it
+        declined.
+        """
+        body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
+            {"id": "n1", "type": "diamond", "x": 0, "y": 0, "width": 90,
+             "height": 60, "customData": {"role": "node"},
+             "boundElements": [{"id": "t1", "type": "text"}]},
+            {"id": "t1", "type": "text", "x": 2, "y": 20, "width": 86,
+             "height": 20, "text": "to compose",
+             "originalText": "to compose", "fontSize": 16,
+             "containerId": "n1", "textAlign": "center"}]})
+        st = self._load({"a": body}, {"0001-x": _GOOD_SAVE})
+        node = next(e for e in st.scenes["a"] if e["id"] == "n1")
+        label = next(e for e in st.scenes["a"] if e["id"] == "t1")
+        self.assertGreater(
+            86, max(60, node["width"] - 16),
+            "the loader's own guard did not admit this label, so the "
+            "fitter was never reached and this scene proves nothing")
+        self.assertEqual((node["width"], node["height"]), (90, 60))
+        self.assertEqual((label["width"], label["height"]), (86, 20))
+        self.assertEqual(
+            [(i["code"], i.get("repaired")) for i in st.issues], [],
+            "the fitter declined and changed nothing, and a repair was "
+            "filed anyway")
+
+    def test_every_resize_confesses_and_nothing_else_does(self) -> None:
+        """A load that moves a border says so; one that does not stays quiet.
+
+        Task 18's settled invariant, recorded here from third hands
+        because it is a RULING and the fix round pinned both poles with
+        the same hands that made it. The sentence it turns on: a load
+        that changes geometry and stays quiet is the one thing this
+        loader may never do.
+
+        Three poles on one builder, which is what makes it a class pin
+        rather than three instances. A refit that grows the container
+        confesses even with NO arrow bound to it — that was the earlier
+        rule's gap, since the confession was gated on having something to
+        re-route when confessing is what it is FOR. A refit that resizes
+        only the LABEL box files its ART-011 and no confession, because
+        no border moved. And a load with nothing to refit files neither.
+
+        The ART-012 message is asserted on the dimensions it names, not
+        on its prose: "re-routed nothing; left a3 as drawn" is deliberate
+        wording ruled correct in the same cycle, and pinning the sentence
+        would freeze a phrasing this test has no business owning.
+        """
+        big = "Escalate to the compliance review board immediately now"
+        for label, body, was in (
+                ("grows the container",
+                 self._labelled(big, 160, 40), (160, 40)),
+                ("refits the label only",
+                 self._labelled(big, 300, 120), (300, 120)),
+                ("nothing to refit",
+                 self._labelled("ok", 300, 120, label_w=80), (300, 120))):
+            with self.subTest(load=label):
+                st = self._load({"a": body}, {"0001-x": _GOOD_SAVE})
+                node = next(e for e in st.scenes["a"] if e["id"] == "n1")
+                now = (node["width"], node["height"])
+                said = [i for i in st.issues if i["code"] == "ART-012"]
+                self.assertEqual(
+                    bool(said), now != was,
+                    "%s: the border went %r -> %r and ART-012 %s"
+                    % (label, was, now, "fired" if said else "did not"))
+                if said:
+                    self.assertIn("%gx%g" % now, said[0]["msg"])
+
     def test_art011_repair_reroutes_the_arrow_it_displaced(self) -> None:
         """FLIPPED by v0.9 WP4. A repair re-routes what it moves.
 
@@ -7116,12 +7242,11 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 in curator batch 12, `mutants list --red` reports 9
-# while this file carries 20 expectedFailure methods. The eleven outside live
-# in six classes — `TestLoadFindingsReachTheAgent` (4),
+# re-measured 2026-08-14 in curator batch 13, `mutants list --red` reports 8
+# while this file carries 18 expectedFailure methods. The ten outside live
+# in five classes — `TestLoadFindingsReachTheAgent` (4),
 # `TestExportCompleteness` (2), `TestShapeBlindAnnotationOverlap` (2),
-# `TestBatchPathIntegrity` (1), `TestPaintOrder` (1) and
-# `TestStoreIntegrity` (1) — and are outside
+# `TestBatchPathIntegrity` (1) and `TestPaintOrder` (1) — and are outside
 # deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
@@ -7461,6 +7586,39 @@ _register(Mutant(
     # construction and `text_overflow` still owns it.
     neighbour=Neighbour(lambda: _labelled_shape("diamond", width=220),
                         Silence("label_overflows_shape"))))
+
+
+def _wrapped_ink_in_a_wide_frame() -> list[dict]:
+    """Narrow centred ink inside a wrapping frame wider than the body.
+
+    The CLASS scene behind Task 17's F1 (v0.9 WP4, 2026-08-14): the
+    check read `max(tw, box_w)` on the `autoResize is False` branch,
+    where `box_w` is the frame the FITTER chose and not a measurement of
+    any ink. On argus-r4-arm4 that reported an 11px overhang about a
+    label with roughly 20px of real clearance on each side.
+
+    The three numbers are picked so the two readings disagree, which is
+    the only thing that makes this a test: the ink is 86px, the band at
+    the label's own height is 186.3px, and the stored box is 200px. Ink
+    clears the body comfortably; the frame does not fit inside it. So
+    reading ink is silent and reading the frame reports about 14px of
+    overhang that no reader could see.
+
+    The label sits at the ellipse's shoulder rather than its middle
+    deliberately — at the widest band the frame fits too, and the scene
+    would be silent under either reading.
+
+    Returns:
+        The two-element scene: ellipse `e1` and its bound label `t1`.
+    """
+    owner = el(id="e1", type="ellipse", x=1600, y=400, width=250,
+               height=120, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}])
+    label = el(id="t1", type="text", x=1625, y=420, width=200, height=20,
+               text="to compose", originalText="to compose", fontSize=16,
+               containerId="e1", textAlign="center", autoResize=False)
+    return [owner, label]
+
 
 # Frame membership asserted against a picture that contradicts it — RED BY
 # ABSENCE (flowchartai mine M2, 2026-08-12). `frameId` is a claim of
@@ -7838,6 +7996,43 @@ class TestMutantCatalogue(unittest.TestCase):
         # against `shape_band_width` at the label's own y-band, and
         # `fit_label_in` budgets against the same number.
         self._run("diamond_label_overflows_shape")
+
+    def test_the_overflow_check_measures_ink_and_not_the_frame(
+            self) -> None:
+        """A check's number has to be about the picture, not about a box.
+
+        The CLASS pin for Task 17's F1, from third hands. The instance —
+        the fixture label wrongly reported at 11px — is fixed and
+        covered by the test that came with the fix; what is encoded here
+        is the rule it broke: a check may only report a number a reader
+        could verify by looking. `box_w` on the `autoResize is False`
+        branch is the wrapping frame the fitter chose, so a check reading
+        it measures the loader's own bookkeeping and calls it ink.
+
+        Written against the finding rather than against the arithmetic:
+        `_wrapped_ink_in_a_wide_frame` is built so ink (86px) clears the
+        band (186.3px) while the frame (200px) does not, so the current
+        reading is silent and a frame-reading regression reports about
+        14px. I verified the discrimination by measuring both numbers on
+        the scene before writing the assertion — a scene where the two
+        readings agree would pass here forever while proving nothing,
+        which is exactly how the defect survived its own test.
+
+        The silence is asserted over every channel rather than as a
+        `Silence` spec, because the neighbour half of this claim already
+        lives in `diamond_label_overflows_shape` — that entry proves the
+        check still fires, at a magnitude of 11px, so a check that had
+        simply died could not make this pass.
+        """
+        scene = _wrapped_ink_in_a_wide_frame()
+        said = [f for f in collect_findings(scene)
+                if f["check"] == "label_overflows_shape"]
+        self.assertEqual(
+            said, [],
+            "the label's ink is 86px inside a 186px band and nothing "
+            "overhangs; the check reported %s — it is reading the "
+            "wrapping frame, not the drawn text"
+            % [f["raw"] for f in said])
 
     def test_neighbour_diamond_label_overflows_shape(self) -> None:
         """The same label on a 220-wide diamond has 5px to spare, and is quiet."""
