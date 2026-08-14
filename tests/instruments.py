@@ -13,12 +13,13 @@ Fixed by WP4, each flipping its catalogue mutant:
   - `false_bidi` read the stored chord `points[-2] -> points[-1]` rather
     than the path the renderer draws, so a curved elbow bowed well off
     its own chord still read as one bidirectional line
-    (`curved_elbow_spurious_bidi`).
+    (`curved_elbow_spurious_bidi`);
+  - `float_diamond` measured radially from the node center, so its
+    answer turned on the direction the endpoint lay in and an endpoint
+    at the exact center scored 0 and was never reported — it now reads
+    the perpendicular distance to the facet (`float_diamond_center_zero`).
 
-Still preserved, pinned by `float_diamond_center_zero` and owned by
-WP4's shape-clipping item: `float_diamond` measures radially from the
-node center, takes abs(), and returns 0 for an endpoint at the exact
-center.
+No ported bug is preserved here any longer.
 
 The scoring half (`score_layout`, `compare_layouts`) is the Aug 2026
 literature-scan rebuild. Every headline metric is normalized to [0, 1]
@@ -486,15 +487,37 @@ def false_bidi(elements: list[dict]) -> list[dict]:
 
 
 def _dist_to_diamond(px: float, py: float, n: dict) -> float:
-    """Radial gap between a point and a diamond node's boundary.
+    """How far a point misses a diamond node's drawn outline by, in px.
 
-    Ported from floatdia.py's `dist_to_diamond`.
+    Ported from floatdia.py's `dist_to_diamond` and rebuilt by v0.9 WP4:
+    the port measured RADIALLY from the node center, scaling the center
+    ray out to the boundary and subtracting, which fails twice. The
+    answer depended on the direction the endpoint happened to lie in
+    rather than on how far it sat from the outline; and at the center
+    there is no ray at all, so the `t == 0` guard returned `r` — zero —
+    and an endpoint pinned dead-center, structurally the worst binding
+    there is, scored a perfect gap and was never reported
+    (`float_diamond_center_zero`).
 
-    BUG, preserved: takes abs() of the radial excess, so a point just
-    inside the diamond and a point just as far outside score the same
-    gap; and when the point sits exactly on the node's center (t == 0),
-    returns r (which is 0) instead of a meaningful gap, silently
-    hiding an endpoint pinned dead-center.
+    The perpendicular distance to the facet has neither problem. Folding
+    the point into the first quadrant collapses the four facets onto the
+    one plane `|dx|/a + |dy|/b = 1`, and the distance to it is exact for
+    every interior point and every exterior point abreast of a facet;
+    only out past a vertex does it under-read, which errs toward
+    silence.
+
+    Derived here rather than imported from `canvas.shape_clearance`,
+    which computes the same number. These instruments are the measure of
+    what canvas.py draws, and sharing its geometry would make a bug in
+    that geometry invisible to them — `float_diamond` reading the true
+    outline is exactly what caught `edge_anchor` anchoring the router on
+    the bounding box (v0.9 WP4), months before the lint agreed.
+
+    UNSIGNED, and not because the port's `abs()` survived by accident:
+    an endpoint 50px inside a diamond is as unbound as one 50px outside,
+    both poles are what this check exists to flag, and the magnitude is
+    the miss. Which side it missed on is not returned because no caller
+    has ever asked for it.
 
     Args:
         px: Endpoint x in absolute coordinates.
@@ -502,17 +525,14 @@ def _dist_to_diamond(px: float, py: float, n: dict) -> float:
         n: The diamond node element dict (x, y, width, height).
 
     Returns:
-        The (buggy) radial distance from the diamond's boundary.
+        Distance in px from the rhombus outline; 0 exactly on it, and 0
+        for a node with no area, which has no outline to miss.
     """
-    cx, cy = n["x"] + n["width"] / 2.0, n["y"] + n["height"] / 2.0
     a, b = n["width"] / 2.0, n["height"] / 2.0
-    # |dx|/a + |dy|/b = 1 is the boundary; scale the ray to hit it
-    dx, dy = abs(px - cx), abs(py - cy)
-    t = dx / a + dy / b
-    r = (dx * dx + dy * dy) ** 0.5
-    if t == 0:
-        return r
-    return abs(r - r / t)
+    if a <= 0 or b <= 0:
+        return 0.0
+    dx, dy = abs(px - (n["x"] + a)), abs(py - (n["y"] + b))
+    return abs(dx / a + dy / b - 1) / (1 / (a * a) + 1 / (b * b)) ** 0.5
 
 
 def float_diamond(elements: list[dict]) -> list[dict]:
@@ -526,7 +546,8 @@ def float_diamond(elements: list[dict]) -> list[dict]:
 
     Returns:
         A list of `{"arrow": id, "node": id, "gap": float}` dicts, one
-        per bound endpoint whose (buggy) radial gap exceeds 12px.
+        per bound endpoint sitting more than 12px off the outline, on
+        either side of it (see `_dist_to_diamond`).
     """
     by_id = {e["id"]: e for e in elements}
     bad: list[dict] = []

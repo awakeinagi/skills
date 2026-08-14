@@ -1,10 +1,11 @@
 """Tests for the geometry instruments: the ports and the score vector.
 
 Two classes of assertion live here. `TestInstrumentPorts` pins the ported
-behavior, including the bugs still preserved on purpose — the mutation
-catalogue (test_mutants.py) is what asserts a preserved bug is a bug.
-Everything below it covers WP4's rebuild: the rendered-path flattening,
-the fixed crossing counter, and one test per metric in the score vector.
+detectors' behavior; as of v0.9 WP4 none of the ported bugs is preserved
+any longer, and the mutation catalogue (test_mutants.py) is what holds
+each fix to its magnitude. Everything below it covers WP4's rebuild: the
+rendered-path flattening, the fixed crossing counter, and one test per
+metric in the score vector.
 """
 from __future__ import annotations
 
@@ -64,7 +65,7 @@ def _clean_scene() -> list[dict]:
 
 
 class TestInstrumentPorts(unittest.TestCase):
-    """The ports run and preserve the spike scripts' observed behavior."""
+    """The ported detectors run, and read what the drawing actually shows."""
 
     def _crossing_scene(self) -> list[dict]:
         """A flat arrow crossed four times by one zigzag arrow.
@@ -103,12 +104,14 @@ class TestInstrumentPorts(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertGreaterEqual(hits[0]["overlap"], 290)
 
-    def test_float_diamond_center_scores_zero(self) -> None:
-        """A dead-center endpoint scores gap 0 and is never flagged."""
-        # BUG, preserved: an endpoint at the diamond's exact center
-        # returns gap 0 (t == 0 guard returns r, which is 0). The gap
-        # never exceeds the 12px threshold, so a dead-center endpoint —
-        # structurally the worst possible binding — is never reported.
+    def test_float_diamond_flags_a_dead_center_endpoint(self) -> None:
+        """A dead-center endpoint is flagged, at its distance to the facet."""
+        # The ported radial measure returned gap 0 here (the `t == 0`
+        # guard returned r, which is 0 at the center), so the worst
+        # possible binding never crossed the 12px threshold. WP4 (task
+        # 16) measures perpendicular to the facet instead: the rhombus
+        # is 200x100, so the center sits 1/sqrt(1/100^2 + 1/50^2) =
+        # 44.72px from the outline, and 44.72 has no way to be 0.
         node = el(id="d1", type="diamond", x=100, y=100, width=200,
                   height=100, customData={"role": "node"})
         arrow = el(id="ar1", type="arrow", x=0, y=0, width=200, height=150,
@@ -116,7 +119,24 @@ class TestInstrumentPorts(unittest.TestCase):
                    endBinding={"elementId": "d1", "focus": 0, "gap": 0},
                    customData={"role": "edge"})
         hits = instruments.float_diamond([node, arrow])
-        self.assertEqual(hits, [])
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["arrow"], "ar1")
+        self.assertAlmostEqual(hits[0]["gap"], 44.721, places=3)
+
+    def test_float_diamond_is_silent_on_a_facet_midpoint(self) -> None:
+        """An endpoint exactly on the outline is bound, and stays unremarked.
+
+        The other pole, and the one the fix could have broken: a measure
+        that flags the center by flagging everything is not a measure.
+        """
+        node = el(id="d1", type="diamond", x=100, y=100, width=200,
+                  height=100, customData={"role": "node"})
+        # (150,125) is the top-left facet's midpoint: 50/100 + 25/50 == 1
+        arrow = el(id="ar1", type="arrow", x=0, y=0, width=150, height=125,
+                   points=[[0, 0], [150, 125]],
+                   endBinding={"elementId": "d1", "focus": 0, "gap": 0},
+                   customData={"role": "edge"})
+        self.assertEqual(instruments.float_diamond([node, arrow]), [])
 
 
 class TestRenderedPath(unittest.TestCase):

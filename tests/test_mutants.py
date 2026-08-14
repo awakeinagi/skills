@@ -6799,9 +6799,9 @@ _register(Mutant(
     expect=Silence("endpoint_gap"),
     neighbour=Neighbour(_rect_stage, Silence("endpoint_gap"))))
 
-# Over-fire: the through-node test uses the node's bbox, so an arrow
-# clipping the diamond's empty corner reads as passing through it. Flips
-# when WP4 tests the rendered shape.
+# Over-fire: the through-node test used the node's bbox, so an arrow
+# clipping the diamond's empty corner read as passing through it. FIXED by
+# WP4 (task 16), which clips `_seg_hits_rect` to the rendered outline.
 _register(Mutant(
     "foreign_diamond_corner_overfire",
     build=_foreign_corner_stage,
@@ -6824,8 +6824,12 @@ _register(Mutant(
                                     magnitude=(1, 0.0)))))
 
 # Blind spot: an endpoint pinned to the diamond's exact center — the worst
-# possible binding — scores gap 0 and is never reported. Flips when WP4
-# stops returning r at t == 0.
+# possible binding — scored gap 0 and was never reported. FIXED by WP4
+# (task 16): the radial measure is gone, and the perpendicular distance to
+# the facet reads 44.7px at the centre of this 200x100 rhombus. The ±90%
+# band admits [5, 95] and so still excludes both numbers that would mean the
+# fix went wrong: 0, the old answer, and 100, the axial penetration depth
+# `endpoint_gap` reports on this same scene.
 _register(Mutant(
     "float_diamond_center_zero",
     build=_diamond_stage,
@@ -7173,9 +7177,13 @@ _register(Mutant(
 # the ellipse is not weaker at all.)
 #
 # No magnitude to assert: `passes_through_foreign` reports the fact and no
-# number (canvas.py:5474), so what this pins is the POLE — silence — and the
-# neighbour carries the firing proof. The corner arrow's 27.3px of clear
-# canvas is derived in `_ellipse_stage`. Flips when WP4 tests the drawn shape.
+# number (the through-node crossing walk in `lint_layout`, canvas.py:6192 —
+# the old 5474 here had drifted two releases), so what this pins is the POLE
+# — silence — and the neighbour carries the firing proof. The corner arrow's
+# 27.3px of clear
+# canvas is derived in `_ellipse_stage`. FIXED by WP4 (task 16) in the same
+# edit as its rhombus sibling — the scope this entry was written to force
+# held, and cost nothing extra: `shape_clip` knows all three shapes.
 _register(Mutant(
     "ellipse_corner_overfire",
     build=lambda: _ellipse_stage(through_body=False),
@@ -7456,10 +7464,11 @@ class TestMutantCatalogue(unittest.TestCase):
         # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_facet_overfire")
 
-    @unittest.expectedFailure
     def test_mutant_foreign_diamond_corner_overfire(self) -> None:
-        """An arrow clipping the empty bbox corner reads as passing through."""
-        # Bbox-shaped through-node test; flips when WP4 tests the shape.
+        """An arrow clipping the empty bbox corner draws no complaint."""
+        # Was a bbox-shaped through-node test. FLIPPED by WP4 (task 16):
+        # `_seg_hits_rect` clips to the outline via `shape_clip`, so the
+        # 36px of white canvas in the corner is white canvas again.
         self._run("foreign_diamond_corner_overfire")
 
     def test_neighbour_foreign_diamond_corner_overfire(self) -> None:
@@ -7477,10 +7486,14 @@ class TestMutantCatalogue(unittest.TestCase):
         """A single crossing counts one either way."""
         self._run_neighbour("four_crossings_pairbug")
 
-    @unittest.expectedFailure
     def test_mutant_float_diamond_center_zero(self) -> None:
-        """An endpoint pinned dead-center scores gap 0 and never reports."""
-        # t == 0 returns r (0); flips when WP4 measures to the boundary.
+        """An endpoint pinned dead-center is reported, 44.7px off the facet."""
+        # The radial measure's `t == 0` guard returned r (0). FLIPPED by
+        # WP4 (task 16): `_dist_to_diamond` reads the perpendicular
+        # distance to the facet, which the centre has no way to zero.
+        # The incidental `endpoint_gap` on this scene reads 100px inside
+        # — the axial penetration depth task 15 made it measure — and is
+        # a different check answering a different question.
         self._run("float_diamond_center_zero")
 
     def test_neighbour_float_diamond_center_zero(self) -> None:
@@ -7552,11 +7565,12 @@ class TestMutantCatalogue(unittest.TestCase):
         """Attach points 80px apart are past the lint's 12px window."""
         self._run_neighbour("shared_attach_point_fan_failed")
 
-    @unittest.expectedFailure
     def test_mutant_ellipse_corner_overfire(self) -> None:
-        """An arrow 27px clear of the circle reads as passing through it."""
-        # Bbox-shaped through-node test, ellipse instance; flips when WP4
-        # tests the drawn shape — for every shape, not only the rhombus.
+        """An arrow 27px clear of the circle draws no complaint."""
+        # Bbox-shaped through-node test, ellipse instance. FLIPPED by WP4
+        # (task 16) with its rhombus sibling and by the same edit — the
+        # scope rule that made this mutant exist, discharged: `shape_clip`
+        # knows all three shapes, so one predicate fixed both.
         self._run("ellipse_corner_overfire")
 
     def test_neighbour_ellipse_corner_overfire(self) -> None:

@@ -5522,31 +5522,42 @@ _STATUS_RE = re.compile(
 
 def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     """Does segment (x1,y1)-(x2,y2) pass through el's (slightly shrunk)
-    bounding box? Cohen–Sutherland-style reject, then edge intersection."""
-    rx1, ry1 = el["x"] + inset, el["y"] + inset
-    rx2 = el["x"] + el.get("width", 0) - inset
-    ry2 = el["y"] + el.get("height", 0) - inset
-    if rx2 <= rx1 or ry2 <= ry1:
-        return False
-    if max(x1, x2) < rx1 or min(x1, x2) > rx2 or \
-            max(y1, y2) < ry1 or min(y1, y2) > ry2:
-        return False
-    # inside-the-box endpoints count as a hit; otherwise check each rect edge
-    if rx1 <= x1 <= rx2 and ry1 <= y1 <= ry2:
-        return True
-    if rx1 <= x2 <= rx2 and ry1 <= y2 <= ry2:
-        return True
+    RENDERED OUTLINE?
 
-    def ccw(ax, ay, bx, by, cx, cy):
-        return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax)
+    The outline, not the bounding box (v0.9 WP4). The box is the same
+    thing for a rectangle and a frame, so those answers do not move; a
+    rhombus fills half of it and an ellipse ~79%, and the difference is
+    empty canvas the reader can see through. An arrow threading a
+    diamond's corner void 36px clear of the facet, or one 27px clear of
+    a circle, was reported as "passes through" in the same words used
+    for one driven down the centreline — and the router steered around
+    the same phantom, spending bends on space nothing occupies.
 
-    def crosses(ax, ay, bx, by, cx, cy, dx, dy):
-        return ccw(ax, ay, cx, cy, dx, dy) != ccw(bx, by, cx, cy, dx, dy) \
-            and ccw(ax, ay, bx, by, cx, cy) != ccw(ax, ay, bx, by, dx, dy)
+    Name kept for the callers' sake; `shape_clip` is where the shapes
+    are now known. Strictly narrowing: the outline is contained in the
+    box, so this can only stop firing, never start.
 
-    edges = [(rx1, ry1, rx2, ry1), (rx2, ry1, rx2, ry2),
-             (rx2, ry2, rx1, ry2), (rx1, ry2, rx1, ry1)]
-    return any(crosses(x1, y1, x2, y2, *e) for e in edges)
+    Args:
+        x1: Segment start x, in scene coordinates.
+        y1: Segment start y.
+        x2: Segment end x.
+        y2: Segment end y.
+        el: The element to test against.
+        inset: Pixels to shrink the outline by on each axis first, so a
+            path grazing the edge is not a hit.
+
+    Returns:
+        True if any of the segment lies inside the shrunk outline.
+    """
+    dx, dy = x2 - x1, y2 - y1
+    if dx == 0 and dy == 0:
+        # a degenerate segment is a point: it hits iff it sits inside
+        norm = shape_norm(el, x1, y1, inset)
+        return norm is not None and norm <= 1
+    span = shape_clip(el, x1, y1, dx, dy, inset=inset)
+    # `t` is in segment-parameter units, so the shape is hit where the
+    # clipped interval meets [0, 1] — the segment, not its extension
+    return span is not None and span[0] <= 1 and span[1] >= 0
 
 
 def lint_layout(els, artifact_type=None, budget=None, waives=None,
