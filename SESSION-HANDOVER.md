@@ -1,7 +1,7 @@
 # Session handover — harness + candidate-board arc COMPLETE; v0.9 is next
 
 Current through 2026-08-13 (branch `v0.9_mutation_harness` @ `2319a17` —
-curator Batch D closed the harness backlog; drain 28→29).
+v0.9 execution mid-flight: Phases 1-2 SHIPPED, WP4 underway; drain 27 and falling).
 Superseded content from earlier phases is reproduced in the R5 notes.
 
 **State in one line: run 5 complete and committed; the mutation harness is
@@ -21,7 +21,7 @@ repos idea-mined with everything dispositioned; methodology documented in
 4. `V0.9-PLAN.md` — the near-future work. **WP1 ships alone and first**
    (failure-path cluster; now opens against five pinned store-integrity
    defects incl. the A1a total-loss crash; gate = cause a failure, then
-   diff the state). WP4 = drain the 29 reds (scope rules bind: ellipse +
+   diff the state). WP4 = drain its remaining reds (18 owned at Phase-2 gate; re-derive from `mutants list --red` + the ledger, not this sentence (scope rules bind: ellipse +
    label-arm mutants must flip; ASPIRATIONAL flips owe real other-pole
    neighbors).
 5. Execution/review record if needed:
@@ -39,14 +39,12 @@ repos idea-mined with everything dispositioned; methodology documented in
 - **The gotcha:** `~/.claude/skills/wysiwyg-grilling` symlinks into *this
   worktree*. Whatever is checked out here is the skill every agent on this
   machine discovers. Verify before any assessment work.
-- Health, re-measured 2026-08-13 after curator Batch D + follow-up: **596
-  unit tests** (`python3 -m unittest discover -s tests`, ~9s) →
+- Health, re-measured 2026-08-13 after curator Batch D + follow-up: **762 unit tests** (`python3 -m unittest discover -s tests`, ~9s) →
   `OK (skipped=17, expected failures=26)`; with the render tier enabled
-  (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the same
-  596 run `OK (expected failures=29)` — the 17 skips are the render tests,
+  (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the same 762 run `OK (expected failures=29)` — the 17 skips are the render tests,
   21 of them (ef=3); **12 Playwright e2e**; `uvx pre-commit run
   --all-files` green. The 29 expected failures (26 model + 3 render) are red
-  *by intent* (see §1a). **The drain number is 29** (Batch D added
+  *by intent* (see §1a). **The drain number is 27** (24 model + 3 render; live source of truth: the SDD ledger at .superpowers/sdd/2026-08-13-v0.9-work-packages/progress.md — THIS FILE's counts lag by design between gate seams) (Batch D added
   `parity_clipped` — render_svg clips center-aligned labels at the viewBox's
   min side; the follow-up proved `text_overflow` both arms GREEN; coverage
   table 13 rows, UNCOVERED ledger 48).
