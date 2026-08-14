@@ -7947,6 +7947,42 @@ def _label_pair_stage() -> list[dict]:
     return [e1, e2, t1, t2]
 
 
+def _crossing_tail() -> list[dict]:
+    """An arrow that starts on `N`'s near border and crosses the whole node.
+
+    The scene for `lint_layout`'s interior-run walk and the `if not
+    outside:` gate in front of it (canvas.py). AS BUILT this is the
+    walk's ungated pole and the lint is right to shout: the tail sits
+    exactly on N's left border, so `outside` is 0, the walk runs, and
+    the arrow is reported as crossing 98px of N before it ever reaches
+    `B`. 98 and not 100 because the walk clips 1px in from the outline,
+    which is what keeps a fanned attach point at zero (the r4-1
+    over-fire).
+
+    Everything here exists to make the gate the only variable. `N` is a
+    RECTANGLE, not a diamond: the diamond/ellipse branch zeroes both
+    readings whenever `shape_clearance` is within `tol`, so it reaches
+    the walk on a tolerable gap and the rectangle branch — a raw bbox
+    distance with no such floor — does not. `B` is a second bound node
+    rather than a bare endpoint so the arrow is a legal two-ended edge
+    and nothing else in `lint_layout` has an opinion; N's 100x80 keeps
+    `endpoint_tol` at its 14px floor (`max(14, 0.10 * 80)`), which is
+    the number that makes the 3px mutation "tolerable" rather than a
+    gap the endpoint check would catch on its own.
+
+    Returns:
+        The three-element scene: nodes `N` and `B`, then arrow `e1`.
+    """
+    return [el(id="N", type="rectangle", x=200, y=100, width=100,
+               height=80),
+            el(id="B", type="rectangle", x=400, y=100, width=100,
+               height=80),
+            el(id="e1", type="arrow", x=200, y=140, width=200, height=0,
+               points=[[0, 0], [200, 0]],
+               startBinding={"elementId": "N", "focus": 0, "gap": 0},
+               endBinding={"elementId": "B", "focus": 0, "gap": 0})]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -7955,8 +7991,14 @@ def _label_pair_stage() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 after curator batch 19, `mutants list --red` reports
-# 7 while this file carries 15 expectedFailure methods. The eight outside live
+# re-measured 2026-08-14 after curator batch 20, `mutants list --red` reports
+# 6 (of 25 entries) while this file carries 14 expectedFailure methods. Task
+# 24 flipped two catalogue reds and batch 20 added one, which is how 7 became
+# 6. COUNT THE METHODS WITH CARE: a bare `grep -c @unittest.expectedFailure`
+# says 15, because `test_red_mutants_are_red_by_mismatch_not_by_error` names
+# the decorator inside its own docstring — that miscount is what put "15"
+# here when the true figure was 13, so measure the METHODS (or read the
+# runtime line) rather than the string. The eight outside live
 # in the three classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
@@ -7969,12 +8011,12 @@ def _label_pair_stage() -> list[dict]:
 # And since curator batch 15 one red lives outside this file entirely —
 # `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
 # export is never measured against the drawing — so the suite's default line
-# reads `expected failures=16` against the 15 counted here. The two numbers
-# are meant to differ by exactly that. (16 and 15 also happened to be the
-# reading before Task 23; they are not the same 16 and 15. That task flipped
-# two and curator batch 19 added two, once on each side of the CATALOGUE
-# boundary — which is a fair warning that matching totals prove nothing here
-# and only the split is worth reading.)
+# reads `expected failures=15` against the 14 counted here. The two numbers
+# are meant to differ by exactly that one. (They have read 16/15 before, and
+# they are not the same 16 and 15 each time: Task 23 flipped two, curator
+# batch 19 added two once on each side of the CATALOGUE boundary, Task 24
+# flipped two more and batch 20 added one — a fair warning that matching
+# totals prove nothing here and only the split is worth reading.)
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
@@ -8746,6 +8788,68 @@ _register(Mutant(
     neighbour=Neighbour(_label_pair_stage,
                         Silence("label_label_overlap"))))
 
+# RED BY ABSENCE, and the direction is what indicts it: the mutation makes
+# the drawing WORSE and the lint goes from a loud ERROR to nothing at all.
+# Found during curator batch 20, 2026-08-14, from task 24's curator
+# candidate 1 (the reviewer's queue endorsed it).
+#
+# `lint_layout` measures the interior run only `if not outside:`, and the
+# rectangle branch computes `outside` as a raw bbox distance. So ANY
+# positive gap — including one well inside `tol` — switches the walk off
+# entirely. Move this arrow's tail 3px from N's border to 3px PAST it and
+# it now crosses the whole node and pokes out the far side, while `outside`
+# becomes 3.0, the walk never runs, and `max(outside, inside) > tol` is
+# false at 3 < 14. Verified live across all three lint channels: the base
+# scene emits one error, the mutated scene emits nothing, in errors,
+# warnings AND notes. The silent band is 3px..14px wide; at 15px the only
+# voice that returns is `endpoint_gap` saying "ends 15px away" about an
+# arrow that traverses 100px of the node — the anti-correlated severity
+# the endpoint comment at canvas.py already names.
+#
+# WHAT e15 DOES AND DOES NOT CLOSE. Task 24's degenerate-arrow overshoot
+# arm reads `seq[-2:]` against the END binding's target only. The same
+# geometry at the END pole IS caught ("its head sits 3px past N's far
+# outline, having crossed the whole node"); at the START pole, which is
+# this mutant, e15 is structurally unable to look. That is the general
+# silence the candidate named, minimized to its one reachable instance.
+#
+# ONE CORRECTION TO THE ORIGINAL REPORT, measured rather than assumed: it
+# predicted a diamond would be silent too. It is not. The diamond/ellipse
+# branch takes `(outside, inside) = (0, 0)` unless `abs(clear) > tol`, so a
+# 3px gap on a diamond reaches the walk and fires. The tolerance floor the
+# rectangle branch lacks is the whole defect, and pinning it on a diamond
+# would have pinned a scene that already works.
+#
+# MAGNITUDE: 98px, the interior run — confirmed by simulating the fix
+# (zeroing `outside` at or below `tol` in the rectangle branch), which
+# yields the identical finding the base scene already emits. The +/-10%
+# band excludes the readings that would mean the fix measured the wrong
+# thing: 3 (the gap, i.e. `endpoint_gap`'s answer), 80 (N's height) and
+# 203 (the arrow's own length). It deliberately ADMITS 100 (un-inset) and
+# 103 (tail to far edge): all three are honest readings of "how much of N
+# this arrow crosses", and the 1px inset is a fan-attach detail no fix
+# should be failed over.
+#
+# THE NEIGHBOUR IS THE UNGATED POLE, not a Silence, and it is what makes
+# the `crosses_through_bound` drain honest. The poles of a GATE are gated
+# and ungated (the `unroled_text_over_node` precedent above), so the pair
+# is: same builder, same node, same 98px of interior run, same named
+# element, and 3px of tail position is the single bit that differs. The
+# red proves the check goes quiet; the NEIGHBOUR — ungated, asserted in
+# every commit — proves it fires with the right magnitude. A check that
+# stayed silent on both would fail the neighbour, and one that fired on
+# every bound arrow would satisfy neither pole's magnitude.
+_register(Mutant(
+    "tolerable_gap_hides_interior_run",
+    build=_crossing_tail,
+    op="move_endpoint_to",
+    args={"arrow_id": "e1", "end": "start", "x": 197, "y": 140},
+    expect=FindingSpec("crosses_through_bound", element="e1",
+                       magnitude=(98, 0.10), direction=None),
+    neighbour=Neighbour(_crossing_tail,
+                        FindingSpec("crosses_through_bound", element="e1",
+                                    magnitude=(98, 0.10), direction=None))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -8884,6 +8988,26 @@ class TestMutantCatalogue(unittest.TestCase):
         check's name differs, which is the role gate and nothing else.
         """
         self._run_neighbour("unroled_text_over_node")
+
+    @unittest.expectedFailure
+    def test_mutant_tolerable_gap_hides_interior_run(self) -> None:
+        """An arrow crossing a whole node reads clean once its tail clears it.
+
+        Pushing the tail 3px PAST N's border adds an overshoot to a
+        crossing and takes the lint from one error to silence, because
+        the interior-run walk is gated on `outside` being zero and the
+        rectangle branch has no tolerance floor under it.
+        """
+        self._run("tolerable_gap_hides_interior_run")
+
+    def test_neighbour_tolerable_gap_hides_interior_run(self) -> None:
+        """The same crossing with its tail ON the border: the walk speaks.
+
+        Same node, same 98px of interior run, same named element — the
+        gate is the only thing that differs, so this pole is what proves
+        the check alive and numerate while the mutant stays red.
+        """
+        self._run_neighbour("tolerable_gap_hides_interior_run")
 
     def test_mutant_near_miss_clearance(self) -> None:
         """FLIPPED: two nodes 4px apart no longer read like two 60px apart.
@@ -9319,12 +9443,18 @@ ASPIRATIONAL: dict[str, str] = {
 # quiet half — which is not what five rounds of this bug were about.
 
 UNCOVERED: dict[str, str] = {
-    # The one DETECTORS entry the day-one catalogue leaves unproven: every
-    # scene that runs long enough inside a bound node to trip it also trips
-    # endpoint_gap first, so it needs a mutant of its own.
-    "crosses_through_bound":
-        "no proving mutant yet; candidate: a multi-elbow interior run "
-        "— WP4 backlog",
+    # `crosses_through_bound` stood here from day one — the last DETECTORS
+    # row with no proving mutant — and was drained by curator batch 20
+    # (2026-08-14) with `tolerable_gap_hides_interior_run`. Its own note
+    # said "every scene that runs long enough inside a bound node to trip
+    # it also trips endpoint_gap first", and that turned out to be the
+    # reason the drain was available rather than an obstacle to it: the
+    # gap and the run are read on the same scene by two checks with
+    # different floors, so a tail 3px OUTSIDE the border is beneath
+    # `endpoint_gap`'s tolerance and above the interior walk's gate. The
+    # proof of firing is that mutant's NEIGHBOUR, not its red — ungated,
+    # asserted at 98px in every commit — which is what `coverage_table`
+    # counts and what keeps this drain honest.
 
     # lint_layout message templates with no DETECTORS entry (enumerated
     # 2026-08-12 by grepping errors.append/warnings.append/notes.append

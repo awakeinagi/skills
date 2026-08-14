@@ -64,12 +64,11 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-14
-after curator batch 19 (Task 23 flipped `unroled_text_over_node` and
-`near_miss_clearance`, taking the model count 16 → 14; batch 19 then added
-two, one on each side of the CATALOGUE boundary, taking it back to 16 — the
-total is a coincidence, only the split is worth reading):
-**16 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
-`expected failures=16` default and `=20` under `MUTANTS_RENDER=1`. That splits as 7 catalog reds (`mutants list --red` is
+after curator batch 20 (Task 24 flipped `long_run_curve_hides_bidi` and
+`phantom_passthrough_shared_attach`, taking the model count 16 → 14; batch
+20 then added one, taking it to 15 — read the split, never the total):
+**15 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
+`expected failures=15` default and `=19` under `MUTANTS_RENDER=1`. That splits as 6 catalog reds (`mutants list --red` is
 authoritative) plus **9 non-catalog reds across four guarded classes** —
 LoadFindings 4, ShapeBlind 3, BatchPath 1, and `TestSnapshotTierOne` 1,
 the last living in `tests/test_backend.py` rather than with the others —
@@ -103,26 +102,34 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- **Five of the seven catalog reds are ASPIRATIONAL** (re-measured
+- **Four of the six catalog reds are ASPIRATIONAL** (re-measured
   2026-08-14): they flip when their LINTS land, not when any existing code
   changes, and each flip must give its mutant a real other-pole neighbor.
   One per aspirational check, exactly — `framed_node_escapes_its_lane`
   (`frame_containment`), `gray_text_on_ground` (`contrast_text`),
-  `pale_stroke_node`
-  (`contrast_object`), `phantom_passthrough_shared_attach`
-  (`phantom_passthrough`, WP4b e1), `tiny_font_text` (`min_font`).
+  `pale_stroke_node` (`contrast_object`), `tiny_font_text` (`min_font`).
   (`near_miss_clearance`/`min_clearance` and
-  `unroled_text_over_node`/`text_overlaps_node` were the sixth and seventh
-  until Task 23 landed both lints and flipped both.) The other two,
-  `long_run_curve_hides_bidi` (`false_bidi`) and `diamond_clearance_overfire`
-  (`min_clearance`), are catalog reds
-  against checks that already ship — the second is a check Task 23 shipped
-  the same day, over-firing on shapes that do not fill their bounding box.
+  `unroled_text_over_node`/`text_overlaps_node` went when Task 23 landed
+  both lints; `phantom_passthrough_shared_attach`/`phantom_passthrough`
+  went with WP4b's e1 in Task 24.) The other two,
+  `diamond_clearance_overfire` (`min_clearance`) and
+  `tolerable_gap_hides_interior_run` (`crosses_through_bound`), are catalog
+  reds against checks that already ship — the first over-fires on shapes
+  that do not fill their bounding box, and the second is the reverse fault
+  in the same family: `lint_layout`'s interior-run walk is gated on
+  `if not outside:` with no tolerance floor under the rectangle branch, so
+  moving an arrow's tail 3px PAST the node it crosses adds an overshoot to
+  a crossing and takes the lint from one error to total silence.
   Neighbor quality differs in kind and
-  the distinction is worth keeping: phantom's silence is *contingent* (the
+  the distinction is worth keeping: phantom's silence was *contingent* (the
   same builder with a shared attach point fires the borrowed
   `shared_corridor` check, so the quiet is evidence about the picture),
-  where a liveness-only neighbor is merely *structural*.
+  where a liveness-only neighbor is merely *structural*. The strongest form
+  now in the catalog is `tolerable_gap_hides_interior_run`'s, which is not a
+  Silence at all: mutant and neighbor run the SAME builder 3px apart and
+  both assert `crosses_through_bound` at 98px, so the pair pins a GATE — the
+  red says the check goes quiet, the green says what it must say when it
+  speaks, and neither pole can be satisfied by accident.
 - The **shape-blindness family** count above (six) supersedes an older
   three-instance sentence that stood here — the endpoint lint (bbox
   corners), `_seg_hits_rect` (over-fire) and `fit_label_in` (labels sized to
@@ -138,7 +145,7 @@ eight had already flipped):
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `diamond_clearance_overfire`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `long_run_curve_hides_bidi`, `pale_stroke_node`, `phantom_passthrough_shared_attach`, `tiny_font_text` |
+| model (default suite) | `diamond_clearance_overfire`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
 | render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom`, `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner` |
 
 The render row is `@unittest.expectedFailure` method names rather than
@@ -210,23 +217,31 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. 13 detectors today (re-derived 2026-08-13 post follow-up): 9
-  proven, 3 render-tier, 1 UNCOVERED (`crosses_through_bound`).
+  a reason. 18 detectors today (re-measured 2026-08-14 after curator batch
+  20): **15 proven, 3 render-tier, 0 UNCOVERED**. `crosses_through_bound` was
+  the last unproven row and the only one left from day one; batch 20 drained
+  it with `tolerable_gap_hides_interior_run`. Every registered detector now
+  has something watching it speak — so the next `DETECTORS` entry added
+  without a mutant will be the ONLY row in the table, which is the loudest
+  this gate has ever been. Keep it that way.
 - `python3 tests/test_mutants.py --sweep` — the discovery sweep. Current
   state: **8 cells run, 7 skipped, 1 survivor**
   (`move_node_onto_rank:chain:ebb2e1f6`, phantom pass-through, dispositioned
   **promote** → V0.9-PLAN WP4b item 1). Exit 0. An undispositioned survivor
   exits non-zero *and* fails a default-suite test.
 
-**The UNCOVERED ledger is 49 rows** — one real detector gap plus 48 finding
-codes enumerated out of `lint_layout` and `validate_scene` on 2026-08-12, each
-with a `canvas.py` line reference and "no proving mutant yet". Note the
-asymmetry: `--coverage` prints only the 13 rows in `DETECTORS`; the other 48
-live in the `UNCOVERED` dict in `tests/test_mutants.py` and are the backlog,
-not the table. The ledger has drained **once**: `shared_attach_point`
-(canvas.py:5688) left it on 2026-08-12 when the ELK spike fired the lint in
-production and `shared_attach_point_fan_failed` promoted it into `DETECTORS`
-— the intended lifecycle, a row at a time.
+**The UNCOVERED ledger is 46 rows** (re-measured 2026-08-14) — and as of
+curator batch 20 they are ALL finding codes enumerated out of `lint_layout`
+and `validate_scene`, each with a `canvas.py` line reference and "no proving
+mutant yet". Zero of them are registered detectors any more. Note the
+asymmetry: `--coverage` prints only the 18 rows in `DETECTORS`; these 46 live
+in the `UNCOVERED` dict in `tests/test_mutants.py` and are the backlog, not
+the table. The ledger drains a row at a time and that is the intended
+lifecycle: `shared_attach_point` (canvas.py:5688) left on 2026-08-12 when the
+ELK spike fired the lint in production and `shared_attach_point_fan_failed`
+promoted it into `DETECTORS`; `annotation_overlaps_node` left with Task 23;
+`crosses_through_bound` — the last row that was a real detector gap rather
+than an un-promoted template — left with batch 20.
 
 **Gate integrity:** pre-commit inspects **tracked files only**. All eight
 harness files are tracked, so the green above genuinely covered them — but if
