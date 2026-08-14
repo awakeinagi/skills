@@ -8199,6 +8199,41 @@ class TestInscribedShapeClip(Base):
                 self.assertEqual(canvas.edge_anchor(rect, *other),
                                  _box_anchor(rect, *other))
 
+    def test_crossing_test_reads_the_outline_not_the_box(self):
+        """The corner void is canvas, and the body is still the body.
+
+        Both poles, because a predicate that stopped firing entirely
+        would pass the silence half on its own.
+        """
+        # (302,309)->(312,302) threads the diamond's empty top-left
+        # corner; y=350 is its own centreline.
+        self.assertFalse(canvas._seg_hits_rect(302, 309, 312, 302, _WP4_DIA))
+        self.assertTrue(canvas._seg_hits_rect(210, 350, 590, 350, _WP4_DIA))
+        # the ellipse's corner void and its horizontal diameter
+        self.assertFalse(canvas._seg_hits_rect(62, 282, 82, 282, _WP4_ELL))
+        self.assertTrue(canvas._seg_hits_rect(40, 312, 320, 312, _WP4_ELL))
+
+    def test_crossing_test_on_a_rectangle_still_reads_its_box(self):
+        """A rectangle's box IS its outline, so both corners stay hits."""
+        rect = dict(_WP4_DIA, type="rectangle")
+        self.assertTrue(canvas._seg_hits_rect(302, 309, 312, 302, rect))
+        self.assertTrue(canvas._seg_hits_rect(210, 350, 590, 350, rect))
+
+    def test_crossing_test_stops_at_the_segment_ends(self):
+        """The clip is over an infinite line; only [0,1] of it is drawn.
+
+        Without the interval check a segment stopping 200px short of a
+        node would read as passing through it, which is the one way a
+        clip-based predicate can be WIDER than the box test it replaced.
+        """
+        self.assertFalse(canvas._seg_hits_rect(0, 350, 100, 350, _WP4_DIA))
+        self.assertFalse(canvas._seg_hits_rect(700, 350, 800, 350, _WP4_DIA))
+
+    def test_a_degenerate_segment_is_a_point(self):
+        """Two coincident path points have no direction to clip along."""
+        self.assertTrue(canvas._seg_hits_rect(400, 350, 400, 350, _WP4_DIA))
+        self.assertFalse(canvas._seg_hits_rect(310, 305, 310, 305, _WP4_DIA))
+
 
 class TestDeletionConsequenceSurface(Base):
     """v0.8 beats, beat 3: the facts existed on disk; no agent-facing
