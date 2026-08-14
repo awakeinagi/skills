@@ -92,6 +92,20 @@ _TEXT_OVERFLOW_RE = re.compile(
     r"does not fit (?P<element>[\w-]+).*? needs ~(?P<mag>\d+)x\d+px, "
     r"the box gives \d+x\d+px "
     r"\((?P<dir>too wide and too tall|too wide|too tall)\)")
+# The shape-aware label check (canvas.py), landed by v0.9 WP4 as a
+# SEPARATE check rather than an arm of `text_overflow` — so the entry it
+# proves keeps its own key and its own element, and the re-key the
+# fold-in path would have demanded does not arise. `element` is the
+# LABEL here, not the owner, which is the opposite of `_TEXT_OVERFLOW_RE`
+# next door and deliberate: this message names both, and the thing drawn
+# in the wrong place is the label. MAGNITUDE is the total overhang at the
+# label's own height, the single number this finding carries, so unlike
+# the 2-D template above there is nothing lost to one scalar. The tail is
+# matched as well as the head because the label's own text is quoted
+# upstream of the number and could otherwise supply a `by NNpx`.
+_LABEL_SHAPE_RE = re.compile(
+    r"label (?P<element>[\w-]+) overhangs [\w-]+.*? by (?P<mag>\d+)px — "
+    r"the (?:diamond|ellipse) is only \d+px across")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -175,6 +189,10 @@ DETECTORS: dict[str, dict] = {
     "text_overflow": {"lint_re": _TEXT_OVERFLOW_RE,
                       "dirmap": {"too wide": "wide", "too tall": "tall",
                                  "too wide and too tall": "both"}},
+    # v0.9 WP4: left ASPIRATIONAL for DETECTORS when the check it named
+    # was built. No dirmap — this finding fails on one axis by
+    # construction, the label's width against the body's chord.
+    "label_overflows_shape": {"lint_re": _LABEL_SHAPE_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -6594,36 +6612,48 @@ def _rect_stage() -> list[dict]:
     return scene
 
 
-def _labelled_shape(shape: str) -> list[dict]:
-    """One 200x100 node carrying a bound label right at the fitter's budget.
+def _labelled_shape(shape: str, width: int = 200) -> list[dict]:
+    """One node carrying a bound label right at the old fitter's budget.
 
-    `fit_label_in` allots a label `width - 24` whatever the container's
-    shape (canvas.py), so at 200px wide the budget is 176px and this
-    label's measured 171px clears it — the fitter returns early and never
-    wraps, resizes or grows anything. On a RECTANGLE that is right: the
-    bbox is the shape, and the label has 29px to spare. On a DIAMOND the
-    same box overhangs the rhombus, because at the label's own height the
-    rhombus is 160px across, not 200px.
+    `fit_label_in` used to allot a label `width - 24` whatever the
+    container's shape (canvas.py), so at 200px wide the budget was 176px
+    and this label's measured 171px cleared it — the fitter returned
+    early and never wrapped, resized or grew anything. On a RECTANGLE
+    that is right: the bbox is the shape, and the label has 29px to
+    spare. On a 200-wide DIAMOND the same box overhangs the rhombus,
+    because at the label's own height the rhombus is 160px across, not
+    200px.
 
-    The two scenes differ in exactly one field — `type` — which is the
-    whole argument: the fitter never reads it.
+    `width` is the OTHER POLE, and it is the room and not the shape that
+    it moves: at 220 the same label on the same diamond has a 176px
+    chord at the same band and clears by 5px. Holding the label and the
+    type fixed and varying only the width is what forces the check to be
+    about the body's room — a check that fired on diamonds as such, or
+    above some coarse size, would pass a rectangle control and fail this
+    one.
 
-    Coordinates are frozen. The label is centred (14, 40) and sized to
-    `text_dims("Send for second review", 16)` exactly, so drift in the
-    advance table moves the finding this stage asserts.
+    Coordinates are frozen. The label is sized to
+    `text_dims("Send for second review", 16)` exactly and centred on the
+    node (x = 14 at 200 wide — half a pixel left of centre, since exact
+    centring would want 14.5), so drift in the advance table moves the
+    finding this stage asserts. The mutant's 11px margin fails its ±30%
+    band before the 5px clearance here fails, so the tight pole costs no
+    robustness the mutant does not already spend.
 
     Args:
         shape: The container's element type — `"diamond"` for the mutant,
-            `"rectangle"` for its control.
+            `"rectangle"` for the shape control.
+        width: The container's width. 200 overhangs; 220 fits.
 
     Returns:
         The two-element scene: the node `d1`, then its bound label `t1`.
     """
     text = "Send for second review"
-    node = el(id="d1", type=shape, x=0, y=0, width=200, height=100,
+    node = el(id="d1", type=shape, x=0, y=0, width=width, height=100,
               customData={"role": "node"},
               boundElements=[{"id": "t1", "type": "text"}])
-    lbl = el(id="t1", type="text", x=14, y=40, width=171, height=20,
+    lbl = el(id="t1", type="text", x=int((width - 171) / 2), y=40,
+             width=171, height=20,
              text=text, fontSize=16, fontFamily=1, textAlign="center",
              verticalAlign="middle", containerId="d1", originalText=text)
     return [node, lbl]
@@ -7366,21 +7396,48 @@ _register(Mutant(
 # WRAPPED 176x40 box the fitter produces from a longer label, the same
 # ellipse overflows below 200x84.2. Either way the ellipse is the weaker
 # case. The area ratio usually quoted for ellipses governs none of this —
-# the chord at the label box's own height does.
+# the chord at the label box's own height does. FIXED by WP4 (task 17) —
+# `shape_band_width` reproduces all four of those numbers from
+# `shape_clip`, so the ellipse is right here without an ellipse mutant to
+# claim, and `_labelled_shape("ellipse")` is silent as the derivation says
+# it should be.
+#
+# CONVERGENCE DECIDED (task 17): a SEPARATE `label_overflows_shape` check,
+# NOT an arm of `text_overflow` — so no re-key, and this entry keeps both
+# its check name and its `element="t1"`. Three reasons, the first
+# dispositive. (1) The fold-in cannot flip this mutant. Give
+# `text_overflow` a shape-aware `room_w` of 160 and its wrapped arm is
+# STILL silent here, correctly: it fires on `longest > room_w` (the widest
+# single word is 54px) or on the wrapped height (2 lines, 40px, against
+# 96px of room), and neither is true. Flipping it from inside would mean
+# rewriting the wrapped arm's semantics, which is what
+# `wrapped_label_overflows_its_box` is green to prevent. (2) The magnitude
+# would not survive: `_TEXT_OVERFLOW_RE` reports the needed WIDTH (171
+# here), and the band this entry exists to hold is the OVERHANG (11, ±30%,
+# excluding 0 and 5.5 on purpose). (3) They are different questions.
+# `text_overflow` asks whether the renderer's wrapping fits the text in the
+# owner's bounds, and on this scene it is right to be quiet — the text does
+# wrap and the wrapped block does fit. This asks whether the label's DRAWN
+# box lies inside the outline a reader can see.
 _register(Mutant(
     "diamond_label_overflows_shape",
     build=lambda: _labelled_shape("diamond"),
     op="unchanged", args={},
     expect=FindingSpec("label_overflows_shape", element="t1",
                        magnitude=(11, 0.30)),
-    # Same control shape as the other shape-blindness mutants: the box
-    # whose bbox IS its shape. It cannot assert this check's other pole
-    # (a Silence on a check with no detector passes vacuously — see
-    # `phantom_passthrough_shared_attach`), so it asserts instead that the
-    # pipeline runs clean over the control, which `Silence` alone can say:
-    # it refuses to match over any run where a detector crashed.
-    neighbour=Neighbour(lambda: _labelled_shape("rectangle"),
-                        Silence("endpoint_gap"))))
+    # THE OTHER POLE, paid for at the flip (task 17). This was a
+    # `Silence("endpoint_gap")` over a rectangle — liveness only, because
+    # a Silence on a check with no detector passes vacuously (see
+    # `phantom_passthrough_shared_attach`). Now the check exists, so the
+    # Silence bites, and the control moved from the rectangle to a WIDER
+    # DIAMOND on purpose: same label, same shape, 220px wide, where the
+    # chord at the same band is 176px and the label clears by 5px. The
+    # rectangle could not have caught a check that fired on every diamond
+    # regardless of room; this does. The shape control is not lost —
+    # `marker_inset` gates the check, so a rectangle is silent by
+    # construction and `text_overflow` still owns it.
+    neighbour=Neighbour(lambda: _labelled_shape("diamond", width=220),
+                        Silence("label_overflows_shape"))))
 
 # Frame membership asserted against a picture that contradicts it — RED BY
 # ABSENCE (flowchartai mine M2, 2026-08-12). `frameId` is a claim of
@@ -7622,21 +7679,27 @@ _register(Mutant(
 # So this is not shape-blindness instance SIX. It is the same defect
 # `label_overflows_shape` already pins, seen from the checker side rather than
 # the producer side (`fit_label_in`, canvas.py), and what it adds is the
-# NAME OF THE SHIPPED CHECK that should host the fix. Consequence, flagged in
-# V0.9-PLAN WP4 and repeated here because nothing automated enforces it: if
-# WP4 puts the shape term inside `text_overflow`, then `label_overflows_shape`
-# stops being a check that needs building and becomes an arm of this one — and
-# the `diamond_label_overflows_shape` entry must be RE-KEYED to `text_overflow`
-# deliberately, not left pointing at a check that will never exist. Two halves
-# of that re-key move in opposite directions, so neither is automatic. Its
-# magnitude convention (measured at the LABEL BOX's own height, not the
-# shape's widest point) is already the right one for that arm and should
-# survive the move unchanged — but its `element` must NOT: that spec names
-# the label (`t1`), while `_TEXT_OVERFLOW_RE` names the OWNER, because the
-# text is quoted as content and carries no id. A re-key that moves the check
-# and leaves the element pointing at the label asserts a finding this
-# template cannot emit, and would go red for a reason that has nothing to do
-# with the shape term it was meant to record.
+# NAME OF THE SHIPPED CHECK that should host the fix.
+#
+# RE-KEY OBLIGATION: DISCHARGED, and it did not arise. WP4 (task 17) put the
+# shape term in a SEPARATE `label_overflows_shape` check rather than inside
+# this one, so `diamond_label_overflows_shape` keeps its own key and its own
+# `element="t1"`, and the silent-rot path this paragraph was written to guard
+# is closed rather than merely watched. The reasoning is recorded at that
+# entry; the dispositive half is that a shape-aware `room_w` would NOT have
+# flipped it — feed this check a 160px `room_w` on that scene and the wrapped
+# arm is still silent, because the widest single word is 54px and the wrapped
+# block is 40px tall against 96px of room. Reaching the mutant from in here
+# would have meant rewriting the wrapped arm, which is what
+# `wrapped_label_overflows_its_box` is green to prevent.
+#
+# WHAT STILL BINDS ANYONE WHO REVISITS THAT CALL: the two checks report
+# different elements on purpose. This template names the OWNER, because the
+# text is quoted as content and carries no id; the shape check names the
+# LABEL, because the label is the thing drawn in the wrong place and its
+# message names both. A later fold-in that moved the check and left the
+# element pointing at the label would assert a finding this template cannot
+# emit, and would go red for a reason unrelated to the shape term.
 _register(Mutant(
     "composed_row_overflows_its_box",
     build=lambda: _composed_row("net revenue total"),
@@ -7745,15 +7808,18 @@ class TestMutantCatalogue(unittest.TestCase):
         # mutants, deliberately — see `_run_neighbour`.
         self._run_neighbour("diamond_wrong_direction")
 
-    @unittest.expectedFailure
     def test_mutant_diamond_label_overflows_shape(self) -> None:
         """A label inside its w-24 budget overhangs the rhombus by 11px."""
-        # Shape-blind label fitter; flips when WP4's shape-aware label
-        # check lands and takes a DETECTORS entry.
+        # Was invisible to every check we owned. FLIPPED by WP4 (task
+        # 17): `label_overflows_shape` measures the label's drawn box
+        # against `shape_band_width` at the label's own y-band, and
+        # `fit_label_in` budgets against the same number.
         self._run("diamond_label_overflows_shape")
 
     def test_neighbour_diamond_label_overflows_shape(self) -> None:
-        """The same label on a rectangle: today's nets are right to be quiet."""
+        """The same label on a 220-wide diamond has 5px to spare, and is quiet."""
+        # A real other pole since task 17, not the liveness borrow it
+        # replaced — see the catalogue entry.
         self._run_neighbour("diamond_label_overflows_shape")
 
     @unittest.expectedFailure
@@ -8081,9 +8147,6 @@ RENDER_TIER = {
 ASPIRATIONAL: dict[str, str] = {
     "phantom_passthrough":
         "WP4b item 1 — e1 phantom pass-through lint, not yet built",
-    "label_overflows_shape":
-        "WP4 — shape-aware label fitting/lint, not yet built; the geometry "
-        "it needs is already in canvas.py as `marker_inset` (4200)",
     "frame_containment":
         "WP5 — no check compares a member's geometry against the frame its "
         "`frameId` names; lint_layout reads frameId for help slots and "
@@ -8121,20 +8184,28 @@ ASPIRATIONAL: dict[str, str] = {
 #       builder with `shared=True` fires that check (see
 #       `merged_stroke_caught_by_corridor`), so the quiet means something
 #       about the picture.
-#   label_overflows_shape, frame_containment, unroled_text_over_node —
-#       each neighbours `Silence("endpoint_gap")` over a scene with NO
-#       ARROWS, which proves liveness only: that check cannot fire there
-#       whatever the labels, frames or texts do. They earn their keep by
-#       refusing to match over any run where a detector crashed, and
-#       nothing more. `unroled_text_over_node` has the strongest control
-#       of the three even so — its neighbour is the SAME overlap with a
-#       role attached, which the existing lint does report, so the pair
-#       isolates the role gate as the only variable.
+#   frame_containment, unroled_text_over_node — each neighbours
+#       `Silence("endpoint_gap")` over a scene with NO ARROWS, which
+#       proves liveness only: that check cannot fire there whatever the
+#       frames or texts do. They earn their keep by refusing to match
+#       over any run where a detector crashed, and nothing more.
+#       `unroled_text_over_node` has the stronger control of the two —
+#       its neighbour is the SAME overlap with a role attached, which
+#       the existing lint does report, so the pair isolates the role
+#       gate as the only variable.
 #
-# So when WP4/WP4b's lints land, dropping the `expectedFailure` is not the
+# So when WP4b/WP5's lints land, dropping the `expectedFailure` is not the
 # whole change: give each mutant a real other-pole neighbour on the new
 # check at the same time, or the flip trades a red that meant something for
 # a green that does not.
+#
+# `label_overflows_shape` is the worked example, flipped by v0.9 WP4: its
+# neighbour was one of the `Silence("endpoint_gap")` borrows above and is
+# now `Silence("label_overflows_shape")` over a 220-wide diamond, where
+# the same label on the same shape has 5px to spare. The pole that
+# borrow could not assert is the one that discriminates — a check that
+# simply fired on every diamond would have satisfied the old rectangle
+# control and fails this one.
 
 UNCOVERED: dict[str, str] = {
     # The one DETECTORS entry the day-one catalogue leaves unproven: every
@@ -8466,13 +8537,21 @@ class TestCoverage(unittest.TestCase):
         §3 says cannot happen. This pins the append-site count the
         enumeration was made from, so the ledger's basis moving is loud
         and says what to do about it.
+
+        45 -> 46 on 2026-08-14 (v0.9 WP4, task 17): the
+        `label_overflows_shape` warning. It needs no `UNCOVERED` row —
+        that ledger is for templates with nothing proving them, and this
+        one arrived with a `DETECTORS` entry and a proving mutant
+        (`diamond_label_overflows_shape`) in the same change, which is
+        the outcome this pin exists to insist on rather than the drift
+        it exists to catch.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 45,
+        self.assertEqual(sites, 46,
                          "canvas.py lint_layout append-site count changed "
-                         "(45 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(46 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

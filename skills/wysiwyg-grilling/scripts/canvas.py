@@ -1179,12 +1179,49 @@ def fit_label_in(container, lbl):
         return
     fs = lbl.get("fontSize", 16)
     text = lbl.get("originalText") or lbl.get("text") or ""
-    inner = max(60, container.get("width", 160) - 24)
-    if text_dims(text, fs)[0] <= inner:
-        return
-    wrapped = wrap_label_text(text, inner, fs)
-    lbl["width"] = min(text_dims(text, fs)[0], inner)
-    lbl["height"] = text_dims(wrapped, fs)[1]
+    tw = text_dims(text, fs)[0]
+    # Once the container is not a box, room and height define each other:
+    # the budget depends on how deep a band the label occupies, and the
+    # band depends on how many lines that budget forces. So walk the
+    # budgets — the label as written first, then each one the descending
+    # fixpoint visits — and keep the candidate that hangs LEAST far
+    # outside the drawn body, not the last one reached.
+    #
+    # Taking the last is what a box makes look safe, and it is wrong
+    # here: wrapping buys width by spending HEIGHT, and height is
+    # precisely what a rhombus charges for. Past a point a narrower wrap
+    # overhangs further than the wrap before it, and on a 240x80 diamond
+    # the 171px label that fits unwrapped is made worse by every wrap
+    # available to it. Where nothing wrapping can do fits, the widest
+    # candidate wins and the label is left alone for `lint_layout` to
+    # report — the honest remedy there is a wider node, which is what
+    # the warning asks for.
+    #
+    # A rectangle takes the first candidate that fits and never sees the
+    # rest, so box containers keep the exact behavior they had. The walk
+    # settles in at most one pass per line, because a pass that adds no
+    # line hands back the budget it was given.
+    inner, best, keep = tw, None, True
+    while True:
+        cand_w = min(tw, inner)
+        cand_h = text_dims(wrap_label_text(text, inner, fs), fs)[1]
+        # against the container this candidate would LEAVE behind, not
+        # the one it found: the grow below is part of the same fit, and
+        # scoring a tall candidate against the ungrown box reads its
+        # band as leaving the shape entirely — which on a rectangle
+        # scored every wrap at zero room and drove the walk to the floor
+        probe = dict(container,
+                     height=max(container.get("height", 0), cand_h + 16))
+        over = cand_w - label_room(probe, cand_h)
+        if best is None or over < best[0]:
+            best, keep = (over, cand_w, cand_h), inner == tw
+        nxt = label_budget(probe, cand_h)
+        if nxt >= inner:
+            break
+        inner = nxt
+    if keep:
+        return          # the label as written is the best it can get
+    lbl["width"], lbl["height"] = best[1], best[2]
     lbl["autoResize"] = False  # keep the client wrapping inside this box
     if container.get("height", 0) < lbl["height"] + 16:
         grown = lbl["height"] + 16 - container.get("height", 0)
@@ -4819,6 +4856,80 @@ def shape_clearance(el, x, y, inset=0.0):
     return out if out else -min(a - dx, b - dy)
 
 
+def shape_band_width(el, y0, y1):
+    """How wide a node's RENDERED body is across a horizontal band.
+
+    A label is a BOX, not a point, so the room it needs is the room at
+    its own top and bottom edges — not at the centre line, where a
+    rhombus is at its widest and every label appears to fit. The 200x100
+    rhombus carrying a 20px label is 200px across at y=50 and 160px at
+    y=40 and y=60, and 160 is the number that decides (v0.9 WP4).
+
+    Only the band's two edges are probed, which is exact rather than a
+    sample: all three node shapes are convex and symmetric about their
+    centre line, so body width falls monotonically with distance from
+    it and the narrowest point of any band is one of its edges.
+
+    Args:
+        el: The container element (`type`, `x`, `y`, `width`, `height`).
+        y0: One edge of the band, in scene coordinates.
+        y1: The other edge — need not be below `y0`.
+
+    Returns:
+        The narrowest body width across the band, in px, never below 0
+        (a band wholly outside the shape has no room, not negative room).
+    """
+    cx = el.get("x", 0) + el.get("width", 0) / 2.0
+    room = None
+    for y in (y0, y1):
+        seg = shape_clip(el, cx, y, 1.0, 0.0)
+        wide = 0.0 if seg is None else max(seg[1] - seg[0], 0.0)
+        room = wide if room is None else min(room, wide)
+    return 0.0 if room is None else room
+
+
+def label_room(container, height):
+    """Body width a bound label of a given height has to sit in.
+
+    A bound label is centred vertically, so a label `height` tall
+    occupies the band `height` deep around the container's centre line —
+    and on a rhombus or an ellipse that band is narrower than the box
+    (v0.9 WP4). This is the raw room, before any padding: what a check
+    compares a drawn label against.
+
+    Args:
+        container: The container element.
+        height: The label's height in px.
+
+    Returns:
+        The body width available across that band, in px.
+    """
+    cy = container.get("y", 0) + container.get("height", 0) / 2.0
+    return shape_band_width(container, cy - height / 2.0,
+                            cy + height / 2.0)
+
+
+def label_budget(container, height):
+    """Width a bound label of a given height may be WRAPPED to.
+
+    The shape-aware replacement for `width - 24`, which credited a
+    rhombus and an ellipse with room their drawn bodies do not have
+    (v0.9 WP4). The 60px floor and the 24px side padding are unchanged
+    from the box-only rule, so a rectangle gets exactly the budget it
+    always got.
+
+    Args:
+        container: The container element.
+        height: The label's height in px — taller labels reach further
+            into the corners a rhombus or an ellipse does not fill, and
+            so get LESS width, not the same.
+
+    Returns:
+        The usable width in px, never below 60.
+    """
+    return max(60, label_room(container, height) - 24)
+
+
 def approach_axis(fromx, fromy, tox, toy):
     """The axis an arrow travels along as it arrives at its node.
 
@@ -6373,6 +6484,65 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                    "too wide" if over_w and not over_h else
                    "too tall" if over_h and not over_w else
                    "too wide and too tall"))
+    # a bound label that fits its container's BOX but not the body the
+    # container is DRAWN as. The check above asks whether the renderer's
+    # wrapping fits the text in the owner's bounds, and on a rhombus it
+    # is right to be quiet — the text does wrap, and the wrapped block
+    # does fit the bounds. This asks the different question a reader
+    # asks by eye: does the label's drawn box lie inside the outline
+    # anybody can see? A rhombus fills half its box and an ellipse ~79%,
+    # so a label sized to the box hangs over empty canvas (v0.9 WP4).
+    #
+    # Gated on `marker_inset`, the helper that has known this since v0.2
+    # and that nothing on the label path ever asked: a rectangle IS its
+    # box, so on a rectangle this check owns nothing `text_overflow`
+    # does not already own, and firing both would double-count the same
+    # pixels under two names.
+    for t in els:
+        if t.get("type") != "text" or not (t.get("text") or "").strip():
+            continue
+        owner = owners.get(t.get("containerId") or "")
+        if owner is None or not marker_inset(owner.get("type")):
+            continue
+        fs = t.get("fontSize") or 16
+        txt = t.get("text") or ""
+        box_w = float(t.get("width") or 0)
+        # Measure what is DRAWN, by `render_svg`'s own two rules, or the
+        # number is wrong in both directions. First: a label the fitter
+        # sized carries `autoResize: False` and UNWRAPPED text, because
+        # the client wraps it to the box we allotted — so measuring that
+        # text raw reads a two-line label as one long line. Second: the
+        # larger of the stored and the estimated extents, because a
+        # stored extent is an estimate the client re-derives.
+        if t.get("autoResize") is False and box_w > 0:
+            tw, th = text_dims(
+                wrap_label_text(txt.replace("\n", " "), box_w, fs), fs)
+        else:
+            tw, th = text_dims(txt, fs)
+        drawn_w = max(tw, box_w)
+        drawn_h = max(th, float(t.get("height") or 0))
+        room = shape_band_width(owner, t.get("y", 0),
+                                t.get("y", 0) + drawn_h)
+        over = drawn_w - room
+        # `>= 1` and not `> 0`: the interval `shape_clip` returns is
+        # closed, so a label whose edge lands exactly on the outline is
+        # touching it, not overhanging it (v0.9 WP4 review, F1), and a
+        # sub-pixel overhang is estimator noise rather than a defect.
+        # The number reported is the TOTAL overhang measured at the
+        # label's own height, not at the shape's widest point and not
+        # per side — a 200x100 rhombus is 200px across at its centre
+        # line but 160px at the edges of a 20px label, so a 171px label
+        # overhangs by 11px (6 left, 5 right; the label sits half a
+        # pixel off centre).
+        if over >= 1:
+            warnings.append(
+                "label %s overhangs %s by %dpx — the %s is only %dpx "
+                "across at the label's own height, not %dpx, so the "
+                "text is drawn on empty canvas: shorten it, widen the "
+                "node, or draw the node as a rectangle"
+                % (name(t["id"]), name(owner["id"]), round(over),
+                   owner.get("type"), round(room),
+                   int(owner.get("width") or 0)))
     # shared attach points
     anchor_pts = {}
     for a in arrows:
