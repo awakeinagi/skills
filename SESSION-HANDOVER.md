@@ -234,9 +234,18 @@ already computed and discarded, so the predicate now measures where the two
 FACING ENDS point. The three synthetic over-merges curator batch 14 could
 only reproduce on paper are pinned ungated in
 `TestContinuityNarrowingRegime`, which is where a widening back toward the
-bbox test gets caught without a browser. The other, and the pair it made is
-worth keeping: `parity_clipped` has now
-had TWO mutants and both have flipped. Task 22 fixed the first —
+bbox test gets caught without a browser. Nothing in `canvas.py` moved: the
+drawing was never wrong, the instrument reading it was.
+
+The other is **Task 46's `test_mutant_wrapped_text_overruns_the_frames_bottom`**,
+and it is the opposite kind. There the picture really was wrong — a wrapped
+text painted below the frame drawn around it — and the check had been right
+about it all along, so the fix was a product change in `render_svg`'s bounds
+loop. A detector miss and a product defect drain the same row and read the
+same way in the count, which is the whole reason the row names them rather
+than totalling them. The pair that second flip completed is worth keeping
+too: `parity_clipped` has now had TWO mutants and both have flipped. Task 22
+fixed the first —
 `test_mutant_center_anchored_label_is_clipped_off_the_frame`, the centered
 label whose leading glyphs fell off the min side — and its own cycle turned
 up the same root cause on the other axis: `render_svg`'s bounds loop sized a
