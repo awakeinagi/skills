@@ -3465,11 +3465,30 @@ class TestPaintOrder(unittest.TestCase):
 
         The pin above reads ids out of a sort; this reads the PICTURE,
         and it is the pole that fails if the split is done by lifting the
-        whole ROLE. It does not reach the other lazy variant — lifting
-        every `*_of`-tagged part — and should not be quoted as if it did:
-        this panel is an UNTAGGED `role: decoration`, so it stays in band
-        1 through that variant and this test passes. The pin above is
-        what catches that one, through its `w1` (`body_of`) member.
+        whole ROLE. That is the property this test holds, and it is the
+        one that still matters: an untagged decoration must stay down.
+        It is held here in pixels and by `d1` in the pin above.
+
+        WHAT THIS NO LONGER COVERS, corrected at task 45 rather than left
+        to be quoted stale. Task 44's review wrote this paragraph to
+        record which test caught which lazy variant, and named the pin
+        above — through its `w1` (`body_of`) member — as the one catching
+        "lifting every `*_of`-tagged part". Task 45 made that variant,
+        behaviourally, the SHIPPED rule: `w1` is in band 4 by design now,
+        so the pin cannot catch it and neither can this test. Nothing in
+        the suite does, because on today's eight-tag vocabulary a
+        `*_of` suffix test and `COMPOSED_PART_KEYS`' positive
+        enumeration sort every element identically.
+
+        That is a real and deliberate residual, not an oversight: the two
+        rules diverge only when a NINTH part tag is coined and not added
+        to the list, and what defends that today is the comment on
+        `COMPOSED_PART_KEYS` naming the `_deco` call sites as the
+        enumeration — prose, not a test. A pin is available and cheap if
+        it is wanted: give this class's banding scene a `role:
+        decoration` carrying an invented tag (`{"future_of": "n1"}`) and
+        expect it to stay in band 1, which fails the suffix test and
+        passes the enumeration.
 
         The scene is `_backdrop_scene`'s covering pole — an opaque
         decoration panel declared AFTER the connector it is meant to sit

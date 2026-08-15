@@ -998,12 +998,19 @@ class TestComposedContentVisibility(unittest.TestCase):
         op on any of them buried its own content.
 
         Task 44 split the overload where the overload was: the band, not
-        the role. `normalize_z_order` now reads the PART TAG, so
-        `value_of` and `attr_of` — a composite's own content — band above
-        the node that owns them, while furniture (`box_of`, `track_of`,
-        `body_of`, …) and standalone backdrops keep banding beneath. The
-        role still means exactly one thing, and it is the lint
-        exemption. Two things that were rejected as fixes, deliberately:
+        the role. `normalize_z_order` reads the PART TAG, so `value_of`
+        and `attr_of` — a composite's own content — band above the node
+        that owns them. Task 44 lifted that content half only, leaving
+        furniture (`box_of`, `track_of`, `body_of`, …) beneath its owner;
+        task 45 lifted the rest, so the shipped rule today is that EVERY
+        composed part (`COMPOSED_PART_KEYS`) bands above the owner it is
+        drawn on, and only an UNTAGGED `role: decoration` — a standalone
+        backdrop — bands beneath. Read the furniture half's flipped red
+        below for that change; this docstring is the content half and
+        stops at the tag it names. The role still means exactly one
+        thing, and it is the lint exemption.
+
+        Two things that were rejected as fixes, deliberately:
         giving the value an opaque fill of its own would have hidden the
         banding rather than fixed it, and reinstating a text-last pass in
         `render_svg` would have restored the export/canvas disagreement
@@ -1138,13 +1145,33 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         message named this rewrite as the correct response. Task 44's
         content guard was turned the same way (that report §4).
 
-        One of its three original jobs is genuinely gone and is not
-        replaced: `@unittest.expectedFailure` swallows ERRORS as well as
-        failures (skill doctrine §6), so while the red below was red a
-        `make_element` that began refusing the spec would have printed an
-        identical healthy `x` with nothing measured. Dropping the marker
-        is what removed that hazard, so nobody should read this as
-        "every red needs a vacuity guard".
+        TWO of its original jobs are gone, and both are named because
+        counting them wrong is how a guard rots into decoration.
+
+        First, ERROR-MASKING: `@unittest.expectedFailure` swallows errors
+        as well as failures (skill doctrine §6), so while the red below
+        was red a `make_element` that began refusing the spec would have
+        printed an identical healthy `x` with nothing measured. Dropping
+        the marker is what removed that hazard, so nobody should read
+        this as "every red needs a vacuity guard". (Not to be confused
+        with the both-poles floor further down, which this test DOES
+        still carry — different hazard, same word.)
+
+        Second, CONTINUITY, which went with the call it rode on. The old
+        opaque-pole assertion was a list equality against
+        `ablation_findings`, so it also asserted that no OTHER check
+        fired — and that function emits two, `ablation_existence` and
+        `ablation_continuity` (ink that has come apart into two or more
+        reader-visible strokes). This sweep measures ink and never calls
+        it, so continuity is now asserted on the checkbox's `f1-box` and
+        `f1-chk` only, by the red next door. The uncovered case, stated
+        rather than left to be discovered: something drawn across a
+        TOGGLE or SLIDER thumb that severed it in two would cost only a
+        few pixels, sit well inside the `126 ± 13` band, and be reported
+        by nothing. Deliberately out of scope — this test's charter is
+        magnitude — and closing it is one `assertEqual(ablation_findings(
+        buried, [part], self.workdir), [])` in the loop, at three more
+        rasterizes, if the exposure is ever judged worth them.
 
         What it still does, and why it earns its rasterizes. First,
         MAGNITUDE, which the red cannot see: the red asserts SILENCE, and
@@ -1155,12 +1182,14 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         and the same tolerance, so each row reads "an opaque owner now
         costs this part nothing".
 
-        Second, non-vacuity, which is not hypothetical here: `body` and
-        `image` furniture reads as ABSENT at both poles (faint `#b8b2a5`
-        at width 1, under `tolerant_diff`'s ink threshold and the speckle
-        floor), which is why they are outside `STATE_CONTROLS` — an
-        assertion that only said "0px opaque" would have been satisfied
-        by a renderer that drew no glyphs at all.
+        Second, the BOTH-POLES FLOOR, which is not hypothetical here:
+        `body` and `image` furniture reads as ABSENT at both poles (faint
+        `#b8b2a5` at width 1, under `tolerant_diff`'s ink threshold and
+        the speckle floor), which is why they are outside
+        `STATE_CONTROLS` — an assertion that only said "0px opaque" would
+        have been satisfied by a renderer that drew no glyphs at all.
+        Measuring the lit pole too is what makes the opaque number mean
+        "survived the fill" rather than "was never drawn".
 
         Third, and the reason this sweeps rather than measuring the
         checkbox alone: the red names one composite and the fix moved all
