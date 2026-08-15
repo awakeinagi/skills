@@ -1730,7 +1730,8 @@ class TestExportCompleteness(unittest.TestCase):
             "model, it widens the bounds, it is not in the picture")
 
 
-def _annotation_at(corner_clear: bool, roled: bool = True) -> list[dict]:
+def _annotation_at(corner_clear: bool, roled: bool = True,
+                   kind: str = "ellipse") -> list[dict]:
     """A circle and a text, in its empty bbox corner or on its body.
 
     The circle is 400x400 at (300,250) — centre (500,450), r=200 — so the
@@ -1746,17 +1747,28 @@ def _annotation_at(corner_clear: bool, roled: bool = True) -> list[dict]:
     scenes to drift apart on a geometry that has to stay identical for
     the pair to say anything.
 
+    `kind` is the same idea one level up (v0.9 Task 56). The three reds
+    this builder was written for all used the ellipse, and the loop they
+    pin does not filter by type, so the rhombus arm rode along on the fix
+    with nothing watching it — a later change that special-cased
+    `ellipse` would have left it blind and every red green. A 400x400
+    rhombus's bbox corner is 141px deep against the circle's 82.8, so the
+    SAME two coordinates work for both: at (302,252) the text is 102px
+    clear of the rhombus, and at (460,420) it lies across the body.
+
     Args:
         corner_clear: True to park the text in the empty corner.
         roled: True for `role="annotation"` (the `annotation_overlaps_node`
             voice), False for an unroled text — which is what a pasted
             text arrives as, and what `text_overlaps_node` answers about.
+        kind: The node's Excalidraw type — `"ellipse"`, or `"diamond"`
+            for the same scene over the other non-box shape.
 
     Returns:
-        The two-element scene: circle `n1`, then text `t1`.
+        The two-element scene: node `n1`, then text `t1`.
     """
     tx, ty = (302, 252) if corner_clear else (460, 420)
-    return [el(id="n1", type="ellipse", x=300, y=250, width=400, height=400,
+    return [el(id="n1", type=kind, x=300, y=250, width=400, height=400,
                customData={"role": "node"}),
             el(id="t1", type="text", x=tx, y=ty, width=70, height=24,
                text="see note", fontSize=16,
@@ -1869,27 +1881,33 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
         """
         self.assertTrue(_says_lies_on(_annotation_at(corner_clear=False)))
 
-    @unittest.expectedFailure
     def test_red_annotation_clear_of_a_circle_is_reported_as_on_it(
             self) -> None:
-        """An annotation 16px clear of the circle is called an overlap.
+        """FLIPPED by v0.9 Task 56. Kept its red-era name.
 
-        Both text/node checks — `label_on_foreign_node` (canvas.py)
-        and `annotation_overlaps_node` (:5593) — intersect raw
+        Both text/node checks — `label_on_foreign_node` (canvas.py) and
+        `annotation_overlaps_node` (:5593) — intersected raw
         `x/y/width/height` rectangles with no shape term at all, so an
-        ellipse is its bounding box to both of them. Here the annotation
+        ellipse was its bounding box to both of them. Here the annotation
         sits wholly in the corner void, its nearest point 16.0px from the
-        drawn outline, and the lint says it "lies on top of" the circle in
-        the same words it uses for one lying across the middle.
+        drawn outline, and the lint said it "lies on top of" the circle
+        in the same words it uses for one lying across the middle.
 
-        The `nodes` set these loops walk is not shape-filtered either, so
-        a diamond would read the same way. Flips when the checks test the
-        drawn shape — the geometry is already in canvas.py as
-        `marker_inset` (4200).
+        What landed: the loop measures `shape_overlap` (canvas.py)
+        against the drawn outline instead of the stored box. The
+        primitive reads the signed per-axis overlap of two RENDERED
+        bodies through `shape_clip`, so a box pair short-circuits to the
+        arithmetic this replaced and every fixture number is unmoved.
+
+        The `nodes` set these loops walk is not shape-filtered, so a
+        diamond read the same way and is now covered by the same edit —
+        pinned separately by `diamond_text_void_overfire`, because
+        nothing here would catch a regression that special-cased
+        `ellipse`.
 
         This method pins `annotation_overlaps_node` ONLY; its two
-        siblings have their own reds below, because a fix could teach one
-        and not the others.
+        siblings have their own methods below, because a fix could have
+        taught one and not the others.
         """
         self.assertEqual(
             _says_lies_on(_annotation_at(corner_clear=True)), [],
@@ -1906,32 +1924,31 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
         self.assertTrue(
             _says_lies_on(_annotation_at(corner_clear=False, roled=False)))
 
-    @unittest.expectedFailure
     def test_red_unroled_text_clear_of_a_circle_is_reported_as_on_it(
             self) -> None:
-        """An UNROLED text 16px clear of the circle is called an overlap.
+        """FLIPPED by v0.9 Task 56. Kept its red-era name.
 
         Curator batch 19, from the Task 23 report §8 item 1 and the
         review's standing instruction, 2026-08-14. Task 23 made the
         text/node loop role-blind — the right fix, and it multiplied this
-        bug's reach at the same time. The loop measures `ox`/`oy` as a raw
-        rectangle intersection BEFORE it consults the role, so the
-        blindness the red above pins for annotations now applies to every
+        bug's reach at the same time. The loop measured `ox`/`oy` as a
+        raw rectangle intersection BEFORE it consults the role, so the
+        blindness the method above pins for annotations applied to every
         unroled text on the canvas, which is what a pasted text is. Same
         void, same 16.0px of clear space, same fabricated area (1680px²);
-        the only thing that changes is which voice fabricates it:
+        the only thing that changed was which voice fabricated it:
 
             annotation t1 ('see note') lies on top of n1 — 70x24px …
             text t1 ('see note') covers n1 — 70x24px …
 
-        Pinned as its own method rather than folded into the red above
+        Pinned as its own method rather than folded into the one above
         BECAUSE the two share that code path. A fix that put the shape
-        term inside the `trole == "annotation"` branch instead of ahead of
-        the role test would flip that red, look complete, and leave every
-        unroled text exactly as blind — so the family is only green when
-        both arms have been taught. Flips when the loop tests the drawn
-        shape: `marker_inset`/`shape_norm` (canvas.py) already return
-        1-1/sqrt(2) and the ellipse's L2 norm, and neither is called here.
+        term inside the `trole == "annotation"` branch instead of ahead
+        of the role test would have flipped that one, looked complete,
+        and left every unroled text exactly as blind — so the family is
+        only green when both arms have been taught. What landed sits
+        ahead of the role test, at the `ox`/`oy` measurement itself, so
+        both arms learned at once and this method is the proof.
         """
         self.assertEqual(
             _says_lies_on(_annotation_at(corner_clear=True, roled=False)), [],
@@ -1942,30 +1959,289 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
         """The label arm fires where it should, and its red needs it to."""
         self.assertTrue(_says_lies_on(_arrow_label_at(corner_clear=False)))
 
-    @unittest.expectedFailure
     def test_red_arrow_label_clear_of_a_circle_is_reported_as_on_it(
             self) -> None:
-        """A bound arrow label 16px clear of the circle is called an overlap.
+        """FLIPPED by v0.9 Task 56. Kept its red-era name.
 
         The sibling check, pinned separately on purpose.
-        `label_on_foreign_node` (canvas.py) runs the same raw
-        rectangle intersection as `annotation_overlaps_node`, against the
-        same unfiltered `nodes` set, and until this method existed the
+        `label_on_foreign_node` (canvas.py) ran the same raw rectangle
+        intersection as `annotation_overlaps_node`, against the same
+        unfiltered `nodes` set, and until this method existed the
         `"lands on"` arm of `_says_lies_on` matched nothing in either
         scene — the helper anticipated the check, the docstring claimed
         it, and no assertion reached it. A WP4 fix teaching only the
-        annotation loop about shapes would have flipped the red above and
+        annotation loop about shapes would have flipped the two above and
         left this one silently as blind as before.
 
-        One difference from its sibling is worth knowing when fixing:
-        this check reads the label's DRAWN box via `arrow_label_anchor`,
-        not its stored x/y, so the shape term has to be applied after
-        that resolution rather than before it.
+        One difference from its siblings was load-bearing for the fix,
+        and the fix respected it: this check reads the label's DRAWN box
+        via `arrow_label_anchor`/`arrow_label_slot`, not its stored x/y,
+        so the shape term went in AFTER that resolution — on the rects
+        already sitting in `label_boxes`' output — rather than on a
+        stored coordinate nobody paints.
         """
         self.assertEqual(
             _says_lies_on(_arrow_label_at(corner_clear=True)), [],
             "the arrow label is 16px clear of the circle and reported as "
             "landing on it")
+
+    def test_an_annotation_on_a_rhombus_body_is_reported(self) -> None:
+        """The rhombus arm fires where it should, and its pin needs it to."""
+        self.assertTrue(
+            _says_lies_on(_annotation_at(corner_clear=False, kind="diamond")))
+
+    def test_an_annotation_clear_of_a_rhombus_is_left_alone(self) -> None:
+        """The DIAMOND arm of the three reds above (v0.9 Task 56).
+
+        All three used the ellipse, and the loop they pin does not filter
+        on type — so one edit taught both shapes, and nothing here would
+        have caught a later change that special-cased `ellipse` and left
+        the rhombus reading its bounding box. The void is worse on this
+        shape, which is the reason it is not left to inference: a 400x400
+        rhombus's bbox corner is 141px deep against the circle's 82.8,
+        and the text sits 102px clear of any drawn facet.
+
+        Same coordinates as its ellipse sibling, `kind` the only thing
+        that differs, so the pair is a single-variable experiment on the
+        shape term exactly as `_clearance_pair_shaped` is one axis down.
+        """
+        self.assertEqual(
+            _says_lies_on(_annotation_at(corner_clear=True, kind="diamond")),
+            [],
+            "the annotation is 102px clear of the rhombus and reported as "
+            "on it")
+
+    def test_a_text_clipping_the_shoulder_reports_the_clipped_patch(
+            self) -> None:
+        """The partial pole, where the reported magnitude is observable.
+
+        Neither the void nor the wholly-inside case can see the fix's
+        arithmetic: one reports nothing and the other reports the box
+        number, unchanged. A 200x24 text laid across a circle's shoulder
+        is the only place the shaped extent is visible in the sentence,
+        and this pins it at three heights so a fix that clamped to the
+        box (194x24 everywhere) or collapsed to a point fails here.
+
+        The numbers are the DRAWN chord at the text's own band, and they
+        grow as the band descends toward the circle's waist: 94px at
+        y=250, 129 at y=274, 162 at y=310. `label_overflows_shape` reads
+        the same geometry for a bound label through `shape_band_width`.
+
+        RESIDUE, ruled (v0.9 Task 56, D1): the `px²` is `int(ox * oy)` —
+        the intersection's BOUNDING BOX, not its area, which for a lens
+        would need a conic clip for a number no reader quotes as an area.
+        So `129x24` and `3119px²` do not multiply out, and the second
+        reason they do not is older and applies to boxes too: each is
+        independently truncated to an int.
+        """
+        for ty, want in ((250, "94x24px of overlap (2279px²)"),
+                         (274, "129x24px of overlap (3119px²)"),
+                         (310, "162x24px of overlap (3910px²)")):
+            said = _says_lies_on(
+                [el(id="n1", type="ellipse", x=300, y=250, width=400,
+                    height=400, customData={"role": "node"}),
+                 el(id="t1", type="text", x=300, y=ty, width=200, height=24,
+                    text="see note", fontSize=16,
+                    customData={"role": "annotation"})])
+            self.assertEqual(len(said), 1, "y=%d said %r" % (ty, said))
+            self.assertIn(want, said[0],
+                          "y=%d reports the box's 194x24 or a clamped "
+                          "patch, not the drawn chord" % ty)
+
+
+def _says_overlap(scene: list[dict]) -> list[str]:
+    """Lint warnings claiming two NODES overlap, in either of two voices.
+
+    Fixed prose rather than a detector regex, and not by preference: the
+    pair loop's two arms are `shape_overlap` and `grown_label_overlap` in
+    the ledger, both of them `UNCOVERED`. A `Silence` on an unregistered
+    check passes vacuously, so a mutant asserting one would be worth
+    nothing — the same bar that keeps `TestShapeBlindAnnotationOverlap`
+    out of `CATALOGUE`, one loop further up.
+
+    Args:
+        scene: The scene to lint.
+
+    Returns:
+        The matching warning lines, one per claim.
+    """
+    lint = canvas.lint_layout(scene, artifact_type="flow")
+    return [w for w in lint["warnings"]
+            if "overlap — separate them" in w or "grew to fit its label" in w]
+
+
+def _void_pair(on_body: bool, grown: bool = False,
+               kind: str = "diamond") -> list[dict]:
+    """A big non-box node and a small one, in its bbox corner or on its body.
+
+    `n1` is 400x400 and `n2` is a 40x40 rectangle — a plain box, so the
+    only shape in the experiment is `n1`'s and there is no question about
+    which one the check misread. At (0,0) the small box sits in the bbox
+    corner with clear canvas between it and the drawn body: 120px of it
+    on the rhombus, 40px on the circle, whose void is the shallower of
+    the two. At (168,168) it sits squarely on the body with 40x40 of
+    real ink shared, for either shape. Both coordinates are on the 4px
+    grid, so `offgrid_elements` fires on neither and the two scenes
+    differ in nothing but the position.
+
+    SIZED, not guessed, and the first size was wrong in a way worth
+    recording (v0.9 Task 56): at 60x60 the box clears the rhombus by 80px
+    but CLIPS the circle by 2.8px, and the ellipse pole passed anyway
+    because 2.8x2.8 falls under the arm's quarter-area bar. It asserted
+    silence and got it for a reason that had nothing to do with the shape
+    term — the exact shape of a test that reads as cover and gives none.
+    40x40 clears both.
+
+    `grown` marks `n1` `auto_grown`, which switches the loop to its other
+    arm — the one with no area gate at all, and therefore the one that
+    over-fires on any box overlap however little ink is involved.
+
+    Args:
+        on_body: True to park the small box on the drawn body.
+        grown: True to mark `n1` as having grown to fit its label.
+        kind: `n1`'s Excalidraw type.
+
+    Returns:
+        The two-element scene: nodes `n1` and `n2`.
+    """
+    cd = {"role": "node"}
+    if grown:
+        cd["auto_grown"] = True
+    sx, sy = (168, 168) if on_body else (0, 0)
+    return [el(id="n1", type=kind, x=0, y=0, width=400, height=400,
+               customData=cd),
+            el(id="n2", type="rectangle", x=sx, y=sy, width=40, height=40,
+               customData={"role": "node"})]
+
+
+class TestShapeBlindPairOverlap(unittest.TestCase):
+    """The pair loop's OVERLAP arm, over-fire pole (v0.9 Task 56).
+
+    `diamond_clearance_overfire` and `ellipse_clearance_overfire` pin the
+    NEAR-MISS arm of `lint_layout`'s shape pair loop. The overlap arm
+    directly above it — the one that says "overlap — separate them" and
+    "grew to fit its label" — was blind in the same way and pinned by
+    nothing, so a fix that taught the crowding arm and stopped would have
+    turned both catalogue entries green with a 60x60 box sitting in 80px
+    of empty canvas still reported as an overlap.
+
+    Outside `CATALOGUE` for the reason its sibling class states: both
+    templates sit in `UNCOVERED` with no `DETECTORS` entry, and a
+    `Silence` on an unregistered check passes vacuously. Read as lint
+    text instead, which needs no registry, and paired with a liveness
+    partner apiece so a check that stopped speaking altogether fails
+    here rather than reading as a fix.
+
+    NAMING, so it is not mistaken for a collision: the ledger's check id
+    for this arm is `shape_overlap`, and canvas.py's shape primitive
+    added by the same task is also called `shape_overlap`. They are the
+    same measurement seen from the two sides — the function computes what
+    the check reports — and they live in different namespaces, but a
+    curator grepping one will land on the other.
+    """
+
+    def test_a_small_box_on_the_rhombus_body_is_reported(self) -> None:
+        """The arm fires where it should, and the pin below needs it to."""
+        self.assertTrue(_says_overlap(_void_pair(on_body=True)))
+
+    def test_a_small_box_in_the_rhombus_corner_void_is_left_alone(
+            self) -> None:
+        """120px of clear canvas inside the bbox is not an overlap.
+
+        The overlap arm intersected stored boxes, so a 40x40 box parked
+        in a 400x400 rhombus's corner — where the nearest facet is 120px
+        away on both axes and no ink is shared at all — was reported as
+        "n1 and n2 overlap — separate them", in the same words used for
+        two boxes lying across each other.
+
+        This is also where decision D2 is observable. The arm fires on
+        `ox * oy > 0.25 * smaller`, and `smaller` is now the DRAWN area:
+        half a rhombus's box, not the box. Both halves of the ratio had
+        to move together, and pinning only the numerator would have
+        traded this over-fire for an under-fire on pairs that really do
+        share a quarter of their ink.
+        """
+        self.assertEqual(
+            _says_overlap(_void_pair(on_body=False)), [],
+            "the small box is 120px clear of the rhombus and reported as "
+            "overlapping it")
+
+    def test_a_grown_box_overlapping_on_the_body_is_reported(self) -> None:
+        """The grown arm fires where it should, and its pin needs it to."""
+        self.assertTrue(_says_overlap(_void_pair(on_body=True, grown=True)))
+
+    def test_a_grown_box_clear_in_the_corner_void_is_left_alone(self) -> None:
+        """The `auto_grown` arm has no area gate, so it over-fired cleanly.
+
+        Its own comment explains why it has none — a box that grew to fit
+        its label gets no size slack, because nothing reflows siblings —
+        and that reasoning is sound about ink and was applied to boxes.
+        On a shape it meant ANY bounding-box intersection spoke, so this
+        scene drew "n1 grew to fit its label and now overlaps n2" across
+        120px of empty canvas.
+
+        Paired with the ungrown pin above rather than folded into it:
+        the two arms are separate branches of one `if`, and the fuzz
+        behind this task found the ungrown arm's area gate incidentally
+        covering the corner void for ellipses while this one had nothing
+        covering it at all.
+        """
+        self.assertEqual(
+            _says_overlap(_void_pair(on_body=False, grown=True)), [],
+            "the grown arm reports an overlap across 80px of clear canvas")
+
+    def test_the_quarter_bar_is_measured_against_the_DRAWN_area(
+            self) -> None:
+        """Decision D2, and the only thing in the suite that holds it.
+
+        The arm fires on `ox * oy > 0.25 * smaller`, and D2 ruled
+        `smaller` to be the body's area rather than its box's — "a
+        quarter of the smaller shape is covered" meaning the same thing
+        for a rhombus as for a box. Two 100x100 rhombi stacked 56px apart
+        share 44x44 of drawn patch: 1936px², which clears the drawn bar
+        of 1250 and misses the box bar of 2500. With the box denominator
+        the check goes quiet over a pair sharing nearly 40% of its ink.
+
+        Measured over the 625 offsets on the 4px grid, the drawn
+        denominator recovers 62 rhombus and 35 ellipse configurations the
+        box denominator silences, and silences NONE that it reports —
+        so the ruling's direction is one-way, and this pins it.
+        """
+        self.assertTrue(
+            _says_overlap(_crowded_pair_shaped(0, 56)),
+            "44x44 of shared ink on a rhombus whose body is 5000px² is "
+            "under a quarter only if the denominator is the box")
+
+    def test_the_quarter_bar_numerator_is_the_DRAWN_patch(self) -> None:
+        """The other half of the same ratio, and the over-fire pole.
+
+        At 72px the two rhombi share 28x28 = 784px², under the bar by
+        either reading — but their BOXES share 100x28 = 2800px², over the
+        box bar of 2500, which is why this pair was reported before the
+        numerator learned about shapes. A fix that moved the denominator
+        and left the numerator alone passes the method above and fails
+        here.
+        """
+        self.assertEqual(
+            _says_overlap(_crowded_pair_shaped(0, 72)), [],
+            "28x28 of shared ink is reported because the BOXES share "
+            "100x28")
+
+    def test_the_ellipse_arm_of_both_poles_agrees(self) -> None:
+        """The same two poles over the conic, since one edit taught both.
+
+        `kind` is the only difference from the four methods above, which
+        is what makes this a shape-term experiment rather than a second
+        copy of them. The circle's corner void is the shallower — 40px of
+        clear canvas where the rhombus gives 120 — and it is what sized
+        the small box for both, per `_void_pair`.
+        """
+        self.assertEqual(
+            _says_overlap(_void_pair(on_body=False, kind="ellipse")), [],
+            "the small box is 40px clear of the circle and reported as "
+            "overlapping it")
+        self.assertTrue(
+            _says_overlap(_void_pair(on_body=True, kind="ellipse")))
 
 
 def _elbow_label_stage(balanced: bool, box_at: str) -> list[dict]:
@@ -8088,6 +8364,48 @@ def _clearance_pair_shaped(kind: str) -> list[dict]:
                customData={"role": "node"})]
 
 
+def _crowded_pair_shaped(dx: int, dy: int) -> list[dict]:
+    """Two 100x100 rhombi, the second offset by `(dx, dy)`.
+
+    A rhombus is the L1 ball of radius 50 about its centre, so the clear
+    space between two of them along the facing axis is exactly
+    `dx + dy - 100` — which makes the offset the whole experiment and
+    every gap in this family arithmetic a reader can check. Every offset
+    used is a multiple of 4, because a coordinate off the grid draws an
+    `offgrid_elements` note and a mutant whose base and control differ in
+    something other than the defect is a confound.
+
+    The offsets in play, and what each is for:
+
+        (56, 48)   4px apart, and their BOXES overlap by 44x52
+        (0, 104)   4px apart, stacked
+        (104, 0)   4px apart, side by side
+        (160, 160) 220px apart — a layout, and the silent pole
+        (0, 56)    overlapping: 44x44 of drawn ink, 1936px²
+        (0, 72)    overlapping: 28x28 of drawn ink, 784px²
+
+    The last two are the overlap arm's quarter-area bar read from both
+    sides, and they land on opposite sides of it for opposite reasons.
+    The bar is 1250px² against the drawn rhombus and 2500 against its
+    box. At (0,56) the drawn patch clears the drawn bar but not the box
+    one, so it is the DENOMINATOR that decides; at (0,72) the drawn patch
+    misses both bars while the boxes' 100x28 clears the box one, so it is
+    the NUMERATOR that decides. Nothing else in the suite separates the
+    two halves of that ratio.
+
+    Args:
+        dx: The second rhombus's x offset from the first.
+        dy: Its y offset.
+
+    Returns:
+        The two-element scene: nodes `n1` and `n2`.
+    """
+    return [el(id="n1", type="diamond", x=0, y=0, width=100, height=100,
+               customData={"role": "node"}),
+            el(id="n2", type="diamond", x=dx, y=dy, width=100, height=100,
+               customData={"role": "node"})]
+
+
 def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
                   font_size: int = 16) -> list[dict]:
     """A node and a free text on the ground, styled to order.
@@ -8479,20 +8797,24 @@ def _crossing_tail() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-15 after curator batch 21, `mutants list --red` reports
-# 7 (of 26 entries) while this file carries 20 expectedFailure methods. Batch
-# 21 added one catalogue red (`headless_chain_reads_through_node`, the fourth
-# e1 arm) and five hand-authored ones across three new classes, which is how
-# 6/14 became 7/20 in a single change — the largest single-batch move this
-# census has recorded, and a reminder that the two halves do not grow
-# together. COUNT THE METHODS WITH CARE: a bare
+# re-measured 2026-08-15 after v0.9 Task 56, `mutants list --red` reports
+# 6 (of 29 entries) while this file carries 16 expectedFailure methods. Task
+# 56 moved BOTH halves down at once, which no earlier change had done: it
+# flipped one catalogue red (`diamond_clearance_overfire`) and all three of
+# `TestShapeBlindAnnotationOverlap`'s, emptying that class, and it added
+# three catalogue entries that landed GREEN — so 7/20 became 6/16 while the
+# catalogue grew. Batch 21 just before it had gone the other way (one
+# catalogue red and five hand-authored across three new classes, 6/14 to
+# 7/20, the largest single-batch addition this census has recorded), which
+# together are the reminder that the two halves do not move together and
+# that a total says nothing. COUNT THE METHODS WITH CARE: a bare
 # `grep -c @unittest.expectedFailure` says 24, because four mentions are
 # PROSE — this very paragraph, `test_red_mutants_are_red_by_mismatch_not_by
 # _error`'s docstring, and two in `coverage_table` and its guard — so
 # measure the METHODS (or read the runtime line) rather than the string.
 # That miscount is what once put "15" here when the true figure was 13.
-# The thirteen outside live
-# in the six classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# The ten outside live
+# in the five classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
 # `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
@@ -8504,13 +8826,13 @@ def _crossing_tail() -> list[dict]:
 # And since curator batch 15 one red lives outside this file entirely —
 # `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
 # export is never measured against the drawing — so the suite's default line
-# reads `expected failures=21` against the 20 counted here. The two numbers
-# are meant to differ by exactly that one. (They have read 16/15 before, and
-# they are not the same 16 and 15 each time: Task 23 flipped two, curator
-# batch 19 added two once on each side of the CATALOGUE boundary, Task 24
-# flipped two more, batch 20 added one and batch 21 added six — a fair
-# warning that matching totals prove nothing here and only the split is
-# worth reading.)
+# reads `expected failures=17` against the 16 counted here. The two numbers
+# are meant to differ by exactly that one. (They have read 16/15 and 21/20
+# before, and they are not the same 16 and 15 each time: Task 23 flipped
+# two, curator batch 19 added two once on each side of the CATALOGUE
+# boundary, Task 24 flipped two more, batch 20 added one, batch 21 added six
+# and Task 56 flipped four — a fair warning that matching totals prove
+# nothing here and only the split is worth reading.)
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
@@ -9112,6 +9434,67 @@ _register(Mutant(
                         FindingSpec("min_clearance", element="n2",
                                     magnitude=(4, 0.33)))))
 
+# The ELLIPSE arm of the entry directly above (v0.9 Task 56, owed by both
+# shape spikes). One argument of the same builder, which is the whole
+# point: the rhombus and the conic are different geometry reached through
+# the same `shape_clip`, and a fix that special-cased `diamond` — or a
+# regression that later did — turns exactly one of the two red while the
+# other stays green and looks like cover. Staggered by the same 80, the
+# two circles' boxes still clear by 4px while their outlines clear by
+# 44.0px along the facing axis.
+#
+# Its neighbour is the SAME rectangle control the diamond entry uses, and
+# that reuse is deliberate rather than lazy: the control's job is to prove
+# the check still speaks about boxes that really are 4px apart, and there
+# is one such fact, not two. The dedupe guard separates the two entries on
+# their base scenes, which differ.
+_register(Mutant(
+    "ellipse_clearance_overfire",
+    build=lambda: _clearance_pair_shaped("ellipse"),
+    op="unchanged", args={},
+    expect=Silence("min_clearance"),
+    neighbour=Neighbour(lambda: _clearance_pair_shaped("rectangle"),
+                        FindingSpec("min_clearance", element="n2",
+                                    magnitude=(4, 0.33)))))
+
+# The OTHER direction of the same fix, and the one nothing watched before
+# (v0.9 Task 56, decision D4). Two rhombi offset (56,48): their BOXES
+# overlap by 44x52, so the pair never reached the crowding arm at all —
+# the overlap arm owns any pair whose boxes intersect, and 44*52 falls
+# under its quarter-area bar, so the lint said nothing. Their drawn
+# facets are 4px apart, which is the exact configuration that arm exists
+# to report.
+#
+# This is the only place the shape fix makes the lint SPEAK where it was
+# silent, which is why it is pinned on its own rather than folded into a
+# neighbour: everything else in Task 56 narrows, and a narrowing fix that
+# quietly lost this arm would leave every other pin green.
+_register(Mutant(
+    "boxed_overlap_hides_a_near_miss",
+    build=lambda: _crowded_pair_shaped(56, 48),
+    op="unchanged", args={},
+    expect=FindingSpec("min_clearance", element="n2", magnitude=(4, 0.33)),
+    neighbour=Neighbour(lambda: _crowded_pair_shaped(160, 160),
+                        Silence("min_clearance"))))
+
+# Both ORIENTATIONS of the crowding arm, pinned as a GATE rather than as
+# two poles (v0.9 Task 56, named by the ellipse spike as the trap worth
+# the entry). The arm picks the axis it reports across, and picking the
+# wrong one is SILENT — it does not fire wrongly, it simply fails to
+# correct anything, so a reversal hides behind every other pin here. The
+# mutant is two rhombi stacked 4px apart and the neighbour is the same
+# builder side by side, and BOTH assert 4px: neither pole can be
+# satisfied by suppressing the check, and neither can be satisfied by an
+# implementation that only understands one axis.
+_register(Mutant(
+    "stacked_diamonds_near_miss",
+    build=lambda: _crowded_pair_shaped(0, 104),
+    op="unchanged", args={},
+    expect=FindingSpec("min_clearance", element="n2", magnitude=(4, 0.33)),
+    neighbour=Neighbour(lambda: _crowded_pair_shaped(104, 0),
+                        FindingSpec("min_clearance", element="n2",
+                                    magnitude=(4, 0.33)))))
+
 # Legibility — three RED BY ABSENCE mutants over one base scene
 # (docs/todo/contrast-and-min-font-lints.md, user-directed 2026-08-12;
 # independently corroborated by the excalidraw-mcp mine O4/M5). Ops allow
@@ -9570,13 +9953,15 @@ class TestMutantCatalogue(unittest.TestCase):
         """A generous gap is silent, and now on the check that could speak."""
         self._run_neighbour("near_miss_clearance")
 
-    @unittest.expectedFailure
     def test_mutant_diamond_clearance_overfire(self) -> None:
-        """Two rhombi 84px of clear ground apart are called 4px apart."""
-        # The crowding arm measures stored boxes, so a shape that does
-        # not fill its box is reported on geometry nobody drew. Flips
-        # when the pair loop clips to the outline `marker_inset` and
-        # `shape_norm` already describe.
+        """FLIPPED by v0.9 Task 56. Two rhombi 84px apart are left alone.
+
+        The crowding arm measured stored boxes, so a shape that does not
+        fill its box was reported on geometry nobody drew. The pair loop
+        now refines the box reading with `shape_overlap` (canvas.py) and
+        reads this pair's gap as the 84px the builder's docstring
+        derives, against the box's 4.
+        """
         self._run("diamond_clearance_overfire")
 
     def test_neighbour_diamond_clearance_overfire(self) -> None:
@@ -9588,6 +9973,46 @@ class TestMutantCatalogue(unittest.TestCase):
         fails here.
         """
         self._run_neighbour("diamond_clearance_overfire")
+
+    def test_mutant_ellipse_clearance_overfire(self) -> None:
+        """Two circles 44px of clear ground apart are left alone.
+
+        The conic arm of the entry above. `shape_clip` reaches both
+        shapes, so one edit taught both — and a later change that reached
+        only the polygon would fail here alone.
+        """
+        self._run("ellipse_clearance_overfire")
+
+    def test_neighbour_ellipse_clearance_overfire(self) -> None:
+        """The same two boxes as rectangles really are 4px apart, and are told."""
+        self._run_neighbour("ellipse_clearance_overfire")
+
+    def test_mutant_boxed_overlap_hides_a_near_miss(self) -> None:
+        """Two rhombi whose boxes overlap are still 4px apart, and told so.
+
+        The one arm of the shape fix that ADDS a voice: the overlap arm
+        owns any pair whose boxes intersect, so this pair fell between
+        the two arms and drew silence from both.
+        """
+        self._run("boxed_overlap_hides_a_near_miss")
+
+    def test_neighbour_boxed_overlap_hides_a_near_miss(self) -> None:
+        """The same two rhombi 220px apart are a layout, and draw nothing."""
+        self._run_neighbour("boxed_overlap_hides_a_near_miss")
+
+    def test_mutant_stacked_diamonds_near_miss(self) -> None:
+        """Two rhombi stacked 4px apart are reported on the vertical axis."""
+        self._run("stacked_diamonds_near_miss")
+
+    def test_neighbour_stacked_diamonds_near_miss(self) -> None:
+        """And the same pair side by side, on the horizontal.
+
+        Not a silent pole: both halves of this entry assert 4px, because
+        what it pins is that the arm reads BOTH axes. An implementation
+        that understood one and reversed the other would satisfy either
+        half alone.
+        """
+        self._run_neighbour("stacked_diamonds_near_miss")
 
     @unittest.expectedFailure
     def test_mutant_gray_text_on_ground(self) -> None:
@@ -10097,9 +10522,21 @@ UNCOVERED: dict[str, str] = {
     "diagonal_arrow":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "grown_label_overlap":
-        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout. "
+        "v0.9 Task 56: `TestShapeBlindPairOverlap` now pins the arm from "
+        "both poles, but hand-authored, so this row stands. Draining it "
+        "needs a DETECTORS entry — the arm reports no magnitude at all "
+        "today, which is what a `lint_re` would have to read.",
     "shape_overlap":
-        "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+        "enumerated 2026-08-12; no proving mutant yet — in lint_layout. "
+        "v0.9 Task 56 pins it the same way and for the same reason as "
+        "`grown_label_overlap` above; the two are the two arms of one "
+        "`if`. NAME COLLISION, stated so it is not read as one: "
+        "canvas.py grew a `shape_overlap` FUNCTION in that task, and it "
+        "is the geometry this check reports on rather than a second "
+        "meaning — but a `Silence(\"shape_overlap\")` written by someone "
+        "who greps the function will still pass vacuously, which is "
+        "exactly what this row exists to warn about.",
     "annotation_budget":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     # (`label_label_overlap`, canvas.py, left this table on
@@ -10293,8 +10730,12 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
                              "TestLabelAnchorAgainstTheDrawnPosition": 2,
                              "TestLoadFindingsReachTheAgent": 4,
-                             "TestReplayOrderFidelity": 2,
-                             "TestShapeBlindAnnotationOverlap": 3}
+                             "TestReplayOrderFidelity": 2}
+# `TestShapeBlindAnnotationOverlap` LEFT this list on 2026-08-15 (v0.9
+# Task 56) when its three reds flipped together — the whole class drained
+# in one change, which is what the fix was scoped to do. It still holds
+# tests, and green ones at that; it is absent because it holds no REDS,
+# which is the only thing this dict counts.
 
 # The one class whose reds ARE catalogue entries, excluded from the
 # comparison above. Named rather than inlined so a rename of the class shows

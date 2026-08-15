@@ -5276,6 +5276,182 @@ def shape_clearance(el, x, y, inset=0.0):
     return out if out else -min(a - dx, b - dy)
 
 
+def shape_span(el, axis, u, inset=0.0):
+    """A node's drawn extent along one axis, at a coordinate on the other.
+
+    Args:
+        el: The element (`type`, `x`, `y`, `width`, `height`).
+        axis: `"x"` for the horizontal extent at height `u`, `"y"` for
+            the vertical extent at abscissa `u`.
+        u: The coordinate on the OTHER axis, in scene coordinates.
+        inset: Pixels to shrink the outline by on each axis first.
+
+    Returns:
+        `(lo, hi)` in scene coordinates, or `None` where the shape has
+        no ink at `u`.
+    """
+    cx = el.get("x", 0) + el.get("width", 0) / 2.0
+    cy = el.get("y", 0) + el.get("height", 0) / 2.0
+    if axis == "x":
+        seg = shape_clip(el, cx, u, 1.0, 0.0, inset=inset)
+        return None if seg is None else (cx + seg[0], cx + seg[1])
+    seg = shape_clip(el, u, cy, 0.0, 1.0, inset=inset)
+    return None if seg is None else (cy + seg[0], cy + seg[1])
+
+
+_OVERLAP_TOL = 0.01
+
+
+def shape_overlap(a, b):
+    """Signed per-axis overlap of two nodes' RENDERED outlines, in px.
+
+    The pair companion to `shape_clearance`, and what every check that
+    used to write `min(right) - max(left)` against stored boxes wants
+    instead. Positive means the outlines really do intersect by that
+    much along the axis; NEGATIVE is clear canvas between them, so one
+    call answers both "do these overlap" and "how far apart are they".
+
+    That sign convention is why there is deliberately NO separate gap
+    function: a gap is `-min(ox, oy)` off this one result, and giving it
+    its own entry point would either run the search twice per pair — the
+    cost the pair loop's box prefilter exists to avoid — or take an axis
+    flag whose reversal is SILENT, since a gap measured across the wrong
+    axis simply fails to correct anything.
+
+    Args:
+        a: One element.
+        b: The other.
+
+    Returns:
+        `(ox, oy)`, the signed overlap along x and along y.
+    """
+    return (_axis_overlap(a, b, "x"), _axis_overlap(a, b, "y"))
+
+
+def _axis_overlap(a, b, axis):
+    """One axis of `shape_overlap`.
+
+    Measured across the band on the OTHER axis where the two boxes face
+    each other: the widest facing row for an overlap, the narrowest gap
+    for a separation. Two box-filling shapes short-circuit to the plain
+    box arithmetic, so a rectangle pair keeps its exact old number.
+
+    Args:
+        a: One element.
+        b: The other.
+        axis: `"x"` or `"y"`.
+
+    Returns:
+        The signed overlap in px.
+    """
+    aq0, aq1 = _extent(a, axis)
+    bq0, bq1 = _extent(b, axis)
+    box = min(aq1, bq1) - max(aq0, bq0)
+    if a.get("type") not in ("diamond", "ellipse") and \
+            b.get("type") not in ("diamond", "ellipse"):
+        return box
+    other = "y" if axis == "x" else "x"
+    alo, ahi = _extent(a, other)
+    blo, bhi = _extent(b, other)
+    lo, hi = max(alo, blo), min(ahi, bhi)
+    if hi < lo:
+        return box      # no facing band: the box reading is all there is
+
+    def facing(u):
+        """Signed overlap of the two drawn spans at `u`.
+
+        Args:
+            u: The coordinate on the band's axis, in scene coordinates.
+
+        Returns:
+            The signed overlap in px, or `None` where either shape has
+            no ink at `u`.
+        """
+        sa, sb = shape_span(a, axis, u), shape_span(b, axis, u)
+        if sa is None or sb is None:
+            return None
+        return min(sa[1], sb[1]) - max(sa[0], sb[0])
+
+    # CONCAVE on the band, which is why a ternary search is enough and
+    # no per-shape breakpoint table is needed: every node shape is
+    # convex, so its near edge is a convex function of `u` and its far
+    # edge a concave one, and a min of concaves less a max of convexes
+    # is concave. The obvious candidate set — band ends and the two
+    # centre lines — is NOT enough: two rhombi at half a width's offset
+    # peak where their facets CROSS, which is neither, and the version
+    # that tried it read 0 for a pair overlapping by 50px.
+    u0, u1 = lo, hi
+    while u1 - u0 > _OVERLAP_TOL:
+        m0 = u0 + (u1 - u0) / 3.0
+        m1 = u1 - (u1 - u0) / 3.0
+        v0, v1 = facing(m0), facing(m1)
+        if v0 is None or v1 is None:
+            break
+        if v0 < v1:
+            u0 = m0
+        else:
+            u1 = m1
+    best = None
+    for u in (lo, hi, (u0 + u1) / 2.0):
+        v = facing(u)
+        if v is not None and (best is None or v > best):
+            best = v
+    return box if best is None else best
+
+
+def _extent(el, axis):
+    """A node's stored box along one axis.
+
+    Args:
+        el: The element.
+        axis: `"x"` or `"y"`.
+
+    Returns:
+        `(lo, hi)` in scene coordinates.
+    """
+    if axis == "x":
+        lo = el.get("x", 0)
+        return (lo, lo + el.get("width", 0))
+    lo = el.get("y", 0)
+    return (lo, lo + el.get("height", 0))
+
+
+def shape_area(el):
+    """A node's DRAWN area, in px² — not its box's.
+
+    Args:
+        el: The element.
+
+    Returns:
+        The area the outline encloses.
+    """
+    box = el.get("width", 0) * el.get("height", 0)
+    etype = el.get("type")
+    if etype == "diamond":
+        return box / 2.0
+    if etype == "ellipse":
+        return box * math.pi / 4.0
+    return box
+
+
+def _text_rect(t):
+    """A text element posed as a box-filling shape, for `shape_overlap`.
+
+    Args:
+        t: The text element, or an `(x, y, w, h)` tuple for a label whose
+            DRAWN position differs from its stored one.
+
+    Returns:
+        A minimal box-filling element dict.
+    """
+    if isinstance(t, tuple):
+        x, y, w, h = t
+    else:
+        x, y = t.get("x", 0), t.get("y", 0)
+        w, h = t.get("width", 0), t.get("height", 0)
+    return {"type": "rectangle", "x": x, "y": y, "width": w, "height": h}
+
+
 def shape_band_width(el, y0, y1):
     """How wide a node's RENDERED body is across a horizontal band.
 
@@ -7079,15 +7255,34 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                                 b.get("width", 1) * b.get("height", 1))
                     if ox2 * oy2 >= 0.9 * inner:
                         continue
-            ox = min(a["x"] + a.get("width", 0), b["x"] + b.get("width", 0)) \
-                - max(a["x"], b["x"])
-            oy = min(a["y"] + a.get("height", 0),
-                     b["y"] + b.get("height", 0)) - max(a["y"], b["y"])
+            box_ox = min(a["x"] + a.get("width", 0),
+                         b["x"] + b.get("width", 0)) - max(a["x"], b["x"])
+            box_oy = min(a["y"] + a.get("height", 0),
+                         b["y"] + b.get("height", 0)) - max(a["y"], b["y"])
+            # The box CONTAINS the outline, so the box reading is an
+            # UPPER BOUND on the drawn one: a pair the box already puts a
+            # floor's worth apart on both axes reaches neither arm below,
+            # and is not worth clipping. That prefilter is what keeps the
+            # corpus cost near 1x instead of 2.5x.
+            ox, oy = ((box_ox, box_oy)
+                      if min(box_ox, box_oy) <= -CLEARANCE_FLOOR
+                      else shape_overlap(a, b))
             if ox > 0 and oy > 0:
                 grown = (a.get("customData") or {}).get("auto_grown") or \
                     (b.get("customData") or {}).get("auto_grown")
-                smaller = min(a.get("width", 1) * a.get("height", 1),
-                              b.get("width", 1) * b.get("height", 1))
+                # the DRAWN area, so "a quarter of the smaller shape is
+                # covered" means the same thing for a rhombus as for a
+                # box (v0.9 Task 56, D2). BOTH halves of the ratio had to
+                # move together: the numerator alone would have traded
+                # this arm's over-fire for an under-fire on pairs that
+                # really do share a quarter of their ink, since half a
+                # rhombus's box is not the rhombus. Measured over 625
+                # offsets of a 100x100 pair, the drawn denominator
+                # recovers 62 rhombus and 35 ellipse configurations the
+                # box denominator silences and silences none that it
+                # reports — one-way, and pinned from both sides in
+                # `TestShapeBlindPairOverlap`.
+                smaller = min(shape_area(a) or 1, shape_area(b) or 1)
                 if grown:
                     # a box that grew to fit its label gets no size
                     # slack: ANY overlap it causes is real (nothing
@@ -7126,7 +7321,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # stack, which is how both tearsheet sheets stack their
                 # sections. It is the sliver of ground between 1px and the
                 # floor that reads as a mistake.
-                band, gap = (ox, -oy) if ox > oy else (oy, -ox)
+                #
+                # WHICH axis they face across is the BOX's question — the
+                # corner-to-corner exemption `CLEARANCE_BAND` encodes is
+                # stated about boxes, and a DRAWN band collapses to
+                # nothing for two rhombi meeting vertex to vertex, which
+                # is the very case worth reporting. HOW FAR apart they
+                # are is the OUTLINE's question, and that is `gap`
+                # (v0.9 Task 56, D3).
+                #
+                # RESIDUE, ruled and recorded: the shape term is reached
+                # only THROUGH this arm's cheap box gate, so the gate's
+                # own exemptions stay bbox-measured. Two circles whose
+                # boxes are exactly flush but whose bodies clear by 7.7px
+                # therefore stay silent where the floor would otherwise
+                # speak. Under-fire only, unchanged from before shaping,
+                # and 7.7px between two circles is not what a reader
+                # flags; closing it means moving the shape term ahead of
+                # the gate and paying for it on every O(n²) pair.
+                band, gap = max(box_ox, box_oy), -min(ox, oy)
                 if band <= CLEARANCE_BAND or not 0 < gap < CLEARANCE_FLOOR:
                     continue      # corner-to-corner, flush, or clear
                 # slugified in the KEY (a registry token, following the
@@ -7237,11 +7450,23 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 continue
             # per BOX, never per axis: one position's x-overlap paired
             # with another's y-overlap describes a rect neither label
-            # occupies
-            if any(min(ax2, n["x"] + n.get("width", 0)) - max(ax1, n["x"]) > 8
-                   and min(ay2, n["y"] + n.get("height", 0))
-                   - max(ay1, n["y"]) > 4
-                   for ax1, ay1, ax2, ay2 in boxes[la["id"]]):
+            # occupies.
+            #
+            # Shaped as of v0.9 Task 56, and the shape term goes HERE
+            # rather than on the stored coordinate: `boxes` already holds
+            # the resolved drawn rect in both channels, which is the
+            # difference between this check and its two siblings below.
+            # The box test stays in front as the free upper bound — it
+            # contains the outline, so it can only pass a pair the shape
+            # term then rejects, never the reverse.
+            nx2, ny2 = n["x"] + n.get("width", 0), n["y"] + n.get("height", 0)
+            if any(lox > 8 and loy > 4
+                   for lox, loy in
+                   (shape_overlap(_text_rect((ax1, ay1, ax2 - ax1,
+                                              ay2 - ay1)), n)
+                    for ax1, ay1, ax2, ay2 in boxes[la["id"]]
+                    if min(ax2, nx2) - max(ax1, n["x"]) > 8
+                    and min(ay2, ny2) - max(ay1, n["y"]) > 4)):
                 warnings.append(
                     "arrow label %r lands on %s, which is neither end of "
                     "its arrow — the label reads as that box's caption. "
@@ -7290,12 +7515,35 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         for n in nodes:
             if n["id"] in owns:
                 continue
-            ox = min(t["x"] + t.get("width", 0),
-                     n["x"] + n.get("width", 0)) - max(t["x"], n["x"])
-            oy = min(t["y"] + t.get("height", 0),
-                     n["y"] + n.get("height", 0)) - max(t["y"], n["y"])
+            # The BOX first, and only then the outline (v0.9 Task 56).
+            # The box CONTAINS the drawn body, so a pair the box already
+            # clears cannot overlap by the outline either and is not
+            # worth clipping — the same free upper bound the pair loop
+            # above uses, and what keeps this O(texts x nodes) walk at
+            # its old cost on the fixture corpus.
+            box_ox = min(t["x"] + t.get("width", 0),
+                         n["x"] + n.get("width", 0)) - max(t["x"], n["x"])
+            box_oy = min(t["y"] + t.get("height", 0),
+                         n["y"] + n.get("height", 0)) - max(t["y"], n["y"])
+            if not (box_ox > 8 and box_oy > 4):
+                continue
+            # Now the DRAWN outline: an ellipse's bbox corner is 82.8px
+            # of empty canvas on a 400x400 circle and a rhombus's is
+            # 141px, and a note parked in one was reported in the same
+            # words as a note lying across the middle. Rectangles
+            # short-circuit to the arithmetic this replaced, bit for bit.
+            ox, oy = shape_overlap(_text_rect(t), n)
             if not (ox > 8 and oy > 4):
                 continue
+            # RESIDUE, ruled and recorded (v0.9 Task 56, D1): with shaped
+            # extents `ox * oy` below is the intersection's BOUNDING BOX,
+            # not its area — a text clipping a circle's shoulder covers a
+            # lens. The `%dx%dpx` half of the sentence is exactly what
+            # `ox` and `oy` are, the reported patch is the one measured,
+            # and a true area needs a polygon clip for the rhombus and a
+            # conic segment for the ellipse for a number no reader quotes
+            # as an area. On a box — every fixture instance — the two
+            # readings are identical.
             # BOTH arms carry the same measured overlap and lead with the
             # same element — the text, which is the thing either remedy
             # moves. That is deliberate: with geometry, magnitude and

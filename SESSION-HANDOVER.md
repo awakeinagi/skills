@@ -64,38 +64,49 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after curator batch 21 (Task 24 flipped `long_run_curve_hides_bidi` and
-`phantom_passthrough_shared_attach`, taking the model count 16 → 14; batch
-20 then added one and batch 21 added six — read the split, never the total):
-**21 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
-`expected failures=21` default and `=25` under `MUTANTS_RENDER=1`. That splits as 7 catalog reds (`mutants list --red` is
-authoritative) plus **14 non-catalog reds across seven guarded classes** —
-LoadFindings 4, ShapeBlind 3, LabelAnchor 2, ReplayOrder 2, BatchPath 1,
+after v0.9 Task 56 (batch 21 had just taken the model count to 21; Task 56
+then flipped four at once — `diamond_clearance_overfire` and all three of
+`TestShapeBlindAnnotationOverlap`, emptying that class — while ADDING three
+catalog entries that landed green, so the catalog grew as the reds shrank):
+**17 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
+`expected failures=17` default and `=21` under `MUTANTS_RENDER=1`. That splits as 6 catalog reds (`mutants list --red` is
+authoritative) plus **11 non-catalog reds across six guarded classes** —
+LoadFindings 4, LabelAnchor 2, ReplayOrder 2, BatchPath 1,
 CornerBias 1, and `TestSnapshotTierOne` 1,
 the last living in `tests/test_backend.py` rather than with the others —
 enumerated with reasons at the `CATALOGUE` pointer in tests/test_mutants.py.
-Export, Store and PaintOrder have all drained to zero and left that list.
-Batch 21's six are the biggest single-batch addition on record and none of
-them has an owner yet: the r5b-2 cache/replay drift (2, addendum wave), the
-bound-label anchor model (2, addendum wave / label model port), the headless
+Export, Store and PaintOrder have all drained to zero and left that list, and
+ShapeBlind joined them on 2026-08-15.
+Batch 21's six were the biggest single-batch addition on record; Task 56 then
+took four of the twenty-one back off. Of batch 21's, four still have no
+owner: the r5b-2 cache/replay drift (2, addendum wave) and the
+bound-label anchor model (2, addendum wave / label model port). The headless
 e1 chain (1, Task 24 follow-up) and the corner bias's collinear-waypoint
-over-fire (1, owner of `_label_off_corner`).
+over-fire (1, owner of `_label_off_corner`) are likewise still open.
 Each red
 seeds a known defect and asserts what the detector *should* say, so v0.9 has
 an executable definition of done. **Drain them to zero, flipping each in the
 same change as its fix** — an unexpected success IS the signal. Never delete
 a mutant to get green. `ASPIRATIONAL` holds 5 checks awaiting their lints
 (each flip must add a real other-pole neighbor). The **shape-blindness
-family is at SIX pinned instances** (endpoint lint, `_seg_hits_rect`
-diamond + ellipse, `fit_label_in`, the text/node bbox checks — now three
-arms, annotation, unroled text and arrow label — and, since curator batch
-19, `min_clearance`, which reads stored boxes and calls two rhombi 84px
-apart "only 4px apart"); WP4's one
-inscribed-shape primitive addresses all of them, and is not done until the
-ellipse, label-arm and crowding mutants flip too. The clipping so far has
-gone into `_seg_hits_rect` and `marker_inset`'s callers, and `lint_layout`'s
-text loop and shape pair loop call neither — which is exactly why those two
-have their own pins. The dedupe-by-defect guard protects
+family is CLOSED on the lint tier as of v0.9 Task 56**: all six pinned
+instances (endpoint lint, `_seg_hits_rect` diamond + ellipse, `fit_label_in`,
+the text/node bbox checks in three arms, and `min_clearance`) are green. Task
+56 landed the last of it — `shape_overlap`/`shape_span`/`shape_area` in
+canvas.py, called from the text loop, the arrow-label loop and the shape pair
+loop, the three sites `_seg_hits_rect` and `marker_inset`'s callers never
+reached. It left NINE new pins behind (three catalog entries —
+`ellipse_clearance_overfire`, `boxed_overlap_hides_a_near_miss`,
+`stacked_diamonds_near_miss` — and the hand-authored
+`TestShapeBlindPairOverlap`, plus the rhombus and shoulder-clip arms in
+`TestShapeBlindAnnotationOverlap`), all green, each verified to be the sole
+failure under a defect of its own. What is NOT closed is the WRITE/RENDER
+tier the ellipse spike's §10 found: three places that PLACE a glyph off a
+bbox corner (`render_svg`'s footnote marker, `cmd_x_as_user`'s `ask` pin,
+`pin_spot`'s collision fallback) still drop markers into an ellipse's void,
+with `marker_anchor` sitting unused right there. No pin, no owner — the
+picture is still wrong after every check has gone quiet.
+The dedupe-by-defect guard protects
 the catalog against same-defect-different-id collisions; the non-catalog
 classes are defended by file-section convention + reviewer vigilance (id
 prefixes REJECTED — they disarm the duplicate-id guard). Structural notes for
@@ -109,7 +120,7 @@ the flip author:
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
 - **Four of the six catalog reds are ASPIRATIONAL** (re-measured
-  2026-08-14): they flip when their LINTS land, not when any existing code
+  2026-08-15): they flip when their LINTS land, not when any existing code
   changes, and each flip must give its mutant a real other-pole neighbor.
   One per aspirational check, exactly — `framed_node_escapes_its_lane`
   (`frame_containment`), `gray_text_on_ground` (`contrast_text`),
@@ -117,12 +128,16 @@ the flip author:
   (`near_miss_clearance`/`min_clearance` and
   `unroled_text_over_node`/`text_overlaps_node` went when Task 23 landed
   both lints; `phantom_passthrough_shared_attach`/`phantom_passthrough`
-  went with WP4b's e1 in Task 24.) The other two,
-  `diamond_clearance_overfire` (`min_clearance`) and
-  `tolerable_gap_hides_interior_run` (`crosses_through_bound`), are catalog
-  reds against checks that already ship — the first over-fires on shapes
-  that do not fill their bounding box, and the second is the reverse fault
-  in the same family: `lint_layout`'s interior-run walk is gated on
+  went with WP4b's e1 in Task 24.) The remaining two are against checks
+  that already ship, and there were three until 2026-08-15:
+  `diamond_clearance_overfire` (`min_clearance`) FLIPPED with Task 56 when
+  the pair loop learned to measure the drawn outline. Of the two left,
+  `headless_chain_reads_through_node` is batch 21's and deliberately
+  carries no magnitude (its own comment says why), and
+  `tolerable_gap_hides_interior_run` (`crosses_through_bound`)
+  is the reverse fault in the shape family, which the shape fix does NOT
+  touch:
+  `lint_layout`'s interior-run walk is gated on
   `if not outside:` with no tolerance floor under the rectangle branch, so
   moving an arrow's tail 3px PAST the node it crosses adds an overshoot to
   a crossing and takes the lint from one error to total silence.
@@ -136,22 +151,26 @@ the flip author:
   both assert `crosses_through_bound` at 98px, so the pair pins a GATE — the
   red says the check goes quiet, the green says what it must say when it
   speaks, and neither pole can be satisfied by accident.
-- The **shape-blindness family** count above (six) supersedes an older
-  three-instance sentence that stood here — the endpoint lint (bbox
+- The **shape-blindness family** ran to six pinned instances, superseding an
+  older three-instance sentence that stood here — the endpoint lint (bbox
   corners), `_seg_hits_rect` (over-fire) and `fit_label_in` (labels sized to
   the bbox overflow the inscribed diamond by a measured 11px) were the first
-  three. Same root cause throughout; one clipping primitive addresses all
-  six, but it has to be CALLED from each site, which is what the per-site
-  pins measure.
+  three. Same root cause throughout; one clipping primitive addressed all
+  six, but it had to be CALLED from each site, which is what the per-site
+  pins measured — and the last three calls landed in Task 56. The standing
+  obligation the family leaves behind: when `frame_containment` is finally
+  built for `framed_node_escapes_its_lane`, it must measure the member's
+  DRAWN outline against the lane, or the family reopens at a seventh site
+  with the same sentence written about it.
 
-Catalog reds, transcribed from live `mutants list --red` on 2026-08-14 —
+Catalog reds, transcribed from live `mutants list --red` on 2026-08-15 —
 **re-run it rather than trusting this table**, which is exactly the kind of
 hand copy that has gone stale here before (it named nine mutants of which
 eight had already flipped):
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `diamond_clearance_overfire`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
+| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
 | render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom`, `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner` |
 
 The render row is `@unittest.expectedFailure` method names rather than
