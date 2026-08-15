@@ -19,6 +19,7 @@ from pngdiff import (
     components,
     read_png_gray,
     tolerant_diff,
+    tolerant_diff_mask,
     write_png_gray,
 )
 
@@ -54,7 +55,13 @@ def _ihdr(w: int, h: int, depth: int, ctype: int, interlace: int = 0) -> bytes:
 
 
 class TestTolerantDiff(unittest.TestCase):
-    """The comparator's contract: AA-band immune, blob-sensitive."""
+    """The comparator's contract: AA-band immune, blob-sensitive.
+
+    `tolerant_diff_mask` is pinned here rather than in a class of its own
+    because it is the same comparator — it holds the body, and the plain
+    entry point is one line of it — so the two belong to one family and
+    share the `_img` fixture.
+    """
 
     def _img(self, w: int, h: int, strokes: list[tuple[int, int]]) -> bytes:
         """Gray image, white ground, black pixels at the given coords.
@@ -171,6 +178,72 @@ class TestTolerantDiff(unittest.TestCase):
         self.assertIn("32x32", str(ctx.exception))
         self.assertIn("16x16", str(ctx.exception))
 
+    def test_the_masked_entry_point_reports_the_same_blobs(self) -> None:
+        """`tolerant_diff_mask` is `tolerant_diff` plus the mask, exactly.
+
+        The whole reason it exists is that one caller needs the ink's
+        shape and every other caller must be able to ignore it, so a
+        difference in the blobs — an off-by-one in the `min_blob` filter,
+        a different ordering — would make the two entry points two
+        comparators. `w` and `h` come back too: they are the mask's
+        stride, and unflattening it against the wrong one is silent.
+        """
+        a = self._img(64, 48, [(x, y) for x in range(20, 26)
+                               for y in range(20, 26)]
+                      + [(x, y) for x in range(40, 46) for y in range(8, 14)])
+        b = self._img(64, 48, [])
+        blobs, w, h, _mask = tolerant_diff_mask(a, b)
+        self.assertEqual((w, h), (64, 48))
+        self.assertEqual(blobs, tolerant_diff(a, b))
+
+    def test_the_mask_is_what_the_blobs_were_componented_from(self) -> None:
+        """The mask returned is the residual, not a fresh empty buffer.
+
+        The pole that makes the mask worth returning: re-componenting it
+        reproduces the reported blobs. A sibling that handed back a
+        correctly sized bytearray of zeros would satisfy every other
+        assertion here — the caller only indexes it — and would silently
+        report every component as having no ink at any of its ends.
+        """
+        a = self._img(64, 48, [(x, y) for x in range(20, 26)
+                               for y in range(20, 26)]
+                      + [(x, y) for x in range(40, 46) for y in range(8, 14)])
+        blobs, w, h, mask = tolerant_diff_mask(a, self._img(64, 48, []))
+        self.assertEqual([c for c in components(w, h, mask)
+                          if c["area"] >= 12], blobs)
+
+    def test_the_mask_keeps_the_speckle_the_blob_list_dropped(self) -> None:
+        """It is the RESIDUAL, not the reported ink, and the difference bites.
+
+        `min_blob` drops sub-threshold specks from the blob list; the
+        mask keeps them, because it is the intermediate the filter ran
+        on. A caller intersecting a component's members with this mask
+        therefore recovers ink that was never reported as a blob — which
+        is correct (it is real residual inside that component's own box)
+        and is the kind of thing a reader of the render tier's end
+        profiles has to know before trusting a span by one pixel.
+        """
+        blobs, w, _h, mask = tolerant_diff_mask(
+            self._img(32, 32, [(5, 5), (6, 5)]), self._img(32, 32, []))
+        self.assertEqual(blobs, [])
+        self.assertEqual([i for i, v in enumerate(mask) if v],
+                         [5 * w + 5, 5 * w + 6])
+
+    def test_agreeing_images_return_an_empty_mask(self) -> None:
+        """The other pole: no difference, no ink anywhere in the residual."""
+        a = self._img(32, 32, [(x, 10) for x in range(4, 28)])
+        blobs, w, h, mask = tolerant_diff_mask(a, a)
+        self.assertEqual(blobs, [])
+        self.assertEqual(len(mask), w * h)
+        self.assertEqual(max(mask), 0)
+
+    def test_the_masked_entry_point_rejects_mismatched_sizes(self) -> None:
+        """The size guard lives in the body, so both entry points keep it."""
+        with self.assertRaises(ValueError) as ctx:
+            tolerant_diff_mask(self._img(32, 32, []), self._img(16, 16, []))
+        self.assertIn("32x32", str(ctx.exception))
+        self.assertIn("16x16", str(ctx.exception))
+
 
 class TestComponents(unittest.TestCase):
     """8-connected flood fill over a flat 0/1 mask."""
@@ -212,6 +285,43 @@ class TestComponents(unittest.TestCase):
         self.assertEqual(len(comps), 1)
         self.assertEqual(comps[0]["area"], 12)
         self.assertEqual(comps[0]["bbox"], (2, 2, 5, 5))
+
+    def test_pixels_opt_in_reports_each_components_own_members(self) -> None:
+        """With `pixels`, a component carries its ink's indices, not its box.
+
+        The same hollow ring as above, and the same distinction it was
+        built for: the ring's bbox is 16 cells and its ink is 12, so a
+        member list taken from the bounding box rather than from the
+        flood fill would come back four indices too long. `area` and the
+        list are pinned against each other as well — they are produced by
+        the same loop and a caller sizing one from the other must not be
+        able to drift.
+        """
+        m = bytearray(64)
+        for x in range(2, 6):
+            m[2 * 8 + x] = m[5 * 8 + x] = 1
+        for y in range(3, 5):
+            m[y * 8 + 2] = m[y * 8 + 5] = 1
+        comps = components(8, 8, m, pixels=True)
+        self.assertEqual(len(comps), 1)
+        self.assertEqual(len(comps[0]["pixels"]), comps[0]["area"])
+        self.assertEqual(sorted(comps[0]["pixels"]),
+                         [i for i, v in enumerate(m) if v])
+
+    def test_components_report_no_pixels_by_default(self) -> None:
+        """The opt-in must not rot into always-on.
+
+        A member list is O(area) boxed ints — ~31 MB for one merged
+        component on a corpus-scale raster — and `tolerant_diff` runs
+        this on every diff. So the default is load-bearing, and "the
+        dict grew a key nobody asked for" is exactly the change that
+        would go unnoticed: no assertion in this suite compares a whole
+        component dict to a literal, so nothing else here would see it.
+        """
+        m = bytearray(64)
+        m[0] = m[63] = 1
+        self.assertEqual([sorted(c) for c in components(8, 8, m)],
+                         [["area", "bbox"], ["area", "bbox"]])
 
     def test_large_component_does_not_recurse(self) -> None:
         """A full-frame mask floods iteratively — no recursion limit."""

@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 import canvas
 import test_mutants as tm
-from pngdiff import components, read_png_gray, tolerant_diff
+from pngdiff import components, read_png_gray, tolerant_diff, tolerant_diff_mask
 from tests_helpers import el
 
 RENDER = os.environ.get("MUTANTS_RENDER") == "1"
@@ -65,6 +65,20 @@ SEARCHED = ("PATH: chromium, chromium-browser, google-chrome-stable, "
 # Same floor pngdiff.tolerant_diff drops speckle at: a component smaller
 # than this is anti-aliasing residue, not a piece of the drawing.
 MIN_BLOB = 12
+
+# How far in from a component's bounding box counts as that component's END,
+# in pixels. Wide enough to hold a whole stroke including its anti-aliased
+# skirt — the ends being compared are 2px strokes, and a band thinner than
+# the stroke would read one edge of it and call that the direction it points.
+_BAND = 4
+
+# One pixel of slack on each end before they are compared, which is the same
+# budget `pngdiff._dilate` spends on the ink itself and is spent here for the
+# same reason: a stroke's position either side of a gap is only ever accurate
+# to a pixel. Measured on the corpus rather than chosen — two of its arrows
+# are single curves broken by their own bound label whose facing ends land in
+# ADJACENT columns, and without this they read as severed connectors.
+_SLACK = 1
 
 _SVG_TAG = re.compile(r"^<svg [^>]*>")
 
@@ -210,8 +224,8 @@ def _shot(elements: list[dict], workdir: str,
     return _rasterize(*_framed_svg(elements, hide), workdir)
 
 
-def _delta_components(w: int, h: int,
-                      blobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _delta_components(w: int, h: int, blobs: list[dict[str, Any]],
+                      residual: bytearray) -> list[dict[str, Any]]:
     """Group a diff's blobs into the strokes a reader would see.
 
     `tolerant_diff` already returns connected components, but a single
@@ -221,13 +235,26 @@ def _delta_components(w: int, h: int,
     stroke back together while leaving genuinely separated pieces apart,
     so the count means "how many strokes is this", not "how many scraps".
 
+    That fill is also where the ink's SHAPE would be lost — every merged
+    component comes out of it a solid rectangle, and on the back-edge
+    scene one of them is 33x larger than the stroke inside it. So each
+    component's real ink is recovered here by intersecting its members
+    with the residual mask, and immediately reduced to four spans by
+    `_edge_profiles`. The pixel lists never leave this function; what
+    `_completed_by_eye` gets is a direction per end, not a picture.
+
     Args:
         w: Raster width in pixels.
         h: Raster height in pixels.
         blobs: `tolerant_diff` output — dicts with an inclusive `bbox`.
+        residual: The `w * h` mask those blobs were componented from, from
+            `tolerant_diff_mask`. Required: a component without `"ends"`
+            is one `_completed_by_eye` would have to judge on its bounding
+            box alone, which is the defect this argument exists to close.
 
     Returns:
-        The merged components of at least `MIN_BLOB` pixels.
+        The merged components of at least `MIN_BLOB` pixels, each with
+        `"ends"` alongside its `"area"` and `"bbox"`.
     """
     mask = bytearray(w * h)
     for blob in blobs:
@@ -236,7 +263,57 @@ def _delta_components(w: int, h: int,
             row = y * w
             for x in range(x0, x1 + 1):
                 mask[row + x] = 1
-    return [c for c in components(w, h, mask) if c["area"] >= MIN_BLOB]
+    out = []
+    for c in components(w, h, mask, pixels=True):
+        if c["area"] < MIN_BLOB:
+            continue
+        c["ends"] = _edge_profiles(w, c["bbox"],
+                                   [i for i in c.pop("pixels") if residual[i]])
+        out.append(c)
+    return out
+
+
+def _edge_profiles(w: int, bbox: tuple[int, ...],
+                   ink: list[int]) -> dict[str, tuple[int, int]]:
+    """Where a component's ink sits at each of its four ends.
+
+    Each side maps to the CROSS-AXIS span of the ink within `_BAND` of
+    that side of the bounding box: `"left"` is the y-range of ink in the
+    leftmost columns, `"bottom"` the x-range of ink in the bottom rows.
+    An L-shaped remnant's `"bottom"` is therefore its leg's foot — two
+    columns — and not the 158 columns its bbox is wide.
+
+    Taken over the WHOLE merged component, deliberately, and not per
+    member blob and unioned: a merged component's bbox edge band cuts
+    across its members' interiors, where a member recorded nothing about
+    the side it does not itself bound. Pinned as
+    `test_a_merged_components_end_is_measured_on_the_union`.
+
+    Args:
+        w: Raster width in pixels, for unflattening the indices.
+        bbox: The component's inclusive `(x0, y0, x1, y1)`.
+        ink: The component's real ink, as flat indices.
+
+    Returns:
+        One `(lo, hi)` span per side named, inclusive. A side with no ink
+        within `_BAND` is absent — which cannot happen for a component
+        built from blob bounding boxes, since each of the four extremes
+        of that union is a place some blob had ink.
+    """
+    x0, y0, x1, y1 = bbox
+    out: dict[str, tuple[int, int]] = {}
+    for i in ink:
+        x, y = i % w, i // w
+        for side, hit, q in (("left", x < x0 + _BAND, y),
+                             ("right", x > x1 - _BAND, y),
+                             ("top", y < y0 + _BAND, x),
+                             ("bottom", y > y1 - _BAND, x)):
+            if not hit:
+                continue
+            span = out.get(side)
+            out[side] = (q, q) if span is None else (min(span[0], q),
+                                                     max(span[1], q))
+    return out
 
 
 def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
@@ -254,54 +331,66 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
     and that is r5-14 — a connector that reads as two disconnected
     pieces.
 
-    So the test is collinearity, not proximity: the pieces must be
-    SEPARATED along one axis and OVERLAP on the other. Overlap of one
-    row is enough and is deliberate — the claim is that the two runs
-    share a band, not that the band is any particular thickness, and a
-    threshold in stroke-widths would move with the build's
-    anti-aliasing. Measured on the scenes below, the mid-run pair
-    overlaps by 2 rows and the elbow pair misses by 11.
+    So the test is collinearity, not proximity, and it is asked of the
+    two FACING ENDS rather than of the two pieces: the bounding boxes
+    must be SEPARATED along one axis and OVERLAP on the other — the
+    cheap prefilter, and everything this predicate used to be — and then
+    the ink in the last `_BAND` px of `a`'s trailing side must share a
+    lane with the ink in the first `_BAND` px of `b`'s leading one, per
+    `_ends_line_up`.
 
-    KNOWN TOO BROAD (curator batch 14, from the Task 19 review, F5,
-    2026-08-14). Read literally this is a BBOX predicate, not a
-    collinearity one: separated on one axis, overlapping by >=1 unit on
-    the other, with NO bound on how far apart the pieces are and no
-    look at where either piece's ENDS point. Three consequences, each
-    reproduced:
+    WHY THE ENDS AND NOT THE BOXES (curator batch 14, from the Task 19
+    review F5, 2026-08-14; narrowed by v0.9 task 48). Read literally the
+    prefilter alone is a BBOX test, with no bound on how far apart the
+    pieces are and no look at where either piece's ink points. Any
+    remnant containing a TURN has a bbox tall AND wide, so it overlaps a
+    distant stub on one axis by construction — which is what
+    `test_mutant_l_shaped_remnant_hides_a_severed_back_edge` reached on
+    `_back_edge_with_label("turn")`: the same erased-elbow picture the
+    2-segment `corner` scene fires on, silently merged. The synthetic
+    over-merges of the same shape are pinned in
+    `TestContinuityNarrowingRegime`, and the batch's sweep is why they
+    are pinned there rather than described here — a Z-path broken on
+    either turn leaves the pieces separated on BOTH axes and fires
+    correctly, so the class only shows up when the next segment turns
+    back UNDER the remnant.
 
-    - Synthetic. An L-shaped remnant `(122,59,283,120)` merges with a
-      horizontal stub `(350,100,400,101)` 67px to its right, and with a
-      vertical stub `(200,200,201,300)` 80px below it; a T-corner pair
-      merges on one row of shared band.
-    - Reachable in PIXELS, not only on paper. Any remnant containing a
-      TURN has a bbox tall AND wide, so it overlaps a distant stub on
-      one axis by construction — which is what
-      `test_mutant_l_shaped_remnant_hides_a_severed_back_edge` pins on
-      `_back_edge_with_label("turn")`: the same erased-elbow picture the
-      2-segment `corner` scene fires on, silently merged here. The
-      reviewer's own sweep did NOT reach it (a corner-label sweep from
-      y=90 to y=70 reconnects the scene genuinely at y=78, and a Z-path
-      broken on either turn leaves the pieces separated on BOTH axes, so
-      the check fires correctly); the back edge reaches it because its
-      third segment turns back UNDER the remnant instead of away from it.
-    - The discrimination that does work rests on a thin measurement:
-      one scene, an 11-row miss against a 1-row trip point. A build
-      whose anti-aliasing fattens a stub by 11 rows silences the elbow
-      mutant, and nothing here would say so.
+    The ends are measurable here only because the residual mask is now
+    plumbed through: `tolerant_diff_mask` hands back the per-pixel
+    residual and `_delta_components` reduces each component's real ink
+    to four spans, so what arrives is the ink's direction and not the
+    rectangle it was flattened into. The bboxes could never separate the
+    back edge's severed turn from its legitimate mid-leg break — both
+    are two L's, y-separated, x-overlapping, with x-overlaps of 136 and
+    158 columns, the wrong way round from the verdict. On the facing
+    ends the same two scenes differ by 22 rows in the same measurement:
+    the leg's break is `bottom (279,280)` against `top (279,280)`, and
+    the severed turn is `bottom (279,280)` against `top (122,258)`.
 
-    Why this is NOT a predicate tweak, measured rather than guessed: by
-    the time a component reaches here, the ink's SHAPE is already gone.
-    `tolerant_diff` computes a per-pixel residual and returns only each
-    blob's area and bbox; `_delta_components` then fills those bboxes
-    solid, so every "component" is a rectangle and the L above reads as
-    122..280 on every one of its rows. No function of these bboxes can
-    tell the back edge's severed turn from its legitimate mid-leg break
-    — both are two L's, y-separated, x-overlapping. VERIFIED in a
-    throwaway tree: carrying the true residual through and comparing
-    the ink within 4px of the two FACING edges flips the mutant green
-    and leaves the whole render tier green (820 tests, sole change).
-    That is the shape of the fix and it belongs to WP4; the cost is
-    plumbing the residual mask out of `tolerant_diff`.
+    KNOWN TOO NARROW, measured on the corpus at the flip (task-48 report
+    §6) and left standing rather than tuned away. Replayed over all 174
+    corpus arrows — old predicate against new, same rasters — three
+    change verdict, and every one is this exemption's own idiom being
+    reported as a severance. None is reachable from any scene in this
+    file, which is why they are recorded here and queued for the curator
+    rather than pinned:
+
+    - `argus-r5/argus-domain` `r-pipeline-rerun`. The pieces INTERLEAVE:
+      a back-loop's two remnants are separated in x by 10px while the
+      break they actually have is 40px along the top run, so the
+      prefilter picks an axis whose facing ends are not the ones facing
+      the gap. The two-piece model does not describe this shape.
+    - `argus-r4-arm3/enrichment-pipeline` `e-edgar-insider`. A component
+      only 2px wide has its WHOLE ink inside `_BAND`, so a sloped run's
+      2x7 scrap reports a 7-row "end" and the ratio's denominator is the
+      scrap's length rather than a stroke's width.
+    - `argus-r4-arm3/enrichment-pipeline` `e-edgar-sent`, which is not
+      this predicate's doing at all: that label rides across ANOTHER
+      arrow's stroke, so ablating it un-covers foreign ink 177 rows away
+      — the hazard `ablation_findings`' own docstring names as reachable
+      by "a catalogue scene with a label riding one arrow across
+      another's". The bbox over-merge was accidentally masking it, and
+      the narrowing stops masking it.
 
     Residual, recorded with the class rather than as an open defect: a
     foreign opaque shape covering a straight run is not lost, because
@@ -311,7 +400,8 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
     backstop for precisely that. F1 itself closed at 636da5d.
 
     Args:
-        a: One component, with an inclusive `bbox` of `(x0, y0, x1, y1)`.
+        a: One component from `_delta_components`, with an inclusive
+            `bbox` of `(x0, y0, x1, y1)` and the `ends` spans.
         b: The other component, same shape.
 
     Returns:
@@ -319,12 +409,47 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
     """
     ax0, ay0, ax1, ay1 = a["bbox"]
     bx0, by0, bx1, by1 = b["bbox"]
-    for (u0, u1, v0, v1), (w0, w1, z0, z1) in (
-            ((ax0, ax1, ay0, ay1), (bx0, bx1, by0, by1)),
-            ((ay0, ay1, ax0, ax1), (by0, by1, bx0, bx1))):
-        if max(u0, w0) > min(u1, w1) and max(v0, z0) <= min(v1, z1):
+    # Per separation axis, the end the LOWER piece on that axis faces the
+    # gap with, then the end the higher one does. Carried in the loop
+    # rather than recovered from the coordinates inside it, because a
+    # square-ish bbox makes the x and y projections equal and any test
+    # that reads the axis back off them picks the wrong pair of sides.
+    for (u0, u1, v0, v1), (w0, w1, z0, z1), lo, hi in (
+            ((ax0, ax1, ay0, ay1), (bx0, bx1, by0, by1), "right", "left"),
+            ((ay0, ay1, ax0, ax1), (by0, by1, bx0, bx1), "bottom", "top")):
+        if max(u0, w0) <= min(u1, w1) or max(v0, z0) > min(v1, z1):
+            continue
+        near, far = (lo, hi) if u1 < w1 else (hi, lo)
+        if _ends_line_up(a["ends"][near], b["ends"][far]):
             return True
     return False
+
+
+def _ends_line_up(sa: tuple[int, int], sb: tuple[int, int]) -> bool:
+    """Do two facing ends' ink share enough of a lane to read as one run?
+
+    Each end is grown by `_SLACK` first — the same one pixel of tolerance
+    the comparator spends on the ink — and then the overlap must be at
+    least half the WIDER of the two. A ratio and not an absolute, for the
+    reason the original one-row rule was written to avoid: a threshold in
+    pixels moves with the build's anti-aliasing, while fattening BOTH
+    ends of a genuine continuation leaves this at ~1.0 whatever the
+    stroke weight. What it costs a spurious merge is proportional too —
+    the elbow scene's pair missed by 11 rows, so 11 rows of fattening
+    silenced its mutant under the old rule, where under this one the
+    2-row end has to grow to ~53.
+
+    Args:
+        sa: One end's inclusive cross-axis span, `(lo, hi)`.
+        sb: The facing end's span, on the same axis.
+
+    Returns:
+        True if a reader continues one into the other.
+    """
+    a0, a1 = sa[0] - _SLACK, sa[1] + _SLACK
+    b0, b1 = sb[0] - _SLACK, sb[1] + _SLACK
+    overlap = min(a1, b1) - max(a0, b0) + 1
+    return overlap * 2 >= max(a1 - a0, b1 - b0) + 1
 
 
 def _reader_strokes(parts: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
@@ -398,7 +523,8 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
     w, h, _pix = read_png_gray(full)
     findings: list[dict] = []
     for eid in arrow_ids:
-        blobs = tolerant_diff(_shot(elements, workdir, hide=(eid,)), full)
+        blobs, _dw, _dh, residual = tolerant_diff_mask(
+            _shot(elements, workdir, hide=(eid,)), full)
         if not blobs:
             findings.append({
                 "check": "ablation_existence", "element": eid,
@@ -406,7 +532,7 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
                 "raw": "removing %s changed no pixels — it is in the "
                        "model but not in the picture" % eid})
             continue
-        strokes = _reader_strokes(_delta_components(w, h, blobs))
+        strokes = _reader_strokes(_delta_components(w, h, blobs, residual))
         if len(strokes) >= 2:
             findings.append({
                 "check": "ablation_continuity", "element": eid,
@@ -725,15 +851,17 @@ class TestRenderMutants(unittest.TestCase):
     def test_neighbour_back_edge_label_on_the_leg_is_silent(self) -> None:
         """A backdrop mid-way down the back edge's leg is the idiom, not a cut.
 
-        The live pole of the pair below, and the half that constrains the
-        fix. Both remnants here are L-shaped — the top run plus the leg's
-        upper half, the leg's lower half plus the bottom run — so the
-        cheap narrowing "an L-shaped remnant is never completed by eye"
-        would over-fire on this scene and report the tool's own bound
-        label as a severed connector. What makes it readable is that the
-        two facing ENDS are collinear down the leg at x~358 and 25 raster
-        rows apart, which is the property `_completed_by_eye` claims to
-        test and does not.
+        The pole of the pair below, and the half that constrained the
+        task 48 fix — it stayed green across the flip and is the reason
+        the narrowing had to be the one it is. Both remnants here are
+        L-shaped — the top run plus the leg's upper half, the leg's lower
+        half plus the bottom run — so the cheap narrowing "an L-shaped
+        remnant is never completed by eye" would over-fire on this scene
+        and report the tool's own bound label as a severed connector.
+        What makes it readable is that the two facing ENDS are collinear
+        down the leg at x~358 and 25 raster rows apart, which is the
+        property `_completed_by_eye` claims to test and, since the
+        residual mask reaches it, does.
         """
         scene = _back_edge_with_label("leg")
         finds = ablation_findings(scene, ["a1"], self.workdir)
@@ -743,43 +871,295 @@ class TestRenderMutants(unittest.TestCase):
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_existence"], [])
 
-    @unittest.expectedFailure
     def test_mutant_l_shaped_remnant_hides_a_severed_back_edge(self) -> None:
-        """A remnant with a turn in it merges with a stub it never touches.
+        """FLIPPED by v0.9 WP4 (Task 48). Kept its red-era name.
 
-        Curator batch 14, from the Task 19 review (F5), 2026-08-14. Same
-        defect class as `test_mutant_label_backdrop_severs_connector` and
-        the same picture — a bound label's opaque backdrop parked on an
-        elbow, the run arriving, stopping, and resuming somewhere the eye
-        cannot follow it to — but on a path with a second turn, and
-        `ablation_continuity` says nothing.
+        A remnant with a turn in it used to merge with a stub it never
+        touched. Curator batch 14, from the Task 19 review (F5),
+        2026-08-14. Same defect class as
+        `test_mutant_label_backdrop_severs_connector` and the same
+        picture — a bound label's opaque backdrop parked on an elbow, the
+        run arriving, stopping, and resuming somewhere the eye cannot
+        follow it to — but on a path with a second turn, and
+        `ablation_continuity` said nothing.
 
-        Why the extra turn is the whole scene: broken on the lower turn,
+        Why the extra turn was the whole scene: broken on the lower turn,
         this connector's ink comes back as an L (122,59,280,167) and a
         bottom stub (122,176,258,183). The two are separated in y by 9
         rows, which is the severance, and OVERLAP in x for 136 columns —
         not because they share a stroke, but because the L is 158 columns
         wide and swallows the stub's range whole. `_completed_by_eye`
-        reads that overlap as "the eye continues one into the other" and
-        `_reader_strokes` merges them into one, so the finding is never
-        emitted. The 2-segment `corner` scene escapes this only because
+        read that overlap as "the eye continues one into the other" and
+        `_reader_strokes` merged them into one, so the finding was never
+        emitted. The 2-segment `corner` scene escaped this only because
         two straight stubs give it two thin bboxes.
 
-        Expected: `ablation_continuity` on `a1` with magnitude 2.0 — the
-        count of pieces a reader sees, and 2 is the count in the raster,
-        asserted as a whole projection rather than by indexing into an
-        empty list so this is red BY ASSERTION and not by IndexError.
+        What flipped it is the one thing the red-era docstring named:
+        where the facing ends POINT, not how big the pieces are. The
+        residual mask `tolerant_diff` used to discard is carried through
+        to `_completed_by_eye` now, so this scene's L is measured at its
+        bottom end — the leg's foot, `(279,280)` — against the stub's top
+        end at `(122,258)`, which miss by 20 columns. The neighbour above
+        is the same measurement on the same axis with the same label and
+        overlaps fully, so the two scenes are 22 rows apart in the
+        property the check claims to test rather than the wrong way round
+        in an x-overlap.
 
-        Fix ownership is WP4's, not this file's, and the neighbour above
-        is the constraint on it: whatever replaces the bbox test must
-        still complete a break on the leg, so the property to reach for
-        is where the facing ends POINT, not how big the pieces are.
+        Magnitude 2.0 is the count of pieces a reader sees, asserted as a
+        whole projection rather than by indexing so a regression that
+        emitted nothing fails here by assertion and not by IndexError.
         """
         scene = _back_edge_with_label("turn")
         finds = ablation_findings(scene, ["a1"], self.workdir)
         self.assertEqual([(f["check"], f["element"], f["magnitude"])
                           for f in finds],
                          [("ablation_continuity", "a1", 2.0)])
+
+
+# The L-shaped remnant curator batch 14 reproduced, in ink rather than as the
+# bbox it used to flatten to: the top run, then the leg turning down its right
+# end. Its bounding box is (122, 59, 283, 120) — tall AND wide, which is the
+# whole property that let it swallow a stub it never touched.
+_L_REMNANT = ((122, 59, 283, 60), (282, 59, 283, 120))
+
+# Ink for the synthetic continuity scenes, as inclusive (x0, y0, x1, y1)
+# rectangles of stroke. These are batch 14's own reproducers and the spike's,
+# with batch 14's coordinates where it gave them, so the numbers in
+# `_completed_by_eye`'s note and the numbers here are one set of numbers.
+_SEVERED_SHAPES = (
+    ("a stub 67px clear of the L's leg",
+     (*_L_REMNANT, (350, 100, 400, 101))),
+    ("a stub 80px clear below the L",
+     (*_L_REMNANT, (200, 200, 201, 300))),
+    ("a T-corner pair sharing one row of band",
+     ((10, 50, 100, 50), (150, 50, 151, 120))),
+    ("the back edge's severed turn: the L and the run beneath it",
+     (*_L_REMNANT, (122, 176, 258, 177))),
+)
+
+# The other pole: breaks the eye completes, which the narrowing must not
+# start reporting. The third is the back edge's LEGITIMATE mid-leg break —
+# two L's, exactly the shape of the severed scene above, and the reason no
+# rule of the form "an L never completes" was available.
+_CONTINUED_SHAPES = (
+    ("a straight run broken mid-run",
+     ((10, 50, 100, 51), (140, 50, 230, 51))),
+    ("a vertical leg broken mid-leg",
+     ((50, 10, 51, 100), (50, 140, 51, 230))),
+    ("two L's broken on the leg they share",
+     (*_L_REMNANT, (282, 145, 283, 200), (122, 199, 283, 200))),
+    ("two L's whose upper bbox is exactly square",
+     ((50, 50, 120, 51), (119, 50, 120, 120),
+      (119, 145, 120, 200), (50, 199, 120, 200))),
+)
+
+
+def _ink_mask(w: int, h: int,
+              strokes: tuple[tuple[int, int, int, int], ...]) -> bytearray:
+    """Paint inclusive rectangles of ink into a flat residual mask.
+
+    Args:
+        w: Mask width in pixels.
+        h: Mask height in pixels.
+        strokes: Inclusive `(x0, y0, x1, y1)` rectangles to ink.
+
+    Returns:
+        The `w * h` mask, 1 where inked.
+    """
+    mask = bytearray(w * h)
+    for x0, y0, x1, y1 in strokes:
+        for y in range(y0, y1 + 1):
+            row = y * w
+            for x in range(x0, x1 + 1):
+                mask[row + x] = 1
+    return mask
+
+
+def _synthetic_strokes(strokes: tuple[tuple[int, int, int, int], ...]
+                       ) -> list[list[dict[str, Any]]]:
+    """Read hand-drawn ink the way `ablation_findings` reads a delta.
+
+    Everything downstream of the browser, and nothing else: the ink is
+    componented, merged and grouped by the shipped functions, so this
+    answers "how many pieces would this delta report" without rendering
+    anything. The raster is sized to the largest coordinate the scenes
+    below use.
+
+    Args:
+        strokes: Inclusive `(x0, y0, x1, y1)` rectangles of ink.
+
+    Returns:
+        `_reader_strokes` output — one group per piece a reader sees.
+    """
+    w, h = 420, 320
+    residual = _ink_mask(w, h, strokes)
+    blobs = [c for c in components(w, h, residual) if c["area"] >= MIN_BLOB]
+    return _reader_strokes(_delta_components(w, h, blobs, residual))
+
+
+class TestContinuityNarrowingRegime(unittest.TestCase):
+    """`_completed_by_eye`'s narrowing, in arithmetic rather than in ink.
+
+    Ungated for the reason `TestRenderParityRegime` is ungated: none of
+    it needs a browser, and the rot it catches happens in ordinary
+    editing where nobody has `MUTANTS_RENDER=1` set. What it holds down
+    is the WIDTH of the predicate — the mutant next door proves the
+    narrowing on one rendered scene, but the three over-merges that
+    motivated it were only ever reachable on paper (curator batch 14
+    swept for them through the browser and could not reach them), so a
+    later widening back toward the bbox test would leave every rendered
+    test in this file green and only these would say so.
+    """
+
+    def test_the_narrowing_fires_on_the_over_merges_the_bboxes_hid(self
+                                                                   ) -> None:
+        """Four shapes the old predicate read as one stroke are two.
+
+        Each is a piece whose bbox is tall AND wide against a piece it
+        does not touch, so the prefilter's "separated on one axis,
+        overlapping on the other" is satisfied by the box rather than by
+        the stroke. Under the ends test they come apart, because the L's
+        leg foot is two columns wide and the thing it is being completed
+        into is nowhere near those two columns.
+        """
+        for name, strokes in _SEVERED_SHAPES:
+            with self.subTest(shape=name):
+                self.assertEqual(
+                    len(_synthetic_strokes(strokes)), 2,
+                    "%s reads as one stroke: the narrowing has widened "
+                    "back toward the bbox test" % name)
+
+    def test_the_narrowing_still_completes_a_break_mid_stroke(self) -> None:
+        """The bound-label idiom survives it — including the two-L case.
+
+        The constraint on the whole fix, and the reason the ends had to
+        be measured rather than the shapes classified: the third scene
+        here is two L's broken on their shared leg, which is the same
+        pair of shapes as the severed back edge above and must read the
+        opposite way. It does, because the two facing ends are the leg's
+        cross-section on both sides of the gap.
+
+        The fourth is the same scene with its upper piece's bounding box
+        made exactly SQUARE, which is not a curiosity: it is the one
+        input on which a `_completed_by_eye` that recovered its
+        separation axis by comparing coordinates inside the loop —
+        `(u0, u1) == (ax0, ax1)` — reads the y pass as the x pass and
+        asks the wrong two sides. That misreading can only ever refuse a
+        merge (a y-separated pair's left and right spans are disjoint by
+        construction), so it shows up as this file's own idiom being
+        reported as a severed connector, and only on square boxes.
+        """
+        for name, strokes in _CONTINUED_SHAPES:
+            with self.subTest(shape=name):
+                self.assertEqual(
+                    len(_synthetic_strokes(strokes)), 1,
+                    "%s reads as two pieces: the narrowing is reporting "
+                    "the tool's own bound-label idiom as a severed run"
+                    % name)
+
+    def test_an_end_profile_is_the_ink_near_that_side_only(self) -> None:
+        """A side's profile is its band's ink, not the component's.
+
+        The distinction the whole fix rests on, on the smallest shape
+        that shows it: an L whose run goes right and whose leg drops from
+        the run's far end. Read as a component the ink spans the full
+        height on the right and the full width on the top; read as ENDS
+        the left is the run's stub and the bottom is the leg's foot. A
+        profile that reported the component's extents instead would give
+        `(10, 60)` and `(10, 100)` for those two, which is the bbox
+        predicate again wearing a different name.
+        """
+        strokes = ((10, 10, 100, 11), (99, 10, 100, 60))
+        mask = _ink_mask(120, 80, strokes)
+        ends = _edge_profiles(120, (10, 10, 100, 60),
+                              [i for i, v in enumerate(mask) if v])
+        self.assertEqual(ends, {"left": (10, 11), "right": (10, 60),
+                                "top": (10, 100), "bottom": (99, 100)})
+
+    def test_a_merged_components_end_is_measured_on_the_union(self) -> None:
+        """A member blob does not carry its own edges into the merge.
+
+        Why `_edge_profiles` runs once over a merged component and not
+        per blob with the results unioned, which is the cheaper shape and
+        is wrong in both directions. The stub here sits inside the L's
+        bounding box, so the merge swallows it: it is inside the union's
+        BOTTOM band and contributes to that end, while its own left edge
+        at x=200 is nowhere near the union's left edge and contributes
+        nothing there. Unioning per-blob profiles would report the stub's
+        y-range on the left, where there is no ink at all.
+        """
+        strokes = (*_L_REMNANT, (200, 117, 260, 118))
+        w, h = 420, 320
+        residual = _ink_mask(w, h, strokes)
+        blobs = [c for c in components(w, h, residual)
+                 if c["area"] >= MIN_BLOB]
+        self.assertEqual(len(blobs), 2, "the stub must be a blob of its own")
+        parts = _delta_components(w, h, blobs, residual)
+        self.assertEqual([c["bbox"] for c in parts], [(122, 59, 283, 120)])
+        self.assertEqual(parts[0]["ends"]["bottom"], (200, 283))
+        self.assertEqual(parts[0]["ends"]["left"], (59, 60))
+
+    def test_fattening_both_ends_leaves_a_continuation_continuous(self
+                                                                  ) -> None:
+        """The ratio is what makes the trip point immune to the build.
+
+        The caveat curator batch 14 recorded against the old rule: it
+        discriminated by an 11-row miss against a ONE-row trip point, so
+        a build whose anti-aliasing fattened a stub by 11 rows would
+        silence the elbow mutant with nothing to say so. A ratio cannot
+        drift that way — thickening both ends of a genuine continuation
+        thickens the overlap with them — and the second half adds the
+        displacement the dilation exists to absorb on top.
+        """
+        for k in range(1, 13):
+            self.assertTrue(
+                _ends_line_up((50, 50 + k), (50, 50 + k)),
+                "a %dpx stroke stopped continuing into itself" % (k + 1))
+            self.assertTrue(
+                _ends_line_up((50, 50 + k), (51, 51 + k)),
+                "a %dpx stroke displaced one pixel stopped continuing"
+                % (k + 1))
+
+    def test_the_trip_point_scales_with_the_wider_end(self) -> None:
+        """Half the WIDER end, so a thin stub cannot ride a long edge.
+
+        The rule stated as its own boundary, `_SLACK` included. A two-row
+        stub laid across a 71-row turned edge overlaps it by two rows and
+        is not a continuation of it at any offset; the same pair of ends
+        merges as soon as the narrow one covers half the wide one.
+        Measured against the wider rather than the narrower end
+        deliberately: on the min the L's own leg foot would complete into
+        anything that crossed it, which is the over-merge in a smaller
+        disguise, and the corpus arrow whose sloped stub still reads as
+        severed is the price of refusing it (task-48 report §6).
+        """
+        self.assertFalse(_ends_line_up((50, 51), (50, 120)))
+        self.assertFalse(_ends_line_up((50, 83), (50, 120)))   # 36 of 73
+        self.assertTrue(_ends_line_up((50, 84), (50, 120)))    # 37 of 73
+        self.assertTrue(_ends_line_up((50, 120), (50, 120)))
+
+    def test_two_ends_a_pixel_apart_are_still_one_run(self) -> None:
+        """`_SLACK`, and the corpus measurement that put it there.
+
+        Everything upstream of this predicate carries one pixel of
+        tolerance — `pngdiff._dilate` spends exactly that, and this
+        module's premise is that a sub-pixel displacement is not a
+        defect. The ends comparison was written without it and the
+        corpus said so: three of its arrows are a single curve broken by
+        its own bound label, and the stroke resumes in the column NEXT
+        to the one it stopped in, so the spans touch without overlapping.
+        The first two spans below are `enrichment-flow/f-edgar-sentiment`
+        and `daily-run-flow/t-compose-clients` as measured; both used to
+        read as severed connectors, which is this exemption's own idiom
+        reported as the defect it exists to excuse.
+
+        The slack is one pixel and not two on purpose: it buys the
+        displacement class and nothing wider, so the severed back edge
+        next door — which misses by 20 columns — is untouched by it.
+        """
+        self.assertTrue(_ends_line_up((898, 899), (900, 900)))
+        self.assertTrue(_ends_line_up((395, 395), (393, 394)))
+        self.assertFalse(_ends_line_up((279, 280), (122, 258)))
 
 
 # ---------------------------------------------------------------------------

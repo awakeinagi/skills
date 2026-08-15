@@ -64,8 +64,8 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after Task 46: **17 model-tier `expectedFailure` reds + 2 render-tier**,
-matching the suite's `expected failures=17` default and `=19` under
+after Task 48: **17 model-tier `expectedFailure` reds + 1 render-tier**,
+matching the suite's `expected failures=17` default and `=18` under
 `MUTANTS_RENDER=1`. That splits as **8 catalog reds + 9 non-catalog**.
 
 **THE TWO HALVES ARE NOW BOTH DERIVED, AND NEITHER IS RESTATED HERE.** The
@@ -217,11 +217,25 @@ eight had already flipped):
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one` |
 
 The render row is `@unittest.expectedFailure` method names rather than
-catalog ids because both sit outside `CATALOGUE`. It carried a third until
-2026-08-15, and the pair it made is worth keeping: `parity_clipped` has now
+catalog ids because they sit outside `CATALOGUE`. It is down to one, and
+the two that left on 2026-08-15 both left the same way — the fix landing in
+the same commit as the marker's removal — but they left for opposite
+reasons, which is the distinction the row is worth reading for. **Task 48
+flipped `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`**, a
+DETECTOR miss rather than a product defect: `ablation_continuity` read two
+pieces of a severed back edge as one stroke because `_completed_by_eye` was
+judging bounding boxes, the ink's shape having been thrown away twice over
+before it got there. The fix was plumbing, not a threshold —
+`pngdiff.tolerant_diff_mask` hands back the residual mask `tolerant_diff`
+already computed and discarded, so the predicate now measures where the two
+FACING ENDS point. The three synthetic over-merges curator batch 14 could
+only reproduce on paper are pinned ungated in
+`TestContinuityNarrowingRegime`, which is where a widening back toward the
+bbox test gets caught without a browser. The other, and the pair it made is
+worth keeping: `parity_clipped` has now
 had TWO mutants and both have flipped. Task 22 fixed the first —
 `test_mutant_center_anchored_label_is_clipped_off_the_frame`, the centered
 label whose leading glyphs fell off the min side — and its own cycle turned

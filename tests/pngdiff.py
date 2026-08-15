@@ -238,7 +238,8 @@ def write_png_gray(w: int, h: int, pix: bytes) -> bytes:
             + _chunk(b"IEND", b""))
 
 
-def components(w: int, h: int, mask: bytearray) -> list[dict[str, Any]]:
+def components(w: int, h: int, mask: bytearray,
+               pixels: bool = False) -> list[dict[str, Any]]:
     """Find 8-connected components of set pixels in a flat 0/1 mask.
 
     Flood fill is iterative (a `deque`, not recursion): a full-page mask is
@@ -250,12 +251,19 @@ def components(w: int, h: int, mask: bytearray) -> list[dict[str, Any]]:
         w: Mask width in pixels.
         h: Mask height in pixels.
         mask: `w * h` bytes; non-zero means set.
+        pixels: Also report each component's member indices. OFF by
+            default, and the default is the load-bearing half: a member
+            list is O(area) boxed ints, ~31 MB for one merged component
+            on a corpus-scale raster, and the only caller that wants it
+            (`test_mutants_render._delta_components`) reduces it to four
+            numbers per side and drops it inside one function.
 
     Returns:
         One dict per component, in raster order of its first pixel, each
         `{"area": int, "bbox": (x0, y0, x1, y1)}` with the bounding box
         **inclusive** on all four sides — a single pixel at (5, 5) has
-        bbox (5, 5, 5, 5).
+        bbox (5, 5, 5, 5). With `pixels`, each dict also carries
+        `"pixels"`: that component's flat indices, `area` of them.
     """
     seen = bytearray(w * h)
     out: list[dict[str, Any]] = []
@@ -264,12 +272,15 @@ def components(w: int, h: int, mask: bytearray) -> list[dict[str, Any]]:
             continue
         seen[start] = 1
         queue = deque([start])
+        member: list[int] = []
         area = 0
         x0 = x1 = start % w
         y0 = y1 = start // w
         while queue:
             i = queue.popleft()
             area += 1
+            if pixels:
+                member.append(i)
             x, y = i % w, i // w
             if x < x0:
                 x0 = x
@@ -284,7 +295,10 @@ def components(w: int, h: int, mask: bytearray) -> list[dict[str, Any]]:
                     if mask[j] and not seen[j]:
                         seen[j] = 1
                         queue.append(j)
-        out.append({"area": area, "bbox": (x0, y0, x1, y1)})
+        comp: dict[str, Any] = {"area": area, "bbox": (x0, y0, x1, y1)}
+        if pixels:
+            comp["pixels"] = member
+        out.append(comp)
     return out
 
 
@@ -336,10 +350,50 @@ def tolerant_diff(a: bytes, b: bytes, ink_threshold: int = 192,
     Returns:
         One dict per surviving blob, `{"area": int, "bbox": (x0, y0, x1,
         y1)}` with an inclusive bbox. An empty list means the images agree.
+        A caller that needs the ink's SHAPE rather than its bounding boxes
+        wants `tolerant_diff_mask` instead — same computation, same blobs.
 
     Raises:
         ValueError: If the two images differ in size — a size change is a
             real difference the caller must handle, not a diff result.
+    """  # noqa: DOC502 — raised by the delegate, and still this contract
+    return tolerant_diff_mask(a, b, ink_threshold, min_blob)[0]
+
+
+def tolerant_diff_mask(a: bytes, b: bytes, ink_threshold: int = 192,
+                       min_blob: int = 12
+                       ) -> tuple[list[dict[str, Any]], int, int, bytearray]:
+    """`tolerant_diff`, handing back the residual mask it computed anyway.
+
+    A bounding box is what makes a failing visual test fixable, which is
+    why `tolerant_diff` reports boxes — but a box cannot say which way the
+    ink inside it POINTS, and one caller needs exactly that (the render
+    tier's `ablation_continuity`, deciding whether two pieces of a severed
+    connector read as one stroke with a gap). The mask is not a second
+    computation for them: it is the intermediate this function already
+    builds on its last-but-one line and used to drop on the `return`.
+
+    So this holds the body and `tolerant_diff` delegates, rather than the
+    other way round. A sibling that re-derived the mask would pay a second
+    `read_png_gray` and two more `_dilate` passes — measured at ~380s on a
+    2.4 MP raster, against zero extra allocation for keeping a bytearray
+    the peak already contained.
+
+    Args:
+        a: The first PNG's bytes.
+        b: The second PNG's bytes.
+        ink_threshold: Luminance below which a pixel counts as ink.
+        min_blob: Smallest surviving component worth reporting, in pixels.
+
+    Returns:
+        `(blobs, width, height, residual)`. `blobs` is exactly what
+        `tolerant_diff` returns for the same arguments. `residual` is the
+        `width * height` mask those blobs were componented from, so it
+        also retains the sub-`min_blob` speckle the blob list dropped —
+        it is the residual, not the reported ink.
+
+    Raises:
+        ValueError: If the two images differ in size, as `tolerant_diff`.
     """
     aw, ah, apix = read_png_gray(a)
     bw, bh, bpix = read_png_gray(b)
@@ -353,4 +407,5 @@ def tolerant_diff(a: bytes, b: bytes, ink_threshold: int = 192,
     residual = bytearray(
         1 if (ink_a[i] and not dil_b[i]) or (ink_b[i] and not dil_a[i]) else 0
         for i in range(aw * ah))
-    return [c for c in components(aw, ah, residual) if c["area"] >= min_blob]
+    return ([c for c in components(aw, ah, residual) if c["area"] >= min_blob],
+            aw, ah, residual)
