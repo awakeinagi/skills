@@ -64,8 +64,8 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after Task 45: **17 model-tier `expectedFailure` reds + 3 render-tier**,
-matching the suite's `expected failures=17` default and `=20` under
+after Task 46: **17 model-tier `expectedFailure` reds + 2 render-tier**,
+matching the suite's `expected failures=17` default and `=19` under
 `MUTANTS_RENDER=1`. That splits as **8 catalog reds + 9 non-catalog**.
 
 **THE TWO HALVES ARE NOW BOTH DERIVED, AND NEITHER IS RESTATED HERE.** The
@@ -217,21 +217,26 @@ eight had already flipped):
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge` |
 
 The render row is `@unittest.expectedFailure` method names rather than
-catalog ids because all three sit outside `CATALOGUE`; the third pins
-`parity_clipped`, and it is the SECOND mutant to do so. Task 22 fixed the
-first — `test_mutant_center_anchored_label_is_clipped_off_the_frame`, the
-centered label whose leading glyphs fell off the min side — and its own
-cycle turned up the same root cause on the other axis: `render_svg`'s bounds
-loop sizes a text by the UNWRAPPED string while `paint` wraps it, so four
-lines are drawn where one line's height was reserved and the tail leaves the
-frame's bottom. Curator batch 18 pinned that, with the review's min-side
-amendment recorded on the same entry (a wrapped centered label also gets
-dead left margin from the same unwrapped measurement — slack, not clipping,
-and one fix settles both). **It has no owner**: teaching the bounds loop
-about wrapping is a Task 24 gate decision to schedule or defer. Curator
+catalog ids because both sit outside `CATALOGUE`. It carried a third until
+2026-08-15, and the pair it made is worth keeping: `parity_clipped` has now
+had TWO mutants and both have flipped. Task 22 fixed the first —
+`test_mutant_center_anchored_label_is_clipped_off_the_frame`, the centered
+label whose leading glyphs fell off the min side — and its own cycle turned
+up the same root cause on the other axis: `render_svg`'s bounds loop sized a
+text by the UNWRAPPED string while `paint` wraps it, so four lines were
+drawn where one line's height had been reserved and the tail left the
+frame's bottom. Curator batch 18 pinned that as
+`test_mutant_wrapped_text_overruns_the_frames_bottom`, with the review's
+min-side amendment recorded on the same entry (a wrapped centered label also
+got dead left margin from the same unwrapped measurement — slack, not
+clipping, and one fix settles both), and it sat unowned until the gate
+scheduled it. **Task 46 flipped it**: `canvas.painted_text_lines` states the
+renderer's wrap once and the bounds loop READS it instead of restating it,
+so both symptoms went in one change and the two sides cannot drift apart
+again. Curator
 batch 16's fourth entry — `test_mutant_composed_value_hides_under_its_opaque_owner`,
 from the Task 21 review's F2, a composed KPI value banded
 beneath its own opaque owner — **flipped green in Task 44**, which split

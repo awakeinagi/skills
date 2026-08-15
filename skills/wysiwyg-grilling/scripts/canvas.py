@@ -6460,6 +6460,45 @@ def collect_footnotes(els):
             for i, e in enumerate(owners)]
 
 
+def painted_text_lines(el):
+    """The lines `render_svg` paints for a text element, and their size.
+
+    The renderer's wrap, written once. `paint` wraps a fixed-width text
+    to its own box — `autoResize is False and width > 0`, the branch the
+    live canvas wraps on — and `render_svg`'s bounds loop has to bound
+    those same lines or it frames a text nobody draws. It did not until
+    v0.9 task 46: the loop sized every text by `text_dims` of the
+    UNWRAPPED string, and the disagreement cost picture on one axis and
+    slack on the other. A label wrapped to four lines was framed one line
+    deep, so the tail was painted below the viewBox and the reader lost a
+    whole line the way absence is always lost, with nothing left behind
+    to be suspicious of; the same unwrapped width widened a centered
+    label's frame leftward by a run its glyphs never make. Two symptoms,
+    one measurement — which is why this is a function and not two copies
+    of four lines that agreed when they were written.
+
+    Args:
+        el: A `type: "text"` element.
+
+    Returns:
+        `(lines, font_size)` — one string per `<text>` tag `paint` emits,
+        top to bottom, and the size it sets them in. `text_dims` of them
+        joined on newlines is the extent they occupy.
+    """
+    fs = el.get("fontSize") or 16
+    ew = el.get("width", 0)
+    lines = str(el.get("text") or "").split("\n")
+    # fixed-width text WRAPS on the live canvas, but this renderer only
+    # ever split on \n — so a label the app lays out in two lines was
+    # exported as one long line spilling out of its box. The snapshot is
+    # the agent's only way to see its own drawing, so it was being lied to
+    # about legibility (v0.4 assessment).
+    if el.get("autoResize") is False and ew > 0:
+        lines = [wl for line in lines
+                 for wl in wrap_label_text(line, ew, fs).split("\n")]
+    return lines, fs
+
+
 def render_svg(els, title="", footnotes=False, glossary=None):
     """Deterministic stdlib SVG of an element array — the snapshot CLI's
     tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
@@ -6508,9 +6547,14 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 # stored text extents are estimates; real glyph advance
                 # regularly overhangs them and the overflow was cropped
                 # out of exports (v0.3 assessment) — bound by the larger
-                # of stored and estimated extents
-                tw, th = text_dims(e.get("text") or "",
-                                   e.get("fontSize", 16))
+                # of stored and estimated extents. The estimate is of the
+                # lines `paint` DRAWS and not of the stored string, which
+                # for a text the renderer wraps are different things:
+                # `painted_text_lines` is that rule and this loop reads
+                # it rather than restating it, so the frame and the ink
+                # cannot describe different shapes (v0.9 task 46).
+                tlines, tfs = painted_text_lines(e)
+                tw, th = text_dims("\n".join(tlines), tfs)
                 ew2, eh2 = max(ew2, tw), max(eh2, th)
                 if e.get("textAlign") == "center":
                     # ...and the same estimate overhangs LEFTWARD, which
@@ -6523,7 +6567,11 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                     # nothing to be suspicious of. `min` keeps this a
                     # WIDENING only: where the stored width is honest or
                     # generous the bound stays at `x`, so no drawing that
-                    # framed correctly gets its frame pulled in.
+                    # framed correctly gets its frame pulled in. The run
+                    # is the widest WRAPPED line's since task 46: measured
+                    # on the unwrapped string it widened the frame of a
+                    # text the renderer wraps by up to 119px of margin no
+                    # glyph ever reaches.
                     x1 = min(x1, ex + (e.get("width", 0) - tw) / 2.0)
             xs.append(x1)
             ys.append(ey)
@@ -6666,16 +6714,10 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                               x2 - 10 * ux - 4 * px,
                               y2 - 10 * uy - 4 * py, stroke))
         elif et == "text":
-            fs = e.get("fontSize") or 16
-            lines = str(e.get("text") or "").split("\n")
-            # fixed-width text WRAPS on the live canvas, but this renderer
-            # only ever split on \n — so a label the app lays out in two
-            # lines was exported as one long line spilling out of its box.
-            # The snapshot is the agent's only way to see its own drawing,
-            # so it was being lied to about legibility (v0.4 assessment).
-            if e.get("autoResize") is False and ew > 0:
-                lines = [wl for line in lines
-                         for wl in wrap_label_text(line, ew, fs).split("\n")]
+            # the wrap moved to `painted_text_lines` in v0.9 task 46 so
+            # that the bounds loop above could read the same rule; the
+            # story of why it exists at all is in that docstring.
+            lines, fs = painted_text_lines(e)
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
             lh = fs * (e.get("lineHeight") or 1.25)
