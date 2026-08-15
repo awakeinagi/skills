@@ -21,6 +21,13 @@ The whole module is gated behind `MUTANTS_RENDER=1` because it starts a
 headless browser. Gated OFF it skips; gated ON with no browser to be found
 it RAISES (spec §7) — an environmental failure must abort with a named
 reason, never quietly mark the mutants green.
+
+Renders are cached between runs, content-addressed, in the directory
+`render_cache_dir` names — read that docstring before debugging a result
+that makes no sense, because **`rm -rf ~/.cache/wysiwyg-grilling/render`
+is the recovery procedure** and system fonts are the one input the key
+cannot see. A full run asks for 138 renders of 78 distinct documents; warm,
+it starts no browser at all.
 """
 from __future__ import annotations
 
@@ -35,7 +42,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -86,24 +93,76 @@ _SVG_TAG = re.compile(r"^<svg [^>]*>")
 def _browser() -> str:
     """The chromium-family binary to rasterize with — best first.
 
+    `canvas.find_browsers()` already ranks a playwright `headless_shell`
+    below the full `chrome`, and this function keeps that order rather
+    than preferring the faster binary. That is a deliberate refusal, and
+    the measurement behind it is on this machine:
+
+    | binary | render tier, cold | 6px word contrast |
+    |---|---|---|
+    | `chromium-1234/chrome` | 90.1s | **4.619:1** |
+    | `chromium_headless_shell-1148` | **35.3s** | **5.510:1** |
+
+    Every one of the 58 tests returns the same verdict under either, so
+    switching is *tempting* and would cost nothing today. The reason not
+    to is the second column. 4.62 against 5.51 is not a rounding
+    difference — it is the pair this file already documents twice (see
+    `_cache_key`, and the calibration table above `TestLegibilityFloor`)
+    as the difference between failing WCAG's 4.5:1 floor and passing it.
+    The corpus's pinned numbers were calibrated under `chrome`. Preferring
+    `headless_shell` would re-calibrate the instrument on exactly those
+    machines that happen to have one installed, and leave the machines
+    that do not measuring something else — which is the cross-machine
+    pixel movement `CHROME_FLAGS` exists to prevent, arrived at from the
+    other direction.
+
+    The speed is still available, explicitly: set `MUTANTS_RENDER_BROWSER`
+    to a substring of the wanted path (`headless_shell` does it) and cold
+    runs take a third of the time. Opt-in is the right shape because the
+    saving is real but lands only on COLD runs — a warm cache pays zero
+    browser starts either way — while the re-calibration would be
+    permanent and silent.
+
+    An explicit request that matches nothing RAISES rather than quietly
+    falling back, for the same reason a missing browser does: being handed
+    a different build than the one you asked to measure is how the 4.62
+    number got attributed to a build that renders 5.51.
+
     Returns:
-        The first path `canvas.find_browsers()` offers.
+        The path `MUTANTS_RENDER_BROWSER` selects, or the first one
+        `canvas.find_browsers()` offers.
 
     Raises:
-        RuntimeError: If no browser was found. The render tier never
-            degrades to a skip here: `MUTANTS_RENDER=1` is a request to
-            measure pixels, and not measuring them is a failure, not a
-            pass (spec §7).
+        RuntimeError: If no browser was found, or if an explicit
+            `MUTANTS_RENDER_BROWSER` matched none of them. The render
+            tier never degrades to a skip here: `MUTANTS_RENDER=1` is a
+            request to measure pixels, and not measuring them is a
+            failure, not a pass (spec §7).
     """
     found = canvas.find_browsers()
     if not found:
         raise RuntimeError("render tier requested but no chromium: %r"
                            % (SEARCHED,))
-    return found[0]
+    want = os.environ.get("MUTANTS_RENDER_BROWSER")
+    if not want:
+        return found[0]
+    for path in found:
+        if want in path:
+            return path
+    raise RuntimeError("MUTANTS_RENDER_BROWSER=%r matched none of the "
+                       "browsers found: %r" % (want, found))
 
 
 def _mkworkdir() -> str:
-    """Make the scratch directory renders are written into.
+    """Make a scratch directory for a test that needs one on disk.
+
+    Scratch, not renders: this is the throwaway root a test builds a
+    canvas PROJECT in (`_rightmost_node_ink` is the only caller left),
+    and its whole point is being fresh per test. Renders no longer come
+    here — they go to the shared cache `render_cache_dir` returns, which
+    is the opposite kind of directory in every respect, and conflating
+    the two is what made two `TestSnapshotFraming` tests collide on
+    `artifact 'wide' already exists` when the cache was first shared.
 
     Snap-confined chromium builds run in a mount namespace where the real
     `/tmp` is invisible, so when the chosen browser is one of those the
@@ -117,35 +176,102 @@ def _mkworkdir() -> str:
     return tempfile.mkdtemp(prefix="mutants-render-", dir=root)
 
 
-def _rasterize(svg: str, w: int, h: int, workdir: str) -> bytes:
-    """Screenshot one SVG document at a given window size.
+def render_cache_dir() -> Path:
+    """Where cached renders live — shared, persistent, outside the repo.
 
-    Split out of `_shot` so the parity section below can rasterize markup
-    it framed itself. Renders are cached inside `workdir`, so a document
-    shot twice in one test class costs one browser start.
+    Rooted under `$HOME` unconditionally, which is not a guess about
+    where caches belong: a snap-confined chromium cannot see the real
+    `/tmp` at all, so a cache anywhere else would be unreadable by the
+    very browser that has to write into it. `XDG_CACHE_HOME` is
+    deliberately NOT honoured for the same reason — it is allowed to
+    point outside `$HOME`, and a cache that relocates itself out of the
+    browser's reach fails as a `RuntimeError` on every render.
 
-    The cache key is the markup AND THE BROWSER BINARY, and the second
-    half is not decoration. Keyed on markup alone this cache is only
-    sound while one binary is in play: the min_font calibration sweeps
-    the same scenes across three chromium builds that disagree about
-    anti-aliasing, and a markup-keyed cache happily served build 151's
-    pixels for build 131 — returning 4.62:1 for a build that renders
-    5.51:1, which is the difference between failing WCAG's floor and
-    passing it. Folding the binary in makes THAT hazard unreachable
-    rather than merely documented: a shared workdir can no longer return
-    one build's pixels for another. It buys nothing beyond the cache —
-    in particular a cross-build sweep that includes a snap-confined
-    chromium still needs its workdir rooted under `$HOME`, because that
-    build cannot see the real `/tmp` at all (the constraint `_mkworkdir`
-    exists for). That one fails loudly with a RuntimeError rather than
-    quietly with a wrong number, which is why it is a note and not a
-    second key.
+    **To purge it: `rm -rf ~/.cache/wysiwyg-grilling/render`.** That is
+    the whole recovery procedure, and it is the answer to the one form of
+    staleness the key cannot cover. The key holds the browser binary, its
+    flags, the window size and the markup, so every input this file
+    controls is in it — but the SYSTEM FONTS are not, and they move the
+    pixels the legibility section measures. Install or change a font and
+    the cache is serving the old face forever. Purge after any font
+    change, and when a render-tier failure makes no sense.
+
+    Set `MUTANTS_RENDER_CACHE` to relocate it — which is how the tests
+    below get an empty cache to count hits and misses against, and how a
+    run can be forced cold without disturbing anyone else's cache.
+
+    Returns:
+        The cache directory, created if it did not exist.
+    """
+    override = os.environ.get("MUTANTS_RENDER_CACHE")
+    root = (Path(override) if override else
+            Path.home() / ".cache" / "wysiwyg-grilling" / "render")
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def _cache_key(svg: str, w: int, h: int) -> str:
+    """The content address of one render.
+
+    Everything that can move a pixel and is under this file's control
+    goes in, because the cache now OUTLIVES the run that filled it:
+
+    - **The browser binary.** Keyed on markup alone the cache is only
+      sound while one binary is in play: the min_font calibration sweeps
+      the same scenes across three chromium builds that disagree about
+      anti-aliasing, and a markup-keyed cache happily served build 151's
+      pixels for build 131 — returning 4.62:1 for a build that renders
+      5.51:1, the difference between failing WCAG's floor and passing it.
+    - **`CHROME_FLAGS`.** They exist precisely because device scale,
+      colour profile and subpixel text move pixels, so changing one and
+      serving the old render would silently answer the old question.
+    - **The window size**, which decides how much of the document the
+      screenshot contains. Every caller happens to derive `w`/`h` from
+      the same `<svg>` tag it derives the markup from, so this splits no
+      entry that exists today; it is here so that a future caller that
+      shoots one document at two sizes cannot get one answer twice.
+
+    A change to `canvas.render_svg` is safe BY CONSTRUCTION and needs no
+    entry here: the key hashes the markup, and the markup is that
+    function's output. Different drawing, different key. Nobody should
+    "fix" that by adding a version stamp.
 
     Args:
         svg: The complete SVG document to draw.
         w: Browser window width in pixels.
         h: Browser window height in pixels.
-        workdir: Directory to write the HTML and PNG into.
+
+    Returns:
+        A 16-hex-character digest, used as the cache entry's filename.
+    """
+    return hashlib.sha1(
+        ("%s\0%s\0%dx%d\0%s"
+         % (_browser(), "\0".join(CHROME_FLAGS), w, h, svg))
+        .encode("utf-8")).hexdigest()[:16]
+
+
+def _rasterize(svg: str, w: int, h: int) -> bytes:
+    """Screenshot one SVG document at a given window size.
+
+    Split out of `_shot` so the parity section below can rasterize markup
+    it framed itself. Renders come from the content-addressed cache
+    `render_cache_dir` describes, so a document already drawn — in this
+    test, in another test, or in a run last week — costs no browser start
+    at all. That is the whole performance story of this tier: a full run
+    asks for 138 renders of 78 distinct documents, and used to pay 100
+    browser starts for them because the cache lived in a per-test
+    directory that `tearDown` deleted.
+
+    Both writes are atomic (write to a unique temp name, `os.replace`
+    into place), so two runs sharing the cache cannot read a half-written
+    PNG. Racing writers are otherwise harmless here by construction —
+    content addressing means a concurrent writer is producing the same
+    bytes for the same name.
+
+    Args:
+        svg: The complete SVG document to draw.
+        w: Browser window width in pixels.
+        h: Browser window height in pixels.
 
     Returns:
         The screenshot's PNG bytes.
@@ -153,23 +279,40 @@ def _rasterize(svg: str, w: int, h: int, workdir: str) -> bytes:
     Raises:
         RuntimeError: If the browser exited without writing a PNG.
     """
-    name = hashlib.sha1(("%s\0%s" % (_browser(), svg))
-                        .encode("utf-8")).hexdigest()[:16]
-    png = Path(workdir) / (name + ".png")
+    cache = render_cache_dir()
+    name = _cache_key(svg, w, h)
+    png = cache / (name + ".png")
     if png.exists():
         return png.read_bytes()
-    html = Path(workdir) / (name + ".html")
-    html.write_text("<!doctype html><html><body style='margin:0'>%s"
-                    "</body></html>" % svg, encoding="utf-8")
+    html = cache / (name + ".html")
+    _atomic_write(html, ("<!doctype html><html><body style='margin:0'>%s"
+                         "</body></html>" % svg).encode("utf-8"))
+    # the suffix stays `.png`: chromium picks the encoder off the
+    # extension and refuses a screenshot path ending in anything else
+    tmp = cache / ("%s.%d.tmp.png" % (name, os.getpid()))
     proc = subprocess.run(
-        [_browser(), *CHROME_FLAGS, "--screenshot=%s" % png,
+        [_browser(), *CHROME_FLAGS, "--screenshot=%s" % tmp,
          "--window-size=%dx%d" % (w, h), html.as_uri()],
         capture_output=True, timeout=180)
-    if not png.exists():
+    if not tmp.exists():
         raise RuntimeError("render tier: chromium wrote no PNG for %s "
                            "(rc=%s): %s" % (html, proc.returncode,
                                             proc.stderr[-400:]))
-    return png.read_bytes()
+    data = tmp.read_bytes()
+    os.replace(tmp, png)
+    return data
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    """Write `data` to `path` so no reader ever sees it half-written.
+
+    Args:
+        path: The file to create or replace.
+        data: Its complete contents.
+    """
+    tmp = path.with_name("%s.%d.part" % (path.name, os.getpid()))
+    tmp.write_bytes(data)
+    os.replace(tmp, path)
 
 
 def _framed_svg(elements: list[dict],
@@ -208,20 +351,18 @@ def _framed_svg(elements: list[dict],
             w, h)
 
 
-def _shot(elements: list[dict], workdir: str,
-          hide: Iterable[str] = ()) -> bytes:
+def _shot(elements: list[dict], hide: Iterable[str] = ()) -> bytes:
     """Rasterize a scene's tier-1 SVG, omitting the `hide` elements.
 
     Args:
         elements: The full scene.
-        workdir: Directory to write the HTML and PNG into.
         hide: Ids to ablate — dropped from the element list entirely.
 
     Returns:
         The screenshot's PNG bytes. Propagates `_rasterize`'s
         `RuntimeError` when the browser wrote no PNG.
     """
-    return _rasterize(*_framed_svg(elements, hide), workdir)
+    return _rasterize(*_framed_svg(elements, hide))
 
 
 def _delta_components(w: int, h: int, blobs: list[dict[str, Any]],
@@ -482,8 +623,8 @@ def _reader_strokes(parts: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     return groups
 
 
-def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
-                      workdir: str) -> list[dict]:
+def ablation_findings(elements: list[dict],
+                      arrow_ids: Iterable[str]) -> list[dict]:
     """Findings from ablating each named element out of the picture.
 
     One shot of the full scene, then one shot per id with that id omitted;
@@ -509,7 +650,6 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
         arrow_ids: Ids to ablate, one at a time. Named for the connectors
             `ablation_continuity` is about, but any element id works —
             `ablation_existence` applies to all of them.
-        workdir: Directory renders are written into.
 
     Returns:
         Findings shaped like `test_mutants.collect_findings` output:
@@ -519,12 +659,12 @@ def ablation_findings(elements: list[dict], arrow_ids: Iterable[str],
         READS as — components a reader completes across a gap are one
         piece, per `_completed_by_eye`.
     """
-    full = _shot(elements, workdir)
+    full = _shot(elements)
     w, h, _pix = read_png_gray(full)
     findings: list[dict] = []
     for eid in arrow_ids:
         blobs, _dw, _dh, residual = tolerant_diff_mask(
-            _shot(elements, workdir, hide=(eid,)), full)
+            _shot(elements, hide=(eid,)), full)
         if not blobs:
             findings.append({
                 "check": "ablation_existence", "element": eid,
@@ -652,14 +792,6 @@ def _back_edge_with_label(where: str) -> list[dict]:
 class TestRenderMutants(unittest.TestCase):
     """The two render-tier detectors, each proven and each held silent."""
 
-    def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
-        self.workdir = _mkworkdir()
-
-    def tearDown(self) -> None:
-        """Remove the scratch directory — renders never enter the repo."""
-        shutil.rmtree(self.workdir, ignore_errors=True)
-
     def test_ablation_existence_fires_on_invisible_element(self) -> None:
         """An element whose ablation changes no pixels is not in the picture.
 
@@ -670,7 +802,7 @@ class TestRenderMutants(unittest.TestCase):
         scene = tm._diamond_stage()
         ghost = el(id="g1", type="rectangle", x=300, y=300, width=0,
                    height=0, opacity=0, customData={"role": "node"})
-        finds = ablation_findings([*scene, ghost], ["g1"], self.workdir)
+        finds = ablation_findings([*scene, ghost], ["g1"])
         self.assertIn("g1", [f["element"] for f in finds
                              if f["check"] == "ablation_existence"])
 
@@ -703,7 +835,7 @@ class TestRenderMutants(unittest.TestCase):
         1:1 with what the render tier can already measure.
         """
         scene = tm._styled_scene(stroke=canvas.SVG_GROUND)
-        finds = ablation_findings(scene, ["n1"], self.workdir)
+        finds = ablation_findings(scene, ["n1"])
         self.assertEqual([(f["check"], f["element"], f["magnitude"])
                           for f in finds],
                          [("ablation_existence", "n1", 0.0)])
@@ -718,7 +850,7 @@ class TestRenderMutants(unittest.TestCase):
         and nothing else.
         """
         scene = tm._styled_scene()
-        self.assertEqual(ablation_findings(scene, ["n1"], self.workdir), [])
+        self.assertEqual(ablation_findings(scene, ["n1"]), [])
 
     def test_ablation_of_the_bbox_defining_element_still_reads(self) -> None:
         """Ablating the element that sets the viewport's own left edge.
@@ -741,7 +873,7 @@ class TestRenderMutants(unittest.TestCase):
         ghost = el(id="g0", type="rectangle", x=-100, y=300, width=0,
                    height=0, customData={"role": "node"})
         scene = [*tm._diamond_stage(), ghost]
-        finds = ablation_findings(scene, ["g0", "a1"], self.workdir)
+        finds = ablation_findings(scene, ["g0", "a1"])
         # the extremal ghost draws nothing: existence fires, for it alone
         self.assertEqual([(f["check"], f["element"]) for f in finds],
                          [("ablation_existence", "g0")])
@@ -759,14 +891,14 @@ class TestRenderMutants(unittest.TestCase):
         scene = tm._diamond_stage()
         ghost = el(id="g1", type="rectangle", x=300, y=300, width=10,
                    height=10, opacity=0, customData={"role": "node"})
-        finds = ablation_findings([*scene, ghost], ["g1"], self.workdir)
+        finds = ablation_findings([*scene, ghost], ["g1"])
         self.assertIn("g1", [f["element"] for f in finds
                              if f["check"] == "ablation_existence"])
 
     def test_ablation_continuity_neighbour_is_silent(self) -> None:
         """A label beside the arrow leaves the connector's delta whole."""
         scene = _elbow_with_label("beside")
-        finds = ablation_findings(scene, ["a1"], self.workdir)
+        finds = ablation_findings(scene, ["a1"])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_continuity"], [])
         # An empty delta would satisfy that assertion too, so pin that the
@@ -794,7 +926,7 @@ class TestRenderMutants(unittest.TestCase):
         indistinguishable from switching the detector off.
         """
         scene = _elbow_with_label("run")
-        finds = ablation_findings(scene, ["a1"], self.workdir)
+        finds = ablation_findings(scene, ["a1"])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_continuity"], [])
         self.assertEqual([f for f in finds
@@ -815,7 +947,7 @@ class TestRenderMutants(unittest.TestCase):
         at 72.
         """
         scene = _elbow_with_label("corner")
-        finds = ablation_findings(scene, ["a1"], self.workdir)
+        finds = ablation_findings(scene, ["a1"])
         severed = [f for f in finds if f["check"] == "ablation_continuity"]
         self.assertEqual([f["element"] for f in severed], ["a1"])
         self.assertGreaterEqual(severed[0]["magnitude"], 2.0)
@@ -842,7 +974,7 @@ class TestRenderMutants(unittest.TestCase):
         have agreed with the drawing that was wrong.
         """
         scene = _elbow_with_label("routed")
-        finds = ablation_findings(scene, ["a1"], self.workdir)
+        finds = ablation_findings(scene, ["a1"])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_continuity"], [])
         self.assertEqual([f for f in finds
@@ -864,7 +996,7 @@ class TestRenderMutants(unittest.TestCase):
         residual mask reaches it, does.
         """
         scene = _back_edge_with_label("leg")
-        finds = ablation_findings(scene, ["a1"], self.workdir)
+        finds = ablation_findings(scene, ["a1"])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_continuity"], [])
         # Silence is only meaningful if the arrow drew something at all.
@@ -910,7 +1042,7 @@ class TestRenderMutants(unittest.TestCase):
         emitted nothing fails here by assertion and not by IndexError.
         """
         scene = _back_edge_with_label("turn")
-        finds = ablation_findings(scene, ["a1"], self.workdir)
+        finds = ablation_findings(scene, ["a1"])
         self.assertEqual([(f["check"], f["element"], f["magnitude"])
                           for f in finds],
                          [("ablation_continuity", "a1", 2.0)])
@@ -1197,14 +1329,6 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
 class TestPaintOrderInPixels(unittest.TestCase):
     """A decoration at index 0 leaves the connector visible — in the raster."""
 
-    def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
-        self.workdir = _mkworkdir()
-
-    def tearDown(self) -> None:
-        """Remove the scratch directory — renders never enter the repo."""
-        shutil.rmtree(self.workdir, ignore_errors=True)
-
     def test_a_decoration_at_index_zero_leaves_the_connector_in_the_picture(
             self) -> None:
         """Curator batch 16 item 1 (Task 21 §8.1), 2026-08-14. GREEN.
@@ -1235,10 +1359,10 @@ class TestPaintOrderInPixels(unittest.TestCase):
         """
         scene = tm._backdrop_scene(behind=True)
         self.assertEqual(
-            ablation_findings(scene, ["e1"], self.workdir), [],
+            ablation_findings(scene, ["e1"]), [],
             "the connector is declared AFTER the panel that covers it and "
             "must survive into the raster")
-        ink = _element_ink(scene, "e1", self.workdir)[0]
+        ink = _element_ink(scene, "e1")[0]
         # 348px measured; the +-10% band excludes 0 (erased entirely),
         # which is the whole defect and is what the other pole reads.
         self.assertAlmostEqual(ink, 348, delta=35)
@@ -1257,9 +1381,9 @@ class TestPaintOrderInPixels(unittest.TestCase):
         scene = tm._backdrop_scene(behind=False)
         self.assertEqual(
             [(f["check"], f["element"], f["magnitude"])
-             for f in ablation_findings(scene, ["e1"], self.workdir)],
+             for f in ablation_findings(scene, ["e1"])],
             [("ablation_existence", "e1", 0.0)])
-        self.assertEqual(_element_ink(scene, "e1", self.workdir)[0], 0)
+        self.assertEqual(_element_ink(scene, "e1")[0], 0)
 
 
 def _kpi_tile(fill: str) -> list[dict]:
@@ -1314,14 +1438,6 @@ def _kpi_tile(fill: str) -> list[dict]:
 class TestComposedContentVisibility(unittest.TestCase):
     """A tile's own value must survive its owner's fill."""
 
-    def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
-        self.workdir = _mkworkdir()
-
-    def tearDown(self) -> None:
-        """Remove the scratch directory — renders never enter the repo."""
-        shutil.rmtree(self.workdir, ignore_errors=True)
-
     def test_composed_value_survives_its_opaque_owner_by_measurement(self
                                                                      ) -> None:
         """The flipped red's magnitude, measured rather than inferred.
@@ -1347,7 +1463,7 @@ class TestComposedContentVisibility(unittest.TestCase):
         the pair together says an opaque fill costs the value nothing at
         all.
         """
-        ink = _element_ink(_kpi_tile("#e9e5da"), "k1-value", self.workdir)[0]
+        ink = _element_ink(_kpi_tile("#e9e5da"), "k1-value")[0]
         self.assertAlmostEqual(
             ink, 309, delta=31,
             msg="the tile's own value measured %d px of ablation ink under "
@@ -1397,7 +1513,7 @@ class TestComposedContentVisibility(unittest.TestCase):
         WP4 removed — the export would show a value the user cannot see.
         """
         scene = _kpi_tile("#e9e5da")
-        finds = ablation_findings(scene, ["k1-value"], self.workdir)
+        finds = ablation_findings(scene, ["k1-value"])
         self.assertEqual(
             finds, [],
             "the tile's own value is painted under the tile: %s"
@@ -1416,12 +1532,12 @@ class TestComposedContentVisibility(unittest.TestCase):
         """
         scene = _kpi_tile("transparent")
         self.assertEqual(
-            ablation_findings(scene, ["k1-value"], self.workdir), [])
+            ablation_findings(scene, ["k1-value"]), [])
         # Silence has to mean "the value is in the picture", never
         # "nothing was drawn either way", so pin that there was ink:
         # 309px measured 2026-08-14, the same glyphs the red loses.
         self.assertAlmostEqual(
-            _element_ink(scene, "k1-value", self.workdir)[0], 309, delta=31)
+            _element_ink(scene, "k1-value")[0], 309, delta=31)
 
 
 # The composed controls whose furniture this tier can actually MEASURE, each
@@ -1506,14 +1622,6 @@ def _control_composite(kind: str, fill: str,
 class TestComposedFurnitureVisibility(unittest.TestCase):
     """A control's own state glyph must survive its owner's fill."""
 
-    def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
-        self.workdir = _mkworkdir()
-
-    def tearDown(self) -> None:
-        """Remove the scratch directory — renders never enter the repo."""
-        shutil.rmtree(self.workdir, ignore_errors=True)
-
     def test_composed_furniture_survives_its_opaque_owner_by_measurement(
             self) -> None:
         """The FIX's magnitude, at both poles, across all three controls.
@@ -1550,7 +1658,7 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         few pixels, sit well inside the `126 ± 13` band, and be reported
         by nothing. Deliberately out of scope — this test's charter is
         magnitude — and closing it is one `assertEqual(ablation_findings(
-        buried, [part], self.workdir), [])` in the loop, at three more
+        buried, [part]), [])` in the loop, at three more
         rasterizes, if the exposure is ever judged worth them.
 
         What it still does, and why it earns its rasterizes. First,
@@ -1583,10 +1691,10 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         for kind, state, part, lit_ink, slack in STATE_CONTROLS:
             with self.subTest(kind=kind):
                 buried = _control_composite(kind, "#e9e5da", state)
-                opaque = _element_ink(buried, part, self.workdir)[0]
+                opaque = _element_ink(buried, part)[0]
                 lit = _element_ink(_control_composite(kind, "transparent",
                                                       state),
-                                   part, self.workdir)[0]
+                                   part)[0]
                 self.assertAlmostEqual(
                     opaque, lit_ink, delta=slack,
                     msg="%s's %s measured %dpx with an OPAQUE owner "
@@ -1641,7 +1749,7 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         its docstring argues the move rather than quietly absorbing it.
         """
         scene = _control_composite("checkbox", "#e9e5da", {"checked": True})
-        finds = ablation_findings(scene, ["f1-box", "f1-chk"], self.workdir)
+        finds = ablation_findings(scene, ["f1-box", "f1-chk"])
         self.assertEqual(
             finds, [],
             "the checkbox's own box and check stroke are painted under the "
@@ -1671,13 +1779,13 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         scene = _control_composite("checkbox", "transparent",
                                    {"checked": True})
         self.assertEqual(
-            ablation_findings(scene, ["f1-box", "f1-chk"], self.workdir), [])
+            ablation_findings(scene, ["f1-box", "f1-chk"]), [])
         # Silence has to mean "the control is in the picture", so pin the
         # ink: 36px on the check stroke, 92px on its box, measured
         # 2026-08-14 — the state glyph the defect took, and the outline
         # that made it read as unchecked rather than as missing.
         self.assertAlmostEqual(
-            _element_ink(scene, "f1-chk", self.workdir)[0], 36, delta=6)
+            _element_ink(scene, "f1-chk")[0], 36, delta=6)
 
 
 # ---------------------------------------------------------------------------
@@ -2017,7 +2125,12 @@ class TestRasterizeScaleToFit(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
+        """Make a scratch directory for the PNG this test asks canvas for.
+
+        Scratch, not cache: `canvas.rasterize_svg` is the product path
+        and writes where it is told, so this is an output location rather
+        than a render `_rasterize` could serve from `render_cache_dir`.
+        """
         self.workdir = _mkworkdir()
 
     def tearDown(self) -> None:
@@ -2217,7 +2330,7 @@ def _reframe(svg: str, pad: int) -> tuple[str, int, int]:
     return tag + svg[_SVG_TAG.match(svg).end():], w + 2 * pad, h + 2 * pad
 
 
-def _element_ink(elements: list[dict], eid: str, workdir: str, pad: int = 0,
+def _element_ink(elements: list[dict], eid: str, pad: int = 0,
                  min_blob: int = MIN_BLOB
                  ) -> tuple[int, tuple[int, ...] | None]:
     """How much ink one element contributes, in a frame of the given size.
@@ -2230,7 +2343,6 @@ def _element_ink(elements: list[dict], eid: str, workdir: str, pad: int = 0,
     Args:
         elements: The full scene.
         eid: The element to ablate.
-        workdir: Directory renders are written into.
         pad: Extra margin per side; 0 means tier 1's own frame.
         min_blob: Smallest component worth counting. The default drops
             anti-aliasing speckle, which is right when the question is
@@ -2248,8 +2360,8 @@ def _element_ink(elements: list[dict], eid: str, workdir: str, pad: int = 0,
     if pad:
         full, w, h = _reframe(full, pad)
         less = _reframe(less, pad)[0]
-    blobs = tolerant_diff(_rasterize(less, w, h, workdir),
-                          _rasterize(full, w, h, workdir),
+    blobs = tolerant_diff(_rasterize(less, w, h),
+                          _rasterize(full, w, h),
                           min_blob=min_blob)
     if not blobs:
         return 0, None
@@ -2290,13 +2402,12 @@ def _clipped_edges(bbox: tuple[int, ...], pad: int, w: int, h: int) -> str:
 
 
 def parity_findings(elements: list[dict], ids: Iterable[str],
-                    workdir: str, frame_pad: int = 0) -> list[dict]:
+                    frame_pad: int = 0) -> list[dict]:
     """Findings where tier 1's frame does not contain tier 1's own ink.
 
     Args:
         elements: The full scene.
         ids: Ids to measure, one at a time.
-        workdir: Directory renders are written into.
         frame_pad: Resize the frame under test by this much per side,
             the same seam and the same sign convention `_element_ink`
             already has. 0 — the default, and the only value the product
@@ -2334,8 +2445,8 @@ def parity_findings(elements: list[dict], ids: Iterable[str],
     test_w, test_h = framed_w + 2 * frame_pad, framed_h + 2 * frame_pad
     findings: list[dict] = []
     for eid in ids:
-        framed = _element_ink(elements, eid, workdir, pad=frame_pad)[0]
-        whole, bbox = _element_ink(elements, eid, workdir, pad=PARITY_PAD)
+        framed = _element_ink(elements, eid, pad=frame_pad)[0]
+        whole, bbox = _element_ink(elements, eid, pad=PARITY_PAD)
         if bbox is None or whole <= framed:
             continue
         edges = _clipped_edges(bbox, edge_pad, test_w, test_h)
@@ -2490,14 +2601,6 @@ def _short_frame_probe() -> list[dict]:
 class TestRenderParity(unittest.TestCase):
     """Do the two render paths agree about what they both claim to draw?"""
 
-    def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
-        self.workdir = _mkworkdir()
-
-    def tearDown(self) -> None:
-        """Remove the scratch directory — renders never enter the repo."""
-        shutil.rmtree(self.workdir, ignore_errors=True)
-
     def test_shipped_classes_agree_on_what_they_render(self) -> None:
         """Markup in tier 1 and ink in tier 2 are the same answer, per class.
 
@@ -2527,7 +2630,7 @@ class TestRenderParity(unittest.TestCase):
             with self.subTest(element_type=etype):
                 scene = tm._one_of(etype)
                 markup = bool(tm._export_delta(scene, "x-1"))
-                ink = _element_ink(scene, "x-1", self.workdir)[0] > 0
+                ink = _element_ink(scene, "x-1")[0] > 0
                 self.assertEqual(
                     markup, ink,
                     "%s emits markup=%s but leaves ink=%s: one render "
@@ -2565,7 +2668,7 @@ class TestRenderParity(unittest.TestCase):
                     "painting a class it ships, and the equivalence "
                     "sweep's %s row has gone vacuous" % (etype, etype))
                 self.assertGreater(
-                    _element_ink(tm._one_of(etype), "x-1", self.workdir)[0],
+                    _element_ink(tm._one_of(etype), "x-1")[0],
                     0,
                     "%s emits markup that rasterizes to nothing: tier 1 "
                     "claims the class and tier 2 cannot see it" % etype)
@@ -2628,9 +2731,9 @@ class TestRenderParity(unittest.TestCase):
         `MUTANTS_RENDER=1`.
         """
         scene = _short_frame_probe()
-        whole = _element_ink(scene, "r1", self.workdir, pad=PARITY_PAD)[0]
-        framed = _element_ink(scene, "r1", self.workdir)[0]
-        tight = _element_ink(scene, "r1", self.workdir, pad=-_TIGHTEN)[0]
+        whole = _element_ink(scene, "r1", pad=PARITY_PAD)[0]
+        framed = _element_ink(scene, "r1")[0]
+        tight = _element_ink(scene, "r1", pad=-_TIGHTEN)[0]
         self.assertEqual(framed, whole,
                          "the honest frame already loses ink off this "
                          "probe: %d of %d px — the scene has drifted out "
@@ -2660,7 +2763,7 @@ class TestRenderParity(unittest.TestCase):
         # (0 < 60) and bottom (300 > 240) while its right edge at 400
         # stays well inside 660. Three sides, named in the order
         # `_clipped_edges` reports them.
-        finds = parity_findings(scene, ["r1"], self.workdir,
+        finds = parity_findings(scene, ["r1"],
                                 frame_pad=-_TIGHTEN)
         self.assertEqual(
             [(f["check"], f["element"], f["direction"]) for f in finds],
@@ -2676,7 +2779,7 @@ class TestRenderParity(unittest.TestCase):
         # And the same call at the DEFAULT pad stays silent, so the fire
         # above is the manufactured frame talking and not a probe that
         # was mis-framed all along.
-        self.assertEqual(parity_findings(scene, ["r1"], self.workdir), [],
+        self.assertEqual(parity_findings(scene, ["r1"]), [],
                          "the probe is clipped by the frame render_svg "
                          "chose for it: it is a defect scene, and the "
                          "finding above proves nothing about the seam")
@@ -2728,7 +2831,7 @@ class TestRenderParity(unittest.TestCase):
         left edge: the defect was never rare, only never load-bearing
         until the wrong label was the leftmost thing drawn.
         """
-        finds = parity_findings(_left_edge_label(20), ["t1"], self.workdir)
+        finds = parity_findings(_left_edge_label(20), ["t1"])
         self.assertEqual(
             finds, [],
             "the label's leading glyphs are painted outside the viewBox "
@@ -2746,11 +2849,11 @@ class TestRenderParity(unittest.TestCase):
         every scene it was shown.
         """
         scene = _left_edge_label(_WIDE_LABEL_W)
-        self.assertEqual(parity_findings(scene, ["t1"], self.workdir), [])
+        self.assertEqual(parity_findings(scene, ["t1"]), [])
         # A label that drew nothing at all would satisfy that too, so pin
         # that there was ink to lose: silence has to mean "framed whole",
         # never "absent from both frames".
-        self.assertGreater(_element_ink(scene, "t1", self.workdir)[0], 0)
+        self.assertGreater(_element_ink(scene, "t1")[0], 0)
 
     def test_mutant_wrapped_text_overruns_the_frames_bottom(self) -> None:
         """FLIPPED by v0.9 task 46. Kept its red-era name.
@@ -2812,8 +2915,7 @@ class TestRenderParity(unittest.TestCase):
         symptoms, and whoever taught the loop about wrapping fixed both
         or had not finished.
         """
-        finds = parity_findings(_wrapped_body_text(False), ["t1"],
-                                self.workdir)
+        finds = parity_findings(_wrapped_body_text(False), ["t1"])
         self.assertEqual(
             finds, [],
             "the tail of a wrapped text is painted below the viewBox "
@@ -2838,10 +2940,10 @@ class TestRenderParity(unittest.TestCase):
         gets caught. This is the same claim in ink.
         """
         scene = _wrapped_body_text(True)
-        self.assertEqual(parity_findings(scene, ["t1"], self.workdir), [])
+        self.assertEqual(parity_findings(scene, ["t1"]), [])
         # A text that drew nothing at all would satisfy that too: silence
         # has to mean "framed whole", never "absent from both frames".
-        self.assertGreater(_element_ink(scene, "t1", self.workdir)[0], 0)
+        self.assertGreater(_element_ink(scene, "t1")[0], 0)
 
 
 class TestRenderParityRegime(unittest.TestCase):
@@ -3236,8 +3338,7 @@ def contrast_ratio(a: tuple[int, int, int],
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
-def rendered_text(elements: list[dict], eid: str,
-                  workdir: str) -> dict[str, float]:
+def rendered_text(elements: list[dict], eid: str) -> dict[str, float]:
     """What one text element actually looks like once it is rasterized.
 
     Located by ablation — the diff between the scene and the scene
@@ -3253,17 +3354,16 @@ def rendered_text(elements: list[dict], eid: str,
     Args:
         elements: The full scene.
         eid: The text element to measure.
-        workdir: Directory renders are written into.
 
     Returns:
         `{"ink", "height", "contrast"}` — ink pixels, the ink's height in
         pixels, and the darkest pixel's WCAG ratio against `SVG_GROUND`.
         An element that drew nothing reports zeros and a ratio of 1.0.
     """
-    bbox = _element_ink(elements, eid, workdir, min_blob=1)[1]
+    bbox = _element_ink(elements, eid, min_blob=1)[1]
     if bbox is None:
         return {"ink": 0, "height": 0, "contrast": 1.0}
-    w, _h, pix = read_png_gray(_shot(elements, workdir))
+    w, _h, pix = read_png_gray(_shot(elements))
     x0, y0, x1, y1 = bbox
     marks = [(y, pix[y * w + x]) for y in range(y0, y1 + 1)
              for x in range(x0, x1 + 1) if pix[y * w + x] < INK_THRESHOLD]
@@ -3280,14 +3380,6 @@ def rendered_text(elements: list[dict], eid: str,
 class TestLegibilityFloor(unittest.TestCase):
     """The two poles the measured `min_font` floor sits between."""
 
-    def setUp(self) -> None:
-        """Make a scratch directory for this test's renders."""
-        self.workdir = _mkworkdir()
-
-    def tearDown(self) -> None:
-        """Remove the scratch directory — renders never enter the repo."""
-        shutil.rmtree(self.workdir, ignore_errors=True)
-
     def test_text_at_the_floor_still_carries_its_ink(self) -> None:
         """At `MIN_FONT_FLOOR` the word survives rasterization.
 
@@ -3296,7 +3388,7 @@ class TestLegibilityFloor(unittest.TestCase):
         that called everything illegible would also manage.
         """
         got = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR),
-                            "t1", self.workdir)
+                            "t1")
         self.assertGreater(
             got["contrast"], WCAG_TEXT_FLOOR,
             "text at the floor no longer clears WCAG 1.4.3 (%.2f:1): "
@@ -3334,9 +3426,9 @@ class TestLegibilityFloor(unittest.TestCase):
         — the passing one, where every build reads 8.5:1 or better.
         """
         below = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR - 1),
-                              "t1", self.workdir)
+                              "t1")
         at_floor = rendered_text(tm._styled_scene(font_size=MIN_FONT_FLOOR),
-                                 "t1", self.workdir)
+                                 "t1")
         self.assertLessEqual(
             below["height"], 3,
             "text below the floor now stands %d px tall — this reading "
@@ -3402,6 +3494,218 @@ class TestRenderTierEvidence(unittest.TestCase):
                     obj, "RENDER_TIER[%r] names %s, but %r does not exist"
                          % (check, dotted, part))
             self.assertTrue(callable(obj), "%s is not callable" % dotted)
+
+
+class TestRenderCache(unittest.TestCase):
+    """The render cache, and the browser choice its key is built on.
+
+    Content-addressed, persistent, and NOT the scratch directory.
+
+    Deliberately NOT gated, for the reason `TestRenderTierEvidence` gives:
+    what these pin is the KEY and the hit/miss bookkeeping, and with
+    `subprocess.run` stubbed neither needs a browser. Gating them would
+    put the tests for the thing that avoids browser starts behind a flag
+    that starts browsers.
+
+    The stub is also what makes the central claim testable at all. "A hit
+    costs no browser start" is not observable from the outside — a warm
+    run and a cold run return the same bytes, and only the wall clock
+    tells them apart. Counting calls to `subprocess.run` states it
+    directly, so a future edit that reintroduces a per-test cache fails
+    here instead of quietly costing two minutes a run.
+    """
+
+    def setUp(self) -> None:
+        """Point the cache at an empty directory this test owns."""
+        self.cache = tempfile.mkdtemp(prefix="render-cache-test-")
+        self.addCleanup(shutil.rmtree, self.cache, ignore_errors=True)
+        env = mock.patch.dict(os.environ,
+                              {"MUTANTS_RENDER_CACHE": self.cache})
+        env.start()
+        self.addCleanup(env.stop)
+        # an ambient opt-in must not decide what these measure; patch.dict
+        # restores the whole mapping on stop, so popping here is temporary
+        os.environ.pop("MUTANTS_RENDER_BROWSER", None)
+        found = mock.patch.object(canvas, "find_browsers",
+                                  lambda: ["/fake/chromium-build-1"])
+        found.start()
+        self.addCleanup(found.stop)
+        self.starts: list[list[str]] = []
+
+    def _stub_browser(self, png: bytes = b"\x89PNG\r\n\x1a\nstub"
+                      ) -> Callable[..., subprocess.CompletedProcess]:
+        """A `subprocess.run` that records the call and writes the PNG.
+
+        Args:
+            png: Bytes to leave at the `--screenshot=` path.
+
+        Returns:
+            A callable with `subprocess.run`'s shape, appending each argv
+            it is handed to `self.starts`.
+        """
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess:
+            self.starts.append(argv)
+            for arg in argv:
+                if arg.startswith("--screenshot="):
+                    Path(arg.split("=", 1)[1]).write_bytes(png)
+            return subprocess.CompletedProcess(argv, 0, b"", b"")
+        return run
+
+    def test_the_same_document_gets_the_same_key(self) -> None:
+        """Identical inputs address the same entry — the point of a cache."""
+        self.assertEqual(_cache_key("<svg/>", 240, 160),
+                         _cache_key("<svg/>", 240, 160))
+
+    def test_the_key_changes_with_the_browser_binary(self) -> None:
+        """Two chromium builds disagree about anti-aliasing, so two keys.
+
+        This is the hazard that made the binary part of the key before
+        the cache was ever shared: a markup-keyed cache served build
+        151's pixels for build 131 and reported a contrast ratio the
+        build under test does not produce.
+        """
+        first = _cache_key("<svg/>", 240, 160)
+        with mock.patch.object(canvas, "find_browsers",
+                               lambda: ["/fake/chromium-build-2"]):
+            self.assertNotEqual(first, _cache_key("<svg/>", 240, 160))
+
+    def test_the_key_changes_with_the_chrome_flags(self) -> None:
+        """Flags move pixels by design, so they cannot sit outside the key.
+
+        `CHROME_FLAGS` exists because device scale, colour profile and
+        subpixel text all move pixels between machines. Serving a render
+        made under different flags answers a different question with the
+        old answer.
+        """
+        first = _cache_key("<svg/>", 240, 160)
+        with mock.patch.object(sys.modules[__name__], "CHROME_FLAGS",
+                               (*CHROME_FLAGS, "--force-device-scale-factor=2")):
+            self.assertNotEqual(first, _cache_key("<svg/>", 240, 160))
+
+    def test_the_key_changes_with_the_window_size(self) -> None:
+        """The window decides how much of the document is in the shot.
+
+        No caller today shoots one document at two sizes — every one
+        derives `w`/`h` from the same `<svg>` tag it derives the markup
+        from — so this splits no entry that exists. It is pinned so that
+        the first caller that does cannot be handed the wrong crop.
+        """
+        self.assertNotEqual(_cache_key("<svg/>", 240, 160),
+                            _cache_key("<svg/>", 240, 161))
+
+    def test_a_miss_starts_the_browser_and_fills_the_cache(self) -> None:
+        """The first render pays a browser start and leaves an entry."""
+        with mock.patch.object(subprocess, "run", self._stub_browser()):
+            got = _rasterize("<svg>one</svg>", 240, 160)
+        self.assertEqual(got, b"\x89PNG\r\n\x1a\nstub")
+        self.assertEqual(len(self.starts), 1)
+        entry = Path(self.cache) / (_cache_key("<svg>one</svg>", 240, 160)
+                                    + ".png")
+        self.assertTrue(entry.exists(), "the miss cached nothing")
+
+    def test_a_cached_render_starts_no_browser(self) -> None:
+        """The second ask for one document costs nothing — the whole point.
+
+        A full render tier run asks for 138 renders of 78 distinct
+        documents. Every one of those 60 repeats used to be a chromium
+        start, because the cache lived in a directory `tearDown` deleted.
+        """
+        with mock.patch.object(subprocess, "run", self._stub_browser()):
+            first = _rasterize("<svg>two</svg>", 240, 160)
+            second = _rasterize("<svg>two</svg>", 240, 160)
+        self.assertEqual(first, second)
+        self.assertEqual(len(self.starts), 1,
+                         "a cached document started the browser again")
+
+    def test_the_cache_outlives_the_scratch_directory(self) -> None:
+        """Removing a test's scratch dir must not cost the cached pixels.
+
+        The separation this pins is not cosmetic: sharing one directory
+        for both is what made `TestSnapshotFraming`'s two tests collide
+        on `artifact 'wide' already exists`, because those use their
+        scratch dir as a canvas PROJECT root and a reused root already
+        holds the artifact they create.
+        """
+        with mock.patch.object(subprocess, "run", self._stub_browser()):
+            _rasterize("<svg>three</svg>", 240, 160)
+            scratch = _mkworkdir()
+            shutil.rmtree(scratch, ignore_errors=True)
+            _rasterize("<svg>three</svg>", 240, 160)
+        self.assertEqual(len(self.starts), 1)
+        self.assertNotIn(str(render_cache_dir()), scratch)
+
+    def test_a_render_that_wrote_no_png_caches_nothing(self) -> None:
+        """A failed render must not leave an entry a later run would trust.
+
+        The failure is raised, so the run is already lost; what matters
+        is that the NEXT run retries instead of serving whatever was on
+        disk when chromium died.
+        """
+        def dead(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess:
+            self.starts.append(argv)
+            return subprocess.CompletedProcess(argv, 3, b"", b"boom")
+
+        with mock.patch.object(subprocess, "run", dead), \
+                self.assertRaises(RuntimeError) as caught:
+            _rasterize("<svg>four</svg>", 240, 160)
+        self.assertIn("wrote no PNG", str(caught.exception))
+        self.assertEqual(list(Path(self.cache).glob("*.png")), [])
+
+    def test_the_default_browser_is_the_one_find_browsers_ranks_first(
+            self) -> None:
+        """No env var means no re-ranking — `headless_shell` stays second.
+
+        The corpus is calibrated under the full `chrome` build, and this
+        pins that a faster binary further down the list cannot quietly
+        become the instrument.
+        """
+        with mock.patch.object(canvas, "find_browsers",
+                               lambda: ["/x/chrome", "/x/headless_shell"]):
+            self.assertEqual(_browser(), "/x/chrome")
+
+    def test_an_explicit_browser_request_is_honoured(self) -> None:
+        """An explicit request wins, so a cold run can opt into the speed.
+
+        `MUTANTS_RENDER_BROWSER` selects by substring, which is how a cold
+        run gets `headless_shell`'s measured 2.6x without moving what the
+        default calibrates against.
+        """
+        with mock.patch.object(canvas, "find_browsers",
+                               lambda: ["/x/chrome", "/x/headless_shell"]), \
+                mock.patch.dict(os.environ,
+                                {"MUTANTS_RENDER_BROWSER": "headless_shell"}):
+            self.assertEqual(_browser(), "/x/headless_shell")
+
+    def test_an_unmatched_browser_request_raises(self) -> None:
+        """Asking for a build that is not here is an environmental failure.
+
+        Falling back silently would hand back a different build than the
+        one asked for, which is precisely how a 4.62:1 contrast reading
+        got attributed to a build that renders 5.51:1.
+        """
+        with mock.patch.object(canvas, "find_browsers",
+                               lambda: ["/x/chrome"]), \
+                mock.patch.dict(os.environ,
+                                {"MUTANTS_RENDER_BROWSER": "firefox"}), \
+                self.assertRaises(RuntimeError) as caught:
+            _browser()
+        self.assertIn("matched none", str(caught.exception))
+
+    def test_the_cache_directory_is_created_and_relocatable(self) -> None:
+        """`MUTANTS_RENDER_CACHE` moves it; the default sits under $HOME.
+
+        Under `$HOME` is a requirement, not a preference — a snap-confined
+        chromium cannot see the real `/tmp`, so a cache outside `$HOME`
+        would be unwritable by the browser that has to fill it.
+        """
+        nested = Path(self.cache) / "made" / "on" / "demand"
+        with mock.patch.dict(os.environ,
+                             {"MUTANTS_RENDER_CACHE": str(nested)}):
+            self.assertEqual(render_cache_dir(), nested)
+            self.assertTrue(nested.is_dir())
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("MUTANTS_RENDER_CACHE", None)
+            self.assertIn(str(Path.home()), str(render_cache_dir()))
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "

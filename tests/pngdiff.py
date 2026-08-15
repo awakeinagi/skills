@@ -36,6 +36,9 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # Bytes per pixel by PNG color type, for the 8-bit depths we accept.
 _CHANNELS = {0: 1, 2: 3, 6: 4}
 
+# Maps the ASCII bit string `format(bits, "b")` produces back to 0/1 bytes.
+_BIT_TO_BYTE = bytes((1 if i == 0x31 else 0) for i in range(256))
+
 
 def _chunk(ctype: bytes, body: bytes) -> bytes:
     """Serialise one PNG chunk: length, type, body, CRC.
@@ -103,6 +106,11 @@ def _unfilter_row(ftype: int, line: bytearray, prev: bytearray,
                   bpp: int) -> None:
     """Reverse one scanline's filter in place.
 
+    `read_png_gray` reconstructs filter 2 (Up) by a faster route and only
+    calls this for the other four, but the Up branch here is not dead: it
+    is the reference the fast path is tested against, and the readable
+    statement of what that path must compute.
+
     Args:
         ftype: The PNG filter type byte (0-4).
         line: The filtered scanline, mutated into the reconstructed one.
@@ -146,6 +154,19 @@ def read_png_gray(data: bytes) -> tuple[int, int, bytearray]:
     Playwright screenshots of the canvas come back RGBA, and treating
     transparency as black would make every empty region a giant defect.
 
+    Filter type 2 (Up) is reconstructed a whole row at a time instead of
+    byte by byte, because chromium's output is overwhelmingly Up-filtered
+    — 766 of 800 rows on a measured 1200x800 raster — and decoding was
+    60% of a diff's cost. Reading the row as one integer, the reconstruction
+    `(a + b) & 0xFF` per byte is the SWAR identity
+    `((a & 0x7f..) + (b & 0x7f..)) ^ ((a ^ b) & 0x80..)`: the masked add
+    cannot carry out of any byte's bit 6, so the high bits stay independent
+    and the XOR restores each one. That is exact byte-wise addition mod 256,
+    which is what the Up filter is defined as — not an approximation with a
+    tolerance. `_unfilter_row` keeps the readable per-byte version and
+    remains the oracle the SWAR path is pinned against
+    (`test_the_swar_up_filter_matches_the_reference_byte_loop`).
+
     Args:
         data: A complete PNG byte stream.
 
@@ -188,25 +209,45 @@ def read_png_gray(data: bytes) -> tuple[int, int, bytearray]:
 
     pix = bytearray(width * height)
     prev = bytearray(stride)
+    # `prev` as one big integer, or None when the last row was not
+    # reconstructed through the SWAR path and the cache is stale.
+    prev_bits: int | None = 0
+    low = int.from_bytes(b"\x7f" * stride, "big")
+    high = int.from_bytes(b"\x80" * stride, "big")
     pos = 0
     for y in range(height):
         ftype = raw[pos]
-        line = bytearray(raw[pos + 1:pos + 1 + stride])
+        seg = raw[pos + 1:pos + 1 + stride]
         pos += 1 + stride
-        _unfilter_row(ftype, line, prev, channels)
+        if ftype == 2:                          # Up, a whole row at a time
+            if prev_bits is None:
+                prev_bits = int.from_bytes(prev, "big")
+            cur = int.from_bytes(seg, "big")
+            prev_bits = (((cur & low) + (prev_bits & low))
+                         ^ ((cur ^ prev_bits) & high))
+            line = bytearray(prev_bits.to_bytes(stride, "big"))
+        else:
+            line = bytearray(seg)
+            _unfilter_row(ftype, line, prev, channels)
+            prev_bits = None
         prev = line
         row = y * width
         if channels == 1:
             pix[row:row + width] = line
             continue
-        for x in range(width):
-            i = x * channels
-            lum = (line[i] * 299 + line[i + 1] * 587 + line[i + 2] * 114)
-            lum //= 1000
-            if channels == 4:
-                alpha = line[i + 3]
-                lum = (lum * alpha + 255 * (255 - alpha)) // 255
-            pix[row + x] = lum
+        red, green = line[0::channels], line[1::channels]
+        blue = line[2::channels]
+        if channels == 4:
+            alpha = line[3::channels]
+            for x in range(width):
+                lum = (red[x] * 299 + green[x] * 587 + blue[x] * 114) // 1000
+                opacity = alpha[x]
+                pix[row + x] = ((lum * opacity + 255 * (255 - opacity))
+                                // 255)
+        else:
+            for x in range(width):
+                pix[row + x] = (red[x] * 299 + green[x] * 587
+                                + blue[x] * 114) // 1000
     return width, height, pix
 
 
@@ -302,33 +343,104 @@ def components(w: int, h: int, mask: bytearray,
     return out
 
 
-def _dilate(w: int, h: int, mask: bytearray) -> bytearray:
+def _ink_bits(pix: bytearray, ink_threshold: int) -> int:
+    """Binarise a luminance buffer to ink, packed as one integer.
+
+    `bytes.translate` does the per-pixel comparison in C by turning each
+    luminance byte straight into the ASCII `'0'` or `'1'` that `int(s, 2)`
+    then reads — one pass, no Python-level loop over pixels.
+
+    Args:
+        pix: Luminance bytes, as `read_png_gray` returns.
+        ink_threshold: Luminance below which a pixel counts as ink.
+
+    Returns:
+        The ink mask, pixel 0 the most significant bit; 0 for empty input.
+    """
+    if not pix:
+        return 0
+    table = bytes((0x31 if i < ink_threshold else 0x30) for i in range(256))
+    return int(bytes(pix).translate(table), 2)
+
+
+def _mask_bytes(bits: int, n: int) -> bytearray:
+    """Unpack an `n`-pixel bitset back into one 0/1 byte per pixel.
+
+    Args:
+        bits: The mask as an integer, pixel 0 the most significant bit.
+        n: Pixel count, i.e. the width to zero-pad the bit string to.
+
+    Returns:
+        `n` bytes, 1 where set. Empty for `n == 0` — `format` would
+        render a bare `"0"` there and invent a pixel.
+    """
+    if n == 0:
+        return bytearray()
+    return bytearray(format(bits, "0%db" % n).encode("ascii")
+                     .translate(_BIT_TO_BYTE))
+
+
+def _edge_masks(w: int, h: int) -> tuple[int, int, int]:
+    """The three constants `_dilate` needs for a `w` x `h` bitset.
+
+    Built once per diff and shared by both dilations, because each is a
+    `w * h`-bit integer and materialising them is not free.
+
+    Args:
+        w: Mask width in pixels.
+        h: Mask height in pixels.
+
+    Returns:
+        `(notleft, notright, full)`. `notleft` is set everywhere except
+        column 0, `notright` everywhere except column `w - 1`, and `full`
+        is all `w * h` bits — the clip that stops a vertical shift from
+        running off the top of the image. All three are 0 for an empty
+        image, which is the only size where the bitset has no columns to
+        guard.
+    """
+    n = w * h
+    if n == 0:
+        return 0, 0, 0
+    return (int(("0" + "1" * (w - 1)) * h, 2),
+            int(("1" * (w - 1) + "0") * h, 2),
+            (1 << n) - 1)
+
+
+def _dilate(w: int, bits: int, edges: tuple[int, int, int]) -> int:
     """Grow every set pixel into its 8-connected neighbourhood.
 
     This one pixel of slack is the whole tolerance budget: it is exactly
     the reach of a sub-pixel edge displacement, so an anti-aliased stroke
     lands inside the dilation of its counterpart and vanishes from the XOR.
-    Bounds are clipped per row, so growth never wraps across image edges.
+
+    The mask is one integer with pixel 0 as the MOST significant bit, so
+    `<< 1` moves ink to x-1 and `>> 1` moves it to x+1. Growth must not
+    wrap across image edges, and in this representation a row's edges are
+    not a boundary at all — the rows are one continuous bit string, so
+    ink at x=0 shifted left would land at x=w-1 of the row ABOVE and
+    silently forgive a defect there. The guards are therefore applied to
+    the SOURCE column that would wrap: mask off column 0 before shifting
+    left, column w-1 before shifting right. Getting that pair the wrong
+    way round still passes on any real raster — a diagram has a paper
+    margin, so no ink ever sits in an edge column — which is why
+    `test_dilation_does_not_wrap_across_the_right_edge` pins it on
+    synthetic ink instead.
+
+    The vertical shifts need no such guard: `<< w` runs off the top into
+    bits above the image, which `full` clears, and `>> w` runs off the
+    bottom into nothing.
 
     Args:
         w: Mask width in pixels.
-        h: Mask height in pixels.
-        mask: `w * h` bytes; non-zero means set.
+        bits: The mask as an integer, pixel 0 the most significant bit.
+        edges: `_edge_masks(w, h)` for this mask's dimensions.
 
     Returns:
-        A new mask of the same size, 1 where dilated.
+        The dilated mask, same representation.
     """
-    out = bytearray(w * h)
-    for y in range(h):
-        row = y * w
-        for x in range(w):
-            if not mask[row + x]:
-                continue
-            for ny in range(max(0, y - 1), min(h, y + 2)):
-                base = ny * w
-                for nx in range(max(0, x - 1), min(w, x + 2)):
-                    out[base + nx] = 1
-    return out
+    notleft, notright, full = edges
+    hz = bits | ((bits & notleft) << 1) | ((bits & notright) >> 1)
+    return (hz | (hz << w) | (hz >> w)) & full
 
 
 def tolerant_diff(a: bytes, b: bytes, ink_threshold: int = 192,
@@ -375,9 +487,12 @@ def tolerant_diff_mask(a: bytes, b: bytes, ink_threshold: int = 192,
 
     So this holds the body and `tolerant_diff` delegates, rather than the
     other way round. A sibling that re-derived the mask would pay a second
-    `read_png_gray` and two more `_dilate` passes — measured at ~380s on a
-    2.4 MP raster, against zero extra allocation for keeping a bytearray
-    the peak already contained.
+    `read_png_gray` and two more `_dilate` passes, against zero extra
+    allocation for keeping a bytearray the peak already contained. Since
+    the bitset rewrite the dilations are effectively free and the second
+    DECODE is the whole of that cost: on a 0.56 MP raster whose complete
+    diff takes 0.342s, re-deriving adds 0.157s — 46% more work to recover
+    something this function already had in hand.
 
     Args:
         a: The first PNG's bytes.
@@ -400,12 +515,11 @@ def tolerant_diff_mask(a: bytes, b: bytes, ink_threshold: int = 192,
     if (aw, ah) != (bw, bh):
         raise ValueError("image sizes differ: %dx%d vs %dx%d"
                          % (aw, ah, bw, bh))
-    ink_a = bytearray(1 if p < ink_threshold else 0 for p in apix)
-    ink_b = bytearray(1 if p < ink_threshold else 0 for p in bpix)
-    dil_a = _dilate(aw, ah, ink_a)
-    dil_b = _dilate(aw, ah, ink_b)
-    residual = bytearray(
-        1 if (ink_a[i] and not dil_b[i]) or (ink_b[i] and not dil_a[i]) else 0
-        for i in range(aw * ah))
+    ink_a = _ink_bits(apix, ink_threshold)
+    ink_b = _ink_bits(bpix, ink_threshold)
+    edges = _edge_masks(aw, ah)
+    residual = _mask_bytes(
+        ((ink_a & ~_dilate(aw, ink_b, edges))
+         | (ink_b & ~_dilate(aw, ink_a, edges))) & edges[2], aw * ah)
     return ([c for c in components(aw, ah, residual) if c["area"] >= min_blob],
             aw, ah, residual)

@@ -9,6 +9,7 @@ no fixtures.
 """
 from __future__ import annotations
 
+import random
 import struct
 import unittest
 import zlib
@@ -16,6 +17,11 @@ import zlib
 from pngdiff import (
     PNG_SIGNATURE,
     _chunk,
+    _dilate,
+    _edge_masks,
+    _ink_bits,
+    _mask_bytes,
+    _unfilter_row,
     components,
     read_png_gray,
     tolerant_diff,
@@ -484,6 +490,159 @@ class TestDecoderRejects(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             read_png_gray(_png(_ihdr(2, 1, 8, 0), b"\x05\x00\x00"))
         self.assertIn("filter", str(ctx.exception))
+
+
+def _reference_dilate(w: int, h: int, mask: bytearray) -> bytearray:
+    """Grow set pixels by one, the obvious way: a loop over neighbours.
+
+    This is the per-pixel implementation `pngdiff._dilate` replaced, kept
+    here as the oracle that pins the bitset version. It is deliberately
+    the slow, readable statement of the contract — clipping each
+    neighbour range to the image so growth cannot leave it.
+
+    Args:
+        w: Mask width in pixels.
+        h: Mask height in pixels.
+        mask: `w * h` bytes; non-zero means set.
+
+    Returns:
+        A new mask of the same size, 1 where dilated.
+    """
+    out = bytearray(w * h)
+    for y in range(h):
+        row = y * w
+        for x in range(w):
+            if not mask[row + x]:
+                continue
+            for ny in range(max(0, y - 1), min(h, y + 2)):
+                base = ny * w
+                for nx in range(max(0, x - 1), min(w, x + 2)):
+                    out[base + nx] = 1
+    return out
+
+
+class TestFastPathEquivalence(unittest.TestCase):
+    """The optimized paths compute what the readable ones compute.
+
+    Both rewrites here are speed-only: they were adopted because decoding
+    and dilation were 60% and 17% of a diff, and neither is allowed to
+    change a single bit of the answer. So each is pinned against the
+    obvious implementation rather than against recorded output — a
+    recorded expectation would drift with the corpus, and the claim being
+    made is stronger than "it still passes today".
+
+    The dilation case earns its exhaustiveness: the bitset version's one
+    hazard is row wrap, and no real raster can exercise it, because a
+    diagram has a paper margin and its edge columns are never inked. The
+    prototype this landed from had its two wrap guards transposed and was
+    still bit-identical on every raster the corpus contains.
+    """
+
+    def test_the_swar_up_filter_matches_the_reference_byte_loop(self) -> None:
+        """Row-at-a-time Up reconstruction equals the per-byte one.
+
+        Built as a round trip so the assertion is against the pixels that
+        went in, not against the fast path's own opinion: random rows are
+        Up-FILTERED here (subtract the row above, mod 256) and must come
+        back out of `read_png_gray` byte for byte. Random data matters —
+        the SWAR add's failure mode is a carry escaping bit 6 into the
+        next byte, which only shows on values that actually overflow.
+        """
+        rnd = random.Random(20260815)
+        for w, h, ctype in ((7, 5, 0), (4, 3, 2), (3, 4, 6), (1, 9, 0)):
+            channels = {0: 1, 2: 3, 6: 4}[ctype]
+            stride = w * channels
+            want = [bytes(rnd.randrange(256) for _ in range(stride))
+                    for _ in range(h)]
+            raw = bytearray()
+            prev = bytes(stride)
+            for line in want:
+                raw += b"\x02" + bytes((line[i] - prev[i]) & 0xFF
+                                       for i in range(stride))
+                prev = line
+            _, _, got = read_png_gray(_png(_ihdr(w, h, 8, ctype), bytes(raw)))
+
+            # and the same rows through the reference loop, for the claim
+            # that the two agree rather than merely that one round-trips
+            ref = bytearray(w * h)
+            prev_b = bytearray(stride)
+            for y, line in enumerate(want):
+                cur = bytearray((line[i] - prev_b[i]) & 0xFF
+                                for i in range(stride))
+                _unfilter_row(2, cur, prev_b, channels)
+                self.assertEqual(bytes(cur), line)
+                prev_b = cur
+                for x in range(w):
+                    i = x * channels
+                    if channels == 1:
+                        ref[y * w + x] = cur[i]
+                        continue
+                    lum = (cur[i] * 299 + cur[i + 1] * 587
+                           + cur[i + 2] * 114) // 1000
+                    if channels == 4:
+                        alpha = cur[i + 3]
+                        lum = (lum * alpha + 255 * (255 - alpha)) // 255
+                    ref[y * w + x] = lum
+            self.assertEqual(got, ref, "%dx%d ctype %d" % (w, h, ctype))
+
+    def test_dilation_matches_the_per_pixel_reference_exhaustively(
+            self) -> None:
+        """Every mask of every small grid dilates identically.
+
+        Exhaustive up to 3x3 plus the degenerate single-row and single-
+        column shapes, which is where the wrap guards live: a 1-wide mask
+        has no horizontal neighbours at all, and a 1-tall one has no
+        vertical ones.
+        """
+        for w, h in ((1, 1), (1, 4), (4, 1), (2, 2), (3, 2), (2, 3), (3, 3)):
+            n = w * h
+            edges = _edge_masks(w, h)
+            for value in range(1 << n):
+                mask = bytearray((value >> i) & 1 for i in range(n))
+                bits = _ink_bits(bytearray(0 if b else 255 for b in mask), 192)
+                got = _mask_bytes(_dilate(w, bits, edges), n)
+                self.assertEqual(got, _reference_dilate(w, h, mask),
+                                 "%dx%d mask %d" % (w, h, value))
+
+    def test_dilation_matches_the_reference_on_random_larger_masks(
+            self) -> None:
+        """Sparse random ink up to 9x9, including inked edge columns."""
+        rnd = random.Random(4242)
+        for _ in range(400):
+            w, h = rnd.randint(1, 9), rnd.randint(1, 9)
+            mask = bytearray(1 if rnd.random() < 0.35 else 0
+                             for _ in range(w * h))
+            bits = _ink_bits(bytearray(0 if b else 255 for b in mask), 192)
+            got = _mask_bytes(_dilate(w, bits, _edge_masks(w, h)), w * h)
+            self.assertEqual(got, _reference_dilate(w, h, mask))
+
+    def test_dilation_does_not_wrap_across_the_left_edge(self) -> None:
+        """The mirror of the right-edge pin, and the one the prototype failed.
+
+        Ink at x=0 must not grow into x=w-1 of the row above. Stated
+        separately from its right-edge twin because the two guards are
+        independent constants and transposing them breaks exactly one
+        direction at a time.
+        """
+        w, h = 5, 3
+        mask = bytearray(w * h)
+        mask[1 * w] = 1                                  # x=0 of the middle row
+        bits = _ink_bits(bytearray(0 if b else 255 for b in mask), 192)
+        got = _mask_bytes(_dilate(w, bits, _edge_masks(w, h)), w * h)
+        # x=0 and x=1 on all three rows — and nothing in the last column,
+        # which is what wrapping would light up.
+        self.assertEqual(list(got), [1, 1, 0, 0, 0] * 3)
+
+    def test_an_empty_image_diffs_without_inventing_a_pixel(self) -> None:
+        """A 0x0 pair agrees, and its mask is empty rather than one byte.
+
+        `format(0, "00b")` renders a bare `"0"`, so the bitset unpacker
+        needs the size-zero case handled rather than inferred.
+        """
+        empty = write_png_gray(0, 0, b"")
+        self.assertEqual(tolerant_diff(empty, empty), [])
+        self.assertEqual(tolerant_diff_mask(empty, empty),
+                         ([], 0, 0, bytearray()))
 
 
 if __name__ == "__main__":
