@@ -93,6 +93,15 @@ _PHANTOM_RE = re.compile(
 # it lands this spec should tighten to a magnitude.
 _LABEL_OVERLAP_RE = re.compile(
     r"labels (?P<element>.+) overlap — nudge one clear")
+# The arrow-label/foreign-node lint, registered 2026-08-15 with the
+# curvature switch. `element` is the NODE the label lands on, not the
+# label: the label is quoted as CONTENT and carries no id, and the node
+# is what a re-route has to clear. The `[\w-]+` stops before the
+# ` ('Label')` suffix `canvas.name()` appends, as `_SHARED_ATTACH_RE`'s
+# does. This is the entry curator batch 19 said `label_on_foreign_node`
+# was waiting on.
+_LABEL_ON_FOREIGN_RE = re.compile(
+    r"arrow label .+ lands on (?P<element>[\w-]+), which is neither end")
 # The clipped-text lint (canvas.py), whose template is the richest one
 # here: it carries a 2-D need AND a 2-D allowance AND which axis failed.
 # `element` is the OWNER, not the text — the text is quoted as CONTENT and
@@ -233,6 +242,11 @@ DETECTORS: dict[str, dict] = {
     # legible from the two arrow ids in `raw`.
     "phantom_passthrough": {"lint_re": _PHANTOM_RE},
     "label_label_overlap": {"lint_re": _LABEL_OVERLAP_RE},
+    # v0.9 WP4 stage 3: landed with the curvature switch, because the
+    # label anchor is the surface curvature moves and a `Silence` on an
+    # unregistered check passes vacuously. No dirmap — the finding is one
+    # label on one box, with no axis to report.
+    "label_on_foreign_node": {"lint_re": _LABEL_ON_FOREIGN_RE},
     # Batch D follow-up, 2026-08-13: left the enumerated-no-mutant ledger
     # when the pair below proved it fires, on both arms, with magnitude and
     # direction. The dirmap keeps the three arms distinct because the
@@ -1842,10 +1856,13 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
 
     A sibling of `ellipse_corner_overfire`, and outside `CATALOGUE` for a
     reason worth stating: an over-fire mutant asserts `Silence` on its
-    check, and `label_on_foreign_node` (canvas.py) has no `DETECTORS`
-    entry — it sits in `UNCOVERED`. A `Silence` on an unregistered check
-    passes vacuously, so the catalogue cannot hold that one until its
-    entry lands. Read as lint text instead, which needs no registry.
+    check, and `label_on_foreign_node` (canvas.py) had no `DETECTORS`
+    entry when this class was written — a `Silence` on an unregistered
+    check passes vacuously, so the catalogue could not hold that arm.
+    Read as lint text instead, which needs no registry. (That entry
+    LANDED on 2026-08-15 with the label-anchor rewrite, so this
+    particular blocker is spent; the batch-19 ruling below is what keeps
+    the family here now.)
 
     `annotation_overlaps_node` acquired an entry on 2026-08-14 (v0.9 WP4
     Task 23, as the other pole of the role gate), and `text_overlaps_node`
@@ -1853,9 +1870,13 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
     over-fire mutants. CURATOR RULING, batch 19, 2026-08-14: they stay
     here, and the reason is now stronger than "one paragraph". The
     family may not be split across two homes, because the third red
-    pins `label_on_foreign_node`, which has no `DETECTORS` entry and
-    therefore CANNOT move — a `Silence` on an unregistered check passes
-    vacuously. Moving the two that can would leave a three-arm family
+    pins `label_on_foreign_node`, which had no `DETECTORS` entry then and
+    therefore COULD not move — a `Silence` on an unregistered check
+    passes vacuously. (It has one as of 2026-08-15. The ruling stands on
+    the sentence that follows, not on that absence, and the absence
+    being spent is exactly the kind of thing that rots a ruling into a
+    superstition if nobody writes it down.)
+    Moving the two that can would leave a three-arm family
     with two homes, one of them holding the arm most likely to be
     forgotten by a fix. The cost is real and is accepted knowingly: these
     three get no dedupe fingerprint and no `Silence`-over-crash refusal.
@@ -6216,8 +6237,14 @@ class TestBatchPathIntegrity(unittest.TestCase):
 
         On the parent this op WORKED for elbowed arrows, because the old
         routing rule happened to produce `{"type": 2}`; the WP4 switch
-        made the coincidence stop holding, so it now always drops. The
-        review filed it minor and it is: `references/ops-reference.md`
+        made the coincidence stop holding, so it now always drops. WP4
+        stage 3 brings the coincidence BACK for elbows — a routed elbow
+        derives `{"type": 2}` again — so the scene is now two ALIGNED
+        nodes, whose route is a straight two-point arrow that derives
+        None at every roundness rule this repo has ever had. The defect
+        was never about elbows; the elbow was only ever the accident
+        that hid it, twice. The review filed it minor and it is:
+        `references/ops-reference.md`
         documents `roundness` only for rounded rectangles, and the lines
         beside it say an arrow's geometry and bindings are computed. So
         this is an UNDOCUMENTED capability silently lost, not a promise
@@ -6238,9 +6265,14 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "base_revn": store.head_revn(), "artifact": "flow",
             "ops": [{"op": "add", "element": {
                 "type": "rectangle", "id": "n2", "label": "N2", "x": 400,
-                "y": 200, "width": 100, "height": 60, "role": "node"}},
+                "y": 0, "width": 100, "height": 60, "role": "node"}},
                 {"op": "add", "element": {"type": "arrow", "id": "e1",
                                           "from": "n1", "to": "n2"}}]})
+        arrow = next(e for e in store.scenes["flow"] if e["id"] == "e1")
+        self.assertEqual(len(arrow["points"]), 2,
+                         "the scene must route STRAIGHT, or a derived "
+                         "{'type': 2} masks the drop instead of the rule "
+                         "being tested")
         escaped = self._send_ops(store, [
             {"op": "mod", "id": "e1", "attrs": {"roundness": {"type": 2}}}])
         arrow = next(e for e in store.scenes["flow"] if e["id"] == "e1")
@@ -8982,6 +9014,193 @@ def _crossing_tail() -> list[dict]:
                endBinding={"elementId": "B", "focus": 0, "gap": 0})]
 
 
+def _labelled_elbow(foreign_x: int, foreign_y: int) -> list[dict]:
+    """An unbalanced 400+100 L whose label the client draws on the corner.
+
+    Blind-spot 1's Pin A. The arrow is a 3-point elbow, so the client
+    centres its label on `points[1]` — the corner, at (500, 100) — while
+    the arc-length walk this repo used until v0.9 put it 150px away at
+    (350, 100). Both positions are on the stroke and neither is
+    obviously wrong from the store, which is why the two models were
+    indistinguishable for three versions.
+
+    The foreign box sits at `y = 85`, deliberately NOT centred on the
+    corner: a box centred there is caught by `passes_through_foreign`
+    instead, and the pin would pass for a reason that has nothing to do
+    with the label (the trap `spike-row26-verify` documented). At
+    `x = 505` it is also clear of the stroke's own `x <= 500`, so it
+    touches neither leg.
+
+    Args:
+        foreign_x: The foreign node's x. 505 puts it over the DRAWN
+            label; 290 puts it over the arc-length model's answer.
+        foreign_y: The foreign node's y.
+
+    Returns:
+        The five-element scene: `src`, `dst`, `foreign`, arrow `e1`,
+        and `e1`'s bound label.
+    """
+    arrow = el(id="e1", type="arrow", x=100, y=100, width=400, height=100,
+               points=[[0, 0], [400, 0], [400, 100]],
+               startBinding={"elementId": "src", "focus": 0, "gap": 0},
+               endBinding={"elementId": "dst", "focus": 0, "gap": 0},
+               customData={"role": "edge"})
+    label = el(id="e1-label", type="text", x=0, y=0, width=60, height=20,
+               text="ships", originalText="ships", containerId="e1",
+               fontSize=16)
+    label["x"], label["y"] = canvas.arrow_label_slot(arrow, label)
+    return [el(id="src", type="rectangle", x=-60, y=70, width=160,
+               height=60, customData={"role": "node"}),
+            el(id="dst", type="rectangle", x=440, y=200, width=160,
+               height=60, customData={"role": "node"}),
+            el(id="foreign", type="rectangle", x=foreign_x, y=foreign_y,
+               width=160, height=60, customData={"role": "node"}),
+            arrow, label]
+
+
+def _labelled_skew_z(rounded: bool) -> list[dict]:
+    """A 4-point skew Z whose label curvature moves 23.8px.
+
+    Blind-spot 1's Pin B, and the ONLY scene that separates the client's
+    third branch from its fourth. An even point count sends the client
+    to the middle SPAN — here `points[1] -> points[2]` — whose chord
+    midpoint is (1300, 130) sharp and whose Bezier arc midpoint is
+    (1324.0, 126.0) rounded, both measured against the running app. An
+    odd-point elbow cannot discriminate them: branch 1 ignores
+    `roundness` entirely.
+
+    The 80x40 foreign box straddles that gap, clear of the chord
+    midpoint's label box and squarely over the Bezier one's.
+
+    Args:
+        rounded: True for `{"type": 2}`, False for a sharp Z.
+
+    Returns:
+        The five-element scene.
+    """
+    arrow = el(id="e1", type="arrow", x=900, y=100, width=460, height=60,
+               points=[[0, 0], [400, 0], [400, 60], [460, 60]],
+               roundness={"type": 2} if rounded else None,
+               startBinding={"elementId": "src", "focus": 0, "gap": 0},
+               endBinding={"elementId": "dst", "focus": 0, "gap": 0},
+               customData={"role": "edge"})
+    label = el(id="e1-label", type="text", x=0, y=0, width=40, height=20,
+               text="on", originalText="on", containerId="e1", fontSize=16)
+    label["x"], label["y"] = canvas.arrow_label_slot(arrow, label)
+    return [el(id="src", type="rectangle", x=740, y=70, width=160,
+               height=60, customData={"role": "node"}),
+            el(id="dst", type="rectangle", x=1360, y=130, width=160,
+               height=60, customData={"role": "node"}),
+            el(id="foreign", type="rectangle", x=1320, y=108, width=80,
+               height=40, customData={"role": "node"}),
+            arrow, label]
+
+
+def _two_leg_approach(pts: list[tuple[int, int]],
+                      rounded: bool) -> list[dict]:
+    """A two-leg approach ending exactly ON a bound rectangle's border.
+
+    Blind-spot 3's walk scenes. The endpoint is on the border so
+    `outside` is 0 and the interior walk is actually REACHED — the gate
+    in front of it is what makes most curved-final scenes never get
+    this far, and a pin that does not clear it measures nothing.
+
+    Args:
+        pts: The path in absolute coordinates; `pts[-1]` must sit on
+            `N`'s outline.
+        rounded: True for `{"type": 2}`, False for sharp chords.
+
+    Returns:
+        The three-element scene: `N` (the bound target), `S` (a source
+        so the arrow is a legal two-ended edge), and arrow `e1`.
+    """
+    ox, oy = pts[0]
+    local = [[p[0] - ox, p[1] - oy] for p in pts]
+    return [el(id="N", type="rectangle", x=100, y=50, width=120,
+               height=100),
+            el(id="S", type="rectangle", x=ox - 40, y=oy - 20, width=40,
+               height=40),
+            el(id="e1", type="arrow", x=ox, y=oy,
+               width=max(abs(p[0]) for p in local),
+               height=max(abs(p[1]) for p in local), points=local,
+               roundness={"type": 2} if rounded else None,
+               startBinding={"elementId": "S", "focus": 0, "gap": 0},
+               endBinding={"elementId": "N", "focus": 0, "gap": 0})]
+
+
+# The two scenes, named so the poles read the same way in both mutants.
+_RUN_HIDDEN = [(0, 40), (160, 40), (100, 60)]
+_RUN_OVERSTATED = [(0, 160), (160, 160), (220, 135)]
+
+
+def _corner_elbow_pair(rounded: bool) -> list[dict]:
+    """Two elbows meeting corner to corner, crossing only once drawn.
+
+    Blind-spot 2's crossing pin. The stored chords never touch — the two
+    L's meet at their corners and turn away — so the chord-based
+    instrument reports a clean diagram. The drawn curves bow INTO each
+    other and cross twice.
+
+    Args:
+        rounded: True for `{"type": 2}`, False for sharp elbows.
+
+    Returns:
+        The two-arrow scene.
+    """
+    shape = {"type": 2} if rounded else None
+    return [el(id="ca", type="arrow", x=0, y=0, width=100, height=100,
+               points=[[0, 0], [100, 0], [100, 100]], roundness=shape,
+               customData={"role": "edge"}),
+            el(id="cb", type="arrow", x=100, y=0, width=100, height=100,
+               points=[[0, 0], [-100, 0], [-100, 100]], roundness=shape,
+               customData={"role": "edge"})]
+
+
+def _fan_finals(sep: int) -> list[dict]:
+    """Two curved arrows leaving one hub and running 200px near-parallel.
+
+    Blind-spot 2's corridor pin, and the one that guards the FIX rather
+    than the defect: the obvious curvature fix for `shared_corridors` —
+    swap `_abs_segments` for flattened segments — scores ZERO here,
+    because twenty micro-segments per span each fail `_axis`'s 2px
+    tolerance independently and the ones that pass carry a drifting
+    fixed coordinate. Two 200px verticals `sep` px apart are one thick
+    stroke to a reader; anything that cannot say so is not a corridor
+    instrument.
+
+    The two targets track `sep`, so each arrow lands on its own node's
+    border at either pole and the scene has no endpoint defect for the
+    corridor finding to be confused with. At `sep = 6` the targets are
+    6px apart and overlap, which is not an accident to be tidied away:
+    two edges whose whole approach is 6px apart ARE going to two nodes
+    6px apart, and that is the drawing this instrument exists to name.
+
+    Args:
+        sep: Lateral separation in px. 6 is inside the 16px tolerance
+            and obviously one stroke; 40 is outside it.
+
+    Returns:
+        The five-element scene: `hub`, `t1`, `t2`, and arrows `fa`/`fb`.
+    """
+    return [el(id="hub", type="rectangle", x=60, y=60, width=120,
+               height=40, customData={"role": "node"}),
+            el(id="t1", type="rectangle", x=110, y=300, width=10,
+               height=40, customData={"role": "node"}),
+            el(id="t2", type="rectangle", x=110 + sep, y=300, width=10,
+               height=40, customData={"role": "node"}),
+            el(id="fa", type="arrow", x=100, y=100, width=15, height=200,
+               points=[[0, 0], [15, 0], [15, 200]], roundness={"type": 2},
+               startBinding={"elementId": "hub", "focus": 0, "gap": 0},
+               endBinding={"elementId": "t1", "focus": 0, "gap": 0},
+               customData={"role": "edge"}),
+            el(id="fb", type="arrow", x=100 + sep, y=100, width=15,
+               height=200, points=[[0, 0], [15, 0], [15, 200]],
+               roundness={"type": 2},
+               startBinding={"elementId": "hub", "focus": 0, "gap": 0},
+               endBinding={"elementId": "t2", "focus": 0, "gap": 0},
+               customData={"role": "edge"})]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -10001,6 +10220,89 @@ _register(Mutant(
                                     magnitude=(98, 0.10), direction=None))))
 
 
+# ---------------------------------------------------------------------------
+# The curvature guard pins (v0.9 WP4 stage 3, 2026-08-15). Every entry
+# below has the SAME single bit between its two poles — `roundness`, or
+# where a foreign box sits — so none of them can pass because some
+# unrelated tolerance moved. They exist because `roundness` is invisible
+# to `content_fingerprint` AND to `DEFAULT_SIGNIFICANT_ATTRS` by design
+# (it is derived, and making it significant re-opens the permanent
+# disk/history divergence v0.8 WP2 closed), so a curvature regression
+# mints no diff and no reconciliation. These are the instruments that
+# would notice, and there is nothing else.
+# ---------------------------------------------------------------------------
+
+# Blind spot 1, Pin A. Needs no curvature at all: this is the model bug
+# that was live in the SHARP build, on 37 of 107 corpus bound labels,
+# worst 331px. The poles are the two models' answers for the same label.
+_register(Mutant(
+    "label_anchor_reads_the_arc_not_the_client",
+    build=lambda: _labelled_elbow(505, 85),
+    op="unchanged", args={},
+    expect=FindingSpec("label_on_foreign_node", element="foreign"),
+    neighbour=Neighbour(lambda: _labelled_elbow(290, 70),
+                        Silence("label_on_foreign_node"))))
+
+# Blind spot 1, Pin B: the only pin that separates the client's chord
+# branch from its Bezier one, and it exists only in the curved world.
+_register(Mutant(
+    "curved_even_path_moves_the_label",
+    build=lambda: _labelled_skew_z(True),
+    op="unchanged", args={},
+    expect=FindingSpec("label_on_foreign_node", element="foreign"),
+    neighbour=Neighbour(lambda: _labelled_skew_z(False),
+                        Silence("label_on_foreign_node"))))
+
+# Blind spot 3, pole 1 — FALSE SILENCE. The stored chord measures 27.4px
+# of interior run, one hair under the 28px gate, and says nothing; the
+# curve the browser draws measures 36.2px and is over it. The sharp twin
+# at the same points has no curve to hide behind and is a genuine
+# negative, which is what makes it the pole rather than a coincidence.
+_register(Mutant(
+    "curved_final_run_hides_interior_crossing",
+    build=lambda: _two_leg_approach(_RUN_HIDDEN, True),
+    op="unchanged", args={},
+    expect=FindingSpec("crosses_through_bound", element="e1",
+                       magnitude=(36, 0.10)),
+    neighbour=Neighbour(lambda: _two_leg_approach(_RUN_HIDDEN, False),
+                        Silence("crosses_through_bound"))))
+
+# Blind spot 3, pole 2 — FALSE ERROR, the other direction. The chord
+# measures 35.3px and raises an error against a drawing that reads
+# clean; the drawn curve only dips 25.6px in. The neighbour is the SHARP
+# scene FIRING, so this pair pins a correction rather than a mere
+# sensitivity drop: a check that went quiet on everything would fail it.
+_register(Mutant(
+    "curved_final_run_overstates_interior_crossing",
+    build=lambda: _two_leg_approach(_RUN_OVERSTATED, True),
+    op="unchanged", args={},
+    expect=Silence("crosses_through_bound"),
+    neighbour=Neighbour(lambda: _two_leg_approach(_RUN_OVERSTATED, False),
+                        FindingSpec("crosses_through_bound", element="e1",
+                                    magnitude=(35, 0.10)))))
+
+# Blind spot 2, crossings. Zero chord crossings, two drawn ones.
+_register(Mutant(
+    "curved_corner_crossing_miss",
+    build=lambda: _corner_elbow_pair(True),
+    op="unchanged", args={},
+    expect=FindingSpec("crossings_count", magnitude=(2, 0.0)),
+    neighbour=Neighbour(lambda: _corner_elbow_pair(False),
+                        FindingSpec("crossings_count", magnitude=(0, 0.0)))))
+
+# Blind spot 2, corridors — the pin on the FIX, not on the defect. See
+# `_fan_finals`: registering this against the naive segment swap would
+# have failed, which is the whole reason it was designed before the fix.
+_register(Mutant(
+    "curved_parallel_finals_corridor_miss",
+    build=lambda: _fan_finals(6),
+    op="unchanged", args={},
+    expect=FindingSpec("shared_corridor", element="fa+fb",
+                       magnitude=(200, 0.05)),
+    neighbour=Neighbour(lambda: _fan_finals(40),
+                        Silence("shared_corridor"))))
+
+
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
 
@@ -10034,6 +10336,58 @@ class TestMutantCatalogue(unittest.TestCase):
         n = CATALOGUE[mid].neighbour
         mism = n.expect.matches(collect_findings(n.build()))
         self.assertIsNone(mism, "%s neighbour: %s" % (mid, mism))
+
+    def test_mutant_label_anchor_reads_the_arc_not_the_client(self) -> None:
+        """The label is drawn on the corner, inside a box 150px away."""
+        self._run("label_anchor_reads_the_arc_not_the_client")
+
+    def test_neighbour_label_anchor_reads_the_arc_not_the_client(
+            self) -> None:
+        """A box over the arc-length model's answer is not where it is."""
+        self._run_neighbour("label_anchor_reads_the_arc_not_the_client")
+
+    def test_mutant_curved_even_path_moves_the_label(self) -> None:
+        """Curvature moves an even-point label 23.8px, into a box."""
+        self._run("curved_even_path_moves_the_label")
+
+    def test_neighbour_curved_even_path_moves_the_label(self) -> None:
+        """The same Z sharp centres on the chord and clears that box."""
+        self._run_neighbour("curved_even_path_moves_the_label")
+
+    def test_mutant_curved_final_run_hides_interior_crossing(self) -> None:
+        """The drawn curve runs 36px inside where the chord read 27.4."""
+        self._run("curved_final_run_hides_interior_crossing")
+
+    def test_neighbour_curved_final_run_hides_interior_crossing(
+            self) -> None:
+        """The sharp twin at the same points is a genuine negative."""
+        self._run_neighbour("curved_final_run_hides_interior_crossing")
+
+    def test_mutant_curved_final_run_overstates_interior_crossing(
+            self) -> None:
+        """The drawn curve dips 25.6px in, under the gate — no error."""
+        self._run("curved_final_run_overstates_interior_crossing")
+
+    def test_neighbour_curved_final_run_overstates_interior_crossing(
+            self) -> None:
+        """The sharp scene fires at 35px, so the check is alive."""
+        self._run_neighbour("curved_final_run_overstates_interior_crossing")
+
+    def test_mutant_curved_corner_crossing_miss(self) -> None:
+        """Two elbows whose chords miss cross twice once drawn."""
+        self._run("curved_corner_crossing_miss")
+
+    def test_neighbour_curved_corner_crossing_miss(self) -> None:
+        """The sharp pair genuinely does not cross."""
+        self._run_neighbour("curved_corner_crossing_miss")
+
+    def test_mutant_curved_parallel_finals_corridor_miss(self) -> None:
+        """Two curved verticals 6px apart still read as one stroke."""
+        self._run("curved_parallel_finals_corridor_miss")
+
+    def test_neighbour_curved_parallel_finals_corridor_miss(self) -> None:
+        """At 40px apart they are two strokes and stay silent."""
+        self._run_neighbour("curved_parallel_finals_corridor_miss")
 
     def test_mutant_diamond_corner_silence(self) -> None:
         """80px clear of the rhombus, inside its bbox, is now reported."""
@@ -10790,16 +11144,16 @@ UNCOVERED: dict[str, str] = {
     # 2026-08-12: the visualize-skill mine's §(i.4) exposed the stored-width
     # dependency underneath it and `stale_label_width_hides_collision` now
     # proves it from DETECTORS, both poles.)
-    "label_on_foreign_node":
-        "enumerated 2026-08-12; no proving mutant yet — in lint_layout. "
-        "Sharpened by curator batch 19, 2026-08-14: a red DOES pin it "
-        "(TestShapeBlindAnnotationOverlap's arrow-label arm), but that red "
-        "asserts the OVER-FIRE pole — it says the check speaks where it "
-        "should not. Nothing has ever watched it speak where it should, "
-        "with a magnitude, which is what this row means and why the red "
-        "does not drain it. Draining it needs a DETECTORS entry first, and "
-        "that is also the one thing keeping the three-arm shape-blindness "
-        "family in one hand-authored class instead of CATALOGUE.",
+    # (DRAINED 2026-08-15, v0.9 WP4 stage 3: the check took a `DETECTORS`
+    # entry and two proving mutants — `label_anchor_reads_the_arc_not_
+    # the_client` and `curved_even_path_moves_the_label` — in the same
+    # change as the label-anchor rewrite, which is the rule this table
+    # states: the entry lands with the work that needed it. The row is
+    # kept, commented, because the batch-19 ruling below cites it: the
+    # three-arm shape-blindness family stays hand-authored, and the
+    # reason is no longer "no entry exists" but the ruling's own one —
+    # a family may not be split across two homes. Whoever revisits that
+    # ruling should know its stated blocker is gone.)
     # (`annotation_overlaps_node`, canvas.py, left this table on 2026-08-14:
     # `unroled_text_over_node`'s neighbour now proves it from DETECTORS with
     # a magnitude, over the same geometry the mutant itself uses. It is the

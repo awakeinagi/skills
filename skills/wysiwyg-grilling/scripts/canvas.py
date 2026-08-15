@@ -2273,27 +2273,37 @@ def derived_roundness(arrow):
     derived rule is exactly how the file and its own replayed history
     came to disagree permanently about this field (v0.8 WP2).
 
-    Sharp since v0.9 WP4 stage 1 — every elbow used to render `{"type":
-    2}`. A rendered curve bulges off the orthogonal segments the router
-    and every geometry lint reason about, so the drawn line stopped
-    being the computed line (the r5-14 class), and curvature degrades
-    the endpoint judgment that was this round's most repeated
-    complaint. While arrows are sharp, stored geometry IS drawn
-    geometry, which is what makes the stage-2 checks measure the picture
-    the user actually sees. Stage 3 re-introduces curvature per-arrow
-    behind a violation gate, and it lands here — keeping roundness a
-    routing result rather than a second source of truth.
+    Sharp between v0.9 WP4 stage 1 and stage 3, and the reason it went
+    sharp is worth keeping: a rendered curve bulges off the orthogonal
+    segments the router and every geometry lint reason about, so the
+    drawn line stopped being the computed line (the r5-14 class). Stage
+    3 does not re-litigate that argument, it removes its premise. Every
+    check that reads an arrow's shape now reads the FLATTENED path —
+    `crossing_sites`, `shared_corridors`, the interior-run walk, the
+    arrowhead's axis, the label anchor, `render_svg`'s own stroke — so
+    stored geometry no longer has to BE drawn geometry for the checks to
+    measure the picture. Turning curvature on without those four fixes
+    re-opens four unguarded surfaces at once; with them it is a
+    rendering choice again.
+
+    WHICH ARROWS. Three points or more, and no others. `roundness` on a
+    two-point arrow is inert in every direction that matters — roughjs
+    draws a straight line through two points, and the client's label
+    rule takes the `n == 2` branch without consulting it — so stamping
+    it there would write an attribute that changes nothing, on 69 of the
+    corpus's 107 labelled arrows, purely to make the rule sound uniform.
+    Curvature is a property of a TURN; an arrow with no turn declines it.
 
     Args:
         arrow: The routed arrow, with its final `points` already set.
-            Unread while the rule is uniform; it is the seam stage 3's
-            per-arrow gate needs, and reading the arrow at the one
-            derivation site is what keeps that stage a one-line change.
+            Read for its point count — this is the per-arrow seam v0.9
+            WP4 stage 1 left open for exactly this.
 
     Returns:
-        The `roundness` value for `arrow` — None (sharp elbows) today.
+        The `roundness` value for `arrow`: `{"type": 2}` for a route
+        with at least one turn, None for a straight one.
     """
-    return None
+    return {"type": 2} if len(arrow.get("points") or []) >= 3 else None
 
 
 def _snap_geom(arrow):
@@ -6385,17 +6395,44 @@ def render_svg(els, title="", footnotes=False, glossary=None):
         elif et in ("arrow", "line", "freedraw"):
             pts = e.get("points") or [[0, 0]]
             abs_pts = [(x + p[0], y + p[1]) for p in pts]
-            path = " ".join("%f,%f" % p for p in abs_pts)
             # a freehand stroke turns sharply and often, and a miter join
             # throws a long spike off every such corner — the pencil gets
             # round caps and joins, the ruled classes keep the default
             caps = (" stroke-linecap='round' stroke-linejoin='round'"
                     if et == "freedraw" else "")
-            out.append("<polyline points='%s' fill='none' stroke='%s' "
-                       "stroke-width='%s'%s%s/>" % (path, stroke, sw, caps,
-                                                    _svg_dash(e)))
+            # A ROUNDED path is painted as the same Catmull-Rom Beziers
+            # the client draws, from the same helper. This export is not
+            # decoration: it is the only picture the agent ever sees of
+            # its own drawing, and every label measurement in `lint_
+            # layout` is taken against it. While it emitted a polyline
+            # for a rounded arrow the export painted sharp corners the
+            # canvas did not draw, which silently invalidates every one
+            # of those measurements (blind-spot 4 spike, pin 5). A sharp
+            # arrow keeps the polyline verbatim, so nothing in the
+            # sharp world moves by a pixel.
+            spans = (_bezier_spans(abs_pts)
+                     if et in ("arrow", "line") and e.get("roundness")
+                     and len(abs_pts) > 2 else None)
+            if spans:
+                d = ("M %f,%f " % abs_pts[0]) + " ".join(
+                    "C %f,%f %f,%f %f,%f"
+                    % (b1[0], b1[1], b2[0], b2[1], b3[0], b3[1])
+                    for (_b0, b1, b2, b3) in spans)
+                out.append("<path d='%s' fill='none' stroke='%s' "
+                           "stroke-width='%s'%s%s/>"
+                           % (d, stroke, sw, caps, _svg_dash(e)))
+            else:
+                path = " ".join("%f,%f" % p for p in abs_pts)
+                out.append("<polyline points='%s' fill='none' stroke='%s' "
+                           "stroke-width='%s'%s%s/>"
+                           % (path, stroke, sw, caps, _svg_dash(e)))
             if et == "arrow" and e.get("endArrowhead") and len(abs_pts) > 1:
-                (x1, y1), (x2, y2) = abs_pts[-2], abs_pts[-1]
+                # the head goes along the DRAWN secant the client uses
+                # (`_arrival_path`), which on a sharp arrow is the final
+                # chord and on a curved one is nothing like it
+                (x2, y2) = abs_pts[-1]
+                _aseq, from_pt = _arrival_path(e, True)
+                (x1, y1) = from_pt if from_pt is not None else abs_pts[-2]
                 dx, dy = x2 - x1, y2 - y1
                 ln = (dx * dx + dy * dy) ** 0.5 or 1
                 ux, uy = dx / ln, dy / ln

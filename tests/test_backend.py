@@ -2834,11 +2834,13 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
                    if e["id"] == "pull-market-data-label")
         self.assertEqual((lbl["width"], lbl["height"]), (153, 20))
 
-    def test_curved_era_arrows_load_sharp_and_mint_nothing(self):
-        # v0.9 WP4 stage 1. This fixture was frozen while every elbow
-        # rendered {"type": 2}, so it is the switch's real subject: six
-        # curved arrows sit on disk, and the flip only reaches them
-        # because `rebuild_bound_elements` re-derives roundness at load.
+    def test_the_roundness_rule_reaches_disk_and_mints_nothing(self):
+        # v0.9 WP4 stages 1 and 3. This fixture was frozen while every
+        # elbow rendered {"type": 2}, so it is the switch's real
+        # subject, in BOTH directions: it went sharp at stage 1 and
+        # comes back curved at stage 3, and either flip only reaches an
+        # arrow on disk because `rebuild_bound_elements` re-derives
+        # roundness at load.
         #
         # The load-time re-derivation is the r5-13 hazard — a load-time
         # repair that moves geometry mints a reconciliation on EVERY
@@ -2862,11 +2864,37 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
                             if e.get("type") in ("arrow", "line")),
                         "fixture is no longer curved-era — this test would "
                         "pass without proving anything")
+        # This fixture cannot witness the PROPAGATION on its own — it was
+        # frozen under a rule that agrees with the current one arrow for
+        # arrow — so the re-derivation is proved directly below and this
+        # test keeps the half only a real project can show: that the
+        # propagation mints nothing.
+        both = [{"id": "s", "type": "arrow", "x": 0, "y": 0,
+                 "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
+                {"id": "e", "type": "arrow", "x": 0, "y": 0,
+                 "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
+        for a in both:
+            a["customData"] = {"routed": canvas._route_sig(a)}
+        canvas.rebuild_bound_elements(both)
+        self.assertIsNone(both[0]["roundness"], "a straight route kept a "
+                                                "curvature it did not earn")
+        self.assertEqual(both[1]["roundness"], {"type": 2},
+                         "a route with a turn was not re-curved at load")
         for aid, els in self.store.scenes.items():
             for e in els:
-                if e.get("type") in ("arrow", "line"):
-                    self.assertIsNone(e.get("roundness"),
-                                      "%s/%s loaded curved" % (aid, e["id"]))
+                if e.get("type") not in ("arrow", "line"):
+                    continue
+                # the DERIVED value, whatever the rule currently is, and
+                # never the frozen one: a straight route declines
+                # curvature, a route with a turn takes it
+                want = canvas.derived_roundness(e)
+                self.assertEqual(e.get("roundness"), want,
+                                 "%s/%s carries %r, not the derived %r"
+                                 % (aid, e["id"], e.get("roundness"), want))
+                self.assertEqual(
+                    e.get("roundness") is None,
+                    len(e.get("points") or []) < 3,
+                    "%s/%s: only a turn earns curvature" % (aid, e["id"]))
         self.assertEqual(self.store.scene_repairs, [])
         self.assertIsNone(self.store.catch_up())
         store2 = canvas.Store(self.project)
@@ -7316,12 +7344,14 @@ class TestRouterTotalityAndSelfLoops(Base):
         self.assertEqual(len(arrow["points"]), 5)
         self.assertEqual(arrow["startBinding"]["elementId"], "n1")
         self.assertEqual(arrow["endBinding"]["elementId"], "n1")
-        # SHARP since v0.9 WP4 stage 1 (was {"type": 2}). The self-loop
-        # is the most-elbowed path the router makes, and it is the one
-        # r5-14 named: curved, its erased corner left two truncated arcs
-        # a cold observer called "a stray L-shaped stub", where two
-        # right-angled stubs are completed by the eye.
-        self.assertIsNone(arrow["roundness"])
+        # CURVED again since v0.9 WP4 stage 3, and this is the path that
+        # made stage 1 go sharp: r5-14 called the self-loop's erased
+        # corner "a stray L-shaped stub". What changed is not the taste
+        # but the instruments — the label anchor, the interior-run walk
+        # and `render_svg` all read the flattened path now, so the erased
+        # corner is measured where it is drawn. Five points, so the
+        # per-arrow rule takes it.
+        self.assertEqual(arrow["roundness"], {"type": 2})
 
     def test_self_loop_reroute_is_idempotent(self):
         # The F1/obstacle post-passes call route_arrow again; a loop must
