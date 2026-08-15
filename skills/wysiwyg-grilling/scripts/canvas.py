@@ -3287,25 +3287,26 @@ def _client_label_point(arrow):
 def arrow_label_slot(arrow, label):
     """Where we STORE a bound arrow label, as (x, y).
 
-    The arc midpoint, biased off any turn that would sit under the label
-    (`_label_off_corner`, v0.9 WP4 / `r5-14`). It moves nothing on a
-    straight arrow and nothing on an elbow whose legs are unbalanced
-    enough to put the midpoint clear of the turn; where it does move,
-    the export stops painting an opaque backdrop over the elbow and the
-    connector stops reading as two disconnected stubs.
+    The client's anchor, biased off any turn that would sit under the
+    label (`_label_off_corner`, v0.9 WP4 / `r5-14`). It moves nothing on
+    a straight arrow, and on an ODD-point path it moves ALWAYS, because
+    the client centres those on the middle vertex and the middle vertex
+    is a turn. Where it moves, the export stops painting an opaque
+    backdrop over the elbow and the connector stops reading as two
+    disconnected stubs.
 
     **This is not where the client draws the label** — that is
-    `arrow_label_anchor`, and on a biased label the two differ by up to
-    the clearance (half the label's extent along the run, plus
-    `LABEL_CORNER_PAD`; see `_label_off_corner` for the measured
-    bound). Ten of the corpus's 72 bound arrow labels are in that
-    population, 13 to 49px apart. The divergence is real and has a cost: it is
-    the export and the canvas disagreeing, which is the R2-8 shape at
-    small amplitude. It buys the export's legibility, the checks read
-    BOTH positions so neither channel can hide an overlap
+    `arrow_label_anchor`, and on a biased label the two differ by the
+    shortest slide along the drawn path that clears the turn (see
+    `_label_off_corner` for the bound and its caveats). Twelve of the
+    corpus's 72 bound arrow labels are in that population, 18.0 to
+    29.3px apart, measured 2026-08-15. The divergence is real and has a
+    cost: it is the export and the canvas disagreeing, which is the R2-8
+    shape at small amplitude. It buys the export's legibility, the
+    checks read BOTH positions so neither channel can hide an overlap
     (`label_boxes` in `lint_layout`), and closing it for good means
-    biasing the PATH so its own arc midpoint clears the turn — a router
-    change, and a backlog row, not this function's job.
+    biasing the PATH so the client's own anchor clears the turn — a
+    router change, and a backlog row, not this function's job.
 
     Args:
         arrow: The arrow/line element, with `x`, `y` and `points`.
