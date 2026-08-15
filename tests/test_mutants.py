@@ -2122,7 +2122,7 @@ class TestShapeBlindPairOverlap(unittest.TestCase):
     directly above it — the one that says "overlap — separate them" and
     "grew to fit its label" — was blind in the same way and pinned by
     nothing, so a fix that taught the crowding arm and stopped would have
-    turned both catalogue entries green with a 60x60 box sitting in 80px
+    turned both catalogue entries green with a 40x40 box sitting in 120px
     of empty canvas still reported as an overlap.
 
     Outside `CATALOGUE` for the reason its sibling class states: both
@@ -2137,7 +2137,13 @@ class TestShapeBlindPairOverlap(unittest.TestCase):
     added by the same task is also called `shape_overlap`. They are the
     same measurement seen from the two sides — the function computes what
     the check reports — and they live in different namespaces, but a
-    curator grepping one will land on the other.
+    curator grepping one will land on the other. That is the whole cost,
+    measured rather than assumed (Task 56 review, F6): a
+    `Silence("shape_overlap")` written by mistake does NOT slip through,
+    because `TestCoverage.test_every_expected_check_has_a_detector_or_
+    is_declared` refuses any catalogue entry naming a check nothing can
+    answer, on both `expect` and `neighbour.expect`. Disclosure is
+    therefore the right-sized response and no rename is owed.
     """
 
     def test_a_small_box_on_the_rhombus_body_is_reported(self) -> None:
@@ -2188,7 +2194,7 @@ class TestShapeBlindPairOverlap(unittest.TestCase):
         """
         self.assertEqual(
             _says_overlap(_void_pair(on_body=False, grown=True)), [],
-            "the grown arm reports an overlap across 80px of clear canvas")
+            "the grown arm reports an overlap across 120px of clear canvas")
 
     def test_the_quarter_bar_is_measured_against_the_DRAWN_area(
             self) -> None:
@@ -2242,6 +2248,97 @@ class TestShapeBlindPairOverlap(unittest.TestCase):
             "overlapping it")
         self.assertTrue(
             _says_overlap(_void_pair(on_body=True, kind="ellipse")))
+
+
+def _dense_axis_overlap(a: dict, b: dict, axis: str,
+                        samples: int = 2001) -> float | None:
+    """The widest facing overlap of two bodies, by exhaustive sampling.
+
+    An INDEPENDENT reference for `_axis_overlap` (canvas.py), which finds
+    the same quantity by ternary search. It shares `shape_span` — the
+    thing being checked is the search, not the geometry underneath it —
+    but it makes no convexity assumption and has no tolerance, so a
+    search that stops early lands measurably below it.
+
+    Args:
+        a: One element.
+        b: The other.
+        axis: `"x"` or `"y"`.
+        samples: How many positions to probe across the facing band.
+
+    Returns:
+        The widest signed overlap found, or None if the boxes share no
+        band on the other axis.
+    """
+    other = "y" if axis == "x" else "x"
+    alo, ahi = canvas._extent(a, other)
+    blo, bhi = canvas._extent(b, other)
+    lo, hi = max(alo, blo), min(ahi, bhi)
+    if hi < lo:
+        return None
+    best = None
+    for i in range(samples):
+        u = lo + (hi - lo) * i / (samples - 1)
+        sa, sb = canvas.shape_span(a, axis, u), canvas.shape_span(b, axis, u)
+        if sa is None or sb is None:
+            continue
+        v = min(sa[1], sb[1]) - max(sa[0], sb[0])
+        if best is None or v > best:
+            best = v
+    return best
+
+
+class TestShapeOverlapFindsTheMaximum(unittest.TestCase):
+    """`_OVERLAP_TOL` cannot loosen without saying so (Task 56 review, F4).
+
+    Every other pin over this primitive reads an INTEGER magnitude out of
+    a lint sentence, so the search could lose most of a pixel and every
+    one of them would stay green. Measured in the review: the tolerance
+    could go from 0.01 to 5.0 — 500x — with all 933 tests passing, and
+    only 25.0 turned anything red. A number nothing measures is a number
+    that will drift.
+
+    The assertion is ONE-SIDED on purpose. Both forms hunt the same
+    maximum of a concave function; a dense scan is a guaranteed LOWER
+    bound on it (it can only miss the peak between samples), so a healthy
+    search must come in at or above the scan, and a search that stops
+    early comes in below. Comparing the two directions would instead
+    measure the scan's own sampling error, which is not the subject.
+
+    Headroom, measured: the shipped 0.01 lands 0.002px under the scan
+    across these five pairs; 0.5 lands 0.21 under, 1.0 lands 0.46 under,
+    5.0 lands 1.50 under. The 0.05 bar below therefore has 25x of room at
+    the shipped value and catches every loosening the review tried.
+    """
+
+    #: Pairs chosen to stress the search rather than the geometry. The
+    #: first is the configuration that killed the candidate-set
+    #: prototype the diamond spike rejected: two rhombi at half a width's
+    #: offset peak where their FACETS CROSS, which is neither band end
+    #: nor either centre line, and reading only those four points gave 0
+    #: for a pair overlapping by 50px.
+    PAIRS = (("diamond", 0, 0, 200, 200, "diamond", 100, 40, 200, 200),
+             ("ellipse", 0, 0, 160, 240, "ellipse", 68, 80, 160, 240),
+             ("diamond", 0, 0, 200, 120, "ellipse", 90, 30, 140, 180),
+             ("ellipse", 0, 0, 240, 100, "rectangle", 70, 20, 120, 120),
+             ("diamond", 0, 0, 100, 300, "diamond", 40, 150, 300, 100))
+
+    def test_the_search_never_lands_below_a_dense_scan(self) -> None:
+        """The ternary search finds the band's true widest facing row."""
+        for ka, ax, ay, aw, ah, kb, bx, by, bw, bh in self.PAIRS:
+            a = {"type": ka, "x": ax, "y": ay, "width": aw, "height": ah}
+            b = {"type": kb, "x": bx, "y": by, "width": bw, "height": bh}
+            for axis in ("x", "y"):
+                ref = _dense_axis_overlap(a, b, axis)
+                if ref is None:
+                    continue
+                got = canvas._axis_overlap(a, b, axis)
+                self.assertGreaterEqual(
+                    got, ref - 0.05,
+                    "%s/%s on %s: the search found %.4f where a 2001-point "
+                    "scan of the same band found %.4f — it is stopping "
+                    "before the maximum (_OVERLAP_TOL)"
+                    % (ka, kb, axis, got, ref))
 
 
 def _elbow_label_stage(balanced: bool, box_at: str) -> list[dict]:
@@ -8364,8 +8461,9 @@ def _clearance_pair_shaped(kind: str) -> list[dict]:
                customData={"role": "node"})]
 
 
-def _crowded_pair_shaped(dx: int, dy: int) -> list[dict]:
-    """Two 100x100 rhombi, the second offset by `(dx, dy)`.
+def _crowded_pair_shaped(dx: int, dy: int,
+                         kind: str = "diamond") -> list[dict]:
+    """Two 100x100 shapes, the second offset by `(dx, dy)`.
 
     A rhombus is the L1 ball of radius 50 about its centre, so the clear
     space between two of them along the facing axis is exactly
@@ -8375,6 +8473,14 @@ def _crowded_pair_shaped(dx: int, dy: int) -> list[dict]:
     `offgrid_elements` note and a mutant whose base and control differ in
     something other than the defect is a confound.
 
+    `kind` exists for one configuration the rhombus CANNOT express: the
+    diagonal stagger where the outlines clear on both axes at once. Under
+    the L1 metric the gap is the same number along either axis, so a
+    rhombus reads identically however the arm picks between them — and
+    that is exactly why the arm's axis choice went unwatched. On the
+    conic the two axes disagree, and the difference is a whole class of
+    near-miss (v0.9 Task 56 fix round 1, F1).
+
     The offsets in play, and what each is for:
 
         (56, 48)   4px apart, and their BOXES overlap by 44x52
@@ -8383,26 +8489,32 @@ def _crowded_pair_shaped(dx: int, dy: int) -> list[dict]:
         (160, 160) 220px apart — a layout, and the silent pole
         (0, 56)    overlapping: 44x44 of drawn ink, 1936px²
         (0, 72)    overlapping: 28x28 of drawn ink, 784px²
+        (68, 80)   ELLIPSE: boxes overlap 32x20, outlines 6.68px apart
+        (68, 88)   ELLIPSE: boxes overlap 32x12, outlines 14.68px apart
 
-    The last two are the overlap arm's quarter-area bar read from both
-    sides, and they land on opposite sides of it for opposite reasons.
-    The bar is 1250px² against the drawn rhombus and 2500 against its
-    box. At (0,56) the drawn patch clears the drawn bar but not the box
-    one, so it is the DENOMINATOR that decides; at (0,72) the drawn patch
-    misses both bars while the boxes' 100x28 clears the box one, so it is
-    the NUMERATOR that decides. Nothing else in the suite separates the
-    two halves of that ratio.
+    (0,56) and (0,72) are the overlap arm's quarter-area bar read from
+    both sides, and they land on opposite sides of it for opposite
+    reasons. The bar is 1250px² against the drawn rhombus and 2500
+    against its box. At (0,56) the drawn patch clears the drawn bar but
+    not the box one, so it is the DENOMINATOR that decides; at (0,72) the
+    drawn patch misses both bars while the boxes' 100x28 clears the box
+    one, so it is the NUMERATOR that decides. Nothing else in the suite
+    separates the two halves of that ratio.
+
+    The last two are the diagonal pair, and they share `dx` so the
+    stagger is the only variable between them.
 
     Args:
-        dx: The second rhombus's x offset from the first.
+        dx: The second shape's x offset from the first.
         dy: Its y offset.
+        kind: Both shapes' Excalidraw type.
 
     Returns:
         The two-element scene: nodes `n1` and `n2`.
     """
-    return [el(id="n1", type="diamond", x=0, y=0, width=100, height=100,
+    return [el(id="n1", type=kind, x=0, y=0, width=100, height=100,
                customData={"role": "node"}),
-            el(id="n2", type="diamond", x=dx, y=dy, width=100, height=100,
+            el(id="n2", type=kind, x=dx, y=dy, width=100, height=100,
                customData={"role": "node"})]
 
 
@@ -8798,12 +8910,13 @@ def _crossing_tail() -> list[dict]:
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
 # re-measured 2026-08-15 after v0.9 Task 56, `mutants list --red` reports
-# 6 (of 29 entries) while this file carries 16 expectedFailure methods. Task
+# 6 (of 30 entries) while this file carries 16 expectedFailure methods. Task
 # 56 moved BOTH halves down at once, which no earlier change had done: it
 # flipped one catalogue red (`diamond_clearance_overfire`) and all three of
 # `TestShapeBlindAnnotationOverlap`'s, emptying that class, and it added
-# three catalogue entries that landed GREEN — so 7/20 became 6/16 while the
-# catalogue grew. Batch 21 just before it had gone the other way (one
+# four catalogue entries that landed GREEN (the fourth,
+# `diagonal_ellipses_near_miss`, in its review's fix round) — so 7/20 became
+# 6/16 while the catalogue grew. Batch 21 just before it had gone the other way (one
 # catalogue red and five hand-authored across three new classes, 6/14 to
 # 7/20, the largest single-batch addition this census has recorded), which
 # together are the reminder that the two halves do not move together and
@@ -9495,6 +9608,31 @@ _register(Mutant(
                         FindingSpec("min_clearance", element="n2",
                                     magnitude=(4, 0.33)))))
 
+# The DIAGONAL stagger, which the two entries above cannot reach and
+# which nothing in this file could see until the Task 56 review measured
+# it (fix round 1, F1). When two outlines clear on BOTH axes at once, the
+# arm has to pick which separation to report, and picking the farther one
+# is silent — it does not speak wrongly, it just says nothing.
+#
+# It takes an ELLIPSE to observe, and that is the finding rather than a
+# detail of it. A rhombus is an L1 ball, so its two axis gaps are the
+# same number and every rhombus pin reads identically whichever axis the
+# arm picks; all three entries above are rhombus pairs, and all three
+# stayed green through a form that missed 96 of 294 conic near-misses on
+# a 2px sweep — every one of the 96 a true gap inside the floor, measured
+# against brute-force outline distance.
+#
+# Here the boxes overlap 32x20 while the drawn outlines clear by 6.68px
+# on the axis the pair actually faces across, and by 8.00px on the axis
+# it does not. Reporting the second is the whole defect.
+_register(Mutant(
+    "diagonal_ellipses_near_miss",
+    build=lambda: _crowded_pair_shaped(68, 80, kind="ellipse"),
+    op="unchanged", args={},
+    expect=FindingSpec("min_clearance", element="n2", magnitude=(6, 0.2)),
+    neighbour=Neighbour(lambda: _crowded_pair_shaped(68, 88, kind="ellipse"),
+                        Silence("min_clearance"))))
+
 # Legibility — three RED BY ABSENCE mutants over one base scene
 # (docs/todo/contrast-and-min-font-lints.md, user-directed 2026-08-12;
 # independently corroborated by the excalidraw-mcp mine O4/M5). Ops allow
@@ -10013,6 +10151,28 @@ class TestMutantCatalogue(unittest.TestCase):
         half alone.
         """
         self._run_neighbour("stacked_diamonds_near_miss")
+
+    def test_mutant_diagonal_ellipses_near_miss(self) -> None:
+        """Two circles clear on both axes are reported on the nearer one.
+
+        The three rhombus entries above cannot see this: L1 geometry
+        gives a rhombus the same gap along either axis, so they read
+        identically whichever the arm picks. These circles clear by
+        6.68px on the axis they face across and 8.00px on the axis they
+        do not, and only one of those is what a reader sees.
+        """
+        self._run("diagonal_ellipses_near_miss")
+
+    def test_neighbour_diagonal_ellipses_near_miss(self) -> None:
+        """The same pair staggered 8px further is clear, and stays quiet.
+
+        Same `dx`, so the stagger is the only variable, and the boxes
+        still overlap — the pair takes the identical path through the
+        loop and differs only in whether the outlines are inside the
+        floor. A fix that reported the nearer axis unconditionally, or
+        that dropped the floor, fails here.
+        """
+        self._run_neighbour("diagonal_ellipses_near_miss")
 
     @unittest.expectedFailure
     def test_mutant_gray_text_on_ground(self) -> None:
@@ -10534,9 +10694,14 @@ UNCOVERED: dict[str, str] = {
         "`if`. NAME COLLISION, stated so it is not read as one: "
         "canvas.py grew a `shape_overlap` FUNCTION in that task, and it "
         "is the geometry this check reports on rather than a second "
-        "meaning — but a `Silence(\"shape_overlap\")` written by someone "
-        "who greps the function will still pass vacuously, which is "
-        "exactly what this row exists to warn about.",
+        "meaning. The confusion is real; the CORRUPTION is not, and the "
+        "Task 56 review measured the difference — registering a "
+        "`Silence(\"shape_overlap\")` here fails "
+        "`TestCoverage.test_every_expected_check_has_a_detector_or_is_"
+        "declared` twice, once for `expect` and once for "
+        "`neighbour.expect`, whose own message names the vacuously-green "
+        "case. So the hazard is a reader landing on the wrong symbol, "
+        "not a pin that silently proves nothing.",
     "annotation_budget":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     # (`label_label_overlap`, canvas.py, left this table on

@@ -95,12 +95,23 @@ the text/node bbox checks in three arms, and `min_clearance`) are green. Task
 56 landed the last of it — `shape_overlap`/`shape_span`/`shape_area` in
 canvas.py, called from the text loop, the arrow-label loop and the shape pair
 loop, the three sites `_seg_hits_rect` and `marker_inset`'s callers never
-reached. It left NINE new pins behind (three catalog entries —
+reached. It left TWELVE new pins behind (four catalog entries —
 `ellipse_clearance_overfire`, `boxed_overlap_hides_a_near_miss`,
-`stacked_diamonds_near_miss` — and the hand-authored
-`TestShapeBlindPairOverlap`, plus the rhombus and shoulder-clip arms in
-`TestShapeBlindAnnotationOverlap`), all green, each verified to be the sole
-failure under a defect of its own. What is NOT closed is the WRITE/RENDER
+`stacked_diamonds_near_miss`, `diagonal_ellipses_near_miss` — and the
+hand-authored `TestShapeBlindPairOverlap` and
+`TestShapeOverlapFindsTheMaximum`, plus the rhombus and shoulder-clip arms
+in `TestShapeBlindAnnotationOverlap`), all green, each verified to be the
+sole failure under a defect of its own. Two of those came out of the
+review's fix round and are worth knowing about as a pattern: the near-miss
+arm has to choose WHICH axis to report a gap on, and a rhombus reads the
+same either way — so a wrong choice was invisible to every rhombus pin and
+took a diagonally-staggered ELLIPSE to see (96 of 294 conic near-misses
+silent). Separately, `_OVERLAP_TOL` could loosen 500x with the whole suite
+green, because every other pin reads an INTEGER out of a lint sentence;
+`TestShapeOverlapFindsTheMaximum` now holds the search against a dense
+scan. **When adding a shape pin, ask what the rhombus cannot express.**
+
+What is NOT closed is the WRITE/RENDER
 tier the ellipse spike's §10 found: three places that PLACE a glyph off a
 bbox corner (`render_svg`'s footnote marker, `cmd_x_as_user`'s `ask` pin,
 `pin_spot`'s collision fallback) still drop markers into an ellipse's void,

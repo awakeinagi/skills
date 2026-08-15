@@ -7340,6 +7340,20 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # flags; closing it means moving the shape term ahead of
                 # the gate and paying for it on every O(n²) pair.
                 band, gap = max(box_ox, box_oy), -min(ox, oy)
+                if ox < 0 and oy < 0:
+                    # Clear on BOTH axes — the diagonal stagger, where
+                    # `-min` would answer about the axis the pair does
+                    # NOT face across and report the FARTHER of the two
+                    # separations. The box picks the axis here for the
+                    # same reason it picks the band: a wider shared box
+                    # band on x means they are stacked, so the gap a
+                    # reader sees is the one on y. Measured over a 2px
+                    # sweep of a 100x100 pair, reading `-min` here misses
+                    # 96 of 294 conic near-misses, every one of them a
+                    # true gap inside the floor (0.45-7.00px); the
+                    # rhombus is exact either way, which is why it took a
+                    # diagonally-staggered ELLIPSE to see it at all.
+                    gap = -(oy if box_ox > box_oy else ox)
                 if band <= CLEARANCE_BAND or not 0 < gap < CLEARANCE_FLOOR:
                     continue      # corner-to-corner, flush, or clear
                 # slugified in the KEY (a registry token, following the
