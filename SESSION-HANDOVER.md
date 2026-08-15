@@ -63,17 +63,23 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** Re-measured 2026-08-14
-after curator batch 20 (Task 24 flipped `long_run_curve_hides_bidi` and
+**What is red, and why that is the deliverable.** Re-measured 2026-08-15
+after curator batch 21 (Task 24 flipped `long_run_curve_hides_bidi` and
 `phantom_passthrough_shared_attach`, taking the model count 16 → 14; batch
-20 then added one, taking it to 15 — read the split, never the total):
-**15 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
-`expected failures=15` default and `=19` under `MUTANTS_RENDER=1`. That splits as 6 catalog reds (`mutants list --red` is
-authoritative) plus **9 non-catalog reds across four guarded classes** —
-LoadFindings 4, ShapeBlind 3, BatchPath 1, and `TestSnapshotTierOne` 1,
+20 then added one and batch 21 added six — read the split, never the total):
+**21 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
+`expected failures=21` default and `=25` under `MUTANTS_RENDER=1`. That splits as 7 catalog reds (`mutants list --red` is
+authoritative) plus **14 non-catalog reds across seven guarded classes** —
+LoadFindings 4, ShapeBlind 3, LabelAnchor 2, ReplayOrder 2, BatchPath 1,
+CornerBias 1, and `TestSnapshotTierOne` 1,
 the last living in `tests/test_backend.py` rather than with the others —
 enumerated with reasons at the `CATALOGUE` pointer in tests/test_mutants.py.
 Export, Store and PaintOrder have all drained to zero and left that list.
+Batch 21's six are the biggest single-batch addition on record and none of
+them has an owner yet: the r5b-2 cache/replay drift (2, addendum wave), the
+bound-label anchor model (2, addendum wave / label model port), the headless
+e1 chain (1, Task 24 follow-up) and the corner bias's collinear-waypoint
+over-fire (1, owner of `_label_off_corner`).
 Each red
 seeds a known defect and asserts what the detector *should* say, so v0.9 has
 an executable definition of done. **Drain them to zero, flipping each in the
@@ -217,13 +223,20 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. 18 detectors today (re-measured 2026-08-14 after curator batch
-  20): **15 proven, 3 render-tier, 0 UNCOVERED**. `crosses_through_bound` was
+  a reason. 18 detectors today (re-measured 2026-08-15 after curator batch
+  21): **15 proven, 3 render-tier, 0 UNCOVERED**. `crosses_through_bound` was
   the last unproven row and the only one left from day one; batch 20 drained
   it with `tolerable_gap_hides_interior_run`. Every registered detector now
   has something watching it speak — so the next `DETECTORS` entry added
   without a mutant will be the ONLY row in the table, which is the loudest
-  this gate has ever been. Keep it that way.
+  this gate has ever been. Keep it that way. Batch 21 fixed a hole in the
+  EVIDENCE column while adding to it: `coverage_table` counted a red
+  mutant's own `FindingSpec` as proof, so a red sorting before the green
+  proof silently displaced it and the row went on saying "proven" while
+  citing the entry that asserts the check is SILENT. It had already
+  happened once unnoticed (`crosses_through_bound`, whose row stands on its
+  neighbour). A red's own expectation no longer counts; a NEIGHBOUR's still
+  does, since neighbours are ungated. No status moved.
 - `python3 tests/test_mutants.py --sweep` — the discovery sweep. Current
   state: **8 cells run, 7 skipped, 1 survivor**
   (`move_node_onto_rank:chain:ebb2e1f6`, phantom pass-through, dispositioned

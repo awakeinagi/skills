@@ -1968,6 +1968,295 @@ class TestShapeBlindAnnotationOverlap(unittest.TestCase):
             "landing on it")
 
 
+def _elbow_label_stage(balanced: bool, box_at: str) -> list[dict]:
+    """An L-elbow with a bound label, and a foreign box on one candidate spot.
+
+    Three elements, no more: the arrow, its bound label, and the box the
+    label may or may not be sitting in. Both elbows turn at a round
+    coordinate, the label is a round 40x20, and the box is always 40x30
+    offset `(+5, +2)` from the spot it is testing — so the ONLY thing
+    that differs between the healthy scene and the two reds is the leg
+    lengths and which candidate position the box is placed on.
+
+    `balanced` picks 200+200 legs, where the arc-length midpoint IS the
+    corner and both models name the same point (300, 300); the box then
+    covers the one position everyone agrees on. Unbalanced picks 400+100,
+    where the client centres on the corner (500, 100) and
+    `arrow_label_anchor` returns the arc midpoint (350, 100) — 150px
+    apart, one label 40px wide, so the two boxes they imply do not touch.
+
+    The box is always placed 2px BELOW the arrow's own y origin so it
+    clears the horizontal stroke, and 5px past the corner in x so it
+    clears the vertical one. That matters: a box centred on the corner
+    gets caught by the unrelated "arrow passes through this box" check
+    (the corner vertex is a point on the stroke), which would make the
+    red below pass for a reason that has nothing to do with labels.
+
+    Args:
+        balanced: True for 200+200 legs (the models agree), False for
+            400+100 (they diverge by 150px).
+        box_at: `"drawn"` to put the box on the corner the client paints
+            the label on, `"anchor"` to put it on `arrow_label_anchor`'s
+            arc midpoint.
+
+    Returns:
+        The three-element scene: arrow `ax`, label `t1`, node `foreign`.
+    """
+    if balanced:
+        ox, oy, pts, corner = 100, 300, [[0, 0], [200, 0], [200, 200]], 300
+    else:
+        ox, oy, pts, corner = 100, 100, [[0, 0], [400, 0], [400, 100]], 500
+    arrow = el(id="ax", type="arrow", x=ox, y=oy, width=pts[-1][0],
+               height=pts[-1][1], points=pts, customData={"role": "edge"},
+               boundElements=[{"id": "t1", "type": "text"}])
+    label = el(id="t1", type="text", x=0, y=0, width=40, height=20,
+               text="probe", fontSize=16, containerId="ax",
+               originalText="probe")
+    spot = corner if box_at == "drawn" else (
+        canvas.arrow_label_anchor(arrow, label)[0] + 20)
+    return [arrow, label,
+            el(id="foreign", type="rectangle", x=spot + 5, y=oy + 2,
+               width=40, height=30, customData={"role": "node"})]
+
+
+# ---------------------------------------------------------------------------
+# R2-8 RE-OPENED — the bound-label anchor names a point the client does not
+# draw on (curated 2026-08-15 from `spike-row26-verify.md`, which built this
+# configuration in a real browser, and `spike-blind1-label-anchor.md`, which
+# measured the client's whole rule).
+#
+# `arrow_label_anchor` walks arc length over the path and centres the label
+# on the halfway point. The client does not do that in any branch. It
+# branches on the PARITY of `points.length`: odd -> the raw middle vertex,
+# converted to global coords, with leg lengths never entering; `n == 2` ->
+# the midpoint; even `n >= 4` -> the chord midpoint of the one middle
+# segment, or that span's bezier arc midpoint under roundness. Whole-path
+# arc length is used nowhere. On a 3-point elbow the client therefore
+# centres on the CORNER, unconditionally, and the more unbalanced the legs
+# the further that is from the arc midpoint we measure.
+#
+# Confirmed by live measurement, not by reading the bundle: the unbalanced
+# elbow below was seeded through `canvas.py apply`, loaded in the real app,
+# and `window.excalidrawAPI.getSceneElements()` reported the label centred
+# at (500, 100) — the corner, to the pixel — where `arrow_label_anchor`
+# says (350, 100). A ported parity rule reproduces the client at 0.0000px
+# at `roughness=0` on every probe shape.
+#
+# CORPUS COST, and the reason this is not a curiosity: 107 bound arrow
+# labels across the 58 artifacts on this branch. 69 sit on straight 2-point
+# arrows where every model agrees, which is why the median divergence is
+# 0.0px and why five assessment rounds saw nothing. Of the 38 on
+# multi-segment arrows, 37 are mislocated by more than 8px — max 331px, on
+# `r-object-grouping` — today, with no curvature anywhere in the build. The
+# "10 of 72, 13-49px" recorded in `arrow_label_slot`'s own docstring
+# compares two server-side estimates against each other; neither of them
+# against the thing on screen.
+#
+# BOTH DIRECTIONS ARE PINNED because one model error produces two opposite
+# failures and a fix that buys one by selling the other is not a fix: the
+# check is silent where the label really is, and it fires where the label
+# is not. The live half is the balanced elbow, where the two models happen
+# to coincide — that is the ONLY configuration in which today's code and
+# the client name the same point, so it is the only honest healthy scene
+# available, and it is what stops a check that has simply died from reading
+# as either red flipping.
+#
+# Owner: addendum wave (label model port). Not the curator's: the fix
+# replaces `_arc_midpoint` on the label path with the client's parity rule
+# in `canvas.py`, and it has a coordination cost with `_label_off_corner`
+# worth knowing before anyone starts — once the base point is the corner,
+# that function's `clear()` gate is False by construction on every 3-point
+# elbow, taking its bias from 10 corpus labels to 36.
+# ---------------------------------------------------------------------------
+
+
+class TestLabelAnchorAgainstTheDrawnPosition(unittest.TestCase):
+    """The lint measures a point on the path; the client paints the corner."""
+
+    def test_a_box_on_the_agreed_position_is_reported(self) -> None:
+        """The live half: balanced legs, one position, and the check fires.
+
+        Ungated and asserted in every commit. Both reds below are claims
+        about WHERE the check looks, and neither could tell "looks in the
+        wrong place" apart from "does not look at all" on its own — a
+        `label_on_foreign_node` that stopped emitting the warning
+        entirely would turn the first red green and read as the fix. On
+        200+200 legs the arc midpoint IS the corner, so this scene is the
+        same three elements with the disagreement removed.
+        """
+        self.assertTrue(_says_lies_on(_elbow_label_stage(
+            balanced=True, box_at="drawn")))
+
+    @unittest.expectedFailure
+    def test_red_a_box_on_the_drawn_label_is_not_reported(self) -> None:
+        """The label sits inside the box on screen and the lint says nothing.
+
+        RED BY ASSERTION — the direction is a MISS, and the magnitude is
+        the whole divergence: the client draws the label centred on the
+        corner (500, 100), box `[480,520]x[90,110]`, and `foreign` at
+        `[505,545]x[102,132]` covers 15px of it in x and 8px in y, both
+        past this check's own `>8`/`>4` thresholds. Both channels
+        `label_boxes` measures — anchor and slot — sit at (330, 90), 150px
+        away, so the check compares the box against empty canvas and
+        passes. This exact scene was built in a running browser and
+        observed silent while the label was visibly inside the box.
+
+        The box is deliberately clear of both stroke segments. Centred on
+        the corner it also trips the "arrow passes through foreign"
+        routing check, which is a real but coincidental net for large
+        boxes on this shape — and would make this red pass without
+        anything about labels being fixed.
+        """
+        self.assertTrue(
+            _says_lies_on(_elbow_label_stage(balanced=False,
+                                             box_at="drawn")),
+            "the label is drawn inside 'foreign' and nothing warns")
+
+    @unittest.expectedFailure
+    def test_red_a_box_on_the_arc_midpoint_is_reported_anyway(self) -> None:
+        """The other direction: a warning about a label that is 150px away.
+
+        RED BY ASSERTION — the direction is an OVER-FIRE, and it is the
+        same defect read from its other end, which is why it is pinned
+        beside the miss rather than instead of it. Nothing is drawn in
+        this box; the label is at the corner, 150px along the path. An
+        agent told to "re-route the arrow or shorten the label" here
+        would be repairing a picture that is already right, and a fix
+        that widened the check to catch the miss without moving the model
+        would produce more of exactly this.
+        """
+        self.assertEqual(
+            _says_lies_on(_elbow_label_stage(balanced=False,
+                                             box_at="anchor")), [],
+            "no label is drawn at the arc midpoint, and the box there is "
+            "reported as having one land on it")
+
+
+def _labelled_path(points: list[list[float]]) -> tuple[dict, dict]:
+    """An arrow with those points and a 60x20 bound label, at the origin.
+
+    Deliberately origin-anchored and unbound at both ends: the corner
+    bias reads `segs` and the label's half-extents and nothing else, so
+    nodes, bindings and a non-zero origin would all be scenery.
+
+    Args:
+        points: The arrow's points, in its own coordinates.
+
+    Returns:
+        `(arrow, label)`, ready for `arrow_label_anchor` /
+        `arrow_label_slot`.
+    """
+    return (el(id="ax", type="arrow", x=0, y=0, width=400, height=400,
+               points=points, customData={"role": "edge"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=0, y=0, width=60, height=20,
+               text="label", fontSize=16, containerId="ax",
+               originalText="label"))
+
+
+# ---------------------------------------------------------------------------
+# The corner bias counts VERTICES where it means TURNS (curated 2026-08-15,
+# found by `spike-blind4-corner-slide.md` §5 while measuring something else).
+#
+# `_label_off_corner` exists to keep a turn out from under the label's
+# backdrop: on a straight run the two stubs either side of the break are
+# collinear and the eye completes them, on a corner they are not. Its
+# `corners` list is `segs[:-1]` — every interior vertex — and an interior
+# vertex is not the same thing as a turn. A path may store a waypoint in
+# the middle of a dead-straight run, and there the stubs are ALREADY
+# collinear: the condition the bias exists to repair is satisfied before it
+# does anything.
+#
+# The subject is the reviewer's own five-point fixture, which is the
+# fixture `test_the_host_segment_is_adjacent_to_the_offending_turn`
+# (test_backend.py) uses to anchor Ruling 1's exactness guarantee. Its
+# "offending turn" at (400, 200) sits between (400, 0) and (400, 400) —
+# the path runs straight through it. The label slides 18px for nothing.
+#
+# HARMLESS TODAY and pinned anyway, for two reasons. First, 18px on a
+# straight run costs nothing a reader can see, but the rule it reveals is
+# that label placement depends on how a path was STORED rather than on how
+# it is DRAWN, and this repo's standing doctrine is that the picture is the
+# fact. Two point lists that trace the same stroke get different labels.
+# Second, the class grows: fillets insert vertices, and curvature makes
+# every stored vertex a place the drawn path bends by some non-zero amount,
+# so the population of "vertices that are not turns" is exactly what the
+# next two features manufacture.
+#
+# The fix named by the spike is a turn-angle test on the vertex — roughly
+# `> 5deg` — before it joins `corners`. It belongs to whoever owns
+# `_label_off_corner`, NOT to the curator. Distinct from the label-anchor
+# family above and deliberately in its own class: that one is about which
+# point the label is centred on (`arrow_label_anchor`, the client's parity
+# rule), this one is about whether the bias should fire at all
+# (`_label_off_corner`, the trigger). The spikes call them blind spots 1
+# and 4 and document the seam between them; a fix to either leaves the
+# other exactly as it is.
+# ---------------------------------------------------------------------------
+
+
+class TestCornerBiasReadsVerticesNotTurns(unittest.TestCase):
+    """A waypoint on a straight run is not a corner, and needs no clearance."""
+
+    def _slot_offset(self, points: list[list[float]]) -> float:
+        """How far the bias slides the label off the arc midpoint.
+
+        Args:
+            points: The arrow's points, in its own coordinates.
+
+        Returns:
+            The distance in px between `arrow_label_anchor` and
+            `arrow_label_slot` — 0.0 when the bias did not fire.
+        """
+        arrow, label = _labelled_path(points)
+        mx, my = canvas.arrow_label_anchor(arrow, label)
+        sx, sy = canvas.arrow_label_slot(arrow, label)
+        return ((sx - mx) ** 2 + (sy - my) ** 2) ** 0.5
+
+    def test_a_real_turn_under_the_label_still_slides_it(self) -> None:
+        """The live half: a 90-degree corner is what the bias is FOR.
+
+        Ungated. The red below asserts the bias stays still, and a bias
+        that had stopped firing altogether would satisfy it while
+        re-opening r5-14 — six labels across three shipped artifacts with
+        their connectors reading as two stubs pointing nowhere near each
+        other. On a balanced 200+200 elbow the arc midpoint IS the turn,
+        so this is the trigger at its most certain: 38px, the label's
+        half-width plus `LABEL_CORNER_PAD`.
+        """
+        self.assertAlmostEqual(
+            self._slot_offset([[0, 0], [200, 0], [200, 200]]), 38.0, places=3)
+
+    @unittest.expectedFailure
+    def test_red_a_collinear_waypoint_is_treated_as_a_corner(self) -> None:
+        """Two point lists, one stroke, two different label positions.
+
+        RED BY ASSERTION. The direction is an OVER-FIRE and the magnitude
+        is 18px — `hh + LABEL_CORNER_PAD` for this 60x20 label — bought
+        against a turn of 0 degrees. Both paths trace the identical
+        U-shaped polyline and both put the arc midpoint at the same
+        (370, 190); dropping the redundant vertex at (400, 200) is not a
+        change to the drawing, and the label moves anyway.
+
+        Asserted as an equality between the two paths rather than as
+        `offset == 0` on the five-point one, because that is the actual
+        claim: the label's position is a function of the stroke, not of
+        how many points were stored along it. Flips when the vertex is
+        tested for an actual turn before it counts as a corner.
+
+        Sharp geometry throughout, deliberately — under roundness the two
+        point lists WOULD draw different strokes (Catmull-Rom reads every
+        stored point), so this comparison is only available while the era
+        is sharp, and the defect it names is the one that grows when it
+        stops being.
+        """
+        self.assertAlmostEqual(
+            self._slot_offset([[0, 0], [400, 0], [400, 200], [400, 400],
+                               [0, 400]]),
+            self._slot_offset([[0, 0], [400, 0], [400, 400], [0, 400]]),
+            places=3)
+
+
 class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
     """The quiet halves of Task 23's two checks, which its mutants cannot reach.
 
@@ -4145,6 +4434,195 @@ class TestStoreIntegrity(unittest.TestCase):
         # executed it. The claim is unchanged: the whole project comes
         # back, not a truncated one.
         self.assertEqual(len(rebuilt), len(store.scenes["flow"]))
+
+
+# ---------------------------------------------------------------------------
+# r5b-2, the phantom reorder storm (filed in assessment run 5b arm B,
+# reproduced against this tree by `spike-r5b2.md`, curated 2026-08-15).
+#
+# `Store` keeps a scene TWICE. `self.scenes[aid]` is the cache every client
+# reads — `/api/state` hands it out verbatim, and the CLI's fetch path takes
+# the same bytes — and it is simply whatever the last commit posted.
+# `state_at(revn)` is a full forward replay of the save-record log from the
+# empty root, and it is what `commit` diffs the incoming scene AGAINST. The
+# two are supposed to be the same list in the same order and NOTHING asserts
+# that they are: no load-time check, no runtime check, no test. They are
+# maintained by entirely separate mechanisms, so they can and do come apart.
+#
+# When they have, the next commit on that artifact diffs a scene against a
+# differently-ordered copy of itself and mints a `reordered` fact for every
+# element the two orders disagree about — 28 of `argus-domain`'s 45 in the
+# reproduction, headline "renamed 'PipelineRun' -> 'Run' (+29 more)" for a
+# save that changed one word. The direction is false-positive throughout:
+# every one of those elements is where the user left it.
+#
+# WHAT MADE THIS SURVIVE TWO ASSESSMENT RUNS is the self-heal. The commit
+# that exposes the drift also writes the cache order into the log, so the
+# artifact agrees with itself again and the storm does not recur — it fires
+# once per accumulated drift and then goes quiet. Arm B saw it twice and
+# arm A not at all, and the two arms concluded opposite things about the
+# same code path; the axis they were missing was not the verb (arm B
+# guessed rename/note-add) but WHICH ARTIFACT had drifted. A move
+# reproduces it identically on the same fixture.
+#
+# The drift is REAL AND SHIPPED: `tests/fixtures/argus-r4-arm3` carries it
+# in `argus-domain` today, which is what the first red reads. The second red
+# is the storm at minimum scale — two rectangles, one save record, the disk
+# order reversed — because a 45-element artifact cannot show anyone what the
+# mechanism is. Both are RED BY ASSERTION and both stay red until somebody
+# owns the reconciliation; that work is unassigned, filed for the addendum
+# wave, and it is emphatically not the curator's (`AGENTS.md`: the fix and
+# its acceptance test do not come from the same hands).
+# ---------------------------------------------------------------------------
+
+
+class TestReplayOrderFidelity(unittest.TestCase):
+    """The cache a client reads and the log a commit diffs are one scene."""
+
+    def _drift_project(self, drifted: bool) -> canvas.Store:
+        """A two-node project whose disk order does or does not match its log.
+
+        Two elements is the whole mechanism: one save record adds `n1`
+        then `n2`, so the replay says `[n1, n2]`, and the artifact file on
+        disk is written in the other order when `drifted`. That is
+        precisely the state `argus-domain` reached over 44 real saves, at
+        a size where the reader can hold both orders in their head.
+
+        Args:
+            drifted: True to write the artifact file in the reverse of
+                the order its own save record replays to.
+
+        Returns:
+            The loaded store, ready to commit against.
+        """
+        root = Path(tempfile.mkdtemp(prefix="mutants-drift-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        pk = root / "project_knowledge"
+        (pk / "artifacts").mkdir(parents=True)
+        (pk / "saves").mkdir(parents=True)
+        n1 = el(id="n1", type="rectangle", x=0, y=0, width=80, height=40,
+                customData={"role": "node"})
+        n2 = el(id="n2", type="rectangle", x=200, y=0, width=80, height=40,
+                customData={"role": "node"})
+        (pk / "artifacts" / "d.excalidraw").write_text(json.dumps(
+            {"type": "excalidraw", "version": 2,
+             "elements": [n2, n1] if drifted else [n1, n2]}), "utf-8")
+        (pk / "saves" / "0001-d.json").write_text(json.dumps(
+            {"revn": 1, "base_revn": 0, "author": "agent", "branch": "main",
+             "artifacts": {"d": {"changes": [{"op": "add", "element": n1},
+                                             {"op": "add", "element": n2}]}}}),
+            "utf-8")
+        (pk / "model.json").write_text(json.dumps(
+            {"revn": 1, "head": "main",
+             "branches": [{"name": "main", "head": 1, "archived": False}]}),
+            "utf-8")
+        return canvas.Store(canvas.Project(root))
+
+    def _nudge(self, store: canvas.Store) -> dict[str, Any]:
+        """Move `n1` four pixels and commit, returning the save summary.
+
+        One element, one attribute, the smallest edit the differ still
+        calls a change — so every OTHER verb in the returned counts is a
+        fact about an element this commit did not touch.
+
+        Args:
+            store: The store to commit against, at its own head.
+
+        Returns:
+            The record's `summary` — `verb_counts`, `headline`,
+            `suppressed`.
+        """
+        els = copy.deepcopy(store.scenes["d"])
+        for e in els:
+            if e["id"] == "n1":
+                e["x"] = 4
+        rec = store.commit("user", {"d": els}, base_revn=store.head_revn())
+        return rec["summary"]
+
+    def _order_pairs(self, store: canvas.Store) -> list[tuple[str, bool]]:
+        """Per artifact, whether the cached order equals the replayed one.
+
+        Args:
+            store: A loaded store, read at its own head.
+
+        Returns:
+            `(artifact_id, agrees)` for every artifact in the cache,
+            sorted by id.
+        """
+        replayed = store.state_at(store.head_revn())
+        out = []
+        for aid in sorted(store.scenes):
+            cached = [e.get("id") for e in store.scenes[aid]]
+            other = [e.get("id") for e in
+                     (replayed.get(aid) or {}).get("elements") or []]
+            out.append((aid, cached == other))
+        return out
+
+    def test_an_undrifted_project_agrees_and_reports_only_the_edit(
+            self) -> None:
+        """The live half: matched orders, and a nudge that says `moved: 1`.
+
+        Ungated and asserted in every commit, because both reds below are
+        negatives — "no drift", "no phantom facts" — and a negative
+        proves nothing if the probe cannot see the positive. This is the
+        same builder with `drifted=False`, so it fails if `_drift_project`
+        stops producing a loadable project, if `state_at` stops returning
+        elements, or if the differ goes mute; each of those would
+        otherwise turn both reds green while measuring nothing at all.
+        """
+        store = self._drift_project(drifted=False)
+        self.assertEqual(self._order_pairs(store), [("d", True)])
+        summary = self._nudge(store)
+        self.assertEqual(summary["verb_counts"], {"moved": 1}, summary)
+        self.assertEqual(summary["headline"], "n1 nudged")
+
+    @unittest.expectedFailure
+    def test_red_a_drifted_artifact_mints_phantom_reorder_facts(self) -> None:
+        """One element moves; the differ reports the other one reordered.
+
+        RED BY ASSERTION. Measured on this scene: `{"moved": 1,
+        "reordered": 2}` with the headline "n1 nudged (+2 more)" — the
+        magnitude is every element the two orders disagree about (both of
+        them here, 28 of 45 on the real fixture) and the direction is
+        false-positive, since nothing in this project has been reordered
+        by anyone. `n2` was not touched by this commit and is not touched
+        by the user in any commit; the reorder is an artifact of the
+        differ comparing the posted cache against a replay that never
+        agreed with it.
+
+        Flips when something reconciles the two orders — at load, at
+        commit, or by making `commit` diff the cache it was handed rather
+        than the replay. Owner unassigned, filed for the addendum wave.
+        """
+        summary = self._nudge(self._drift_project(drifted=True))
+        self.assertEqual(summary["verb_counts"], {"moved": 1}, summary)
+
+    @unittest.expectedFailure
+    def test_red_every_shipped_artifact_replays_in_its_cached_order(
+            self) -> None:
+        """The invariant nobody asserts, read over a real recorded session.
+
+        RED BY ASSERTION on `argus-r4-arm3` as committed: `argus-domain`
+        holds `pin-watchlist-real` and `r-run-rerun-label` at indices 43
+        and 44 in the cache and at 44 and 43 in the replay — same 45
+        elements, two of them swapped, on the richest real session on
+        record. The other six artifacts agree, which is exactly why the
+        storm reads as intermittent rather than as a bug: whether a save
+        detonates it depends only on which artifact it lands on.
+        `TestArgusR4Arm3Fixture.test_replays_full_history` walks past this
+        because it compares `head_revn` and the artifact id SET, never an
+        order.
+
+        Element order is paint order, so this is not bookkeeping: the two
+        halves of the store disagree about what is drawn on top of what.
+        """
+        src = Path(__file__).resolve().parent / "fixtures" / "argus-r4-arm3"
+        root = Path(tempfile.mkdtemp(prefix="mutants-fixture-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        shutil.copytree(src, root / "project_knowledge")
+        pairs = self._order_pairs(canvas.Store(canvas.Project(root)))
+        self.assertEqual([aid for aid, ok in pairs if not ok], [],
+                         "cache order and replay order disagree")
 
 
 # ---------------------------------------------------------------------------
@@ -7813,7 +8291,7 @@ def _parallel_pair() -> list[dict]:
                points=[[0, 0], [400, 0]], customData={"role": "edge"})]
 
 
-def _attach_chain(shared: bool) -> list[dict]:
+def _attach_chain(shared: bool, headless: bool = False) -> list[dict]:
     """A -> N -> Z on one rank line, N's two edges sharing a foot or not.
 
     The production configuration from the 2026-08-12 ELK spike, rebuilt at
@@ -7837,13 +8315,23 @@ def _attach_chain(shared: bool) -> list[dict]:
     the production wording, "the auto-fan ran and left them together",
     rather than one of the disqualified-arrow phrasings.
 
+    `headless` strips both arrowheads, which is the ONE cue the ink
+    half's whole justification rests on — see the third mutant below. It
+    is not a hypothetical shape: `canvas._er_seed_ops` writes
+    `"arrow" if "*" in rel["lc"] else None` for each end, so every
+    one-to-one erDiagram relation (`A ||--|| N`) mints a line with no
+    terminator at either end, verified through the shipped seeder.
+
     Args:
         shared: True to attach both arrows at N's left-edge midpoint;
             False to move e2's foot to N's right edge.
+        headless: True to strip both arrows' arrowheads, as a one-to-one
+            ER relation does.
 
     Returns:
         The five-element scene: nodes A, N, Z and arrows e1, e2.
     """
+    head = None if headless else "arrow"
     a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
            customData={"role": "node"})
     n = el(id="N", type="rectangle", x=200, y=100, width=80, height=40,
@@ -7851,13 +8339,13 @@ def _attach_chain(shared: bool) -> list[dict]:
     z = el(id="Z", type="rectangle", x=528, y=100, width=80, height=40,
            customData={"role": "node"})
     e1 = el(id="e1", type="arrow", x=80, y=120, width=120, height=0,
-            points=[[0, 0], [120, 0]],
+            points=[[0, 0], [120, 0]], endArrowhead=head,
             startBinding={"elementId": "A", "focus": 0, "gap": 1},
             endBinding={"elementId": "N", "focus": 0, "gap": 1},
             customData={"role": "edge"})
     foot = 200 if shared else 280
     e2 = el(id="e2", type="arrow", x=foot, y=120, width=528 - foot,
-            height=0, points=[[0, 0], [528 - foot, 0]],
+            height=0, points=[[0, 0], [528 - foot, 0]], endArrowhead=head,
             startBinding={"elementId": "N", "focus": 0, "gap": 1},
             endBinding={"elementId": "Z", "focus": 0, "gap": 1},
             customData={"role": "edge"})
@@ -7991,15 +8479,20 @@ def _crossing_tail() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-14 after curator batch 20, `mutants list --red` reports
-# 6 (of 25 entries) while this file carries 14 expectedFailure methods. Task
-# 24 flipped two catalogue reds and batch 20 added one, which is how 7 became
-# 6. COUNT THE METHODS WITH CARE: a bare `grep -c @unittest.expectedFailure`
-# says 15, because `test_red_mutants_are_red_by_mismatch_not_by_error` names
-# the decorator inside its own docstring — that miscount is what put "15"
-# here when the true figure was 13, so measure the METHODS (or read the
-# runtime line) rather than the string. The eight outside live
-# in the three classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# re-measured 2026-08-15 after curator batch 21, `mutants list --red` reports
+# 7 (of 26 entries) while this file carries 20 expectedFailure methods. Batch
+# 21 added one catalogue red (`headless_chain_reads_through_node`, the fourth
+# e1 arm) and five hand-authored ones across three new classes, which is how
+# 6/14 became 7/20 in a single change — the largest single-batch move this
+# census has recorded, and a reminder that the two halves do not grow
+# together. COUNT THE METHODS WITH CARE: a bare
+# `grep -c @unittest.expectedFailure` says 24, because four mentions are
+# PROSE — this very paragraph, `test_red_mutants_are_red_by_mismatch_not_by
+# _error`'s docstring, and two in `coverage_table` and its guard — so
+# measure the METHODS (or read the runtime line) rather than the string.
+# That miscount is what once put "15" here when the true figure was 13.
+# The thirteen outside live
+# in the six classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
 # `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
@@ -8011,12 +8504,13 @@ def _crossing_tail() -> list[dict]:
 # And since curator batch 15 one red lives outside this file entirely —
 # `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
 # export is never measured against the drawing — so the suite's default line
-# reads `expected failures=15` against the 14 counted here. The two numbers
+# reads `expected failures=21` against the 20 counted here. The two numbers
 # are meant to differ by exactly that one. (They have read 16/15 before, and
 # they are not the same 16 and 15 each time: Task 23 flipped two, curator
 # batch 19 added two once on each side of the CATALOGUE boundary, Task 24
-# flipped two more and batch 20 added one — a fair warning that matching
-# totals prove nothing here and only the split is worth reading.)
+# flipped two more, batch 20 added one and batch 21 added six — a fair
+# warning that matching totals prove nothing here and only the split is
+# worth reading.)
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
@@ -8316,6 +8810,59 @@ _register(Mutant(
     expect=FindingSpec("shared_attach_point", element="N"),
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
                         Silence("shared_attach_point"))))
+
+# RED BY ABSENCE — the fourth member of the e1 family, and the one that
+# takes the ink half's own argument at its word (curated 2026-08-15 from
+# `spike-e1-perceptual.md` §5).
+#
+# The broad criterion was measured, rejected and closed on a mechanism
+# claim, not on a count: every one of the 70 collinear in/out pairs has an
+# ARROWHEAD terminating each stroke at the node, so the reader has a cue
+# saying the path ends here and no amodal completion across the box is
+# invited. 174 of 174 arrows in the frozen corpus carry one, which is what
+# made the argument safe to close on. The corollary nobody had checked is
+# what happens where the cue is absent — and there the argument does not
+# weaken, it evaporates: two plain lines meeting a box on opposite borders,
+# nothing terminating either, is the configuration the completion
+# literature is actually about.
+#
+# IT IS REACHABLE THROUGH SHIPPED CODE, which is what moves this off the
+# "interesting hypothetical" pile. `canvas._er_seed_ops` gives an end an
+# arrowhead only when its cardinality token contains `*`, so an erDiagram
+# one-to-one relation mints a headless line; run through the real seeder,
+# `A ||--|| N : owns` / `N ||--|| Z : holds` produces `r-a-owns` and
+# `r-n-holds` with `startArrowhead=None, endArrowhead=None` at both ends.
+# Chain two of them through a node on one rank and this scene is what the
+# user gets, out of the shipped mermaid path, with no hand-authoring.
+#
+# THE PAIR IS THE ASSERTION, because the discriminator here is the cue and
+# not a number. Mutant and neighbour are the same five elements, the same
+# feet, the same collinearity, the same zero ink over N — `headless` is the
+# only thing that differs. An implementation that reports collinear in/out
+# pairs regardless of terminators fires on BOTH and fails the neighbour,
+# which is precisely the broad criterion the 70 already rejected; an
+# implementation that reads terminators fires on this and stays quiet
+# there. No `magnitude`: the current message template (and `_PHANTOM_RE`
+# with it) reports how much of the node has arrow drawn over it, and that
+# is 0 here BY CONSTRUCTION — the whole point is the no-ink case — so
+# demanding a number today would specify a message that lies. Whoever
+# lands the fix owes a second template naming the span the reader
+# completes across (80px, N's full width between the feet) and a magnitude
+# on this entry in the same change.
+#
+# Honest caveat, kept because it is the reason this is a pin and not a
+# work order: no fixture exhibits it (0 headless arrows in 174) and no
+# cold observer has reported the misreading. It is the configuration where
+# the closing argument fails, encoded so that the day someone draws one
+# the harness has an opinion. Owner unassigned — Task 24 follow-up /
+# addendum wave.
+_register(Mutant(
+    "headless_chain_reads_through_node",
+    build=lambda: _attach_chain(shared=False, headless=True),
+    op="unchanged", args={},
+    expect=FindingSpec("phantom_passthrough", element="N"),
+    neighbour=Neighbour(lambda: _attach_chain(shared=False),
+                        Silence("phantom_passthrough"))))
 
 # ---------------------------------------------------------------------------
 # Shape-blindness, instance THREE — RED BY ABSENCE (found via the flowchartai
@@ -9193,6 +9740,28 @@ class TestMutantCatalogue(unittest.TestCase):
         """Attach points 80px apart are past the lint's 12px window."""
         self._run_neighbour("shared_attach_point_fan_failed")
 
+    @unittest.expectedFailure
+    def test_mutant_headless_chain_reads_through_node(self) -> None:
+        """RED BY ABSENCE: no terminator, and no finding either.
+
+        The ink half ships on the argument that an arrowhead ends the
+        reading before the eye completes a stroke across the box. Strip
+        the arrowheads — which a one-to-one erDiagram relation does
+        through the shipped seeder — and the lint is still silent,
+        because its gate is `covered >= 1` and nothing about the cue.
+        """
+        self._run("headless_chain_reads_through_node")
+
+    def test_neighbour_headless_chain_reads_through_node(self) -> None:
+        """The identical scene with arrowheads must stay quiet.
+
+        This is the half that keeps the fix honest: the 70 findings the
+        broad criterion produced over 24 shipped artifacts all look like
+        this pole, so an implementation that earns the red above by
+        dropping the terminator test buys it back here.
+        """
+        self._run_neighbour("headless_chain_reads_through_node")
+
     def test_mutant_ellipse_corner_overfire(self) -> None:
         """An arrow 27px clear of the circle draws no complaint."""
         # Bbox-shaped through-node test, ellipse instance. FLIPPED by WP4
@@ -9638,6 +10207,20 @@ def coverage_table() -> list[tuple[str, str, str]]:
     mutants live in a separate env-gated catalogue (Task 8) that this
     function does not read, so they are never reported UNCOVERED.
 
+    A RED mutant's own `expect` is not evidence, and this is the one rule
+    here that is not obvious. A `FindingSpec` on a mutant marked
+    `@unittest.expectedFailure` records a finding the check does NOT
+    emit — that is what red means — so counting it would let the table
+    cite, as proof that a detector speaks, the very entry asserting it is
+    silent. It went unnoticed while no red happened to sort first for its
+    check; `headless_chain_reads_through_node` (curator batch 21) is the
+    first that does, and it displaced the green
+    `phantom_passthrough_shared_attach` from the evidence column while
+    the row went on saying "proven". A NEIGHBOUR's `FindingSpec` is
+    always evidence by contrast, red mutant or not: neighbours are
+    ungated and asserted in every commit, which is the whole reason
+    doctrine calls them the live half.
+
     Returns:
         One `(detector, status, evidence)` tuple per name currently in
         `DETECTORS`, sorted by name. `status` is one of "proven",
@@ -9647,10 +10230,30 @@ def coverage_table() -> list[tuple[str, str, str]]:
         `RENDER_TIER` names for "render-tier", or the `UNCOVERED` reason
         (empty string if the detector carries none).
     """
+    def is_red(mid: str) -> bool:
+        """Whether this mutant's own test is declared red-by-intent.
+
+        Read off the test method, not the catalogue entry, because
+        `@unittest.expectedFailure` is where the declaration lives and
+        the runner is what turns a landed fix into an unexpected
+        success — the same source `scripts/mutants` reads.
+
+        Args:
+            mid: The mutant's id.
+
+        Returns:
+            True if `test_mutant_<mid>` carries the decorator.
+        """
+        method = getattr(TestMutantCatalogue, "test_mutant_%s" % mid, None)
+        return bool(getattr(method, "__unittest_expecting_failure__", False))
+
     proven_by: dict[str, str] = {}
     for mid in sorted(CATALOGUE):
         mutant = CATALOGUE[mid]
-        for expect in (mutant.expect, mutant.neighbour.expect):
+        expects = [mutant.neighbour.expect]
+        if not is_red(mid):
+            expects.append(mutant.expect)
+        for expect in expects:
             if isinstance(expect, FindingSpec):
                 proven_by.setdefault(expect.check, mid)
     rows: list[tuple[str, str, str]] = []
@@ -9687,7 +10290,10 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
+                             "TestCornerBiasReadsVerticesNotTurns": 1,
+                             "TestLabelAnchorAgainstTheDrawnPosition": 2,
                              "TestLoadFindingsReachTheAgent": 4,
+                             "TestReplayOrderFidelity": 2,
                              "TestShapeBlindAnnotationOverlap": 3}
 
 # The one class whose reds ARE catalogue entries, excluded from the
@@ -9730,6 +10336,49 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(gaps, [],
                          "detectors with no firing mutant and no "
                          "UNCOVERED reason: %s" % gaps)
+
+    def test_no_row_is_proven_by_a_red_mutants_own_expectation(self) -> None:
+        """The evidence column may never cite a mutant that is still red.
+
+        `proven` means a mutant has watched this detector speak. A red
+        mutant has watched it stay silent, so citing one turns the
+        headline metric into its own opposite — and it happens by
+        accident, through the lexicographic tie-break, the moment
+        somebody adds a red whose id sorts before the green proof
+        (curator batch 21, `headless_chain_reads_through_node` before
+        `phantom_passthrough_shared_attach`). A neighbour's
+        `FindingSpec` is legitimate evidence and is deliberately not
+        caught here: neighbours never carry the decorator and run in
+        every commit.
+        """
+        for name, status, evidence in coverage_table():
+            if status != "proven" or evidence not in CATALOGUE:
+                continue
+            mutant = CATALOGUE[evidence]
+            method = getattr(TestMutantCatalogue,
+                             "test_mutant_%s" % evidence, None)
+            red = getattr(method, "__unittest_expecting_failure__", False)
+
+            def fires(spec: FindingSpec | Silence, check: str = name) -> bool:
+                """Whether this expectation asserts `check` firing.
+
+                Args:
+                    spec: A mutant's or neighbour's expectation.
+                    check: The detector name the row is about.
+
+                Returns:
+                    True for a `FindingSpec` naming that check.
+                """
+                return isinstance(spec, FindingSpec) and spec.check == check
+
+            live = fires(mutant.neighbour.expect) or (
+                not red and fires(mutant.expect))
+            with self.subTest(detector=name):
+                self.assertTrue(
+                    live,
+                    "%s is reported proven by %r, but that entry's only "
+                    "claim about it is a RED expectation — which asserts "
+                    "the check is SILENT" % (name, evidence))
 
     def test_every_expected_check_has_a_detector_or_is_declared(self) -> None:
         """No catalogue entry names a check that nothing can ever answer.
@@ -10476,6 +11125,23 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
     # make each of those drawings worse. The half that ships is the one
     # with ink behind it, which is why the mutant's scene fires and this
     # cell stays quiet.
+    #
+    # RE-WORDED 2026-08-15 (curator batch 21 item 7, user ruling) — the
+    # re-open condition only. The verdict, its reason and the 70 stand.
+    # The old condition was "a perceptual result that separates the two",
+    # and `spike-e1-perceptual.md` showed it is not a decision procedure:
+    # the survivor and the 70 are the SAME configuration on every cue
+    # measured (ink 0, terminators present, collinear, abutting, and the
+    # survivor sits at the 27th percentile of narrowness), so a study
+    # could only condemn all 71 or exonerate all 71 — neither of which
+    # moves this cell. A condition no result can meet is a placeholder,
+    # and a placeholder in a disposition is the undispositioned state
+    # wearing a verdict's clothes. The replacement keys on an observation
+    # instead: it costs nothing (the cold-look rounds run anyway), it has
+    # already been run with a negative result (29 instance-views carrying
+    # 21 of the 70 across two independent cold observers, zero reports,
+    # on a channel that reported the neighbouring ink case as r5-5), and
+    # unlike a study it can actually come back positive.
     "move_node_onto_rank:chain:ebb2e1f6": (
         "allow",
         "e1 phantom pass-through, BROAD half — collinear in/out on "
@@ -10484,7 +11150,9 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
         "artifacts, so it describes the normal drawing rather than a "
         "defect. The INK half is caught and curated "
         "(`phantom_passthrough_shared_attach`, canvas.py's e1 lint). "
-        "Re-open only with a perceptual result that separates the two"),
+        "Re-open if a cold observer reports a chained node on a shipped "
+        "drawing reading as a pass-through — the node skipped, the "
+        "relation read straight from its predecessor to its successor"),
 }
 
 

@@ -845,7 +845,11 @@ def enumerate_defects(elements: list[dict]) -> list[dict]:
     Returns:
         A list of `{"kind": str, ...}` dicts — one per crossing pair,
         shallow crossing, shared corridor, false bidirectional pair,
-        floating diamond endpoint, and overlapping node pair.
+        floating diamond endpoint, and overlapping node pair. `"kind"`
+        is the outer defect class every consumer discriminates on, so a
+        corridor's own chain/fan/unrelated verdict rides alongside it
+        under `"corridor_kind"` rather than in the key it would
+        otherwise be overwritten by.
     """
     sites = crossing_sites(elements)
     _n, pairs = edge_crossings(elements)
@@ -854,7 +858,14 @@ def enumerate_defects(elements: list[dict]) -> list[dict]:
     out += [{"kind": "shallow_crossing", "a": s["a"], "b": s["b"],
              "angle": s["angle"]}
             for s in sites if s["angle"] < SHALLOW_CROSSING_DEG]
-    out += [dict(h, kind="shared_corridor") for h in shared_corridors(elements)]
+    # `dict(h, kind=...)` lets the kwarg win, and `shared_corridors` is the
+    # ONE source here whose own dicts already carry a `kind` — so this line
+    # silently ate chain/fan/unrelated for every consumer downstream
+    # (`score_layout` embeds this list verbatim; `compare_layouts` builds on
+    # that). The other three merges below are pure additions; their sources
+    # set no `kind`. Found by the backlog-residue spike, 2026-08-15.
+    out += [dict(h, kind="shared_corridor", corridor_kind=h.get("kind"))
+            for h in shared_corridors(elements)]
     out += [dict(h, kind="false_bidi") for h in false_bidi(elements)]
     out += [dict(h, kind="float_diamond") for h in float_diamond(elements)]
     out += [dict(h, kind="node_overlap") for h in node_overlaps(elements)]

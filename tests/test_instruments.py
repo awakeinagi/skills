@@ -277,6 +277,126 @@ class TestCorridorKind(unittest.TestCase):
         self.assertTrue(kinds, "the fixture corpus produced no corridors "
                                "at all — this census has gone vacuous")
 
+    def test_the_classification_survives_aggregation(self) -> None:
+        """A chain is still a chain after `enumerate_defects` folds it in.
+
+        `enumerate_defects` stamps every hit with an outer defect class
+        under `"kind"`, and `shared_corridors` is the one source whose
+        own dicts already use that key — so the fold overwrote
+        chain/fan/unrelated with the literal `"shared_corridor"` and the
+        three tests above became unreadable one function later. The loss
+        was total and silent: `score_layout` embeds this list verbatim
+        and `compare_layouts` builds on that, so the distinction between
+        a merged stroke and an unfanned pair vanished from every score
+        the harness reports. Asserting the outer label too is deliberate
+        — the sub-classification must ride ALONGSIDE it, not replace it,
+        or the consumers that discriminate on `"kind"` break instead.
+        """
+        els = [self._bind("e1", 80, 120, [[0, 0], [120, 0]], "A", "N"),
+               self._bind("e2", 200, 120, [[0, 0], [328, 0]], "N", "Z")]
+        found = [d for d in instruments.enumerate_defects(els)
+                 if d["kind"] == "shared_corridor"]
+        self.assertEqual([d.get("corridor_kind") for d in found], ["chain"],
+                         found)
+        scored = [d for d in instruments.score_layout(els)["defects"]
+                  if d["kind"] == "shared_corridor"]
+        self.assertEqual([d.get("corridor_kind") for d in scored], ["chain"],
+                         scored)
+
+
+class TestFalseBidiOnTheShippedFan(unittest.TestCase):
+    """The one live `false_bidi` the sharp era uncovers, and what it is.
+
+    CURATOR DISPOSITION, batch 21, 2026-08-15 — recorded rather than
+    pinned red, because after measuring it the finding STANDS: the
+    geometry is exactly what the check reports, and the drawing it
+    reports on is correct. `spike-stage3-flare.md` §8 flagged
+    `t-agg-dashboard`/`t-agg-reports` as "a live stage-2 routing defect
+    nobody has looked at". It is not a routing defect.
+
+    What is actually drawn: `aggregator` (x 1380-1540) fans east to
+    `dashboard` (y 160-224) and `reports` (y 320-384), which share an x
+    range, so both edges leave aggregator's right border 22px apart, run
+    260px east to x=1800 — the shared centre-line of both targets — and
+    turn outward into each target's near border. That is the textbook
+    way to draw one source and two vertically stacked targets, and the
+    two final legs are collinear only BECAUSE the targets are aligned.
+    The remedy a finding here implies — offset one line from the other —
+    would break the alignment and make the picture worse, which is the
+    same argument that retired the e1 broad criterion.
+
+    Three things bound the harm, and all three were checked rather than
+    assumed. `false_bidi` has NO counterpart in `canvas.py`: it lives
+    only in these instruments, feeding `score_layout` and
+    `compare_layouts`, so no agent and no user is ever told to repair
+    this drawing. The shipped corpus is curved, and curved it does not
+    fire at all (1 finding corpus-wide, the `argus-domain` pair the
+    catalogue already holds); it appears only if the sharp era ships,
+    and then the corpus total is 2. And the check's own docstring
+    already says its thresholds are engineering choices rather than
+    measured ones and that a finding is a question to put to the
+    drawing, not a verdict on it.
+
+    What the check genuinely lacks is the discriminator: it is pure
+    geometry and cannot tell a swapped A->B/B->A pair — the premise it
+    is written for — from a fan out of one source whose branches happen
+    to align, where the symmetry a merged reading would assert is
+    between two nodes neither arrow connects. `shared_corridors` draws
+    exactly that distinction with `_corridor_kind`, and this check has
+    no equivalent. That is a proposal for whoever owns the instrument,
+    not a defect in the drawing, and the test below exists so the fact it
+    rests on cannot go quiet: this finding is a FAN.
+    """
+
+    def _sharp_run_flow(self) -> list[dict]:
+        """`argus-run-flow` with every arrow's roundness stripped.
+
+        Returns:
+            The fixture's elements, sharp — the geometry the era switch
+            would ship, and the only one in which this pair fires.
+        """
+        path = (Path(__file__).resolve().parent / "fixtures" /
+                "argus-r4-arm3" / "artifacts" / "argus-run-flow.excalidraw")
+        els = json.loads(path.read_text())["elements"]
+        for e in els:
+            if e.get("type") == "arrow":
+                e["roundness"] = None
+        return els
+
+    def test_the_finding_is_a_fan_and_not_a_swapped_pair(self) -> None:
+        """Both arrows leave the same node; neither is the other's reverse.
+
+        The whole disposition rests on this. A swapped pair would be the
+        check's own premise holding on a real drawing and would deserve a
+        fix; a fan is two edges of one relation set that the layout has
+        aligned, and the merged reading it warns about would assert a
+        relation between `dashboard` and `reports` that no arrow in the
+        artifact draws.
+        """
+        els = self._sharp_run_flow()
+        ix = {e["id"]: e for e in els}
+        hits = instruments.false_bidi(els)
+        self.assertEqual([(h["a"], h["b"]) for h in hits],
+                         [("t-agg-dashboard", "t-agg-reports")], hits)
+        ends = [((ix[h[k]].get("startBinding") or {}).get("elementId"),
+                 (ix[h[k]].get("endBinding") or {}).get("elementId"))
+                for h in hits for k in ("a", "b")]
+        self.assertEqual(ends, [("aggregator", "dashboard"),
+                                ("aggregator", "reports")])
+
+    def test_the_shipped_curved_artifact_reports_nothing(self) -> None:
+        """As committed, this artifact is silent — the finding is era-bound.
+
+        Kept beside the census so nobody reads the row above as a live
+        complaint about a shipped drawing. It is what the sharp switch
+        would reveal, and it is why the switch is the event that should
+        re-read this disposition rather than a bug filed against today.
+        """
+        path = (Path(__file__).resolve().parent / "fixtures" /
+                "argus-r4-arm3" / "artifacts" / "argus-run-flow.excalidraw")
+        els = json.loads(path.read_text())["elements"]
+        self.assertEqual(instruments.false_bidi(els), [])
+
 
 class TestTiltBand(unittest.TestCase):
     """v0.9 WP4 task 24: the straightness band scales with the span.
