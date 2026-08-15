@@ -2354,9 +2354,20 @@ def _elbow_label_stage(balanced: bool, box_at: str) -> list[dict]:
     `balanced` picks 200+200 legs, where the arc-length midpoint IS the
     corner and both models name the same point (300, 300); the box then
     covers the one position everyone agrees on. Unbalanced picks 400+100,
-    where the client centres on the corner (500, 100) and
-    `arrow_label_anchor` returns the arc midpoint (350, 100) — 150px
-    apart, one label 40px wide, so the two boxes they imply do not touch.
+    where the client centres on the corner (500, 100) and the superseded
+    arc-length model named (350, 100) — 150px apart, one label 40px wide,
+    so the two boxes they imply do not touch.
+
+    BOTH spots are LITERALS, and `"anchor"`'s stopped being a live
+    `arrow_label_anchor` call when the client rule landed (v0.9
+    curves fold-in). It had to: this builder feeds a red asserting that
+    nothing is drawn at the arc midpoint, and computing that midpoint by
+    asking the function under test made the scene follow the fix instead
+    of standing still under it. Once the anchor returned the corner the
+    two `box_at` arms named the SAME box, and the over-fire red began
+    failing by measuring the miss red's scene. A frozen 350 is the
+    coordinate the defect actually produced — it is what the red's own
+    docstring quotes — and it stays put under every future model.
 
     The box is always placed 2px BELOW the arrow's own y origin so it
     clears the horizontal stroke, and 5px past the corner in x so it
@@ -2369,24 +2380,25 @@ def _elbow_label_stage(balanced: bool, box_at: str) -> list[dict]:
         balanced: True for 200+200 legs (the models agree), False for
             400+100 (they diverge by 150px).
         box_at: `"drawn"` to put the box on the corner the client paints
-            the label on, `"anchor"` to put it on `arrow_label_anchor`'s
-            arc midpoint.
+            the label on, `"anchor"` to put it on the arc midpoint the
+            superseded model named.
 
     Returns:
         The three-element scene: arrow `ax`, label `t1`, node `foreign`.
     """
     if balanced:
-        ox, oy, pts, corner = 100, 300, [[0, 0], [200, 0], [200, 200]], 300
+        ox, oy, pts = 100, 300, [[0, 0], [200, 0], [200, 200]]
+        corner, arc_mid = 300, 300
     else:
-        ox, oy, pts, corner = 100, 100, [[0, 0], [400, 0], [400, 100]], 500
+        ox, oy, pts = 100, 100, [[0, 0], [400, 0], [400, 100]]
+        corner, arc_mid = 500, 350
     arrow = el(id="ax", type="arrow", x=ox, y=oy, width=pts[-1][0],
                height=pts[-1][1], points=pts, customData={"role": "edge"},
                boundElements=[{"id": "t1", "type": "text"}])
     label = el(id="t1", type="text", x=0, y=0, width=40, height=20,
                text="probe", fontSize=16, containerId="ax",
                originalText="probe")
-    spot = corner if box_at == "drawn" else (
-        canvas.arrow_label_anchor(arrow, label)[0] + 20)
+    spot = corner if box_at == "drawn" else arc_mid
     return [arrow, label,
             el(id="foreign", type="rectangle", x=spot + 5, y=oy + 2,
                width=40, height=30, customData={"role": "node"})]
@@ -2440,11 +2452,28 @@ def _elbow_label_stage(balanced: bool, box_at: str) -> list[dict]:
 # worth knowing before anyone starts — once the base point is the corner,
 # that function's `clear()` gate is False by construction on every 3-point
 # elbow, taking its bias from 10 corpus labels to 36.
+#
+# RESOLVED by the v0.9 curves fold-in, and it landed as scoped: both reds
+# above flipped on the one edit, `_arc_midpoint` is gone from the label
+# path, and `_client_label_point` reproduces all four client branches —
+# measured at 0.0000px against the live values this block quotes. The
+# coordination cost was real and was paid in the same change:
+# `_label_off_corner` was rewritten to slide by arc length along the DRAWN
+# path, and the corpus population it biases moved from 10 labels to 12 at
+# 18.0-29.3px (not the 36 predicted here — the predicted figure counted
+# every 3-point elbow, and a minimal slide leaves the ones whose label
+# already clears its own turn alone).
+#
+# What this block did NOT fix, stated because the two are next-door
+# neighbours and the confusion is cheap to make: the corner bias still
+# counts VERTICES where it means TURNS. That is the class immediately
+# below, it is still red, and the parity port neither helped nor hurt it —
+# see the measurement recorded there.
 # ---------------------------------------------------------------------------
 
 
 class TestLabelAnchorAgainstTheDrawnPosition(unittest.TestCase):
-    """The lint measures a point on the path; the client paints the corner."""
+    """The lint measured a point on the path; the client paints the corner."""
 
     def test_a_box_on_the_agreed_position_is_reported(self) -> None:
         """The live half: balanced legs, one position, and the check fires.
@@ -2460,19 +2489,34 @@ class TestLabelAnchorAgainstTheDrawnPosition(unittest.TestCase):
         self.assertTrue(_says_lies_on(_elbow_label_stage(
             balanced=True, box_at="drawn")))
 
-    @unittest.expectedFailure
     def test_red_a_box_on_the_drawn_label_is_not_reported(self) -> None:
-        """The label sits inside the box on screen and the lint says nothing.
+        """FLIPPED by the v0.9 curves fold-in. Kept its red-era name.
 
-        RED BY ASSERTION — the direction is a MISS, and the magnitude is
-        the whole divergence: the client draws the label centred on the
-        corner (500, 100), box `[480,520]x[90,110]`, and `foreign` at
+        The direction was a MISS, and the magnitude was the whole
+        divergence: the client draws the label centred on the corner
+        (500, 100), box `[480,520]x[90,110]`, and `foreign` at
         `[505,545]x[102,132]` covers 15px of it in x and 8px in y, both
         past this check's own `>8`/`>4` thresholds. Both channels
-        `label_boxes` measures — anchor and slot — sit at (330, 90), 150px
-        away, so the check compares the box against empty canvas and
-        passes. This exact scene was built in a running browser and
+        `label_boxes` measured — anchor and slot — sat at (330, 90),
+        150px away, so the check compared the box against empty canvas
+        and passed. This exact scene was built in a running browser and
         observed silent while the label was visibly inside the box.
+
+        What landed: `arrow_label_anchor` stopped walking whole-path arc
+        length and now ports the client's own rule — it branches on the
+        PARITY of `points`, so this 3-point elbow centres on its corner
+        the way every other model in the pipeline already did not. The
+        port reproduces the live client at 0.0000px on this scene: the
+        anchor returns (480, 90), whose centre is the corner to the
+        digit. `label_boxes`' channel `[0]` therefore hands the check the
+        rect the client actually paints, and the overlap it was blind to
+        is the one it now measures.
+
+        The check reads BOTH channels, so this flip is not the slot's
+        doing: `arrow_label_slot` puts the export's copy at (480, 108),
+        18px down the vertical leg, and that rect overlaps `foreign`
+        too. Either channel alone would fire here, which is the property
+        the R2-8 comment in `lint_layout` asks for.
 
         The box is deliberately clear of both stroke segments. Centred on
         the corner it also trips the "arrow passes through foreign"
@@ -2485,18 +2529,30 @@ class TestLabelAnchorAgainstTheDrawnPosition(unittest.TestCase):
                                              box_at="drawn")),
             "the label is drawn inside 'foreign' and nothing warns")
 
-    @unittest.expectedFailure
     def test_red_a_box_on_the_arc_midpoint_is_reported_anyway(self) -> None:
-        """The other direction: a warning about a label that is 150px away.
+        """FLIPPED by the v0.9 curves fold-in. Kept its red-era name.
 
-        RED BY ASSERTION — the direction is an OVER-FIRE, and it is the
-        same defect read from its other end, which is why it is pinned
-        beside the miss rather than instead of it. Nothing is drawn in
-        this box; the label is at the corner, 150px along the path. An
-        agent told to "re-route the arrow or shorten the label" here
-        would be repairing a picture that is already right, and a fix
-        that widened the check to catch the miss without moving the model
-        would produce more of exactly this.
+        The direction was an OVER-FIRE, and it was the same defect read
+        from its other end, which is why it was pinned beside the miss
+        rather than instead of it. Nothing is drawn in this box; the
+        label is at the corner, 150px along the path. An agent told to
+        "re-route the arrow or shorten the label" here would have been
+        repairing a picture that was already right, and a fix that
+        widened the check to catch the miss without moving the model
+        would have produced more of exactly this.
+
+        What landed is the same one edit the miss above names — the two
+        reds were always one defect — and this pole is the evidence that
+        it moved the MODEL rather than loosening the check: the anchor
+        left (350, 100) instead of the check learning to forgive it.
+        Both channels now sit on the corner, this box is 150px of empty
+        canvas, and `_says_lies_on` returns `[]`.
+
+        Its scene needed a repair to keep saying that, recorded on
+        `_elbow_label_stage`: the 350 was being read out of
+        `arrow_label_anchor` at build time, so the box tracked the fix
+        onto the corner and this assertion started measuring the scene
+        one method up. The coordinate is frozen now.
         """
         self.assertEqual(
             _says_lies_on(_elbow_label_stage(balanced=False,
@@ -2593,12 +2649,23 @@ class TestCornerBiasReadsVerticesNotTurns(unittest.TestCase):
         that had stopped firing altogether would satisfy it while
         re-opening r5-14 — six labels across three shipped artifacts with
         their connectors reading as two stubs pointing nowhere near each
-        other. On a balanced 200+200 elbow the arc midpoint IS the turn,
-        so this is the trigger at its most certain: 38px, the label's
-        half-width plus `LABEL_CORNER_PAD`.
+        other. On a balanced 200+200 elbow the anchor IS the turn, so
+        this is the trigger at its most certain.
+
+        RE-DERIVED from 38px to 18px by the v0.9 curves fold-in, and the
+        magnitude is the whole point of the rewrite rather than a
+        tolerance being relaxed. 38 was the label's HALF-WIDTH plus
+        `LABEL_CORNER_PAD` — the old rule picked a host segment and slid
+        along it, and the segment it picked was the horizontal leg, so
+        the label had to travel its own long axis to get clear. The rule
+        now walks the drawn path outward from the anchor and stops at the
+        first position that clears, which finds the vertical leg at 18px:
+        the half-HEIGHT plus the same pad. Same turn, same clearance,
+        20px less motion, and the number is still exact — a bias that
+        died still reads 0.0 and still fails here.
         """
         self.assertAlmostEqual(
-            self._slot_offset([[0, 0], [200, 0], [200, 200]]), 38.0, places=3)
+            self._slot_offset([[0, 0], [200, 0], [200, 200]]), 18.0, places=3)
 
     @unittest.expectedFailure
     def test_red_a_collinear_waypoint_is_treated_as_a_corner(self) -> None:
@@ -2622,6 +2689,20 @@ class TestCornerBiasReadsVerticesNotTurns(unittest.TestCase):
         stored point), so this comparison is only available while the era
         is sharp, and the defect it names is the one that grows when it
         stops being.
+
+        STILL RED after the v0.9 curves fold-in, measured rather than
+        assumed. That change rewrote `_label_off_corner` end to end — the
+        host-segment pick is gone and the slide walks arc length along
+        the drawn path — so the obvious question was whether the new
+        mechanism happens to drop collinear vertices on the way. It does
+        not: the five-point path still slides 18.0000px and the four-point
+        one still slides 0.0000px, both anchored at the identical
+        (370, 190), which is this assertion's two operands unchanged to
+        four places. Nothing moved because the rewrite replaced WHERE the
+        label slides to, not WHICH vertices it slides to clear —
+        `corners` is still every interior vertex. The fix named above is
+        still the fix, still a turn-angle test on the vertex, and still
+        belongs to whoever owns `_label_off_corner`.
         """
         self.assertAlmostEqual(
             self._slot_offset([[0, 0], [400, 0], [400, 200], [400, 400],
@@ -8939,13 +9020,14 @@ def _crossing_tail() -> list[dict]:
 # And since curator batch 15 one red lives outside this file entirely —
 # `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
 # export is never measured against the drawing — so the suite's default line
-# reads `expected failures=17` against the 16 counted here. The two numbers
-# are meant to differ by exactly that one. (They have read 16/15 and 21/20
-# before, and they are not the same 16 and 15 each time: Task 23 flipped
-# two, curator batch 19 added two once on each side of the CATALOGUE
-# boundary, Task 24 flipped two more, batch 20 added one, batch 21 added six
-# and Task 56 flipped four — a fair warning that matching totals prove
-# nothing here and only the split is worth reading.)
+# reads `expected failures=15` against the 14 counted here. The two numbers
+# are meant to differ by exactly that one. (They have read 16/15, 21/20 and
+# 17/16 before, and they are not the same 16 and 15 each time: Task 23
+# flipped two, curator batch 19 added two once on each side of the CATALOGUE
+# boundary, Task 24 flipped two more, batch 20 added one, batch 21 added six,
+# Task 56 flipped four and the curves fold-in flipped two — a fair warning
+# that matching totals prove nothing here and only the split is worth
+# reading.)
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`
@@ -10893,7 +10975,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
-                             "TestLabelAnchorAgainstTheDrawnPosition": 2,
                              "TestLoadFindingsReachTheAgent": 4,
                              "TestReplayOrderFidelity": 2}
 # `TestShapeBlindAnnotationOverlap` LEFT this list on 2026-08-15 (v0.9
@@ -10901,6 +10982,14 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
 # in one change, which is what the fix was scoped to do. It still holds
 # tests, and green ones at that; it is absent because it holds no REDS,
 # which is the only thing this dict counts.
+# `TestLabelAnchorAgainstTheDrawnPosition` LEFT it the same way on the
+# v0.9 curves fold-in, and for the reason its own block states: its two
+# reds were one defect pinned from both ends, so the label-model port
+# drained them together or it would have drained neither.
+# `TestCornerBiasReadsVerticesNotTurns` survives that same change with its
+# single red intact, which is worth reading as the pair it is — two label
+# classes curated in one batch, one flipped by the fold-in and one not,
+# because they name different functions.
 
 # The one class whose reds ARE catalogue entries, excluded from the
 # comparison above. Named rather than inlined so a rename of the class shows

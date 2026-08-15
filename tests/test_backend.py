@@ -5944,19 +5944,29 @@ class TestArrowLabelAnchor(Base):
                 "originalText": label, "containerId": "a1"}
         return arrow, text
 
-    def test_anchor_is_the_arc_midpoint_not_the_longest_segment(self):
-        # long horizontal run, short vertical drop: the two rules give
-        # very different answers, which is the whole bug
+    def test_anchor_is_the_clients_middle_vertex_not_an_arc_walk(self):
+        """The client branches on POINT COUNT, not on arc length.
+
+        Long horizontal run, short vertical drop. An arc-length walk
+        puts the label 250px along the horizontal leg; the client puts
+        it on `points[1]`, the corner, because the count is odd — and
+        the leg lengths never enter. The two answers are 150px apart,
+        measured against the running app at 0.0000px for the second
+        (v0.9 blind-spot 1 spike).
+        """
         arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 100]])
         x, y = canvas.arrow_label_anchor(arrow, text)
-        # half of 500 total lands 250 along the horizontal run
-        self.assertAlmostEqual(x + 30, 250, delta=1)
+        self.assertAlmostEqual(x + 30, 400, delta=1)
         self.assertAlmostEqual(y + 10, 0, delta=1)
 
-    def test_recenter_label_writes_the_drawn_position(self):
+    def test_recenter_label_writes_the_slot(self):
+        # the corner IS the anchor here, so the bias fires and what
+        # lands in the store is the slid position, 18px down the
+        # vertical leg (hh + LABEL_CORNER_PAD, the nearest clearance)
         arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 100]])
         canvas.recenter_label([arrow, text], arrow)
-        self.assertAlmostEqual(text["x"] + 30, 250, delta=1)
+        self.assertAlmostEqual(text["x"] + 30, 400, delta=1)
+        self.assertAlmostEqual(text["y"] + 10, 18, delta=1)
 
     def test_straight_arrow_anchor_is_its_middle(self):
         arrow, text = self.elbow("x", [[0, 0], [200, 0]])
@@ -5964,8 +5974,17 @@ class TestArrowLabelAnchor(Base):
         self.assertAlmostEqual(x + 30, 100, delta=1)
 
     def test_label_landing_on_a_foreign_box_warns(self):
-        # the R2-8 shape: the arc midpoint falls inside a box that is
-        # neither end of the arrow
+        """The R2-8 shape: the DRAWN label falls inside a foreign box.
+
+        Pin A of the blind-spot 1 spike, and it needs no curvature. The
+        foreign box sits at `x >= 405`, deliberately clear of the
+        stroke's own `x <= 400`, so it touches neither leg and cannot be
+        caught by the unrelated "arrow passes through" check — the trap
+        that would have made this pin pass for the wrong reason. What it
+        does overlap is the label the client draws on the corner, by
+        25px in x and 20px in y. On the arc-length anchor this scene was
+        silent (observed live in `spike-row26-verify`).
+        """
         arrow, text = self.elbow("numbers", [[0, 0], [400, 0], [400, 200]])
         canvas.recenter_label([arrow, text], arrow)
         els = [
@@ -5973,7 +5992,7 @@ class TestArrowLabelAnchor(Base):
              "width": 160, "height": 60, "customData": {"role": "node"}},
             {"id": "dst", "type": "rectangle", "x": 340, "y": 240,
              "width": 160, "height": 60, "customData": {"role": "node"}},
-            {"id": "foreign", "type": "rectangle", "x": 200, "y": -30,
+            {"id": "foreign", "type": "rectangle", "x": 405, "y": -40,
              "width": 160, "height": 60, "customData": {"role": "node"}},
             arrow, text]
         warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
@@ -5995,8 +6014,12 @@ class TestArrowLabelAnchor(Base):
         drawn box spans 170..230 (inside it).
 
         The check now measures BOTH positions and fires on either. The
-        scene is the reviewer's: a 200+200 elbow, balanced, so the arc
-        midpoint lands exactly on the turn and the bias is maximal.
+        scene is the reviewer's: a 200+200 elbow, balanced, so the
+        client's anchor lands exactly on the turn and the bias is
+        maximal. Since v0.9 the slide is the SHORTEST one that clears
+        (18px down the vertical leg, not 38px back along the
+        horizontal), so the two channels now come apart in y rather than
+        in x — the foreign box is placed to catch the canvas one alone.
         """
         arrow, text = self.elbow("numbers", [[0, 0], [200, 0], [200, 200]])
         canvas.recenter_label([arrow, text], arrow)
@@ -6004,14 +6027,14 @@ class TestArrowLabelAnchor(Base):
         # the premise: the two positions really have come apart here, or
         # this scene would pass for reasons that have nothing to do with
         # the fix
-        self.assertNotAlmostEqual(text["x"], drawn[0], delta=1)
+        self.assertNotAlmostEqual(text["y"], drawn[1], delta=1)
         els = [
             {"id": "src", "type": "rectangle", "x": -200, "y": -30,
              "width": 160, "height": 60, "customData": {"role": "node"}},
             {"id": "dst", "type": "rectangle", "x": 140, "y": 240,
              "width": 160, "height": 60, "customData": {"role": "node"}},
-            {"id": "foreign", "type": "rectangle", "x": 196, "y": -30,
-             "width": 160, "height": 60, "customData": {"role": "node"}},
+            {"id": "foreign", "type": "rectangle", "x": 196, "y": -45,
+             "width": 160, "height": 50, "customData": {"role": "node"}},
             arrow, text]
         warns = canvas.lint_layout(els, artifact_type="flow")["warnings"]
         self.assertTrue(any("arrow label" in w and "neither end" in w
@@ -6023,30 +6046,33 @@ class TestArrowLabelAnchor(Base):
         The class above only ever exercised 400+100 and 400+200 elbows,
         which are lopsided enough that the arc midpoint clears the turn
         on its own, so nothing here entered the biasing regime at all.
-        A symmetric elbow's arc midpoint IS its turn at any scale: this
-        400+400 path is biased by exactly the same 38px as a 200+200
-        one, which is what makes "long elbows are unaffected" false.
+        The client's anchor on an ODD-point path IS its turn at any
+        scale and at any imbalance: this 400+400 path is biased by
+        exactly the same 18px as a 200+200 one, which is what makes
+        "long elbows are unaffected" false.
         """
         arrow, text = self.elbow("x", [[0, 0], [400, 0], [400, 400]])
         self.assertAlmostEqual(canvas.arrow_label_anchor(arrow, text)[0] + 30,
                                400, delta=1)
         x, y = canvas.arrow_label_slot(arrow, text)
-        # slid back along the horizontal leg by half the label's width
-        # plus the pad, and no further — the divergence IS the clearance
-        self.assertAlmostEqual(x + 30, 362, delta=1)
-        self.assertAlmostEqual(y + 10, 0, delta=1)
+        # the NEAREST clearing position on the drawn path, which is 18px
+        # (hh + pad) down the vertical leg — not 38px (hw + pad) back
+        # along the horizontal one, which also clears but is further
+        self.assertAlmostEqual(x + 30, 400, delta=1)
+        self.assertAlmostEqual(y + 10, 18, delta=1)
 
-    def test_the_host_segment_is_adjacent_to_the_offending_turn(self):
-        """Ruling 1: not the longest segment of the whole path.
+    def test_the_slide_stays_in_the_offending_turns_neighbourhood(self):
+        """Ruling 1, re-derived: the slide is MINIMAL over the path.
 
         The reviewer's five-point path. Its longest segments are the two
         400px horizontal limbs, and the turn under the label is between
         the two 200px vertical ones — so "longest overall" put the
         anchor on a limb with nothing to do with the turn, 203.6px from
-        the arc midpoint against a claimed bound of 38. Adjacency makes
-        that bound true by construction: the turn projects onto an
-        adjacent segment at one of its ends, so the clamp returns
-        exactly the clearance.
+        the anchor against a claimed bound of 38. The adjacency rule
+        that replaced it made the bound true by construction; the arc-
+        length scan makes it true by a stronger property, since it stops
+        at the FIRST clearing position walking outward and so cannot
+        reach a far limb before a near one.
         """
         arrow, text = self.elbow(
             "x", [[0, 0], [400, 0], [400, 200], [400, 400], [0, 400]])
@@ -6101,7 +6127,15 @@ class TestArrowLabelAnchor(Base):
                             for w in warns), warns)
 
     def two_labels(self, pts_b, bx=0, by=0):
-        """A balanced 200+200 elbow plus a second arrow, both labelled.
+        """A stub-legged elbow plus a second arrow, both labelled.
+
+        The first arrow's second leg is 10px — too short to host the
+        label — so the slide scan has to walk BACK along the horizontal
+        one, putting the canvas anchor and the stored slot 38px apart in
+        x. That stagger is what every test below discriminates on; a
+        balanced elbow would stagger by 18px in y instead, and 18 is
+        inside a 20px-tall label's own height, so no arrangement of two
+        such labels can separate the channels.
 
         Args:
             pts_b: The second arrow's points, in its own coordinates.
@@ -6112,7 +6146,7 @@ class TestArrowLabelAnchor(Base):
             The element list, labels already re-centred.
         """
         els = [{"id": "a1", "type": "arrow", "x": 0, "y": 0, "width": 0,
-                "height": 0, "points": [[0, 0], [200, 0], [200, 200]],
+                "height": 0, "points": [[0, 0], [200, 0], [200, 10]],
                 "startBinding": {}, "endBinding": {}},
                {"id": "a1-label", "type": "text", "x": -999, "y": -999,
                 "width": 60, "height": 20, "text": "lblA",
@@ -6142,7 +6176,7 @@ class TestArrowLabelAnchor(Base):
     def test_labels_clear_in_both_channels_are_silent(self):
         """F11: never pair one label's canvas box with another's export.
 
-        Two balanced 200+200 elbows offset in x, each with a 60x20
+        Two stub-legged elbows offset in x, each with a 60x20
         label. Both labels are at their anchors on the canvas and both
         at their slots in the export, so those are the only two
         configurations that exist; at these offsets the labels miss each
@@ -6155,7 +6189,7 @@ class TestArrowLabelAnchor(Base):
         (task 19 re-review, F11).
         """
         for d in (62, 70):
-            els = self.two_labels([[0, 0], [200, 0], [200, 200]], bx=d)
+            els = self.two_labels([[0, 0], [200, 0], [200, 10]], bx=d)
             a_anchor = canvas.arrow_label_anchor(els[0], els[1])[0]
             b_anchor = canvas.arrow_label_anchor(els[2], els[3])[0]
             a_slot = canvas.arrow_label_slot(els[0], els[1])[0]
@@ -6171,7 +6205,7 @@ class TestArrowLabelAnchor(Base):
         # control for the above: the same two elbows, close enough that
         # the labels collide in both channels at once
         self.assertTrue(
-            self.overlaps(self.two_labels([[0, 0], [200, 0], [200, 200]],
+            self.overlaps(self.two_labels([[0, 0], [200, 0], [200, 10]],
                                           bx=20)))
 
     def test_an_overlap_on_the_canvas_alone_fires(self):
@@ -6224,8 +6258,8 @@ class TestArrowLabelAnchor(Base):
         """
         row = self.geometry_row([[0, 0], [200, 0], [200, 200]])
         self.assertIn("drawn=(170,-10)", row)     # the canvas anchor
-        self.assertIn("export=(132,-10)", row)    # the stored slot
-        self.assertIn("drift=38px", row)
+        self.assertIn("export=(170,8)", row)      # the stored slot
+        self.assertIn("drift=18px", row)
 
     def test_x_geometry_names_one_position_when_they_agree(self):
         # the silent half: a straight arrow needs no bias, so the two

@@ -18,6 +18,7 @@ Canonical invocation:  uv run canvas.py <cmd>   (bare python3 works too)
 """
 
 import argparse
+import bisect
 import contextlib
 import copy
 import hashlib
@@ -2136,6 +2137,133 @@ def server_owns_geometry(arrow):
     return len(arrow.get("points") or []) <= 2
 
 
+CURVE_SAMPLES = 20
+# Sub-segments per curved span when a rounded path is flattened. Same
+# value as `tests/instruments.py`'s constant of the same name, which is
+# what `false_bidi`'s curvature fix was measured at: the two flattenings
+# read the SAME geometry from two layers and drift between them would be
+# a check disagreeing with the drawing about the drawing.
+
+
+def _bezier_spans(pts):
+    """The cubic Beziers the client draws for a rounded path.
+
+    Excalidraw hands a rounded linear element to roughjs's
+    `generator.curve`, whose `_curve` is a Catmull-Rom spline at
+    `curveTightness: 0` fed a point list with its first and last entries
+    DUPLICATED (`_curveWithOffset`). That padding is what makes the
+    spline interpolate the endpoints, and the tightness is what makes it
+    interpolate every interior vertex too — the corner stays exactly on
+    the stroke, which is the measurement that killed "a rounded elbow
+    pulls the stroke off the turn" (v0.9 blind-spot 4 spike; recorded
+    canvas `bcurveTo` ops matched this arithmetic digit for digit).
+
+    Args:
+        pts: The path's points as `(x, y)` pairs, at least two, in any
+            one coordinate frame — the result is in that same frame.
+
+    Returns:
+        One `(b0, b1, b2, b3)` control-point tuple per span, in order,
+        so span `i` runs from `pts[i]` to `pts[i + 1]`.
+    """
+    pad = [pts[0], pts[0], *pts[1:], pts[-1]]
+    out = []
+    for i in range(1, len(pts)):
+        b0, b3 = pad[i], pad[i + 1]
+        b1 = (b0[0] + (pad[i + 1][0] - pad[i - 1][0]) / 6.0,
+              b0[1] + (pad[i + 1][1] - pad[i - 1][1]) / 6.0)
+        b2 = (b3[0] + (pad[i][0] - pad[i + 2][0]) / 6.0,
+              b3[1] + (pad[i][1] - pad[i + 2][1]) / 6.0)
+        out.append((b0, b1, b2, b3))
+    return out
+
+
+def _bezier_at(b0, b1, b2, b3, t):
+    """Evaluate a cubic Bezier at parameter t.
+
+    Args:
+        b0: Start point.
+        b1: First control point.
+        b2: Second control point.
+        b3: End point.
+        t: Curve parameter in [0, 1].
+
+    Returns:
+        The `(x, y)` on the curve at `t`.
+    """
+    u = 1.0 - t
+    c0, c1 = u * u * u, 3 * u * u * t
+    c2, c3 = 3 * u * t * t, t * t * t
+    return (c0 * b0[0] + c1 * b1[0] + c2 * b2[0] + c3 * b3[0],
+            c0 * b0[1] + c1 * b1[1] + c2 * b2[1] + c3 * b3[1])
+
+
+def _abs_pts(arrow):
+    """An arrow's stored points in scene coordinates.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y` and `points`.
+
+    Returns:
+        The stored polyline as `(x, y)` pairs; `[(x, y)]` for an arrow
+        with no points at all.
+    """
+    ox, oy = arrow.get("x", 0), arrow.get("y", 0)
+    return [(ox + p[0], oy + p[1])
+            for p in (arrow.get("points") or [[0, 0]])]
+
+
+def _rendered_stretches(arrow, samples=CURVE_SAMPLES):
+    """Flatten an arrow into the path the renderer actually draws.
+
+    One sampled polyline per STORED span, so a caller that wants a
+    particular leg — the walk that measures an approach, the axis the
+    arrowhead is drawn along — can take it without re-deriving which
+    samples belong to which leg.
+
+    A SHARP arrow's stretches are its chords, unchanged and unsampled,
+    so every consumer pays literally nothing while `derived_roundness`
+    keeps a route sharp. That guard is the reason this can be swapped in
+    everywhere the stored chord was read without a cost argument.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y`, `points` and
+            `roundness`.
+        samples: Sub-segments per curved span. Straight spans ignore it.
+
+    Returns:
+        A list of sampled polylines in scene coordinates, one per span,
+        each starting at that span's first stored point and ending at
+        its last. Empty when the arrow has fewer than two points.
+    """
+    p = _abs_pts(arrow)
+    if len(p) < 2:
+        return []
+    if not arrow.get("roundness") or len(p) < 3:
+        return [[p[i], p[i + 1]] for i in range(len(p) - 1)]
+    return [[_bezier_at(b0, b1, b2, b3, k / float(samples))
+             for k in range(samples + 1)]
+            for (b0, b1, b2, b3) in _bezier_spans(p)]
+
+
+def _rendered_path(arrow, samples=CURVE_SAMPLES):
+    """Flatten an arrow into one continuous rendered polyline.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y`, `points` and
+            `roundness`.
+        samples: Sub-segments per curved span.
+
+    Returns:
+        The whole drawn path in scene coordinates, span joints appearing
+        once. Empty when the arrow has fewer than two points.
+    """
+    out = []
+    for stretch in _rendered_stretches(arrow, samples):
+        out.extend(stretch[1:] if out else stretch)
+    return out
+
+
 def derived_roundness(arrow):
     """Say what `roundness` a server-routed arrow must carry.
 
@@ -2780,71 +2908,88 @@ def index_fault(value, limit=None):
 LABEL_CORNER_PAD = 8.0
 
 
+# How finely the slide scan walks the drawn path, in px. Half a pixel
+# buys an anchor within 0.5px of the nearest clearing position, which is
+# under the rounding every stored coordinate takes anyway.
+LABEL_SLIDE_STEP = 0.5
+
+
 def _label_off_corner(arrow, label, segs, mx, my):
-    """Slide a label's anchor until no turn sits under its own box.
+    """Slide a label's anchor along the DRAWN path until no turn sits
+    under its own box.
 
-    The arc-length midpoint is the right anchor and stays the answer
-    almost everywhere (see `arrow_label_anchor`); on a NEAR-BALANCED
-    elbow it is also, by arithmetic, close to the turn. The label's
-    backdrop then covers the corner and both approaches to it, and the
-    connector reads as two stubs pointing nowhere near each other — six
-    labels across three shipped artifacts in the v0.9 round-5 assessment
-    (`r5-14`), worst on a self-loop, whose stored path was provably
-    correct the whole time.
+    The client's anchor (`_client_label_point`) is the right place for a
+    label almost everywhere; on a NEAR-BALANCED elbow it is also, by
+    arithmetic, close to the turn — and on an ODD-point path it IS the
+    turn, unconditionally, because the client centres on the middle
+    VERTEX. The label's backdrop then covers the corner and both
+    approaches to it, and the connector reads as two stubs pointing
+    nowhere near each other — six labels across three shipped artifacts
+    in the v0.9 round-5 assessment (`r5-14`), worst on a self-loop,
+    whose stored path was provably correct the whole time.
 
-    Balance, not length, is the predicate, and the distinction cost a
-    wrong claim in the first round of this fix. A symmetric elbow's arc
-    midpoint IS its turn at any scale — a 400+400 elbow is biased
-    exactly as far as a 200+200 one. Writing `h` for the label's
-    half-extent along the run, the bias fires whenever
-    `|L1 - L2| < 2 * (h + LABEL_CORNER_PAD)`: a 76px band of leg
-    imbalance for a 60x20 label on a horizontal-dominant elbow, 36px on
-    a vertical-dominant one. "Long elbows are unaffected" is false.
+    Curvature does NOT retire this. roughjs draws a rounded linear
+    element as a Catmull-Rom spline at `curveTightness: 0`, which
+    INTERPOLATES every interior vertex — the corner sits exactly on the
+    stroke, 0.0000px, on every shape measured. What curvature changes is
+    the amount of help: the stub mismatch a curved elbow leaves runs
+    from 24 degrees on a long balanced one down to essentially none
+    (88.5 against 90) on a short one, and short elbows are the
+    population the client unconditionally labels on the corner. Gating
+    the bias on sharpness was rejected on that measurement (v0.9
+    blind-spot 4 spike).
 
-    The break itself is not the defect and cannot be removed: the client
-    breaks every arrow behind its bound label. What this moves is WHERE
-    the break lands. On a straight run the two stubs are collinear and
-    the eye completes them; on a corner they are not. So the rule is to
-    keep the corner OUT of the label's box, sliding no further than the
-    clearance requires.
+    THE RULE. Walk the flattened path — the one the renderer actually
+    draws — outward in arc length from the client's anchor, and stop at
+    the first position whose box clears every interior vertex. Ties go
+    to the position EARLIER along the path; the two sides are symmetric
+    on a balanced elbow and something has to be deterministic. Nothing
+    clears anywhere leaves the anchor alone: there is nowhere better,
+    and inventing an off-stroke position is the perpendicular lift v0.6
+    removed.
 
-    The host segment is the longest one ADJACENT TO THE OFFENDING TURN,
-    which is what keeps the slide short (task 19 review, Ruling 1).
-    Picking the longest segment of the whole path instead can land the
-    anchor on a limb with nothing to do with the turn: measured on a
-    5-point path, 203.6px from the arc midpoint, because the clamp
-    bounds the anchor to its own segment and not to the midpoint's
-    neighbourhood. Adjacency closes that by construction — the turn
-    projects onto an adjacent segment at `t = 0` or `t = ln`, so the
-    clamp returns exactly `need` and the anchor lands EXACTLY the
-    clearance away from the turn.
+    THE GUARANTEE, restated for the curved world. What the segment-
+    selection rule this replaces promised was collinear stubs at the
+    slid anchor plus a slide of exactly `need` from the turn. Neither
+    survives curvature and the first is not buyable at any acceptable
+    price: on a balanced 200+200 elbow it takes a 180px slide to reach
+    collinear against a 38px clearance, and 90px to reach 9.7 degrees.
+    What this rule guarantees instead is stronger where it counts and
+    honest about the rest:
 
-    Care with what that guarantees, because the first round of this fix
-    shipped a bound it had not measured. What is exact is the distance
-    from the TURN. The distance from the arc MIDPOINT equals it only
-    when the midpoint sits on the turn (the balanced elbow); otherwise
-    the midpoint's own offset adds, and the offset is itself under the
-    clearance since that is the trigger window. Measured: the corpus's
-    72 bound arrow labels never exceed 1.00x the clearance, and over
-    4296 synthetic L/Z/U paths the worst is 1.62x — 22 cases above 1.00x,
-    all of them the last-resort tail below. Bounded by the clearance,
-    then, not equal to it, and either way nothing like the unbounded
-    divergence of the v0.6 rule this must not become.
+    - the anchor is ON the drawn stroke, by construction (the old rule
+      slid along a chord, landing a measured 5.2-25.6px off a bowed
+      stroke — past the 14px backdrop half-height, i.e. the v0.6
+      perpendicular lift re-created by accident);
+    - the displacement is MINIMAL over the drawn path, to within
+      `LABEL_SLIDE_STEP`, and needs no argument about which segment got
+      picked;
+    - the residual stub mismatch is bounded but not zero: 16-36 degrees
+      under curvature, 0 on a sharp path where the scan lands on a
+      straight run.
 
-    A path where no segment at all can hold the label keeps the arc
-    midpoint: there is nowhere better to put it, and inventing an
-    off-stroke position is the perpendicular lift v0.6 removed.
+    Displacement bound, measured on a reconstruction of the sweep the
+    old docstring quoted (the original 4296-path population is not in
+    the repo, so this is a re-derivation and not a reproduction; 416
+    L/Z/U paths x 4 label sizes, bias firing on 531): this rule 2.11x
+    the clearance sharp / 2.23x curved, against 3.48x for the rule it
+    replaces, with 18 cases over 1.00x against 59. It improves the
+    SHARP world too, which is why it landed with curvature rather than
+    behind it.
 
     Args:
-        arrow: The arrow/line element, read for `x`/`y`.
+        arrow: The arrow/line element, read for `x`/`y`, `points` and
+            `roundness`.
         label: The bound text element, read for `width`/`height`.
         segs: `[(from_point, to_point, length)]` in the arrow's own
-            coordinates, as `arrow_label_anchor` builds them.
-        mx: The arc-length midpoint's x, in scene coordinates.
-        my: The arc-length midpoint's y.
+            coordinates, as `_chord_segments` builds them. Read for its
+            CORNERS only — a corner is a stored vertex in every world,
+            curved or sharp, so this argument needs no flattening.
+        mx: The client anchor's x, in scene coordinates.
+        my: The client anchor's y.
 
     Returns:
-        `(x, y)` for the label's CENTRE — the midpoint unchanged when no
+        `(x, y)` for the label's CENTRE — the anchor unchanged when no
         turn sits under the label, else the slid anchor.
     """
     ax, ay = arrow.get("x", 0), arrow.get("y", 0)
@@ -2855,67 +3000,90 @@ def _label_off_corner(arrow, label, segs, mx, my):
     corners = [(ax + b[0], ay + b[1]) for (_a, b, _ln) in segs[:-1]]
 
     def clear(x, y):
+        """Whether a label centred here keeps every turn out of its box.
+
+        Returns:
+            True when no interior vertex is inside the padded box.
+        """
         return not any(abs(cx - x) < hw + LABEL_CORNER_PAD and
                        abs(cy - y) < hh + LABEL_CORNER_PAD
                        for cx, cy in corners)
 
     if clear(mx, my):
         return (mx, my)
-    # segments touching a turn that is under the label: `segs[i]` ends at
-    # corner i and `segs[i + 1]` leaves it. Ordered by length, then by
-    # index so a tie is resolved the same way on every run.
-    hit = [i for i, (cx, cy) in enumerate(corners)
-           if abs(cx - mx) < hw + LABEL_CORNER_PAD and
-           abs(cy - my) < hh + LABEL_CORNER_PAD]
-    near = sorted({i for k in hit for i in (k, k + 1)},
-                  key=lambda i: (-segs[i][2], i))
-    # PREFER adjacent, not adjacent-only. When neither neighbour of the
-    # turn is long enough — a short jog between two long limbs — the
-    # remaining segments are tried before giving up, because the choice
-    # there is not "near anchor vs far anchor" but "far anchor vs the
-    # label left sitting on the elbow", and the second is the defect
-    # this whole function exists for. Measured over 4296 synthetic
-    # paths: 2 reach this tail, 0 of the corpus's 72 labels do, so the
-    # exact-clearance bound above holds everywhere it is claimed and
-    # this line is what keeps the rare path from silently losing the fix.
-    rest = sorted((i for i in range(len(segs)) if i not in set(near)),
-                  key=lambda i: (-segs[i][2], i))
-    for i in [*near, *rest]:
-        (a, b, ln) = segs[i]
-        if ln <= 0:
-            continue
-        ux, uy = (b[0] - a[0]) / ln, (b[1] - a[1]) / ln
-        # the label's half-extent ALONG this segment: its width on a
-        # horizontal run, its height on a vertical one, and the
-        # projection of the box between the two on a diagonal
-        need = abs(ux) * hw + abs(uy) * hh + LABEL_CORNER_PAD
-        if ln < need * 2:
-            continue                        # too short to host the label
-        x0, y0 = ax + a[0], ay + a[1]
-        t = min(max((mx - x0) * ux + (my - y0) * uy, need), ln - need)
-        slid = (x0 + ux * t, y0 + uy * t)
-        # clearing THIS turn can still leave the next one under the
-        # label when the segment beyond is short, so the post-condition
-        # is checked rather than assumed
-        if clear(*slid):
-            return slid
-    return (mx, my)
+    path = _rendered_path(arrow)
+    if len(path) < 2:
+        return (mx, my)
+    cum = [0.0]
+    for (x0, y0), (x1, y1) in zip(path, path[1:]):
+        cum.append(cum[-1] + ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5)
+    total = cum[-1]
+    if total <= 0:
+        return (mx, my)
+
+    def at(s):
+        """The point `s` px along the drawn path.
+
+        Returns:
+            The `(x, y)` there, clamped to the path's own ends.
+        """
+        i = bisect.bisect_right(cum, s) - 1
+        i = min(max(i, 0), len(path) - 2)
+        span = cum[i + 1] - cum[i]
+        t = (s - cum[i]) / span if span > 0 else 0.0
+        return (path[i][0] + (path[i + 1][0] - path[i][0]) * t,
+                path[i][1] + (path[i + 1][1] - path[i][1]) * t)
+
+    # where the client's anchor sits in arc length. It is ON the drawn
+    # path in every branch of `_client_label_point` bar the flattening
+    # residual of branch 4, so the nearest-point projection is exact to
+    # within the sampling and never invents a position.
+    best, s0 = None, 0.0
+    for i, ((x0, y0), (x1, y1)) in enumerate(zip(path, path[1:])):
+        dx, dy = x1 - x0, y1 - y0
+        ln2 = dx * dx + dy * dy
+        t = (((mx - x0) * dx + (my - y0) * dy) / ln2) if ln2 else 0.0
+        t = min(max(t, 0.0), 1.0)
+        px, py = x0 + dx * t, y0 + dy * t
+        d = (px - mx) ** 2 + (py - my) ** 2
+        if best is None or d < best:
+            best, s0 = d, cum[i] + (ln2 ** 0.5) * t
+    k = 1
+    while True:
+        reached = False
+        for s in (s0 - k * LABEL_SLIDE_STEP, s0 + k * LABEL_SLIDE_STEP):
+            if not 0.0 <= s <= total:
+                continue
+            reached = True
+            slid = at(s)
+            if clear(*slid):
+                return slid
+        if not reached:
+            return (mx, my)
+        k += 1
 
 
 def arrow_label_anchor(arrow, label):
     """Where a bound label on an arrow actually lands, as (x, y).
 
     The client owns this placement and we cannot argue with it: a text
-    whose `containerId` is an arrow is re-centred by Excalidraw on the
-    **arc-length midpoint** of the path, discarding whatever x/y we
-    stored. Until v0.6 the seeder anchored on the LONGEST SEGMENT's
-    midpoint and lifted the label 8px perpendicular off the stroke
-    (diagram-design §6.2). Those two rules agree on a straight arrow and
-    diverge without bound on an elbow — which is how a label came to sit
-    inside a foreign box on a canvas whose stored geometry showed no
-    overlap at all, with the lint reading the stored copy and staying
-    silent (v0.5 assessment R2-8). `render_svg` draws text at its stored
-    position, so the exported SVG and the live canvas disagreed too.
+    whose `containerId` is an arrow is re-centred by Excalidraw on a
+    point derived from the path's POINT COUNT, discarding whatever x/y
+    we stored. `_client_label_point` is that rule, all four branches of
+    it, measured against the running client at 0.0000px.
+
+    Two wrong answers preceded it and both are worth remembering,
+    because they failed the same way. Until v0.6 the seeder anchored on
+    the LONGEST SEGMENT's midpoint and lifted the label 8px
+    perpendicular off the stroke (diagram-design §6.2); v0.6 through
+    v0.9 walked the whole path's ARC LENGTH. Each agrees with the client
+    on a straight arrow and diverges on an elbow — which is how a label
+    came to sit inside a foreign box on a canvas whose stored geometry
+    showed no overlap at all, with the lint reading the stored copy and
+    staying silent (v0.5 assessment R2-8), and how 37 of 107 corpus
+    labels were still mislocated by up to 331px on the arc-length rule.
+    `render_svg` draws text at its stored position, so the exported SVG
+    and the live canvas disagreed too.
 
     This is the DRAWN position and nothing else — what the client will
     paint, on any path, regardless of what the store holds. Every check
@@ -2943,45 +3111,167 @@ def arrow_label_anchor(arrow, label):
     Returns:
         `(x, y)` for the label's top-left corner, as the client draws it.
     """
-    mx, my, _segs = _arc_midpoint(arrow)
-    return (mx - label.get("width", 0) / 2,
-            my - label.get("height", 0) / 2)
+    return _offset_label(_client_label_point(arrow), label)
 
 
-def _arc_midpoint(arrow):
-    """The point half way along a path by arc length, and its segments.
+def _offset_label(centre, label):
+    """Turn a label CENTRE into the top-left corner the store holds.
 
     Args:
-        arrow: The arrow/line element, with `x`, `y` and `points`.
+        centre: The `(x, y)` the label is centred on.
+        label: The bound text element, read for `width`/`height`.
 
     Returns:
-        `(x, y, segs)` in scene coordinates, where `segs` is
+        `(x, y)` for the label's top-left corner.
+    """
+    return (centre[0] - label.get("width", 0) / 2,
+            centre[1] - label.get("height", 0) / 2)
+
+
+def _chord_segments(arrow):
+    """An arrow's stored spans, with their chord lengths.
+
+    Half of what `_arc_midpoint` used to return. The other half — the
+    whole-path arc walk — was deleted rather than fixed, because the
+    client never performed one (`_client_label_point`); these segments
+    survive because `_label_off_corner` reasons about CORNERS, and a
+    corner is a stored vertex in every world.
+
+    Args:
+        arrow: The arrow/line element, with `points`.
+
+    Returns:
         `[(from_point, to_point, length)]` in the arrow's OWN
-        coordinates — the caller that biases off a corner needs them and
-        would otherwise rebuild them.
+        coordinates, empty for a path with fewer than two points.
     """
     pts = arrow.get("points") or [[0, 0]]
-    segs, total = [], 0.0
+    segs = []
     for i in range(1, len(pts)):
         dx = pts[i][0] - pts[i - 1][0]
         dy = pts[i][1] - pts[i - 1][1]
-        ln = (dx * dx + dy * dy) ** 0.5
-        segs.append((pts[i - 1], pts[i], ln))
-        total += ln
-    if not segs:
-        return (arrow.get("x", 0), arrow.get("y", 0), segs)
-    want, mx, my = total / 2, None, None
-    for (a, b, ln) in segs:
-        if want <= ln or ln <= 0:
-            t = (want / ln) if ln else 0.0
-            mx = arrow["x"] + a[0] + (b[0] - a[0]) * t
-            my = arrow["y"] + a[1] + (b[1] - a[1]) * t
-            break
-        want -= ln
-    if mx is None:                           # float drift past the end
-        mx = arrow["x"] + segs[-1][1][0]
-        my = arrow["y"] + segs[-1][1][1]
-    return (mx, my, segs)
+        segs.append((pts[i - 1], pts[i], (dx * dx + dy * dy) ** 0.5))
+    return segs
+
+
+def _client_bezier_midpoint(span, endpoint):
+    """The client's arc midpoint of ONE Bezier span, its way.
+
+    This is not "the arc midpoint of a cubic" — it is Excalidraw's
+    `mapIntervalToBezierT` (`chunk-4FTI6OG3.js:8180`) reproduced step for
+    step, because the residual between the two is what the label's
+    position actually is. The client samples the span at `t = 1, 0.95,
+    …` through a `getBezierXY` that evaluates with `p0` and `p3`
+    SWAPPED, binary-searches the cumulative CHORD lengths of those
+    samples for the half-length point, and interpolates linearly inside
+    the bracketing pair. Computing a mathematically correct arc midpoint
+    instead leaves 0.9-4.9px on the table; reproducing the procedure
+    closes it to 0.0000px against the live client (v0.9 blind-spot 1
+    spike, four shapes at `roughness: 0`).
+
+    At `roughness: 1` a further ≤0.72px of roughjs seeded stroke jitter
+    remains, irreducible without porting that PRNG. It is an order of
+    magnitude below the tightest lint threshold here (4px) and is
+    documented rather than chased.
+
+    Args:
+        span: The `(b0, b1, b2, b3)` control points of the span.
+        endpoint: The stored point the span ends on — the client's own
+            duplicate-sample test compares against it.
+
+    Returns:
+        The `(x, y)` the client centres a bound label on, in the frame
+        `span` was given in.
+    """
+    def at(t):
+        """The client's own Bezier evaluation, with b0 and b3 swapped.
+
+        Returns:
+            The `(x, y)` its `getBezierXY` returns for `t`.
+        """
+        return _bezier_at(span[3], span[2], span[1], span[0], t)
+
+    pts, t = [], 1.0
+    while t > 0:
+        pts.append(at(t))
+        t -= 0.05
+    if pts and abs(pts[-1][0] - endpoint[0]) < 1e-4 \
+            and abs(pts[-1][1] - endpoint[1]) < 1e-4:
+        pts.append((endpoint[0], endpoint[1]))
+    arc, run = [0.0], 0.0
+    for i in range(len(pts) - 1):
+        run += ((pts[i + 1][0] - pts[i][0]) ** 2 +
+                (pts[i + 1][1] - pts[i][1]) ** 2) ** 0.5
+        arc.append(run)
+    count = len(arc) - 1
+    if count <= 0 or arc[-1] <= 0:
+        return at(0.5)
+    want, lo, hi, i = arc[-1] / 2.0, 0, count, 0
+    while lo < hi:
+        i = lo + (hi - lo) // 2
+        if arc[i] < want:
+            lo = i + 1
+        else:
+            hi = i
+    if arc[i] > want:
+        i -= 1
+    if arc[i] == want:
+        return at(i / float(count))
+    frac = (want - arc[i]) / (arc[i + 1] - arc[i])
+    return at(1 - (i + frac) / float(count))
+
+
+def _client_label_point(arrow):
+    """Where the client centres a bound label, all four of its branches.
+
+    `LinearElementEditor.getBoundTextElementPosition`
+    (`chunk-4FTI6OG3.js:14365`) branches on the PARITY of the point
+    count, and no branch measures whole-path arc length:
+
+    1. odd `n` — `points[n // 2]`, the raw middle VERTEX. Leg lengths
+       never enter and neither does `roundness`, so a curved 3-point
+       elbow labels exactly where a sharp one does.
+    2. `n == 2` — the midpoint of the only chord.
+    3. even `n >= 4`, sharp — the chord midpoint of the ONE span between
+       the two middle vertices. The outer legs are ignored entirely.
+    4. even `n >= 4`, rounded — that same span's Bezier arc midpoint,
+       the client's way (`_client_bezier_midpoint`).
+
+    So curvature can move a bound label in branch 4 alone. This replaces
+    an arc-length walk over the stored chords that agreed with the
+    client on straight arrows and nowhere else: measured over the 58
+    artifacts on this branch, 37 of 107 bound arrow labels were
+    mislocated by more than 8px and the worst by 331px, with zero
+    curvature anywhere in the build (v0.9 blind-spot 1 spike). That is
+    the defect this closes; curvature is the smaller half of it.
+
+    One documented assumption: `angle` is ignored.
+    `getPointGlobalCoordinates` rotates about the element centre first,
+    and every arrow this skill writes has `angle == 0`.
+
+    Args:
+        arrow: The arrow/line element, with `x`, `y`, `points` and
+            `roundness`.
+
+    Returns:
+        `(x, y)` in scene coordinates for the label's CENTRE.
+    """
+    pts = arrow.get("points") or [[0, 0]]
+    ox, oy = arrow.get("x", 0), arrow.get("y", 0)
+    n = len(pts)
+    if n < 2:
+        return (ox + pts[0][0], oy + pts[0][1])
+    if n % 2 == 1:
+        mid = pts[n // 2]
+        return (ox + mid[0], oy + mid[1])
+    i = n // 2 - 1
+    a, b = pts[i], pts[i + 1]
+    if n > 2 and arrow.get("roundness"):
+        # the client picks the drawn Bezier whose END is nearest the
+        # stored point the span lands on, which is that span's own
+        span = _bezier_spans([(p[0], p[1]) for p in pts])[i]
+        mx, my = _client_bezier_midpoint(span, (b[0], b[1]))
+        return (ox + mx, oy + my)
+    return (ox + (a[0] + b[0]) / 2.0, oy + (a[1] + b[1]) / 2.0)
 
 
 def arrow_label_slot(arrow, label):
@@ -3014,11 +3304,11 @@ def arrow_label_slot(arrow, label):
     Returns:
         `(x, y)` for the label's top-left corner, as we store it.
     """
-    mx, my, segs = _arc_midpoint(arrow)
+    segs = _chord_segments(arrow)
+    mx, my = _client_label_point(arrow)
     if segs:
         mx, my = _label_off_corner(arrow, label, segs, mx, my)
-    return (mx - label.get("width", 0) / 2,
-            my - label.get("height", 0) / 2)
+    return _offset_label((mx, my), label)
 
 
 def recenter_label(els, el):
@@ -7394,13 +7684,23 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # As of v0.9 WP4 there are TWO drawn positions, not one, and both are
     # measured. `arrow_label_slot` biases the stored anchor off a turn so
     # the export stops painting over the elbow, and `render_svg` paints
-    # what is stored — so the canvas shows the arc midpoint while every
-    # export, snapshot and headless look shows the slot. A label that
-    # lands on a foreign box in EITHER channel is the defect this check
-    # exists for, so it fires on either. Measuring only the slot would
-    # re-open R2-8 exactly (task 19 review, F1: demonstrated on a 200+200
-    # elbow, silent where the un-biased anchor warns); measuring only the
-    # midpoint would let the export drift unwatched. Neither position is
+    # what is stored — so the canvas shows the CLIENT's own placement
+    # while every export, snapshot and headless look shows the slot. A
+    # label that lands on a foreign box in EITHER channel is the defect
+    # this check exists for, so it fires on either. Measuring only the
+    # slot would re-open R2-8 exactly (task 19 review, F1: demonstrated on
+    # a 200+200 elbow, silent where the un-biased anchor warns);
+    # measuring only the anchor would let the export drift unwatched.
+    #
+    # Channel `[0]` was the whole-path ARC MIDPOINT until the label model
+    # port, and that was a third position belonging to no screen at all:
+    # it named (350, 100) on a 400+100 elbow the client centres at
+    # (500, 100), which is how a label drawn inside a foreign box linted
+    # clean a second time, 150px from where this check was looking.
+    # `arrow_label_anchor` now ports the client's parity rule, so
+    # "channel 0" means the canvas rather than approximates it, and the
+    # two channels differ only by the bias that `arrow_label_slot`
+    # deliberately applies. Neither position is
     # read off `t["x"]` for an arrow label — both are derived from the
     # path, so a stale stored coordinate cannot invent an overlap.
     ix_all = {e["id"]: e for e in els}
