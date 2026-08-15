@@ -726,6 +726,85 @@ def false_bidi(elements: list[dict]) -> list[dict]:
     return hits
 
 
+HEAD_SECANT_T = 0.7
+# The forward-t the client reads an arrowhead's direction from, mirrored
+# from `canvas.HEAD_SECANT_T` rather than imported: `instruments.py` is
+# deliberately standalone, and the value's provenance
+# (`getArrowheadPoints`) is recorded at the canvas.py definition.
+
+
+def arrival_squareness(elements: list[dict]) -> list[dict]:
+    """How far off square each bound arrow arrives, as the reader sees it.
+
+    The router emits nothing but orthogonal routes, so every arrival is
+    square BY CONSTRUCTION in stored geometry — measured over the frozen
+    corpus, all 38 curvature-eligible arrows deviate 0.00 degrees on
+    their stored chords. Curvature breaks that silently: the drawn
+    secant swings off the axis the route chose, the arrowhead is drawn
+    along the swung secant, and the picture arrives at a slant while
+    every number the router checked still says square.
+
+    This is the measure for what review F12 named and no check owned: on
+    the ungated all-curved corpus the deviation ran to a median of 9.2
+    and a maximum of 40.6 degrees, on `argus-run-flow`'s `t-agg` pair.
+    It exists because that is the endpoint-judgment complaint from r5-14
+    — the one `derived_roundness`' docstring dropped rather than
+    rebutted — and a complaint nobody can measure comes back as taste in
+    a later assessment round instead of as a number in this one.
+
+    A MEASURE, not a finding, and deliberately absent from
+    `enumerate_defects` and `score_layout`. Two reasons. It has no
+    defect threshold anybody has earned — no perception result gives the
+    angle at which a slanted arrival reads as wrong, the same caveat
+    `false_bidi` and `TILT_RATIO` carry. And folding it into the defect
+    list would move the layout score of every artifact carrying a curve,
+    which is the churn review F6 warns about, for a number no consumer
+    has asked for yet.
+
+    Its standing use is as the independent reading of `gate_curvature`'s
+    promise. The gate refuses any candidate whose arrival leans past
+    `canvas.NEAR_AXIS` (~14.04 degrees), measured through canvas.py's own
+    `_arrival_lean`; this walks the rendered path from this module's
+    primitives instead, so a pin over the loaded corpus checks the gate
+    against code that shares none of its arithmetic.
+
+    Args:
+        elements: Full scene element list; arrows are filtered
+            internally. Read as loaded — whatever `roundness` each arrow
+            carries is the shape measured.
+
+    Returns:
+        One `{"arrow": id, "node": id, "end": "start"|"end",
+        "deg": float}` per BOUND arrival, `deg` being the angle between
+        the drawn secant and the nearer cardinal, in `[0, 45]`.
+        Unbound ends are skipped: squareness is about meeting a box.
+    """
+    out: list[dict] = []
+    for a in _arrows(elements):
+        stretches = rendered_stretches(a)
+        if not stretches:
+            continue
+        for at_end, battr in ((True, "endBinding"), (False, "startBinding")):
+            node = (a.get(battr) or {}).get("elementId")
+            if not node:
+                continue
+            span = stretches[-1][::-1] if at_end else stretches[0]
+            if len(span) < 2:
+                continue
+            # the same sample the head is drawn along: t=0.7 of the way
+            # along the span, counted from the bound end inward.
+            k = min(max(round((1.0 - HEAD_SECANT_T) * (len(span) - 1)), 1),
+                    len(span) - 1)
+            dx = abs(span[0][0] - span[k][0])
+            dy = abs(span[0][1] - span[k][1])
+            if max(dx, dy) < 1e-9:
+                continue
+            deg = math.degrees(math.atan2(min(dx, dy), max(dx, dy)))
+            out.append({"arrow": a["id"], "node": node,
+                        "end": "end" if at_end else "start", "deg": deg})
+    return out
+
+
 def _dist_to_diamond(px: float, py: float, n: dict) -> float:
     """How far a point misses a diamond node's drawn outline by, in px.
 

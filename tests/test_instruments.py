@@ -10,11 +10,16 @@ metric in the score vector.
 from __future__ import annotations
 
 import json
+import sys
 import unittest
 from pathlib import Path
 
 import instruments
 from tests_helpers import el
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
+                       "skills" / "wysiwyg-grilling" / "scripts"))
+import canvas
 
 
 def _node(nid: str, cx: float, cy: float, w: float = 100, h: float = 60,
@@ -391,11 +396,58 @@ class TestFalseBidiOnTheShippedFan(unittest.TestCase):
         complaint about a shipped drawing. It is what the sharp switch
         would reveal, and it is why the switch is the event that should
         re-read this disposition rather than a bug filed against today.
+
+        Reads the file RAW, deliberately: this is a statement about the
+        bytes on disk, and routing it through the loader would measure
+        `gate_curvature`'s verdict instead — which is the next test.
         """
         path = (Path(__file__).resolve().parent / "fixtures" /
                 "argus-r4-arm3" / "artifacts" / "argus-run-flow.excalidraw")
         els = json.loads(path.read_text())["elements"]
         self.assertEqual(instruments.false_bidi(els), [])
+
+    def test_the_gate_leaves_this_pair_sharp_so_the_finding_survives(
+            self) -> None:
+        """The switch arrived, and this disposition survives it intact.
+
+        THE F1 REGRESSION PIN. The docstring above says the era switch
+        is "the event that should re-read this disposition", and v0.9
+        Task 57 is that event. The first cut of stage 3 curved every
+        elbow unconditionally, and on this pair that took `argus-run-flow`
+        from one enumerated defect to zero — not by fixing the routing,
+        which is untouched, but by bowing the two strokes far enough
+        apart that they stop reading as one line. No check in the repo
+        could tell those apart, which is precisely what
+        `spike-stage3-flare.md` predicted and why it recommended against
+        the switch.
+
+        `gate_curvature` is the answer: both arrows arrive 40.6 degrees
+        off square once curved, past `NEAR_AXIS`, so the gate declines
+        them and the drawing keeps the geometry the finding is about.
+        This asserts the whole chain through the REAL load path — the
+        verdict, and the finding it protects — because either half alone
+        would pass while the other rotted. A future change that curves
+        this pair for any reason fails here.
+        """
+        path = (Path(__file__).resolve().parent / "fixtures" /
+                "argus-r4-arm3" / "artifacts" / "argus-run-flow.excalidraw")
+        els = canvas.rebuild_bound_elements(
+            [e for e in json.loads(path.read_text())["elements"]
+             if not e.get("isDeleted")])
+        ix = {e["id"]: e for e in els}
+        for aid in ("t-agg-dashboard", "t-agg-reports"):
+            self.assertTrue(canvas.server_owns_geometry(ix[aid]),
+                            "%s stopped being server-owned, so the gate "
+                            "never judged it and this pin is vacuous" % aid)
+            self.assertIsNone(ix[aid].get("roundness"),
+                              "%s curved: the gate accepted an arrival "
+                              "40.6 degrees off square" % aid)
+        self.assertEqual(
+            [(h["a"], h["b"]) for h in instruments.false_bidi(els)],
+            [("t-agg-dashboard", "t-agg-reports")],
+            "the fan the disposition above describes went silent under "
+            "the loader — curvature hid it rather than the router fixing "
+            "it (review F1)")
 
 
 class TestTiltBand(unittest.TestCase):
@@ -708,6 +760,152 @@ def _overlapping_but_tidy() -> list[dict]:
     return [_node("n1", 100, 100), _node("n2", 100, 130),
             _node("n3", 100, 700),
             _edge("e1", 100, 160, [[0, 0], [0, 510]])]
+
+
+class TestArrivalSquareness(unittest.TestCase):
+    """The measure review F12 named, and the gate's promise read back.
+
+    Two jobs. It states what curvature costs the endpoints, which is the
+    half of r5-14's complaint that can be counted; and it is the
+    INDEPENDENT reading of `gate_curvature`'s squareness arm — the gate
+    decides with `canvas._arrival_lean` on slopes, this walks
+    `instruments.rendered_stretches` and reports degrees, and the two
+    share no arithmetic. A pin that used the gate's own function to
+    check the gate would prove only that the function equals itself.
+    """
+
+    def _elbow(self, roundness: object,
+               pts: list[list[float]] | None = None) -> list[dict]:
+        """A bound elbow, sharp or curved.
+
+        Defaults to `argus-run-flow`'s `t-agg` geometry — a 260px run
+        east and a 37px turn — because that is the corpus's worst case
+        and the one review F12 quotes.
+
+        Args:
+            roundness: The `roundness` value to give the arrow.
+            pts: Stored points; the t-agg shape when omitted.
+
+        Returns:
+            A two-node scene with one elbow bound at both ends.
+        """
+        pts = pts or [[0, 0], [260, 0], [260, 37]]
+        return [_node("a", 60, 100), _node("b", 420, 200),
+                _edge("e", 100, 100, pts, roundness=roundness,
+                      startBinding={"elementId": "a", "focus": 0, "gap": 1},
+                      endBinding={"elementId": "b", "focus": 0, "gap": 1})]
+
+    def test_a_sharp_orthogonal_route_arrives_dead_square(self) -> None:
+        """0.00 degrees on both ends, the zero everything else is read against.
+
+        Every route this router emits is orthogonal, so the sharp world
+        is the zero this measure is calibrated against — measured over
+        the frozen corpus, all 38 curvature-eligible arrows read 0.00 on
+        their stored chords. Without this, a curved reading of 9 degrees
+        could be the router's doing rather than the rendering's.
+        """
+        got = instruments.arrival_squareness(self._elbow(None))
+        self.assertEqual(len(got), 2, got)
+        for r in got:
+            self.assertAlmostEqual(r["deg"], 0.0, places=6)
+
+    def test_curving_the_t_agg_shape_reproduces_the_40_6_degree_worst_case(
+            self) -> None:
+        """The corpus's worst arrival, to the hundredth, from this module.
+
+        THE CALIBRATION. 40.63 degrees is the figure review F12 measured
+        on `argus-run-flow`'s `t-agg` pair, and this reaches it from
+        `rendered_stretches` rather than from the canvas-side
+        `_arrival_lean` the gate uses — so agreement here is two
+        implementations meeting, not one function checked against
+        itself. An equality (not a floor) because a change in
+        `CURVE_SAMPLES` or in the Catmull-Rom rule SHOULD land here: the
+        number is a property of the drawn curve and this is the only
+        place that says what it is.
+        """
+        got = {r["end"]: r["deg"]
+               for r in instruments.arrival_squareness(
+                   self._elbow({"type": 2}))}
+        self.assertAlmostEqual(got["end"], 40.63, places=2)
+
+    def test_the_swing_lands_on_the_short_leg_not_the_long_one(self) -> None:
+        """1.00 degrees in, 40.63 out, on the same arrow.
+
+        The asymmetry IS the mechanism, and it is the same one
+        `_reads_as_line`'s docstring names: a span's bow is set by the
+        leg BEFORE it, not by its own length. A 260px approach barely
+        leans; the 37px final it feeds swings 40 degrees. That is why
+        the gate's arm rejects short finals after long runs and leaves
+        balanced elbows alone, and why a reader sees the difference at
+        the arrowheads rather than in the middle of the runs.
+        """
+        got = {r["end"]: r["deg"]
+               for r in instruments.arrival_squareness(
+                   self._elbow({"type": 2}))}
+        self.assertLess(got["start"], 2.0)
+        self.assertGreater(got["end"] - got["start"], 35.0)
+        balanced = {r["end"]: r["deg"]
+                    for r in instruments.arrival_squareness(
+                        self._elbow({"type": 2},
+                                    [[0, 0], [200, 0], [200, 200]]))}
+        self.assertAlmostEqual(balanced["end"], balanced["start"], places=6)
+        self.assertLess(balanced["end"], canvas.NEAR_AXIS_DEG,
+                        "a balanced elbow should clear the gate's bar")
+
+    def test_only_bound_ends_are_measured(self) -> None:
+        """A free end has no box to be square to, and is not reported."""
+        scene = self._elbow({"type": 2})
+        scene[-1].pop("startBinding")
+        got = instruments.arrival_squareness(scene)
+        self.assertEqual([r["end"] for r in got], ["end"], got)
+
+    def test_no_curved_arrival_in_the_corpus_passes_the_gates_bar(
+            self) -> None:
+        """`gate_curvature`'s promise, measured from outside the gate.
+
+        THE CALIBRATION PIN. Ungated, this corpus ran to a median of 9.2
+        and a maximum of 40.6 degrees over 28 arrivals past `NEAR_AXIS`
+        — the numbers review F12 recorded. Loaded through the gate the
+        maximum is 12.89 degrees and the count past `NEAR_AXIS` is ZERO,
+        which is the gate's entire claim about endpoints.
+
+        Asserted over every shipped artifact rather than a probe scene,
+        because the claim is about the corpus and because a per-arrow
+        pin would not notice the gate being bypassed on the load path.
+        Only arrivals curvature actually MOVED are judged: a stored
+        route that is diagonal on purpose (a 2-point arrow between two
+        boxes that do not line up) is off-square in both worlds and is
+        none of this measure's business.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        worst, checked = 0.0, 0
+        for path in sorted(root.glob("*/artifacts/*.excalidraw")):
+            raw = [e for e in json.loads(path.read_text())["elements"]
+                   if not e.get("isDeleted")]
+            sharp = json.loads(json.dumps(raw))
+            for e in sharp:
+                if e.get("type") in ("arrow", "line"):
+                    e["roundness"] = None
+            was = {(r["arrow"], r["end"]): r["deg"]
+                   for r in instruments.arrival_squareness(sharp)}
+            for r in instruments.arrival_squareness(
+                    canvas.rebuild_bound_elements(raw)):
+                before = was.get((r["arrow"], r["end"]))
+                if before is None or abs(r["deg"] - before) < 1e-9:
+                    continue        # curvature did not move this arrival
+                checked += 1
+                worst = max(worst, r["deg"])
+                self.assertLessEqual(
+                    r["deg"], canvas.NEAR_AXIS_DEG,
+                    "%s %s/%s arrives %.2f degrees off square — the gate "
+                    "accepted a candidate past NEAR_AXIS"
+                    % (path.name, r["arrow"], r["end"], r["deg"]))
+        self.assertTrue(checked, "no arrival in the corpus was moved by "
+                                 "curvature — the gate declined everything "
+                                 "and this pin proves nothing")
+        self.assertGreater(worst, 5.0,
+                           "every accepted curve arrives near-dead-square, "
+                           "so this bar is not the thing constraining them")
 
 
 if __name__ == "__main__":

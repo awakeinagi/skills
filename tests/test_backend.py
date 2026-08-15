@@ -2880,26 +2880,277 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
                                                 "curvature it did not earn")
         self.assertEqual(both[1]["roundness"], {"type": 2},
                          "a route with a turn was not re-curved at load")
+        curved = 0
         for aid, els in self.store.scenes.items():
             for e in els:
                 if e.get("type") not in ("arrow", "line"):
                     continue
-                # the DERIVED value, whatever the rule currently is, and
-                # never the frozen one: a straight route declines
-                # curvature, a route with a turn takes it
-                want = canvas.derived_roundness(e)
-                self.assertEqual(e.get("roundness"), want,
-                                 "%s/%s carries %r, not the derived %r"
-                                 % (aid, e["id"], e.get("roundness"), want))
-                self.assertEqual(
-                    e.get("roundness") is None,
-                    len(e.get("points") or []) < 3,
-                    "%s/%s: only a turn earns curvature" % (aid, e["id"]))
+                # SERVER-OWNED ONLY (review F7). `rebuild_bound_elements`
+                # promises the derived value for arrows the server routed
+                # and deliberately leaves a hand-authored path alone, so
+                # asserting over every arrow overstated the contract. It
+                # passed here only because this fixture happens to be 14
+                # arrows / 14 owned; pointed at `argus-r4-arm3` (57
+                # arrows, 40 owned) the unguarded form failed on 15
+                # arrows that were behaving exactly as designed.
+                if not canvas.server_owns_geometry(e):
+                    continue
+                # The GATE's contract, not the candidate rule's (v0.9
+                # Task 57). A turn no longer earns curvature by itself —
+                # it earns a CANDIDACY, and `gate_curvature` accepts or
+                # reverts it. So the two things that must hold are that
+                # a straight route is sharp unconditionally, and that a
+                # turned route carries either the candidate or nothing.
+                # Asserting the candidate outright would re-pin the
+                # ungated switch this task removed.
+                got = e.get("roundness")
+                if len(e.get("points") or []) < 3:
+                    self.assertIsNone(
+                        got, "%s/%s: a straight route earned curvature"
+                        % (aid, e["id"]))
+                else:
+                    self.assertIn(
+                        got, (None, canvas.derived_roundness(e)),
+                        "%s/%s carries %r, which is neither sharp nor the "
+                        "candidate" % (aid, e["id"], got))
+                    curved += got is not None
+        # not vacuous: the gate has to be ACCEPTING somewhere on this
+        # fixture, or the two assertions above would both be satisfied by
+        # a gate that had jammed shut.
+        self.assertTrue(curved, "the gate declined every arrow in the "
+                                "project — nothing here proves it accepts")
         self.assertEqual(self.store.scene_repairs, [])
         self.assertIsNone(self.store.catch_up())
         store2 = canvas.Store(self.project)
         self.assertIsNone(store2.catch_up())
         self.assertEqual(store2.scene_repairs, [])
+
+
+def _gate_scene(pts, roundness=None, obstacle=None, loop=False):
+    """A bound elbow the curvature gate will judge, plus optional obstacle.
+
+    Both nodes sit exactly on the route's endpoints so nothing else in
+    `lint_layout` has an opinion — the scenes below are about ONE
+    verdict, and an endpoint-gap complaint in the baseline would be
+    noise on both sides of every comparison.
+
+    Args:
+        pts: The arrow's stored points, relative to (100, 100).
+        roundness: What the file carries before the gate runs, curved
+            when omitted; the gate resets it either way, so this exists
+            to prove it does.
+        obstacle: Optional `(x, y, w, h)` for a third node named `mid`.
+        loop: True to bind both ends to the same node.
+
+    Returns:
+        The scene, with the arrow server-owned so the gate judges it.
+    """
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    roundness = {"type": 2} if roundness is None else roundness
+    dst = "a" if loop else "b"
+    arrow = {"id": "e", "type": "arrow", "x": 100, "y": 100, "points": pts,
+             "width": max(xs) - min(xs), "height": max(ys) - min(ys),
+             "customData": {"role": "edge"}, "roundness": roundness,
+             "startBinding": {"elementId": "a", "focus": 0, "gap": 0},
+             "endBinding": {"elementId": dst, "focus": 0, "gap": 0}}
+    arrow["customData"]["routed"] = canvas._route_sig(arrow)
+
+    def node(i, x, y):
+        """A 60x60 node box.
+
+        Args:
+            i: Element id.
+            x: Box left.
+            y: Box top.
+
+        Returns:
+            The node element dict.
+        """
+        return {"id": i, "type": "rectangle", "x": x, "y": y, "width": 60,
+                "height": 60, "customData": {"role": "node"}}
+
+    els = [node("a", 70, 70),
+           node("b", 100 + pts[-1][0] - 30, 100 + pts[-1][1] - 30), arrow]
+    if obstacle:
+        m = node("mid", obstacle[0], obstacle[1])
+        m["width"], m["height"] = obstacle[2], obstacle[3]
+        els.insert(2, m)
+    return els
+
+
+def _verdict(els):
+    """Run the load path and report what the gate left on arrow `e`.
+
+    Args:
+        els: A scene from `_gate_scene`.
+
+    Returns:
+        The arrow's `roundness` after `rebuild_bound_elements`.
+    """
+    canvas.rebuild_bound_elements(els)
+    return next(e for e in els if e["id"] == "e").get("roundness")
+
+
+class TestCurvatureGate(unittest.TestCase):
+    """`gate_curvature`: which arrows earn a curve, and why the rest do not.
+
+    v0.9 Task 57, replacing the unconditional switch review F1 blocked.
+    The design of record is `V0.9-PLAN.md:540` — "propose a curvature
+    increment on an in-memory candidate, re-run the geometry checks,
+    accept if clean, and revert to the last clean state at the first
+    violation" — and these are its poles. Both arms are pinned from BOTH
+    sides, because a gate that accepted everything and a gate that
+    accepted nothing would each satisfy half of this class.
+    """
+
+    def test_a_clean_elbow_earns_its_curve(self) -> None:
+        """The accepting pole, and the one that stops this class going
+        vacuous.
+
+        A balanced 300+300 elbow between two boxes: nothing to cross,
+        nothing to hide, and its drawn arrivals lean 7.0 degrees, well
+        inside `NEAR_AXIS`. If this ever goes sharp the gate has jammed
+        shut and every other test here would still pass.
+        """
+        self.assertEqual(_verdict(_gate_scene([[0, 0], [300, 0], [300, 300]])),
+                         {"type": 2})
+
+    def test_an_arrival_that_stops_reading_as_square_is_reverted(self) -> None:
+        """The squareness arm, on the geometry that made it necessary.
+
+        260px east then 37px down is `argus-run-flow`'s `t-agg` shape,
+        and curved it arrives 40.6 degrees off the axis the router
+        chose — past `NEAR_AXIS`, so the candidate is refused. This is
+        the arm that does the visible work: 14 of the corpus's 38
+        eligible arrows decline on it.
+        """
+        self.assertIsNone(_verdict(_gate_scene([[0, 0], [260, 0], [260, 37]])))
+
+    def test_the_same_route_curves_once_the_short_leg_is_long_enough(
+            self) -> None:
+        """The squareness arm's other side: the shape, not the arrow.
+
+        Same approach, same nodes, a longer final leg — and the verdict
+        flips. Without this the test above would also pass on a gate
+        that had simply refused every 3-point route, which is the
+        `derived_roundness` rule this task replaced, inverted.
+        """
+        self.assertEqual(
+            _verdict(_gate_scene([[0, 0], [260, 0], [260, 260]])),
+            {"type": 2})
+
+    def test_a_candidate_that_moves_the_finding_set_is_reverted(self) -> None:
+        """The finding-set arm: the bow crosses a box the chords miss.
+
+        A 300+300 elbow bows 18.8px off its stored run, and `mid` sits
+        in exactly that gap — invisible to the stored polyline, plainly
+        crossed on screen. Curved, `lint_layout` gains "arrow e passes
+        through mid"; the gate sees the finding set move and reverts.
+
+        This arm fires nowhere on the 24-fixture corpus, which is why it
+        is pinned synthetically here. It is not ornamental: the corpus
+        is 38 server-owned arrows out of 61 eligible, and a freshly
+        drawn project is entirely server-owned, so this is the arm that
+        does the work in the world the gate was actually built for.
+        """
+        self.assertIsNone(_verdict(_gate_scene(
+            [[0, 0], [300, 0], [300, 300]], obstacle=(220, 62, 60, 30))))
+
+    def test_the_same_elbow_without_the_obstacle_curves(self) -> None:
+        """The finding-set arm's other pole — one node apart.
+
+        Proves the revert above is the OBSTACLE's doing and not the
+        elbow's, which is the only thing that makes it evidence about
+        the arm rather than about the shape.
+        """
+        self.assertEqual(_verdict(_gate_scene(
+            [[0, 0], [300, 0], [300, 300]])), {"type": 2})
+
+    def test_a_straight_route_is_never_a_candidate(self) -> None:
+        """Two points, frozen curved by the old era, sharp after the load.
+
+        Curvature is a property of a turn. This is also the propagation
+        half of the load-time re-derivation: scoping the gate's reset to
+        the ELIGIBLE arrows left a curved-era straight arrow carrying a
+        curvature nothing would ever take away, which is how it failed
+        the first time it was written.
+        """
+        self.assertIsNone(_verdict(_gate_scene([[0, 0], [300, 0]])))
+
+    def test_a_self_loop_declines(self) -> None:
+        """Recorded as a taste decision, and pinned so it stays one.
+
+        A self-loop leaves and re-enters one node, so it is the shape
+        most made of corners, and r5-14's cold observer read the curved
+        one's erased corner as "a stray L-shaped stub" — a complaint
+        that was out-measured rather than answered. The corpus's single
+        self-loop clears the squareness arm by 1.3 degrees, so without
+        this rule the decision would be made by a threshold that never
+        considered it.
+        """
+        self.assertIsNone(_verdict(_gate_scene(
+            [[0, 0], [200, 0], [200, 200], [0, 200], [0, 0]], loop=True)))
+
+    def test_a_hand_authored_path_is_not_judged_at_all(self) -> None:
+        """The gate reaches only what the server routed.
+
+        Same guard as the rest of `rebuild_bound_elements`: a path the
+        user reshaped keeps the shape they gave it, including a
+        curvature this gate would have refused. Dropping the `routed`
+        mark is what `mod points` does.
+        """
+        els = _gate_scene([[0, 0], [260, 0], [260, 37]])
+        arrow = next(e for e in els if e["id"] == "e")
+        arrow["customData"].pop("routed")
+        self.assertEqual(_verdict(els), {"type": 2})
+
+    def test_the_verdict_is_recomputed_from_the_scene_every_load(
+            self) -> None:
+        """The answer to the flare spike's staleness objection.
+
+        That spike's decisive argument against carrying a curvature
+        verdict on the arrow is that it cannot self-invalidate: it is a
+        SCENE-level judgement stored per-arrow, so a node moving on the
+        far side of the drawing falsifies it while the arrow's own
+        `_route_sig` still matches perfectly. Nothing here is stored —
+        the gate runs inside `rebuild_bound_elements` — so the verdict
+        cannot go stale, and this is that claim made executable: the
+        SAME arrow flips from curved to sharp because a box moved into
+        its bow, with its own geometry and its routed mark untouched.
+        """
+        clean = _gate_scene([[0, 0], [300, 0], [300, 300]])
+        self.assertEqual(_verdict(clean), {"type": 2})
+        sig = next(e for e in clean
+                   if e["id"] == "e")["customData"]["routed"]
+        moved = _gate_scene([[0, 0], [300, 0], [300, 300]],
+                            obstacle=(220, 62, 60, 30))
+        self.assertIsNone(_verdict(moved))
+        self.assertEqual(
+            next(e for e in moved if e["id"] == "e")["customData"]["routed"],
+            sig, "the arrow's own signature changed, so this proves "
+                 "nothing about a SCENE-level verdict going stale")
+
+    def test_the_same_scene_gives_the_same_verdicts_every_time(self) -> None:
+        """Deterministic, and not by accident.
+
+        Eligible arrows are taken in sorted `id` order from an all-sharp
+        start, so the result cannot depend on element order in the file
+        or on what the file happened to carry. Shuffled input, reversed
+        input, and a re-run over an already-gated scene all agree.
+        """
+        def verdicts(els):
+            canvas.rebuild_bound_elements(els)
+            return {e["id"]: e.get("roundness") for e in els
+                    if e.get("type") == "arrow"}
+
+        base = _gate_scene([[0, 0], [300, 0], [300, 300]],
+                           obstacle=(220, 62, 60, 30))
+        want = verdicts(json.loads(json.dumps(base)))
+        self.assertEqual(verdicts(json.loads(json.dumps(base))[::-1]), want)
+        again = json.loads(json.dumps(base))
+        verdicts(again)
+        self.assertEqual(verdicts(again), want, "gating an already-gated "
+                                                "scene changed the verdict")
 
 
 class TestClientRemeasure(Base):

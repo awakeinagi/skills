@@ -1046,8 +1046,6 @@ def rebuild_bound_elements(els):
             ix[e["containerId"]]["boundElements"].append(
                 {"id": e["id"], "type": "text"})
         if e.get("type") in ("arrow", "line"):
-            if server_owns_geometry(e):
-                e["roundness"] = derived_roundness(e)
             for battr in ("startBinding", "endBinding"):
                 b = e.get(battr)
                 if isinstance(b, dict) and b.get("elementId") in ix:
@@ -1055,7 +1053,10 @@ def rebuild_bound_elements(els):
                     entry = {"id": e["id"], "type": "arrow"}
                     if entry not in target["boundElements"]:
                         target["boundElements"].append(entry)
-    return els
+    # LAST, and after the bindings above are rebuilt, because the gate's
+    # squareness arm reads `startBinding`/`endBinding` to know which ends
+    # are supposed to meet a box.
+    return gate_curvature(els)
 
 
 def normalize_scene_doc(doc):
@@ -2273,18 +2274,49 @@ def derived_roundness(arrow):
     derived rule is exactly how the file and its own replayed history
     came to disagree permanently about this field (v0.8 WP2).
 
-    Sharp between v0.9 WP4 stage 1 and stage 3, and the reason it went
-    sharp is worth keeping: a rendered curve bulges off the orthogonal
-    segments the router and every geometry lint reason about, so the
-    drawn line stopped being the computed line (the r5-14 class). Stage
-    3 does not re-litigate that argument, it removes its premise. Every
-    check that reads an arrow's shape now reads the FLATTENED path —
+    This is the CANDIDATE, not the verdict. It answers "could this arrow
+    curve at all", and `gate_curvature` answers "can this drawing afford
+    to curve it" — the per-arrow violation gate `V0.9-PLAN.md:540` asks
+    for. Read them together: this function selects the population and
+    the gate applies the predicate, and it was collapsing the two into
+    one unconditional rule that made the first cut of stage 3 hide a
+    live `false_bidi` finding on `argus-run-flow`.
+
+    Sharp between v0.9 WP4 stage 1 and stage 3, and the reasons it went
+    sharp are worth keeping BOTH of, because they have different
+    standing now.
+
+    Reason one — a rendered curve bulges off the orthogonal segments the
+    router and every geometry lint reason about, so the drawn line
+    stopped being the computed line (the r5-14 class) — is answered. The
+    checks that read an arrow's shape read the FLATTENED path now:
     `crossing_sites`, `shared_corridors`, the interior-run walk, the
-    arrowhead's axis, the label anchor, `render_svg`'s own stroke — so
-    stored geometry no longer has to BE drawn geometry for the checks to
-    measure the picture. Turning curvature on without those four fixes
-    re-opens four unguarded surfaces at once; with them it is a
-    rendering choice again.
+    arrowhead's axis, the label anchor, `phantom_passthrough`'s feet,
+    the through-node arm and `render_svg`'s own stroke. Stored geometry
+    no longer has to BE drawn geometry for a check to measure the
+    picture.
+
+    That sentence was FALSE when the fold-in first wrote it, and the two
+    counter-examples are named above because the claim is the kind that
+    rots quietly: the feet block (review F3) and the through-node arm
+    (found while building the gate's second arm) both still walked the
+    stored polyline. Anyone adding a reader of arrow geometry owes this
+    list an entry or a reason.
+
+    Reason two — curvature degrades the endpoint judgment that was r5's
+    most repeated complaint — is NOT answered, and the first cut of
+    stage 3 deleted it rather than rebutting it. It is a claim about how
+    the picture READS to a person, and no amount of instrument work
+    settles it. It is restated here as the open question it is. What the
+    gate does about it is partial and worth stating exactly: the
+    squareness arm refuses any arrow whose DRAWN arrival stops reading
+    as axis-aligned, which is the measurable half of the complaint, and
+    it is why 14 of the corpus's 38 eligible arrows decline. The half it
+    cannot reach is whether a bowed stroke that arrives perfectly square
+    still reads worse than a straight one. Nobody has re-run r5-14's
+    cold-observer check since; `arrival_squareness` (tests/instruments.py)
+    exists so the next round can measure the drift instead of arguing
+    about it.
 
     WHICH ARROWS. Three points or more, and no others. `roundness` on a
     two-point arrow is inert in every direction that matters — roughjs
@@ -2300,10 +2332,163 @@ def derived_roundness(arrow):
             WP4 stage 1 left open for exactly this.
 
     Returns:
-        The `roundness` value for `arrow`: `{"type": 2}` for a route
-        with at least one turn, None for a straight one.
+        The CANDIDATE `roundness` for `arrow`: `{"type": 2}` for a route
+        with at least one turn, None for a straight one. What reaches
+        disk is whatever `gate_curvature` leaves.
     """
     return {"type": 2} if len(arrow.get("points") or []) >= 3 else None
+
+
+NEAR_AXIS = 0.25
+# The slope below which "which axis is this" stops being answerable —
+# ~14 degrees. One constant, two readers, and they ask the same question:
+# `lint_layout`'s `feet` block will not pair two strokes it cannot call
+# axis-aligned, and `gate_curvature` will not curve an arrow whose DRAWN
+# arrival stops being axis-aligned. Splitting them would need a reason,
+# because "reads as square" is one idea.
+NEAR_AXIS_DEG = math.degrees(math.atan(NEAR_AXIS))
+# The same bar in degrees (14.036...), DERIVED rather than written down
+# twice. `tests/instruments.arrival_squareness` reports degrees because
+# that is the unit a person reads an angle in, and the gate compares
+# slopes because that needs no trigonometry; a hand-copied 14.0 here is
+# how the two would drift apart.
+
+
+def _arrival_lean(arrow):
+    """How far this arrow's DRAWN arrivals lean off their own cardinal.
+
+    The measurable half of the endpoint-judgment complaint, and the
+    gate's cheap arm. Measured at BOUND ends only: squareness is about
+    meeting a box, and a free end has nothing to be square to.
+
+    Reported as a SLOPE (`min/max` of the secant's components), not an
+    angle, so it compares against `NEAR_AXIS` directly and needs no
+    trigonometry — 0.0 is dead-on cardinal, 1.0 is a 45-degree diagonal.
+    The secant is `_arrival_path`'s, so this reads the same sample the
+    client draws the arrowhead along rather than the stored chord.
+
+    Args:
+        arrow: The arrow, carrying the `roundness` being proposed.
+
+    Returns:
+        The worst lean over the arrow's bound ends, as a slope in
+        `[0, 1]`. 0.0 when nothing is bound or the arrow has no segment.
+    """
+    worst = 0.0
+    for at_end, battr in ((True, "endBinding"), (False, "startBinding")):
+        if not (arrow.get(battr) or {}).get("elementId"):
+            continue
+        seq, prev = _arrival_path(arrow, at_end)
+        if prev is None or not seq:
+            continue
+        dx, dy = abs(seq[0][0] - prev[0]), abs(seq[0][1] - prev[1])
+        hi, lo = max(dx, dy), min(dx, dy)
+        if hi > 1e-9:
+            worst = max(worst, lo / hi)
+    return worst
+
+
+def _gate_findings(els):
+    """The geometry findings the gate judges a candidate against.
+
+    Errors and warnings only, sorted, as bare strings. Notes are budget
+    and style observations that no arrow's shape moves, and including
+    them would make the gate's verdict depend on the node count.
+
+    Args:
+        els: The scene, with the candidate curvature already applied.
+
+    Returns:
+        A sorted list of finding strings, comparable by equality.
+    """
+    li = lint_layout(els)
+    return sorted((li.get("errors") or []) + (li.get("warnings") or []))
+
+
+def gate_curvature(els):
+    """Decide, per arrow, whether this drawing can afford to curve it.
+
+    The violation gate `V0.9-PLAN.md:540` specifies, in its own words:
+    "propose a curvature increment on an in-memory candidate, re-run the
+    geometry checks, accept if clean, and revert to the last clean state
+    at the first violation". Every eligible arrow starts SHARP — the
+    last known clean state — and earns its curve or does not.
+
+    NOTHING IS STORED, which is the whole answer to the staleness
+    objection `spike-stage3-flare.md` raises. That spike is right that a
+    flare FLAG cannot self-invalidate: it is a scene-level judgement
+    stored on one arrow, and a node moving 40px on the far side of the
+    drawing silently falsifies it while the arrow's own `_route_sig`
+    still matches. The fix is not a better hash, it is to keep the
+    verdict derived: this runs inside `rebuild_bound_elements`, so it is
+    recomputed from the scene on every load and every save, and a stale
+    verdict has nowhere to live. `roundness` is still carried on the
+    arrow exactly as before; it is just never trusted as an input.
+
+    TWO ARMS, cheapest first.
+
+    1. SQUARENESS (`_arrival_lean` > `NEAR_AXIS`). Local to the arrow, so
+       it costs nothing and it is the arm that does the visible work: 14
+       of the corpus's 38 eligible arrows decline on it, including both
+       halves of `argus-run-flow`'s `t-agg` pair at 40.6 degrees, which
+       is the pair whose `false_bidi` finding the ungated switch hid.
+    2. THE FINDING SET MUST NOT MOVE. Not "must not get worse" —
+       UNCHANGED, in both directions. A gate rewarded for REMOVING a
+       finding is a gate that can be paid to hide one, and no check can
+       tell "the curve fixed it" from "the curve hid it" (the spike's
+       own decisive argument). This arm does not fire anywhere on the
+       24-fixture corpus; it is pinned synthetically, and it is what
+       protects a freshly drawn project, where every arrow is
+       server-owned instead of 38 of 61.
+
+    SELF-LOOPS DECLINE, and this is a taste decision recorded as one
+    rather than a measurement. A self-loop leaves and re-enters one node,
+    so it is the shape most made of corners, and r5-14's cold observer
+    read the curved one's erased corner as "a stray L-shaped stub". That
+    complaint was never rebutted, only out-measured. The corpus's single
+    self-loop passes the squareness arm by 1.3 degrees (12.8 against
+    14.0), which is close enough to luck that shipping on it would be
+    dishonest either way.
+
+    DETERMINISTIC by construction: eligible arrows are taken in sorted
+    `id` order, the starting state is all-sharp regardless of what the
+    file carried, and each verdict is a pure function of the scene's
+    stored geometry. The same scene gives the same verdicts on every
+    machine and every reload, which is what lets the value stay derived.
+
+    Non-owned arrows are not touched at all — `server_owns_geometry`
+    gates this exactly as it gates the rest of `rebuild_bound_elements`.
+    A hand-authored path keeps whatever shape its author gave it.
+
+    Args:
+        els: The scene's elements, mutated in place.
+
+    Returns:
+        `els`, for chaining.
+    """
+    owned = sorted([e for e in els if e.get("type") in ("arrow", "line")
+                    and server_owns_geometry(e)],
+                   key=lambda a: a.get("id") or "")
+    # EVERY owned arrow is reset, not just the eligible ones. A straight
+    # route frozen `{"type": 2}` by the curved era has to be un-curved
+    # here or it keeps a curvature it cannot earn — that propagation is
+    # half of what the load-time re-derivation is for, and scoping the
+    # reset to the eligible set silently dropped it.
+    for e in owned:
+        e["roundness"] = None
+    elig = [e for e in owned if derived_roundness(e) is not None]
+    if not elig:
+        return els
+    clean = _gate_findings(els)
+    for e in elig:
+        sb = (e.get("startBinding") or {}).get("elementId")
+        eb = (e.get("endBinding") or {}).get("elementId")
+        if sb is not None and sb == eb:
+            continue                    # self-loop: declines, see above
+        e["roundness"] = derived_roundness(e)
+        if _arrival_lean(e) > NEAR_AXIS or _gate_findings(els) != clean:
+            e["roundness"] = None       # revert to the last clean state
+    return els
 
 
 def _snap_geom(arrow):
@@ -3300,7 +3485,16 @@ def arrow_label_slot(arrow, label):
     shortest slide along the drawn path that clears the turn (see
     `_label_off_corner` for the bound and its caveats). Twelve of the
     corpus's 72 bound arrow labels are in that population, 18.0 to
-    29.3px apart, measured 2026-08-15. The divergence is real and has a
+    22.2px apart (median 19.9), measured 2026-08-15 through the loader,
+    so this is the GATED world's figure and not a forced-sharp one.
+
+    THE NUMBER IS WORLD-BOUND, which the first cut of it did not say: a
+    curved elbow's minimal clearing slide follows the bow, so it is
+    LARGER than its sharp twin's — 32.8px against 18.0px on a measured
+    400+100 elbow. The sharp-era range was 18.0 to 29.3px, and a project
+    whose arrows all clear `gate_curvature` will run above this band
+    rather than inside it. Read the shape of the claim, not the
+    interval. The divergence is real and has a
     cost: it is the export and the canvas disagreeing, which is the R2-8
     shape at small amplitude. It buys the export's legibility, the
     checks read BOTH positions so neither channel can hide an overlap
@@ -3324,7 +3518,12 @@ def arrow_label_slot(arrow, label):
 
 def recenter_label(els, el):
     """Keep a bound label glued to its container after geometry changes:
-    centered in shapes, on the arc midpoint of arrows.
+    centered in shapes, on `arrow_label_slot` for arrows.
+
+    Said "the arc midpoint of arrows" until v0.9 Task 57 (review F9).
+    `_arc_midpoint` has not existed since the label model was ported to
+    the client's parity rule, and this function writes the SLOT — the
+    biased position — which is a different point again.
 
     Args:
         els: The full element list (searched for the bound label).
@@ -5852,6 +6051,13 @@ HEAD_SECANT_T = 0.7
 # — and not the t=1 derivative either, which degenerates to the chord's
 # own direction, which is exactly why a naive reading of this makes the
 # defect look like a non-issue (v0.9 blind-spot 3 spike).
+#
+# It serves BOTH ends, not just the head's. `_arrival_path(at_end=False)`
+# takes the mirrored sample on the start side, where there is usually no
+# arrowhead at all: the quantity wanted there is "the direction a reader
+# follows into the node", which is the same quantity by symmetry, and
+# using one rule for both is why `_arrival_lean` can ask about either
+# end without knowing which is which.
 
 
 def _arrival_path(arrow, at_end, samples=CURVE_SAMPLES):
@@ -7606,11 +7812,20 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # through-node crossing: test each real segment, never the
         # first-to-last chord — a correctly-routed elbow's chord crosses
         # boxes its actual path misses (v0.1 acceptance false positive)
-        pts = e.get("points") or [[0, 0]]
-        ex0, ey0 = e.get("x", 0), e.get("y", 0)
-        segs = [(ex0 + pts[i][0], ey0 + pts[i][1],
-                 ex0 + pts[i + 1][0], ey0 + pts[i + 1][1])
-                for i in range(len(pts) - 1)] or [bbox_pts(e)]
+        #
+        # The DRAWN segments (v0.9 Task 57). This was the FIFTH reader of
+        # arrow shape and the second one the curves fold-in missed —
+        # review F3 caught `phantom_passthrough`'s feet, and this arm
+        # sits in the same function with the same defect: it walked the
+        # stored polyline, so a bow that sweeps through a foreign box
+        # while the chords miss it was reported by nothing. Measured on
+        # a 300+300 elbow, the bow apex sits 18.8px off the stored run —
+        # a box in that gap is invisible to the chords and plainly
+        # crossed on screen. A sharp arrow's rendered path IS its stored
+        # points, so every existing finding is unmoved.
+        rpath = _rendered_path(e)
+        segs = [(rpath[i][0], rpath[i][1], rpath[i + 1][0], rpath[i + 1][1])
+                for i in range(len(rpath) - 1)] or [bbox_pts(e)]
         ends = {(e.get("startBinding") or {}).get("elementId"),
                 (e.get("endBinding") or {}).get("elementId")}
         for n in nodes:
@@ -8182,7 +8397,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # O(deg^2) per node, over FEET rather than arrows, so a node whose
     # two edges both bind it at their far ends is judged on the segments
     # a reader actually follows.
-    NEAR_AXIS = 0.25    # ~14 degrees; below it "which axis" is a guess
+    # NEAR_AXIS is a module constant (see `gate_curvature`, which asks
+    # the same question of a candidate's arrival that this asks of a
+    # foot). It was a local here until v0.9 Task 57.
     SAME_LINE = 12      # px, borrowed from the shared-attach window
     #                     above and deliberately conservative: two lines
     #                     joined by ink across a node are easier to merge
@@ -8193,20 +8410,27 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         eb_el = (a.get("endBinding") or {}).get("elementId")
         if sb_el is not None and sb_el == eb_el:
             continue        # a self-loop leaves and re-enters one node
-        seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
-               for p in (a.get("points") or [])
-               if isinstance(p, (list, tuple)) and len(p) >= 2]
-        if len(seq) < 2:
+        if len([p for p in (a.get("points") or [])
+                if isinstance(p, (list, tuple)) and len(p) >= 2]) < 2:
             continue
-        # `outward`, because that is the direction it names: the
-        # neighbouring point along the path is the one AWAY from the
-        # node, and the sign test below is a test of which side of the
-        # node each stroke's body lies on.
-        for arriving, tgt_id, foot, outward in (
-                (False, sb_el, seq[0], seq[1]),
-                (True, eb_el, seq[-1], seq[-2])):
+        # `outward`, because that is the direction it names: the point
+        # along the path AWAY from the node, and the sign test below is
+        # a test of which side of the node each stroke's body lies on.
+        #
+        # Read off the DRAWN path (v0.9 Task 57, review F3). This was
+        # the fourth reader of "the direction the stroke leaves by" and
+        # the only one the curves fold-in did not inventory — it took
+        # `seq[1]`/`seq[-2]`, the next STORED point, which on a curved
+        # final leg names an axis up to 56.8 degrees away from the one
+        # drawn, against this block's own ~14-degree gate. Harmless
+        # while every arrow was sharp and live the moment any curve.
+        for arriving, tgt_id in ((False, sb_el), (True, eb_el)):
             if not tgt_id or tgt_id not in ix:
                 continue
+            aseq, outward = _arrival_path(a, arriving)
+            if outward is None or not aseq:
+                continue
+            foot = aseq[0]
             dx, dy = outward[0] - foot[0], outward[1] - foot[1]
             hi, lo = max(abs(dx), abs(dy)), min(abs(dx), abs(dy))
             if hi < 1 or lo > NEAR_AXIS * hi:
