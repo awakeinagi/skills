@@ -64,19 +64,37 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after v0.9 Task 56 (batch 21 had just taken the model count to 21; Task 56
-then flipped four at once — `diamond_clearance_overfire` and all three of
-`TestShapeBlindAnnotationOverlap`, emptying that class — while ADDING three
-catalog entries that landed green, so the catalog grew as the reds shrank):
-**17 model-tier `expectedFailure` reds + 4 render-tier**, matching the suite's
-`expected failures=17` default and `=21` under `MUTANTS_RENDER=1`. That splits as 6 catalog reds (`mutants list --red` is
-authoritative) plus **11 non-catalog reds across six guarded classes** —
-LoadFindings 4, LabelAnchor 2, ReplayOrder 2, BatchPath 1,
-CornerBias 1, and `TestSnapshotTierOne` 1,
-the last living in `tests/test_backend.py` rather than with the others —
+after curator batch 22: **17 model-tier `expectedFailure` reds + 4
+render-tier**, matching the suite's `expected failures=17` default and `=21`
+under `MUTANTS_RENDER=1`. That splits as **8 catalog reds + 9 non-catalog**.
+
+**THE TWO HALVES ARE NOW BOTH DERIVED, AND NEITHER IS RESTATED HERE.** The
+catalog half is `CATALOGUE_RED_IDS` in tests/test_mutants.py, checked
+against the live decorator by
+`TestCoverage.test_the_catalogue_reds_are_the_ones_declared`; the
+non-catalog half is `HAND_AUTHORED_RED_CLASSES`, checked by its sibling
+`..._the_hand_authored_red_classes_are_the_ones_that_exist`. Read the ids
+there, or run `mutants list --red`. This paragraph used to transcribe them
+and went stale FOUR recorded times, most recently omitting batch 21's
+`headless_chain_reads_through_node` while the sentence beside it counted
+"four of the six" — a total that only adds up at seven. Batch 22 built the
+missing guard rather than correcting the list a fifth time.
+
+One warning the rebuild earned: **the totals came back to 17 and 21 by
+coincidence.** Task 56 and the curves fold-in took the model count down to
+15 and batch 22's two new reds put it back, so the numbers this paragraph
+had carried since Task 56 were wrong for a week and are right again today
+for different reasons. A matching total proves nothing here; only the split
+does, and only because something now checks it.
+
+Non-catalog reds live in `TestLoadFindingsReachTheAgent` (4),
+`TestReplayOrderFidelity` (2), `TestBatchPathIntegrity` (1),
+`TestCornerBiasReadsVerticesNotTurns` (1) and `TestSnapshotTierOne` (1),
+the last in `tests/test_backend.py` rather than with the others —
 enumerated with reasons at the `CATALOGUE` pointer in tests/test_mutants.py.
-Export, Store and PaintOrder have all drained to zero and left that list, and
-ShapeBlind joined them on 2026-08-15.
+Export, Store and PaintOrder have all drained to zero and left that list,
+ShapeBlind joined them on 2026-08-15 (Task 56) and LabelAnchor on the
+curves fold-in.
 Batch 21's six were the biggest single-batch addition on record; Task 56 then
 took four of the twenty-one back off. Of batch 21's, four still have no
 owner: the r5b-2 cache/replay drift (2, addendum wave) and the
@@ -117,6 +135,17 @@ bbox corner (`render_svg`'s footnote marker, `cmd_x_as_user`'s `ask` pin,
 `pin_spot`'s collision fallback) still drop markers into an ellipse's void,
 with `marker_anchor` sitting unused right there. No pin, no owner — the
 picture is still wrong after every check has gone quiet.
+A FOURTH write-side site now has a pin: `_fan_point` spreads attach points
+along the BOUNDING BOX side, so the auto-fan itself parks feet in an
+ellipse's corner void — `fanned_ellipse_foot_floats_in_the_void`, red, and
+the silence there is structural rather than incidental. On a circle the
+miss is `0.118r` and `endpoint_tol` is `max(14, 0.2r)`, so no circle at any
+size is loud enough to trip the endpoint lint from its own fan, and
+`instruments.float_diamond` — the independent cross-check that caught
+`edge_anchor` on the bounding box — filters `type != "diamond"` and never
+looks. This is the shape-blindness family's FIRST write-side instance and
+it corrects Task 56 §8.5's guess in passing: the diamond is loud (17.9 to
+53.0px, both checks, every size), the ellipse is the shape with no reader.
 The dedupe-by-defect guard protects
 the catalog against same-defect-different-id collisions; the non-catalog
 classes are defended by file-section convention + reviewer vigilance (id
@@ -130,19 +159,25 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- **Four of the six catalog reds are ASPIRATIONAL** (re-measured
-  2026-08-15): they flip when their LINTS land, not when any existing code
-  changes, and each flip must give its mutant a real other-pole neighbor.
+- **Four of the eight catalog reds are ASPIRATIONAL** (re-measured
+  2026-08-15, batch 22): they flip when their LINTS land, not when any
+  existing code changes, and each flip must give its mutant a real
+  other-pole neighbor.
   One per aspirational check, exactly — `framed_node_escapes_its_lane`
   (`frame_containment`), `gray_text_on_ground` (`contrast_text`),
   `pale_stroke_node` (`contrast_object`), `tiny_font_text` (`min_font`).
   (`near_miss_clearance`/`min_clearance` and
   `unroled_text_over_node`/`text_overlaps_node` went when Task 23 landed
   both lints; `phantom_passthrough_shared_attach`/`phantom_passthrough`
-  went with WP4b's e1 in Task 24.) The remaining two are against checks
+  went with WP4b's e1 in Task 24.) The other four are against checks
   that already ship, and there were three until 2026-08-15:
   `diamond_clearance_overfire` (`min_clearance`) FLIPPED with Task 56 when
-  the pair loop learned to measure the drawn outline. Of the two left,
+  the pair loop learned to measure the drawn outline, and batch 22 added
+  two — `curved_short_finals_escape_the_corridor` (`shared_corridor`,
+  the curved-corridor regime the shipped pin misses, unowned) and
+  `fanned_ellipse_foot_floats_in_the_void` (`float_diamond`, the auto-fan
+  placing feet in an ellipse's corner void, owner: the wave's fan-repair
+  task). Of the older two,
   `headless_chain_reads_through_node` is batch 21's and deliberately
   carries no magnitude (its own comment says why), and
   `tolerable_gap_hides_interior_run` (`crosses_through_bound`)

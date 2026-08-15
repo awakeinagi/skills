@@ -926,7 +926,7 @@ def relabel(scene: list[dict], container_id: str, text: str) -> list[dict]:
     — and keeps whatever the write path decides, so the label's stored
     `width` is the production number and not a number a test author chose.
     A mutant built on it therefore pins the write path and the lint
-    together: `lint_layout`'s `drawn_box` (canvas.py) trusts stored
+    together: `lint_layout`'s `label_boxes` (canvas.py) trusts stored
     width, so the day a write path stops recomputing it, the collision
     checks go quiet and this operator stops producing the finding its
     mutant asserts. That is the alarm; a forged scene cannot raise it.
@@ -9201,6 +9201,188 @@ def _fan_finals(sep: int) -> list[dict]:
                customData={"role": "edge"})]
 
 
+def _stub_chain(rounded: bool, shared: bool) -> list[dict]:
+    """A -> N -> Z whose two feet meet N through an 8px vertical jog.
+
+    The migrated-reader scene for `phantom_passthrough`'s feet block
+    (curves-fold review F3). Both arrows turn 8px perpendicular in the
+    last 8px of a 300px run, which is what a router draws when source
+    and target sit one nudge off the same rank — and it is the shape
+    that makes the STORED chord and the DRAWN arrival name different
+    axes. Stored, each foot's last leg is a vertical stub, so the block
+    calls both feet vertical, gives them the same sign and never pairs
+    them. Drawn, `_arrival_path`'s secant reads the 300px body: e1
+    arrives horizontally and e2 leaves horizontally, opposed, and the
+    pair is found.
+
+    WHY THE SHARP TWIN OF THE MUTANT IS NOT THE NEIGHBOUR, measured
+    rather than assumed. At `shared` the sharp drawing is a merged
+    stroke too — one line at y=112 running A through N to Z with a
+    hairpin at x=200 — and the stored read is SILENT on it. Pairing the
+    mutant against that pole would assert a miss as the healthy answer.
+    The neighbour is therefore the sharp FANNED chain, whose feet sit on
+    opposite borders with the node between them and whose silence is the
+    correct reading of a correct picture. The residual — an 8px jog
+    blinding this block in the sharp world as well — is recorded at the
+    registration and left to the check's owner.
+
+    Args:
+        rounded: True to stamp `{"type": 2}` on both arrows.
+        shared: True to put e2's foot on N's LEFT border, where e1's
+            already is, so the pair covers all 80px of N; False to fan
+            it onto the RIGHT border, one node width clear.
+
+    Returns:
+        The five-element scene: nodes A, N, Z and arrows e1, e2.
+    """
+    r = {"type": 2} if rounded else None
+    foot = 200 if shared else 280
+    return [el(id="A", type="rectangle", x=-180, y=100, width=80,
+               height=40, customData={"role": "node"}),
+            el(id="N", type="rectangle", x=200, y=100, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="Z", type="rectangle", x=528, y=100, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="e1", type="arrow", x=-100, y=112, width=300, height=8,
+               points=[[0, 0], [300, 0], [300, 8]], roundness=r,
+               endArrowhead="arrow",
+               startBinding={"elementId": "A", "focus": 0, "gap": 1},
+               endBinding={"elementId": "N", "focus": 0, "gap": 1},
+               customData={"role": "edge"}),
+            el(id="e2", type="arrow", x=foot, y=120, width=528 - foot,
+               height=8, points=[[0, 0], [0, -8], [528 - foot, -8]],
+               roundness=r, endArrowhead="arrow",
+               startBinding={"elementId": "N", "focus": 0, "gap": 1},
+               endBinding={"elementId": "Z", "focus": 0, "gap": 1},
+               customData={"role": "edge"})]
+
+
+def _bow_past_box(rounded: bool, under: bool) -> list[dict]:
+    """One 300+300 elbow and one small box in the gap its bow sweeps.
+
+    The through-node arm's scene — the FIFTH reader of arrow shape, the
+    one the curves fold-in found while building the gate's second arm
+    and migrated onto `_rendered_path`. Two elements and nothing else:
+    the arrow binds nothing, so `ends` is empty and every node in the
+    scene is foreign to it.
+
+    A 300+300 elbow's drawn corner leaves its stored L by 22.2px at the
+    apex — the curve rides ABOVE the horizontal chord and RIGHT of the
+    vertical one — so an 80x16 box straddling either side of a chord
+    separates the two readings cleanly and in opposite directions.
+
+    Args:
+        rounded: True to stamp `{"type": 2}`, False for the sharp L.
+        under: True to sit the box at y=96..112, straddling the stored
+            chord at y=100 where the drawn curve has already climbed
+            to y=81..87; False to sit it at y=76..92, in the gap the
+            bow crosses and the chord clears by 8px.
+
+    Returns:
+        The two-element scene: foreign box `F`, then arrow `e1`.
+    """
+    return [el(id="F", type="rectangle", x=200, y=96 if under else 76,
+               width=80, height=16, customData={"role": "node"}),
+            el(id="e1", type="arrow", x=100, y=100, width=300, height=300,
+               points=[[0, 0], [300, 0], [300, 300]],
+               roundness={"type": 2} if rounded else None,
+               customData={"role": "edge"})]
+
+
+def _short_finals(rounded: bool) -> list[dict]:
+    """Two 80px finals 15px apart, each after a long vertical approach.
+
+    F8's regime, and the population the shipped corridor pin misses.
+    `_fan_finals` puts a 200px final after a 15px stub, whose bow is
+    2.5px against a 14.3px band and clears stage 2 comfortably; this is
+    the opposite ratio, and the review measured it as 33% of the
+    all-curved corpus's axis-aligned stretches. The two finals bow 22.2
+    and 13.7px off their own chords against a band of 5.7px, so
+    `_reads_as_line` refuses to classify either and `shared_corridors`
+    never sees them.
+
+    THE APPROACHES ARE DELIBERATELY UNPAIRABLE, which is what makes the
+    loss visible. `shared_corridors` breaks on the first qualifying
+    stretch pair, so an approach that corridors would supply the finding
+    the finals lost and hide the defect. These two run on one line at
+    x=100 but their extents abut at -15px — past the -10px abutting
+    window — and neither reaches the 60px overlap, so the finals are the
+    only pair that can speak.
+
+    The drawn separation is the point of the pin: sampled at the finals'
+    midpoint the two strokes sit 15.4px apart curved against 15.0px
+    sharp. The picture a reader sees is the same thick stroke in both;
+    only the check's willingness to look at it moved.
+
+    Args:
+        rounded: True to stamp `{"type": 2}` on both arrows.
+
+    Returns:
+        The six-element scene: hubs A and B, targets t1 and t2, and
+        arrows `fa` (down then right) and `fb` (up then right).
+    """
+    r = {"type": 2} if rounded else None
+    return [el(id="hubA", type="rectangle", x=60, y=-40, width=80,
+               height=40, customData={"role": "node"}),
+            el(id="hubB", type="rectangle", x=60, y=500, width=80,
+               height=40, customData={"role": "node"}),
+            el(id="t1", type="rectangle", x=180, y=280, width=40,
+               height=40, customData={"role": "node"}),
+            el(id="t2", type="rectangle", x=180, y=320, width=40,
+               height=40, customData={"role": "node"}),
+            el(id="fa", type="arrow", x=100, y=0, width=80, height=300,
+               points=[[0, 0], [0, 300], [80, 300]], roundness=r,
+               startBinding={"elementId": "hubA", "focus": 0, "gap": 0},
+               endBinding={"elementId": "t1", "focus": 0, "gap": 0},
+               customData={"role": "edge"}),
+            el(id="fb", type="arrow", x=100, y=500, width=80, height=185,
+               points=[[0, 0], [0, -185], [80, -185]], roundness=r,
+               startBinding={"elementId": "hubB", "focus": 0, "gap": 0},
+               endBinding={"elementId": "t2", "focus": 0, "gap": 0},
+               customData={"role": "edge"})]
+
+
+def _fanned_void_foot(shape: str) -> list[dict]:
+    """One arrow stopped where the auto-fan puts a foot on a 300x300 node.
+
+    `_fan_point` (canvas.py) spreads attach points along the BOUNDING
+    BOX side, so on anything but a rectangle the fanned feet land in the
+    corner void. (200, 175) is not a coordinate anybody chose: it is
+    exactly what `fan_attach_points` writes for the first of three
+    arrows converging on this node's left side, `length * 1/(3+1)`.
+
+    300x300 AND NOT SOMETHING SMALLER, because a pin has to be able to
+    flip. `float_diamond` reports nothing under 12px whatever shape it
+    learns to read, and the fan's miss on a circle is 0.118r — so at
+    200x200 it is 11.80px and would still be silent after the ellipse
+    arm landed, which is a red nothing could ever turn green. At r=150
+    the miss is 17.71px, clear of that floor and still far under the
+    30px `endpoint_tol` this node earns.
+
+    The two poles are the SAME void foot on two shapes, so the only
+    thing that differs is which outline the checks are willing to
+    measure it against. On the ellipse the foot floats 17.71px outside
+    the drawn curve in empty canvas; on the rhombus the identical point
+    is 53.03px out.
+
+    Args:
+        shape: `"ellipse"` for the silent pole, `"diamond"` for the
+            pole where the instrument speaks.
+
+    Returns:
+        The three-element scene: node `N`, source `S`, arrow `a1`.
+    """
+    return [el(id="N", type=shape, x=200, y=100, width=300, height=300,
+               customData={"role": "node"}),
+            el(id="S", type="rectangle", x=0, y=155, width=60, height=40,
+               customData={"role": "node"}),
+            el(id="a1", type="arrow", x=60, y=175, width=140, height=0,
+               points=[[0, 0], [140, 0]],
+               startBinding={"elementId": "S", "focus": 0, "gap": 1},
+               endBinding={"elementId": "N", "focus": 0, "gap": 1},
+               customData={"role": "edge", "routed": True})]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -10032,8 +10214,9 @@ _register(Mutant(
 # entry says "the drawing is wrong today". This one says "the drawing is
 # right today, for a reason nothing was guarding".
 #
-# `drawn_box` (canvas.py) measures a label by its stored `width`. That
-# is safe only while every write path recomputes it, and three things say the
+# `lint_layout`'s `label_boxes` (canvas.py) measures a label by its stored
+# `width`. That is safe only while every write path recomputes it, and three
+# things say the
 # dependency is undefended: the load-time repairs that refit labels (ART-011)
 # and re-glue detached ones (ART-007) both explicitly skip arrow-type
 # containers, and arrow labels are exactly what these checks measure;
@@ -10302,6 +10485,215 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _fan_finals(40),
                         Silence("shared_corridor"))))
 
+# ---------------------------------------------------------------------------
+# The migrated-reader pins (curator batch 22, 2026-08-15). The curves
+# fold-in moved four readers of "what shape is this arrow" onto the drawn
+# path and its own fix round found a fifth; three of the four were pinned
+# as they landed and two were not, which is the gap these close. All three
+# are GREEN — they guard a fix that shipped, and a regression to the stored
+# chord is what turns them red. Origin: fold-curves-review.md F3 (the feet
+# block) and fold-curves-report.md's F3 section (the through-node arm).
+# ---------------------------------------------------------------------------
+
+# Reader four: `phantom_passthrough`'s feet. The stored chord calls both
+# feet VERTICAL — each arrow's last stored leg is an 8px jog — gives them
+# the same sign and never pairs them; `_arrival_path`'s secant reads the
+# 300px body each jog hangs off, and the pair is found. Measured on this
+# scene: the two readings of e1's foot differ by 61.4 degrees, against a
+# gate of 14.
+#
+# MAGNITUDE: 80px, all of N, and the ±10% band is what makes this
+# discriminate. The three other numbers reachable here are excluded by it —
+# 0 (the bare span between the feet, which the same sentence prints), 40
+# (N's HEIGHT, which is what the block reports if it pairs these feet on
+# the VERTICAL axis the stored chord names, and the reading a half-migration
+# produces), and 448 (the merged stroke's own length, the corridor's answer
+# about the same picture). A regression to the stored chord scores none of
+# them: it scores silence.
+#
+# THE RESIDUAL, recorded because the scene shows it and nothing else says
+# it. The SHARP twin of this mutant is silent too, and that silence is a
+# miss rather than a correction: sharp, these points draw one line at y=112
+# from A through N to Z with a hairpin at x=200, and it is as merged as the
+# curved version. An 8px perpendicular jog at the attach point defeats this
+# block's axis classification in BOTH worlds, because the classification
+# reads the last leg and the jog IS the last leg. That is not curvature's
+# fault and is not this pin's to fix — it belongs to the feet block's owner,
+# alongside the older question of whether the sign test should read the
+# stroke's body rather than its final secant at all. The neighbour is the
+# sharp FANNED chain precisely so this pin never asserts that miss is
+# health.
+_register(Mutant(
+    "curved_foot_axis_misreads_phantom_passthrough",
+    build=lambda: _stub_chain(rounded=True, shared=True),
+    op="unchanged", args={},
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
+    neighbour=Neighbour(lambda: _stub_chain(rounded=False, shared=False),
+                        Silence("phantom_passthrough"))))
+
+# Reader five, pole 1 — FALSE SILENCE. The stored L clears F by 8px and
+# says nothing; the drawn corner has already climbed to y=81..87 across F's
+# span and crosses it plainly. Four sampled path points sit inside the box.
+# The sharp twin is a genuine negative — the chords really do miss — which
+# is what makes it the pole rather than a coincidence.
+_register(Mutant(
+    "curved_bow_hides_through_node_crossing",
+    build=lambda: _bow_past_box(rounded=True, under=False),
+    op="unchanged", args={},
+    expect=FindingSpec("passes_through_foreign", element="e1"),
+    neighbour=Neighbour(lambda: _bow_past_box(rounded=False, under=False),
+                        Silence("passes_through_foreign"))))
+
+# Reader five, pole 2 — FALSE ERROR, the other direction, and the reason
+# this arm needed two pins rather than one. The stored chord runs straight
+# through F at y=100 and reports a crossing; the drawn curve has bowed
+# 14px clear of it by the time it reaches F's span and touches nothing.
+# The neighbour is the SHARP scene FIRING, so the pair pins a CORRECTION:
+# a check that had simply gone quiet on curved arrows would satisfy the
+# mutant and fail the neighbour. No magnitude — this message names a box,
+# not a number.
+_register(Mutant(
+    "curved_bow_overstates_through_node_crossing",
+    build=lambda: _bow_past_box(rounded=True, under=True),
+    op="unchanged", args={},
+    expect=Silence("passes_through_foreign"),
+    neighbour=Neighbour(lambda: _bow_past_box(rounded=False, under=True),
+                        FindingSpec("passes_through_foreign",
+                                    element="e1"))))
+
+# RED BY ABSENCE — F8, the curved corridor population the shipped pin does
+# not reach (curves-fold review §7, curated 2026-08-15). `_reads_as_line`
+# scales its band with the span it lands on while the bow that span carries
+# is set by the leg BEFORE it, so a short final after a long approach is
+# rejected by stage 2 and vanishes from `shared_corridors` entirely. The
+# review measured 75 of 224 axis-aligned-chord stretches rejected in the
+# all-curved corpus, 10% under the shipped gate; this is one of them,
+# minimized.
+#
+# WHAT MAKES IT A DEFECT AND NOT A SENSITIVITY DROP: the two finals are
+# 15.0px apart sharp and 15.4px apart drawn, sampled at their midpoint. The
+# drawing does not change. A reader sees one thick stroke either way and
+# the check reports it once and then stops.
+#
+# MAGNITUDE 80px, the finals' shared extent, and the band excludes the two
+# readings a wrong fix gives: 300 and 185 (the APPROACH extents, which is
+# what a fix that relaxed the band far enough to admit everything would
+# pair instead) and 15 (the lateral separation, which is the tolerance and
+# not the overlap).
+#
+# THE NEIGHBOUR IS THE SHARP SCENE FIRING, not a Silence, for the reason
+# `tolerable_gap_hides_interior_run` states about gates: the red says the
+# check goes quiet, the green says what it must say when it speaks, and a
+# check that had gone quiet on both poles satisfies neither. Owner: the
+# corridor instrument's — a band set by the leg that produced the bow
+# rather than by the span that carries it. Unowned as of this batch.
+_register(Mutant(
+    "curved_short_finals_escape_the_corridor",
+    build=lambda: _short_finals(rounded=True),
+    op="unchanged", args={},
+    expect=FindingSpec("shared_corridor", element="fa+fb",
+                       magnitude=(80, 0.10)),
+    neighbour=Neighbour(lambda: _short_finals(rounded=False),
+                        FindingSpec("shared_corridor", element="fa+fb",
+                                    magnitude=(80, 0.10)))))
+
+# RED BY ABSENCE — shape-blindness in the WRITER, and the oldest open one
+# in the repo (curator batch 22, 2026-08-15, from Task 56 §8.4 and §8.5).
+# `_fan_point` spreads attach points along the BOUNDING BOX side, so on an
+# ellipse the fanned feet stop in the corner void. Nothing reports it:
+# `endpoint_gap` measures the miss but `endpoint_tol` allows
+# `0.10 * short side` = 30px here, and `float_diamond` — the independent
+# instrument whose whole reason for existing is that it does NOT share
+# canvas.py's geometry, and which caught `edge_anchor` on the bounding box
+# months before the lint agreed — filters `n["type"] != "diamond"` and
+# never looks at an ellipse.
+#
+# THE SILENCE IS STRUCTURAL, NOT A COINCIDENCE OF THIS SIZE. For a circle
+# of radius r the 1/4 fan slot misses the outline by `r(sqrt(1.25) - 1)` =
+# 0.118r, and the tolerance is `max(14, 0.2r)`. 0.118r is under both terms
+# at every r, so no circle anywhere is loud enough to trip the endpoint
+# lint from its own fan. Measured across the sweep that established it,
+# as the true perpendicular distance: 160x80 -> 7.68px against a 14px
+# tolerance, 200x200 -> 11.80 against 20, 240x160 -> 12.77 against 16,
+# 300x300 -> 17.71 against 30.
+#
+# THE DIAMOND IS NOT THE BUG, which corrects Task 56 §8.5's own guess. The
+# same fan on a rhombus lands 17.9-53.0px out and fires BOTH the endpoint
+# lint and `float_diamond` at every size tested — which is exactly why the
+# neighbour is the diamond: it proves the instrument is alive, measuring,
+# and stopped only by its type filter. The ellipse is the shape with no
+# reader at all.
+#
+# MAGNITUDE 17.71px, the TRUE perpendicular distance from the drawn
+# ellipse — verified against a 400k-sample scan of the outline, because
+# this is the one number in the entry that no shipped function computes.
+# The ±10% band excludes 53.03 (the rhombus's answer for the identical
+# point, i.e. a fix that added ellipses by pointing them at
+# `_dist_to_diamond` unchanged), 75.0 (the raw bbox reading, which is
+# what a fix that never left the bounding box would report) and 0 (the
+# rectangle's). It deliberately ADMITS 16.77, which is what
+# `canvas.shape_clearance` returns here: that function is first-order in
+# the gradient and its own docstring calls the ellipse arm a slight
+# under-estimate that errs toward silence, so a fix that borrows it is
+# honest and must not fail over 0.94px.
+#
+# FIX OWNER: the wave's fan-repair task, already scheduled for the corridor
+# mechanisms. TWO CHANGES FLIP THIS, and they are separable — `_fan_point`
+# placing feet on the drawn outline removes the geometry, and an ellipse
+# arm on `float_diamond` gives it a reader. Either alone leaves the other
+# half open, and this pin holds until the instrument can see the shape.
+_register(Mutant(
+    "fanned_ellipse_foot_floats_in_the_void",
+    build=lambda: _fanned_void_foot("ellipse"),
+    op="unchanged", args={},
+    expect=FindingSpec("float_diamond", element="a1",
+                       magnitude=(17.71, 0.10)),
+    neighbour=Neighbour(lambda: _fanned_void_foot("diamond"),
+                        FindingSpec("float_diamond", element="a1",
+                                    magnitude=(53.03, 0.10)))))
+
+# ---------------------------------------------------------------------------
+# MEASUREMENTS THE CURVATURE PINS DEPEND ON, recorded here because they were
+# made in a review that is not code and would otherwise have to be re-run by
+# whoever next moves one of these numbers (curator batch 22, 2026-08-15, from
+# fold-curves-review.md's re-review).
+#
+# `NEAR_AXIS` = 0.25 (~14 degrees) SITS ON A PLATEAU, which is a better
+# defence of it than "it already existed" — the value reads as one nobody
+# chose, and the measurement says the corpus is genuinely insensitive across
+# it. Arrows of the 38 eligible that the gate lets curve, by bar:
+#
+#     0.10 (5.7 deg)  ->  0        0.35 (19.3) -> 24
+#     0.18 (10.2)     -> 14        0.50 (26.6) -> 27
+#     0.25 (14.0)     -> 23  <- shipped
+#
+# 0.25 -> 0.35 buys ONE arrow. Anyone retuning it should also know the
+# constant has two readers and the coupling is measured, not hypothetical:
+# `lint_layout`'s feet block classifies with the same number, so widening it
+# to 0.50 adds six "read as one stroke" warnings to `tearsheet-pipeline` —
+# six that appear in an ALL-SHARP control too, so they are the
+# classification widening and not a curve the gate let through. That is the
+# coupling `curved_foot_axis_misreads_phantom_passthrough` above sits on
+# top of: its 61.4-degree divergence is against THIS bar.
+#
+# TWO PROPERTIES OF THE GATE'S SECOND ARM that its docstring understates,
+# and that a pin over gated output would otherwise look wrong against:
+#
+#   - It compares finding STRINGS, magnitudes included. A curve that only
+#     changes a pixel count inside an existing finding ("runs 35px inside")
+#     counts as the set having moved and the candidate is declined. That is
+#     stricter than set membership and is defensible — the finding DID
+#     change — but "the finding set must not move" describes something
+#     weaker than what runs.
+#   - Its attribution is order-arbitrary. Two arrows that individually keep
+#     the set clean but jointly move it see the second in sorted-`id` order
+#     declined. Deterministic and correct in effect, but not minimal: a
+#     different order would curve a different one of the pair. The gate's
+#     determinism paragraph should not be read as saying the verdict set is
+#     canonical, only that it is reproducible.
+# ---------------------------------------------------------------------------
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -10388,6 +10780,52 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_curved_parallel_finals_corridor_miss(self) -> None:
         """At 40px apart they are two strokes and stay silent."""
         self._run_neighbour("curved_parallel_finals_corridor_miss")
+
+    def test_mutant_curved_foot_axis_misreads_phantom_passthrough(
+            self) -> None:
+        """Two 8px jogs hide a merged stroke from the stored chord."""
+        self._run("curved_foot_axis_misreads_phantom_passthrough")
+
+    def test_neighbour_curved_foot_axis_misreads_phantom_passthrough(
+            self) -> None:
+        """Fanned onto opposite borders, the sharp chain says nothing."""
+        self._run_neighbour("curved_foot_axis_misreads_phantom_passthrough")
+
+    def test_mutant_curved_bow_hides_through_node_crossing(self) -> None:
+        """The bow crosses a box its own stored L clears by 8px."""
+        self._run("curved_bow_hides_through_node_crossing")
+
+    def test_neighbour_curved_bow_hides_through_node_crossing(self) -> None:
+        """The sharp L genuinely misses that box."""
+        self._run_neighbour("curved_bow_hides_through_node_crossing")
+
+    def test_mutant_curved_bow_overstates_through_node_crossing(
+            self) -> None:
+        """The drawn curve clears a box the stored chord runs through."""
+        self._run("curved_bow_overstates_through_node_crossing")
+
+    def test_neighbour_curved_bow_overstates_through_node_crossing(
+            self) -> None:
+        """Sharp, that chord IS the drawing, and the crossing is real."""
+        self._run_neighbour("curved_bow_overstates_through_node_crossing")
+
+    @unittest.expectedFailure
+    def test_mutant_curved_short_finals_escape_the_corridor(self) -> None:
+        """Two strokes 15px apart stop being a corridor once curved."""
+        self._run("curved_short_finals_escape_the_corridor")
+
+    def test_neighbour_curved_short_finals_escape_the_corridor(self) -> None:
+        """Sharp, the same two finals are reported at 80px of overlap."""
+        self._run_neighbour("curved_short_finals_escape_the_corridor")
+
+    @unittest.expectedFailure
+    def test_mutant_fanned_ellipse_foot_floats_in_the_void(self) -> None:
+        """The fan stops 17.7px off a circle and no instrument looks."""
+        self._run("fanned_ellipse_foot_floats_in_the_void")
+
+    def test_neighbour_fanned_ellipse_foot_floats_in_the_void(self) -> None:
+        """The identical point on a rhombus is reported at 53.0px."""
+        self._run_neighbour("fanned_ellipse_foot_floats_in_the_void")
 
     def test_mutant_diamond_corner_silence(self) -> None:
         """80px clear of the rhombus, inside its bbox, is now reported."""
@@ -11350,6 +11788,52 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
 # up as a failing enumeration instead of as a phantom hand-authored class.
 CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 
+# The CATALOGUE half of the same disclosure, and the half that had no guard
+# until curator batch 22 (2026-08-15). `HAND_AUTHORED_RED_CLASSES` above
+# made the non-catalogue count self-checking three batches ago; the catalogue
+# count stayed a hand-copied list in SESSION-HANDOVER.md and went stale FOUR
+# recorded times — most recently omitting batch 21's
+# `headless_chain_reads_through_node` while the paragraph beside it said
+# "four of the six", a sentence that only adds up at seven.
+#
+# IDS AND NOT A NUMBER, deliberately, and the difference is the whole point.
+# A count is satisfied by any six reds, so a batch that flips one red and
+# adds another leaves the total right and the census wrong — which is the
+# exact motion Task 56 and the curves fold-in both made. Naming them means
+# a flip costs one deletion here and an addition costs one line, and either
+# way the handover's prose is forced through the same edit.
+#
+# WHY THIS IS SAFE TO PIN when the flip contract already fails on an
+# unexpected success: the two guards catch opposite mistakes. The runner
+# notices a red that started PASSING. Nothing noticed a red that was ADDED,
+# and an addition is what leaves a census stating six where seven is true.
+# Neither guard subsumes the other, and this one is the cheap half.
+CATALOGUE_RED_IDS = {"curved_short_finals_escape_the_corridor",
+                     "fanned_ellipse_foot_floats_in_the_void",
+                     "framed_node_escapes_its_lane", "gray_text_on_ground",
+                     "headless_chain_reads_through_node", "pale_stroke_node",
+                     "tiny_font_text", "tolerable_gap_hides_interior_run"}
+
+
+def catalogue_red_ids() -> set[str]:
+    """Every CATALOGUE id whose mutant method carries `expectedFailure`.
+
+    Derived from the decorator's own attribute rather than from any
+    written-down list, so this is the measurement the census is checked
+    against. `mutants list --red` reads the same thing through a
+    different path and must agree.
+
+    Returns:
+        The set of red-by-intent catalogue ids. Empty is a legitimate
+        answer — it is what draining v0.9's geometry work to zero looks
+        like — and is the one state that would let the guard below pass
+        while meaning something new, so read the handover with it.
+    """
+    return {mid for mid in CATALOGUE
+            if getattr(getattr(TestMutantCatalogue, "test_mutant_%s" % mid,
+                               None),
+                       "__unittest_expecting_failure__", False)}
+
 
 def red_bearing_classes() -> dict[str, int]:
     """Every TestCase in this module carrying an `expectedFailure`, counted.
@@ -11572,6 +12056,35 @@ class TestCoverage(unittest.TestCase):
             "three places, which is why this drifts"
             % ({k: v for k, v in sorted(found.items())
                 if k != CATALOGUE_RED_CLASS}, HAND_AUTHORED_RED_CLASSES))
+
+    def test_the_catalogue_reds_are_the_ones_declared(self) -> None:
+        """Curator batch 22 item 3 (Task 56 §8.1), 2026-08-15.
+
+        The other half of the guard above, and the half the census kept
+        getting wrong. `HAND_AUTHORED_RED_CLASSES` has covered the
+        non-catalogue reds since batch 16; the CATALOGUE reds stayed a
+        list hand-copied into SESSION-HANDOVER.md, which went stale four
+        recorded times — the last of them omitting an entry while the
+        sentence above it counted a different total.
+
+        Deriving them here means the handover can cite ONE checked name
+        instead of transcribing eight ids, and a batch that both flips a
+        red and adds one — which is the motion that keeps the total right
+        and the list wrong — fails here with both sets in the message.
+
+        This does not duplicate the flip contract. unittest fails on a
+        red that started PASSING; nothing failed on a red that was ADDED,
+        and an addition is what left the census stating six where seven
+        was true.
+        """
+        found = catalogue_red_ids()
+        self.assertEqual(
+            found, CATALOGUE_RED_IDS,
+            "the catalogue's red-by-intent entries have moved: measured "
+            "%s against a declared %s. Update CATALOGUE_RED_IDS and the "
+            "'What is red' section of SESSION-HANDOVER.md, which cites it "
+            "by name rather than restating it"
+            % (sorted(found), sorted(CATALOGUE_RED_IDS)))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""
