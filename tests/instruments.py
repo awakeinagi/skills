@@ -235,6 +235,62 @@ def rendered_path(
     return out
 
 
+def _rendered_segments(
+    el: dict,
+) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    """Segments of the path the renderer actually draws.
+
+    The drop-in replacement for `_abs_segments` in every check that asks
+    a question about the PICTURE rather than about the route. A sharp
+    arrow's rendered segments ARE its chords, so the swap is free and
+    behaviour-identical while `derived_roundness` keeps a route sharp.
+
+    Args:
+        el: An arrow element dict with x, y, points, and roundness.
+
+    Returns:
+        Consecutive (start, end) point pairs of the flattened path.
+    """
+    p = rendered_path(el)
+    return [(p[i], p[i + 1]) for i in range(len(p) - 1)]
+
+
+def _bounds(
+    segs: list[tuple[tuple[float, float], tuple[float, float]]],
+) -> tuple[float, float, float, float] | None:
+    """The axis-aligned box a segment list occupies.
+
+    Args:
+        segs: Segments in absolute coordinates.
+
+    Returns:
+        `(minx, miny, maxx, maxy)`, or None for an empty list.
+    """
+    if not segs:
+        return None
+    xs = [c for s in segs for c in (s[0][0], s[1][0])]
+    ys = [c for s in segs for c in (s[0][1], s[1][1])]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _boxes_touch(
+    a: tuple[float, float, float, float] | None,
+    b: tuple[float, float, float, float] | None,
+) -> bool:
+    """Whether two bounding boxes overlap at all.
+
+    Args:
+        a: The first box, or None.
+        b: The second box, or None.
+
+    Returns:
+        True when both exist and their extents overlap on both axes.
+    """
+    if a is None or b is None:
+        return False
+    return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
+
 def _segments_intersect(
     p1: tuple[float, float], p2: tuple[float, float],
     p3: tuple[float, float], p4: tuple[float, float],
@@ -296,6 +352,22 @@ def crossing_sites(elements: list[dict]) -> list[dict]:
     used to leave both loops on the first hit and score 1, so a router
     change that turned one crossing into three registered as no change.
 
+    The segments are the DRAWN ones (`_rendered_segments`), not the
+    stored chords, because a crossing is a thing a reader sees. Both
+    directions of that difference are real and measured: two elbows
+    meeting corner to corner whose chords never touch cross TWICE once
+    drawn, and a shorter pair whose chords cross once do not cross at
+    all once the curve pulls them apart (v0.9 blind-spot 2 spike).
+
+    Flattening multiplies the segment count per arrow by
+    `CURVE_SAMPLES`, and this loop is quadratic in it — 330x measured
+    end to end at 30 arrows x 5 points, ~3.7 SECONDS. The bbox
+    prefilters below are therefore load-bearing rather than an
+    optimization: real diagrams are sparse, so almost every arrow pair
+    and almost every segment pair is rejected at the cost of four
+    comparisons and the flattened cost is paid only where two strokes
+    actually come near each other.
+
     Args:
         elements: Full scene element list; arrows are filtered
             internally.
@@ -304,12 +376,18 @@ def crossing_sites(elements: list[dict]) -> list[dict]:
         A list of `{"a": id, "b": id, "angle": degrees}` dicts, one per
         crossing, in traversal order.
     """
-    allsegs = [(a["id"], _abs_segments(a)) for a in _arrows(elements)]
+    allsegs = [(a["id"], [(s, _bounds([s])) for s in _rendered_segments(a)])
+               for a in _arrows(elements)]
+    hulls = [_bounds([s for s, _b in segs]) for _i, segs in allsegs]
     sites: list[dict] = []
-    for (i1, s1), (i2, s2) in itertools.combinations(allsegs, 2):
+    for (i, (i1, s1)), (j, (i2, s2)) in itertools.combinations(
+            enumerate(allsegs), 2):
+        if not _boxes_touch(hulls[i], hulls[j]):
+            continue
         sites.extend({"a": i1, "b": i2, "angle": _acute_angle(a, b)}
-                     for a in s1 for b in s2
-                     if _segments_intersect(a[0], a[1], b[0], b[1]))
+                     for a, ab in s1 for b, bb in s2
+                     if _boxes_touch(ab, bb)
+                     and _segments_intersect(a[0], a[1], b[0], b[1]))
     return sites
 
 
@@ -359,6 +437,56 @@ def _axis(
     return None
 
 
+def _stretch_axis(
+    stretch: list[tuple[float, float]],
+) -> tuple[str, float, float, float] | None:
+    """Classify a whole DRAWN stretch as one axis-aligned run.
+
+    The naive curvature fix for `shared_corridors` — swap the segment
+    source and leave the rest — goes SILENT on real corridors, and that
+    is the trap this function exists to avoid. `_axis` classifies each
+    segment independently within 2px, and a flattened Catmull-Rom span
+    is diagonal for a good third of its length even on a gentle bow (17
+    of 40 micro-segments failed classification outright on a 200px
+    vertical leg), while the ones that pass carry a continuously
+    DRIFTING fixed coordinate (108.9 to 110.7 across ten consecutive
+    "vertical" micro-segments) instead of the single constant a straight
+    run gives. The pairwise matcher below cannot find a stable pairing
+    across two arrows' independently drifting sample grids, so two 200px
+    curved verticals 4px apart — obviously one thick stroke — scored
+    zero (v0.9 blind-spot 2 spike).
+
+    The fix is `_reads_as_line`'s treatment, one level up: classify the
+    stretch ONCE, from its own chord, and let the bow earn a tolerance
+    against that chord rather than re-deriving an axis twenty times.
+
+    Two properties make this safe to swap in everywhere:
+
+    - a SHARP stretch is a two-point chord, its spread off its own chord
+      is zero, and `_reads_as_line`'s band never goes below `FLAT_BAND`
+      — so this returns exactly what `_axis` returned, bit for bit;
+    - a curved stretch is judged on the same relative band `false_bidi`
+      already argues for, so the two curvature-aware instruments in this
+      module agree about what "reads as a line" means.
+
+    Args:
+        stretch: The sampled stretch in absolute coordinates.
+
+    Returns:
+        `(orientation, fixed_coord, extent_min, extent_max)` from the
+        stretch's CHORD, or None when the chord is diagonal or the bow
+        wanders too far off it to read as one run.
+    """
+    if len(stretch) < 2:
+        return None
+    A = _axis((stretch[0], stretch[-1]))
+    if A is None:
+        return None
+    if not _reads_as_line(stretch, 0 if A[0] == "h" else 1):
+        return None
+    return A
+
+
 def _corridor_kind(a: dict, b: dict) -> str:
     """How two corridor-sharing arrows are related through their bindings.
 
@@ -403,7 +531,15 @@ def shared_corridors(
 ) -> list[dict]:
     """Find near-collinear arrow pairs that read as one stroke.
 
-    Ported from corridor.py.
+    Ported from corridor.py, and rebuilt for curvature by v0.9: the unit
+    of comparison is a whole DRAWN stretch (`_stretch_axis`), not a
+    stored chord and not a flattened micro-segment. See `_stretch_axis`
+    for why the obvious swap is worse than doing nothing.
+
+    Cost, unlike `crossing_sites`', does not move: there is one stretch
+    per stored span either way, so no prefilter is owed here — the
+    flattening is linear and the pairing loop is the same size it always
+    was.
 
     Args:
         elements: Full scene element list; arrows are filtered internally.
@@ -423,12 +559,12 @@ def shared_corridors(
     arrows = _arrows(elements)
     hits: list[dict] = []
     for a, b in itertools.combinations(arrows, 2):
-        for s1 in _abs_segments(a):
-            A = _axis(s1)
+        for s1 in rendered_stretches(a):
+            A = _stretch_axis(s1)
             if not A:
                 continue
-            for s2 in _abs_segments(b):
-                B = _axis(s2)
+            for s2 in rendered_stretches(b):
+                B = _stretch_axis(s2)
                 if not B or B[0] != A[0]:
                     continue
                 if abs(A[1] - B[1]) > tol:
@@ -909,8 +1045,11 @@ def score_layout(elements: list[dict]) -> dict:
     w = (max(xs) - min(xs)) if xs else 0.0
     h = (max(ys) - min(ys)) if ys else 0.0
     ink = sum(n["width"] * n["height"] for n in nodes)
+    # the DRAWN length: a bow adds 1-2% over its chord at the magnitudes
+    # this codebase produces, which is diagnostic-only (no WEIGHTS
+    # entry) but free to get right now that the flattening is here
     edge_len = sum(math.dist(p, q) for a in arrows
-                   for p, q in _abs_segments(a))
+                   for p, q in _rendered_segments(a))
     metrics = {
         "gridiness": gridiness(elements),
         # a quarter of the edges may carry one deliberate bend for free:

@@ -5832,6 +5832,61 @@ def label_budget(container, height):
     return max(60, label_room(container, height) - 24)
 
 
+HEAD_SECANT_T = 0.7
+# Where the client reads an arrowhead's direction from.
+# `getArrowheadPoints` samples the LAST Bezier at forward-t 0.7 and draws
+# the head along the secant from there to the endpoint. Not the stored
+# chord — a curved final leg leaves it by up to 56.8 degrees, enough to
+# flip the reported axis and put the arrow on the wrong SIDE of its node
+# — and not the t=1 derivative either, which degenerates to the chord's
+# own direction, which is exactly why a naive reading of this makes the
+# defect look like a non-issue (v0.9 blind-spot 3 spike).
+
+
+def _arrival_path(arrow, at_end, samples=CURVE_SAMPLES):
+    """The DRAWN path from a bound endpoint inward, and the head's axis.
+
+    Every attachment check walks from the bound end toward the middle,
+    so this hands back the flattened path already oriented that way, and
+    with it the one sample the arrowhead's direction is read from. Both
+    used to be taken off the stored chord: on a curved final leg the
+    walk over-measured an interior run by 9.7px on one gate-respecting
+    scene and under-measured it by 8.8px on another — a false ERROR
+    against a drawing that reads clean, and silence over one that
+    visibly crosses through.
+
+    A sharp arrow's stretches are its chords, so `prev` falls back to
+    the next stored point and every number is bit-for-bit what it was.
+
+    Args:
+        arrow: The arrow element, with `x`, `y`, `points`, `roundness`.
+        at_end: True for the `endBinding` side, so the path is reversed
+            and the arrowhead's own last span becomes the first.
+        samples: Sub-segments per curved span.
+
+    Returns:
+        `(seq, prev)`: the drawn path with `seq[0]` at the bound
+        endpoint, and the point its direction should be read FROM, or
+        None when the arrow has no segment at all.
+    """
+    stretches = _rendered_stretches(arrow, samples)
+    if at_end:
+        stretches = [s[::-1] for s in reversed(stretches)]
+    seq = []
+    for s in stretches:
+        seq.extend(s[1:] if seq else s)
+    if not seq:
+        seq = [(arrow.get("x", 0) + p[0], arrow.get("y", 0) + p[1])
+               for p in (arrow.get("points") or [])]
+        if at_end:
+            seq = seq[::-1]
+    if stretches and len(stretches[0]) > 2:
+        k = min(max(int(round((1.0 - HEAD_SECANT_T) * samples)), 1),
+                len(stretches[0]) - 1)
+        return seq, stretches[0][k]
+    return seq, (seq[1] if len(seq) > 1 else None)
+
+
 def approach_axis(fromx, fromy, tox, toy):
     """The axis an arrow travels along as it arrives at its node.
 
@@ -6897,7 +6952,15 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         eb = (a.get("endBinding") or {}).get("elementId")
         tgt = ix.get(eb) if eb and eb != sb else None
         if tgt is not None and len(seq) >= 2:
-            (qx, qy), (hx, hy) = seq[-2], seq[-1]
+            # the DRAWN final approach, not the stored chord. This arm
+            # is `crosses_through_bound`'s cousin in the blind-spot 3
+            # sense — it reads a direction and a length off the last
+            # leg — and it inherited the identical error on a curved
+            # one, so it migrates with the walk rather than being left
+            # as a known-but-unfixed sibling.
+            drawn_seq, head_from = _arrival_path(a, True)
+            (hx, hy) = drawn_seq[0] if drawn_seq else seq[-1]
+            (qx, qy) = head_from if head_from is not None else seq[-2]
             ddx, ddy = hx - qx, hy - qy
             seg = (ddx * ddx + ddy * ddy) ** 0.5
             norm = shape_norm(tgt, hx, hy)
@@ -6995,11 +7058,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             gx2 = tgt["x"] + tgt.get("width", 0)
             gy2 = tgt["y"] + tgt.get("height", 0)
             tol = endpoint_tol(tgt, TOL)
-            pts = a.get("points") or []
-            seq = [(a.get("x", 0) + p[0], a.get("y", 0) + p[1])
-                   for p in pts]
-            if key == "endBinding":
-                seq = seq[::-1]     # seq[0] is always the bound end now
+            # the DRAWN path, already oriented so seq[0] is the bound
+            # end, and the sample the head's direction is read from
+            seq, head_from = _arrival_path(a, key == "endBinding")
             # Two distinct failure shapes (r4-1). Border distance says
             # whether the endpoint sits ON the perimeter — fanned attach
             # points land exactly on an edge and must stay legal. The
@@ -7022,7 +7083,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # approach axis — see `shape_clearance` for why the axis
                 # alone cannot be trusted to judge.
                 clear = shape_clearance(tgt, px, py)
-                prev = seq[1] if len(seq) > 1 else (px, py)
+                prev = head_from if head_from is not None else (px, py)
                 outside, inside = (
                     endpoint_gap(tgt, prev[0], prev[1], px, py)
                     if clear is not None and abs(clear) > tol else (0, 0))
