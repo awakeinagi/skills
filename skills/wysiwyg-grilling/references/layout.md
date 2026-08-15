@@ -87,13 +87,18 @@ low-opacity `role: decoration` backdrop line with the real arrows offset
 ±10px along it.
 
 **Z-order** (now ENFORCED by a normalization pass on every apply):
-frames → decorations → arrows/lines → nodes → composed content → bound
-labels & pins. Composed CONTENT is a composite's own value or attribute
-rows (`value_of`, `attr_of`); it bands above its owner so an opaque tile
-cannot paint out the number it exists to show. Composed FURNITURE
-(X-box strokes, toggle tracks, body waves) and standalone backdrops band
-with the decorations, beneath. Explicit `reorder` ops survive within
-their band; cross-band placement rides `role: decoration`.
+frames → backdrops → arrows/lines → nodes → composed parts → bound
+labels & pins. A composed PART is anything a composite draws on its
+owner — content (a kpi/input `value`, an entity's attribute rows) and
+furniture alike (checkbox box and check stroke, toggle track and thumb,
+slider track and thumb, body waves, X-box strokes). All of it bands
+above its owner, so an opaque fill can paint out neither the number the
+tile exists to show nor the glyph that says the control is checked.
+Only a standalone BACKDROP — a `role: decoration` with no part tag,
+such as the thick low-opacity line behind parallel edges — still bands
+beneath. Explicit `reorder` ops survive within their band, which is
+also what keeps a check stroke over the box it was declared after;
+cross-band placement rides `role: decoration`.
 
 ## Budgets (lint NOTE → view suggestion)
 

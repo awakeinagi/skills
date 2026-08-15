@@ -96,10 +96,13 @@ on concept `report` clears the umbrella's `wireframe` debt.
   "role": "node" | "annotation" | "pin" | "decoration",
       // default node; text w/o container → annotation. `decoration` is
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
-      // exempt from connector lints and budgets, painted beneath arrows.
-      // A composite's own CONTENT (a kpi/input `value`, an entity's
-      // attribute rows) carries the same exemption but bands ABOVE its
-      // owner, so an opaque tile never paints out its own number.
+      // exempt from connector lints and budgets. A decoration that is a
+      // composite's own PART — content (a kpi/input `value`, an entity's
+      // attribute rows) or furniture (a checkbox's box and check stroke,
+      // a slider's track and thumb) — bands ABOVE the owner it is drawn
+      // on, so an opaque fill paints out neither the tile's number nor
+      // the glyph that says the control is checked. Only an UNTAGGED
+      // decoration is a backdrop, and only backdrops paint beneath.
       // "Beneath" is array position, not a type rule: put the decoration
       // earlier in the element order and it paints first. The SVG export
       // honours that as of v0.9 — it used to paint in type buckets and

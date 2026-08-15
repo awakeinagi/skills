@@ -1039,8 +1039,12 @@ class TestComposedContentVisibility(unittest.TestCase):
 
 # The composed controls whose furniture this tier can actually MEASURE, each
 # with the state it needs, the part that CARRIES that state, and that part's
-# ink under a transparent owner (px, measured 2026-08-14, band ~10% and
-# wider on the smallest where one antialiased row is a larger fraction).
+# ink (px, measured 2026-08-14, band ~10% and wider on the smallest where one
+# antialiased row is a larger fraction). One number per row serves BOTH
+# poles: it was the transparent-owner reading while the defect stood, and
+# since the task 45 flip it is what the same part measures under an opaque
+# owner too (38/136/108 against 36/126/108) — which is the flip's content
+# stated as a magnitude rather than as prose.
 #
 # `body` and `image` are absent on purpose, and the reason is measurement
 # rather than oversight — task-44-report §5.1 lists all five composites as
@@ -1065,11 +1069,13 @@ def _control_composite(kind: str, fill: str,
 
     `_kpi_tile`'s sibling, and deliberately the same shape: built through
     `canvas.make_element` and ordered by `canvas.normalize_z_order` rather
-    than assembled by hand, because the defect is what the composition and
-    the banding produce between them. The two builders stay separate
-    rather than sharing a core — the kpi one is the FLIPPED half of this
-    family and its docstring is about content, this one is the live half
-    and its docstring is about furniture.
+    than assembled by hand, because the defect was what the composition
+    and the banding produced between them. The two builders stay separate
+    rather than sharing a core — both halves of the family are flipped
+    now (task 44 took the content, task 45 the furniture), but the kpi
+    one's docstring is about content and this one's is about furniture,
+    and merging them would cost the reader that distinction for one saved
+    scene builder.
 
     Minimized to three elements: no label. A composite's bound label is
     band-5 text that no fill can reach, so it is incidental to the
@@ -1121,98 +1127,109 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         """Remove the scratch directory — renders never enter the repo."""
         shutil.rmtree(self.workdir, ignore_errors=True)
 
-    def test_composed_furniture_red_is_red_by_measurement_not_by_error(self
-                                                                       ) -> None:
-        """The red below is red for the reason it claims, across all three.
+    def test_composed_furniture_survives_its_opaque_owner_by_measurement(
+            self) -> None:
+        """The FIX's magnitude, at both poles, across all three controls.
 
-        Three jobs. First, `@unittest.expectedFailure` swallows ERRORS as
-        well as failures (skill doctrine §6), so a `make_element` that
-        began refusing the spec would print an identical healthy `x` with
-        nothing measured. Second, this is where the defect's magnitude
-        lives: 0px of ablation ink under an opaque owner against the ink
-        the SAME part carries under a transparent one, so silence here
-        can never mean "nothing was drawn either way" — the failure mode
-        that put `body` and `image` outside `STATE_CONTROLS`.
+        Repurposed at the task 45 flip, keeping its sweep and losing the
+        assertion that had become a false statement about a fixed
+        product: it used to pin `ablation_existence @ 0.0` under the
+        opaque owner — the DEFECT's magnitude — and its own failure
+        message named this rewrite as the correct response. Task 44's
+        content guard was turned the same way (that report §4).
+
+        One of its three original jobs is genuinely gone and is not
+        replaced: `@unittest.expectedFailure` swallows ERRORS as well as
+        failures (skill doctrine §6), so while the red below was red a
+        `make_element` that began refusing the spec would have printed an
+        identical healthy `x` with nothing measured. Dropping the marker
+        is what removed that hazard, so nobody should read this as
+        "every red needs a vacuity guard".
+
+        What it still does, and why it earns its rasterizes. First,
+        MAGNITUDE, which the red cannot see: the red asserts SILENCE, and
+        silence is the answer for a part that is in the picture at all,
+        however little of it — a clipping or sizing regression leaving a
+        few pixels of the check stroke showing keeps the red green and
+        fails only here. Both poles are asserted against the same number
+        and the same tolerance, so each row reads "an opaque owner now
+        costs this part nothing".
+
+        Second, non-vacuity, which is not hypothetical here: `body` and
+        `image` furniture reads as ABSENT at both poles (faint `#b8b2a5`
+        at width 1, under `tolerant_diff`'s ink threshold and the speckle
+        floor), which is why they are outside `STATE_CONTROLS` — an
+        assertion that only said "0px opaque" would have been satisfied
+        by a renderer that drew no glyphs at all.
 
         Third, and the reason this sweeps rather than measuring the
-        checkbox alone: the red names one composite and the fix is
-        expected to move all three at once, so a partial fix — one that
-        taught `band()` about `chk_of` and not `thumb_of` — would flip
-        the red and leave two controls buried with nothing to say so.
-        Toggle and slider are pinned as measurements here rather than as
-        prose in a docstring, because prose about counts has gone stale
-        in this repo three times and a measurement cannot.
+        checkbox alone: the red names one composite and the fix moved all
+        three at once, so a partial regression — one that taught `band()`
+        about `chk_of` and not `thumb_of` — would leave the red green and
+        two controls buried with nothing to say so. Toggle and slider are
+        pinned as measurements rather than as prose in a docstring,
+        because prose about counts has gone stale in this repo three
+        times and a measurement cannot.
         """
         for kind, state, part, lit_ink, slack in STATE_CONTROLS:
             with self.subTest(kind=kind):
-                try:
-                    buried = _control_composite(kind, "#e9e5da", state)
-                    finds = ablation_findings(buried, [part], self.workdir)
-                    ink = _element_ink(_control_composite(kind, "transparent",
-                                                          state),
-                                       part, self.workdir)[0]
-                except Exception as exc:
-                    self.fail("the composed-furniture red is red via %r, "
-                              "not a measurement — that is a broken pin, "
-                              "not a defect pin" % exc)
-                self.assertEqual(
-                    [(f["check"], f["element"], f["magnitude"])
-                     for f in finds],
-                    [("ablation_existence", part, 0.0)],
-                    "ablation_existence no longer fires on %s's buried %s — "
-                    "if the decoration band was split for furniture too, "
-                    "drop the expectedFailure on this class's red and "
-                    "re-pin these three as the fix's magnitudes"
-                    % (kind, part))
+                buried = _control_composite(kind, "#e9e5da", state)
+                opaque = _element_ink(buried, part, self.workdir)[0]
+                lit = _element_ink(_control_composite(kind, "transparent",
+                                                      state),
+                                   part, self.workdir)[0]
                 self.assertAlmostEqual(
-                    ink, lit_ink, delta=slack,
+                    opaque, lit_ink, delta=slack,
+                    msg="%s's %s measured %dpx with an OPAQUE owner "
+                        "against the %dpx it carries with a transparent "
+                        "one: the owner's fill is eating its own control's "
+                        "state glyph again" % (kind, part, opaque, lit_ink))
+                self.assertAlmostEqual(
+                    lit, lit_ink, delta=slack,
                     msg="%s's %s measured %dpx with a TRANSPARENT owner; "
-                        "the opaque reading above is only evidence of "
-                        "burial while this one is nonzero" % (kind, part, ink))
+                        "the opaque reading above can only mean the part "
+                        "survived the fill while this one is nonzero"
+                        % (kind, part, lit))
 
-    @unittest.expectedFailure
     def test_mutant_composed_checkbox_state_hides_under_its_opaque_owner(self
-                                                                        ) -> None:
-        """A checked checkbox draws as an empty box. Owner: unassigned.
+                                                                         ) -> None:
+        """FLIPPED by v0.9 WP4 (Task 45). Kept its red-era name.
 
         Curator batch 17, from the Task 44 report §8.1 and its review's
         curator queue, 2026-08-14. The same quadruple as the composed
-        CONTENT red next door, one part tag over, and it is the half that
-        Task 44 deliberately did not take: `normalize_z_order` now bands
-        `value_of`/`attr_of` above the node that owns them
-        (`CONTENT_PART_KEYS`), while composed FURNITURE — `box_of`,
-        `chk_of`, `thumb_of`, `track_of`, `body_of`, `x_of` — stays at
-        band 1, beneath its owner at 3. Every composite emits its parts
-        BEFORE the owner, so one documented `mod backgroundColor` on the
-        owner paints its own control out.
+        CONTENT red next door, one part tag over, and it was the half
+        that Task 44 deliberately did not take: `normalize_z_order`
+        banded `value_of`/`attr_of` above the node that owned them while
+        composed FURNITURE — `box_of`, `chk_of`, `thumb_of`, `track_of`,
+        `body_of`, `x_of` — stayed at band 1, beneath its owner at 3.
+        Every composite emits its parts BEFORE the owner, so one
+        documented `mod backgroundColor` on the owner painted its own
+        control out.
 
-        This is a PRODUCT defect the render tier can already see, not a
-        detector miss: `ablation_existence` fires correctly and says so
-        in the guard above. What makes it worse than the content case is
-        WHICH part goes: the buried glyph is the one carrying STATE. A
-        checked checkbox with an opaque tile draws as a plain filled
-        rectangle — not as a control that is merely hard to read, but as
-        an UNCHECKED one — and an agent narrating the snapshot back to
-        the user will say so. Measured on the sibling parts, same op:
+        This was a PRODUCT defect the render tier could already see, not
+        a detector miss: `ablation_existence` fired correctly and said
+        so. What made it worse than the content case was WHICH part
+        went: the buried glyph was the one carrying STATE. A checked
+        checkbox with an opaque tile drew as a plain filled rectangle —
+        not as a control that was merely hard to read, but as an
+        UNCHECKED one — and an agent narrating the snapshot back to the
+        user would have said so. Measured on the sibling parts, same op:
         `f1-box` 92px→0, `f1-chk` 36px→0, toggle 168/126→0, slider
         248/108→0.
 
-        Owner: UNASSIGNED — no work package holds it, and the Phase 3
-        gate (Task 24 surface) schedules or defers it. The fix is one
-        line in `band()`, widening the content-tag test to the whole part
-        vocabulary, but it is not a free line: it moves furniture markup
-        across the corpus (5+ artifacts carry `x_of`/`track_of`/
-        `thumb_of`), so it needs its own fixture-replay budget, which is
-        exactly why Task 44 left it rather than smuggling it in under
-        acceptance tests that did not cover it. Two things that will NOT
-        flip it, deliberately: giving the glyph an opaque fill of its own
-        would hide the banding rather than fix it, and lifting the whole
-        `role: "decoration"` band would drag standalone BACKDROPS up with
-        it — the arrangement layout.md prescribes for parallel edges,
-        which `TestPaintOrder`'s backdrop pin holds down. The model-tier
-        half of this defect is that class's banding pin, whose `w1`
-        (`body_of`) member sits under its owner today and moves in the
-        same change as this flip; it says so in its own docstring.
+        The fix was the one line the red-era docstring predicted:
+        `band()` reads the whole part vocabulary (`COMPOSED_PART_KEYS`)
+        rather than the content half, so every composed part bands above
+        the owner it is drawn on. Two things that would NOT have flipped
+        it, and still would not: giving the glyph an opaque fill of its
+        own would have hidden the banding rather than fixed it, and
+        lifting the whole `role: "decoration"` band would have dragged
+        standalone BACKDROPS up with it — the arrangement layout.md
+        prescribes for parallel edges, which `TestPaintOrder`'s backdrop
+        pin holds down and which the tag list still keeps beneath. The
+        model-tier half of this is that class's banding pin: its `w1`
+        (`body_of`) member moved out of band 1 in this same change, and
+        its docstring argues the move rather than quietly absorbing it.
         """
         scene = _control_composite("checkbox", "#e9e5da", {"checked": True})
         finds = ablation_findings(scene, ["f1-box", "f1-chk"], self.workdir)
@@ -1225,13 +1242,22 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
                                                                     ) -> None:
         """The other pole: the same control, the same state, no fill.
 
-        The control that keeps the red meaningful — one variable moves,
-        the owner's `backgroundColor` — and the whole corpus's current
-        state, which is why nothing has noticed. Without it the red would
-        be satisfied by a renderer that drew no control glyphs at all,
-        which is not a hypothetical here: `body` and `image` furniture
-        reads as absent at BOTH poles, and only this pole can tell the
-        two apart.
+        Unchanged across the task 45 flip — same name, same scene, same
+        two assertions — but its job changed, so read it as the pole
+        rather than as the contrast. While the red stood, this was what
+        kept it meaningful: one variable moved, the owner's
+        `backgroundColor`, and only a green here made the opaque
+        reading evidence of BURIAL rather than of a control that was
+        never drawn. That distinction is not hypothetical — `body` and
+        `image` furniture reads as absent at BOTH poles, which is why
+        they sit outside `STATE_CONTROLS`.
+
+        Now that both poles are green it is the ANCHOR: this is the
+        state the whole shipped corpus is in (every owner in the 24
+        fixture artifacts is `backgroundColor: transparent`, which is
+        why nothing noticed the defect for so long), so a regression
+        that broke composed controls outright would fail here first and
+        the opaque pins would only echo it.
         """
         scene = _control_composite("checkbox", "transparent",
                                    {"checked": True})
@@ -1239,8 +1265,8 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
             ablation_findings(scene, ["f1-box", "f1-chk"], self.workdir), [])
         # Silence has to mean "the control is in the picture", so pin the
         # ink: 36px on the check stroke, 92px on its box, measured
-        # 2026-08-14 — the state glyph the red loses, and the outline
-        # that would make it read as unchecked rather than as missing.
+        # 2026-08-14 — the state glyph the defect took, and the outline
+        # that made it read as unchecked rather than as missing.
         self.assertAlmostEqual(
             _element_ink(scene, "f1-chk", self.workdir)[0], 36, delta=6)
 

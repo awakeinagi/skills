@@ -4140,39 +4140,55 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
     return els
 
 
-# Composed-part tags whose element is CONTENT — the thing its owner
-# exists to SHOW (a KPI tile's value, an entity's attribute rows) — as
-# opposed to furniture drawn on the owner (`box_of`, `track_of`,
-# `thumb_of`, `chk_of`, `body_of`, `x_of`) or a standalone backdrop.
-# `_deco` stamps `role: "decoration"` on all of them, and that role means
-# one thing only: exempt from the lints that judge authored content. It
-# used to ALSO mean "paint underneath", and the two are unrelated — a
-# composed value banded beneath its owner is painted out by the very tile
-# it belongs to the moment that tile is given an opaque `backgroundColor`
-# (v0.9 WP4 task 44; the live canvas drew it that way all along). The
-# band is derived from the part tag so the role keeps its single meaning
-# and nothing is re-roled.
-CONTENT_PART_KEYS = ("value_of", "attr_of")
+# Every composed-part tag: the whole vocabulary `_deco` and the two
+# hand-built part sites stamp, both the CONTENT a composite exists to
+# SHOW (`value_of`, `attr_of`) and the FURNITURE drawn on it (`box_of`,
+# `chk_of`, `thumb_of`, `track_of`, `body_of`, `x_of`). All of them carry
+# `role: "decoration"`, and that role means one thing only: exempt from
+# the lints that judge authored content. It used to ALSO mean "paint
+# underneath", and the two are unrelated — a part banded beneath its
+# owner is painted out by the very element it belongs to the moment that
+# element is given an opaque `backgroundColor`, which the live canvas
+# drew that way all along. Task 44 lifted the content half; task 45
+# lifted the rest, because there is no part tag for which "beneath the
+# owner's fill" is the right answer — a part is drawn ON its owner by
+# definition, and the furniture case is the worse lie of the two, since
+# the buried glyph is the one carrying STATE (an opaque CHECKED checkbox
+# drew as a plain filled rectangle, i.e. as an UNCHECKED one).
+#
+# The list stays positive rather than becoming "has any `*_of` key"
+# because the element this must NOT lift is the untagged
+# `role: "decoration"` — the standalone BACKDROP (layout.md's thick
+# low-opacity line behind parallel edges, ops-reference.md's
+# `reorder index 0` panel), whose whole point is to sit beneath what it
+# backs. That distinction, not content-vs-furniture, is the one the band
+# turns on. A new part tag must be added here when it is coined; the
+# `_deco` call sites are the enumeration.
+COMPOSED_PART_KEYS = ("value_of", "attr_of", "box_of", "chk_of",
+                      "thumb_of", "track_of", "body_of", "x_of")
 
 
 def normalize_z_order(els):
-    """Paint order (layout.md): frames → decorations → arrows/lines →
-    nodes → composed content → bound labels & pins. Excalidraw renders
+    """Paint order (layout.md): frames → backdrops → arrows/lines →
+    nodes → composed parts → bound labels & pins. Excalidraw renders
     array order, so an arrow appended after its nodes paints ON TOP of
     them — every diagram in the capability assessment had all arrows
-    z-above all nodes. Composed CONTENT (`CONTENT_PART_KEYS`) bands
-    ABOVE its owner instead of down with the furniture, so a tile's own
-    value survives the tile's fill; furniture and backdrops keep banding
-    beneath, and furniture keeps its declared order against its own box.
-    The sort is stable: explicit `reorder` ops survive within their band;
-    cross-band placement rides `role: decoration`."""
+    z-above all nodes. A composed part (`COMPOSED_PART_KEYS` — a tile's
+    value, an entity's attribute rows, a checkbox's box and check
+    stroke, a slider's track and thumb) bands ABOVE the owner it is
+    drawn on, so an opaque owner cannot paint out its own content or its
+    own state glyph. Only the UNTAGGED `role: decoration` — the
+    standalone backdrop — still bands beneath. The sort is stable:
+    explicit `reorder` ops survive within their band, which is also what
+    keeps a check stroke over the box it was declared after; cross-band
+    placement rides `role: decoration`."""
     def band(e):
         cd = e.get("customData") or {}
         role = cd.get("role")
         if e.get("type") == "frame":
             return 0
         if role == "decoration":
-            return 4 if any(cd.get(k) for k in CONTENT_PART_KEYS) else 1
+            return 4 if any(cd.get(k) for k in COMPOSED_PART_KEYS) else 1
         if e.get("type") in ("arrow", "line"):
             return 2
         if role == "pin":
@@ -6721,8 +6737,8 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     #
     # And the semantic layering the buckets were reaching for already
     # exists, one layer up and done properly: `normalize_z_order` bands an
-    # applied batch frames -> decorations -> arrows/lines -> nodes ->
-    # composed content -> labels & pins, by ROLE and part tag rather than
+    # applied batch frames -> backdrops -> arrows/lines -> nodes ->
+    # composed parts -> labels & pins, by ROLE and part tag rather than
     # by type, with a stable sort so an explicit `reorder` survives. The
     # buckets here re-derived a cruder version of that at paint time and
     # overwrote it — which is how a `role: decoration` backdrop, whose

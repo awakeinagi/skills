@@ -64,9 +64,9 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after curator batch 22: **17 model-tier `expectedFailure` reds + 4
-render-tier**, matching the suite's `expected failures=17` default and `=21`
-under `MUTANTS_RENDER=1`. That splits as **8 catalog reds + 9 non-catalog**.
+after Task 45: **17 model-tier `expectedFailure` reds + 3 render-tier**,
+matching the suite's `expected failures=17` default and `=20` under
+`MUTANTS_RENDER=1`. That splits as **8 catalog reds + 9 non-catalog**.
 
 **THE TWO HALVES ARE NOW BOTH DERIVED, AND NEITHER IS RESTATED HERE.** The
 catalog half is `CATALOGUE_RED_IDS` in tests/test_mutants.py, checked
@@ -217,10 +217,10 @@ eight had already flipped):
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom`, `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner` |
+| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one`, `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`, `test_mutant_wrapped_text_overruns_the_frames_bottom` |
 
 The render row is `@unittest.expectedFailure` method names rather than
-catalog ids because all four sit outside `CATALOGUE`; the third pins
+catalog ids because all three sit outside `CATALOGUE`; the third pins
 `parity_clipped`, and it is the SECOND mutant to do so. Task 22 fixed the
 first — `test_mutant_center_anchored_label_is_clipped_off_the_frame`, the
 centered label whose leading glyphs fell off the min side — and its own
@@ -236,14 +236,18 @@ batch 16's fourth entry — `test_mutant_composed_value_hides_under_its_opaque_o
 from the Task 21 review's F2, a composed KPI value banded
 beneath its own opaque owner — **flipped green in Task 44**, which split
 `normalize_z_order`'s decoration band by part tag so a composite's own
-content paints above its owner. The fourth render red is the other half of
-that split, filed by Task 44 itself (report §8.1) and added by curator
-batch 17: composed FURNITURE still bands beneath its owner, so an opaque
-`backgroundColor` paints out a checkbox's own check stroke and the drawing
-shows a checked control as an unchecked one. **It has no owner** — the fix
-is one line in `band()` but it moves furniture markup across the corpus
-(5+ artifacts carry `x_of`/`track_of`/`thumb_of`), so it needs its own
-fixture-replay budget: a Task 24 gate decision to schedule or defer.
+content paints above its owner. The other half of that split — filed by
+Task 44 itself (report §8.1), added by curator batch 17 as
+`test_mutant_composed_checkbox_state_hides_under_its_opaque_owner`, and
+unowned until the gate scheduled it — **flipped green in Task 45**:
+composed FURNITURE banded beneath its owner too, so an opaque
+`backgroundColor` painted out a checkbox's own check stroke and the drawing
+showed a checked control as an unchecked one. `band()` now reads the whole
+part vocabulary (`COMPOSED_PART_KEYS`), so every composed part bands above
+the owner it is drawn on and only an UNTAGGED `role: decoration` — a
+standalone backdrop — still bands beneath. The corpus cost the deferral was
+budgeted against came in at emission order only: 5 of 24 artifacts reorder,
+all 24 pixel-identical at the transparent pole every shipped owner uses.
 
 Three model rows came from the 2026-08-12 idea-mining arc via the
 **mutant-curator agent**, and all three have since flipped: the two export

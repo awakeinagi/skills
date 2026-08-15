@@ -3386,31 +3386,38 @@ class TestPaintOrder(unittest.TestCase):
         unasserted.
 
         Declared here in reverse so a sort that did nothing at all would
-        fail rather than pass by luck, and it carries TWO top-band
-        members because the docstring's "stable" is load-bearing: an
-        explicit `reorder` is meant to survive inside a band, and only a
-        tie can show that.
+        fail rather than pass by luck — with the within-band TIES as the
+        deliberate exception, declared in the order they must keep,
+        because the docstring's "stable" is load-bearing: an explicit
+        `reorder` is meant to survive inside a band, and only a tie can
+        show that. There are three of them now (`p1`/`t1` at the top,
+        `c1`/`w1` and `b1`/`k1` in the part band).
 
-        Extended by task 44 with the two poles of the decoration split.
-        `c1` is composed CONTENT (a `value_of` part) and must land above
-        the node band: banded down with the furniture, it was painted out
-        by its own owner the moment that owner took an opaque fill. `w1`
-        is composed FURNITURE (a `body_of` wave) and stays down in band 1
-        with the standalone backdrop `d1` — the tie between those two is
-        also what pins that furniture keeps its declared order against
-        its own box, the ordering task 21 §6 gained.
+        **Extended by task 45, and the extension is a MOVE — read this
+        before restoring the old expectation.** Task 44 split the
+        decoration band and lifted composed CONTENT only, so `w1` (a
+        `body_of` wave) sat in band 1 beside the standalone backdrop
+        `d1`, and this test said so. That position was recorded then as
+        TODAY'S RATIFIED BOUNDARY rather than as a contract, and it was
+        the model-tier half of a disagreement the catalogue held on
+        purpose against curator batch 17's render red. Task 45 settled
+        the disagreement in the red's favour, so `w1` now bands at 4
+        with the rest: a composed part is drawn ON its owner, and there
+        is no part tag for which "beneath the owner's fill" is right —
+        an opaque owner painted out the very glyph carrying the
+        control's STATE, drawing a CHECKED checkbox as an unchecked one.
+        What did NOT move, and is the whole reason the band still keys
+        on a positive tag list rather than on the role: `d1`, an
+        UNTAGGED `role: decoration`, is a standalone BACKDROP and stays
+        in band 1 beneath the arrow it backs.
 
-        `w1`'s position is TODAY'S RATIFIED BOUNDARY, not a settled
-        contract, and this pin is the model-tier half of a disagreement
-        the catalogue holds on purpose: curator batch 17's render red
-        `test_mutant_composed_checkbox_state_hides_under_its_opaque_owner`
-        says in pixels that furniture banded beneath its owner is painted
-        out by the owner's fill exactly as the content was, and worse,
-        because the buried glyph carries STATE. Whoever takes that fix
-        moves `w1` in this expected order in the same change — measured,
-        not guessed: patching `band()` to read the whole part vocabulary
-        fails this test and flips that red, and those are the only two
-        places in the suite that move.
+        The `d1`/`w1` tie that used to pin "furniture keeps its declared
+        order against its own box" (task 21 §6's gain) is gone with the
+        move — those two are no longer in one band — so it is replaced
+        in kind and not dropped: `b1` (`box_of`) and `k1` (`chk_of`) are
+        a checkbox's actual box and check stroke, declared in that
+        order, and the sort must leave the stroke painting over the box.
+        That is the same claim on the element pair it was always about.
 
         Residual gap, stated so nobody reads this as full cover: this
         pins what the function COMPUTES, and the function runs on the op
@@ -3438,13 +3445,18 @@ class TestPaintOrder(unittest.TestCase):
             el(id="w1", type="line", x=0, y=0, width=80, height=3,
                points=[[0, 0], [80, 0]],
                customData={"role": "decoration", "body_of": "n1"}),
+            el(id="b1", type="rectangle", x=0, y=0, width=16, height=16,
+               customData={"role": "decoration", "box_of": "n1"}),
+            el(id="k1", type="line", x=0, y=0, width=12, height=12,
+               points=[[0, 0], [12, 12]],
+               customData={"role": "decoration", "chk_of": "n1"}),
             el(id="f1", type="frame", x=0, y=0, width=200, height=100,
                name="Lane")]
         self.assertEqual(
             [e["id"] for e in canvas.normalize_z_order(scene)],
-            ["f1", "d1", "w1", "a1", "n1", "c1", "p1", "t1"],
-            "layout.md's paint order is frames -> decorations -> "
-            "arrows/lines -> nodes -> composed content -> bound labels & "
+            ["f1", "d1", "a1", "n1", "c1", "w1", "b1", "k1", "p1", "t1"],
+            "layout.md's paint order is frames -> backdrops -> "
+            "arrows/lines -> nodes -> composed parts -> bound labels & "
             "pins, and the sort is stable within a band")
 
     def test_a_backdrop_decoration_still_bands_beneath_what_it_backs(self
