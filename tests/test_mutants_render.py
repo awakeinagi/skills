@@ -1134,8 +1134,8 @@ def _canvas_cli(root: Path, *args: str) -> int:
         capture_output=True, timeout=90).returncode
 
 
-def _await_shots(project: canvas.Project, url: str,
-                 sids: dict[str, int]) -> dict[str, bytes]:
+def _await_shots(project: canvas.Project, url: str, sids: dict[str, int],
+                 proc: subprocess.Popen) -> dict[str, bytes]:
     """Poll until every requested screenshot has landed, or fail loudly.
 
     A request leaves `/api/state`'s `screenshot_requests` only once the
@@ -1144,22 +1144,38 @@ def _await_shots(project: canvas.Project, url: str,
     cannot disagree in the dangerous direction. Both are checked anyway:
     the file is what gets read.
 
+    THE BROWSER IS WATCHED AS WELL AS THE CLOCK, because a browser that has
+    exited will service nothing more and waiting out `CLIENT_DEADLINE`
+    would then be measuring only the deadline. That is not merely the crash
+    case: `CLIENT_FLAGS` caps virtual time at 60s while the deadline is
+    120s, so a slow session can legitimately outlive its own browser, and
+    the difference is a failure in about a second against one in two
+    minutes — with the browser named as the culprit either way.
+
+    An exit gets ONE more collect pass before it is believed. The browser
+    can quit in the moment between the server writing the last PNG and this
+    loop noticing it, and a session that really did finish must not be
+    reported as a dead browser.
+
     Args:
         project: The scratch project, for its `shots_dir`.
         url: The server's base URL.
         sids: Variant name to screenshot-request id.
+        proc: The browser doing the rendering, polled for an early exit.
 
     Returns:
         Variant name to PNG bytes.
 
     Raises:
-        RuntimeError: If the deadline passed with shots outstanding. Like
-            `_browser`, this never degrades to a skip — a tier that was
-            asked for and did not measure has failed, not passed.
+        RuntimeError: If the browser exited or the deadline passed with
+            shots outstanding. Like `_browser`, this never degrades to a
+            skip — a tier that was asked for and did not measure has
+            failed, not passed.
     """
     shots: dict[str, bytes] = {}
     deadline = time.time() + CLIENT_DEADLINE
-    while time.time() < deadline and len(shots) < len(sids):
+    exited = None
+    while True:
         time.sleep(0.2)
         state = canvas.http_json(url + "api/state")
         waiting = {r["id"] for r in state.get("screenshot_requests") or []}
@@ -1169,14 +1185,27 @@ def _await_shots(project: canvas.Project, url: str,
             hit = project.shots_dir / ("shot-%d.png" % sid)
             if hit.exists():
                 shots[name] = hit.read_bytes()
-    if len(shots) < len(sids):
+        if len(shots) == len(sids):
+            return shots
+        if exited is not None:
+            break  # the grace pass above found nothing more
+        if proc.poll() is not None:
+            exited = proc.returncode
+            continue
+        if time.time() >= deadline:
+            break
+    missing = sorted(set(sids) - set(shots))
+    if exited is not None:
         raise RuntimeError(
-            "client tier: %d of %d renders never came back within %.0fs "
-            "(missing %s) — the app did not service the request, so nothing "
-            "here measured anything"
-            % (len(shots), len(sids), CLIENT_DEADLINE,
-               sorted(set(sids) - set(shots))))
-    return shots
+            "client tier: the browser exited (rc=%s) with %d of %d renders "
+            "outstanding (missing %s) — it will service nothing further, so "
+            "this failed now rather than waiting out the %.0fs deadline"
+            % (exited, len(missing), len(sids), missing, CLIENT_DEADLINE))
+    raise RuntimeError(
+        "client tier: %d of %d renders never came back within %.0fs "
+        "(missing %s) — the app did not service the request, so nothing "
+        "here measured anything"
+        % (len(shots), len(sids), CLIENT_DEADLINE, missing))
 
 
 def _client_session(variants: dict[str, list[dict]]) -> dict[str, bytes]:
@@ -1241,14 +1270,32 @@ def _client_session(variants: dict[str, list[dict]]) -> dict[str, bytes]:
              "--screenshot=%s" % (root / "client-headless.png"),
              "--window-size=%d,%d" % CLIENT_WINDOW, url],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return _await_shots(project, url, sids)
+        return _await_shots(project, url, sids, proc)
     finally:
         if proc is not None:
             if proc.poll() is None:
                 proc.kill()
             proc.wait()
         if serving:
-            _canvas_cli(root, "stop")
+            # A `stop` that hangs must not become this session's exception.
+            # `_canvas_cli` runs with a timeout, and letting `TimeoutExpired`
+            # out of a `finally` does two bad things at once: it REPLACES
+            # whatever went wrong inside the try — which is the useful
+            # exception, `_await_shots`' named failure — and it skips the
+            # three cleanup lines below, leaking the scratch project and the
+            # runtime files it keeps outside it. That leak is the exact
+            # lifecycle failure this fixture exists to prevent.
+            #
+            # Suppressing rather than REORDERING the cleanup ahead of the
+            # stop, which is the other obvious shape and is wrong:
+            # `_clear_runtime` deletes the state file `stop` reads to find
+            # the server, so cleaning up first would break every stop instead
+            # of the rare hanging one. The residue of this choice is that a
+            # genuinely wedged daemon outlives the run; that is a worse
+            # outcome than a clean stop and a better one than losing the
+            # exception that explains why we are here.
+            with contextlib.suppress(subprocess.SubprocessError):
+                _canvas_cli(root, "stop")
         shutil.rmtree(project.shots_dir, ignore_errors=True)
         _clear_runtime(root)
         shutil.rmtree(root, ignore_errors=True)
@@ -5293,6 +5340,125 @@ class TestClientRenderCache(unittest.TestCase):
                          "with --no-browser: a connected tab will answer "
                          "its screenshot requests, and answer them wrongly")
         self.assertIn("would not start", str(caught.exception))
+
+
+class TestClientSessionLifecycle(unittest.TestCase):
+    """What the session does when something outside it goes wrong.
+
+    Both tests drive a REAL `canvas.py` server — the session has to reach
+    `read_state` and post screenshot requests before either failure is even
+    reachable — but neither needs a real browser, so neither is gated.
+    `true` stands in: it is a genuine executable that exits immediately,
+    which is exactly the "browser that renders nothing" both cases are
+    about, and it makes these machine-independent besides.
+
+    Failure paths, not happy paths. The tier's own correctness is measured
+    in `TestClientTierMechanisms`; what these pin is that a session which
+    goes wrong takes nothing with it and says why quickly. Both were found
+    by review rather than by a failing test, which is the honest note to
+    leave: a `finally` that leaks and a poll loop that waits are invisible
+    while everything works.
+    """
+
+    def setUp(self) -> None:
+        """Stand `true` in for the browser and hold one trivial scene."""
+        self.browser = shutil.which("true")
+        if not self.browser:
+            self.skipTest("no `true` binary to stand in for a browser")
+        env = mock.patch.dict(os.environ, {})
+        env.start()
+        self.addCleanup(env.stop)
+        # an ambient opt-in naming a real chromium would make `_browser`
+        # reject the stand-in; patch.dict restores this on stop
+        os.environ.pop("MUTANTS_RENDER_BROWSER", None)
+        found = mock.patch.object(canvas, "find_browsers",
+                                  lambda: [self.browser])
+        found.start()
+        self.addCleanup(found.stop)
+        self.scene = [el(id="n1", type="rectangle", x=0, y=0, width=40,
+                         height=20, customData={"role": "node"})]
+
+    def test_a_hanging_stop_neither_masks_nor_skips_the_cleanup(self) -> None:
+        """A `stop` that times out must not eat the real exception.
+
+        `_canvas_cli` runs with a timeout, so `stop` CAN raise, and it is
+        called from the `finally` ahead of three cleanup lines. Unhandled,
+        one wedged daemon costs two things at once: the useful in-flight
+        exception is replaced by a `TimeoutExpired` about the teardown, and
+        the scratch project plus the runtime files it keeps OUTSIDE that
+        project are both left on disk — the lifecycle leak the design of
+        this fixture exists to prevent.
+
+        The stub runs the REAL stop first and only then raises, so the
+        server this test starts is genuinely stopped and the test leaks no
+        daemon of its own while simulating one.
+
+        A regression does not merely fail this test, it ERRORS it:
+        `TimeoutExpired` is a `SubprocessError`, not a `RuntimeError`, so
+        it escapes `assertRaises` entirely rather than being mistaken for
+        the exception that should have arrived.
+        """
+        real_cli, stops = _canvas_cli, []
+
+        def stop_that_hangs(root: Path, *args: str) -> int:
+            rc = real_cli(root, *args)
+            if args and args[0] == "stop":
+                stops.append(root)
+                raise subprocess.TimeoutExpired("canvas.py stop", 90)
+            return rc
+
+        def in_flight_failure(*_a: Any, **_kw: Any) -> dict[str, bytes]:
+            raise RuntimeError("the in-flight failure worth keeping")
+
+        with mock.patch(__name__ + "._canvas_cli", stop_that_hangs), \
+                mock.patch(__name__ + "._await_shots", in_flight_failure), \
+                self.assertRaises(RuntimeError) as caught:
+            _client_session({"full": self.scene})
+        self.assertIn("worth keeping", str(caught.exception),
+                      "the teardown's own exception replaced the one that "
+                      "explains why the session failed")
+        self.assertEqual(len(stops), 1, "the session did not try to stop "
+                                        "the server it started")
+        root = stops[0]
+        self.assertFalse(root.exists(),
+                         "a hanging stop left the scratch project behind")
+        project = canvas.Project(root)
+        for path in (project.state_path, project.events_path,
+                     project.log_path):
+            self.assertFalse(path.exists(),
+                             "a hanging stop left %s behind — these live "
+                             "outside the project tree, so nothing else "
+                             "will ever collect them" % path.name)
+
+    def test_a_dead_browser_fails_at_once_and_names_itself(self) -> None:
+        """An exited browser must not cost the whole deadline.
+
+        Reachable in ORDINARY operation rather than only on a crash:
+        `CLIENT_FLAGS` caps virtual time at 60s while `CLIENT_DEADLINE` is
+        120s, so a slow session can outlive its own browser and then spend
+        a further minute proving what `proc.poll()` already knew.
+
+        The deadline is patched down to 20s so that a regression is slow
+        rather than interminable, and the elapsed bound is set well below
+        it: a session paced by the DEADLINE cannot come in under 10s, and
+        one paced by the browser's exit takes about a second plus the
+        server start. The message assertion is the primary claim though —
+        `rc=0` can only come from reading the exited browser's real return
+        code, so it cannot be satisfied by a timeout that happened to be
+        fast.
+        """
+        started = time.time()
+        with mock.patch(__name__ + ".CLIENT_DEADLINE", 20.0), \
+                self.assertRaises(RuntimeError) as caught:
+            _client_session({"full": self.scene})
+        elapsed = time.time() - started
+        self.assertIn("the browser exited (rc=0)", str(caught.exception),
+                      "the failure does not name the dead browser, so it "
+                      "was paced by the clock rather than by the culprit")
+        self.assertLess(elapsed, 10.0,
+                        "a dead browser took %.1fs to report against a 20s "
+                        "deadline — the poll loop is waiting the deadline "
+                        "out again" % elapsed)
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
