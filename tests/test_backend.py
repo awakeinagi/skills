@@ -3651,12 +3651,16 @@ class FixtureReplayBase(unittest.TestCase):
     FIXTURE = ""
 
     def setUp(self):
-        """Copy the frozen project into a temp dir and load it."""
-        # This class is abstract, and since it acquired a test method of
-        # its own (`..._catchup_can_still_speak_...`) unittest collects
-        # it directly — where `FIXTURE` is "" and the copy below would
-        # take the whole fixtures TREE. Guarding here rather than in the
-        # test keeps any future base-class control covered too.
+        """Copy the frozen project into a temp dir and load it.
+
+        Skips when ``FIXTURE`` is unset, and THAT GUARD IS LOAD-BEARING:
+        this class is abstract, but since it acquired a test method of
+        its own (`..._catchup_can_still_speak_...`) unittest collects the
+        base itself, where ``FIXTURE`` is "" and the copy below would
+        take the whole fixtures TREE before dying on an empty scene list.
+        Anyone adding a second base-class control inherits the guard by
+        putting it here rather than in the test — do not move it.
+        """
         if not self.FIXTURE:
             self.skipTest("abstract base — subclasses set FIXTURE")
         self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-fixture-"))
