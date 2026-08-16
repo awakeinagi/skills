@@ -118,14 +118,41 @@ edges land on top of each other, and it does not know it has.
 
 It is **not** worth it in the 8–15 node band this page used to target.
 
-**Two silent degradations to know about:**
+**Choosing a layout engine.** Two are usable: **`dagre` (the default)**
+and **`elk`**, selected in frontmatter:
 
-- **`layout: elk` is accepted and ignored** — it falls back to dagre with
-  no error and no note, producing byte-identical output (measured), and
-  the reason is that the ELK layout package is simply not installed.
-  Dagre is the only usable flowchart layout in this build; the converter
-  also ships `swimlane` and `cose-bilkent`, neither usable for
-  flowcharts. Do not spend a round on the frontmatter.
+```
+---
+config:
+  layout: elk
+---
+```
+
+**Dagre stays the default, and the reason is measured, not traditional.**
+On the same 12-node graph, twice, ELK's placement drew *more* defects
+through our router — TD: 1 error + 4 warnings under ELK against 0 errors
++ 3 warnings under dagre; the LR recipe: 4 warnings against 2. The ELK
+error was an arrow running 30px inside the box it lands on. Its edges
+land closer together and this router does no nudging, so compaction
+turns into collisions.
+
+**What ELK is genuinely better at is size**, which is worth reaching for
+when a drawing is too wide to read: the LR recipe went **3400px →
+2124px wide** (−37%) and the TD graph **1628px → 1400px tall** (−14%).
+So: leave it on dagre, and if the seed comes back too wide to take in,
+re-seed with `layout: elk` **and re-read the lint** — you are trading
+width for routing defects, and the lint is where that trade shows up.
+
+`swimlane` and `cose-bilkent` also exist and neither is usable for
+flowcharts (`cose-bilkent` fails outright with "Root node is required").
+
+**A layout name that is not registered still falls back to dagre in
+silence** — no error, no note. Measured both ways on this build: asking
+for `elk` moves all 12 of 12 nodes off dagre's placement, while asking
+for a name nobody registered moves 0 of 12. So a typo in that frontmatter
+looks exactly like a layout that worked. Check the drawing changed.
+
+**One silent degradation to know about:**
 - **Most mermaid node shapes degrade to a plain rectangle, silently.**
   Read off the converter's own shape switch, these are all the distinct
   results you can get: `[]` rectangle · `([])` and `()` rounded

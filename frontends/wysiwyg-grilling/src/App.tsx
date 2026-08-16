@@ -121,6 +121,52 @@ const choppedAWord = (e: any) =>
   typeof e.text === "string" && e.text.includes("\n") &&
   e.text.split("\n").join(" ") !== (e.originalText || e.text);
 
+/**
+ * Registration promise for mermaid's ELK layouts — created once, awaited by
+ * every conversion. `null` until the first conversion asks for it.
+ */
+let elkLayoutRegistration: Promise<void> | null = null;
+
+/** Make `layout: elk` mean something, once per page load.
+ *
+ * Mermaid ships a registry with exactly three layouts — `dagre`, `swimlane`
+ * and `cose-bilkent` — and `getRegisteredLayoutAlgorithm` FAILS OPEN: an
+ * unregistered name falls back to dagre behind a `log.warn` that mermaid's
+ * default log level swallows. So before this, a diagram asking for
+ * `layout: elk` got dagre's positions with no error and no note, which is
+ * indistinguishable from being honoured. ELK is a separate package; loading
+ * it and registering its loaders is what turns that silent fallback into a
+ * real choice.
+ *
+ * Deliberately lazy and deliberately shared. Lazy because ELK is ~460KB
+ * gzipped and most sessions never write a mermaid diagram at all — it stays
+ * out of the initial bundle and loads on the first conversion. Shared
+ * because both conversion paths (the agent's seed servicing and the user's
+ * paste) go through the same mermaid module instance, so registering twice
+ * would be wasted work rather than a second registry.
+ *
+ * A failure here is swallowed on purpose: ELK is an enhancement, and a
+ * diagram that would have converted under dagre must still convert if the
+ * chunk fails to load. The promise is left resolved rather than reset so a
+ * broken load costs one attempt, not one per conversion.
+ * @returns A promise that settles once ELK is registered, or has failed to.
+ */
+const ensureElkLayouts = (): Promise<void> => {
+  if (!elkLayoutRegistration) {
+    elkLayoutRegistration = (async () => {
+      const [mermaidMod, elkMod] = await Promise.all([
+        import("mermaid"),
+        import("@mermaid-js/layout-elk"),
+      ]);
+      mermaidMod.default.registerLayoutLoaders(elkMod.default);
+    })().catch((e: unknown) => {
+      // eslint-disable-next-line no-console
+      console.warn("ELK layouts unavailable; mermaid stays on dagre", e);
+    });
+  }
+  return elkLayoutRegistration;
+};
+
 /** Convert mermaid skeletons, repairing any box that chopped a word.
  *
  * Convert, ask which labels came back with a word cut in half, adjust only
@@ -784,6 +830,7 @@ export default function App() {
       (async () => {
         try {
           const { parseMermaidToExcalidraw } = await import("@excalidraw/mermaid-to-excalidraw");
+          await ensureElkLayouts();
           const { elements } = await parseMermaidToExcalidraw(req.definition, {
             themeVariables: { fontSize: "20px" },
           });
@@ -1438,6 +1485,7 @@ export default function App() {
           import("@excalidraw/mermaid-to-excalidraw"),
           import("@excalidraw/excalidraw"),
         ]);
+      await ensureElkLayouts();
       const { elements: skeletons, files } = await parseMermaidToExcalidraw(def, {
         themeVariables: { fontSize: `${IMPORT_FONT_SIZE}px` },
       });

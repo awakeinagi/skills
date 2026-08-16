@@ -418,9 +418,14 @@ Know the edges: subgraphs are refused (the vendored converter degrades
 them to a picture — seed flat, then add lanes as frames), mermaid can't
 carry node kinds, so classify `source/transform/agent/control/sink` with
 a `mod` pass right after seeding, most node shapes silently degrade to a
-plain rectangle (flow.md lists the five that survive), `layout: elk` is
-accepted and silently ignored, and dense dagre output may draw label-run
-warnings — spread nodes, don't shrink labels. A seed is **seed-only**:
+plain rectangle (flow.md lists the five that survive), and dense output
+may draw label-run warnings — spread nodes, don't shrink labels. Two
+layout engines work, `dagre` (default) and `elk` via `config: layout:`
+frontmatter; dagre is the default on measurement, since ELK's tighter
+placement draws more routing defects through this router — reach for it
+only when a seed is too wide to read, and re-read the lint when you do.
+An UNREGISTERED layout name falls back to dagre silently, so a typo there
+looks like success. A seed is **seed-only**:
 once landed the drawing is the truth, and the mermaid text is never
 re-applied over user edits. To re-lay an existing messy flow instead,
 `canvas.py mermaid --relayout --artifact <id>` — plain `mod x/y` ops,
