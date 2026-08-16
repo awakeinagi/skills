@@ -14230,13 +14230,26 @@ def durable_red_counts() -> tuple[int, int, int]:
 def handover_durable_counts() -> tuple[int, int, int]:
     """The per-file red counts SESSION-HANDOVER.md states, as numbers.
 
+    EXACTLY ONE occurrence is required, and that is the second thing
+    this checks rather than a detail of the parse. The first draft used
+    `.search`, which takes the first match and ignores the rest — so a
+    stale COPY of the sentence sitting above the live one would have
+    been read instead of it, and the guard would have reported
+    agreement with the wrong paragraph. That is not hypothetical: a
+    fifth hand copy of these very counts was found twenty-eight lines
+    above this one, wrong in all five of its claims. It was different
+    prose, so this pattern would not have matched it either way — but
+    the near-miss is the argument. A census guard whose subject is
+    duplicated prose must not silently pick a copy.
+
     Returns:
         `(test_mutants, test_mutants_render, test_backend)` as the file's
         own sentence spells them.
 
     Raises:
-        AssertionError: If the file or the sentence is absent — the
-            sentence being reworded past what this reads is a finding
+        AssertionError: If the file is absent, if the sentence is
+            absent, or if it appears more than once — the sentence being
+            reworded past what this reads, or duplicated, is a finding
             about the census, not a reason to return nothing.
     """
     if not HANDOVER.exists():
@@ -14244,15 +14257,24 @@ def handover_durable_counts() -> tuple[int, int, int]:
             "%s is not in this tree, so the durable-count transcription "
             "cannot be checked. If this is an isolated mutation-proof "
             "tree, copy the file in beside tests/" % HANDOVER)
-    found = _HANDOVER_DURABLE.search(HANDOVER.read_text(encoding="utf-8"))
-    if found is None:
+    found = _HANDOVER_DURABLE.findall(HANDOVER.read_text(encoding="utf-8"))
+    if not found:
         raise AssertionError(
             "no '**N / N / N** for `test_mutants.py`, "
             "`test_mutants_render.py` and `test_backend.py`' sentence in "
             "%s: the durable-count paragraph has been reworded past what "
             "this reads. Re-anchor it or delete this function and its "
             "test together" % HANDOVER.name)
-    return (int(found.group(1)), int(found.group(2)), int(found.group(3)))
+    if len(found) > 1:
+        raise AssertionError(
+            "%d copies of the durable-count sentence in %s: %s. These "
+            "counts are stated ONCE, in the guarded paragraph, and "
+            "pointed at from everywhere else — a second copy is the "
+            "census defect this guard exists for, arriving by "
+            "duplication instead of by drift"
+            % (len(found), HANDOVER.name, found))
+    stated = found[0]
+    return (int(stated[0]), int(stated[1]), int(stated[2]))
 
 
 def red_bearing_classes() -> dict[str, int]:

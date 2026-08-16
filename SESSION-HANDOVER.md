@@ -68,13 +68,37 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** Re-measured 2026-08-16
-after the self-report task, per file: **17 in `tests/test_mutants.py`, 3
-in `tests/test_mutants_render.py`, 0 in `tests/test_backend.py`** — 20
-reds, of which 8 are catalog entries and 12 are hand-authored. Two of the
-three render-file reds are in the UNGATED regime classes and so run in the
-default suite too, which is why the two runs read `expected failures=19`
-by default and `=20` under `MUTANTS_RENDER=1`.
+**What is red, and why that is the deliverable.** The counts are NOT
+restated here. They are stated once, in the guarded "durable form of the
+counts" sentence further down this section, and derived per half in code:
+`CATALOGUE_RED_IDS` and `HAND_AUTHORED_RED_CLASSES`, each checked by its
+own `TestCoverage` sibling. Read them there, or run `mutants list --red`.
+
+WHY THIS PARAGRAPH LOST ITS NUMBERS (v0.9 TASK-E9ENVELOPE, found by
+TASK-FRAMING). It was the FIFTH census hand copy, and by the time anyone
+looked, **all five of its claims were false**: the per-file counts (it
+said 17 / 3 / 0 against a live 14 / 3 / 0), the total (20 against 17),
+the catalog/hand-authored split (8 / 12 against a derived 5 / 9), how
+many render reds are ungated (it said two of three; all three are), and
+the two suite totals (`=19` and `=20`; both runs read the same number).
+It had been wrong by one before this wave and drifted three further with
+the flips.
+
+The damning part is not the drift, it is that this paragraph broke three
+rules its OWN section states below it: *"Do not restate any of that as a
+suite `expected failures=N`"*, *"THE TWO HALVES ARE NOW BOTH DERIVED, AND
+NEITHER IS RESTATED HERE"*, and the guarded sentence it silently
+duplicated. The rules were right; this paragraph simply predated them and
+nobody reconciled it. Four guards have now been built one staleness at a
+time, and a fifth copy was still sitting twenty-eight lines above the
+newest of them.
+
+**This is not the rejected proposal in disguise.** Replacing the guarded
+sentence's numbers with a bare command was rejected because it would have
+deleted the only statement of them — removing staleness by removing the
+information. This deletes a DUPLICATE of a statement that survives three
+paragraphs down and is checked. State a derived fact once, in the place
+that is checked, and point at it from everywhere else.
 
 Task 50 briefly drained the render file — the first time it had been empty
 since it was built, after `test_mutant_opacity_ghost_is_invisible_to_tier_one`
