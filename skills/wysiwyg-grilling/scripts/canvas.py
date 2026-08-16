@@ -6504,10 +6504,11 @@ def ink_extent(els, pad=40):
 
     `render_svg` computed this inline and then scaled the answer down to
     `RASTER_MAX_*`; the connected tab frames the SAME box at the same
-    40px pad and scales it UP by its browser's `devicePixelRatio`. Both
-    want the box unclamped and unscaled, so it lives here rather than
-    inside either caller — `cmd_snapshot`'s tier-1 floor is the second
-    one (v0.9 task 49).
+    40px pad and does not scale it at all — the export is deterministic
+    scene px, measured byte-identical at `deviceScaleFactor` 1 and 2
+    (`ceiling_slack`). Both want the box unclamped, so it lives here
+    rather than inside either caller — `cmd_snapshot`'s tier-1 floor is
+    the second one (v0.9 task 49).
 
     The 40 is a literal in two places that agree by convention and not
     by shared code: this default and `exportPadding: 40` in App.tsx's
@@ -6590,6 +6591,46 @@ def ink_extent(els, pad=40):
             y2s.append(ey + eh2)
     return (min(xs) - pad, min(ys) - pad,
             max(x2s) - min(xs) + 2 * pad, max(y2s) - min(ys) + 2 * pad)
+
+
+def exact_ink_extent(els, pad=40):
+    """`ink_extent` over the ink the client does NOT re-derive.
+
+    The whole reason the tier-1 floor needs `floor_slack` is one channel:
+    `restore` runs `refreshTextDimensions` and assigns real `measureText`
+    output UNCONDITIONALLY, so a text element's box on the client can be
+    NARROWER than the one the scene was saved with, and a floor built
+    from saved geometry then reads too generous. That channel can move
+    text element boxes and nothing else. Drop the text and what is left
+    is geometry the server reproduces to the pixel.
+
+    Measured, not argued (spike-selfreport.md §3, re-verified against the
+    same six exports at this head): every one of the twenty-four edges of
+    the six artifacts' text-free boxes is owned by a `frame`, `rectangle`
+    or `ellipse`, no arrow owns an edge on any of them, and the worst
+    margin against a real export is **+0px** — against −70px for the full
+    floor. So this is checked at 8px (`EXACT_SLACK`) where the full floor
+    needs 96, and the two are checked together: a raster passes both or
+    it is refused.
+
+    Bound text goes with the rest — a `text` carrying `containerId` is
+    re-measured exactly like a free one. Its container is kept, and a
+    container that re-fits around a re-measured label grows rather than
+    shrinks, which a floor admits.
+
+    Args:
+        els: The artifact's elements; deleted ones are skipped.
+        pad: Margin added on every side, in px — the same 40 the client
+            frames with, for the same reason `ink_extent` takes it.
+
+    Returns:
+        `(minx, miny, w, h)`, or `None` when nothing outside the text
+        classes is live. A drawing made only of text has no box the
+        server can claim to reproduce exactly, which is not the same as
+        one of zero size: the caller must skip the strict check rather
+        than check it against nothing.
+    """
+    return ink_extent([e for e in els if e.get("type") != "text"], pad=pad)
 
 
 def render_svg(els, title="", footnotes=False, glossary=None):
@@ -6847,6 +6888,20 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     return "\n".join(out), int(w * scale), int(h * scale)
 
 
+# How far under `exact_ink_extent`'s box a raster may sit. Not a taste:
+# `api.ts`'s own comment records that Excalidraw re-derives the endpoint
+# geometry of fully-bound arrows on every load, at deltas up to ~7px, so
+# an arrow owning an edge could move by that much. This is that
+# documented delta plus rounding. No arrow owns an edge on any of the six
+# measured artifacts (`exact_ink_extent`), so the number has never been
+# spent; it is here so that the day one does, the check bends instead of
+# false-refusing. Every OTHER divergence between the two sides runs the
+# safe way — rotation grows a client AABB, a rounded arrow's spline bows
+# outside the chords `ink_extent` measures, a container re-fitting its
+# label grows — and a floor admits all three.
+EXACT_SLACK = 8
+
+
 def floor_slack(want):
     """How far under a tier-1 FLOOR a raster may sit and still be whole.
 
@@ -6877,6 +6932,17 @@ def floor_slack(want):
     with content cut off it is short by a fraction of the drawing, not by
     a rounding error.
 
+    THE NUMBER IS NOT MOVING, and the self-report did not change that.
+    What it changed is that this stopped being the ONLY gate. The slack
+    absorbs a modelling gap between the server's text metrics and the
+    browser's, and no protocol closes a modelling gap — it only reports
+    the client's side of it (spike-selfreport.md §4). So the tier buys
+    its precision by ADDING checks rather than narrowing this one:
+    `EXACT_SLACK` against `exact_ink_extent` gates framing at 8px on the
+    geometry that has no such gap, and the self-report's byte count gates
+    file integrity at zero. A raster passes all of them. Read this as
+    licence to re-tune the 96 and you have read it backwards.
+
     Args:
         want: The floor for one axis, in device pixels.
 
@@ -6887,8 +6953,142 @@ def floor_slack(want):
     return max(96, want * 0.05)
 
 
+def ceiling_slack(want):
+    """How far OVER a tier-1 floor a raster may sit and still be honest.
+
+    Task 49 dropped tier 1's oversize band on a belief that turned out to
+    be false: that `exportToBlob` scales by the browser's
+    `devicePixelRatio`, making an honest retina export 2-3x the floor and
+    any ceiling a false refusal. It does not. `exportToBlob` hands its
+    own canvas-maker to the export path, overriding the scale multiply,
+    and with neither a max dimension nor a dimension callback supplied
+    that reduces to "same size, scale 1". One artifact through the real
+    protocol at `deviceScaleFactor` 1 and 2 came back BYTE-IDENTICAL
+    (spike-selfreport.md §7.1, re-measured at this head). The export is
+    deterministic scene px, so a raster far larger than the drawing is
+    not a user on a nicer monitor — it is the wrong file, and dropping
+    the band left nothing able to say so.
+
+    Sized against both ends rather than inherited. The honest over-margin
+    is small: across the six measured real exports the largest is +20px,
+    and it is +20 because a client re-fitting text can land a little
+    outside the saved box as easily as inside it. The theoretical worst
+    case is larger and unmeasured — `ink_extent` bounds an element by its
+    unrotated box, so a drawing whose extent is set end to end by one
+    element rotated 45° frames up to 1.41x the floor. That is 0 of 976
+    live elements across the 24 corpus scenes, but a ceiling is a
+    REFUSAL, and refusing an honest picture is the failure this tier
+    keeps making. 50% clears the rotation case with headroom and still
+    refuses a doubled raster by a factor of four.
+
+    Args:
+        want: The floor for one axis, in device pixels.
+
+    Returns:
+        The number of pixels a raster may rise above `want` on that axis
+        before it is judged to be a different picture.
+    """
+    return max(64, want * 0.5)
+
+
+def screenshot_self_report(body):
+    """The client's account of the export it just posted, or `None`.
+
+    The tab is the only party that knows what it framed; the server sees
+    a base64 blob and has to take it on trust. These fields end that, for
+    the two questions the server genuinely cannot answer for itself: how
+    many bytes left the browser, and what canvas they came off.
+
+    EVERY FIELD IS OPTIONAL AND A BAD ONE IS DROPPED, NEVER REFUSED. An
+    old bundle posts `{id, data_url}` and must still succeed — refusing
+    would brick every `project_knowledge/` predating the rebuilt bundle,
+    for a check that is insurance rather than correctness. The same
+    applies within a report: a client that manages `bytes` but not
+    `png_w` gets A1 and skips A2. So this filters rather than validates,
+    and the caller treats an absent key as "not checked".
+
+    `bytes` is the load-bearing one — if only one field ever ships, that
+    is the one, because IHDR survives byte-truncation and the dimension
+    channel cannot see the case the protocol was opened for.
+
+    `artifact` is diagnostic and is NOT checked anywhere. The client
+    falls back to its own current artifact when a request names none
+    (App.tsx screenshot servicing), so a mismatch against the request is
+    routine rather than suspicious. It is recorded because it is free and
+    because it is the first thing worth reading when an export turns out
+    to be of the wrong scene.
+
+    Args:
+        body: The decoded `/api/screenshot/complete` POST body.
+
+    Returns:
+        A dict of the fields that arrived well-formed, or `None` if none
+        did — which is exactly the old-client case.
+    """
+    out = {}
+    for key in ("bytes", "png_w", "png_h"):
+        val = body.get(key)
+        # bools are ints in Python and `True` is not a byte count
+        if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+            out[key] = val
+    if isinstance(body.get("artifact"), str) and body["artifact"]:
+        out["artifact"] = body["artifact"]
+    return out or None
+
+
+def blind_band(w, h, want_w, want_h, exact_w=None, exact_h=None):
+    """How much of THIS raster's edge could be missing unnoticed, per axis.
+
+    The residual, said out loud and in the units that matter. `VALID=true`
+    is not a promise that the picture is whole; it is a promise that
+    nothing more than this many pixels is gone off each edge. The number
+    varies by a factor of fifteen across the measured artifacts and the
+    verdict line looks identical either way, so the snapshot prints it —
+    an agent about to quote a picture should know that its bottom edge
+    was checked to within 116px and its right edge to within 8.
+
+    The band is measured against the RASTER IN HAND rather than against
+    the floor, because that is the question being asked: how much could
+    have been cut off the file I am holding. So it is the raster's own
+    dimension less the largest threshold that would still have admitted
+    it — `EXACT_SLACK` under the text-free extent, or `floor_slack` under
+    the full floor, whichever is higher.
+
+    Where the drawing's extreme edge is not text the two coincide and the
+    band is `EXACT_SLACK`; where a text element owns that edge,
+    `exact_ink_extent`'s box falls back inside the full floor and the
+    band opens up to whatever `floor_slack` allows. Both happen in the
+    measured six, on different axes of the same artifact.
+
+    Args:
+        w: The raster's IHDR width.
+        h: The raster's IHDR height.
+        want_w: The full floor's width, or 0/None if unknown.
+        want_h: The full floor's height, or 0/None if unknown.
+        exact_w: `exact_ink_extent`'s width, or 0/None when the drawing
+            is all text and there is no such box.
+        exact_h: `exact_ink_extent`'s height, same.
+
+    Returns:
+        `[(axis, px), ...]` for the axes that were checked at all, `axis`
+        being `"width"` or `"height"`. An unchecked axis is absent rather
+        than reported as zero, which would read as "checked exactly".
+    """
+    out = []
+    for name, got, want, exact in (("width", w, want_w, exact_w),
+                                   ("height", h, want_h, exact_h)):
+        if not want:
+            continue
+        floor = want - floor_slack(want)
+        if exact:
+            floor = max(floor, exact - EXACT_SLACK)
+        out.append((name, max(0, int(got - floor))))
+    return out
+
+
 def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
-                 want_is_floor=False):
+                 want_is_floor=False, exact_w=None, exact_h=None,
+                 report=None):
     """Sanity-check a PNG: signature, IHDR dims, bytes-per-pixel floor.
 
     The demo's corrupted cold-start exports sat at ~0.03 bytes/px versus
@@ -6912,20 +7112,58 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
     allowance. `min_bpp` alone would not have caught it either — the
     truncated file is a perfectly healthy PNG of the wrong picture.
 
+    ON THE FLOOR PATH THE CHECK IS A SPLIT, and each part is named by
+    what it proves rather than by what it compares:
+
+    - **A1**, `len(data) == report["bytes"]`, exact: the payload the
+      server holds is the payload the client sent. This is the one that
+      earns the protocol. A byte-cropped PNG keeps a perfectly valid
+      IHDR — the header lives in the first 33 bytes — so 20% of a real
+      corpus export can go missing in transit and the file still passes
+      its dimensions AND sits at 0.085 bytes/px against a 0.05 floor.
+      Nothing else here sees it.
+    - **A2**, `IHDR == report["png_*"]`, exact: the header the server
+      reads is the canvas the client made. Nearly redundant with A1 by
+      construction, and kept because it is one comparison and it makes
+      the geometry checks below semantically honest.
+    - **B1**, `EXACT_SLACK` against `exact_ink_extent`: the frame holds
+      all the ink the server reproduces exactly. Needs no protocol — it
+      is pure server-side geometry, so it runs for old clients too.
+    - **B2**, `floor_slack` against the full floor: the text-inclusive
+      backstop, unchanged, still 96px-or-5%.
+    - **The ceiling**, `ceiling_slack`: recovered here, because §7.1
+      settled that the export is not scaled. See that docstring.
+
+    A raster passes ALL of them, so the effective threshold per axis is
+    the max and the blind band collapses wherever the drawing's edge is
+    not text — median 96px to median 16px across the twelve measured
+    axes, eight of them landing at 8. Where text DOES own the edge, B1
+    has nothing to say and B2's 96px is the whole check; `strict_axes`
+    reports which case each axis fell into rather than leaving it to be
+    inferred from a `VALID=true`.
+
     Args:
         data: Raw PNG bytes.
         want_w: The drawing's width in device pixels, if known.
         want_h: The drawing's height in device pixels, if known.
         min_bpp: Bytes-per-pixel floor; 0 disables it.
-        want_is_floor: Read `want_w`/`want_h` as a LOWER BOUND, drop the
-            oversize band entirely, and allow `floor_slack` underneath
-            rather than 2px. Tier 1 needs all three: the tab exports at
-            its own browser's `devicePixelRatio` (1, 2 or 3), which is
-            decided by whatever monitor the user opened the tab on and is
-            never reported to the server, so an honest retina export is
-            2-3x the floor and the 20%-or-64px band would refuse it.
-            Oversize is harmless anyway per the paragraph above; on this
-            path it is also NORMAL.
+        want_is_floor: Read `want_w`/`want_h` as a LOWER BOUND and allow
+            `floor_slack` underneath rather than 2px, for the one path
+            where `want_*` re-derives the client's geometry: the client
+            rebuilds text boxes from real font metrics before framing, so
+            an honest export lands a little inside the saved box more
+            often than not. The oversize band widens to `ceiling_slack`
+            on this path rather than disappearing.
+        exact_w: `exact_ink_extent`'s width — B1's floor, checked at
+            `EXACT_SLACK`. Floor path only; `None`/0 skips B1, which is
+            what a drawing made only of text must do.
+        exact_h: `exact_ink_extent`'s height, same.
+        report: The client's self-report for this shot, or `None`. A1 and
+            A2 each run only if their field is present, so an old bundle
+            posting `{id, data_url}` keeps today's verdict — see
+            `screenshot_self_report`. NEVER a refusal on its own absence:
+            this is insurance, and refusing would brick every
+            `project_knowledge/` that predates the rebuilt bundle.
 
     Returns:
         `(ok, detail)` — `detail` is the dimensions and density, or why
@@ -6939,13 +7177,52 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
     h = int.from_bytes(data[20:24], "big")
     if not w or not h:
         return False, "zero-sized PNG"
+    said = report or {}
+    if said.get("bytes") is not None and len(data) != said["bytes"]:
+        # A1. Ordered FIRST on purpose: a truncated payload's geometry is
+        # a description of a file that no longer exists, so every message
+        # below it would be true about the wrong thing.
+        return False, ("payload is %d bytes, the tab sent %d — %d lost in "
+                       "transit" % (len(data), said["bytes"],
+                                    said["bytes"] - len(data)))
+    if said.get("png_w") and said.get("png_h") and \
+            (w, h) != (said["png_w"], said["png_h"]):
+        # A2 needs BOTH axes or it has no comparison to make. Checking on
+        # `png_w` alone would read a missing height as a mismatch and
+        # refuse the export — a half-arrived optional field costing the
+        # user their screenshot, which is the one thing this protocol
+        # promised not to do.
+        return False, ("header says %dx%d, the tab framed %dx%d"
+                       % (w, h, said["png_w"], said["png_h"]))
     slack_w = floor_slack(want_w or 0) if want_is_floor else 2
     slack_h = floor_slack(want_h or 0) if want_is_floor else 2
+    if want_is_floor:
+        # B1, before B2: where both bite, the strict one has the truer
+        # message — "8px of a box the server reproduces exactly" beats
+        # "96px of a box half of which is an estimate".
+        if exact_w and w + EXACT_SLACK < exact_w:
+            return False, ("width %d cuts a %dpx drawing short (its "
+                           "text-free extent alone is %d)"
+                           % (w, want_w or exact_w, exact_w))
+        if exact_h and h + EXACT_SLACK < exact_h:
+            return False, ("height %d cuts a %dpx drawing short (its "
+                           "text-free extent alone is %d)"
+                           % (h, want_h or exact_h, exact_h))
     if want_w and w + slack_w < want_w:
         return False, "width %d cuts a %dpx drawing short" % (w, want_w)
     if want_h and h + slack_h < want_h:
         return False, "height %d cuts a %dpx drawing short" % (h, want_h)
-    if not want_is_floor:
+    if want_is_floor:
+        # the ceiling. A floor path has no "requested" size to be far
+        # from — the drawing is the only yardstick — so the message names
+        # that rather than borrowing tier 2's wording.
+        if want_w and w - want_w > ceiling_slack(want_w):
+            return False, ("width %d far from the %dpx drawing it frames"
+                           % (w, want_w))
+        if want_h and h - want_h > ceiling_slack(want_h):
+            return False, ("height %d far from the %dpx drawing it frames"
+                           % (h, want_h))
+    else:
         if want_w and w - want_w > max(64, want_w * 0.2):
             return False, "width %d far from requested %d" % (w, want_w)
         if want_h and h - want_h > max(64, want_h * 0.2):
@@ -12726,6 +13003,16 @@ class ServerApp:
             self.project.shots_dir.mkdir(parents=True, exist_ok=True)
             out = self.project.shots_dir / ("shot-%d.png" % sid)
             out.write_bytes(base64.b64decode(m.group(1)))
+            # the self-report rides a SIDECAR rather than the state
+            # payload: `/api/state` lists only WAITING requests, so a
+            # completed one has nowhere to ride, and growing that payload
+            # would tax a hot poll loop for data one caller wants once.
+            # Every `shots_dir` consumer globs an explicit `shot-N.png`,
+            # so a `.json` sibling collides with nothing.
+            report = screenshot_self_report(body)
+            if report:
+                write_json(self.project.shots_dir / ("shot-%d.json" % sid),
+                           report)
             req["status"] = "done"
             req["path"] = str(out)
             return {"ok": True, "path": str(out)}
@@ -14557,24 +14844,26 @@ def cmd_snapshot(args):
 
     # ---- tier 1: connected browser tab (true Excalidraw rendering) ----
     if alive and not args.no_tab:
-        # the smallest export the tab could honestly hand back. It frames
-        # through `exportToBlob` to the content's own box plus
-        # `exportPadding: 40` a side (App.tsx, screenshot servicing) and
-        # then scales by `devicePixelRatio` — 1, 2 or 3, whatever monitor
-        # the user's browser opened on, never reported here. So the s=1
-        # box is a FLOOR and there is no ceiling to check against:
-        # meaningfully smaller has the drawing's edge cut off it, anything
-        # larger is the same picture at more pixels. Only MEANINGFULLY
-        # smaller: the client rebuilds text geometry from real font
+        # the export the tab could honestly hand back. It frames through
+        # `exportToBlob` to the content's own box plus `exportPadding: 40`
+        # a side (App.tsx, screenshot servicing) at scale 1 — the export
+        # is NOT `devicePixelRatio`-scaled, which was believed for a while
+        # and measured false (`ceiling_slack`). So this box is checked
+        # from BOTH sides. It is still primarily a floor, and still a
+        # loose one: the client rebuilds text geometry from real font
         # metrics before it frames, so an honest export lands a little
-        # inside this box more often than not — `floor_slack` is how much,
-        # and it is measured. NOT `render_svg`'s
-        # dimensions, which are this box clamped to `RASTER_MAX_*` and
-        # run 8080px of drawing down to 4000 — passing those would refuse
-        # an honest export of a wide drawing as "far from requested".
+        # inside the box more often than not, and `floor_slack` is how
+        # much. `exact_ink_extent` is the same box over the ink that has
+        # no such channel, checked at 8px instead of 96. NOT
+        # `render_svg`'s dimensions, which are this box clamped to
+        # `RASTER_MAX_*` and run 8080px of drawing down to 4000 — passing
+        # those would refuse an honest export of a wide drawing.
         floor = ink_extent(els)
         min_w = int(floor[2]) if floor else 0
         min_h = int(floor[3]) if floor else 0
+        exact = exact_ink_extent(els)
+        exact_w = int(exact[2]) if exact else 0
+        exact_h = int(exact[3]) if exact else 0
         for attempt in (1, 2):
             try:
                 resp = http_json(state["url"] + "api/screenshot/request",
@@ -14597,15 +14886,38 @@ def cmd_snapshot(args):
             if shot is None:
                 break  # no client answered — go headless, don't retry
             data = shot.read_bytes()
+            report = None
+            sidecar = shot.with_suffix(".json")
+            if sidecar.exists():
+                try:
+                    report = read_json(sidecar)
+                except (OSError, ValueError):
+                    report = None      # a half-written sidecar is no report
             # bpp floor applies to TIER 1 ONLY: the corruption it guards
             # against (fonts-race noise in the tab's exportToBlob, audit
             # Part 3: bad ≤0.032, good ≥0.124) can't occur on the
             # deterministic tier-2 route — and sparse-but-valid renders
             # legitimately sit below any floor that would catch it
             ok, why = validate_png(data, want_w=min_w, want_h=min_h,
-                                   min_bpp=0.05, want_is_floor=True)
+                                   min_bpp=0.05, want_is_floor=True,
+                                   exact_w=exact_w, exact_h=exact_h,
+                                   report=report)
             if ok:
                 shutil.copyfile(str(shot), str(out_png))
+                if not report:
+                    print("NOTE=tab export carried no self-report (old "
+                          "client bundle) — integrity checks skipped")
+                bands = blind_band(
+                    int.from_bytes(data[16:20], "big"),
+                    int.from_bytes(data[20:24], "big"),
+                    min_w, min_h, exact_w, exact_h)
+                loose = [(a, px) for a, px in bands if px > EXACT_SLACK]
+                if loose:
+                    print("NOTE=%s — text owns that edge of the drawing "
+                          "and the server does not measure text the way "
+                          "the browser does"
+                          % ", ".join("%s checked to within %dpx only"
+                                      % (a, px) for a, px in loose))
                 print_kv(tier="1", png=str(out_png), valid="true",
                          detail=why)
                 return 0

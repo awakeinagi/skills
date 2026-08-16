@@ -3,6 +3,7 @@
 Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 """
 import argparse
+import base64
 import contextlib
 import io
 import json
@@ -1171,41 +1172,67 @@ class TestSnapshotTierOne(Base):
     content's own bounding box plus 40px each side — independent of the
     caption, footnotes and uniform downscale that set `render_svg`'s
     dimensions. Task 49 wired that box in as `ink_extent` and made it a
-    FLOOR rather than a target, because the missing `exportScale` leaves
-    the scale to the browser's `devicePixelRatio`: four of the tests
-    below are 1x, and `..._keeps_a_retina_tab_export` is why there is no
-    ceiling.
+    FLOOR rather than a target.
+
+    Task 49 ALSO dropped the ceiling, on the reading that a missing
+    `exportScale` leaves the scale to the browser's `devicePixelRatio`,
+    so a retina export would be an honest 2-3x. The self-report task
+    measured that and it is false — `exportToBlob` overrides the scale
+    multiply and the same artifact comes back byte-identical at
+    `deviceScaleFactor` 1 and 2 — so the ceiling is back
+    (`ceiling_slack`), sized to admit the +20px honest over-margin and
+    the 1.41x a rotated drawing could reach, and to refuse a doubled
+    raster. `..._refuses_an_export_twice_the_drawing` is that, and
+    `..._keeps_an_export_a_little_over_the_floor` is its live half; the
+    retina test they replaced asserted the opposite and is written up in
+    the second of those.
 
     The floor is deliberately loose (`floor_slack`), and
     `..._admits_every_measured_real_export` is why: the client rebuilds
     text geometry from real font metrics before it frames, so honest
     exports land inside the saved geometry's box often enough that a
     strict floor refused two of six real corpus artifacts. Read that
-    test before touching the slack.
+    test before touching the slack — and read
+    `..._admits_every_measured_real_export_strictly` before concluding
+    the 96px is what tier 1 checks to, because on most axes it is not:
+    the slack stopped being the sole gate when `exact_ink_extent` and
+    the client's byte count joined it.
     Curator batch 15, item 1 (2026-08-14); flipped 2026-08-15.
     """
 
-    def fat_png(self, w, h):
+    def fat_png(self, w, h, bpp=0.06):
         """A PNG header of the given IHDR dims, padded past the bpp floor.
 
         Tier 1 keeps a 0.05 bytes/px floor against the fonts-race
         corruption, so a header-sized file is refused for a reason that
         has nothing to do with these tests.
 
+        The default sits just over that floor, which is the right shape
+        for a test of the GEOMETRY checks and the wrong one for a test of
+        truncation: at 0.06 a fifth of the file is also a fifth off the
+        density, and the raster gets refused for being thin rather than
+        for being short. Real exports are nowhere near that tight — the
+        six measured corpus artifacts run 0.07 to 0.11 — so a truncation
+        pin passes `bpp` to reproduce a real one, and then the density
+        check survives the cut exactly as it does in the field. That is
+        the whole reason `bytes` had to be a protocol field.
+
         Args:
             w: IHDR width.
             h: IHDR height.
+            bpp: Bytes per pixel to pad to.
 
         Returns:
-            Raw bytes sitting at ~0.06 bytes/px.
+            Raw bytes sitting at approximately `bpp` bytes/px.
         """
         import struct
         ihdr = struct.pack(">II5B", w, h, 8, 2, 0, 0, 0)
         head = (b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" +
                 ihdr + b"\0\0\0\0")
-        return head + b"\0" * max(0, int(w * h * 0.06) - len(head))
+        return head + b"\0" * max(0, int(w * h * bpp) - len(head))
 
-    def snapshot(self, els, png_w, png_h, aid="a"):
+    def snapshot(self, els, png_w, png_h, aid="a", report=None,
+                 truncate=0, bpp=0.06):
         """Run `cmd_snapshot` against a tab that answers with one PNG.
 
         The fake stands in for the transport only: health, the screenshot
@@ -1214,6 +1241,13 @@ class TestSnapshotTierOne(Base):
         tier 1 falls to the deterministic SVG tier rather than needing a
         browser.
 
+        `report` defaults to None, which makes every caller that omits it
+        an OLD-CLIENT case — the pre-self-report bundle posting
+        `{id, data_url}` and nothing else. That is deliberate: the
+        compatibility pole is the one most easily lost, so the tier's
+        whole existing body of tests sits on it by construction, and
+        `..._takes_an_export_from_a_client_that_says_nothing` names it.
+
         Args:
             els: Elements to seed the artifact with.
             png_w: IHDR width of the PNG the tab hands back.
@@ -1221,6 +1255,19 @@ class TestSnapshotTierOne(Base):
             aid: Artifact to create and snapshot. Only a test calling
                 this TWICE needs it — the second create would collide on
                 the id, and the second batch on `base_revn`.
+            report: The client's self-report, written to the sidecar the
+                real handler writes. `None` writes no sidecar at all.
+                Pass `True` for "whatever an honest client would have
+                said about these exact bytes", which is what every test
+                of a check OTHER than A1 wants.
+            truncate: Bytes to drop off the END of the file after the
+                report is computed — the transit-truncation case. The
+                report still describes the whole file, which is the
+                entire point: the client cannot know what was lost.
+            bpp: Density of the PNG the tab hands back; see `fat_png`.
+                Any test that truncates should raise it to a real
+                export's, or the density floor catches the cut first and
+                the pin proves nothing about the check it names.
 
         Returns:
             Everything `cmd_snapshot` printed.
@@ -1237,8 +1284,16 @@ class TestSnapshotTierOne(Base):
             if url.endswith("api/health"):
                 return {"ok": True}
             if url.endswith("api/screenshot/request"):
+                raw = self.fat_png(png_w, png_h, bpp=bpp)
+                said = report
+                if said is True:
+                    said = {"bytes": len(raw), "png_w": png_w,
+                            "png_h": png_h, "artifact": aid}
+                if said is not None:
+                    canvas.write_json(
+                        self.project.shots_dir / "shot-7.json", said)
                 (self.project.shots_dir / "shot-7.png").write_bytes(
-                    self.fat_png(png_w, png_h))
+                    raw[:len(raw) - truncate] if truncate else raw)
                 return {"id": 7}
             if url.endswith("api/state"):
                 return {"screenshot_requests": []}
@@ -1337,6 +1392,14 @@ class TestSnapshotTierOne(Base):
         come from a browser. Shrinking the slack to the 64px the first
         report proposed puts `tearsheet-domain` back under by 6px, which
         is the failure this test exists to catch.
+
+        This is no longer the whole tier-1 check and must not be read as
+        the whole tolerance. `..._strictly` below runs the same six
+        exports against `exact_ink_extent`, where the margins are +0 and
+        the allowance is 8px rather than 96. The 96 stays because the
+        modelling gap it absorbs is real; the precision came from adding
+        gates beside it, and re-tuning this one would give back the
+        measurement rather than the slack.
         """
         for name, floor_w, floor_h, got_w, got_h in (
                 ("tearsheet-demo/tearsheet-wireframe", 1553, 1050,
@@ -1355,24 +1418,223 @@ class TestSnapshotTierOne(Base):
                     want_h=floor_h, min_bpp=0.05, want_is_floor=True)
                 self.assertTrue(ok, "%s: %s" % (name, why))
 
-    def test_tier_1_keeps_a_retina_tab_export(self):
-        """The floor has no ceiling, because the tab picks the scale.
+    # the six measured artifacts, each as
+    # (name, full floor, text-free floor, real export). The full floors
+    # and exports are `..._admits_every_measured_real_export`'s; the
+    # text-free column is `exact_ink_extent` over the same revisions,
+    # measured by the self-report spike and re-run at this head before
+    # `EXACT_SLACK` landed.
+    MEASURED = (
+        ("tearsheet-demo/tearsheet-wireframe", 1553, 1050, 1520, 940,
+         1520, 1070),
+        ("tearsheet-demo/tearsheet-domain", 1774, 1138, 1420, 1130,
+         1704, 1138),
+        ("argus-r4-arm3/dashboard", 2700, 880, 2700, 880, 2700, 900),
+        ("argus-r4-arm4/dashboard-wireframe", 1590, 820, 1590, 820,
+         1590, 840),
+        ("argus-r5/daily-run", 910, 1344, 910, 1344, 910, 1344),
+        ("acceptance-tearsheet/tearsheet-flow", 2160, 724, 2160, 664,
+         2160, 724))
 
-        `exportToBlob` is called without `exportScale`, so it falls back
-        to `devicePixelRatio` when that is 1, 2 or 3 — the monitor the
-        user happened to open the tab on, never reported to the server.
-        A 2x or 3x export is the SAME drawing at more pixels and must be
-        taken. The other three fixtures here are all implicitly 1x, so
-        without this a tolerance band tied to the 1x floor would refuse
-        every HiDPI user's export and no test would say so (v0.9 task
-        49; the spike named this as the fix's own blind spot).
+    def test_the_floor_admits_every_measured_real_export_strictly(self):
+        """`EXACT_SLACK`'s calibration — and why 8 is not 96.
+
+        The same six real exports as the test above, against the floor
+        built only from ink the client does not re-derive. The margins
+        are the whole argument for the number: **+0 on every axis of
+        every artifact**, against −70 for the full floor. Not "close to"
+        the export — at or under it, exactly, on all twelve axes, which
+        is why this can be checked at 8px when the other needs 96.
+
+        The reason is visible one level down and is the load-bearing
+        fact: every one of the twenty-four edges of these six text-free
+        boxes is owned by a `frame`, `rectangle` or `ellipse`, and no
+        arrow owns an edge on any of them. Those are stored-box classes
+        the client never re-measures, so the agreement is to the pixel
+        rather than to a tolerance. The 8 is not headroom this sample
+        needed — it is `api.ts`'s documented ~7px of bound-arrow endpoint
+        drift plus rounding, held for the scene where an arrow DOES own
+        an edge.
+
+        Without this the 8 is a number someone tidies away, and the
+        margins are what stop `exact_ink_extent` being quietly widened
+        back toward the full floor — a strict floor that has drifted
+        below the export it judges is not strict, it is decorative, and
+        nothing else here would notice.
         """
-        for scale in (2, 3):
-            with self.subTest(scale=scale):
-                out = self.snapshot(TAB_WIDE, 3640 * scale, 180 * scale,
-                                    aid="a%d" % scale)
-                self.assertIn("TIER=1", out, out)
-                self.assertIn("VALID=true", out, out)
+        for name, fw, fh, ew, eh, got_w, got_h in self.MEASURED:
+            with self.subTest(artifact=name):
+                self.assertLessEqual(
+                    (ew, eh), (got_w + 0, got_h + 0),
+                    "%s: the text-free floor %dx%d is no longer under the "
+                    "real export %dx%d — the +0 margin this constant was "
+                    "sized on is gone" % (name, ew, eh, got_w, got_h))
+                ok, why = canvas.validate_png(
+                    self.fat_png(got_w, got_h), want_w=fw, want_h=fh,
+                    exact_w=ew, exact_h=eh, min_bpp=0.05,
+                    want_is_floor=True)
+                self.assertTrue(ok, "%s: %s" % (name, why))
+
+    def test_the_strict_floor_leaves_out_the_ink_the_client_remeasures(self):
+        """What `exact_ink_extent` excludes, and that it excludes only that.
+
+        Found by mutation, not by design: with the six-row table above
+        holding its floors as literals, `exact_ink_extent` could be
+        changed to return the FULL extent — dropping the text filter
+        entirely, which is its whole reason to exist — and the entire
+        suite stayed green. The calibration pins prove the constant 8 is
+        safe against the numbers; nothing proved the numbers still come
+        from the function that computes them.
+
+        So this asserts the rule directly. A text element past the right
+        edge of everything else owns the full box's width and must own
+        none of the strict one, and the strict box must be exactly what
+        the remaining elements give — not merely smaller, which a filter
+        that dropped the wrong class would also satisfy.
+
+        Two edges of the rule get their own assertions because both are
+        load-bearing and neither is obvious. Bound text is text: a label
+        inside a container is re-measured exactly like a free one, and
+        the container it belongs to stays. And a drawing made of nothing
+        but text has NO strict box — `None`, not a zero-sized one, so the
+        caller skips the check rather than measuring against nothing.
+        """
+        rect = {"type": "rectangle", "id": "r", "x": 100, "y": 100,
+                "width": 200, "height": 100}
+        text = {"type": "text", "id": "t", "x": 400, "y": 100,
+                "width": 300, "height": 40, "fontSize": 20,
+                "text": "a label reaching past the box"}
+        self.assertGreater(canvas.ink_extent([rect, text])[2],
+                           canvas.exact_ink_extent([rect, text])[2])
+        self.assertEqual(canvas.exact_ink_extent([rect, text]),
+                         canvas.ink_extent([rect]))
+        self.assertEqual(
+            canvas.exact_ink_extent([rect, dict(text, containerId="r")]),
+            canvas.ink_extent([rect]))
+        self.assertIsNone(canvas.exact_ink_extent([text]))
+
+    def test_the_measured_table_still_describes_the_corpus(self):
+        """The calibration's literals against the fixtures they came from.
+
+        `..._admits_every_measured_real_export` holds its numbers as
+        literals for a good reason — the export widths can only come from
+        a browser, and re-deriving the floor would only prove `ink_extent`
+        agrees with itself. But that reasoning covers the EXPORT column
+        and not the two floor columns, which are pure server-side
+        derivations of scenes sitting in this repo. Left unchecked they
+        are a table that keeps saying what was true in August while the
+        code moves underneath it, which is the surviving-guard failure
+        this corpus has now recorded twice.
+
+        So both floors are re-derived here from the frozen fixtures and
+        compared to the literals. A drift in either direction is a real
+        event: it means the floor tier 1 measures against is no longer
+        the one the constants were sized on, and the constants must be
+        re-measured rather than the table quietly updated.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        for name, fw, fh, ew, eh, _got_w, _got_h in self.MEASURED:
+            fixture, aid = name.split("/")
+            with self.subTest(artifact=name):
+                tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-calib-"))
+                try:
+                    shutil.copytree(root / fixture, tmp / "project_knowledge")
+                    els = canvas.Store(canvas.Project(tmp)).scenes[aid]
+                    full = canvas.ink_extent(els)
+                    strict = canvas.exact_ink_extent(els)
+                    self.assertEqual(
+                        (int(full[2]), int(full[3]), int(strict[2]),
+                         int(strict[3])), (fw, fh, ew, eh),
+                        "%s has drifted off the floors `floor_slack` and "
+                        "`EXACT_SLACK` were calibrated against" % name)
+                finally:
+                    shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_blind_band_is_the_one_the_split_was_measured_to_buy(self):
+        """What tier 1 actually promises, per axis, on real drawings.
+
+        `VALID=true` does not mean whole; it means nothing more than this
+        many pixels is gone off that edge. These twelve numbers are that
+        promise on the six measured artifacts, and they are the
+        justification for the entire protocol, so they are pinned rather
+        than described: eight of twelve axes were 96px or worse before
+        and six of twelve are now at `EXACT_SLACK`.
+
+        Read the two columns together. Where the band did NOT move —
+        `tearsheet-wireframe`'s height at 116, `tearsheet-domain`'s width
+        at 26, `tearsheet-flow`'s height at 68 — a text element owns that
+        edge of the drawing, `exact_ink_extent` has nothing to say about
+        it, and `floor_slack` is the whole check. That residual does not
+        shrink by tuning anything. It shrinks when the server measures
+        text the way the browser does, and not before.
+
+        TWO OF THE SPIKE'S SUMMARY FIGURES ARE WRONG and are corrected
+        here rather than carried: it reported "median 16px, eight of
+        twelve axes at 8px". Every per-axis number in its table is
+        right, but the median of these twelve is 12 and the count at 8px
+        is six. The aggregates were the part nobody re-derived.
+        """
+        before, after = [], []
+        for name, fw, fh, ew, eh, got_w, got_h in self.MEASURED:
+            with self.subTest(artifact=name):
+                was = dict(canvas.blind_band(got_w, got_h, fw, fh))
+                now = dict(canvas.blind_band(got_w, got_h, fw, fh, ew, eh))
+                before += [was["width"], was["height"]]
+                after += [now["width"], now["height"]]
+        self.assertEqual(
+            before, [63, 116, 26, 96, 135, 116, 96, 116, 96, 96, 108, 96],
+            "the pre-split bands moved: `floor_slack` is the only input "
+            "to these and it was not supposed to change")
+        self.assertEqual(
+            after, [8, 116, 26, 16, 8, 28, 8, 28, 8, 8, 8, 68],
+            "the post-split bands moved off what the split was measured "
+            "to buy")
+        self.assertEqual(sorted(after)[5:7], [8, 16])   # median 12
+        self.assertEqual(after.count(canvas.EXACT_SLACK), 6)
+
+    def test_tier_1_keeps_an_export_a_little_over_the_floor(self):
+        """REPLACES `..._keeps_a_retina_tab_export` (self-report task).
+
+        WHAT WAS REPLACED AND WHY, because a green test that vanishes is
+        the easiest kind of coverage to lose quietly. The retina test
+        asserted that a raster at 2x and 3x the floor is TAKEN, on the
+        premise that `exportToBlob` falls back to `devicePixelRatio` and
+        an honest export is therefore 2-3x on a HiDPI monitor. That
+        premise is measured false: the same artifact through the real
+        protocol at `deviceScaleFactor` 1 and 2 comes back
+        byte-identical, because `exportToBlob` hands the export path its
+        own canvas-maker and overrides the scale multiply
+        (spike-selfreport.md §7.1, re-measured 2026-08-15). The scenario
+        it guarded cannot occur, and it was the stated reason the tier
+        has no ceiling — so it was not merely inert, it was load-bearing
+        for a real loss of discrimination. It is REPLACED rather than
+        weakened: the sibling below now asserts 2x is refused, which is
+        the exact opposite, and both cannot be right.
+
+        What survives the replacement is the QUESTION the retina test was
+        really asking — does the tier tolerate an export bigger than the
+        floor? It must, and for a reason that outlived the wrong one:
+        the client re-measures text before it frames, and that lands
+        outside the saved box about as often as inside it. So the band
+        is asserted at the sizes really measured rather than at an
+        imagined 2x. +20px is the largest over-margin in the six-export
+        calibration (`..._admits_every_measured_real_export`, two rows at
+        exactly that); 1.41x is the theoretical worst case, a drawing
+        whose extent is set end to end by one element rotated 45°, which
+        `ink_extent` bounds unrotated. Zero of the corpus's 976 live
+        elements carry an angle, so that one is headroom and is asserted
+        as headroom.
+        """
+        for over_w, over_h, why in (
+                (20, 20, "the measured worst honest over-margin"),
+                (0, 20, "dashboard and dashboard-wireframe exactly: the "
+                        "width lands on the floor and the height over it"),
+                (int(3640 * 0.41), int(180 * 0.41), "a 45-degree rotation")):
+            with self.subTest(over=(over_w, over_h)):
+                out = self.snapshot(TAB_WIDE, 3640 + over_w, 180 + over_h,
+                                    aid="over%dx%d" % (over_w, over_h))
+                self.assertIn("TIER=1", out, "%s: %s" % (why, out))
+                self.assertIn("VALID=true", out, "%s: %s" % (why, out))
 
     def test_the_slack_band_is_exactly_as_wide_as_it_was_calibrated(self):
         """Curator batch 23 item 15 (task 49 §9), 2026-08-15.
@@ -1423,10 +1685,13 @@ class TestSnapshotTierOne(Base):
 
         Those three absences are the whole mechanism, so they are what
         this asserts. It goes red the day someone adds `getDimensions` to
-        either call site — which is precisely the day
-        `test_tier_1_keeps_a_retina_tab_export` above stops being fiction
-        and starts being a description, so the two are worth reading
-        together.
+        either call site — which is precisely the day the export becomes
+        scalable and `ceiling_slack` becomes a false refusal waiting to
+        happen, so this is the pin that must be answered BEFORE that
+        change lands, not after. The self-report task re-measured the
+        mechanism at its own head and then recovered the ceiling on it;
+        `..._refuses_an_export_twice_the_drawing` is what now depends on
+        these three absences staying absent.
         """
         src = (Path(__file__).resolve().parents[1] / "frontends" /
                "wysiwyg-grilling" / "src" / "App.tsx").read_text(
@@ -1480,32 +1745,399 @@ class TestSnapshotTierOne(Base):
             "are unconnected literals held together by convention — "
             "change both or neither" % (client, pad))
 
-    @unittest.expectedFailure
     def test_tier_1_refuses_an_export_twice_the_drawing(self):
-        """Curator batch 23 item 16, RED. Owner: the self-report task.
+        """FLIPPED (self-report task): the ceiling is back.
 
-        The cost of the fiction, and the discrimination it talked the
-        tier out of. Task 49 dropped tier 1's oversize band because
-        `exportToBlob` was believed to scale by `devicePixelRatio`, so an
-        export at 2x or 3x the floor had to be taken. The sibling above
-        measures that this never happens: the export is deterministic
-        scene pixels, the same bytes on every monitor. A raster twice the
-        drawing is therefore not a HiDPI user — it is a wrong file, and
-        nothing in this tier can say so.
+        Curator batch 23 item 16 filed this RED, and the flip needed no
+        change to the assertion below — `ceiling_slack` landing is the
+        whole difference. The cost of the fiction, and the discrimination
+        it talked the tier out of: task 49 dropped tier 1's oversize band
+        because `exportToBlob` was believed to scale by
+        `devicePixelRatio`, so an export at 2x or 3x the floor had to be
+        taken. That was measured false, twice — once by the spike and
+        once again at this head before the constant landed — so a raster
+        twice the drawing is not a HiDPI user, it is a wrong file, and
+        for a while nothing in this tier could say so.
 
-        This and `test_tier_1_keeps_a_retina_tab_export` assert opposite
-        things about one input, deliberately and visibly. They cannot both
-        be right, and until now the repo held only the half that agreed
-        with the comment. The self-report task owns the choice: recover
-        the ceiling §7.1 says is available and retire the retina test, or
-        keep the permissiveness and correct the three docstrings that
-        justify it by a mechanism that does not exist. Either way this
-        flips in the same change, per the flip contract — it is not a
-        vote for the first option, it is a refusal to leave the question
-        unasked.
+        This was filed as one half of a deliberate contradiction: it and
+        `test_tier_1_keeps_a_retina_tab_export` asserted opposite things
+        about one input, and the batch declined to pick, leaving the
+        choice to whoever measured. The choice went to the ceiling. The
+        retina test is gone and
+        `..._keeps_an_export_a_little_over_the_floor` stands where it
+        stood, holding the same guard — the tier must not refuse an
+        honest export that came out bigger than the floor — at the sizes
+        that actually occur instead of at an imagined 2x. Read the two
+        together; the pair is the whole trade.
         """
         out = self.snapshot(TAB_WIDE, 3640 * 2, 180 * 2, aid="oversize")
         self.assertIn("far from", out, out)
+
+    def test_the_ceiling_sits_where_it_was_sized_to_sit(self):
+        """Both poles of `ceiling_slack`, one pixel apart.
+
+        The batch-23 item-15 discipline applied to the new constant: a
+        band nobody measures drifts, and every other test of the ceiling
+        sits far outside it — 2x on one side, +20px on the other — so
+        widening or narrowing it would leave them all green. The edge
+        itself is the subject here.
+
+        On a 3640px floor the allowance is 50%, so 5460 is the last
+        raster taken and 5461 the first refused. The height axis is where
+        the `max(64, ...)` branch shows: 180px of drawing allows 90 and
+        not 64, because 50% of 180 is 90.
+        """
+        for want, over, taken in ((3640, 1820, True), (3640, 1821, False),
+                                  (180, 90, True), (180, 91, False),
+                                  (100, 64, True), (100, 65, False)):
+            with self.subTest(want=want, over=over):
+                ok, why = canvas.validate_png(
+                    self.fat_png(want + over, want + over), want_w=want,
+                    want_h=want, min_bpp=0.05, want_is_floor=True)
+                self.assertIs(
+                    ok, taken,
+                    "a raster %dpx over a %dpx drawing was %s (%s): the "
+                    "ceiling has moved off `ceiling_slack`"
+                    % (over, want, "taken" if ok else "refused", why))
+
+    def test_tier_1_refuses_an_export_that_lost_bytes_in_transit(self):
+        """A1, and the reason the protocol exists at all.
+
+        The case every OTHER check on this tier is blind to, reproduced
+        end to end: an honest export of the right drawing at the right
+        dimensions, with a fifth of the file gone. The IHDR lives in the
+        first 33 bytes and survives any truncation that leaves a file at
+        all, so the header still reads 3640x180, the geometry checks all
+        pass, and the density stays plausible — the spike measured a real
+        20%-cropped corpus artifact at 0.085 bytes/px against a 0.05
+        floor. Nothing here could see it before the client started
+        saying how many bytes it sent.
+
+        This is the check the task brief assigned to comparing IHDR
+        against the self-reported dimensions, which cannot do it: the
+        header is intact, so that comparison passes. `bytes` is the field
+        that does this job, and if only one field ever ships it is that
+        one.
+        """
+        whole = self.fat_png(3640, 180, bpp=0.106)
+        out = self.snapshot(TAB_WIDE, 3640, 180, report=True, bpp=0.106,
+                            truncate=len(whole) // 5)
+        self.assertIn("lost in transit", out, out)
+        self.assertNotIn("TIER=1", out, out)
+
+    def test_the_truncation_that_a1_catches_is_invisible_to_every_other_check(
+            self):
+        """The distinctness proof for the pin above — the same bytes,
+        with the report withheld.
+
+        Without this the A1 pin passes the day the file starts failing
+        for some unrelated reason (a density floor that caught up, a
+        geometry check that got stricter), and the tier would look
+        guarded while the protocol did nothing. Same drawing, same
+        truncation, no self-report: `VALID=true` at tier 1, which is
+        exactly the defect, and is what shipped until now.
+
+        The density is a real export's (0.106, the spike's measurement of
+        `tearsheet-domain`) and not this class's usual 0.06, which is a
+        hair over the 0.05 floor. That matters: at 0.06 a fifth of the
+        file is also a fifth off the density and the raster is refused
+        for being thin, so the pin would report a guarded tier for a
+        reason that has nothing to do with truncation. At a real density
+        the cut lands at 0.085 and the floor never notices — which is
+        precisely what the spike measured on the real artifact, and why
+        `min_bpp` could not be the answer here.
+        """
+        whole = self.fat_png(3640, 180, bpp=0.106)
+        out = self.snapshot(TAB_WIDE, 3640, 180, bpp=0.106,
+                            truncate=len(whole) // 5)
+        self.assertIn("TIER=1", out, out)
+        self.assertIn("VALID=true", out, out)
+        self.assertIn("0.085 bytes/px", out, out)
+
+    def test_tier_1_refuses_a_crop_inside_the_slack_band(self):
+        """A2, and it is a DIFFERENT mutant from A1 by construction.
+
+        The spike's pole 2b on this fixture: 14px of real drawing taken
+        off the right edge. That is deep inside `floor_slack`'s 182px
+        band on a 3640px drawing, so B2 takes it, and the file is
+        internally consistent — a perfectly healthy PNG of a picture with
+        a strip missing. What gives it away is that the client said it
+        made a 3640px canvas and the server is holding a 3626px one.
+
+        A1 and A2 are distinct and the distinctness is the point: the
+        pin above dies to `bytes` alone, and this one dies to EITHER
+        field, because a re-encode at different dimensions changes the
+        byte count too. Asserting the dimension message specifically is
+        what proves A2 is carrying its own weight rather than riding A1.
+        """
+        out = self.snapshot(TAB_WIDE, 3626, 180,
+                            report={"bytes": len(self.fat_png(3626, 180)),
+                                    "png_w": 3640, "png_h": 180})
+        self.assertIn("the tab framed 3640x180", out, out)
+        self.assertNotIn("TIER=1", out, out)
+
+    def test_a_half_arrived_dimension_report_costs_nothing(self):
+        """A2 needs both axes, and a partial report is not a refusal.
+
+        Self-review catch, not a design intent discovered late: the first
+        cut gated A2 on `png_w` alone and compared the pair, so a report
+        carrying a width and no height read as a mismatch against `None`
+        and refused a perfectly good export. The fields are filtered
+        independently on the way in — a client can lose one to a garbled
+        type and keep the other — so that state is reachable, and it
+        turned an optional diagnostic into a lost screenshot.
+
+        Both halves are checked, because a fix that skipped A2 whenever
+        either field was odd could also have been written to skip it
+        whenever either was PRESENT, and the second is a disarmed check
+        wearing the first's clothes: the full report on the same bytes
+        must still refuse.
+        """
+        raw = self.fat_png(3640, 180)
+        for n, (said, taken) in enumerate((({"png_w": 9999}, True),
+                                           ({"png_h": 9999}, True),
+                                           ({"png_w": 9999, "png_h": 9999},
+                                            False))):
+            with self.subTest(report=said):
+                out = self.snapshot(TAB_WIDE, 3640, 180, aid="half%d" % n,
+                                    report=dict(said, bytes=len(raw)))
+                self.assertIs("TIER=1" in out, taken, out)
+
+    def test_tier_1_takes_an_export_from_a_client_that_says_nothing(self):
+        """The compatibility pole — the one most likely to be lost.
+
+        Every `project_knowledge/` written before the rebuilt bundle
+        holds a client that posts `{id, data_url}` and no more, and every
+        user who has not reloaded the tab IS one. Refusing them would
+        brick working projects for a check that is insurance, not
+        correctness, so the fields are optional on the way in and their
+        absence downgrades the verdict to what it was rather than to a
+        failure. The NOTE is asserted too: silently checking less is how
+        a tier ends up trusted for more than it does.
+
+        The reverse direction needs no test — a new client posting extra
+        keys to an old server already works, because unknown keys in the
+        POST body are ignored.
+        """
+        out = self.snapshot(TAB_WIDE, 3640, 180)
+        self.assertIn("TIER=1", out, out)
+        self.assertIn("VALID=true", out, out)
+        self.assertIn("carried no self-report (old client bundle)", out, out)
+
+    def test_a_client_that_says_nothing_still_gets_the_strict_floor(self):
+        """...and the compatibility pole is not a bypass.
+
+        The tolerance above is narrow on purpose: only A1 and A2 need the
+        protocol. B1 is pure server-side geometry — `exact_ink_extent`
+        against the raster — so an old bundle is checked to 8px on every
+        axis text does not own, exactly like a new one. Without this pin
+        "tolerate old clients" could quietly become "skip the geometry
+        for old clients", which is the shape most compatibility hatches
+        rot into.
+
+        The same raster as the honest case above, 200px short: inside
+        nothing, but this asserts the message names the text-free extent,
+        which only B1 can produce.
+        """
+        out = self.snapshot(TAB_WIDE, 3440, 180)
+        self.assertIn("text-free extent alone is 3640", out, out)
+
+    def test_the_strict_floor_refuses_what_the_slack_band_would_take(self):
+        """B1 against B2 on one raster — the band the split closes.
+
+        `TAB_WIDE` is a drawing with no text at its edges, so its
+        text-free extent IS its extent and the strict floor governs both
+        axes. 100px short of 3640 sits comfortably inside `floor_slack`'s
+        182px band and was `VALID=true` at tier 1 until now; against a
+        floor the server reproduces to the pixel it is 92px past an 8px
+        allowance.
+
+        Both poles, so the pin measures the edge rather than the
+        direction: 8px short is still taken, because bound arrows can
+        move by ~7px on load and `EXACT_SLACK` is that delta plus
+        rounding.
+        """
+        for short, taken in ((8, True), (9, False), (100, False)):
+            with self.subTest(px_short=short):
+                out = self.snapshot(TAB_WIDE, 3640 - short, 180,
+                                    aid="strict%d" % short)
+                self.assertIs(
+                    "TIER=1" in out, taken,
+                    "a raster %dpx short of a 3640px text-free extent was "
+                    "%s: %s" % (short, "taken" if taken else "refused", out))
+
+    def test_the_honest_export_passes_every_check_at_once(self):
+        """The live pole for the whole protocol.
+
+        Five checks now stand between a tab export and `VALID=true`, and
+        each of the pins above proves one of them can REFUSE. None of
+        them proves they can all pass together, which is the failure
+        mode that matters most: a tier that refuses everything looks
+        identical to a tier that works, from any single red.
+
+        So: an honest export, the report an honest client would send
+        about those exact bytes, and the dimensions the drawing actually
+        has. A1, A2, B1, B2 and the ceiling all satisfied at once.
+        """
+        out = self.snapshot(TAB_WIDE, 3640, 180, report=True)
+        self.assertIn("TIER=1", out, out)
+        self.assertIn("VALID=true", out, out)
+        self.assertNotIn("NOTE=tab export attempt", out, out)
+        self.assertNotIn("carried no self-report", out, out)
+
+
+class TestScreenshotSelfReport(Base):
+    """The wire half of the self-report: what the tab is allowed to say.
+
+    `TestSnapshotTierOne` proves what the CHECKS do with a report; this
+    proves the report survives the trip. The two halves are separable and
+    were separated on purpose — the server-side geometry check needs no
+    protocol at all and landed able to run without one — so the seam
+    between them gets its own tests rather than being covered only end to
+    end.
+
+    These drive `ServerApp.handle_post` directly. That is the real
+    handler with the real body, one layer under the socket: the transport
+    is not the subject, and a live server would only add flake.
+    """
+
+    def png(self, w=10, h=10):
+        """A minimal valid PNG, for a handler that only stores bytes.
+
+        Args:
+            w: IHDR width.
+            h: IHDR height.
+
+        Returns:
+            `(raw_bytes, data_url)`.
+        """
+        import struct
+        raw = (b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" +
+               struct.pack(">II5B", w, h, 8, 2, 0, 0, 0) + b"\0\0\0\0")
+        return raw, ("data:image/png;base64,"
+                     + base64.b64encode(raw).decode("ascii"))
+
+    def complete(self, extra=None):
+        """Run one request/complete round trip through the real handler.
+
+        Each call builds a fresh `ServerApp`, so the request id restarts
+        at 1 and a previous call's sidecar would still be sitting at
+        `shot-1.json`. Clearing it is what makes "no sidecar" mean this
+        call wrote none, rather than the last one having written one —
+        without it a subtest that should prove a field was DROPPED reads
+        the field its predecessor stored and passes on the wrong
+        evidence. Found by mutation.
+
+        Args:
+            extra: Fields the client sends beyond `{id, data_url}`.
+
+        Returns:
+            `(response, sidecar_or_None, raw_png_bytes)`.
+        """
+        app = canvas.ServerApp(self.project)
+        sid = app.handle_post("/api/screenshot/request",
+                              {"artifact": "a"})["id"]
+        stale = self.project.shots_dir / ("shot-%d.json" % sid)
+        if stale.exists():
+            stale.unlink()
+        raw, url = self.png()
+        body = {"id": sid, "data_url": url}
+        body.update(extra or {})
+        resp = app.handle_post("/api/screenshot/complete", body)
+        side = self.project.shots_dir / ("shot-%d.json" % sid)
+        return resp, (canvas.read_json(side) if side.exists() else None), raw
+
+    def test_the_tab_s_account_of_its_export_reaches_the_snapshot(self):
+        """The happy path, end to end through the handler.
+
+        The sidecar is the route: `/api/state` lists only WAITING
+        requests, so a completed one has nowhere to ride home, and
+        growing that payload would tax a hot poll loop for data one
+        caller wants once. `shot-<id>.json` beside `shot-<id>.png`
+        collides with nothing, because every `shots_dir` consumer globs
+        an explicit `shot-N.png`.
+        """
+        raw, _ = self.png()
+        resp, side, _ = self.complete(
+            {"bytes": len(raw), "png_w": 10, "png_h": 10, "artifact": "a"})
+        self.assertTrue(resp.get("ok"), resp)
+        self.assertEqual(side, {"bytes": len(raw), "png_w": 10,
+                                "png_h": 10, "artifact": "a"})
+
+    def test_an_old_bundle_completes_a_screenshot_and_leaves_no_sidecar(self):
+        """The compatibility pole at the wire, not just at the check.
+
+        A tab built before this protocol posts `{id, data_url}`. It must
+        get its `{"ok": true}` — an export that succeeds in the browser
+        and then 400s on the way home is a broken app, for a check that
+        is insurance. No sidecar is written, which is what makes
+        `cmd_snapshot` fall back to the pre-protocol verdict rather than
+        to a failure.
+        """
+        resp, side, _ = self.complete()
+        self.assertTrue(resp.get("ok"), resp)
+        self.assertIsNone(side)
+
+    def test_a_garbled_self_report_is_dropped_and_never_refused(self):
+        """Junk fields cost the client its checks, never its export.
+
+        Every field is independently optional, so a client that manages
+        `bytes` but garbles `png_w` keeps A1 and loses A2 — the failure
+        is graceful per FIELD and not per report. The alternative,
+        refusing the POST, turns a mistake in an optional diagnostic into
+        a lost screenshot.
+
+        `True` is checked explicitly because `bool` is a subclass of
+        `int` in Python: without the guard, `{"bytes": true}` would be
+        stored as a byte count of 1 and refuse every real file as
+        truncated. That is the one type confusion this protocol can make
+        that produces a plausible-looking number rather than a crash.
+        """
+        raw, _ = self.png()
+        for junk in ({"bytes": "205135"}, {"bytes": True}, {"bytes": 0},
+                     {"bytes": -1}, {"bytes": 1.5}, {"bytes": None},
+                     {"png_w": [10]}, {"artifact": 7}):
+            with self.subTest(junk=junk):
+                field = next(iter(junk))
+                resp, side, _ = self.complete(
+                    dict(junk, **({} if field == "bytes"
+                                  else {"bytes": len(raw)})))
+                self.assertTrue(resp.get("ok"), resp)
+                self.assertNotIn(field, side or {},
+                                 "%r was stored as a self-report field"
+                                 % (junk,))
+
+    def test_a_report_of_nothing_usable_is_no_report(self):
+        """...and the all-junk case is the old-client case.
+
+        A client that sends only unusable fields must be indistinguishable
+        from one that sends none, or `cmd_snapshot` would find an empty
+        sidecar, decide a report exists, and skip the NOTE that says the
+        integrity checks did not run. Silently checking less is the
+        failure this whole tier keeps being fixed for.
+        """
+        _, side, _ = self.complete({"bytes": "lots", "png_w": None})
+        self.assertIsNone(side)
+
+    def test_the_report_describes_the_file_and_not_the_request(self):
+        """The field that does the work is the client's own count.
+
+        `screenshot_self_report` does not compute, infer or sanity-check
+        `bytes` against the payload — it records what the tab said. That
+        is the entire mechanism: if the server recomputed it from the
+        bytes it received, A1 would compare a number with itself and a
+        truncated payload would agree with its own length perfectly.
+
+        So the handler must store a byte count that DISAGREES with the
+        file on disk, without complaint, and leave the judgement to
+        `validate_png`. This pin exists because "validate the input"
+        is the obvious instinct here and it would silently disarm the
+        check.
+        """
+        raw, _ = self.png()
+        _, side, stored = self.complete({"bytes": len(raw) + 4096})
+        self.assertEqual(side["bytes"], len(raw) + 4096)
+        self.assertNotEqual(side["bytes"], len(stored))
 
 
 def seed_sequence_batch(base_revn=0):
