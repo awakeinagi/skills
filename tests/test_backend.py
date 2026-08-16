@@ -1172,8 +1172,16 @@ class TestSnapshotTierOne(Base):
     caption, footnotes and uniform downscale that set `render_svg`'s
     dimensions. Task 49 wired that box in as `ink_extent` and made it a
     FLOOR rather than a target, because the missing `exportScale` leaves
-    the scale to the browser's `devicePixelRatio`: four of the five tests
-    below are 1x, and the fifth is why there is no ceiling.
+    the scale to the browser's `devicePixelRatio`: four of the tests
+    below are 1x, and `..._keeps_a_retina_tab_export` is why there is no
+    ceiling.
+
+    The floor is deliberately loose (`floor_slack`), and
+    `..._admits_every_measured_real_export` is why: the client rebuilds
+    text geometry from real font metrics before it frames, so honest
+    exports land inside the saved geometry's box often enough that a
+    strict floor refused two of six real corpus artifacts. Read that
+    test before touching the slack.
     Curator batch 15, item 1 (2026-08-14); flipped 2026-08-15.
     """
 
@@ -1254,10 +1262,13 @@ class TestSnapshotTierOne(Base):
         edge, and tier 1 reported `VALID=true` over it. `cmd_snapshot`
         now computes that 3640 with `ink_extent` — the same padded box
         `render_svg` frames with, taken BEFORE the `RASTER_MAX_*` clamp —
-        and hands it to `validate_png` as a floor. One assertion,
-        carrying both magnitude and direction: the NOTE can only be
-        printed by a refusal, and it names 3000 against 3640, i.e. short
-        rather than padded.
+        and hands it to `validate_png` as a floor. A LOOSE one — the
+        fix round sized `floor_slack` at 182px here, against a defect
+        640px deep — because a floor is checked against a client that
+        re-measures its own text before framing. One assertion, carrying
+        both magnitude and direction: the NOTE can only be printed by a
+        refusal, and it names 3000 against 3640, i.e. short rather than
+        padded.
         """
         out = self.snapshot(TAB_WIDE, 3000, 180)
         self.assertIn("width 3000 cuts a 3640px drawing short", out, out)
@@ -1308,6 +1319,41 @@ class TestSnapshotTierOne(Base):
         """
         out = self.snapshot(TAB_HUGE, 5000, 180)
         self.assertIn("width 5000 cuts a 8080px drawing short", out, out)
+
+    def test_the_floor_admits_every_measured_real_export(self):
+        """The calibration, pinned to the exports it was measured from.
+
+        `floor_slack` is not a guess and must not be re-tuned by taste.
+        Six unedited corpus artifacts were driven through the app's own
+        `exportToBlob` at `deviceScaleFactor: 1` and their PNG IHDRs read
+        straight off disk, before `validate_png` ever saw them
+        (spike-tier1-verify.md, 2026-08-15). Four framed at or above
+        their floor; TWO CAME BACK INSIDE IT — 33px and 70px — with
+        nothing whatever wrong with the pictures. Those two are why the
+        slack exists, and the shipped floor refused them.
+
+        Literals, not a re-derivation: re-running `ink_extent` here would
+        only prove it agrees with itself, and the actual widths can only
+        come from a browser. Shrinking the slack to the 64px the first
+        report proposed puts `tearsheet-domain` back under by 6px, which
+        is the failure this test exists to catch.
+        """
+        for name, floor_w, floor_h, got_w, got_h in (
+                ("tearsheet-demo/tearsheet-wireframe", 1553, 1050,
+                 1520, 1070),                    # −33 wide: refused before
+                ("tearsheet-demo/tearsheet-domain", 1774, 1138,
+                 1704, 1138),                    # −70 wide: refused before
+                ("argus-r4-arm3/dashboard", 2700, 880, 2700, 900),
+                ("argus-r4-arm4/dashboard-wireframe", 1590, 820,
+                 1590, 840),
+                ("argus-r5/daily-run", 910, 1344, 910, 1344),
+                ("acceptance-tearsheet/tearsheet-flow", 2160, 724,
+                 2160, 724)):
+            with self.subTest(artifact=name):
+                ok, why = canvas.validate_png(
+                    self.fat_png(got_w, got_h), want_w=floor_w,
+                    want_h=floor_h, min_bpp=0.05, want_is_floor=True)
+                self.assertTrue(ok, "%s: %s" % (name, why))
 
     def test_tier_1_keeps_a_retina_tab_export(self):
         """The floor has no ceiling, because the tab picks the scale.

@@ -6847,6 +6847,46 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     return "\n".join(out), int(w * scale), int(h * scale)
 
 
+def floor_slack(want):
+    """How far under a tier-1 FLOOR a raster may sit and still be whole.
+
+    A floor is not a target, and it cannot carry a target's tolerance.
+    `render_svg`'s dimensions are compared against a raster of the
+    server's OWN svg, where 2px covers everything an int-rounded scale
+    can do. The tier-1 floor is compared against a client that rebuilds
+    the drawing's geometry before it frames it: `restore` runs
+    `refreshTextDimensions` on every text element and assigns the real
+    `measureText` result UNCONDITIONALLY — no `max` against the width
+    the scene was saved with. So a drawing's true edge routinely sits
+    INSIDE where its own stored geometry puts it, and a floor built from
+    that geometry reads too generous through no fault of anyone's.
+
+    Calibrated against real exports, not inferred: six unedited corpus
+    artifacts driven through the app's own `exportToBlob` at
+    `deviceScaleFactor: 1` came back at margins of 0, 0, 0, 0, −33 and
+    −70 px against this floor — i.e. two of six honest pictures would
+    have been refused (spike-tier1-verify.md, 2026-08-15). 96px-or-5%
+    clears the −70 worst case with headroom, deliberately rather than
+    tuning to it: that sample was six artifacts picked for text weight,
+    not an adversarial search, and the channel bites hardest exactly
+    where text is heaviest.
+
+    This is loose, and it is meant to be. It still refuses both defects
+    the tier is guarded for by wide margins — 640px short of 3640 against
+    182px of slack, 3080px short of 8080 against 404px — because a raster
+    with content cut off it is short by a fraction of the drawing, not by
+    a rounding error.
+
+    Args:
+        want: The floor for one axis, in device pixels.
+
+    Returns:
+        The number of pixels a raster may fall below `want` on that axis
+        before it is judged to have content missing.
+    """
+    return max(96, want * 0.05)
+
+
 def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
                  want_is_floor=False):
     """Sanity-check a PNG: signature, IHDR dims, bytes-per-pixel floor.
@@ -6861,7 +6901,10 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
     failure. A raster SHORT of the drawing has the drawing's edge cut off
     it — the picture is missing content and no amount of tolerance makes
     that acceptable, so it fails at 2px, the most any int-rounding of a
-    scale can account for. A raster LARGER than the drawing is padded with
+    scale can account for. (`want_is_floor` widens that to `floor_slack`,
+    for the one path where `want_*` is a re-derivation of the client's
+    geometry rather than the server's own — read its docstring, it is a
+    measurement and not a guess.) A raster LARGER than the drawing is padded with
     ground, which costs bytes and nothing else, so it keeps the loose
     20%-or-64px band. Symmetric tolerance is what let a 3000px window
     swallow a 3640px drawing and still report VALID=true with two nodes
@@ -6874,14 +6917,15 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
         want_w: The drawing's width in device pixels, if known.
         want_h: The drawing's height in device pixels, if known.
         min_bpp: Bytes-per-pixel floor; 0 disables it.
-        want_is_floor: Read `want_w`/`want_h` as a LOWER BOUND and drop
-            the oversize band entirely. Tier 1 needs this: the tab
-            exports at its own browser's `devicePixelRatio` (1, 2 or 3),
-            which is decided by whatever monitor the user opened the tab
-            on and is never reported to the server, so an honest retina
-            export is 2-3x the floor and the 20%-or-64px band would
-            refuse it. Oversize is harmless anyway per the paragraph
-            above; on this path it is also NORMAL.
+        want_is_floor: Read `want_w`/`want_h` as a LOWER BOUND, drop the
+            oversize band entirely, and allow `floor_slack` underneath
+            rather than 2px. Tier 1 needs all three: the tab exports at
+            its own browser's `devicePixelRatio` (1, 2 or 3), which is
+            decided by whatever monitor the user opened the tab on and is
+            never reported to the server, so an honest retina export is
+            2-3x the floor and the 20%-or-64px band would refuse it.
+            Oversize is harmless anyway per the paragraph above; on this
+            path it is also NORMAL.
 
     Returns:
         `(ok, detail)` — `detail` is the dimensions and density, or why
@@ -6895,9 +6939,11 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
     h = int.from_bytes(data[20:24], "big")
     if not w or not h:
         return False, "zero-sized PNG"
-    if want_w and w + 2 < want_w:
+    slack_w = floor_slack(want_w or 0) if want_is_floor else 2
+    slack_h = floor_slack(want_h or 0) if want_is_floor else 2
+    if want_w and w + slack_w < want_w:
         return False, "width %d cuts a %dpx drawing short" % (w, want_w)
-    if want_h and h + 2 < want_h:
+    if want_h and h + slack_h < want_h:
         return False, "height %d cuts a %dpx drawing short" % (h, want_h)
     if not want_is_floor:
         if want_w and w - want_w > max(64, want_w * 0.2):
@@ -14517,8 +14563,12 @@ def cmd_snapshot(args):
         # then scales by `devicePixelRatio` — 1, 2 or 3, whatever monitor
         # the user's browser opened on, never reported here. So the s=1
         # box is a FLOOR and there is no ceiling to check against:
-        # anything smaller has the drawing's edge cut off it, anything
-        # larger is the same picture at more pixels. NOT `render_svg`'s
+        # meaningfully smaller has the drawing's edge cut off it, anything
+        # larger is the same picture at more pixels. Only MEANINGFULLY
+        # smaller: the client rebuilds text geometry from real font
+        # metrics before it frames, so an honest export lands a little
+        # inside this box more often than not — `floor_slack` is how much,
+        # and it is measured. NOT `render_svg`'s
         # dimensions, which are this box clamped to `RASTER_MAX_*` and
         # run 8080px of drawing down to 4000 — passing those would refuse
         # an honest export of a wide drawing as "far from requested".
