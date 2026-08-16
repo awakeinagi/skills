@@ -1726,17 +1726,26 @@ class TestSnapshotTierOne(Base):
         is asserted at the sizes really measured rather than at an
         imagined 2x. +20px is the largest over-margin in the six-export
         calibration (`..._admits_every_measured_real_export`, two rows at
-        exactly that); 1.41x is the theoretical worst case, a drawing
-        whose extent is set end to end by one element rotated 45°, which
-        `ink_extent` bounds unrotated. Zero of the corpus's 976 live
-        elements carry an angle, so that one is headroom and is asserted
-        as headroom.
+        exactly that).
+
+        THE THIRD CASE HAS OUTLIVED ITS REASON and is kept as a bare
+        headroom pin. It was the theoretical worst case — a drawing whose
+        extent is set end to end by one element rotated 45°, framing
+        1.41x the floor because `ink_extent` bounded it unrotated. v0.9
+        TASK-MICROFIX taught `ink_extent` to read `angle`, so the floor
+        now rotates with the element and that export cannot be 1.41x
+        over. The size is retained rather than deleted because
+        `ceiling_slack` still carries the 50% that was sized on it and
+        this is the only assertion standing between that band and a
+        silent narrowing; it now pins the BAND, not the scenario. Re-read
+        this together with `ceiling_slack`'s docstring if either moves.
         """
         for over_w, over_h, why in (
                 (20, 20, "the measured worst honest over-margin"),
                 (0, 20, "dashboard and dashboard-wireframe exactly: the "
                         "width lands on the floor and the height over it"),
-                (int(3640 * 0.41), int(180 * 0.41), "a 45-degree rotation")):
+                (int(3640 * 0.41), int(180 * 0.41),
+                 "41% over: inside `ceiling_slack`'s 50% band")):
             with self.subTest(over=(over_w, over_h)):
                 out = self.snapshot(TAB_WIDE, 3640 + over_w, 180 + over_h,
                                     aid="over%dx%d" % (over_w, over_h))
@@ -8051,16 +8060,32 @@ class TestArrowLabelAnchor(Base):
 
         The reviewer's five-point path. Its longest segments are the two
         400px horizontal limbs, and the turn under the label is between
-        the two 200px vertical ones — so "longest overall" put the
-        anchor on a limb with nothing to do with the turn, 203.6px from
-        the anchor against a claimed bound of 38. The adjacency rule
-        that replaced it made the bound true by construction; the arc-
-        length scan makes it true by a stronger property, since it stops
-        at the FIRST clearing position walking outward and so cannot
-        reach a far limb before a near one.
+        two shorter ones — so "longest overall" put the anchor on a limb
+        with nothing to do with the turn, 203.6px from the anchor against
+        a claimed bound of 38. The adjacency rule that replaced it made
+        the bound true by construction; the arc-length scan makes it true
+        by a stronger property, since it stops at the FIRST clearing
+        position walking outward and so cannot reach a far limb before a
+        near one.
+
+        THE LAST VERTEX MOVED from (400, 400) to (600, 400) on
+        2026-08-16 (v0.9 TASK-MICROFIX), and the reason is this test's
+        own subject rather than its arithmetic: every number below is
+        unchanged, because the anchor, the host limb and the 18px
+        clearance are all decided by the geometry ABOVE the moved point.
+        What changed is that the vertex under the label is now a real
+        45-degree turn. In the original path it was collinear — (400, 0)
+        to (400, 200) to (400, 400) runs dead straight — and once
+        `_label_off_corner` learned to test vertices for an actual turn,
+        the bias correctly stopped firing on it and this test went on
+        passing while measuring a slide that no longer happened. A
+        minimality pin whose fixture triggers no slide asserts nothing;
+        the blind-spot-4 spike flagged this exact fixture as the one
+        anchoring Ruling 1's guarantee, so it is repaired rather than
+        retired.
         """
         arrow, text = self.elbow(
-            "x", [[0, 0], [400, 0], [400, 200], [400, 400], [0, 400]])
+            "x", [[0, 0], [400, 0], [400, 200], [600, 400], [200, 400]])
         mx, my = canvas.arrow_label_anchor(arrow, text)
         x, y = canvas.arrow_label_slot(arrow, text)
         self.assertEqual((mx + 30, my + 10), (400, 200))

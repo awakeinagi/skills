@@ -1072,12 +1072,18 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
       numeric fields are coerced on the way in so this keeps
       `_scene_bbox`'s tolerance for a half-built element; a DELETED
       element answers `None` there and falls back to the two bounds
-      above, which is what this function already did with it.
+      above, which is what this function already did with it. `angle` is
+      zeroed on the way in AND ONLY THERE: since v0.9 TASK-MICROFIX
+      `ink_extent` turns its own answer, so passing the angle through
+      would rotate this element twice and put the harness's frame
+      somewhere the export's is not. It is asked for the UNROTATED drawn
+      extent, and the turn below is applied once, here, to the union.
 
     Then `angle`, about the element's STORED centre — where Excalidraw
     turns it, and deliberately not the centre of the painted box, which
     for an overhanging string is a different point and would swing the
-    glyphs somewhere no renderer draws them.
+    glyphs somewhere no renderer draws them. `canvas._turned_box` reads
+    the same centre for the same reason; the two must not drift.
 
     The rotation is `test_mutants._painted_corners`' arithmetic in the
     same order, which is not a stylistic choice: that function is the
@@ -1099,7 +1105,8 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
     for px, py in (e.get("points") or []):
         xs.append(x + float(px))
         ys.append(y + float(py))
-    drawn = canvas.ink_extent([dict(e, x=x, y=y, width=w, height=h)], pad=0)
+    drawn = canvas.ink_extent(
+        [dict(e, x=x, y=y, width=w, height=h, angle=0)], pad=0)
     if drawn:
         xs += [drawn[0], drawn[0] + drawn[2]]
         ys += [drawn[1], drawn[1] + drawn[3]]

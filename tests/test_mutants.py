@@ -2700,15 +2700,22 @@ def _labelled_path(points: list[list[float]]) -> tuple[dict, dict]:
 # so the population of "vertices that are not turns" is exactly what the
 # next two features manufacture.
 #
-# The fix named by the spike is a turn-angle test on the vertex — roughly
-# `> 5deg` — before it joins `corners`. It belongs to whoever owns
-# `_label_off_corner`, NOT to the curator. Distinct from the label-anchor
-# family above and deliberately in its own class: that one is about which
-# point the label is centred on (`arrow_label_anchor`, the client's parity
-# rule), this one is about whether the bias should fire at all
-# (`_label_off_corner`, the trigger). The spikes call them blind spots 1
-# and 4 and document the seam between them; a fix to either leaves the
-# other exactly as it is.
+# The fix named by the spike was a turn-angle test on the vertex — roughly
+# `> 5deg` — before it joins `corners`. It LANDED 2026-08-16 (v0.9
+# TASK-MICROFIX) as `_path_turns` gated by `LABEL_CORNER_MIN_TURN_DEG`, at
+# the spike's own bar and measured on the CHORDS: a Catmull-Rom spline is
+# C1-continuous, so the drawn curve's turn at an interior vertex is 0 in
+# every case and a test built on the drawn stroke would have answered "no
+# corner" everywhere — a fix that flipped the red below by disabling the
+# bias entirely. The live half is what would have caught that.
+#
+# Distinct from the label-anchor family above and deliberately in its own
+# class: that one is about which point the label is centred on
+# (`arrow_label_anchor`, the client's parity rule), this one is about
+# whether the bias should fire at all (`_label_off_corner`, the trigger).
+# The spikes call them blind spots 1 and 4 and document the seam between
+# them; a fix to either leaves the other exactly as it is, and the fold-in
+# that drained blind spot 1's class left this one's red untouched.
 # ---------------------------------------------------------------------------
 
 
@@ -2755,42 +2762,45 @@ class TestCornerBiasReadsVerticesNotTurns(unittest.TestCase):
         self.assertAlmostEqual(
             self._slot_offset([[0, 0], [200, 0], [200, 200]]), 18.0, places=3)
 
-    @unittest.expectedFailure
-    def test_red_a_collinear_waypoint_is_treated_as_a_corner(self) -> None:
-        """Two point lists, one stroke, two different label positions.
+    def test_a_collinear_waypoint_is_not_treated_as_a_corner(self) -> None:
+        """Two point lists, one stroke, one label position.
 
-        RED BY ASSERTION. The direction is an OVER-FIRE and the magnitude
-        is 18px — `hh + LABEL_CORNER_PAD` for this 60x20 label — bought
-        against a turn of 0 degrees. Both paths trace the identical
-        U-shaped polyline and both put the arc midpoint at the same
-        (370, 190); dropping the redundant vertex at (400, 200) is not a
-        change to the drawing, and the label moves anyway.
+        FLIPPED 2026-08-16 by v0.9 TASK-MICROFIX, which added the
+        turn-angle test this asked for (`_path_turns`,
+        `LABEL_CORNER_MIN_TURN_DEG`). The name lost its `red_` prefix
+        with the marker: what it asserts is now the function's contract
+        rather than its absence.
+
+        WHAT IT WAS. An OVER-FIRE of 18px — `hh + LABEL_CORNER_PAD` for
+        this 60x20 label — bought against a turn of 0 degrees. Both paths
+        trace the identical U-shaped polyline and both put the arc
+        midpoint at the same (370, 190); dropping the redundant vertex at
+        (400, 200) is not a change to the drawing, and the label moved
+        anyway. Now both slide 0.0000px, because the vertex at (400, 200)
+        turns through 0 degrees and no longer counts as a corner.
 
         Asserted as an equality between the two paths rather than as
         `offset == 0` on the five-point one, because that is the actual
         claim: the label's position is a function of the stroke, not of
-        how many points were stored along it. Flips when the vertex is
-        tested for an actual turn before it counts as a corner.
+        how many points were stored along it. Kept in that form after the
+        flip — `offset == 0` would be satisfied by a bias that had died
+        altogether, and the live half beside this is what stops that
+        reading, exactly as it did while this was red.
 
         Sharp geometry throughout, deliberately — under roundness the two
         point lists WOULD draw different strokes (Catmull-Rom reads every
         stored point), so this comparison is only available while the era
-        is sharp, and the defect it names is the one that grows when it
+        is sharp, and the defect it named is the one that grows when it
         stops being.
 
-        STILL RED after the v0.9 curves fold-in, measured rather than
-        assumed. That change rewrote `_label_off_corner` end to end — the
-        host-segment pick is gone and the slide walks arc length along
-        the drawn path — so the obvious question was whether the new
-        mechanism happens to drop collinear vertices on the way. It does
-        not: the five-point path still slides 18.0000px and the four-point
-        one still slides 0.0000px, both anchored at the identical
-        (370, 190), which is this assertion's two operands unchanged to
-        four places. Nothing moved because the rewrite replaced WHERE the
-        label slides to, not WHICH vertices it slides to clear —
-        `corners` is still every interior vertex. The fix named above is
-        still the fix, still a turn-angle test on the vertex, and still
-        belongs to whoever owns `_label_off_corner`.
+        IT SURVIVED THE v0.9 CURVES FOLD-IN, measured rather than
+        assumed, and that is worth keeping on the page: the fold rewrote
+        `_label_off_corner` end to end — the host-segment pick gone, the
+        slide walking arc length along the drawn path — and moved this
+        assertion's two operands by nothing at all, because it replaced
+        WHERE the label slides to and not WHICH vertices it slides to
+        clear. A rewrite of the machinery around a defect is not a fix to
+        it, and only re-measurement said so.
         """
         self.assertAlmostEqual(
             self._slot_offset([[0, 0], [400, 0], [400, 200], [400, 400],
@@ -12340,7 +12350,8 @@ def _painted_corners(el: dict[str, Any]) -> list[tuple[float, float]]:
 class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
     """Hiding the box leaves the word: opacity stops at the container."""
 
-    def _scene(self, **overrides: Any) -> list[dict[str, Any]]:
+    def _scene(self, hide_after: int | None = None,
+               **overrides: Any) -> list[dict[str, Any]]:
         """Build one labelled node through the real op path.
 
         Through `apply_batch` rather than by writing elements out, because
@@ -12352,7 +12363,21 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
         ghost, and every extra element is another thing the reds could be
         accidentally measuring.
 
+        `hide_after` exists because the funnel and the `mod` op are two
+        different routes to a hidden container, and v0.9 TASK-MICROFIX
+        closed only the first. Building the node hidden now propagates
+        opacity to the caption; hiding it afterwards — which is what a
+        user dragging the opacity slider does, and what the `mod` op
+        replays — still leaves the caption at full ink. The lint's
+        firing pole moved onto this route rather than being weakened,
+        which is exactly the outcome the split predicted: the funnel fix
+        stopped ITS ghost, and the next one arriving by another route is
+        still caught by the check that was filed apart from it.
+
         Args:
+            hide_after: Opacity to `mod` onto the CONTAINER in a second
+                op, after the funnel has already built the pair. None
+                leaves the scene as the funnel built it.
             **overrides: Element-spec fields merged over the defaults,
                 so the poles differ from the reds in exactly one key.
 
@@ -12367,11 +12392,15 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
         spec = {"type": "rectangle", "id": "g1", "label": "GHOST",
                 "x": 0, "y": 0, "width": 120, "height": 60, "role": "node"}
         spec.update(overrides)
+        ops: list[dict[str, Any]] = [{"op": "add", "element": spec}]
+        if hide_after is not None:
+            ops.append({"op": "mod", "id": "g1",
+                        "attrs": {"opacity": hide_after}})
         store.apply_batch({
             "base_revn": 0, "artifact": "flow",
             "create": {"id": "flow", "name": "Flow", "type": "flow",
                        "concept": "checkout", "concept_name": "Checkout"},
-            "ops": [{"op": "add", "element": spec}]})
+            "ops": ops})
         return store.scenes["flow"]
 
     def _el(self, scene: list[dict[str, Any]], eid: str) -> dict[str, Any]:
@@ -12390,38 +12419,39 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
                          % (eid, [e["id"] for e in scene]))
         return hit[0]
 
-    @unittest.expectedFailure
-    def test_red_the_bound_label_does_not_inherit_the_hidden_container(
-            self) -> None:
-        """`opacity: 0` on a node leaves its caption at full ink.
+    def test_the_bound_label_inherits_the_hidden_container(self) -> None:
+        """`opacity: 0` on a node hides its caption with it.
 
-        C1, task-50-report.md §11, re-measured 2026-08-16: the container
-        stores `opacity` 0 and `g1-label` stores 100, from one op. What
-        the reader sees is the word GHOST hanging in space with nothing
-        under it — not a hidden node, which is what was asked for, and
-        not a visible one either.
+        FLIPPED 2026-08-16 by v0.9 TASK-MICROFIX, which carried opacity
+        through the funnel. The name lost its `red_` prefix with the
+        marker: what it asserts is now the funnel's contract rather than
+        its absence.
 
-        THE FUNNEL IS NOT STYLE-BLIND, WHICH IS WHAT MAKES THIS A DEFECT
+        WHAT IT WAS. C1, task-50-report.md §11: the container stored
+        `opacity` 0 and `g1-label` stored 100, from one op. What the
+        reader saw was the word GHOST hanging in space with nothing under
+        it — not a hidden node, which is what was asked for, and not a
+        visible one either.
+
+        THE FUNNEL WAS NOT STYLE-BLIND, WHICH IS WHAT MADE IT A DEFECT
         rather than a design choice. The same block that builds this
         label copies `fontSize` and `fontFamily` off the spec and
         computes `strokeColor` from the container's own
-        `backgroundColor`, so it already treats the label as something
-        that must follow its container's appearance. `opacity` is the one
-        appearance attribute it does not carry, and it is the one that
+        `backgroundColor`, so it already treated the label as something
+        that must follow its container's appearance. `opacity` was the
+        one appearance attribute it did not carry, and it is the one that
         decides whether the element is in the picture at all.
 
-        MAGNITUDE AND DIRECTION are the two stored numbers and the
-        DIRECTION is the half that matters: the label must not be MORE
-        opaque than the box it names. Asserted as an inequality rather
-        than as equality on purpose — a fix that clamped bound text to
-        its container satisfies it, and so does one that refused the op,
-        and the choice between those is not this pin's to make. Equality
-        would also forbid the legitimate case a future spec might want,
-        a faint label on a solid box.
-
-        WHO FLIPS THIS: whoever owns `make_element`'s label funnel. It is
-        a product file, so not a curator, and not the same hands that
-        wrote this test.
+        STILL AN INEQUALITY AFTER THE FLIP, and deliberately not tightened
+        to the equality the fix happens to produce. The claim is a
+        DIRECTION — a label must not be more visible than the thing it
+        names — and it is the same relation `lint_layout`'s orphan-label
+        warning states, so the pin and the check say one thing. Tightening
+        it would forbid the legitimate case a future spec might want, a
+        faint label on a solid box, and would pin the fix's mechanism
+        (inherit) in a place that only ever cared about its effect. The
+        exact pair the funnel now stores IS asserted, once, next door in
+        the check's quiet pole, which is where it belongs.
         """
         scene = self._scene(opacity=0)
         box = self._el(scene, "g1")
@@ -12485,21 +12515,28 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
         needs no constant and states the same fact its sibling red pins
         on the funnel.
 
-        THE SIBLING RED STAYS RED, deliberately, and the assertion below
-        keeps its own subject so the two cannot be confused. The funnel
-        still builds the label at full ink over a hidden box; what has
-        changed is only that the drawing now says so. Those were filed
-        apart because they have different owners, and this flipping while
-        that one stands is the shape of that split holding.
+        THE SIBLING RED FLIPPED TOO, 2026-08-16, by v0.9 TASK-MICROFIX,
+        and the scene under this assertion moved on the same day for
+        that reason. The funnel now carries opacity, so a node built
+        hidden stores (0, 0) and is no longer a ghost at all — the check
+        goes correctly QUIET on it, and this test would have been
+        measuring the repair rather than the check. It builds the node
+        VISIBLE and hides it with a second `mod` op instead: the route
+        the funnel fix does not close, and the one the docstring below
+        named in advance.
 
-        THE SEPARATION WAS THE POINT, and it paid. Fixing the funnel
-        would have made THIS scene stop being a ghost and flipped this
-        test as a side effect, while the check still did not exist and
-        the next orphan label arriving by another route — a hand-placed
-        text bound to a hidden container, a user hiding a box in the
-        client — went unremarked again. Filed apart so that outcome
-        would have been visible as a flip for the wrong reason. It
-        flipped for the right one: the funnel is untouched.
+        THE SEPARATION WAS THE POINT, and it paid TWICE. Fixing the
+        funnel first would have made this scene stop being a ghost and
+        flipped this test as a side effect, while the check still did
+        not exist and the next orphan label arriving by another route —
+        a hand-placed text bound to a hidden container, a user hiding a
+        box in the client — went unremarked again. Filed apart, the
+        check landed first on its own evidence, and when the funnel fix
+        did arrive the only thing it cost was one line of scene setup.
+        The `mod` route is unrepaired on purpose: propagating style
+        through every later edit is a different design than propagating
+        it once at construction, and the lint is what covers the gap
+        meanwhile. Its quiet pole is asserted beside this.
 
         A MAGNITUDE IS ASSERTED NOW, and it could not be before. The red
         stated a silence — no entry in `DETECTORS` owned this class, so
@@ -12508,7 +12545,7 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
         satisfied by a check that names the label while measuring
         nothing.
         """
-        scene = self._scene(opacity=0)
+        scene = self._scene(hide_after=0)
         lint = canvas.lint_layout(scene, artifact_type="flow")
         said = collect_findings(scene) + [
             {"check": "lint_layout", "element": None, "magnitude": None,
@@ -12527,6 +12564,44 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
             "the label is named but its two opacities are not, so the "
             "finding carries no magnitude to repair against: %s"
             % [f["raw"] for f in named])
+
+    def test_the_repaired_funnel_leaves_the_orphan_check_quiet(self) -> None:
+        """The check's OTHER pole, on the construction that was repaired.
+
+        The pair above and this one are the two halves of one claim, and
+        the fix that flipped the sibling red is what made the second
+        half assertable: `mod`-hidden, the caption is louder than its
+        box and the check says so; funnel-hidden, the two are equal and
+        the check must say NOTHING. A check that had degenerated into
+        "warn whenever an opacity is not 100" satisfies the firing pole
+        and fails here, which is the failure mode a relation-based rule
+        is chosen to avoid in the first place.
+
+        WHY IT IS NOT ENOUGH TO ASSERT THE STORED PAIR. That is the
+        sibling red's job and it does it. This asserts the consequence
+        for the READER: nobody is told to repair a drawing that says
+        exactly what it meant to. An over-firing lint on the funnel's
+        own output would nag on every hidden node the tool itself
+        builds, which is how a check gets muted wholesale in week one.
+
+        The opacity NOTE still fires here, on both elements, and that is
+        correct and deliberately not asserted against: "opacity is state,
+        not style" is a different complaint with a different subject, and
+        C2's product question about it is untouched.
+        """
+        scene = self._scene(opacity=0)
+        self.assertEqual([(e["id"], e.get("opacity")) for e in scene],
+                         [("g1", 0), ("g1-label", 0)],
+                         "the funnel stopped propagating opacity, so the "
+                         "silence below is about a scene that is still a "
+                         "ghost rather than about a repaired one")
+        warned = [w for w in canvas.lint_layout(
+            scene, artifact_type="flow")["warnings"] if "g1-label" in w]
+        self.assertEqual(
+            warned, [],
+            "the orphan-label check fired on a node hidden WITH its own "
+            "caption — both elements at 0, nothing floating, nothing to "
+            "repair: %s" % (warned,))
 
     def test_the_instruments_do_speak_about_this_scene(self) -> None:
         """The silence red's firing pole: they are awake, and wrong.
@@ -12633,35 +12708,36 @@ class TestInkExtentIsRotationBlind(unittest.TestCase):
             worst = max(worst, minx - cx, cx - maxx, miny - cy, cy - maxy)
         return worst
 
-    @unittest.expectedFailure
-    def test_red_a_quarter_turned_slab_paints_80px_above_its_extent(
-            self) -> None:
-        """`ink_extent` frames a rotated element by the box it isn't in.
+    def test_a_quarter_turned_slab_is_bounded_by_its_extent(self) -> None:
+        """`ink_extent` frames a rotated element by the box it IS in.
 
-        MAGNITUDE AND DIRECTION, both exact and both chosen so no
-        tolerance band can absorb them. The slab is 200x40 at the origin;
-        turned a quarter, it paints from y=-80 to y=120 and from x=80 to
-        x=120. `ink_extent` answers the stored box unchanged — y=0 to
-        y=40 — so the ink escapes by exactly 80px, ABOVE the reported
-        top, and the reported height under-reads the painted height by
-        160 of its 200px. Asserted as the containment that should hold,
-        with the measured 80 named in the message so a partial fix says
-        how far it got.
+        FLIPPED 2026-08-16 by v0.9 TASK-MICROFIX (`canvas._turned_box`).
+        The name lost its `red_` prefix with the marker: what it asserts
+        is now the bound's contract rather than its absence.
+
+        WHAT IT WAS, with the magnitude and direction that were chosen so
+        no tolerance band could absorb them. The slab is 200x40 at the
+        origin; turned a quarter, it paints from y=-80 to y=120 and from
+        x=80 to x=120. `ink_extent` answered the stored box unchanged —
+        y=0 to y=40 — so the ink escaped by exactly 80px, ABOVE the
+        reported top, and the reported height under-read the painted
+        height by 160 of its 200px. Asserted as the containment that
+        should hold, with the measured escape still named in the message
+        so a REGRESSION says how far it got, not just that it happened.
 
         A HALF-TURN IS THE SHARPEST CONTROL and it is the pole below
         rather than a case here: at 180 degrees the painted box and the
-        stored box coincide exactly, so a bound that had merely started
-        REFUSING rotated elements, or padding them by a constant, passes
-        the pole and fails this. The defect is not "rotation is
-        unhandled", it is "the angle is never read".
+        stored box coincide, so a bound that had merely started REFUSING
+        rotated elements, or padding them by a constant, passes the pole
+        and fails this. The defect was not "rotation is unhandled", it
+        was "the angle is never read" — and the fix reads it rather than
+        special-casing it, which is why both survive.
 
-        WHO FLIPS THIS: whoever owns `ink_extent` — a `canvas.py`
-        function, so not a curator. The fix is to bound by the painted
-        corners, which is what `_painted_corners` computes for the pins
-        and what the client's own export already does. Note for that
-        owner: the same change wants re-reading against `ceiling_slack`
-        and the tier-1 floor, both of which are calibrated against
-        today's under-read.
+        THE SISTER PIN in `tests/test_mutants_render` is on the same base
+        scene and was fixed by TASK-FRAMING first; this one had to be
+        consistent with it rather than merely correct, because the two
+        bounds decide where the harness measures and where the export is
+        made. Both turn about the element's STORED centre.
         """
         scene = _rotated_slab(90)
         self.assertEqual(
@@ -12695,6 +12771,17 @@ class TestInkExtentIsRotationBlind(unittest.TestCase):
         outside a box they belong exactly on. Six places is far below any
         pixel and nowhere near the 80px the red measures, so no fix can
         slip between them.
+
+        BOTH ASSERTIONS CARRY THAT TOLERANCE SINCE v0.9 TASK-MICROFIX,
+        and the second one only looked exact because the function was
+        blind. An `ink_extent` that never read `angle` returned the
+        stored integers at every angle, so `(0, 0, 200, 40)` came back
+        bit-identical from a half-turn it had not performed; one that
+        does read it goes through `math.cos(pi)` and cannot. The claim is
+        unchanged — the reported box is the stored box, to well under a
+        pixel — and the numbers are still named in full rather than
+        derived, so a fix that moved an edge by any visible amount fails
+        here exactly as before.
         """
         for angle in (0, 180):
             with self.subTest(angle=angle):
@@ -12705,7 +12792,13 @@ class TestInkExtentIsRotationBlind(unittest.TestCase):
                         "extent, so this function no longer bounds the "
                         "case the red beside it contrasts against: %r"
                         % (angle, self._extent_box(scene)))
-                self.assertEqual(self._extent_box(scene), (0, 0, 200, 40))
+                for got, want in zip(self._extent_box(scene),
+                                     (0, 0, 200, 40)):
+                    self.assertAlmostEqual(
+                        got, want, places=6,
+                        msg="the %d-degree slab's extent moved off the "
+                            "stored box it coincides with: %r"
+                            % (angle, self._extent_box(scene)))
 
 
 class TestMutantCatalogue(unittest.TestCase):
@@ -13914,9 +14007,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestBoundsLoopReadsTheLineHeight": 1,
-                             "TestCornerBiasReadsVerticesNotTurns": 1,
-                             "TestInkExtentIsRotationBlind": 1,
-                             "TestLabelledGhostKeepsItsCaption": 1,
                              "TestLoadFindingsReachTheAgent": 4}
 # `TestReplayOrderFidelity` LEFT this list on 2026-08-16 (v0.9 Task 52),
 # draining 2 -> 0 in one change, and it is the first class to leave by way
@@ -13961,6 +14051,17 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
 # the class did NOT drain, because its other red belongs to `make_element`'s
 # owner and nothing in that change touched the funnel. This is what a
 # split-owner class looks like draining correctly.
+# THE REST OF BATCH 25's OUTSIDE-OWNED REDS LANDED TOGETHER later the same
+# day (v0.9 TASK-MICROFIX), and THREE classes LEAVE this dict at once:
+# `TestLabelledGhostKeepsItsCaption` 1 -> 0 (the funnel carries opacity),
+# `TestInkExtentIsRotationBlind` 1 -> 0 (`_turned_box`), and
+# `TestCornerBiasReadsVerticesNotTurns` 1 -> 0 (`_path_turns`) — the last
+# of which had stood since the curves fold-in declined to drain it. All
+# three classes still hold tests, and green ones; they are absent because
+# they hold no REDS, which is the only thing this dict counts. Batch 25's
+# prediction reads as accurate end to end: seven reds, five owned outside
+# the harness, drained "in pieces from several directions" across two
+# tasks and two days rather than in one flip.
 
 # The one class whose reds ARE catalogue entries, excluded from the
 # comparison above. Named rather than inlined so a rename of the class shows

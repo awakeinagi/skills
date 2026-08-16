@@ -1498,6 +1498,20 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             "customData": {"role": "label", "author": "agent"},
         })
         lbl["strokeColor"] = label_color
+        # ...and its container's OPACITY, which is the attribute deciding
+        # whether the element is in the picture at all. This funnel was
+        # never style-blind — it copies fontSize and fontFamily off the
+        # spec and derives strokeColor from the container's own fill —
+        # and opacity was the one appearance attribute left behind, so
+        # `{"opacity": 0}` on a labelled node stored the box at 0 and the
+        # caption at 100 from ONE op: the word GHOST hanging in space
+        # with nothing under it, which is neither the hidden node that
+        # was asked for nor a visible one (curator batch 25's C1).
+        # Assigned rather than clamped because a spec has no channel for
+        # the label's own opacity — the caption is part of the thing, not
+        # a second thing with its own visibility — so inheritance and a
+        # clamp are the same number by every route that exists today.
+        lbl["opacity"] = el.get("opacity", 100)
         fit_label_in(el, lbl)
         # Clamp the container to the client's minimum for bound text
         # (label height + 2×5px padding) — otherwise the browser bumps
@@ -3758,6 +3772,66 @@ LABEL_CORNER_PAD = 8.0
 LABEL_SLIDE_STEP = 0.5
 
 
+# How sharply a stored vertex must turn before the label slides to clear
+# it, in degrees. A vertex is not a corner because it was stored; it is a
+# corner because the stroke changes direction there, and the population
+# that separates the two is real — `add_waypoint` and the reroute walk
+# both emit redundant collinear vertices, and rounded routing will emit
+# more. The bar is set by the guarantee the slide itself makes: the
+# residual stub mismatch it LEAVES runs 16-36 degrees under curvature
+# (v0.9 blind-spot 4 spike), so firing to repair a turn of 5 degrees
+# would move the label to buy an alignment three times worse than the one
+# it already tolerates. Below this the two approaches read as one stroke
+# and the eye completes them, which is the whole defect being repaired.
+LABEL_CORNER_MIN_TURN_DEG = 5.0
+
+
+def _path_turns(segs):
+    """How sharply a stored path turns at each of its interior vertices.
+
+    Measured on the CHORDS and not on the drawn stroke, which is not a
+    convenience: roughjs draws a rounded linear element as a Catmull-Rom
+    spline, and that spline is C1-continuous, so the drawn curve's turn
+    at every interior vertex is 0 by construction and a test built on it
+    would answer "no corner" everywhere. The chord turn is the same
+    number in both eras — it is the angle between the two approaches the
+    reader's eye is asked to complete — which is why `_chord_segments`
+    survives for exactly this.
+
+    Args:
+        segs: `[(from_point, to_point, length)]` as `_chord_segments`
+            builds them, in the arrow's own coordinates.
+
+    Returns:
+        One angle in degrees per interior vertex, in path order and in
+        `[0, 180]` — `len(segs) - 1` of them, aligned with `segs[:-1]`.
+        A vertex whose approach or departure is a zero-length span (a
+        duplicated point, which the client does store) borrows the
+        nearest span that has a direction, so the real turn is still
+        measured at the place it happens; 0.0 when neither side has one.
+    """
+    dirs = []
+    for a, b, ln in segs:
+        dirs.append(((b[0] - a[0]) / ln, (b[1] - a[1]) / ln) if ln else None)
+    before, last = [], None
+    for d in dirs:
+        last = d if d is not None else last
+        before.append(last)
+    after, nxt = [None] * len(dirs), None
+    for i in range(len(dirs) - 1, -1, -1):
+        nxt = dirs[i] if dirs[i] is not None else nxt
+        after[i] = nxt
+    turns = []
+    for i in range(len(segs) - 1):
+        u, v = before[i], after[i + 1]
+        if u is None or v is None:
+            turns.append(0.0)
+            continue
+        turns.append(math.degrees(math.acos(
+            min(max(u[0] * v[0] + u[1] * v[1], -1.0), 1.0))))
+    return turns
+
+
 def _label_off_corner(arrow, label, segs, mx, my):
     """Slide a label's anchor along the DRAWN path until no turn sits
     under its own box.
@@ -3785,12 +3859,21 @@ def _label_off_corner(arrow, label, segs, mx, my):
 
     THE RULE. Walk the flattened path — the one the renderer actually
     draws — outward in arc length from the client's anchor, and stop at
-    the first position whose box clears every interior vertex. Ties go
-    to the position EARLIER along the path; the two sides are symmetric
-    on a balanced elbow and something has to be deterministic. Nothing
-    clears anywhere leaves the anchor alone: there is nowhere better,
-    and inventing an off-stroke position is the perpendicular lift v0.6
-    removed.
+    the first position whose box clears every interior vertex THAT
+    TURNS. Ties go to the position EARLIER along the path; the two sides
+    are symmetric on a balanced elbow and something has to be
+    deterministic. Nothing clears anywhere leaves the anchor alone:
+    there is nowhere better, and inventing an off-stroke position is the
+    perpendicular lift v0.6 removed.
+
+    WHICH VERTICES ARE CORNERS is a question this used to skip: it slid
+    for every interior vertex, and a redundant collinear waypoint —
+    which `add_waypoint` and the reroute walk both emit — moved the
+    label 18px to clear a turn of 0 degrees. Two point lists tracing one
+    stroke put the label in two places, so the position was a function
+    of how the path was STORED rather than of how it is drawn.
+    `_path_turns` is the test and `LABEL_CORNER_MIN_TURN_DEG` is the
+    bar; the slide itself is unchanged.
 
     THE GUARANTEE, restated for the curved world. What the segment-
     selection rule this replaces promised was collinear stubs at the
@@ -3827,8 +3910,9 @@ def _label_off_corner(arrow, label, segs, mx, my):
         label: The bound text element, read for `width`/`height`.
         segs: `[(from_point, to_point, length)]` in the arrow's own
             coordinates, as `_chord_segments` builds them. Read for its
-            CORNERS only — a corner is a stored vertex in every world,
-            curved or sharp, so this argument needs no flattening.
+            CORNERS only — a stored vertex the path turns at, which is
+            the same vertex and the same angle in every world, curved or
+            sharp, so this argument needs no flattening.
         mx: The client anchor's x, in scene coordinates.
         my: The client anchor's y.
 
@@ -3840,8 +3924,11 @@ def _label_off_corner(arrow, label, segs, mx, my):
     hw = label.get("width", 0) / 2.0
     hh = label.get("height", 0) / 2.0
     # interior vertices only: an END point lives on a node's border by
-    # construction, and a label reaching it is a different complaint
-    corners = [(ax + b[0], ay + b[1]) for (_a, b, _ln) in segs[:-1]]
+    # construction, and a label reaching it is a different complaint.
+    # And only the ones that TURN — see `LABEL_CORNER_MIN_TURN_DEG`.
+    corners = [(ax + b[0], ay + b[1])
+               for (_a, b, _ln), turn in zip(segs[:-1], _path_turns(segs))
+               if turn > LABEL_CORNER_MIN_TURN_DEG]
 
     def clear(x, y):
         """Whether a label centred here keeps every turn out of its box.
@@ -3979,7 +4066,8 @@ def _chord_segments(arrow):
     whole-path arc walk — was deleted rather than fixed, because the
     client never performed one (`_client_label_point`); these segments
     survive because `_label_off_corner` reasons about CORNERS, and a
-    corner is a stored vertex in every world.
+    corner is a stored vertex the path TURNS at — same vertex, same
+    angle, in every world (`_path_turns`).
 
     Args:
         arrow: The arrow/line element, with `points`.
@@ -7287,6 +7375,56 @@ def painted_text_lines(el):
     return lines, fs
 
 
+def _turned_box(e, x0, y0, x1, y1):
+    """Bound a painted box after the element's own `angle` is applied.
+
+    `angle` is stored on every element class and read by both renderers,
+    so an element carrying one paints somewhere its four unrotated
+    numbers never mention: a 200x40 slab quarter-turned at the origin
+    paints from y=-80 to y=120 while `x/y/width/height` still say y=0 to
+    y=40. Bounding by the stored box cropped that ink out of the export
+    and floored the tier-1 check below the picture it is checking.
+
+    THE CENTRE IS THE ELEMENT'S STORED CENTRE — `x + width/2` — and not
+    the centre of the box passed in, which for an overhanging string is a
+    different point. Excalidraw turns an element about the stored centre;
+    turning the painted box about its own centre would swing the glyphs
+    somewhere no renderer draws them. The sister bound in
+    `tests/test_mutants_render._drawn_corners` reads the same centre in
+    the same order (v0.9 TASK-FRAMING), so the frame the ablation harness
+    measures in and the frame the export is made in cannot come to
+    describe different pictures.
+
+    The result is an axis-aligned box around the four turned corners, so
+    it is a bound and not the shape: a 45-degree slab reports the square
+    its diagonal spans. That errs toward WIDE, which is the safe
+    direction for a viewBox and the safe direction for a floor.
+
+    Args:
+        e: The element, read for `angle`, `x`, `y`, `width`, `height`.
+        x0: Left of the element's painted box, unrotated, in scene px.
+        y0: Top of that box.
+        x1: Right of that box.
+        y1: Bottom of that box.
+
+    Returns:
+        `(x0, y0, x1, y1)` containing the turned corners — the input
+        unchanged, to the bit, when the element carries no angle.
+    """
+    ang = e.get("angle") or 0
+    if not ang:
+        return (x0, y0, x1, y1)
+    cx = e.get("x", 0) + e.get("width", 0) / 2.0
+    cy = e.get("y", 0) + e.get("height", 0) / 2.0
+    ca, sa = math.cos(ang), math.sin(ang)
+    xs, ys = [], []
+    for bx, by in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        px, py = bx - cx, by - cy
+        xs.append(cx + px * ca - py * sa)
+        ys.append(cy + px * sa + py * ca)
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
 def ink_extent(els, pad=40):
     """A drawing's painted bounding box, padded — before any clamp.
 
@@ -7302,6 +7440,18 @@ def ink_extent(els, pad=40):
     by shared code: this default and `exportPadding: 40` in App.tsx's
     screenshot servicing. Changing one without the other silently moves
     the tier-1 floor off the export it is measuring.
+
+    EVERY CLASS IS BOUND THE SAME WAY: work out where the element paints
+    unrotated, then turn that box by its `angle` (`_turned_box`). Until
+    v0.9 the angle was never read at all, so a rotated element was framed
+    by a rectangle it is not in — and this function is load-bearing in
+    two directions, which is what made that worth fixing rather than
+    noting. Reading small crops a real export; it also floors
+    `cmd_snapshot`'s tier-1 check below the picture, admitting a raster
+    that crops the drawing. The frozen corpus carries `angle` on 0 of its
+    976 elements, so this is a pin rather than an incident — one rotated
+    element in one artifact is all it takes, and nothing in the tool
+    stops a user from turning one.
 
     Args:
         els: The artifact's elements; deleted ones are skipped.
@@ -7334,11 +7484,9 @@ def ink_extent(els, pad=40):
         # must err in (v0.9 task 49 recalibration, measured against
         # `_rendered_path` after the curves fold).
         if e.get("type") in ("arrow", "line", "freedraw"):
-            for p in e.get("points") or [[0, 0]]:
-                xs.append(e.get("x", 0) + p[0])
-                ys.append(e.get("y", 0) + p[1])
-                x2s.append(e.get("x", 0) + p[0])
-                y2s.append(e.get("y", 0) + p[1])
+            pxs = [e.get("x", 0) + p[0] for p in e.get("points") or [[0, 0]]]
+            pys = [e.get("y", 0) + p[1] for p in e.get("points") or [[0, 0]]]
+            x1, ey, ex2, ey2 = min(pxs), min(pys), max(pxs), max(pys)
         else:
             ex, ey = e.get("x", 0), e.get("y", 0)
             x1 = ex
@@ -7373,10 +7521,16 @@ def ink_extent(els, pad=40):
                     # text the renderer wraps by up to 119px of margin no
                     # glyph ever reaches.
                     x1 = min(x1, ex + (e.get("width", 0) - tw) / 2.0)
-            xs.append(x1)
-            ys.append(ey)
-            x2s.append(ex + ew2)
-            y2s.append(ey + eh2)
+            ex2, ey2 = ex + ew2, ey + eh2
+        # ...and then TURN it, if the element is turned. Last, and on the
+        # painted box rather than the stored one, so the string overhang
+        # above swings with the glyphs instead of being added to a box
+        # that has already been rotated out from under it.
+        x1, ey, ex2, ey2 = _turned_box(e, x1, ey, ex2, ey2)
+        xs.append(x1)
+        ys.append(ey)
+        x2s.append(ex2)
+        y2s.append(ey2)
     return (min(xs) - pad, min(ys) - pad,
             max(x2s) - min(xs) + 2 * pad, max(y2s) - min(ys) + 2 * pad)
 
@@ -7708,9 +7862,12 @@ def render_svg(els, title="", footnotes=False, glossary=None):
 # measured artifacts (`exact_ink_extent`), so the number has never been
 # spent; it is here so that the day one does, the check bends instead of
 # false-refusing. Every OTHER divergence between the two sides runs the
-# safe way — rotation grows a client AABB, a rounded arrow's spline bows
-# outside the chords `ink_extent` measures, a container re-fitting its
-# label grows — and a floor admits all three.
+# safe way — a rounded arrow's spline bows outside the chords
+# `ink_extent` measures, and a container re-fitting its label grows —
+# and a floor admits both. Rotation used to be a third: the client grew
+# its AABB and the server did not. Since v0.9 TASK-MICROFIX the server
+# grows it too (`_turned_box`), so that one is not a divergence this
+# number has to absorb any more — it is agreement.
 EXACT_SLACK = 8
 
 
@@ -7784,14 +7941,27 @@ def ceiling_slack(want):
     Sized against both ends rather than inherited. The honest over-margin
     is small: across the six measured real exports the largest is +20px,
     and it is +20 because a client re-fitting text can land a little
-    outside the saved box as easily as inside it. The theoretical worst
-    case is larger and unmeasured — `ink_extent` bounds an element by its
-    unrotated box, so a drawing whose extent is set end to end by one
-    element rotated 45° frames up to 1.41x the floor. That is 0 of 976
-    live elements across the 24 corpus scenes, but a ceiling is a
-    REFUSAL, and refusing an honest picture is the failure this tier
-    keeps making. 50% clears the rotation case with headroom and still
-    refuses a doubled raster by a factor of four.
+    outside the saved box as easily as inside it.
+
+    THE ROTATION CASE THIS WAS SIZED AGAINST IS GONE, and the number is
+    kept anyway. The original argument was that `ink_extent` bounded an
+    element by its unrotated box, so a drawing whose extent was set end
+    to end by one element rotated 45° framed up to 1.41x the floor, and
+    50% had to clear that. v0.9 TASK-MICROFIX taught `ink_extent` to read
+    `angle` (`_turned_box`), so the floor now moves WITH the rotation and
+    that 1.41x cannot arise: re-derived over the whole corpus at the fix,
+    0 of 24 artifacts' extents moved by a pixel, because 0 of their 976
+    live elements carry an angle — the same zero, now measured on both
+    sides of the change rather than only on one.
+
+    So 50% is no longer clearing a known case; it is headroom against
+    unmeasured ones, and it is NOT re-tuned here on that basis. Narrowing
+    a REFUSAL wants its own measurement of what honest exports actually
+    do, and refusing an honest picture is the failure this tier keeps
+    making — where the band is still sized correctly is at the other end,
+    which is the end it was added for: it refuses a doubled raster by a
+    factor of four. A later task with export measurements in hand may
+    tighten it; a reader with none should leave it alone.
 
     Args:
         want: The floor for one axis, in device pixels.
