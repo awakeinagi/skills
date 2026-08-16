@@ -3719,9 +3719,11 @@ def internal_error(errors: list[str], exc: BaseException, doing: str,
     traceback naming a Python builtin, and SKILL.md's promise that
     errors name the offending op was false for every fault that arose in
     them. The membership is named rather than counted (E-9 review F2):
-    the first spelling said "four" against six live sites and the
-    paragraph below said "three" against four, so one docstring reported
-    two different memberships and neither was the code's.
+    the first spelling counted the arms and got a number the call sites
+    did not support, the paragraph below counted them again and got a
+    different one, and so one docstring reported two memberships of which
+    neither was the code's. Naming them is what stops a seventh site from
+    restaling the sentence that explains why counting was abandoned.
 
     The sentence is `apply_ops`' original, word for word, so the arm
     that was already proven keeps its spelling. `at_op` is supplied
@@ -7375,8 +7377,44 @@ def painted_text_lines(el):
     return lines, fs
 
 
+def _turned_points(e, pts):
+    """Swing points around the element's own centre of rotation.
+
+    THE ONE ROTATION SPELLING in this file, and the reason it is a
+    function rather than three loops: `_turned_box` is its only other
+    caller, so the box path and the point path cannot come to rotate
+    about different centres or in different directions. Two spellings of
+    one rotation is how the review that produced this function found a
+    bound that agreed with its own sister and with nothing the client
+    draws.
+
+    THE CENTRE IS THE ELEMENT'S STORED CENTRE — `x + width/2` — which is
+    where Excalidraw turns an element and is deliberately NOT the centre
+    of whatever is being turned. For a string that overhangs its stored
+    box, or a polyline whose points run outside it, that is a different
+    point, and turning about it would put the ink somewhere no renderer
+    draws it.
+
+    Args:
+        e: The element, read for `angle`, `x`, `y`, `width`, `height`.
+        pts: `(x, y)` pairs in scene coordinates.
+
+    Returns:
+        The turned points, in the order given — a copy of `pts`
+        unchanged, to the bit, when the element carries no angle.
+    """
+    ang = e.get("angle") or 0
+    if not ang:
+        return list(pts)
+    cx = e.get("x", 0) + e.get("width", 0) / 2.0
+    cy = e.get("y", 0) + e.get("height", 0) / 2.0
+    ca, sa = math.cos(ang), math.sin(ang)
+    return [(cx + (px - cx) * ca - (py - cy) * sa,
+             cy + (px - cx) * sa + (py - cy) * ca) for px, py in pts]
+
+
 def _turned_box(e, x0, y0, x1, y1):
-    """Bound a painted box after the element's own `angle` is applied.
+    """Bound a painted BOX after the element's own `angle` is applied.
 
     `angle` is stored on every element class and read by both renderers,
     so an element carrying one paints somewhere its four unrotated
@@ -7385,20 +7423,31 @@ def _turned_box(e, x0, y0, x1, y1):
     y=40. Bounding by the stored box cropped that ink out of the export
     and floored the tier-1 check below the picture it is checking.
 
-    THE CENTRE IS THE ELEMENT'S STORED CENTRE — `x + width/2` — and not
-    the centre of the box passed in, which for an overhanging string is a
-    different point. Excalidraw turns an element about the stored centre;
-    turning the painted box about its own centre would swing the glyphs
-    somewhere no renderer draws them. The sister bound in
-    `tests/test_mutants_render._drawn_corners` reads the same centre in
-    the same order (v0.9 TASK-FRAMING), so the frame the ablation harness
-    measures in and the frame the export is made in cannot come to
-    describe different pictures.
+    FOR THE BOX CLASSES ONLY, and that restriction is the whole finding
+    of this function's own review. Excalidraw paints those inside their
+    rectangle, so turning the rectangle's corners reproduces the client's
+    `getElementAbsoluteCoords` exactly. A POLYLINE is not painted inside
+    its box, and turning the box it spans gives an AABB of an AABB —
+    strictly looser than turning the points. Measured, a straight 45°
+    diagonal arrow read 282.8px wide against a client that reads 0.0:
+    the client's `getLinearElementRotatedBounds` turns the path, and
+    freedraw turns its points. `ink_extent` therefore calls
+    `_turned_points` directly on the three point-strung classes and never
+    reaches this function with one.
 
-    The result is an axis-aligned box around the four turned corners, so
-    it is a bound and not the shape: a 45-degree slab reports the square
-    its diagonal spans. That errs toward WIDE, which is the safe
-    direction for a viewBox and the safe direction for a floor.
+    THE DIRECTION IS WHY THAT IS A DEFECT AND NOT AN IMPRECISION. This
+    bound floors `cmd_snapshot`'s tier-1 check through `exact_ink_extent`
+    at `EXACT_SLACK` = 8px. A floor that reads WIDER than the client's
+    honest export REFUSES that export — the failure this tier keeps
+    making — so over-bounding is the unsafe direction here, whatever it
+    is for a viewBox. `ink_extent`'s own note says it: a floor must err
+    toward admitting.
+
+    The result is still an axis-aligned box and so still a bound rather
+    than the shape — a 200x40 slab turned 45° reports a 169.7px square
+    (`200·cos45 + 40·sin45`), which contains ink the diamond does not
+    fill. That residual is the same on both sides, because the client
+    computes the same rectangle from the same corners.
 
     Args:
         e: The element, read for `angle`, `x`, `y`, `width`, `height`.
@@ -7411,17 +7460,11 @@ def _turned_box(e, x0, y0, x1, y1):
         `(x0, y0, x1, y1)` containing the turned corners — the input
         unchanged, to the bit, when the element carries no angle.
     """
-    ang = e.get("angle") or 0
-    if not ang:
+    if not (e.get("angle") or 0):
         return (x0, y0, x1, y1)
-    cx = e.get("x", 0) + e.get("width", 0) / 2.0
-    cy = e.get("y", 0) + e.get("height", 0) / 2.0
-    ca, sa = math.cos(ang), math.sin(ang)
-    xs, ys = [], []
-    for bx, by in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
-        px, py = bx - cx, by - cy
-        xs.append(cx + px * ca - py * sa)
-        ys.append(cy + px * sa + py * ca)
+    turned = _turned_points(e, ((x0, y0), (x1, y0), (x1, y1), (x0, y1)))
+    xs = [p[0] for p in turned]
+    ys = [p[1] for p in turned]
     return (min(xs), min(ys), max(xs), max(ys))
 
 
@@ -7484,8 +7527,20 @@ def ink_extent(els, pad=40):
         # must err in (v0.9 task 49 recalibration, measured against
         # `_rendered_path` after the curves fold).
         if e.get("type") in ("arrow", "line", "freedraw"):
-            pxs = [e.get("x", 0) + p[0] for p in e.get("points") or [[0, 0]]]
-            pys = [e.get("y", 0) + p[1] for p in e.get("points") or [[0, 0]]]
+            # THE POINTS, and when the element is turned, the TURNED
+            # points — never the box they span, turned. Rotating the box
+            # gives an AABB of an AABB, which read 282.8px wide on a
+            # straight 45-degree diagonal arrow the client bounds at 0.0
+            # (`_turned_box`, and the review that found it). Same rule as
+            # the unrotated bound directly above, for the same reason:
+            # what a polyline paints is its points, and its stored box is
+            # a summary of them that this loop has never been entitled to
+            # widen by.
+            pts = _turned_points(
+                e, [(e.get("x", 0) + p[0], e.get("y", 0) + p[1])
+                    for p in e.get("points") or [[0, 0]]])
+            pxs = [p[0] for p in pts]
+            pys = [p[1] for p in pts]
             x1, ey, ex2, ey2 = min(pxs), min(pys), max(pxs), max(pys)
         else:
             ex, ey = e.get("x", 0), e.get("y", 0)
@@ -7522,11 +7577,14 @@ def ink_extent(els, pad=40):
                     # glyph ever reaches.
                     x1 = min(x1, ex + (e.get("width", 0) - tw) / 2.0)
             ex2, ey2 = ex + ew2, ey + eh2
-        # ...and then TURN it, if the element is turned. Last, and on the
-        # painted box rather than the stored one, so the string overhang
-        # above swings with the glyphs instead of being added to a box
-        # that has already been rotated out from under it.
-        x1, ey, ex2, ey2 = _turned_box(e, x1, ey, ex2, ey2)
+            # ...and then TURN it, if the element is turned. Last, and on
+            # the painted box rather than the stored one, so the string
+            # overhang above swings with the glyphs instead of being
+            # added to a box that has already been rotated out from under
+            # it. Inside this branch only: the point-strung classes above
+            # turn their POINTS and must not have a box turned around
+            # them afterwards.
+            x1, ey, ex2, ey2 = _turned_box(e, x1, ey, ex2, ey2)
         xs.append(x1)
         ys.append(ey)
         x2s.append(ex2)
@@ -7866,8 +7924,15 @@ def render_svg(els, title="", footnotes=False, glossary=None):
 # `ink_extent` measures, and a container re-fitting its label grows —
 # and a floor admits both. Rotation used to be a third: the client grew
 # its AABB and the server did not. Since v0.9 TASK-MICROFIX the server
-# grows it too (`_turned_box`), so that one is not a divergence this
-# number has to absorb any more — it is agreement.
+# grows it the same way the client does — turning a box class's corners
+# and a polyline's POINTS, which is what `getElementAbsoluteCoords` and
+# `getLinearElementRotatedBounds` respectively do — so that one is not a
+# divergence this number has to absorb any more. It is agreement, and
+# the word is load-bearing: the first cut of that fix turned every
+# class's BOX, which agreed with the client on shapes and over-read a
+# 45-degree arrow by 282.8px. That is the REFUSING direction on a floor,
+# so it would have spent this slack thirty-five times over on the first
+# rotated connector anyone drew (found in review, fixed before release).
 EXACT_SLACK = 8
 
 
@@ -7948,11 +8013,17 @@ def ceiling_slack(want):
     element by its unrotated box, so a drawing whose extent was set end
     to end by one element rotated 45° framed up to 1.41x the floor, and
     50% had to clear that. v0.9 TASK-MICROFIX taught `ink_extent` to read
-    `angle` (`_turned_box`), so the floor now moves WITH the rotation and
-    that 1.41x cannot arise: re-derived over the whole corpus at the fix,
-    0 of 24 artifacts' extents moved by a pixel, because 0 of their 976
-    live elements carry an angle — the same zero, now measured on both
-    sides of the change rather than only on one.
+    `angle` — turning a box class's corners (`_turned_box`) and a
+    polyline's points (`_turned_points`), each the way the client turns
+    that class — so the floor now moves WITH the rotation, on both sides,
+    and that 1.41x cannot arise. Verified per class rather than assumed,
+    because the intermediate version of that fix turned every class's box
+    and left the arrow case worse than it found it: a 45° diagonal arrow,
+    a 45° elbow and a 30° elbow now match `getLinearElementRotatedBounds`
+    to the float. Re-derived over the whole corpus at the fix, 0 of 24
+    artifacts' extents moved by a pixel, because 0 of their 976 live
+    elements carry an angle — which is also why the corpus proved nothing
+    about this and the three measured cases had to.
 
     So 50% is no longer clearing a known case; it is headroom against
     unmeasured ones, and it is NOT re-tuned here on that basis. Narrowing
@@ -7962,6 +8033,13 @@ def ceiling_slack(want):
     which is the end it was added for: it refuses a doubled raster by a
     factor of four. A later task with export measurements in hand may
     tighten it; a reader with none should leave it alone.
+
+    IF YOU DO NARROW IT, the pin that answers is
+    `test_backend.TestSnapshotTierOne.test_tier_1_keeps_an_export_a_
+    little_over_the_floor`, whose third case sits at 41% over the floor
+    for no reason other than to hold this band open. It names this
+    docstring back; read the two together, because neither is evidence
+    on its own.
 
     Args:
         want: The floor for one axis, in device pixels.

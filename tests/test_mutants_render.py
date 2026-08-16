@@ -1059,7 +1059,15 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
     one holds ink the others let out:
 
     - The STORED box, which is the honest bound for every class
-      Excalidraw paints inside its own rectangle.
+      Excalidraw paints inside its own rectangle — AND ONLY THOSE. It is
+      not contributed for `arrow`, `line` or `freedraw`, which is a
+      correction and not a tidy-up: a polyline's stored box is a summary
+      of its points that holds no ink of its own, so unioning it in was
+      harmless while everything was upright and became the whole defect
+      once things could turn. Turning those four corners reproduces the
+      AABB-of-AABB exactly, so dropping the points-rotation without
+      dropping this would have fixed nothing. `canvas.ink_extent` has
+      never read the box for these classes; now neither does this.
     - The `points` polyline, which overhangs the stored box on the three
       point-strung classes — `canvas.ink_extent`'s own note, and the one
       widening this function already made before v0.9 TASK-FRAMING.
@@ -1071,19 +1079,38 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
       export is made in would come to describe different pictures. The
       numeric fields are coerced on the way in so this keeps
       `_scene_bbox`'s tolerance for a half-built element; a DELETED
-      element answers `None` there and falls back to the two bounds
-      above, which is what this function already did with it. `angle` is
-      zeroed on the way in AND ONLY THERE: since v0.9 TASK-MICROFIX
+      element answers `None` there and falls back to the bounds above,
+      which is what this function already did with it. `angle` is zeroed
+      on the way in AND ONLY THERE: since v0.9 TASK-MICROFIX
       `ink_extent` turns its own answer, so passing the angle through
       would rotate this element twice and put the harness's frame
       somewhere the export's is not. It is asked for the UNROTATED drawn
-      extent, and the turn below is applied once, here, to the union.
+      extent, and the turn below is applied once, here.
+      NOT CONTRIBUTED FOR THE POINT-STRUNG CLASSES either, and for the
+      same reason as the stored box: for those, `ink_extent` IS the
+      points' span, so its corners tell this function nothing the points
+      have not already said — while under rotation those four corners
+      are an unrotated AABB whose turn reproduces the very
+      AABB-of-AABB being removed. Both exclusions were needed; removing
+      only one left the harness still disagreeing with the client, which
+      is how it was caught.
 
     Then `angle`, about the element's STORED centre — where Excalidraw
     turns it, and deliberately not the centre of the painted box, which
     for an overhanging string is a different point and would swing the
-    glyphs somewhere no renderer draws them. `canvas._turned_box` reads
-    the same centre for the same reason; the two must not drift.
+    glyphs somewhere no renderer draws them. `canvas._turned_points`
+    reads the same centre for the same reason; the two must not drift.
+
+    EACH CANDIDATE POINT IS TURNED, not the box they span, and the
+    difference is a defect this function shipped for one commit. Turning
+    the union box gives an AABB of an AABB: on a 45-degree diagonal arrow
+    that reads 282.8px wide where the client reads 0.0, because
+    `getLinearElementRotatedBounds` turns the PATH and freedraw turns its
+    POINTS. Being wrong the same way as `canvas.ink_extent` would not
+    have saved it — the two would have agreed with each other and with
+    nothing the client draws, which is the one failure mode a
+    harness-versus-product consistency argument cannot see. Both were
+    corrected together (v0.9 TASK-MICROFIX fix round 1).
 
     The rotation is `test_mutants._painted_corners`' arithmetic in the
     same order, which is not a stylistic choice: that function is the
@@ -1101,26 +1128,33 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
     """
     x, y = float(e.get("x") or 0), float(e.get("y") or 0)
     w, h = float(e.get("width") or 0), float(e.get("height") or 0)
-    xs, ys = [x, x + w], [y, y + h]
+    box = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    strung = e.get("type") in ("arrow", "line", "freedraw")
+    cand = []
     for px, py in (e.get("points") or []):
-        xs.append(x + float(px))
-        ys.append(y + float(py))
-    drawn = canvas.ink_extent(
-        [dict(e, x=x, y=y, width=w, height=h, angle=0)], pad=0)
-    if drawn:
-        xs += [drawn[0], drawn[0] + drawn[2]]
-        ys += [drawn[1], drawn[1] + drawn[3]]
-    x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+        cand.append((x + float(px), y + float(py)))
+    if not strung:
+        cand += box
+        drawn = canvas.ink_extent(
+            [dict(e, x=x, y=y, width=w, height=h, angle=0)], pad=0)
+        if drawn:
+            dx1, dy1 = drawn[0] + drawn[2], drawn[1] + drawn[3]
+            cand += [(drawn[0], drawn[1]), (dx1, drawn[1]),
+                     (dx1, dy1), (drawn[0], dy1)]
+    # nothing contributed — a DELETED element, or a polyline with no
+    # points — falls back to the stored box rather than min() over []
+    cand = cand or box
     ang = float(e.get("angle") or 0)
+    if ang:
+        cx, cy = x + w / 2.0, y + h / 2.0
+        cand = [(cx + (px - cx) * math.cos(ang) - (py - cy) * math.sin(ang),
+                 cy + (px - cx) * math.sin(ang) + (py - cy) * math.cos(ang))
+                for px, py in cand]
+    x0, y0 = min(p[0] for p in cand), min(p[1] for p in cand)
+    x1, y1 = max(p[0] for p in cand), max(p[1] for p in cand)
     if not ang:
         return [(x0, y0), (x1, y1)]
-    cx, cy = x + w / 2.0, y + h / 2.0
-    out = []
-    for bx, by in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
-        px, py = bx - cx, by - cy
-        out.append((cx + px * math.cos(ang) - py * math.sin(ang),
-                    cy + px * math.sin(ang) + py * math.cos(ang)))
-    return out
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
 
 def _scene_bbox(elements: list[dict]) -> tuple[float, float, float, float]:
@@ -3152,6 +3186,60 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
                              "is still not bounded, so C5's red is about "
                              "text as a class rather than about the "
                              "estimate")
+
+    def test_a_turned_connector_is_framed_where_the_client_frames_it(
+            self) -> None:
+        """The harness half of the point-strung rotation fix.
+
+        FILED BY THE TASK-MICROFIX REVIEW (fix round 1, 2026-08-16) and
+        it exists because of HOW that defect hid. `_drawn_corners` and
+        `canvas.ink_extent` both turned a polyline's BOX rather than its
+        points, so the harness and the product agreed with each other
+        exactly — and a harness-versus-product agreement is the check
+        this module is built out of. Both were wrong about the client by
+        the same 282.8px on a 45-degree diagonal arrow, and nothing here
+        could say so, because nothing here compared either of them to
+        Excalidraw.
+
+        SO THIS ASSERTS AGAINST THE CLIENT'S ARITHMETIC, imported from
+        `tm._painted_polyline` — `getLinearElementRotatedBounds`, which
+        turns the path, and the freedraw branch, which turns the points.
+        It is the only assertion in this class whose reference is not
+        this repo's own other spelling of the same bound.
+
+        TWO EXCLUSIONS WERE NEEDED and that is the reason this is a test
+        rather than a note. `_drawn_corners` unions three bounds, and
+        for a polyline TWO of them are unrotated axis-aligned boxes: the
+        stored box, and `ink_extent`'s own answer. Turning either one
+        reconstructs the AABB-of-AABB by itself. The first fix dropped
+        only the box, the numbers barely moved, and it took measuring
+        against this reference to see that the bound was still wrong.
+
+        The elbow is here as well as the diagonal because the diagonal
+        is degenerate on one axis — a bound that had collapsed to a
+        point would satisfy it — and 0 degrees is here because a
+        function that had stopped bounding connectors at all agrees with
+        nothing about nothing.
+        """
+        for pts in ([[0, 0], [200, 200]], [[0, 0], [200, 0], [200, 200]]):
+            for angle in (0, 30, 45, 90):
+                with self.subTest(points=pts, angle=angle):
+                    scene = tm._rotated_arrow(angle, points=pts)
+                    turned = tm._painted_polyline(scene[0])
+                    want = (min(p[0] for p in turned),
+                            min(p[1] for p in turned),
+                            max(p[0] for p in turned),
+                            max(p[1] for p in turned))
+                    for got, expect in zip(_scene_bbox(scene), want):
+                        self.assertAlmostEqual(
+                            got, expect, places=6,
+                            msg="the harness frames this turned connector "
+                                "somewhere the client does not — harness "
+                                "%r, client %r. If `canvas.ink_extent` "
+                                "agrees with the harness here, they are "
+                                "wrong together and that is the point of "
+                                "this pin"
+                                % (_scene_bbox(scene), want))
 
 
 class TestContinuityNarrowingRegime(unittest.TestCase):

@@ -12305,6 +12305,78 @@ def _painted_corners(el: dict[str, Any]) -> list[tuple[float, float]]:
     return out
 
 
+def _rotated_arrow(angle_deg: float = 45.0,
+                   points: list[list[float]] | None = None
+                   ) -> list[dict[str, Any]]:
+    """One straight diagonal connector turned about its centre.
+
+    THE SECOND BASE SCENE for the angle family, added by v0.9
+    TASK-MICROFIX's fix round 1 because the first one could not see the
+    defect that round found. `_rotated_slab` is a rectangle, and a
+    rectangle's painted box IS its turned stored box — so every bound
+    that turns a box, correctly or not, agrees on it. A POLYLINE
+    separates them: what it paints is its points, and the box those
+    points span is a summary that means nothing once the element turns.
+
+    A STRAIGHT 45-DEGREE DIAGONAL is the sharpest instance available and
+    that is why it is the default. Turned 45°, the stroke stands exactly
+    vertical, so its painted width is ZERO while the box it spans is
+    282.8 on both axes. A bound that turns the box reports 282.8x282.8;
+    the client reports 0x282.8. Nothing about that gap is a tolerance
+    question, and no rectangle can produce it.
+
+    Args:
+        angle_deg: Rotation in DEGREES, converted here — the stored
+            field is radians, and `_rotated_slab` states at length why a
+            literal in the test body is how a scene stops being
+            checkable by eye.
+        points: The connector's points in its own coordinates. Defaults
+            to the straight diagonal; an elbow is passed by the pins
+            that need a non-degenerate width on both sides.
+
+    Returns:
+        A one-element scene: `c1`, an arrow carrying `angle`, whose
+        stored `width`/`height` span its points exactly — which is what
+        Excalidraw maintains and therefore where it turns the element.
+    """
+    pts = [[0, 0], [200, 200]] if points is None else points
+    return [{"id": "c1", "type": "arrow", "x": 0, "y": 0,
+             "width": max(p[0] for p in pts) - min(p[0] for p in pts),
+             "height": max(p[1] for p in pts) - min(p[1] for p in pts),
+             "angle": math.radians(angle_deg), "points": pts,
+             "customData": {"role": "connector"}}]
+
+
+def _painted_polyline(el: dict[str, Any]) -> list[tuple[float, float]]:
+    """Where a point-strung element's POINTS actually land once rotated.
+
+    The reference the polyline pins measure against, and the client's own
+    arithmetic rather than a convenient stand-in: Excalidraw's
+    `getLinearElementRotatedBounds` turns the path and its freedraw
+    branch turns the points, both about the element's stored centre, then
+    takes min/max. `_painted_corners` is the same function for the
+    classes painted inside a rectangle; the two exist separately because
+    using either one on the other's classes is exactly the defect the
+    pins below hold shut.
+
+    Args:
+        el: One point-strung element with `x`, `y`, `width`, `height`,
+            `points` and optionally `angle` in radians.
+
+    Returns:
+        Its points in scene px, turned, in stored order.
+    """
+    cx = el["x"] + el["width"] / 2.0
+    cy = el["y"] + el["height"] / 2.0
+    ang = el.get("angle") or 0.0
+    out = []
+    for px, py in el["points"]:
+        dx, dy = el["x"] + px - cx, el["y"] + py - cy
+        out.append((cx + dx * math.cos(ang) - dy * math.sin(ang),
+                    cy + dx * math.sin(ang) + dy * math.cos(ang)))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # The labelled ghost (curator batch 25, 2026-08-16; task-50-report.md §11's
 # C1 and C2, and batch 23's "strongest unclaimed candidate").
@@ -12799,6 +12871,166 @@ class TestInkExtentIsRotationBlind(unittest.TestCase):
                         msg="the %d-degree slab's extent moved off the "
                             "stored box it coincides with: %r"
                             % (angle, self._extent_box(scene)))
+
+
+# ---------------------------------------------------------------------------
+# A TURNED POLYLINE IS BOUND BY ITS POINTS (v0.9 TASK-MICROFIX fix round 1,
+# 2026-08-16, from that task's own review).
+#
+# The class above is a rectangle, and a rectangle cannot tell the two
+# candidate rules apart: its painted box IS its turned stored box, so a bound
+# that turns the box and a bound that turns the ink agree on it exactly. The
+# first cut of the rotation fix turned every class's BOX and passed that
+# class, the whole suite, both tiers and a corpus re-derivation — because the
+# corpus holds 0 rotated elements out of 976, so a re-derivation over it
+# measures NOTHING about rotation however many numbers it prints.
+#
+# What it shipped for one commit: an AABB of an AABB on `arrow`, `line` and
+# `freedraw`. Measured, a straight 45-degree diagonal arrow read 282.8px wide
+# against a client that reads 0.0. The client is not a guess — Excalidraw's
+# `getLinearElementRotatedBounds` turns the curve's path ops and its freedraw
+# branch turns the points.
+#
+# THE DIRECTION IS THE DEFECT. `exact_ink_extent` delegates to `ink_extent`,
+# which floors tier 1 at `EXACT_SLACK` = 8px, and a floor reading WIDER than
+# the client's honest export REFUSES that export. 282.8px of over-read against
+# 8px of slack is not a tolerance question, and it runs in the one direction
+# this tier has repeatedly failed in. The old rotation-blind bound at least
+# read SMALL, which a floor admits.
+#
+# AND NOTHING BUILT COULD HAVE CAUGHT IT. The render tier could not: the
+# harness's `_drawn_corners` had the same AABB-of-AABB, so harness and product
+# agreed with each other while both diverged from the client — which is why
+# the fix corrected both together and why a harness-versus-product consistency
+# argument is not evidence about the client. These pins are the only thing
+# holding it, so they assert against the CLIENT'S arithmetic
+# (`_painted_polyline`) rather than against the server's other spelling.
+# ---------------------------------------------------------------------------
+
+
+class TestTurnedPolylineIsBoundByItsPoints(unittest.TestCase):
+    """A turned connector's extent is its turned points, not their box."""
+
+    def _extent_box(self, scene: list[dict[str, Any]]
+                    ) -> tuple[float, float, float, float]:
+        """`ink_extent` as corners rather than as origin-plus-size.
+
+        Unpadded, for `TestInkExtentIsRotationBlind._extent_box`'s
+        reason: 40px of default padding hides any defect smaller than
+        40px, and how far a bound strays is this family's whole subject.
+
+        Args:
+            scene: The elements to bound.
+
+        Returns:
+            `(minx, miny, maxx, maxy)` of the reported extent.
+        """
+        x, y, w, h = canvas.ink_extent(scene, pad=0)
+        return (x, y, x + w, y + h)
+
+    def _client_box(self, scene: list[dict[str, Any]]
+                    ) -> tuple[float, float, float, float]:
+        """The same box the client computes, from the turned points.
+
+        Args:
+            scene: A one-element scene holding a point-strung element.
+
+        Returns:
+            `(minx, miny, maxx, maxy)` of `_painted_polyline`'s output.
+        """
+        pts = _painted_polyline(scene[0])
+        return (min(p[0] for p in pts), min(p[1] for p in pts),
+                max(p[0] for p in pts), max(p[1] for p in pts))
+
+    def test_a_quarter_turned_diagonal_arrow_has_no_painted_width(
+            self) -> None:
+        """The degenerate case, where the two rules differ by 282.8px.
+
+        A straight arrow from (0, 0) to (200, 200) turned 45° stands
+        exactly vertical: the ink is a line, so its painted WIDTH is
+        zero. The box its points span is 200x200, and turning THAT box
+        45° gives a 282.8px square — which is what this function
+        reported for one commit, and 282.8px of over-read on the tier-1
+        floor against `EXACT_SLACK`'s 8px.
+
+        ASSERTED AS THE WIDTH RATHER THAN AS AGREEMENT, deliberately,
+        because zero is a number no box-turning rule can reach: every
+        such rule reports at least the turned diagonal of a non-empty
+        box. A version that merely got CLOSER still fails here, and the
+        message prints both boxes so it says how much closer.
+        """
+        scene = _rotated_arrow(45)
+        x0, y0, x1, y1 = self._extent_box(scene)
+        self.assertAlmostEqual(
+            x1 - x0, 0.0, places=6,
+            msg="a 45-degree diagonal arrow stands vertical and paints "
+                "nothing wide, but the extent claims %.1fpx of width — "
+                "this is the box its points span, turned, instead of its "
+                "points: extent %r vs client %r"
+                % (x1 - x0, (x0, y0, x1, y1), self._client_box(scene)))
+        self.assertAlmostEqual(y1 - y0, 200 * (2 ** 0.5), places=6)
+
+    def test_the_server_bounds_a_turned_polyline_where_the_client_does(
+            self) -> None:
+        """Agreement with `getLinearElementRotatedBounds`, four angles.
+
+        The general claim behind the degenerate case above, and the one
+        that actually has to hold: for a point-strung element at any
+        angle, the server's extent IS the client's. Asserted against
+        `_painted_polyline` — the client's arithmetic — and not against
+        another server function, because the defect this replaced had
+        the product and the harness agreeing with each other and with
+        nothing Excalidraw draws.
+
+        Two shapes, because a straight diagonal is degenerate on one
+        axis and an elbow is not: an elbow's turned points span a real
+        box on both axes, so this cannot pass by both sides collapsing
+        to the same degenerate answer. 0° is included as the pole that
+        proves the function reaches these elements at all — a bound that
+        had started refusing point-strung elements, or returning
+        nothing, satisfies an agreement test by agreeing about nothing.
+        """
+        for pts in ([[0, 0], [200, 200]], [[0, 0], [200, 0], [200, 200]]):
+            for angle in (0, 30, 45, 90):
+                with self.subTest(points=pts, angle=angle):
+                    scene = _rotated_arrow(angle, points=pts)
+                    for got, want in zip(self._extent_box(scene),
+                                         self._client_box(scene)):
+                        self.assertAlmostEqual(
+                            got, want, places=6,
+                            msg="the server frames this turned connector "
+                                "somewhere the client does not: server "
+                                "%r vs client %r"
+                                % (self._extent_box(scene),
+                                   self._client_box(scene)))
+
+    def test_the_slab_and_the_connector_are_bound_by_different_rules(
+            self) -> None:
+        """The pole that keeps the fix from being a blanket one.
+
+        A box class must still be bound by its turned BOX. The two rules
+        are genuinely different and the element's type is what chooses
+        between them, so a fix that had simply switched everything to
+        points would break the rectangle — `_rotated_slab(90)`'s painted
+        box is 40x200, which no set of a rectangle's `points` describes
+        because a rectangle stores none.
+
+        This is the assertion that makes the class above and this one a
+        pair rather than duplicates: same angle, same origin, different
+        rule, both correct.
+        """
+        slab = _rotated_slab(90)
+        box = self._extent_box(slab)
+        for got, want in zip(box, (80.0, -80.0, 120.0, 120.0)):
+            self.assertAlmostEqual(
+                got, want, places=6,
+                msg="the quarter-turned slab is no longer bound by its "
+                    "turned box, so the point rule has been applied to a "
+                    "class that stores no points: %r" % (box,))
+        self.assertFalse(
+            slab[0].get("points"),
+            "this pole is only meaningful while the slab stores no "
+            "points; it now has some and the contrast is gone")
 
 
 class TestMutantCatalogue(unittest.TestCase):
