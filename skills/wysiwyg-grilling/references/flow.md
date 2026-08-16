@@ -85,23 +85,27 @@ together measured 0 lint findings, 0 crossings, 0 shared corridors and 0
 false junctions: parity with the hand layout, not superiority.
 
 **The honest ceiling.** An older version of this page claimed the seed
-was worth it above ~7 nodes. That is withdrawn — it was measured and it
-failed. At **8** nodes, one above the stated threshold, the seed drew a
-flow whose geometry was wrong in two ways at once: an arrow ending
-**60px clear of the decision node it claims to bind** (the lint reports
-that one as an ERROR), and two arrows whose final chords run **opposed
-and collinear, overlapping by 31px** — the signature of a two-way link
-between steps that have none. The hand layout of the same eight nodes
-was correct first try and took about two minutes. Happy-path-first
-removes the opposed-chord defect outright, which is why the recipe above
-is not optional.
+was worth it above ~7 nodes. That is withdrawn — it was measured, and
+then the drawing was rendered and looked at, and it failed. At **8**
+nodes, one above the stated threshold, the seed drew a flow wrong in two
+ways at once:
 
-Read the second defect as a caution, not a count: with arrows now drawn
-curved, those two chords render as crossing arcs rather than one
-straight bar, and the bidirectional instrument is deliberately quiet
-about a 40px approach that bows 8px off its chord. What is durable is
-the shape of the failure — the seeder places nodes so that unrelated
-edges land on top of each other, and it does not know it has.
+- **It manufactured a relationship.** Two unrelated edges — the `no`
+  branch into "Order cancelled" and the return from "Request new card"
+  into "Authorise payment" — land on the same horizontal line, 31px of
+  it shared. What renders is a single straight stroke with **an
+  arrowhead at each end**, reading as *"Order cancelled ⟷ Authorise
+  payment"*. Neither direction is in the source. Confirmed by rendering
+  the seed and looking at it, not inferred from coordinates.
+- **An arrow stopped 60px clear of the node it binds**, its arrowhead
+  floating in open canvas short of the "Auth succeeded?" diamond.
+
+The lint names the second and **says nothing about the first** — so
+"read the lint and move on" would have shipped the invented
+relationship. The hand layout of the same eight nodes was correct first
+try and took about two minutes. Happy-path-first removes the
+manufactured relationship outright, which is why the recipe above is not
+optional.
 
 **Where it is worth it, narrowly:**
 

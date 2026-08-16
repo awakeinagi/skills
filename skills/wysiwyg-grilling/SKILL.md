@@ -406,9 +406,11 @@ services it; otherwise a headless one is launched).
 `erDiagram → domain` every time. Flowcharts: for **structural capture
 above ~20 nodes** — everything on the canvas, correctly bound, ready to
 arrange — and for `--from-skeletons` replay. **Not** in the 8–15 node
-band: at 8 nodes a seed drew an arrow ending 60px clear of the node it
-binds, plus two unrelated edges landing on top of each other, while the
-hand layout took two minutes and was correct first try. The capture is flawless at every size; the
+band: at 8 nodes a seed drew two unrelated edges onto one line, so the
+picture shows a double-headed arrow between two steps that have no
+relationship at all — and no check names it — plus a second arrow
+stopping 60px clear of the node it binds. The hand layout took two
+minutes and was correct first try. The capture is flawless at every size; the
 LAYOUT is what fails. When you do seed a flowchart, use the recipe in
 `references/flow.md` — the `nodeSpacing`/`rankSpacing` init directive,
 `flowchart LR`, and **every edge of the happy path declared first, start
