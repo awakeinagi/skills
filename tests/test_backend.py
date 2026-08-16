@@ -1550,6 +1550,65 @@ class TestSnapshotTierOne(Base):
                 finally:
                     shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_the_band_note_blames_text_only_where_text_is_to_blame(self):
+        """Review fix round 1, finding 3 — a confident wrong diagnosis.
+
+        The NOTE fires whenever a band exceeds `EXACT_SLACK` and used to
+        attribute it to text owning that edge in every case. A band opens
+        for two unrelated reasons, though: text setting the drawing's
+        extent on that axis (`exact_ink_extent` short of the full floor),
+        or the raster simply sitting ABOVE the floor, which has nothing
+        to do with text. On `dashboard` and `dashboard-wireframe` the
+        text-free extent equals the full floor on both axes — text owns
+        no edge whatever — and the 28px band is the +20px honest
+        over-margin plus the slack. A third of the measured corpus got a
+        cause that was not there.
+
+        Both poles, because the repair could as easily have deleted the
+        explanation as conditioned it, and the explanation is worth
+        keeping where it is true: `TAB_WIDE` with a text-free extent
+        SHORT of the floor must still say why, and the same drawing with
+        the two equal must report the band and stop talking.
+        """
+        texty = [*TAB_WIDE, {"type": "text", "id": "t", "x": 3560,
+                             "y": 0, "width": 200, "height": 40,
+                             "fontSize": 20, "text": "a trailing label"}]
+        full = int(canvas.ink_extent(texty)[2])
+        self.assertGreater(full, int(canvas.exact_ink_extent(texty)[2]),
+                           "the fixture no longer has text owning its "
+                           "right edge, so the blaming pole tests nothing")
+        out = self.snapshot(texty, full, 180, aid="texty")
+        self.assertIn("TIER=1", out, out)
+        self.assertIn("width checked to within", out, out)
+        self.assertIn("text sets the drawing's width", out, out)
+
+        # the same NOTE on a drawing whose extent text has no part in:
+        # the band is real (an honest raster 20px over the floor) and the
+        # explanation must not be.
+        out = self.snapshot(TAB_WIDE, 3660, 180, aid="notexty")
+        self.assertIn("TIER=1", out, out)
+        self.assertIn("width checked to within 28px only", out, out)
+        self.assertNotIn("text sets", out, out)
+
+    def test_a_payload_larger_than_reported_reads_as_what_it_is(self):
+        """Review fix round 1, finding 4 — a negative loss.
+
+        A1 compares with `!=`, so the payload can disagree in either
+        direction, but the message subtracted unconditionally and printed
+        "-4000 lost in transit". A negative quantity of loss is the kind
+        of diagnostic that sends a reader hunting the wrong bug, and the
+        stale-sidecar defect was one route to it — reachable by any
+        report that disagrees the other way, so closing that route does
+        not close this one.
+        """
+        raw = self.fat_png(3640, 180)
+        ok, why = canvas.validate_png(
+            raw, want_w=3640, want_h=180, min_bpp=0.05, want_is_floor=True,
+            report={"bytes": len(raw) - 4000})
+        self.assertFalse(ok)
+        self.assertIn("4000 more than the tab made", why)
+        self.assertNotIn("-4000", why)
+
     def test_the_blind_band_is_the_one_the_split_was_measured_to_buy(self):
         """What tier 1 actually promises, per axis, on real drawings.
 
@@ -2118,6 +2177,49 @@ class TestScreenshotSelfReport(Base):
         """
         _, side, _ = self.complete({"bytes": "lots", "png_w": None})
         self.assertIsNone(side)
+
+    def test_a_report_less_post_clears_the_previous_shot_s_sidecar(self):
+        """Review fix round 1, finding 1 — the leak that shipped.
+
+        The same defect I found by mutation in this class's own helper,
+        living in the product: `complete()` was clearing a stale sidecar
+        while the handler was not. `shots_dir` is keyed on the project
+        root and outlives the server; `shot_seq` is per-`ServerApp` and
+        restarts at 1. So id 1 is reused on every restart, and writing
+        the sidecar only when a report existed left the PREVIOUS export's
+        numbers sitting there for an old client that sent none.
+
+        End to end that refused an honest export: a 9033-byte file
+        checked against a remembered 5033 fails A1, twice, and tier 1
+        falls through to the headless render — with a message blaming
+        transit for bytes nothing lost. Old clients were the population
+        it hit, which is the one the whole protocol promised not to
+        break.
+
+        Fixing it in the test and not in the handler is the specific
+        trap worth naming: a harness that cleans up hides exactly the
+        state the product fails on, so the cleaner the fixture, the
+        better the bug is hidden. This pin therefore drives the REAL
+        handler twice over one id, which is the only place the leak was
+        ever visible.
+        """
+        raw, _ = self.png()
+        _, first, _ = self.complete({"bytes": len(raw), "png_w": 10,
+                                     "png_h": 10})
+        self.assertEqual(first["bytes"], len(raw))
+        app = canvas.ServerApp(self.project)      # a restart: sid back to 1
+        sid = app.handle_post("/api/screenshot/request",
+                              {"artifact": "a"})["id"]
+        self.assertEqual(sid, 1, "the id no longer collides, so this pin "
+                                 "is testing nothing — rebuild it")
+        _, url = self.png(20, 20)
+        app.handle_post("/api/screenshot/complete",
+                        {"id": sid, "data_url": url})   # an OLD client
+        self.assertFalse(
+            (self.project.shots_dir / ("shot-%d.json" % sid)).exists(),
+            "a client that sent no self-report inherited the previous "
+            "export's — tier 1 will check this file against another "
+            "file's byte count")
 
     def test_the_report_describes_the_file_and_not_the_request(self):
         """The field that does the work is the client's own count.

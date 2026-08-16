@@ -7136,11 +7136,14 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
 
     A raster passes ALL of them, so the effective threshold per axis is
     the max and the blind band collapses wherever the drawing's edge is
-    not text — median 96px to median 16px across the twelve measured
-    axes, eight of them landing at 8. Where text DOES own the edge, B1
-    has nothing to say and B2's 96px is the whole check; `strict_axes`
-    reports which case each axis fell into rather than leaving it to be
-    inferred from a `VALID=true`.
+    not text — median 96px to median 12px across the twelve measured
+    axes, six of them landing at 8. (The spike reported that as "median
+    16, eight of twelve"; its per-axis table is right and those two
+    aggregates were not. Re-derived from the twelve bands themselves,
+    which `test_the_blind_band_is_the_one_the_split_was_measured_to_buy`
+    now pins.) Where text DOES own the edge, B1 has nothing to say and
+    B2's 96px is the whole check; `blind_band` reports the residual per
+    axis rather than leaving it to be inferred from a `VALID=true`.
 
     Args:
         data: Raw PNG bytes.
@@ -7182,9 +7185,15 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
         # A1. Ordered FIRST on purpose: a truncated payload's geometry is
         # a description of a file that no longer exists, so every message
         # below it would be true about the wrong thing.
-        return False, ("payload is %d bytes, the tab sent %d — %d lost in "
-                       "transit" % (len(data), said["bytes"],
-                                    said["bytes"] - len(data)))
+        # branched on the sign: the check is `!=`, so the payload can be
+        # LARGER than the report too, and subtracting unconditionally
+        # printed "-4000 lost in transit" — a negative loss, which sends
+        # a reader after the wrong bug (review fix round 1).
+        gap = said["bytes"] - len(data)
+        return False, ("payload is %d bytes, the tab sent %d — %d %s"
+                       % (len(data), said["bytes"], abs(gap),
+                          "lost in transit" if gap > 0
+                          else "more than the tab made"))
     if said.get("png_w") and said.get("png_h") and \
             (w, h) != (said["png_w"], said["png_h"]):
         # A2 needs BOTH axes or it has no comparison to make. Checking on
@@ -13009,10 +13018,21 @@ class ServerApp:
             # would tax a hot poll loop for data one caller wants once.
             # Every `shots_dir` consumer globs an explicit `shot-N.png`,
             # so a `.json` sibling collides with nothing.
+            # REPLACED, never merely written. `shots_dir` is keyed on the
+            # project root and outlives the server, while `shot_seq` is
+            # per-`ServerApp` and restarts at 1 — so id 1 is reused on
+            # every restart. Writing only when a report exists left the
+            # PREVIOUS export's sidecar in place for a client that sent
+            # none, and `cmd_snapshot` then read a stale byte count as
+            # this shot's: an honest 9033-byte export refused against a
+            # remembered 5033. Unlinking first is what makes "no sidecar"
+            # mean this export carried no report (review fix round 1).
+            side = self.project.shots_dir / ("shot-%d.json" % sid)
+            if side.exists():
+                side.unlink()
             report = screenshot_self_report(body)
             if report:
-                write_json(self.project.shots_dir / ("shot-%d.json" % sid),
-                           report)
+                write_json(side, report)
             req["status"] = "done"
             req["path"] = str(out)
             return {"ok": True, "path": str(out)}
@@ -14913,11 +14933,26 @@ def cmd_snapshot(args):
                     min_w, min_h, exact_w, exact_h)
                 loose = [(a, px) for a, px in bands if px > EXACT_SLACK]
                 if loose:
-                    print("NOTE=%s — text owns that edge of the drawing "
-                          "and the server does not measure text the way "
-                          "the browser does"
-                          % ", ".join("%s checked to within %dpx only"
-                                      % (a, px) for a, px in loose))
+                    # the band is reported always; the CAUSE only where it
+                    # holds. A band opens for two unrelated reasons — text
+                    # setting the drawing's extent on that axis, or the
+                    # raster simply sitting above the floor — and naming
+                    # the first unconditionally was wrong on two of the
+                    # six measured artifacts, where the text-free extent
+                    # equals the full floor and the width came entirely
+                    # from an honest over-margin (review fix round 1).
+                    sets = [a for a, want, exact in
+                            (("width", min_w, exact_w),
+                             ("height", min_h, exact_h))
+                            if want and exact and exact < want and
+                            a in [x for x, _ in loose]]
+                    note = ", ".join("%s checked to within %dpx only"
+                                     % (a, px) for a, px in loose)
+                    if sets:
+                        note += (" — text sets the drawing's %s, and the "
+                                 "server does not measure text the way "
+                                 "the browser does" % " and ".join(sets))
+                    print("NOTE=%s" % note)
                 print_kv(tier="1", png=str(out_png), valid="true",
                          detail=why)
                 return 0
