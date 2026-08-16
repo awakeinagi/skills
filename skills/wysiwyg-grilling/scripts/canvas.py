@@ -2962,20 +2962,82 @@ def _fan_point(node, side, off):
 
 
 FAN_LANE_PITCH = 18.0
-# The gap the auto-fan tries to leave between two feet on one node side.
-# The fan exists so that N arrows converging on a point stop reading as
-# one arrow, and `length * k / (N + 1)` was not measured against anything
-# that says when they do: three arrows on a 64px side land 16px apart,
-# which clears the lint's own 12px coincidence window and sits EXACTLY on
-# the 16px lane `tests/instruments.shared_corridors` calls one stroke —
-# so the fan's own output was the drawing's non-authored corridor
-# finding. 18 is the first whole pixel past that lane. The two numbers
-# are coupled deliberately and live in two files; if the corridor
-# instrument's tolerance moves, this moves with it.
+# The gap the auto-fan tries to leave between two feet on one node side,
+# MEASURED WHERE THE FEET ARE DRAWN. The fan exists so that N arrows
+# converging on a point stop reading as one arrow, and
+# `length * k / (N + 1)` was not measured against anything that says when
+# they do: three arrows on a 64px side land 16px apart, which clears the
+# lint's own 12px coincidence window and sits EXACTLY on the 16px lane
+# `tests/instruments.shared_corridors` calls one stroke — so the fan's
+# own output was the drawing's non-authored corridor finding. 18 is the
+# first whole pixel past that lane. The two numbers are coupled
+# deliberately and live in two files; if the corridor instrument's
+# tolerance moves, this moves with it, and
+# `test_a_cramped_side_gets_lanes_wider_than_a_corridor` is what notices.
 FAN_EDGE_MARGIN = 8.0
 # ...and how much of each end of the side the widened fan leaves alone —
 # the same 8px window the slide fallback below refuses to step outside,
 # so a widened slot is still a slot the fallback could have chosen.
+
+
+def _fan_cross(node, side, off):
+    """Where the DRAWN foot for box slot `off` lands along its side.
+
+    The other half of `_fan_point`, and the reason the fan can reason
+    about lanes at all: `_fan_point` answers in scene coordinates, and
+    what a corridor reads is the one cross-axis coordinate those feet
+    differ in. Reported in the side's own frame — px from its low corner
+    — so it is directly comparable with the `off` that produced it.
+
+    Args:
+        node: The node element the foot attaches to.
+        side: Which side the fan is spreading along.
+        off: Distance along that side from its low corner.
+
+    Returns:
+        Distance along the side, from its low corner, of the point
+        `_fan_point` puts on the ink. Equal to `off` exactly when the
+        node's outline is its box.
+    """
+    fx, fy = _fan_point(node, side, off)
+    return (fy - node["y"] if side in ("left", "right")
+            else fx - node["x"])
+
+
+def _fan_slot(node, side, want, length):
+    """The box slot whose drawn foot lands `want` px along the side.
+
+    `_fan_cross` inverted, by bisection over the forward map rather than
+    by a closed form. That is the whole point: a closed form would be a
+    THIRD place that knows what a rhombus and a conic are, after
+    `shape_clip` and `shape_clearance`, and one that could drift from
+    the projection it is supposed to undo. Bisecting `_fan_point` itself
+    cannot drift, and it stays correct for whatever shapes `shape_clip`
+    learns next. The map is monotone along a side, which is what makes
+    bisection the right tool and what keeps the fan's slots in order.
+
+    Args:
+        node: The node element the foot attaches to.
+        side: Which side the fan is spreading along.
+        want: Target distance along the side, from its low corner.
+        length: The side's length, which bounds the search.
+
+    Returns:
+        The box slot to hand `_fan_point`. Clamped to the side, so a
+        `want` the outline cannot reach comes back as the nearest slot
+        that can — an ellipse's side reaches only ~71% of its box's
+        span, and asking for more is a caller error, not a coordinate.
+    """
+    if abs(_fan_cross(node, side, want) - want) < 1e-9:
+        return want         # the box IS the outline; nothing to invert
+    lo, hi = 0.0, float(length)
+    for _ in range(48):
+        mid = (lo + hi) / 2.0
+        if _fan_cross(node, side, mid) < want:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2.0
 
 
 def fan_attach_points(els):
@@ -2987,6 +3049,26 @@ def fan_attach_points(els):
     where that spread would land the lanes inside a corridor, and placed
     on the node's DRAWN OUTLINE by `_fan_point` rather than on its
     bounding box.
+
+    BOTH OF THOSE ARE MEASURED ON THE INK, and the first version of this
+    was not: it widened the spread on the BOX and then projected, which
+    on a conic or a rhombus compresses the gaps back under the lane the
+    widening was for — 18px of box became 16px of drawn separation on an
+    ellipse and 12.4 on a rhombus, and the fan reported corridors against
+    its own output. The two repairs cancelled each other and neither
+    test measured their product (v0.9 task 51 review, M1). The slots are
+    therefore chosen as ink coordinates and mapped back through
+    `_fan_slot`.
+
+    WHERE THE SIDE IS TOO SHORT the fan spreads as wide as the side
+    allows and the lanes stay under the pitch, which is a fact about the
+    drawing rather than a fallback: `(N - 1) * FAN_LANE_PITCH` of clear
+    outline is needed, and a 64px side has ~48px of it on a rectangle
+    and ~38 on a conic — enough for three feet, not four, on any shape.
+    The obstacle slide below can also narrow a lane, since it steps in
+    box px toward whatever slot clears a foreign box; it fires only when
+    the ideal slot draws through one, and a lane too tight beats a line
+    through a node.
 
     Only arrows `route_arrow` marked `routed` are touched: user geometry
     is never respaced. Runs as a global post-pass over the whole applied
@@ -3038,18 +3120,29 @@ def fan_attach_points(els):
             return fx if horiz else fy
         members = sorted(members, key=far_coord)
         n = len(members)
-        # `length * k / (N + 1)` centred, so a roomy side gets exactly the
-        # slots it always got — and a cramped one gets `FAN_LANE_PITCH`
-        # instead of a pitch the corridor still reads as one stroke. Never
-        # narrower than the even spread, never wider than the side holds.
-        pitch = length / float(n + 1)
-        if n > 1:
-            pitch = max(pitch,
-                        min(FAN_LANE_PITCH,
-                            (length - 2 * FAN_EDGE_MARGIN) / float(n - 1)))
+        # THE PITCH IS SOLVED WHERE THE FEET ARE DRAWN, not on the box.
+        # Spacing box slots evenly and projecting them onto the outline
+        # compresses the gaps — hardest at the ends, so an even box
+        # spread lands UNEVEN on a conic — and on real node sizes the
+        # projection ate the whole widening: an ellipse 160x64 with three
+        # arrows came out at 16px lanes and reported two corridors
+        # against its own fan (v0.9 task 51 review, M1). So the slots are
+        # chosen as ink coordinates and `_fan_slot` maps each one back.
+        ink = [_fan_cross(node, side, length * k / (n + 1))
+               for k in range(1, n + 1)]
+        # Never narrower than the even spread's own tightest lane, never
+        # wider than needed, never wider than the side can hold inside
+        # its margins. On a rectangle every term is the box arithmetic
+        # this replaced, so those fans do not move by a float.
+        pitch = min(b - a for a, b in zip(ink, ink[1:]))
+        room = (_fan_cross(node, side, length - FAN_EDGE_MARGIN)
+                - _fan_cross(node, side, FAN_EDGE_MARGIN))
+        pitch = max(pitch, min(FAN_LANE_PITCH, room / float(n - 1)))
+        mid = _fan_cross(node, side, length / 2.0)
         slide_of = {}
         for k, (aid, which) in enumerate(members, start=1):
-            off = length / 2.0 + (k - (n + 1) / 2.0) * pitch
+            off = _fan_slot(node, side,
+                            mid + (k - (n + 1) / 2.0) * pitch, length)
             slide_of[aid, which] = (node, side, off, length)
             ends[aid][which] = _fan_point(node, side, off)
         fan_slides.update(slide_of)

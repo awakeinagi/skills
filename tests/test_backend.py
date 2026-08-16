@@ -18,7 +18,15 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import canvas  # noqa: E402
+import instruments  # noqa: E402
+
+# The instruments are the drawing's own measure, and one test here needs
+# them: `TestFanAttachPoints` asserts that the auto-fan's output draws no
+# corridor, which is a claim only `shared_corridors` can settle. Both are
+# first-party and stdlib-only, so this stays a plain import — the loud-skip
+# rule in AGENTS.md §5 is about third-party packages.
 
 
 def seed_flow_batch(base_revn=0):
@@ -5684,6 +5692,52 @@ class TestFanAttachPoints(unittest.TestCase):
         return [(e["x"] + e["points"][-1][0], e["y"] + e["points"][-1][1])
                 for e in els if e.get("type") == "arrow"]
 
+    def _elbowed(self, shape: str, n: int, w: float, h: float) -> list[dict]:
+        """`n` ELBOWED arrows arriving on one node's left side.
+
+        `_converging`'s straight arrows cannot state the lane claim: the
+        fan turns each into a diagonal from its source to its foot, and
+        a diagonal has no axis for `shared_corridors` to read — which is
+        why that builder's fans looked clean while the M1 defect was
+        live. These turn horizontal for their whole approach, so each
+        arrow's final run IS its lane and the corridor instrument reads
+        exactly the separation the fan produced.
+
+        THE SOURCES ARE STAGGERED IN X on purpose. Stacked in one column
+        their outgoing stubs share a lane by construction, and that
+        corridor is the SCENE's, not the fan's — it survives any pitch
+        and would make this assertion unpassable for a reason that has
+        nothing to do with the feet.
+
+        Args:
+            shape: The target node's type.
+            n: How many arrows converge.
+            w: The target node's width.
+            h: The target node's height, which is the side being fanned.
+
+        Returns:
+            The scene, ready for `fan_attach_points`.
+        """
+        els = [{"id": "N", "type": shape, "x": 400, "y": 100, "width": w,
+                "height": h, "customData": {"role": "node"}}]
+        for i in range(n):
+            sx0, sy = i * 48, 60 + i * 160
+            els.append({"id": "S%d" % i, "type": "rectangle", "x": sx0,
+                        "y": 40 + i * 160, "width": 60, "height": 40,
+                        "customData": {"role": "node"}})
+            arr = {"id": "a%d" % i, "type": "arrow", "x": sx0 + 60,
+                   "y": sy, "points": [[0, 0], [0, 100 + h / 2 - sy],
+                                       [340 - sx0, 100 + h / 2 - sy]],
+                   "startBinding": {"elementId": "S%d" % i, "focus": 0,
+                                    "gap": 1},
+                   "endBinding": {"elementId": "N", "focus": 0, "gap": 1},
+                   "customData": {"role": "edge"}}
+            arr["width"] = max(abs(p[0]) for p in arr["points"])
+            arr["height"] = max(abs(p[1]) for p in arr["points"])
+            arr["customData"]["routed"] = canvas._route_sig(arr)
+            els.append(arr)
+        return els
+
     def test_a_rectangle_fan_is_unchanged(self) -> None:
         """The even spread, on the box, exactly where it always was.
 
@@ -5721,40 +5775,84 @@ class TestFanAttachPoints(unittest.TestCase):
                     "drawn outline" % (shape, fx, fy, miss))
 
     def test_a_cramped_side_gets_lanes_wider_than_a_corridor(self) -> None:
-        """Three feet on a 64px side, 18px apart and not 16.
+        """The fan's own output draws no corridor, on all three shapes.
 
-        The corridor collision: the even spread puts three lanes exactly
-        16px apart, which clears the lint's 12px coincidence window and
-        sits ON `instruments.shared_corridors`' 16px tolerance — so the
-        fan's own output was a merged stroke by the drawing's own
-        measure. Asserted as a strict inequality against the corridor's
-        tolerance rather than against `FAN_LANE_PITCH`, because the
-        claim is about the lane the reader sees and not about this
-        constant's value.
+        The corridor collision: the even spread puts three feet on a
+        64px side exactly 16px apart, which clears the lint's 12px
+        coincidence window and sits ON `instruments.shared_corridors`'
+        16px tolerance — so the fan's own output was a merged stroke by
+        the drawing's own measure.
+
+        ASSERTED BY RUNNING THE CORRIDOR INSTRUMENT over the fanned
+        scene, and across all three shapes, because the first version of
+        this test did neither and that is exactly how it missed the M1
+        defect. It measured a rectangle — the one shape where
+        `shape_clip` is the identity and the projection cannot compress
+        anything — while the shape test used a 300px node where the
+        widening arm never fires. Two tests, two halves, and the product
+        of the halves untested: on real corpus node sizes the projection
+        ate the whole widening and the fan reported corridors against
+        itself (ellipse 160x64 at 16px lanes, rhombus 200x80 at 13).
+
+        The gap assertion stays beside it as the diagnostic. It is a
+        strict inequality against the CORRIDOR's tolerance rather than
+        against `FAN_LANE_PITCH`, so this pins the lane a reader sees
+        and not the constant's value — and it is what tells you which
+        way a failure went when the instrument speaks.
         """
-        els = self._converging("rectangle", side=64, gap=30)
-        canvas.fan_attach_points(els)
-        ys = sorted(y for _x, y in self._feet(els))
-        self.assertEqual(len(set(ys)), 3, ys)
-        for lo, hi in zip(ys, ys[1:]):
-            self.assertGreater(hi - lo, 16, ys)
+        for shape, w, h in (("rectangle", 160, 64), ("ellipse", 160, 64),
+                            ("diamond", 200, 80)):
+            els = self._elbowed(shape, 3, w, h)
+            canvas.fan_attach_points(els)
+            ys = sorted(y for _x, y in self._feet(els))
+            self.assertEqual(len(set(ys)), 3, (shape, ys))
+            for lo, hi in zip(ys, ys[1:]):
+                self.assertGreater(
+                    hi - lo, 16,
+                    "%s %dx%d: the fan left two feet %spx apart, inside "
+                    "the lane the corridor reads as one stroke"
+                    % (shape, w, h, hi - lo))
+            hits = instruments.shared_corridors(els)
+            self.assertEqual(
+                hits, [],
+                "%s %dx%d: the fan's own output reports %d corridor(s) — "
+                "the fan exists to stop these arrows reading as one "
+                "stroke and the drawing's own measure disagrees: %s"
+                % (shape, w, h, len(hits), hits))
 
     def test_a_side_too_short_for_the_pitch_still_spreads(self) -> None:
-        """40px cannot hold three lanes 18px apart, and says so by trying.
+        """A 64px side cannot hold four lanes, and says so by trying.
 
         The widening is bounded by the side, and the bound is the same
-        8px margin the slide fallback refuses to step outside. A 40px
-        side gives 12px of pitch — under the corridor's tolerance and
-        honestly so, because there is no arrangement of three feet on
-        40px that clears it. What must NOT happen is the slots going out
-        of order or off the end, which is what an unbounded widening
-        does.
+        8px margin the slide fallback refuses to step outside. Four feet
+        need `3 * FAN_LANE_PITCH` = 54px of clear outline; a 64px side
+        offers ~48px of it on a rectangle and ~38 on a conic, so the
+        lanes come out under the corridor's tolerance on EVERY shape
+        including the one where the projection does nothing. That is
+        what makes this the honest-shortfall pole rather than a residue
+        of the curve fix — the rectangle is short for the same reason.
+
+        What must NOT happen is the slots going out of order or off the
+        end, which is what an unbounded widening does, so that is what
+        is asserted. The shortfall's boundary moves with
+        `FAN_LANE_PITCH` and `FAN_EDGE_MARGIN`; it is derived here
+        rather than written down, so it stays true when they move.
         """
-        els = self._converging("rectangle", n=3, side=40, gap=25)
-        canvas.fan_attach_points(els)
-        ys = [y for _x, y in self._feet(els)]
-        self.assertEqual(ys, sorted(ys), ys)
-        self.assertTrue(all(108 <= y <= 132 for y in ys), ys)
+        for shape, w, h in (("rectangle", 160, 64), ("ellipse", 160, 64),
+                            ("diamond", 200, 80)):
+            els = self._elbowed(shape, 4, w, h)
+            node = els[0]
+            room = (canvas._fan_cross(node, "left", h - canvas.FAN_EDGE_MARGIN)
+                    - canvas._fan_cross(node, "left", canvas.FAN_EDGE_MARGIN))
+            self.assertLess(room, 3 * canvas.FAN_LANE_PITCH,
+                            "%s: this side is no longer short, so it is no "
+                            "longer this test's scene" % shape)
+            canvas.fan_attach_points(els)
+            ys = [y for _x, y in self._feet(els)]
+            self.assertEqual(ys, sorted(ys), (shape, ys))
+            lo, hi = node["y"] + canvas.FAN_EDGE_MARGIN, node["y"] + h
+            self.assertTrue(all(lo <= y <= hi - canvas.FAN_EDGE_MARGIN
+                                for y in ys), (shape, ys))
 
     def test_the_fan_survives_a_second_pass(self) -> None:
         """Re-running the post-pass on its own output moves nothing.

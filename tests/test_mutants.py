@@ -11540,8 +11540,8 @@ _register(Mutant(
 # verification had already ruled out. Stage 2 left `shared_corridors`
 # altogether: a straightness gate can only suppress a chord reading it
 # shares, and over the 24 frozen artifacts its whole measured effect was to
-# make the corridor count depend on whether the corners were rounded (5 as
-# stored, 5 all-curved without it, 1 all-curved with it — roundness moves no
+# make the corridor count depend on whether the corners were rounded (6 as
+# stored, 6 all-curved without it, 1 all-curved with it — roundness moves no
 # endpoint). `_reads_as_line` itself is untouched and `false_bidi` still
 # gates on it, which is why none of the six things the naive widen-the-
 # constant fix broke moved this time. See `_stretch_axis`.

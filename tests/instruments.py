@@ -477,12 +477,13 @@ def _stretch_axis(
     a span's bow is set by the leg BEFORE it while the band scales with
     the span's own extent — so a short final after a long approach, the
     commonest shape a router draws, is rejected on its neighbour's
-    length. Measured over the 24 frozen artifacts, the gate's whole
-    effect was to make the answer depend on a style toggle: 5 corridors
-    as stored (all sharp), 5 with the gate gone and every arrow rounded,
-    1 with the gate in place and every arrow rounded. Roundness moves no
-    endpoint. A corridor count that falls 5 -> 1 when the corners are
-    rounded is reporting the corner style, not the drawing.
+    length. Measured over the 24 frozen artifacts, live elements only,
+    the gate's whole effect was to make the answer depend on a style
+    toggle: 6 corridors as stored, 6 with the gate gone and every
+    multi-leg arrow rounded, 1 with the gate in place and the same
+    arrows rounded. Roundness moves no endpoint. A corridor count that
+    falls 6 -> 1 when the corners are rounded is reporting the corner
+    style, not the drawing.
 
     `false_bidi` keeps its `_reads_as_line` gate and keeps it strictly,
     which is not an inconsistency: it claims two arrows read as ONE

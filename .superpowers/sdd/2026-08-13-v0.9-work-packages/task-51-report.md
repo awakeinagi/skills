@@ -1,14 +1,22 @@
 # Task 51 report — the fan repair + the attribution fix
 
-BASE `bc48bb11e6093a25cd107046f03723fa9bd0f1a1`, HEAD `b87c99dd`.
-Three commits, three reds flipped, each re-proven. Full suites and
-`uvx pre-commit run --all-files` green at HEAD.
+BASE `bc48bb11e6093a25cd107046f03723fa9bd0f1a1`.
+Three reds flipped, each re-proven. Full suites and
+`uvx pre-commit run --all-files` green.
 
 | commit | what |
 |---|---|
 | `6cb4218` | 51a — the corridor stops reporting the corner style |
 | `1fecd18` | 51b — the fan puts its feet on the ink, one lane apart |
 | `b87c99d` | 51c — the export stops painting over other people's ink |
+| `d4bff9b` | this report |
+| §8 | fix round 1 — M1/m1/m2 |
+
+**§8 is the fix round and supersedes two numbers below.** §1's gate
+measurement was 5/5/1 in the first draft of this report and in the code
+it landed; it is 6/6/1 (§8, m1). §2b's pitch was solved on the BOX and
+did not survive the projection onto the ink (§8, M1). Everything else
+stands as written.
 
 ---
 
@@ -360,3 +368,159 @@ Test count rose 1072 → 1078: `TestFanAttachPoints`' six.
 7. **The render cache cold-started** on every canvas.py change, as the
    brief predicted. The gated suite ran 178s on the first post-change run
    and 110–127s after. Not a regression.
+
+---
+
+## 8. Fix round 1 (review `task-51-review.md`)
+
+Verdict taken: quality PASS, spec CHANGES REQUESTED. All three findings
+fixed in one commit. Suites green at the fix-round head, which now sits
+on top of curator batch 25's fold-in (`96e727a`).
+
+### M1 — the pitch died in the projection. Confirmed, and worse than one bug
+
+Reproduced at my head with the reviewer's own `/tmp/probe_real.py`
+before touching anything. The two halves of 51b cancelled: I widened the
+lane on the BOX and then `_fan_point` projected the slots onto the
+outline, which compresses the cross-axis separation — hardest at the
+ends, so an even box spread lands UNEVEN on a conic.
+
+| node | n | lanes on the ink, before | after |
+|---|---|---|---|
+| ellipse 160x64 | 3 | 16, 16 | **18, 18** |
+| ellipse 160x64 | 4 | 11, 16, 11 | 13, 12, 13 |
+| diamond 200x80 | 3 | 13, 13 | **18, 18** |
+| diamond 200x80 | 4 | 9, 14, 9 | 12, 12, 12 |
+| ellipse 300x300 | 3 | 67, 67 | 67, 67 (unmoved) |
+| rectangle, any | any | — | unmoved, exactly |
+
+**The fix.** Slots are now chosen as INK coordinates and mapped back to
+box slots by `_fan_slot`. Two new helpers: `_fan_cross` (where the drawn
+foot for a box slot lands, in the side's own frame) and `_fan_slot`
+(that map inverted).
+
+**`_fan_slot` bisects the forward map rather than using a closed form,
+and that is the design decision worth reviewing.** A closed form is
+available for both shapes and I rejected it: it would be a THIRD place
+that knows what a rhombus and a conic are, after `shape_clip` and
+`shape_clearance`, and — unlike those two — one that could silently
+drift from the very projection it exists to undo. Bisecting `_fan_point`
+itself cannot drift and stays correct for whatever shapes `shape_clip`
+learns next. 48 iterations, and it short-circuits when the forward map
+is already the identity, so a rectangle costs one call and returns the
+box arithmetic bit for bit.
+
+**Two things the reviewer's probe numbers included that are not the
+fan's.** Worth recording because they change what the new test can
+assert:
+
+1. *The source column.* That probe stacks its sources at one x, so their
+   outgoing stubs share a lane by construction. After the fix its n=3
+   rows still print "corridors=1" — that corridor is between two
+   APPROACH legs, not two feet. The new test staggers the sources; on a
+   scene without the artifact, n=3 is clean on all three shapes.
+2. *The obstacle slide.* On a diamond 300x300 n=4 the slot math is
+   exactly even (31.25px) and the drawn gaps come out 36/32/31, because
+   the `_fan_hits` fallback slid one foot 12 box px to keep a segment out
+   of a foreign box. That is the documented fallback doing its job; it
+   steps in box px and so can narrow a lane, and a lane too tight beats a
+   line through a node. Recorded in `fan_attach_points`' docstring rather
+   than engineered away.
+
+**The honest-shortfall concession was re-derived, as instructed.** The
+old wording ("40px cannot hold three lanes") was true and too narrow.
+The real boundary: `(N - 1) * FAN_LANE_PITCH` of clear outline is needed;
+a 64px side offers ~48px of it on a rectangle and ~38 on a conic. So
+four feet fall short on a 64px side **on every shape including the
+rectangle** — which is the point, because it proves the shortfall is
+about the side and not a residue of the curve fix. The test now derives
+that bound from the constants instead of quoting a number, so it stays
+true when they move.
+
+### The test that would have caught it, and m2 closed with it
+
+`test_a_cramped_side_gets_lanes_wider_than_a_corridor` now runs
+`instruments.shared_corridors` over the fanned scene, across
+`("rectangle", "ellipse", "diamond")`. That required a second builder,
+`_elbowed`: the original `_converging` makes 2-point arrows, which the
+fan turns into diagonals, and a diagonal has no axis for the corridor to
+read — **that builder could not have failed this assertion on any
+input**, which is the deeper reason the M1 defect got past me rather
+than "I only tested a rectangle".
+
+The reviewer's diagnosis of why the original pair missed it is exactly
+right and worth restating: the widening test used a rectangle (the one
+shape where `shape_clip` is the identity) and the curved-feet test used a
+300px node (where the widening arm never fires). Two halves, each
+covered, and the product of the halves untested.
+
+**m2 is closed by this.** The property pinned is not
+`FAN_LANE_PITCH > tol` — a constants comparison that proves nothing about
+geometry — but "the fan's own output draws no corridor", which is the
+coupling's consequence and the thing that actually broke.
+
+**Mutation-checked in both directions.** Healthy fan: all six quiet.
+Each mutation and the pins that catch it:
+
+| mutation | caught by |
+|---|---|
+| `_fan_slot` → identity (pitch back on the box — the M1 defect itself) | `..._lanes_wider_than_a_corridor` |
+| `FAN_LANE_PITCH` → 0 (no widening) | `..._lanes_wider_than_a_corridor`, `..._too_short_for_the_pitch` |
+| `shape_clip` → box (feet back off the ink) | `..._feet_on_the_ink`, `..._too_short_for_the_pitch` |
+
+Each half has a pin, the product has a pin, and no mutation is silent.
+
+`tests/test_backend.py` gains `import instruments` for this. First-party
+and stdlib-only, so a plain import — AGENTS.md §5's loud-skip rule is
+about third-party packages.
+
+### m1 — the 5/5/1 gate measurement was wrong; it is 6/6/1
+
+The reviewer is right and the cause is mine: my census script did not
+filter `isDeleted`, and one fixture (`argus-r4-arm4/enrichment-flow`)
+carries its corridor on live elements only. §4's census was measured
+correctly (filtered, 6) and §1's was not — the two numbers in one report
+disagreed and the wrong one went into the permanent in-code record.
+
+Re-measured at the fix-round head, live elements only, by re-implementing
+the pre-task-51 gated rule beside the shipped one: **6 as stored, 6
+all-curved with the gate gone, 1 all-curved with the gate on.** Fixed in
+`_stretch_axis`'s docstring, the mutant entry's comment, and
+SESSION-HANDOVER.md. The conclusion is unchanged and slightly stronger —
+the gate suppressed 5 of 6, not 4 of 5.
+
+### Census re-run after the fix
+
+Measured, not assumed, as instructed. **The zero-delta claim survives:**
+0 of 24 fixtures differ from BASE on any field — errors 0, warnings 35,
+crossings 17, corridors 6, float_diamond 0, `score_layout` crossings
+22.638 and crossing_angle 23.690, defects 74. The reason is §4's: the
+fan moves no corpus arrow, so a change to how it spaces feet cannot
+reach the corpus. §4's census stands unedited.
+
+### Verification at the fix-round head
+
+- default suite → **1095 tests, OK**, skipped 38, expected failures 25.
+- `MUTANTS_RENDER=1` → **1095 tests, OK**, expected failures 25.
+- `uvx pre-commit run --all-files` → **15/15 Passed**.
+
+The counts moved from this report's §6 (1078/17) because curator batch
+25 landed underneath: it folded in at `96e727a` while this round was in
+flight. Checked rather than assumed — its commit contains none of my
+in-flight hunks, and my three edits to files it also touched
+(`SESSION-HANDOVER.md`, `tests/test_mutants.py`) sit on top of its
+content, not over it.
+
+### Concerns closed and still open
+
+Closed by this round: concern 5 (the cross-file constant coupling now has
+an executable guard). Still open and unchanged: concern 1 (the
+`float_diamond` rename, curator's), concern 3 (the corridor's unreachable
+residual, unpinned by judgement), concern 4 (the mixed corridor pair sits
+exactly on the tolerance).
+
+New, small: `_fan_slot`'s 48-iteration bisection runs once per fanned
+foot on curved nodes only. Measured at ~0.02s for the whole six-test
+class, so it is not a cost worth engineering around — but it is a loop
+where there used to be arithmetic, and a reviewer should know it is
+there by choice rather than by accident.

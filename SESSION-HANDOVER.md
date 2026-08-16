@@ -214,7 +214,7 @@ the flip author:
   have since gone the same way, both with Task 51:
   `curved_short_finals_escape_the_corridor` (`shared_corridor`) when the
   corridor's straightness gate came off — it could only suppress, and
-  what it suppressed was 4 of the corpus's 5 corridors as soon as the
+  what it suppressed was 5 of the corpus's 6 corridors as soon as the
   corners were rounded — and `fanned_ellipse_foot_floats_in_the_void`
   (`float_diamond`) when the auto-fan stopped placing feet in an
   ellipse's corner void AND `float_diamond` learned to read a conic.
