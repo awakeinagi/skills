@@ -2864,7 +2864,32 @@ def binding_focus(node, px, py):
 
 
 def _edge_side(el, px, py, eps=2.5):
-    """Which bbox edge of el the point sits on: left/right/top/bottom."""
+    """Which side of el the point sits on: left/right/top/bottom.
+
+    The bbox test is the whole answer for a rectangle, whose outline IS
+    its box. It is not the whole answer for a rhombus or an ellipse: the
+    drawn outline leaves the box everywhere except the four side
+    midpoints, so a foot standing on the INK — which is where
+    `edge_anchor` and `_fan_point` both put one — is on no bbox edge at
+    all and used to come back None. Two things read that None and both
+    are silent failures: `binding_focus` returns focus 0, which aims the
+    client's re-render at the node centre and collapses a fan back onto
+    one point (v0.3), and `fan_attach_points` drops the endpoint from its
+    per-side ledger, so a fan that has already run cannot be maintained.
+
+    Args:
+        el: The node element.
+        px: Point x, in scene coordinates.
+        py: Point y.
+        eps: How far off the outline still counts as standing on it.
+            Stored geometry is rounded to whole pixels (`_snap_geom`),
+            so a foot written exactly onto a conic reads back up to a
+            pixel away from it.
+
+    Returns:
+        `"left"`, `"right"`, `"top"`, `"bottom"`, or None when the point
+        is on no side of this element.
+    """
     if abs(px - el["x"]) <= eps:
         return "left"
     if abs(px - (el["x"] + el.get("width", 0))) <= eps:
@@ -2873,25 +2898,111 @@ def _edge_side(el, px, py, eps=2.5):
         return "top"
     if abs(py - (el["y"] + el.get("height", 0))) <= eps:
         return "bottom"
-    return None
+    if el.get("type") not in ("diamond", "ellipse"):
+        return None
+    a, b = el.get("width", 0) / 2.0, el.get("height", 0) / 2.0
+    if a <= 0 or b <= 0:
+        return None
+    cx, cy = el["x"] + a, el["y"] + b
+    dx, dy = px - cx, py - cy
+    span = shape_clip(el, cx, cy, dx, dy)
+    if span is None or \
+            abs(1.0 - span[1]) * (dx * dx + dy * dy) ** 0.5 > eps:
+        return None
+    # Which side the point is on is the axis it is furthest along in the
+    # shape's OWN units — the box slot that projects to it, and so the
+    # side the fan slid it down. Comparing raw |dx| against |dy| would
+    # name the wrong side on any node much wider than it is tall.
+    if abs(dx) / a >= abs(dy) / b:
+        return "left" if dx < 0 else "right"
+    return "top" if dy < 0 else "bottom"
 
 
 def _fan_point(node, side, off):
-    """Absolute attach point at offset `off` along a node's bbox side."""
+    """Attach point at offset `off` along a node's side, ON THE OUTLINE.
+
+    The outline and not the bounding box, for `edge_anchor`'s reason and
+    at the site that was left behind when it was fixed: a rhombus fills
+    half its box and an ellipse ~79%, so a foot slid along the BOX stops
+    in empty canvas. That left the router landing on the ink and this
+    post-pass sliding it straight back off — measured at 17.71px out on
+    a 300px circle and 53.03px on the rhombus of the same size, under
+    every tolerance the endpoint lint has
+    (`fanned_ellipse_foot_floats_in_the_void`).
+
+    The box slot still parameterises the fan: it is what spreads the
+    slots evenly and keeps them in order along the side. It is then
+    pulled onto the outline along the ray from the node's centre, which
+    is monotone along a side and so preserves that order. A rectangle's
+    outline IS its box, so `shape_clip` hands back exactly 1 and this
+    returns the point it always did, bit for bit.
+
+    Args:
+        node: The node element the foot attaches to.
+        side: Which side the fan is spreading along.
+        off: Distance along that side from its low corner.
+
+    Returns:
+        The `(x, y)` attach point on the node's drawn outline.
+    """
     if side == "top":
-        return (node["x"] + off, node["y"])
-    if side == "bottom":
-        return (node["x"] + off, node["y"] + node.get("height", 0))
-    if side == "left":
-        return (node["x"], node["y"] + off)
-    return (node["x"] + node.get("width", 0), node["y"] + off)
+        px, py = node["x"] + off, node["y"]
+    elif side == "bottom":
+        px, py = node["x"] + off, node["y"] + node.get("height", 0)
+    elif side == "left":
+        px, py = node["x"], node["y"] + off
+    else:
+        px, py = node["x"] + node.get("width", 0), node["y"] + off
+    cx = node["x"] + node.get("width", 0) / 2.0
+    cy = node["y"] + node.get("height", 0) / 2.0
+    dx, dy = px - cx, py - cy
+    span = shape_clip(node, cx, cy, dx, dy)
+    return (px, py) if span is None else (cx + dx * span[1],
+                                          cy + dy * span[1])
+
+
+FAN_LANE_PITCH = 18.0
+# The gap the auto-fan tries to leave between two feet on one node side.
+# The fan exists so that N arrows converging on a point stop reading as
+# one arrow, and `length * k / (N + 1)` was not measured against anything
+# that says when they do: three arrows on a 64px side land 16px apart,
+# which clears the lint's own 12px coincidence window and sits EXACTLY on
+# the 16px lane `tests/instruments.shared_corridors` calls one stroke —
+# so the fan's own output was the drawing's non-authored corridor
+# finding. 18 is the first whole pixel past that lane. The two numbers
+# are coupled deliberately and live in two files; if the corridor
+# instrument's tolerance moves, this moves with it.
+FAN_EDGE_MARGIN = 8.0
+# ...and how much of each end of the side the widened fan leaves alone —
+# the same 8px window the slide fallback below refuses to step outside,
+# so a widened slot is still a slot the fallback could have chosen.
 
 
 def fan_attach_points(els):
-    """Spread server-routed arrows sharing one node edge along it at
-    L*k/(N+1) (diagram-design §6.4 — see references/layout.md): N arrows
-    converging on a single point read as one arrow. Only touches arrows
-    route_arrow marked `routed` — user geometry is never respaced."""
+    """Spread server-routed arrows that share one node side along it.
+
+    N arrows converging on a single point read as one arrow
+    (diagram-design §6.4 — see references/layout.md), so the slots are
+    the even spread `length * k / (N + 1)`, widened to `FAN_LANE_PITCH`
+    where that spread would land the lanes inside a corridor, and placed
+    on the node's DRAWN OUTLINE by `_fan_point` rather than on its
+    bounding box.
+
+    Only arrows `route_arrow` marked `routed` are touched: user geometry
+    is never respaced. Runs as a global post-pass over the whole applied
+    scene, so a fan re-forms whenever anything it depends on moves.
+
+    Every moved endpoint takes the same four steps, and the third is the
+    one that looks optional and is not: the binding dict is REPLACED
+    with a recomputed `binding_focus`. Focus 0 aims the client's first
+    re-render at the node centre, so leaving it in place drags every
+    fanned endpoint straight back onto the shared anchor (v0.3), and
+    writing into the existing dict leaks into the caller's scene through
+    `apply_ops`' shallow copy even on a batch that is later rejected.
+
+    Args:
+        els: The whole applied scene, mutated in place.
+    """
     ix = {e["id"]: e for e in els}
     ends = {}  # arrow id -> {"start": (x,y), "end": (x,y)}
     per_side = {}  # (node_id, side) -> [(arrow_id, which_end)]
@@ -2927,9 +3038,18 @@ def fan_attach_points(els):
             return fx if horiz else fy
         members = sorted(members, key=far_coord)
         n = len(members)
+        # `length * k / (N + 1)` centred, so a roomy side gets exactly the
+        # slots it always got — and a cramped one gets `FAN_LANE_PITCH`
+        # instead of a pitch the corridor still reads as one stroke. Never
+        # narrower than the even spread, never wider than the side holds.
+        pitch = length / float(n + 1)
+        if n > 1:
+            pitch = max(pitch,
+                        min(FAN_LANE_PITCH,
+                            (length - 2 * FAN_EDGE_MARGIN) / float(n - 1)))
         slide_of = {}
         for k, (aid, which) in enumerate(members, start=1):
-            off = length * k / (n + 1)
+            off = length / 2.0 + (k - (n + 1) / 2.0) * pitch
             slide_of[aid, which] = (node, side, off, length)
             ends[aid][which] = _fan_point(node, side, off)
         fan_slides.update(slide_of)

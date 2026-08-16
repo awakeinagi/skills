@@ -882,19 +882,84 @@ def _dist_to_diamond(px: float, py: float, n: dict) -> float:
     return abs(dx / a + dy / b - 1) / (1 / (a * a) + 1 / (b * b)) ** 0.5
 
 
-def float_diamond(elements: list[dict]) -> list[dict]:
-    """Flag arrow endpoints bound to a diamond but sitting off its boundary.
+def _dist_to_ellipse(px: float, py: float, n: dict) -> float:
+    """How far a point misses an ellipse node's drawn outline by, in px.
 
-    Ported from floatdia.py.
+    The shape with no reader at all until v0.9 task 51: `float_diamond`
+    filtered on `type != "diamond"` and never looked at a conic, so the
+    auto-fan's own feet stood in an ellipse's corner void — 17.71px out
+    on a 300px circle — under both terms of the endpoint lint's
+    `max(14, 0.2r)` tolerance at every radius, and unreported by anything
+    else (`fanned_ellipse_foot_floats_in_the_void`).
+
+    The standard point-to-ellipse projection, iterated. It is NOT the
+    radial scaling `_dist_to_diamond` was rebuilt to get away from — the
+    answer does not depend on the direction the endpoint happens to lie
+    in — and it is deliberately NOT `canvas.shape_clearance`, which
+    computes the same number first-order and under-reads it by 0.94px on
+    the pin's own scene. Deriving it here is what keeps these
+    instruments independent of the geometry they measure, which is the
+    property that let `float_diamond` catch `edge_anchor` on the
+    bounding box months before the lint agreed.
+
+    Verified against a 400k-sample scan of the outline, agreeing to four
+    decimal places (curator batch 22's proposal, applied unchanged).
+
+    UNSIGNED, for `_dist_to_diamond`'s reason: an endpoint 50px inside is
+    as unbound as one 50px outside and the magnitude is the miss.
 
     Args:
-        elements: Full scene element list; arrows and their bound
-            diamond nodes are looked up internally.
+        px: Endpoint x in absolute coordinates.
+        py: Endpoint y in absolute coordinates.
+        n: The ellipse node element dict (x, y, width, height).
+
+    Returns:
+        Distance in px from the conic; 0 exactly on it, and 0 for a node
+        with no area, which has no outline to miss.
+    """
+    a, b = n["width"] / 2.0, n["height"] / 2.0
+    if a <= 0 or b <= 0:
+        return 0.0
+    dx, dy = abs(px - (n["x"] + a)), abs(py - (n["y"] + b))
+    t = math.pi / 4.0
+    for _ in range(60):
+        ex = (a * a - b * b) * math.cos(t) ** 3 / a
+        ey = (b * b - a * a) * math.sin(t) ** 3 / b
+        rx, ry = a * math.cos(t) - ex, b * math.sin(t) - ey
+        qx, qy = dx - ex, dy - ey
+        r, q = math.hypot(rx, ry), math.hypot(qx, qy)
+        if not q:
+            break
+        t = min(math.pi / 2.0, max(0.0, t + math.asin(max(-1.0, min(
+            1.0, (rx * qy - ry * qx) / (r * q) if r * q else 0.0))) * r / q))
+    return math.hypot(dx - a * math.cos(t), dy - b * math.sin(t))
+
+
+def float_diamond(elements: list[dict]) -> list[dict]:
+    """Flag arrow endpoints bound to a curved node but off its boundary.
+
+    Ported from floatdia.py, and reading ellipses as well as rhombuses
+    since v0.9 task 51.
+
+    THE NAME IS NARROWER THAN THE CHECK, knowingly. `float_diamond` is
+    the string the `DETECTORS` table, `_collect_findings`' collector, the
+    coverage table, two catalogue entries and the handover all spell out,
+    and a pin asserts it as the CHECK NAME — so renaming it is a census
+    edit across five places rather than a rename, and it is the
+    curator's to make, not a fix's. What the check has always meant is
+    "an endpoint bound to a node whose outline is not its box, sitting
+    off that outline"; the rectangle is excluded because for a rectangle
+    the two are the same thing and `endpoint_gap` already owns it.
+
+    Args:
+        elements: Full scene element list; arrows and their bound nodes
+            are looked up internally.
 
     Returns:
         A list of `{"arrow": id, "node": id, "gap": float}` dicts, one
-        per bound endpoint sitting more than 12px off the outline, on
-        either side of it (see `_dist_to_diamond`).
+        per bound endpoint sitting more than 12px off a diamond's or an
+        ellipse's outline, on either side of it (see `_dist_to_diamond`
+        and `_dist_to_ellipse`).
     """
     by_id = {e["id"]: e for e in elements}
     bad: list[dict] = []
@@ -909,9 +974,10 @@ def float_diamond(elements: list[dict]) -> list[dict]:
             if not bind:
                 continue
             n = by_id.get(bind.get("elementId"))
-            if not n or n["type"] != "diamond":
+            if not n or n["type"] not in ("diamond", "ellipse"):
                 continue
-            g = _dist_to_diamond(pt[0], pt[1], n)
+            g = (_dist_to_ellipse(pt[0], pt[1], n) if n["type"] == "ellipse"
+                 else _dist_to_diamond(pt[0], pt[1], n))
             if g > 12:
                 bad.append({"arrow": e["id"], "node": n["id"], "gap": g})
     return bad

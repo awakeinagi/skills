@@ -11190,10 +11190,20 @@ _register(Mutant(
                         FindingSpec("shared_corridor", element="fa+fb",
                                     magnitude=(80, 0.10)))))
 
-# RED BY ABSENCE — shape-blindness in the WRITER, and the oldest open one
-# in the repo (curator batch 22, 2026-08-15, from Task 56 §8.4 and §8.5).
-# `_fan_point` spreads attach points along the BOUNDING BOX side, so on an
-# ellipse the fanned feet stop in the corner void. Nothing reports it:
+# WAS RED BY ABSENCE — shape-blindness in the WRITER, and the oldest open
+# one in the repo when it was written (curator batch 22, 2026-08-15, from
+# Task 56 §8.4 and §8.5). FLIPPED GREEN by v0.9 task 51, which took both
+# halves the entry names: `_fan_point` now pulls each slot onto the drawn
+# outline along the ray from the node's centre, and `float_diamond` reads
+# ellipses through a `_dist_to_ellipse` derived here rather than borrowed
+# from canvas.py. THE MUTANT SCENE IS UNCHANGED and still hand-places the
+# foot at (200, 175), which is what keeps it a pin on the READER after the
+# writer stopped producing that point — the geometry it asserts about is
+# now unreachable from the fan, and that is the writer's own regression
+# test's job (`TestFanAttachPoints`), not this one's.
+#
+# `_fan_point` spread attach points along the BOUNDING BOX side, so on an
+# ellipse the fanned feet stopped in the corner void. Nothing reported it:
 # `endpoint_gap` measures the miss but `endpoint_tol` allows
 # `0.10 * short side` = 30px here, and `float_diamond` — the independent
 # instrument whose whole reason for existing is that it does NOT share
@@ -11230,11 +11240,10 @@ _register(Mutant(
 # under-estimate that errs toward silence, so a fix that borrows it is
 # honest and must not fail over 0.94px.
 #
-# FIX OWNER: the wave's fan-repair task, already scheduled for the corridor
-# mechanisms. TWO CHANGES FLIP THIS, and they are separable — `_fan_point`
-# placing feet on the drawn outline removes the geometry, and an ellipse
-# arm on `float_diamond` gives it a reader. Either alone leaves the other
-# half open, and this pin holds until the instrument can see the shape.
+# THE TWO CHANGES WERE SEPARABLE and both landed together, which is what
+# the entry demanded: `_fan_point` on the drawn outline removes the
+# geometry, the ellipse arm gives it a reader, and either alone would have
+# left the other half open. The reader is the half this pin holds.
 _register(Mutant(
     "fanned_ellipse_foot_floats_in_the_void",
     build=lambda: _fanned_void_foot("ellipse"),
@@ -11409,9 +11418,8 @@ class TestMutantCatalogue(unittest.TestCase):
         """Sharp, the same two finals are reported at 80px of overlap."""
         self._run_neighbour("curved_short_finals_escape_the_corridor")
 
-    @unittest.expectedFailure
     def test_mutant_fanned_ellipse_foot_floats_in_the_void(self) -> None:
-        """The fan stops 17.7px off a circle and no instrument looks."""
+        """A foot 17.7px off a circle is reported now (task 51)."""
         self._run("fanned_ellipse_foot_floats_in_the_void")
 
     def test_neighbour_fanned_ellipse_foot_floats_in_the_void(self) -> None:
@@ -12513,8 +12521,7 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # notices a red that started PASSING. Nothing noticed a red that was ADDED,
 # and an addition is what leaves a census stating six where seven is true.
 # Neither guard subsumes the other, and this one is the cheap half.
-CATALOGUE_RED_IDS = {"fanned_ellipse_foot_floats_in_the_void",
-                     "framed_node_escapes_its_lane", "gray_text_on_ground",
+CATALOGUE_RED_IDS = {"framed_node_escapes_its_lane", "gray_text_on_ground",
                      "headless_chain_reads_through_node", "pale_stroke_node",
                      "tiny_font_text", "tolerable_gap_hides_interior_run"}
 

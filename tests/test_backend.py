@@ -5628,6 +5628,167 @@ class TestRouterV03(Base):
         self.assertFalse(crossed)
 
 
+class TestFanAttachPoints(unittest.TestCase):
+    """v0.9 task 51: what the auto-fan writes, on each shape and pitch.
+
+    The writer's own regression for the two failures the fan owned. The
+    catalogue pins the READER halves — `fanned_ellipse_foot_floats_in_
+    the_void` asserts that an instrument reports a foot in an ellipse's
+    void, and `curved_short_finals_escape_the_corridor` that the corridor
+    reports two runs one lane apart — and neither can notice the fan
+    ceasing to PRODUCE those pictures, because both hand-build their
+    scenes. This class is that half, and it calls `fan_attach_points`
+    directly rather than through a batch so a failure names the fan.
+    """
+
+    def _converging(self, shape: str, n: int = 3, side: float = 300,
+                    gap: float = 100) -> list[dict]:
+        """A scene of `n` routed arrows arriving on one node's left side.
+
+        Args:
+            shape: The target node's type.
+            n: How many arrows converge.
+            side: The target node's width and height.
+            gap: Vertical spacing between the sources, which is what
+                orders the fan's slots.
+
+        Returns:
+            The scene, sources first, ready for `fan_attach_points`.
+        """
+        els = [{"id": "N", "type": shape, "x": 200, "y": 100,
+                "width": side, "height": side, "customData":
+                {"role": "node"}}]
+        for i in range(n):
+            els.append({"id": "S%d" % i, "type": "rectangle", "x": 0,
+                        "y": 100 + i * gap, "width": 60, "height": 40,
+                        "customData": {"role": "node"}})
+            els.append({"id": "a%d" % i, "type": "arrow", "x": 60,
+                        "y": 120 + i * gap, "width": 140, "height": 0,
+                        "points": [[0, 0], [140, 0]],
+                        "startBinding": {"elementId": "S%d" % i,
+                                         "focus": 0, "gap": 1},
+                        "endBinding": {"elementId": "N", "focus": 0,
+                                       "gap": 1},
+                        "customData": {"role": "edge", "routed": True}})
+        return els
+
+    def _feet(self, els: list[dict]) -> list[tuple[float, float]]:
+        """The absolute end point of every arrow in a fanned scene.
+
+        Args:
+            els: The scene, after `fan_attach_points`.
+
+        Returns:
+            One `(x, y)` per arrow, in scene order.
+        """
+        return [(e["x"] + e["points"][-1][0], e["y"] + e["points"][-1][1])
+                for e in els if e.get("type") == "arrow"]
+
+    def test_a_rectangle_fan_is_unchanged(self) -> None:
+        """The even spread, on the box, exactly where it always was.
+
+        The control for both changes at once: a rectangle's outline IS
+        its box, so `shape_clip` returns the slot untouched, and a 300px
+        side spreads at 75px, far past `FAN_LANE_PITCH`, so the widening
+        arm never fires. If this moves, one of the two arms is firing
+        where it was meant to be inert.
+        """
+        els = self._converging("rectangle")
+        canvas.fan_attach_points(els)
+        self.assertEqual(self._feet(els), [(200, 175), (200, 250),
+                                           (200, 325)])
+
+    def test_curved_shapes_get_their_feet_on_the_ink(self) -> None:
+        """No fanned foot stands in a rhombus's or a circle's corner void.
+
+        Measured as the instruments measure it, against the drawn
+        outline: `_dist_to_ellipse`'s own scan says the old middle slot
+        on this exact node missed by 17.71px and the rhombus's by 53.03.
+        Asserted at the endpoint lint's floor rather than at zero
+        because `_snap_geom` rounds every stored coordinate to a whole
+        pixel, so a foot written onto a conic reads back up to ~1px off
+        it.
+        """
+        for shape in ("ellipse", "diamond"):
+            els = self._converging(shape)
+            canvas.fan_attach_points(els)
+            node = els[0]
+            for fx, fy in self._feet(els):
+                miss = canvas.shape_clearance(node, fx, fy)
+                self.assertLess(
+                    abs(miss), 2.0,
+                    "%s: the fan left a foot at (%s, %s), %.2fpx off the "
+                    "drawn outline" % (shape, fx, fy, miss))
+
+    def test_a_cramped_side_gets_lanes_wider_than_a_corridor(self) -> None:
+        """Three feet on a 64px side, 18px apart and not 16.
+
+        The corridor collision: the even spread puts three lanes exactly
+        16px apart, which clears the lint's 12px coincidence window and
+        sits ON `instruments.shared_corridors`' 16px tolerance — so the
+        fan's own output was a merged stroke by the drawing's own
+        measure. Asserted as a strict inequality against the corridor's
+        tolerance rather than against `FAN_LANE_PITCH`, because the
+        claim is about the lane the reader sees and not about this
+        constant's value.
+        """
+        els = self._converging("rectangle", side=64, gap=30)
+        canvas.fan_attach_points(els)
+        ys = sorted(y for _x, y in self._feet(els))
+        self.assertEqual(len(set(ys)), 3, ys)
+        for lo, hi in zip(ys, ys[1:]):
+            self.assertGreater(hi - lo, 16, ys)
+
+    def test_a_side_too_short_for_the_pitch_still_spreads(self) -> None:
+        """40px cannot hold three lanes 18px apart, and says so by trying.
+
+        The widening is bounded by the side, and the bound is the same
+        8px margin the slide fallback refuses to step outside. A 40px
+        side gives 12px of pitch — under the corridor's tolerance and
+        honestly so, because there is no arrangement of three feet on
+        40px that clears it. What must NOT happen is the slots going out
+        of order or off the end, which is what an unbounded widening
+        does.
+        """
+        els = self._converging("rectangle", n=3, side=40, gap=25)
+        canvas.fan_attach_points(els)
+        ys = [y for _x, y in self._feet(els)]
+        self.assertEqual(ys, sorted(ys), ys)
+        self.assertTrue(all(108 <= y <= 132 for y in ys), ys)
+
+    def test_the_fan_survives_a_second_pass(self) -> None:
+        """Re-running the post-pass on its own output moves nothing.
+
+        `fan_attach_points` runs over the whole scene after every batch,
+        so it meets its own feet constantly. On a curved shape those
+        feet are no longer on any bbox edge, and before `_edge_side`
+        learned to read an outline they dropped out of the per-side
+        ledger — the fan could be formed once and never maintained.
+        """
+        els = self._converging("ellipse")
+        canvas.fan_attach_points(els)
+        once = self._feet(els)
+        canvas.fan_attach_points(els)
+        self.assertEqual(once, self._feet(els))
+
+    def test_fanned_feet_on_a_curved_shape_keep_a_nonzero_focus(self
+                                                                ) -> None:
+        """The v0.3 collapse, on the shapes it was never checked on.
+
+        Focus 0 aims the client's re-render at the node's centre, so a
+        fan whose outer feet carry it is a fan the first re-render
+        undoes. `test_fanned_arrows_carry_nonzero_focus` asserts this
+        for rectangles; a foot pulled onto an outline is on no bbox edge
+        at all, which is the case that used to score 0.
+        """
+        els = self._converging("ellipse")
+        canvas.fan_attach_points(els)
+        focuses = [(e.get("endBinding") or {}).get("focus", 0)
+                   for e in els if e.get("type") == "arrow"]
+        self.assertEqual(len(focuses), 3)
+        self.assertTrue(any(abs(f) > 0.05 for f in focuses), focuses)
+
+
 class TestBudgetsV03(Base):
     """v0.3 WP4: type-aware budgets, set_budget override, frame-containment
     overlap exemption."""

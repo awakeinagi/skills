@@ -210,14 +210,16 @@ the flip author:
   went with WP4b's e1 in Task 24.) The other four are against checks
   that already ship, and there were three until 2026-08-15:
   `diamond_clearance_overfire` (`min_clearance`) FLIPPED with Task 56 when
-  the pair loop learned to measure the drawn outline, and batch 22 added
-  two, of which one has since gone the same way:
-  `curved_short_finals_escape_the_corridor` (`shared_corridor`) FLIPPED
-  with Task 51 when the corridor's straightness gate came off — it could
-  only suppress, and what it suppressed was 4 of the corpus's 5 corridors
-  as soon as the corners were rounded. The other,
-  `fanned_ellipse_foot_floats_in_the_void` (`float_diamond`, the auto-fan
-  placing feet in an ellipse's corner void), is still open here. Of the
+  the pair loop learned to measure the drawn outline, and batch 22's two
+  have since gone the same way, both with Task 51:
+  `curved_short_finals_escape_the_corridor` (`shared_corridor`) when the
+  corridor's straightness gate came off — it could only suppress, and
+  what it suppressed was 4 of the corpus's 5 corridors as soon as the
+  corners were rounded — and `fanned_ellipse_foot_floats_in_the_void`
+  (`float_diamond`) when the auto-fan stopped placing feet in an
+  ellipse's corner void AND `float_diamond` learned to read a conic.
+  That entry demanded both halves and got both; the check still carries
+  the diamond's name, which is a census edit somebody owes. Of the
   older two,
   `headless_chain_reads_through_node` is batch 21's and deliberately
   carries no magnitude (its own comment says why), and
@@ -265,7 +267,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `fanned_ellipse_foot_floats_in_the_void`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
+| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
 | render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length` (both UNGATED — they run by default), `test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run` (gated) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
