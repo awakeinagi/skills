@@ -1748,9 +1748,26 @@ class TestRenderMutants(unittest.TestCase):
 
         Three claims, in the order they have to hold:
 
-        1. Tier 1 is silent. Not decoration: it is the pin that keeps the
+        1. Tier 1 SPOKE, and what it reported missing was the liveness
+           ghost and not the opacity ghost. It is the pin that keeps the
            module docstring's account of the ceiling honest, and if
            `render_svg` ever learns opacity this is the test that says so.
+
+           The silence half of that claim used to stand alone, and it was
+           measurably worth nothing: with `ablation_findings` stubbed to
+           return `[]` this test PASSED, because an absent finding is
+           exactly what a dead detector produces. Curator batch 23 swept
+           the class for the same shape and built the fix this now shares
+           — `_with_liveness_ghost` plus `assertDetectorSpoke`, whose
+           docstrings carry the measurement. Joining their mechanism
+           rather than keeping a private one is deliberate: two spellings
+           of one control is how the next sweep misses one of them.
+
+           Strengthening, not relaxing, and the diff should be read that
+           way: every input the old line rejected this rejects too, plus
+           the dead detector. Claims 2 and 3 below are untouched — the
+           client half already paired a firing with its silence, which is
+           why only this half needed the repair.
         2. The client tier fires on the ghost. The original assertion,
            unchanged, against the new instrument.
         3. The STRUCTURAL CONTROL, and without it the other two are worth
@@ -1764,9 +1781,12 @@ class TestRenderMutants(unittest.TestCase):
         scene = tm._diamond_stage()
         ghost = el(id="g1", type="rectangle", x=300, y=300, width=10,
                    height=10, opacity=0, customData={"role": "node"})
-        full = [*scene, ghost]
-        self.assertEqual([f for f in ablation_findings(full, ["g1"])
-                          if f["check"] == "ablation_existence"], [],
+        full = _with_liveness_ghost([*scene, ghost])
+        tier1 = ablation_findings(full, ["g1", "z1"])
+        self.assertDetectorSpoke(tier1)
+        self.assertEqual([f for f in tier1
+                          if f["check"] == "ablation_existence"
+                          and f["element"] == "g1"], [],
                          "tier 1 reported the opacity ghost missing — it "
                          "has learned about opacity, and this file's account "
                          "of what tiers 1 and 2 cannot see is now wrong")
