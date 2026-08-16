@@ -1512,6 +1512,51 @@ def _label_over_foreign_stroke(foreign: bool) -> list[dict]:
                originalText="sent")]
 
 
+def _with_liveness_ghost(elements: list[dict]) -> list[dict]:
+    """The scene plus a zero-extent element that MUST be reported missing.
+
+    The positive half of every silence-shaped ablation assertion in this
+    file, added by curator batch 23 after a mutation sweep showed the
+    problem it fixes (2026-08-15). Three neighbours here asserted a
+    connector's silence and nothing else, and `ablation_findings` patched
+    to return `[]` — a detector silent about everything — passed all
+    three. An absent finding is exactly what a dead detector produces, so
+    no assertion about what is MISSING can show the instrument spoke.
+    Doctrine §3 makes this the neighbour's whole job: it is the live half
+    that stops a dead detector hiding inside the expectedFailure mask,
+    and it was not doing it.
+
+    A 0x0 rectangle draws nothing, so ablating it changes no pixels and
+    `ablation_existence` fires for it — the same arithmetic
+    `test_ablation_existence_fires_on_invisible_element` proves. Riding it
+    along in the SAME call means the liveness check runs through the very
+    entry point under test.
+
+    NOT MEASURED OFF THE RASTER, deliberately, and this is the trap worth
+    naming: a control that diffs `_shot` output directly would read as a
+    correct fix and prove the wrong thing, because it never calls
+    `ablation_findings` and so closes a dead-SUBSTRATE hole while leaving
+    the dead-DETECTOR one open. Task 50 reached for exactly that shape
+    first, independently, which is why it is written down here.
+
+    The ghost sits at the first element's origin so it cannot move the
+    drawing's bounding box — verified on each scene that uses it, since a
+    ghost outside the box would shift the viewBox and change the very
+    pixels the caller is measuring.
+
+    Args:
+        elements: The scene. Must be non-empty; the ghost borrows its
+            first element's origin.
+
+    Returns:
+        The scene with `z1` appended.
+    """
+    first = elements[0]
+    return [*elements, el(id="z1", type="rectangle", x=first.get("x", 0),
+                          y=first.get("y", 0), width=0, height=0,
+                          customData={"role": "node"})]
+
+
 def _back_edge_with_label(where: str) -> list[dict]:
     """Two stacked rects joined by a back edge that turns TWICE.
 
@@ -1567,6 +1612,34 @@ def _back_edge_with_label(where: str) -> list[dict]:
                              "(starts a headless browser)")
 class TestRenderMutants(unittest.TestCase):
     """The two render-tier detectors, each proven and each held silent."""
+
+    def assertDetectorSpoke(self, finds: list[dict]) -> None:
+        """Fail unless `ablation_findings` reported the liveness ghost.
+
+        The other half of every silence-shaped assertion in this class,
+        paired with `_with_liveness_ghost` — read that function for the
+        measurement that made it necessary. A test asserting only that a
+        connector drew no findings cannot tell a whole connector from a
+        detector that has stopped answering, and four tests here were in
+        exactly that state until curator batch 23 swept for it.
+
+        The whole projection is asserted rather than "z1 appears
+        somewhere", so this also fails if ablation broke in the other
+        direction and started reporting everything missing.
+
+        Args:
+            finds: Everything `ablation_findings` returned for a call
+                whose ids included `"z1"`.
+        """
+        self.assertEqual(
+            [(f["check"], f["element"]) for f in finds
+             if f["element"] == "z1"], [("ablation_existence", "z1")],
+            "the zero-extent ghost should be the one thing reported "
+            "missing; got %s. Either the detector said nothing at all — "
+            "in which case the silences above are about the instrument "
+            "and not about the drawing — or ablation is reporting live "
+            "elements as absent"
+            % [(f["check"], f["element"]) for f in finds])
 
     def test_ablation_existence_fires_on_invisible_element(self) -> None:
         """An element whose ablation changes no pixels is not in the picture.
@@ -1707,16 +1780,23 @@ class TestRenderMutants(unittest.TestCase):
                          "render pipeline, not about the ghost")
 
     def test_ablation_continuity_neighbour_is_silent(self) -> None:
-        """A label beside the arrow leaves the connector's delta whole."""
-        scene = _elbow_with_label("beside")
-        finds = ablation_findings(scene, ["a1"])
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_continuity"], [])
-        # An empty delta would satisfy that assertion too, so pin that the
-        # arrow really did leave the picture: existence stays silent only
-        # when ablating it changed pixels.
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_existence"], [])
+        """A label beside the arrow leaves the connector's delta whole.
+
+        The comment this test used to carry — "an empty delta would
+        satisfy that assertion too, so pin that the arrow really did
+        leave the picture" — had the right worry and the wrong remedy,
+        and curator batch 23 measured it: pairing the continuity silence
+        with an EXISTENCE silence proves nothing, because a dead detector
+        is silent about both. Stubbing `ablation_findings` to return `[]`
+        passed this test unchanged. The ghost is the remedy that works;
+        see `_with_liveness_ghost`.
+        """
+        finds = ablation_findings(
+            _with_liveness_ghost(_elbow_with_label("beside")), ["a1", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "a1"], [],
+                         "the connector is not whole: %s"
+                         % [f["raw"] for f in finds if f["element"] == "a1"])
+        self.assertDetectorSpoke(finds)
 
     def test_neighbour_a_label_on_a_straight_run_is_silent(self) -> None:
         """The bound-label idiom: a backdrop mid-run is not a severed run.
@@ -1734,14 +1814,19 @@ class TestRenderMutants(unittest.TestCase):
 
         Written in the same change as the exemption on purpose: an
         exemption whose only witness is the mutant it silences is
-        indistinguishable from switching the detector off.
+        indistinguishable from switching the detector off. Which is
+        exactly the sentence curator batch 23 had to make true of this
+        test as well as of the exemption — it asserted two silences and
+        survived a stubbed-out `ablation_findings`, so the witness was
+        indistinguishable from the switch-off in the other direction.
         """
-        scene = _elbow_with_label("run")
-        finds = ablation_findings(scene, ["a1"])
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_continuity"], [])
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_existence"], [])
+        finds = ablation_findings(
+            _with_liveness_ghost(_elbow_with_label("run")), ["a1", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "a1"], [],
+                         "the bound-label idiom now reads as a severed "
+                         "run: %s"
+                         % [f["raw"] for f in finds if f["element"] == "a1"])
+        self.assertDetectorSpoke(finds)
 
     @unittest.expectedFailure
     def test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run(self
@@ -1805,20 +1890,28 @@ class TestRenderMutants(unittest.TestCase):
         test. What must become true is that this check says nothing about
         `a1`, so that is what is asserted.
 
-        `ablation_existence` is asserted silent alongside, for the reason
-        the neighbours below give: an empty delta would satisfy the
-        continuity assertion too, and "the arrow left the picture" has to
-        stay true for the silence to mean anything.
+        THE LIVENESS CONTROL IS A FIRING, and this mutant's first version
+        got that wrong in a way worth leaving on the record. It asserted
+        `ablation_existence` silent alongside, reasoning that "the arrow
+        left the picture" has to stay true for the continuity silence to
+        mean anything. True, and not provable that way: a dead detector
+        is silent about existence too, so the pair of silences is
+        satisfied by the instrument being switched off. While this mutant
+        is RED that is harmless — a dead detector turns it into an
+        unexpected success, which unittest reports as a hard failure — but
+        the day the attribution fix lands and it flips GREEN it would
+        inherit the hole with nobody looking. The ghost is in place now so
+        that the flip is a one-line decorator removal and nothing else.
         """
-        finds = ablation_findings(_label_over_foreign_stroke(True), ["a1"])
+        finds = ablation_findings(
+            _with_liveness_ghost(_label_over_foreign_stroke(True)),
+            ["a1", "z1"])
         self.assertEqual(
-            [f for f in finds if f["check"] == "ablation_continuity"], [],
+            [f for f in finds if f["element"] == "a1"], [],
             "ablating a1 un-covered another arrow's stroke and the "
             "recovered ink was counted as a1's own: %s"
-            % [f["raw"] for f in finds
-               if f["check"] == "ablation_continuity"])
-        self.assertEqual(
-            [f for f in finds if f["check"] == "ablation_existence"], [])
+            % [f["raw"] for f in finds if f["element"] == "a1"])
+        self.assertDetectorSpoke(finds)
 
     def test_neighbour_the_same_label_covering_only_its_own_arrow(self
                                                                   ) -> None:
@@ -1838,11 +1931,14 @@ class TestRenderMutants(unittest.TestCase):
         `_elbow_with_label("corner")` — asserted in every gated run, so
         `ablation_continuity` cannot be dead while these two pass.
         """
-        finds = ablation_findings(_label_over_foreign_stroke(False), ["a1"])
-        self.assertEqual(
-            [f for f in finds if f["check"] == "ablation_continuity"], [])
-        self.assertEqual(
-            [f for f in finds if f["check"] == "ablation_existence"], [])
+        finds = ablation_findings(
+            _with_liveness_ghost(_label_over_foreign_stroke(False)),
+            ["a1", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "a1"], [],
+                         "the labelled run reads as severed with no "
+                         "foreign ink in the scene at all: %s"
+                         % [f["raw"] for f in finds if f["element"] == "a1"])
+        self.assertDetectorSpoke(finds)
 
     def test_the_client_reads_the_same_scene_as_one_whole_stroke(self
                                                                  ) -> None:
