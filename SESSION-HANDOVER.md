@@ -64,14 +64,23 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after Task 49: **16 model-tier `expectedFailure` reds + 1 render-tier**,
-matching the suite's `expected failures=16` default and `=17` under
-`MUTANTS_RENDER=1`. That splits as **8 catalog reds + 8 non-catalog**.
-Task 49 flipped `TestSnapshotTierOne`'s red — the last one living outside
-`tests/test_mutants.py` — so every remaining model-tier red is now in that
-one file and the two counts coincide at 16. That is drain state, not an
-invariant; see the census comment above `CATALOGUE` before reconciling
-them by hand.
+after Task 50: **16 model-tier `expectedFailure` reds + 0 render-tier**,
+splitting as **8 catalog reds + 8 non-catalog**. Task 49 flipped
+`TestSnapshotTierOne`'s red — the last one living outside
+`tests/test_mutants.py` — and Task 50 flipped
+`test_mutant_opacity_ghost_is_invisible_to_tier_one`, which was the last
+one in `tests/test_mutants_render.py`. **The render tier is drained**, and
+that is the first time it has been: it has carried a red since it was
+built. Consequently the gated line no longer runs one ahead of the default
+line, which is what it did for the whole life of this file.
+
+Do not restate any of that as a suite `expected failures=N`. This paragraph
+was rewritten on 2026-08-15 claiming one N across three lines at once and a
+concurrent curator batch adding a red in `test_backend.py` falsified it the
+same hour. Measure per file:
+`grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py`. That is
+drain state, not an invariant; see the census comment above `CATALOGUE`
+before reconciling anything by hand.
 
 **THE TWO HALVES ARE NOW BOTH DERIVED, AND NEITHER IS RESTATED HERE.** The
 catalog half is `CATALOGUE_RED_IDS` in tests/test_mutants.py, checked
@@ -222,13 +231,33 @@ eight had already flipped):
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`MUTANTS_RENDER=1`) | `test_mutant_opacity_ghost_is_invisible_to_tier_one` |
+| render (`MUTANTS_RENDER=1`) | **none** |
 
 The render row is `@unittest.expectedFailure` method names rather than
-catalog ids because they sit outside `CATALOGUE`. It is down to one, and
-the two that left on 2026-08-15 both left the same way — the fix landing in
-the same commit as the marker's removal — but they left for opposite
-reasons, which is the distinction the row is worth reading for. **Task 48
+catalog ids because they sit outside `CATALOGUE`. **It is now EMPTY**, and
+that is new: the render tier has carried a red continuously since it was
+built. Three left on consecutive days and all three the same way — the fix
+landing in the same commit as the marker's removal — but for three
+different reasons, which is the distinction the row is worth reading for.
+The durable form of the count, since totals here go stale between commits:
+`grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/test_mutants_render.py`
+reads **0**. Do not restate it as a suite ef total — the gated line used to
+run one ahead of the default line precisely because of this file, and with
+that gone the two agree only until the next red is authored anywhere.
+
+**Task 50 flipped `test_mutant_opacity_ghost_is_invisible_to_tier_one`**,
+the oldest of the three and the one that could not be fixed where it stood.
+Neither a product change nor a detector change was available: `render_svg`
+emits no `opacity`, tier 2 rasterizes `render_svg`'s own output, and so a
+0%-opacity ghost is ink to BOTH tiers by construction. What flipped it was
+a third renderer — `client_ablation_findings` drives the real Excalidraw
+bundle headless through the screenshot protocol `canvas.py` already ships,
+and reads the picture the user's own "Export PNG" makes. Through it the
+ghost's ablation delta is not small but EMPTY (full and ablated hash
+identically), and the check fires. Note what did NOT happen: `render_svg`
+still ignores opacity and the tier-1 blindness is pinned in place by the
+flipped test's first assertion. The defect was not fixed, it was made
+VISIBLE, which is the third kind of flip this row has recorded. **Task 48
 flipped `test_mutant_l_shaped_remnant_hides_a_severed_back_edge`**, a
 DETECTOR miss rather than a product defect: `ablation_continuity` read two
 pieces of a severed back edge as one stroke because `_completed_by_eye` was
@@ -242,7 +271,7 @@ only reproduce on paper are pinned ungated in
 bbox test gets caught without a browser. Nothing in `canvas.py` moved: the
 drawing was never wrong, the instrument reading it was.
 
-The other is **Task 46's `test_mutant_wrapped_text_overruns_the_frames_bottom`**,
+The third is **Task 46's `test_mutant_wrapped_text_overruns_the_frames_bottom`**,
 and it is the opposite kind. There the picture really was wrong — a wrapped
 text painted below the frame drawn around it — and the check had been right
 about it all along, so the fix was a product change in `render_svg`'s bounds
@@ -294,12 +323,20 @@ discovery-registered.
 The 2026-08-12 ELK spike's red,
 `test_mutant_snapshot_cap_drops_the_rightmost_node`, **flipped in Task 20**
 when `rasterize_svg`'s window and `render_svg`'s scale-down became one
-shared ceiling. The surviving render red,
-`test_mutant_opacity_ghost_is_invisible_to_tier_one`, has a different
-source and a different shape: `render_svg` never reads `opacity`, so a node
-invisible on the canvas still contributes ink to tier 1. It flips when
-ablation runs against the tier-2 render, which honours opacity. The two
-were previously described here as one phenomenon; they are not.
+shared ceiling. `test_mutant_opacity_ghost_is_invisible_to_tier_one` had a
+different source and a different shape: `render_svg` never reads `opacity`,
+so a node invisible on the canvas still contributes ink to tier 1. The two
+were once described here as one phenomenon; they are not.
+
+**That paragraph used to end "it flips when ablation runs against the
+tier-2 render, which honours opacity", and that sentence was wrong** — kept
+here because the error is instructive rather than embarrassing. Tier 2 does
+not honour opacity and never could: it rasterizes `render_svg`'s SVG, which
+has no `opacity` in it to honour. The renderer that honours opacity is the
+Excalidraw CLIENT, which is not tier 2 but a third path entirely, and
+naming it wrongly is what let the flip sit unowned for two versions looking
+like a small piece of wiring. **Task 50 built that path and flipped it**;
+the account above is the corrected one.
 
 `phantom_passthrough_shared_attach` is red for a **missing check**: the
 picture is wrong and no detector in the harness can say so. Its `expect` names

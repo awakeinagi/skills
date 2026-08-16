@@ -9,13 +9,36 @@ connector whose delta splits into two separated components is severed
 somewhere along its run (`ablation_continuity`), which is the r5-14 class:
 an opaque label backdrop erasing the stroke it sits on.
 
+THERE ARE TWO RENDERERS IN HERE, and which one a finding came from is the
+first thing to establish about it:
+
+- **The SVG path** (`ablation_findings`, and everything else in this file).
+  `canvas.render_svg`'s markup, rasterized in chromium. Free, cached, and
+  asked of every scene here — but it can only ever answer "is this in the
+  EXPORT", because the raster is a raster OF the export.
+- **The CLIENT path** (`client_ablation_findings`, v0.9 task 50). The real
+  Excalidraw bundle, driven headless through the screenshot protocol
+  `canvas.py` ships, answering "is this in the PICTURE" — the one the user
+  sees. Costs a session; see its section comment, which is where the whole
+  design is written down.
+
+The second exists because the first two tiers share a ceiling: tier 2
+rasterizes tier 1's own output, so a defect where `render_svg` omits or
+misstates content is inherited rather than caught, and no arrangement of
+those two can escape it. `opacity` was that ceiling's longest-standing
+instance — `render_svg` does not emit it, so a node invisible on the canvas
+was ink in the export and `ablation_existence` could not see it. The client
+path shares no code with `render_svg`, which is what makes it independent
+evidence rather than a second opinion from the same witness.
+
 Not every pixel question is an ablation: `TestSnapshotFraming` at the tail
 asks a blunter one — is the whole drawing even in the frame? — and asks it
 of `canvas.py snapshot` itself rather than of this file's own rasterizer.
 
-Ablation is by OMISSION, not by styling: the hidden element is absent from
-the SVG entirely, so nothing about how the renderer treats `opacity` or
-`display` can make a hidden element leave ghost ink behind.
+Ablation is by OMISSION, not by styling, on both paths: the hidden element
+is absent from the document entirely, so nothing about how either renderer
+treats `opacity` or `display` can make a hidden element leave ghost ink
+behind. What differs is only who draws what remains.
 
 The whole module is gated behind `MUTANTS_RENDER=1` because it starts a
 headless browser. Gated OFF it skips; gated ON with no browser to be found
@@ -27,20 +50,25 @@ Renders are cached between runs, content-addressed, in the directory
 that makes no sense, because **`rm -rf ~/.cache/wysiwyg-grilling/render`
 is the recovery procedure** and system fonts are the one input the key
 cannot see. A full run asks for 138 renders of 78 distinct documents; warm,
-it starts no browser at all.
+it starts no browser at all. Client renders share that directory under a
+`client-` prefix and a key of their own (`_client_cache_key`), which carries
+the app bundle as well — the same purge clears both.
 """
 from __future__ import annotations
 
 import contextlib
+import functools
 import hashlib
 import importlib
 import io
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -798,6 +826,496 @@ def ablation_findings(elements: list[dict],
     return findings
 
 
+# ---------------------------------------------------------------------------
+# THE CLIENT TIER (v0.9 task 50): ablation against the picture the USER sees.
+#
+# The third rendering path in this harness, and the first one that is not
+# `render_svg`'s. Tier 1 is `canvas.render_svg`'s markup. Tier 2 is chromium
+# rasterizing THAT markup. This tier hands the scene to the real Excalidraw
+# client — the committed bundle the server serves, driven through the
+# screenshot request/complete protocol `canvas.py` already ships — and reads
+# the PNG the app's own `exportToBlob` produces. It is the same picture the
+# user's "Export PNG" button makes, so what it measures is the product's
+# output rather than this harness's model of it.
+#
+# WHY IT HAD TO EXIST. Tiers 1 and 2 share a ceiling by construction: a defect
+# where `render_svg` omits or misstates content is inherited by the raster of
+# it, never caught. `test_mutant_opacity_ghost_is_invisible_to_tier_one` sat
+# `expectedFailure` for exactly one version of that — `render_svg` never emits
+# `opacity`, so a node at 0% is invisible on the canvas and still ink in the
+# export, and the existence check's guarantee was "not in the EXPORT", not
+# "not in the PICTURE". The client honours opacity in both of its export
+# paths, so through this tier the ghost's ablation delta is not merely small
+# but EMPTY, and the mutant flips. The ceiling is not lowered here, it is
+# escaped: this path shares no code with `render_svg` at all.
+#
+# WHAT IT COSTS, measured on this machine. A cold session is ~6s wall —
+# scratch project, artifacts through the real `Store.apply_batch`, server up,
+# ONE chromium, teardown — and the marginal cost of the Nth ablation inside it
+# is ~0: nine renders complete simultaneously at t=1.8s because the app
+# services every pending request in one poll pass. Warm it costs nothing at
+# all; renders join the same content-addressed cache tier 2 uses, keyed by
+# `_client_cache_key`. That is cheaper per ablation than tier 2, which spawns
+# a chromium per distinct document.
+#
+# THE THREE MECHANISMS, none of them optional:
+#
+# 1. ANCHORS (`_anchored`). The client frames an export at the scene's own
+#    bbox plus padding, and there is no viewport argument to splice the way
+#    `_framed_svg` splices tier 1's `<svg>` tag. So every variant carries two
+#    tiny `role: decoration` squares placed OUTSIDE the full scene's extremes.
+#    Ablation only ever removes elements, so the full scene's bbox bounds every
+#    variant's, and anchors derived from it pin all of them to one pixel grid
+#    — correct by construction rather than by luck. Their own ink is identical
+#    in every shot (`canvas.det_seed` derives the sketchy stroke's seed from
+#    the element id) and cancels in the diff.
+#
+# 2. A SCRATCH PROJECT STARTED `--no-browser`. Not hygiene — correctness. A
+#    connected tab STEALS these requests: the spike behind this tier started a
+#    server without `--no-browser`, the user's LibreWolf answered every
+#    screenshot request, and it returned vertical stripe garbage at 0.033
+#    bytes/px, matching the corruption signature `canvas.cmd_snapshot` already
+#    documents. A browser THIS code launches renders correctly; a browser it
+#    merely trusts does not. The scratch root also means no live project can
+#    be reached by an ablation run.
+#
+# 3. A STRUCTURAL CONTROL, at the CALLER. The tempting guard is
+#    `canvas.validate_png`'s bytes-per-pixel floor, and it is the wrong
+#    instrument here: valid renders in this tier measure 0.028-0.058 bpp,
+#    straddling `cmd_snapshot`'s `min_bpp=0.05`, because a sparse mutant scene
+#    legitimately IS thin. So the tier asserts nothing about density, and every
+#    test that reads an EMPTY delta as evidence must ablate a known-visible
+#    element in the same call and pin that its delta is not empty. Without
+#    that, a render that silently failed and a ghost that is really invisible
+#    produce the same finding.
+# ---------------------------------------------------------------------------
+
+# The tier-2 flags plus the two the product's own headless launcher adds
+# (`canvas._mermaid_convert`): the shm one because a container-sized /dev/shm
+# crashes a renderer that has to hold a real app, and the virtual-time budget
+# because chromium given `--screenshot` otherwise shoots and exits before the
+# app's effect has serviced anything.
+CLIENT_FLAGS = (*CHROME_FLAGS, "--disable-dev-shm-usage",
+                "--virtual-time-budget=60000")
+
+# The window the app is laid out in. It does NOT frame the export — the client
+# frames that at the scene bbox — but it decides what the app lays out at all,
+# so it is a render input and lives in the key like tier 2's window does.
+CLIENT_WINDOW = (1200, 900)
+
+# How long a session waits for every shot before giving up. Generous against
+# the 1.8s nine renders actually took: this deadline exists to turn a hung app
+# into a named failure, not to police performance.
+CLIENT_DEADLINE = 120.0
+
+# Anchor squares: side, and how far OUTSIDE the scene's extremes they sit. The
+# gap keeps their sketchy stroke clear of every element's ink, so an anchor can
+# never merge with the delta it exists to frame.
+_ANCHOR_SIDE = 8
+_ANCHOR_GAP = 24
+
+
+def _web_root() -> Path:
+    """The committed web bundle the server serves — the app under measurement.
+
+    Derived from `canvas.__file__` rather than from this file's own path so
+    it names the bundle the SERVER will actually serve, which is the one
+    whose pixels come back.
+
+    Returns:
+        The `web/` directory beside `canvas.py`.
+    """
+    return Path(canvas.__file__).resolve().parent / "web"
+
+
+@functools.lru_cache(maxsize=1)
+def _bundle_identity() -> str:
+    """The app bundle as something that CHANGES when the app does.
+
+    New territory for the key, and the generalisation of the lesson the
+    perf review filed as F2: hashing the SVG fragment while the HTML
+    wrapper around it moved pixels left a hole, because the key covered
+    the part this file authored rather than everything the browser drew.
+    Here almost none of what the browser draws is authored in this repo's
+    Python at all — the drawing is made by `exportToBlob` inside a 1.4 MB
+    Vite bundle — so a key without the bundle in it would happily serve a
+    render made by a DIFFERENT Excalidraw across a frontend rebuild. That
+    is the same class as serving build 151's pixels for build 131, one
+    layer further out.
+
+    Path, size and mtime per file, as `_browser_identity` does and for the
+    same reason: the tree is 21 MB across 369 files and hashing its
+    contents would cost more per render than the render. A false MISS
+    after a `git checkout` is harmless — a key field can only split
+    entries, never merge them — and the field is stronger than a stat
+    normally is here, because Vite content-addresses its own filenames, so
+    a rebuild that changes any chunk changes a NAME in this walk.
+
+    Memoized for the process: the walk is ~30ms, which is nothing once and
+    real per render. Call `_bundle_identity.cache_clear()` after moving
+    the bundle under a running interpreter — the tests below do.
+
+    Returns:
+        A 16-hex-character digest of the served tree.
+    """
+    root = _web_root()
+    digest = hashlib.sha1()
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            st = path.stat()
+            digest.update(("%s\0%d\0%d\0"
+                           % (path.relative_to(root), st.st_size,
+                              st.st_mtime_ns)).encode("utf-8"))
+    return digest.hexdigest()[:16]
+
+
+def _client_cache_key(elements: list[dict]) -> str:
+    """The content address of one CLIENT render.
+
+    Six fields. Tier 2's `_cache_key` can hash the finished document
+    because it MAKES that document; this path hands elements to a server
+    and a bundle and gets pixels back, so the key has to name the whole
+    chain that turns one into the other:
+
+    - **The app bundle** (`_bundle_identity`) — the code that actually
+      draws. The field tier 2 has no analogue of.
+    - **`canvas.own_source_hash()`** — the product's own fingerprint of
+      `canvas.py`, which is what normalizes these elements into the stored
+      scene the client is handed. It stands in the same place tier 2's
+      hashed markup does: there, a `render_svg` change is covered BY
+      CONSTRUCTION because the markup is its output and is hashed; here
+      the transform's output never passes through this function, so the
+      transform is keyed by identity instead. Deliberately blunt — any
+      edit to `canvas.py` misses the whole client cache. That is a few
+      seconds on a file this tier renders a handful of scenes through,
+      against the alternative of re-deriving the pipeline's output here
+      and keying on a SECOND implementation of it, which is how the two
+      would drift.
+    - **The browser** (`_browser_identity`), **`CLIENT_FLAGS`** and **the
+      window** — the same three tier 2 keys on, for the same reasons.
+    - **The scene**, canonically serialized. Different drawing, different
+      key. `sort_keys` because dict order is not part of the drawing, and
+      NO `default=` fallback because a value JSON cannot represent must
+      raise here rather than be stringified: two distinct objects with one
+      `str()` would MERGE two cache entries, and the whole discipline of
+      this key is that a field may only ever split them. An element that
+      cannot be serialized could not have been stored either.
+
+    What it does NOT cover is what `render_cache_dir` already says it does
+    not: system fonts. This path is MORE exposed to that than tier 2,
+    because the client loads its own web fonts and lays text out with
+    `ctx.measureText`. `rm -rf ~/.cache/wysiwyg-grilling/render` remains
+    the whole recovery procedure.
+
+    Args:
+        elements: The variant scene, anchors included, exactly as it will
+            be handed to `Store.apply_batch`.
+
+    Returns:
+        A 16-hex-character digest, used as the cache entry's filename.
+    """
+    return hashlib.sha1(
+        ("client\0%s\0%s\0%s\0%s\0%dx%d\0%s"
+         % (_bundle_identity(), canvas.own_source_hash(), _browser_identity(),
+            "\0".join(CLIENT_FLAGS), CLIENT_WINDOW[0], CLIENT_WINDOW[1],
+            json.dumps(elements, sort_keys=True)))
+        .encode("utf-8")).hexdigest()[:16]
+
+
+def _scene_bbox(elements: list[dict]) -> tuple[float, float, float, float]:
+    """The box a scene occupies, arrow waypoints included.
+
+    `x + width` bounds a rect but not always an arrow: an arrow's stored
+    width is its extent, and reading its `points` as well costs nothing
+    and cannot under-report. Anchors derived from an under-reported box
+    would stop bounding the scene, which is the one way `_anchored`'s
+    guarantee can fail.
+
+    Args:
+        elements: The scene. An empty list, or one with no positioned
+            element, yields a degenerate box at the origin.
+
+    Returns:
+        `(minx, miny, maxx, maxy)`.
+    """
+    xs, ys = [], []
+    for e in elements:
+        x, y = float(e.get("x") or 0), float(e.get("y") or 0)
+        xs += [x, x + float(e.get("width") or 0)]
+        ys += [y, y + float(e.get("height") or 0)]
+        for px, py in (e.get("points") or []):
+            xs.append(x + float(px))
+            ys.append(y + float(py))
+    if not xs:
+        return (0.0, 0.0, 0.0, 0.0)
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _anchored(elements: list[dict],
+              box: tuple[float, float, float, float]) -> list[dict]:
+    """A scene with the two framing anchors added.
+
+    `box` is passed in rather than computed here on purpose: every variant
+    of one ablation run must get the FULL scene's box, not its own, or the
+    export reframes the moment an extremal element is ablated and the two
+    rasters stop being comparable. Taking it as an argument makes that a
+    caller's decision that reads on the page instead of an invariant to
+    remember.
+
+    Args:
+        elements: The variant scene.
+        box: `(minx, miny, maxx, maxy)` of the FULL scene.
+
+    Returns:
+        A new list: the two anchors followed by the scene's elements.
+    """
+    minx, miny, maxx, maxy = box
+    lo = (minx - _ANCHOR_GAP, miny - _ANCHOR_GAP)
+    hi = (maxx + _ANCHOR_GAP - _ANCHOR_SIDE, maxy + _ANCHOR_GAP - _ANCHOR_SIDE)
+    anchors = [el(id="abl-anchor-%s" % tag, type="rectangle", x=x, y=y,
+                  width=_ANCHOR_SIDE, height=_ANCHOR_SIDE,
+                  customData={"role": "decoration"})
+               for tag, (x, y) in (("lo", lo), ("hi", hi))]
+    return [*anchors, *elements]
+
+
+def _canvas_cli(root: Path, *args: str) -> int:
+    """Run one `canvas.py` subcommand against `root`, in its own process.
+
+    A SUBPROCESS where the rest of this file reaches for `canvas.main` in
+    process, and only for the two commands that touch the daemon. `start`
+    opens the server's log and `Popen`s a detached child, and doing that
+    inside the test runner leaves both the file handle and the unreaped
+    `Popen` in the runner's own process — two `ResourceWarning`s per
+    session, and a test runner slowly accumulating other people's daemons.
+    A short-lived child inherits them and takes them with it when it exits.
+    Everything else here still goes through `Store.apply_batch` directly,
+    which starts nothing and leaks nothing.
+
+    Args:
+        root: The project root to pass as `--project`.
+        *args: The subcommand and its flags.
+
+    Returns:
+        The process exit code. Output is captured and discarded; the
+        caller reports failure from the code, and the server's own log
+        is where a start failure explains itself.
+    """
+    return subprocess.run(
+        [sys.executable, str(Path(canvas.__file__).resolve()),
+         "--project", str(root), *args],
+        capture_output=True, timeout=90).returncode
+
+
+def _await_shots(project: canvas.Project, url: str,
+                 sids: dict[str, int]) -> dict[str, bytes]:
+    """Poll until every requested screenshot has landed, or fail loudly.
+
+    A request leaves `/api/state`'s `screenshot_requests` only once the
+    server has written the PNG (the complete handler writes the file and
+    THEN marks the request done), so the two conditions checked here
+    cannot disagree in the dangerous direction. Both are checked anyway:
+    the file is what gets read.
+
+    Args:
+        project: The scratch project, for its `shots_dir`.
+        url: The server's base URL.
+        sids: Variant name to screenshot-request id.
+
+    Returns:
+        Variant name to PNG bytes.
+
+    Raises:
+        RuntimeError: If the deadline passed with shots outstanding. Like
+            `_browser`, this never degrades to a skip — a tier that was
+            asked for and did not measure has failed, not passed.
+    """
+    shots: dict[str, bytes] = {}
+    deadline = time.time() + CLIENT_DEADLINE
+    while time.time() < deadline and len(shots) < len(sids):
+        time.sleep(0.2)
+        state = canvas.http_json(url + "api/state")
+        waiting = {r["id"] for r in state.get("screenshot_requests") or []}
+        for name, sid in sids.items():
+            if name in shots or sid in waiting:
+                continue
+            hit = project.shots_dir / ("shot-%d.png" % sid)
+            if hit.exists():
+                shots[name] = hit.read_bytes()
+    if len(shots) < len(sids):
+        raise RuntimeError(
+            "client tier: %d of %d renders never came back within %.0fs "
+            "(missing %s) — the app did not service the request, so nothing "
+            "here measured anything"
+            % (len(shots), len(sids), CLIENT_DEADLINE,
+               sorted(set(sids) - set(shots))))
+    return shots
+
+
+def _client_session(variants: dict[str, list[dict]]) -> dict[str, bytes]:
+    """Render every named scene through the real app, in ONE browser.
+
+    The whole lifecycle, and it owns all of it: a scratch project, one
+    artifact per variant through the product's own `Store.apply_batch`,
+    the server up with `--no-browser`, a single chromium pointed at the
+    app URL, and — in a `finally` that also covers a part-built project —
+    the browser killed, the server stopped, and both the project tree and
+    the runtime files it keeps OUTSIDE that tree removed.
+
+    Elements go in through `apply_batch` rather than being written to the
+    artifact file directly, so what the client draws is what the product
+    would really have stored: `det_seed`'s per-id seeds, `normalize_z_order`'s
+    banding, label binding, the lot. Measured on this file's own scenes,
+    the batch changes no geometry.
+
+    Args:
+        variants: Name to scene. Names become artifact ids, so they must
+            be distinct; nothing about a name reaches the picture, which
+            is what lets the same scene appear twice under two names.
+
+    Returns:
+        Variant name to PNG bytes.
+
+    Raises:
+        RuntimeError: If the server did not start, or if `_await_shots`
+            timed out. Propagates `_browser`'s when there is no chromium.
+    """
+    root = Path(_mkworkdir())
+    project = canvas.Project(root)
+    proc, serving = None, False
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        revn = 0
+        for name, els in variants.items():
+            # revn from the RECORD rather than from a counter: `apply_batch`
+            # is the authority on what the head is, and a counter that ever
+            # disagreed with it would fail as a `StaleError` on the next
+            # batch, naming a revision number instead of the assumption.
+            record, _pin_only = store.apply_batch({
+                "base_revn": revn, "artifact": name,
+                "create": {"id": name, "name": name, "type": "wireframe",
+                           "concept": "ablation", "concept_name": "Ablation"},
+                "ops": [{"op": "add", "element": e} for e in els]})
+            revn = record["revn"]
+        # `--no-browser` is load-bearing, not tidy: a connected tab answers
+        # these requests with corrupt readback. See mechanism 2 above.
+        rc = _canvas_cli(root, "start", "--no-browser")
+        if rc != 0:
+            raise RuntimeError("client tier: the app server would not start "
+                               "(rc=%s) — read %s" % (rc, project.log_path))
+        serving = True
+        url = project.read_state()["url"]
+        sids = {name: canvas.http_json(url + "api/screenshot/request",
+                                       payload={"artifact": name})["id"]
+                for name in variants}
+        proc = subprocess.Popen(
+            [_browser(), *CLIENT_FLAGS,
+             "--screenshot=%s" % (root / "client-headless.png"),
+             "--window-size=%d,%d" % CLIENT_WINDOW, url],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return _await_shots(project, url, sids)
+    finally:
+        if proc is not None:
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+        if serving:
+            _canvas_cli(root, "stop")
+        shutil.rmtree(project.shots_dir, ignore_errors=True)
+        _clear_runtime(root)
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _client_shots(variants: dict[str, list[dict]]) -> dict[str, bytes]:
+    """The cached front of `_client_session` — hits cost no session at all.
+
+    Every variant is addressed before anything starts, and only the misses
+    are built into a session. A fully warm call starts no server and no
+    browser, which is the same promise `_rasterize` makes for tier 2 and
+    matters more here: the session, not the render, is what costs.
+
+    Args:
+        variants: Name to scene, as `_client_session` takes them.
+
+    Returns:
+        Variant name to PNG bytes. Propagates `_client_session`'s
+        `RuntimeError` when a miss could not be rendered.
+    """
+    cache = render_cache_dir()
+    keys = {name: _client_cache_key(els) for name, els in variants.items()}
+    shots, missing = {}, {}
+    for name, els in variants.items():
+        png = cache / ("client-%s.png" % keys[name])
+        if png.exists():
+            shots[name] = png.read_bytes()
+        else:
+            missing[name] = els
+    if missing:
+        for name, data in _client_session(missing).items():
+            _atomic_write(cache / ("client-%s.png" % keys[name]), data)
+            shots[name] = data
+    return shots
+
+
+def client_ablation_findings(elements: list[dict],
+                             ids: Iterable[str]) -> list[dict]:
+    """`ablation_findings`, asked of the client's own rendering.
+
+    Shape-compatible with its tier-1 sibling and deliberately built out of
+    the same parts below the render: `tolerant_diff_mask`, `_delta_components`
+    and `_reader_strokes` are unchanged and already correct, so the ONLY
+    thing that differs between the two functions is which renderer drew the
+    pixels. That is what makes a disagreement between them evidence about
+    the renderer rather than about the diff.
+
+    The two functions are siblings, not replacements. Tier 1 answers "is
+    this in the export"; this answers "is this in the picture". Both are
+    worth having — tier 1 is free, runs on every scene in this file, and
+    is the only one of the two that can be asked about markup — and the
+    mutants that tell them apart now have somewhere to live.
+
+    Args:
+        elements: The full scene, WITHOUT anchors; this adds them.
+        ids: Ids to ablate, one at a time.
+
+    Returns:
+        Findings shaped exactly like `ablation_findings`' output, with the
+        same two checks and the same magnitudes. Propagates
+        `_client_shots`' `RuntimeError` when a render did not come back.
+    """
+    ids = list(ids)
+    box = _scene_bbox(elements)
+    variants = {"full": _anchored(elements, box)}
+    for eid in ids:
+        kept = [e for e in elements if e.get("id") != eid]
+        variants["abl-%s" % eid] = _anchored(kept, box)
+    shots = _client_shots(variants)
+    full = shots["full"]
+    w, h, _pix = read_png_gray(full)
+    findings: list[dict] = []
+    for eid in ids:
+        blobs, _dw, _dh, residual = tolerant_diff_mask(shots["abl-%s" % eid],
+                                                       full)
+        if not blobs:
+            findings.append({
+                "check": "ablation_existence", "element": eid,
+                "magnitude": 0.0, "direction": None,
+                "raw": "removing %s changed no pixels in the CLIENT's render "
+                       "— it is in the model but not in the picture" % eid})
+            continue
+        strokes = _reader_strokes(_delta_components(w, h, blobs, residual))
+        if len(strokes) >= 2:
+            findings.append({
+                "check": "ablation_continuity", "element": eid,
+                "magnitude": float(len(strokes)), "direction": None,
+                "raw": "%s's ink comes apart in %d separated pieces %s in the "
+                       "CLIENT's render — something drawn over it severs the "
+                       "run" % (eid, len(strokes),
+                                [c["bbox"] for g in strokes for c in g])})
+    return findings
+
+
 def _elbow_with_label(where: str) -> list[dict]:
     """Two rects joined by an elbowed arrow carrying a bound edge label.
 
@@ -992,22 +1510,57 @@ class TestRenderMutants(unittest.TestCase):
         self.assertEqual([(f["check"], f["element"]) for f in finds],
                          [("ablation_existence", "g0")])
 
-    @unittest.expectedFailure
     def test_mutant_opacity_ghost_is_invisible_to_tier_one(self) -> None:
         """A 0%-opacity node is invisible on the canvas but ink in tier 1.
 
-        `canvas.render_svg` never reads `opacity` (its `paint` emits fill,
-        stroke and dash and nothing else), so an element the user cannot
-        see still contributes ink to the export and its ablation delta is
-        non-empty. Flip this to a plain pass when ablation runs against
-        the tier-2 render, which honours opacity.
+        FLIPPED by v0.9 task 50, and the name is the finding rather than
+        the defect: the ghost really IS invisible to tier one, permanently,
+        and what changed is that the harness now has an instrument that can
+        say so. `canvas.render_svg` never reads `opacity` — its `paint`
+        emits fill, stroke and dash and nothing else — so an element the
+        user cannot see still contributes ink to the export, ablating it
+        changes pixels, and `ablation_existence` stays silent. Rasterizing
+        that export in chromium inherits the blindness rather than curing
+        it, which is what made this the file's longest-standing red: no
+        arrangement of tiers 1 and 2 could reach it.
+
+        The client tier can, because it shares no code with `render_svg`.
+        Excalidraw honours opacity in both of its export paths, so through
+        the app's own `exportToBlob` the ghost's delta is not small but
+        EMPTY — full and ablated hash identically — and the check fires.
+
+        Three claims, in the order they have to hold:
+
+        1. Tier 1 is silent. Not decoration: it is the pin that keeps the
+           module docstring's account of the ceiling honest, and if
+           `render_svg` ever learns opacity this is the test that says so.
+        2. The client tier fires on the ghost. The original assertion,
+           unchanged, against the new instrument.
+        3. The STRUCTURAL CONTROL, and without it the other two are worth
+           nothing. A run where the app rendered nothing at all, or
+           rendered the same bytes for every variant, would report an
+           empty delta for the ghost exactly as a correct run does. So a
+           known-visible node is ablated in the SAME call, and its delta
+           must not be empty. Density is deliberately not what is checked
+           here — see mechanism 3 in the tier's section comment.
         """
         scene = tm._diamond_stage()
         ghost = el(id="g1", type="rectangle", x=300, y=300, width=10,
                    height=10, opacity=0, customData={"role": "node"})
-        finds = ablation_findings([*scene, ghost], ["g1"])
-        self.assertIn("g1", [f["element"] for f in finds
-                             if f["check"] == "ablation_existence"])
+        full = [*scene, ghost]
+        self.assertEqual([f for f in ablation_findings(full, ["g1"])
+                          if f["check"] == "ablation_existence"], [],
+                         "tier 1 reported the opacity ghost missing — it "
+                         "has learned about opacity, and this file's account "
+                         "of what tiers 1 and 2 cannot see is now wrong")
+        finds = client_ablation_findings(full, ["g1", "s1"])
+        missing = [f["element"] for f in finds
+                   if f["check"] == "ablation_existence"]
+        self.assertIn("g1", missing)
+        self.assertNotIn("s1", missing,
+                         "ablating a VISIBLE node changed no pixels either, "
+                         "so the empty delta above is evidence about the "
+                         "render pipeline, not about the ghost")
 
     def test_ablation_continuity_neighbour_is_silent(self) -> None:
         """A label beside the arrow leaves the connector's delta whole."""
@@ -1160,6 +1713,112 @@ class TestRenderMutants(unittest.TestCase):
         self.assertEqual([(f["check"], f["element"], f["magnitude"])
                           for f in finds],
                          [("ablation_continuity", "a1", 2.0)])
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestClientTierMechanisms(unittest.TestCase):
+    """The two properties the client tier's arithmetic rests on.
+
+    The tier's findings are only evidence if the renders behind them are
+    comparable and repeatable, and neither is visible in a finding: an
+    empty delta looks the same whether the ghost was invisible, the two
+    shots were framed differently, or the app rendered the same bytes
+    twice by accident. These ask both questions directly, in pixels.
+
+    Both cost a real session (~6s cold) and neither can be answered from
+    the cache, which is the point — see each docstring.
+    """
+
+    def test_ablating_an_extremal_element_still_lands_on_one_grid(
+            self) -> None:
+        """The anchors, measured: ablate the element that sets the bbox.
+
+        `test_ablation_of_the_bbox_defining_element_still_reads` asks this
+        of tier 1, where `_framed_svg`'s `<svg>`-tag splice pins the
+        viewport. There is no viewport to splice here — the client frames
+        an export at the scene's own bbox — so the whole defence is the
+        two anchors `_anchored` adds OUTSIDE the full scene's extremes.
+
+        The ghost sits at x=-100, further left than anything else in the
+        scene, so it DEFINES minx while drawing nothing. With anchors, its
+        removal moves no frame and the empty delta reads as what it is.
+        Without them the ablated export reframes 100px narrower, every
+        stroke in the picture lands somewhere new, and `tolerant_diff`
+        either rejects the size mismatch outright or reports the entire
+        drawing as this invisible element's contribution. Delete
+        `_anchored`'s call and this test fails; the flip test would not,
+        because its ghost is interior.
+
+        The visible control is ablated in the same call for the reason
+        given on the flip test, and here it does double duty: `s1` is the
+        LEFTMOST visible element, so a run that reframed would report it
+        wrongly too.
+        """
+        ghost = el(id="g0", type="rectangle", x=-100, y=300, width=10,
+                   height=10, opacity=0, customData={"role": "node"})
+        finds = client_ablation_findings([*tm._diamond_stage(), ghost],
+                                         ["g0", "s1"])
+        missing = [f["element"] for f in finds
+                   if f["check"] == "ablation_existence"]
+        self.assertEqual(missing, ["g0"],
+                         "the extremal invisible ghost and the visible node "
+                         "did not read as (absent, present) — the variants "
+                         "are no longer framed on one pixel grid")
+
+    def test_one_scene_rendered_three_times_comes_back_byte_identical(
+            self) -> None:
+        """Repeat stability, measured where the cache cannot fake it.
+
+        The claim the tier needs is that the app renders one scene the
+        same way twice — the app's font load is genuinely asynchronous and
+        `exportToBlob` has a documented fonts race, and a tier whose
+        headline finding is "these two renders agree" cannot tell a real
+        agreement from a shared failure to draw.
+
+        Asserting it through `_client_shots` would be VACUOUS: the second
+        call is a cache hit and returns the first call's bytes, so the
+        test would prove only that a dict lookup is deterministic. So this
+        goes straight to `_client_session` and asks for the same scene
+        under THREE names, which the session renders as three independent
+        artifacts in one browser. Nothing about a name reaches the picture,
+        so all three digests must agree.
+
+        This is the one test in the file that pays a session on every run
+        by design. Measured at ~6s, against the 1.8s nine renders cost
+        inside one browser — the session, not the render, is the cost, and
+        buying a real answer once is the right trade.
+
+        The fourth artifact is what keeps the other three from being
+        vacuous, and it is the same doctrine `test_no_class_agrees_by_
+        being_absent_from_both` states for the parity table: a comparison
+        that agrees proves nothing unless it is known to be capable of
+        disagreeing. `odd` holds the same scene with one node moved, so
+        the digest set must come to exactly two — three identical and one
+        apart. A pipeline that returned one image for every request, which
+        is the way this test would otherwise fail to notice being broken,
+        gives one.
+        """
+        scene = tm._diamond_stage()
+        box = _scene_bbox(scene)
+        same = _anchored(scene, box)
+        odd = _anchored([dict(e, x=e["x"] + 24) if e["id"] == "s1" else e
+                         for e in scene], box)
+        shots = _client_session({"one": same, "two": same, "three": same,
+                                 "odd": odd})
+        digests = {name: hashlib.sha1(data).hexdigest()[:12]
+                   for name, data in shots.items()}
+        repeats = {digests[name] for name in ("one", "two", "three")}
+        self.assertEqual(len(repeats), 1,
+                         "one scene rendered three times gave %d distinct "
+                         "images (%s) — the client's render is not "
+                         "repeatable, and every delta this tier reports is "
+                         "noise until it is" % (len(repeats), digests))
+        self.assertNotIn(digests["odd"], repeats,
+                         "a scene with a node moved 24px rendered to the "
+                         "SAME bytes as the original (%s) — the session is "
+                         "not rendering per artifact, so the agreement "
+                         "above measured nothing" % digests)
 
 
 # The L-shaped remnant curator batch 14 reproduced, in ink rather than as the
@@ -2315,7 +2974,22 @@ class TestRasterizeScaleToFit(unittest.TestCase):
 #
 # Tier 2 rasterizes tier 1's OWN OUTPUT, so every defect where tier 1 omits or
 # misstates content is inherited rather than caught. That limit is structural
-# and permanent; the three examples this section was written around are not.
+# TO THIS PAIR and no fix to either member can lift it — but it is no longer
+# the harness's ceiling, and the paragraph that used to end "and permanent"
+# was describing the pair as if it were the whole file. v0.9 task 50 added a
+# THIRD renderer that is not `render_svg` at all: `client_ablation_findings`
+# drives the real Excalidraw bundle and reads the picture the user's own
+# export produces. A defect shared by tier 1 and tier 2 is therefore now
+# CATCHABLE — by leaving the pair, not by improving it. `opacity` is the
+# worked example and the reason the tier was built: `render_svg` emits none,
+# both tiers here are blind to a 0%-opacity ghost by construction, and
+# `test_mutant_opacity_ghost_is_invisible_to_tier_one` sat `expectedFailure`
+# for two versions saying so before the client path flipped it.
+#
+# What this section is FOR is unchanged by that, and so is its honesty
+# problem: parity between tier 1 and tier 2 remains a comparison of a thing
+# with a rendering of itself, and the three examples it was written around
+# are not permanent either.
 # `freedraw` and `image` reached neither path (test_mutants.
 # TestExportCompleteness's two reds) and reordering an element moved neither
 # path (TestPaintOrder's red) until v0.9 WP4 fixed all three in the dispatch.
@@ -3903,6 +4577,246 @@ class TestRenderCache(unittest.TestCase):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("MUTANTS_RENDER_CACHE", None)
             self.assertIn(str(Path.home()), str(render_cache_dir()))
+
+
+class TestClientRenderCache(unittest.TestCase):
+    """The client tier's key, and the session bookkeeping built on it.
+
+    The sibling of `TestRenderCache` and ungated for the same reason:
+    what these pin is the KEY and the hit/miss accounting, and with the
+    session stubbed neither needs a browser, a server or a bundle. Gating
+    the tests for the thing that avoids sessions behind a flag that starts
+    sessions would be the same mistake, one tier along.
+
+    The stub matters more here than it does for tier 2. "A hit costs no
+    session" is the difference between a warm run of this tier costing
+    milliseconds and costing six seconds a scene, and it is invisible from
+    the outside — both paths return the same PNG. Counting calls to
+    `_client_session` states it directly.
+    """
+
+    def setUp(self) -> None:
+        """Empty cache, a stand-in browser, and a clean bundle memo.
+
+        The browser is a REAL file because the key stats it, as
+        `TestRenderCache` explains. `_bundle_identity` is memoized for the
+        process, so its cache is cleared on the way in AND on the way out
+        — a test that points `_web_root` somewhere else and leaves the
+        memo holding that answer would give every later render in this
+        interpreter a key computed against a bundle that is not there.
+        """
+        self.cache = tempfile.mkdtemp(prefix="client-cache-test-")
+        self.addCleanup(shutil.rmtree, self.cache, ignore_errors=True)
+        env = mock.patch.dict(os.environ,
+                              {"MUTANTS_RENDER_CACHE": self.cache})
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("MUTANTS_RENDER_BROWSER", None)
+        self.binary = Path(self.cache).parent / ("client-chrome-%d"
+                                                 % os.getpid())
+        self.binary.write_bytes(b"a stand-in browser")
+        self.addCleanup(self.binary.unlink, missing_ok=True)
+        found = mock.patch.object(canvas, "find_browsers",
+                                  lambda: [str(self.binary)])
+        found.start()
+        self.addCleanup(found.stop)
+        _bundle_identity.cache_clear()
+        self.addCleanup(_bundle_identity.cache_clear)
+        self.scene = [el(id="n1", type="rectangle", x=0, y=0, width=40,
+                         height=20, customData={"role": "node"})]
+        self.sessions: list[dict[str, list[dict]]] = []
+
+    def _stub_session(self, png: bytes = b"\x89PNG\r\n\x1a\nstub"
+                      ) -> Callable[[dict[str, list[dict]]], dict[str, bytes]]:
+        """A `_client_session` that records what it was asked to render.
+
+        Args:
+            png: Bytes to return for every variant.
+
+        Returns:
+            A callable with `_client_session`'s shape, appending each
+            variants mapping it is handed to `self.sessions`.
+        """
+        def session(variants: dict[str, list[dict]]) -> dict[str, bytes]:
+            self.sessions.append(variants)
+            return dict.fromkeys(variants, png)
+        return session
+
+    def _fake_bundle(self, marker: bytes) -> Path:
+        """Write a stand-in web bundle and point `_web_root` at it.
+
+        Args:
+            marker: Contents of the one file in the fake tree — its
+                length is half of what the identity fingerprints.
+
+        Returns:
+            The bundle root, already patched in for this test's lifetime.
+        """
+        root = Path(tempfile.mkdtemp(prefix="client-bundle-", dir=self.cache))
+        (root / "assets").mkdir()
+        (root / "assets" / "index-AAAA.js").write_bytes(marker)
+        patched = mock.patch(__name__ + "._web_root", lambda: root)
+        patched.start()
+        self.addCleanup(patched.stop)
+        _bundle_identity.cache_clear()
+        return root
+
+    def test_the_same_scene_gets_the_same_key(self) -> None:
+        """Identical inputs address the same entry — the point of a cache."""
+        self.assertEqual(_client_cache_key(self.scene),
+                         _client_cache_key(self.scene))
+
+    def test_the_key_changes_with_the_scene(self) -> None:
+        """A different drawing is a different render, so a different key."""
+        moved = [dict(self.scene[0], x=99)]
+        self.assertNotEqual(_client_cache_key(self.scene),
+                            _client_cache_key(moved))
+
+    def test_the_key_changes_with_the_app_bundle(self) -> None:
+        """The NEW field: a rebuilt app is a different renderer.
+
+        Tier 2's key has no analogue of this and does not need one — it
+        hashes the document it drew itself. Here the drawing is made by
+        `exportToBlob` inside the committed Vite bundle, so a frontend
+        rebuild changes the renderer without changing one byte of Python,
+        and a key blind to it would serve the OLD app's pixels as a
+        measurement of the new one. That is the wrapper-in-key hole (perf
+        review F2) at the scale of the whole client.
+        """
+        self._fake_bundle(b"bundle one")
+        before = _client_cache_key(self.scene)
+        root = self._fake_bundle(b"bundle two, rebuilt and longer")
+        self.assertNotEqual(before, _client_cache_key(self.scene),
+                            "a rebuilt app bundle left the client cache key "
+                            "unchanged: renders made by the old app are now "
+                            "served as measurements of the new one")
+        self.assertIn(str(root), str(_web_root()))
+
+    def test_the_bundle_identity_sees_a_file_change_in_place(self) -> None:
+        """Not just the filenames — a chunk edited in place moves too.
+
+        Vite content-addresses its own filenames, so a normal rebuild
+        renames chunks and any walk of the tree would notice. This pins
+        the case that does NOT rename: a file rewritten under its existing
+        name, which is what a hand-patched bundle or a partial copy looks
+        like. Size and mtime carry it, the same two fields
+        `_browser_identity` leans on.
+        """
+        root = self._fake_bundle(b"first")
+        before = _bundle_identity()
+        chunk = root / "assets" / "index-AAAA.js"
+        chunk.write_bytes(b"second, and a different length")
+        os.utime(chunk, ns=(0, 10 ** 9))
+        _bundle_identity.cache_clear()
+        self.assertNotEqual(before, _bundle_identity())
+
+    def test_the_key_changes_when_canvas_py_changes(self) -> None:
+        """`canvas.py` normalizes the scene the client is handed.
+
+        Tier 2 needs no field for `render_svg` because its markup IS the
+        hashed document. This path never sees the pipeline's output —
+        elements go into `Store.apply_batch` and pixels come back — so the
+        transform is keyed by the product's own source fingerprint
+        instead. Blunt on purpose: an unrelated `canvas.py` edit costs a
+        cold session, which is seconds, and the alternative is a second
+        implementation of the pipeline living here to be keyed on.
+        """
+        before = _client_cache_key(self.scene)
+        with mock.patch.object(canvas, "own_source_hash", lambda: "deadbeef"):
+            self.assertNotEqual(before, _client_cache_key(self.scene))
+
+    def test_the_key_changes_with_the_browser_and_the_window(self) -> None:
+        """The three fields shared with tier 2 still split entries here.
+
+        Asserted together because they are one borrowed decision rather
+        than three: `TestRenderCache` argues each of them at length
+        against tier 2's key, and what this owes is only that the client
+        key really carries them too.
+        """
+        base = _client_cache_key(self.scene)
+        other = Path(self.cache).parent / ("client-chrome2-%d" % os.getpid())
+        other.write_bytes(b"a different stand-in browser, longer")
+        self.addCleanup(other.unlink, missing_ok=True)
+        with mock.patch.object(canvas, "find_browsers", lambda: [str(other)]):
+            self.assertNotEqual(base, _client_cache_key(self.scene))
+        with mock.patch(__name__ + ".CLIENT_FLAGS",
+                        (*CLIENT_FLAGS, "--blink-settings=imagesEnabled=false")):
+            self.assertNotEqual(base, _client_cache_key(self.scene))
+        with mock.patch(__name__ + ".CLIENT_WINDOW", (800, 600)):
+            self.assertNotEqual(base, _client_cache_key(self.scene))
+
+    def test_a_miss_runs_one_session_and_fills_the_cache(self) -> None:
+        """The cold path: every variant missing costs exactly one session."""
+        with mock.patch(__name__ + "._client_session", self._stub_session()):
+            shots = _client_shots({"full": self.scene})
+        self.assertEqual(len(self.sessions), 1)
+        self.assertEqual(sorted(self.sessions[0]), ["full"])
+        entry = Path(self.cache) / ("client-%s.png"
+                                    % _client_cache_key(self.scene))
+        self.assertTrue(entry.exists())
+        self.assertEqual(shots["full"], entry.read_bytes())
+
+    def test_a_cached_variant_costs_no_session(self) -> None:
+        """The whole point: warm, this tier starts no server and no browser.
+
+        The saving being counted is a SESSION, not a render — a scratch
+        project, a server, a chromium and a teardown, ~6s of it — which
+        is why this is worth a test of its own rather than being taken on
+        faith from tier 2's equivalent.
+        """
+        with mock.patch(__name__ + "._client_session", self._stub_session()):
+            _client_shots({"full": self.scene})
+            self.assertEqual(len(self.sessions), 1)
+            _client_shots({"full": self.scene})
+        self.assertEqual(len(self.sessions), 1,
+                         "a fully cached call still ran a session")
+
+    def test_a_partial_hit_renders_only_the_misses(self) -> None:
+        """One new ablation must not re-render the whole run.
+
+        The realistic warm case: a scene already measured, asked one more
+        question. The session it runs must be handed the MISSING variant
+        alone — a session that re-renders everything would pass the test
+        above and still throw away most of the cache's value.
+        """
+        ablated = [dict(self.scene[0], x=17)]
+        with mock.patch(__name__ + "._client_session", self._stub_session()):
+            _client_shots({"full": self.scene})
+            shots = _client_shots({"full": self.scene, "abl-n1": ablated})
+        self.assertEqual(len(self.sessions), 2)
+        self.assertEqual(sorted(self.sessions[1]), ["abl-n1"],
+                         "the second call re-rendered variants it already had")
+        self.assertEqual(sorted(shots), ["abl-n1", "full"])
+
+    def test_the_session_starts_the_server_with_no_browser(self) -> None:
+        """The theft guard, pinned where removing it costs a test.
+
+        Mechanism 2 in the tier's section comment, and the one failure in
+        this design that produces PLAUSIBLE-LOOKING garbage rather than an
+        error: a connected tab answers the harness's screenshot requests
+        with corrupt canvas readback at 0.033 bytes/px. Drop
+        `--no-browser` and every ablation on a machine with a tab open
+        starts measuring stripe noise.
+
+        The stub refuses to start, so the session aborts at the CLI call
+        and nothing else has to be faked — no server, no browser, no
+        shots. What is left to assert is the argv, which is the thing an
+        edit here would change.
+        """
+        calls: list[tuple[str, ...]] = []
+
+        def refuse(root: Path, *args: str) -> int:
+            calls.append(args)
+            return 3
+
+        with mock.patch(__name__ + "._canvas_cli", refuse), \
+                self.assertRaises(RuntimeError) as caught:
+            _client_session({"full": self.scene})
+        self.assertEqual(calls, [("start", "--no-browser")],
+                         "the client session no longer starts its server "
+                         "with --no-browser: a connected tab will answer "
+                         "its screenshot requests, and answer them wrongly")
+        self.assertIn("would not start", str(caught.exception))
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "

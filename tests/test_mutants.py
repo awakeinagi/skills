@@ -9458,8 +9458,17 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # flipped it, and as of 2026-08-15 the two numbers AGREE at 16. Do not read
 # that agreement as the invariant: it says only that every red in the suite
 # currently lives in this file, which the next red authored anywhere else
-# undoes. Equally, do not reconcile them by hand if they part again — go
-# find the outside red. (The pair has read 16/15, 21/20, 17/16 and 15/14
+# undoes. Task 50 removed the LAST expectedFailure from
+# `tests/test_mutants_render.py`, which is why the gated line no longer runs
+# ahead of the default one — those reds were never part of the count here,
+# they were the reason `MUTANTS_RENDER=1` used to read higher. State that as
+# the render file's own count (a grep for the DECORATOR, which is 0) and not
+# as a suite total: this paragraph was drafted claiming ef=16 on three
+# different lines at once, and a concurrent curator batch adding one red in
+# `test_backend.py` falsified it before the commit landed. Which is the
+# paragraph's own lesson arriving on schedule. Equally, do not reconcile
+# them by hand if they part again — go find the outside red.
+# (The pair has read 16/15, 21/20, 17/16 and 15/14
 # before, and never the same 16 and 15 twice: Task 23 flipped two, curator
 # batch 19 added two once on each side of the CATALOGUE boundary, Task 24
 # flipped two more, batch 20 added one, batch 21 added six, Task 56 flipped
@@ -11380,8 +11389,16 @@ RENDER_TIER = {
     # `test_ablation_existence_fires_on_invisible_element`, which proves the
     # check against a 0x0, 0%-opacity ghost — an element no drawing contains,
     # so it demonstrated the arithmetic and not the defect class. That test
-    # stays (it is the opacity red's control); the record now names the proof
-    # over a real shipped class in a plausible configuration.
+    # stays (it is the control for the opacity mutant beside it); the record
+    # names the proof over a real shipped class in a plausible configuration.
+    # NOT moved again by v0.9 task 50, which flipped that opacity mutant by
+    # giving the check a THIRD renderer to run against — the real Excalidraw
+    # client, `test_mutants_render.client_ablation_findings`. That proof is
+    # stronger about the RENDERER and weaker about the DETECTOR: its scene is
+    # a hand-built ghost, where this one is a configuration a person reaches
+    # by accident. The string here is the detector's evidence, so it stays;
+    # read the flipped mutant for what the client path can see that the SVG
+    # path cannot.
     "ablation_existence":
         "test_mutants_render.TestRenderMutants."
         "test_ablation_existence_fires_on_a_real_shipped_class",
