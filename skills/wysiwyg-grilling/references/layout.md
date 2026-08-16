@@ -96,8 +96,30 @@ of one source, or two edges converging on one target, is the layout aligning
 things deliberately, and offsetting a leg to satisfy a checker would make the
 picture worse. That case is silent on purpose.
 
-Both of these read the path as DRAWN, so rounding a corner never changes the
-answer, and both take a `waive` if the pairing is intentional.
+Both read the path as DRAWN rather than the stored polyline, and both take a
+`waive` if the pairing is intentional. They differ in one way worth knowing:
+the **lane** answer is unchanged by rounding — it is taken from the chord
+between the two points the ink is pinned to, so a rounded corner and a sharp
+one give the same verdict — while the **bidirectional** answer can move,
+because a bowed final leg stops reading as a straight line. Rounding one
+corner can therefore silence a bidirectional finding without moving an
+endpoint. The router will not curve an arrow whose drawn arrival leans off
+square, which is what keeps this from happening to you by accident.
+
+*(That paragraph read "rounding a corner never changes the answer" for both
+lints until 2026-08-16. It was true of one and false of the other — written
+in the very commit that deleted connector rule 3's false claim about parallel
+runs. Recorded rather than quietly patched: this file has now shipped two
+wrong invariance claims about connector geometry, and both were caught by
+someone measuring rather than by any check.)*
+
+**Cramped sides are a known false alarm** for the lane check. When a node's
+side is too short to hold all the feet arriving on it, the auto-fan spreads
+them as far as the side allows and stops — and what it produces then is a
+lane the check reports. Measured over 120 fanned scenes: 53 report
+themselves, all of them sides with four or more feet, diamonds worst. The
+warning says so, and the repair is to move an edge to another border or grow
+the node, never to re-run the fan.
 
 The router now avoids foreign boxes itself: it scores straight lines,
 both L-elbow orientations, and bounded Z-detours, and picks the cleanest

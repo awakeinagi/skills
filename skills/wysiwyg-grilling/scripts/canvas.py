@@ -3165,6 +3165,36 @@ FAN_LANE_PITCH = 18.0
 # the assertion beside the corridor instrument in that test now runs the
 # live lint too, so the quiet pole fails loudly rather than by a number
 # nobody re-reads.
+#
+# AND THE PITCH IS NOT ALWAYS REACHED, which is the known over-fire
+# surface of the promoted lint and is disclosed here rather than in a
+# report nobody reads next to the code. Swept over 120 fanned scenes
+# (3 shapes x 10 sizes x 2-5 feet) through `_elbowed` +
+# `fan_attach_points`: 53 land INSIDE the lane and are reported to the
+# agent. The shape is cramped sides with four or more feet — 1/30 at two
+# feet, 10/30 at three, 18/30 at four, 24/30 at five; diamonds worst
+# (24/40) because the outline projection eats the side, rectangles best
+# (12/40). The boundary is the one
+# `test_a_side_too_short_for_the_pitch_still_spreads` already derives,
+# `room < (N-1) * FAN_LANE_PITCH`, which predicts 118 of the 120 rows.
+# There is no borderline regime: fanned scenes either clear 17px or
+# collapse to 3-16px.
+#
+# NONE OF THAT IS NEW GEOMETRY. The instrument reports the identical 53
+# at BASE, so this is Task 51 residue the repo already knew about — the
+# cramped-side test says outright that a short side yields lanes under
+# the corridor's tolerance on every shape. What promotion changed is the
+# CONSEQUENCE: a wrong number in a score vector became a warning an
+# agent is told to act on. Two things follow, and both are done rather
+# than noted — the finding's advice now names the shortfall case instead
+# of telling the agent to re-run the fan that just failed (see the lane
+# block), and the cramped-side test asserts the lint SPEAKS there, so
+# the over-fire is a pinned fact rather than a silence.
+#
+# Whether the fan should instead spill onto an adjacent border when one
+# side cannot hold its feet is a real question and NOT this task's to
+# answer: it changes shipped geometry on every cramped node. Proposed as
+# a backlog row in task-lintpromote-report.md §11.
 FAN_EDGE_MARGIN = 8.0
 # ...and how much of each end of the side the widened fan leaves alone —
 # the same 8px window the slide fallback below refuses to step outside,
@@ -9255,15 +9285,31 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     # 3-point server-routed paths (brownfield BUG-05).
                     # Name what disqualified them, or nothing.
                     why = []
-                    for aid in (id1, id2):
-                        arr = ix.get(aid) or {}
+                    # `who`, and NOT `aid` — which is what this loop was
+                    # called until v0.9 TASK-LINTPROMOTE fix round 1.
+                    # Python scopes loop variables to the FUNCTION, so
+                    # this quietly overwrote `lint_layout`'s own `aid`
+                    # parameter with an arrow id for the whole rest of
+                    # the pass. Harmless for four rounds because nothing
+                    # downstream read `aid` again; the three promoted
+                    # lints' waive keys are the first code that does, and
+                    # they came out keyed `lane:e2:...` instead of
+                    # `lane:<artifact>:...` on any scene where this block
+                    # had fired first. A waive is a KEY the registry
+                    # stores, so the damage is not cosmetic: the key an
+                    # agent was told to record depended on which arrow
+                    # pair happened to share an attach point earlier in
+                    # the same drawing, and would stop matching the next
+                    # time that changed.
+                    for who in (id1, id2):
+                        arr = ix.get(who) or {}
                         npts = len(arr.get("points") or [])
                         if not server_owns_geometry(arr):
-                            why.append("%s is user-shaped" % aid)
+                            why.append("%s is user-shaped" % who)
                         elif npts > 3:
                             why.append("%s has %d waypoints (the fan only "
                                        "moves 2- and 3-point paths)"
-                                       % (aid, npts))
+                                       % (who, npts))
                     warnings.append(
                         "arrows %s and %s share an attach point on %s — "
                         "%s. Author waypoints via `mod points`, simplify "
@@ -9511,14 +9557,30 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                        "as one bidirectional edge")
             else:
                 why = "they share no node, so nothing explains the run"
+            # THE ADVICE HAS TO BE FOLLOWABLE IN BOTH REGIMES, and the
+            # first cut's was not. It said only "fan the feet apart",
+            # which is the repair when the shared side has room — and on
+            # a side that does NOT, the server has already tried exactly
+            # that and fallen short, so the agent is told to do the thing
+            # that just failed. Measured over 120 fanned scenes (3 shapes
+            # x 10 sizes x 2-5 feet), 53 land inside the lane, every one
+            # of them on a side too short for its feet: the boundary is
+            # `room < (N-1) * FAN_LANE_PITCH`, which predicts 118 of the
+            # 120 rows. "The lint's own advice was unfollowable" is a
+            # recorded v0.3 assessment finding (see `binding_focus`); one
+            # sentence covering both regimes is cheaper than re-deriving
+            # the fan's arithmetic here, and it is honest in both.
             warnings.append(
                 "arrows %s and %s run together for %dpx, %dpx apart on "
                 "the same %s line — inside the %dpx that reads as one "
                 "stroke, so the drawing has one thick line where the "
                 "model has two edges and neither can be followed through "
-                "the overlap. %s. Fan the feet apart (%dpx clears the "
-                "lane), offset one run with `mod points`, or record it "
-                "with waive {action: waive, key: %r, reason: ...}"
+                "the overlap. %s. Give the feet %dpx of separation — and "
+                "if that side is too short to hold them all, the fan has "
+                "already spent what it had: move an edge to another "
+                "border, grow the node, or offset one run with "
+                "`mod points`. Deliberate? waive {action: waive, "
+                "key: %r, reason: ...}"
                 % (la["id"], lb["id"], round(best[0]), round(best[1]),
                    "horizontal" if best[2] == "h" else "vertical",
                    int(LANE_TOL), why, int(FAN_LANE_PITCH), key))
@@ -9555,6 +9617,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # e1 criterion was retired for. Fans and convergences are therefore
     # exempt, and the exemption is bought by a DECLARED relation rather
     # than by a shape: see `_pair_kind` on self-loops and unbound ends.
+    #
+    # THIS ONE IS CURVATURE-SENSITIVE, unlike the lane block above, and
+    # the difference has a consequence worth stating (review M3). It
+    # reads `_reads_as_line`, so a bowed final leg stops qualifying: on
+    # an opposed pair behind a long elbow the verdict flips sharp-to-
+    # curved at every leg length tested (28, 40, 80, 150, 200px). That
+    # is CORRECT — a bow really does stop two strokes reading as one
+    # line, which is the whole reason `curved_elbow_spurious_bidi`
+    # exists — but it means this check's answer is part of the finding
+    # set `gate_curvature`'s second arm compares, so a candidate curve
+    # that silences a bidirectional finding is a curve the gate now
+    # declines. Off the frozen corpus this lint can therefore change
+    # WHICH ARROWS GET CURVED. Latent rather than live: corpus verdicts
+    # are unmoved (23 curved at BASE and at HEAD, re-measured), because
+    # the one corpus pair is held sharp by the squareness arm anyway.
+    # The gate is behaving exactly as specified — it refuses curves that
+    # move the finding set in either direction, and this is one — but a
+    # reader tracing an unexpected sharp arrow should know this block is
+    # in that loop.
     # The final legs come off `drawn`, the lane block's flattening, for
     # the reason recorded there: this loop is inside the same per-arrow
     # gate pass, and re-flattening here was a third of the cost.
@@ -9693,18 +9774,41 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         host = ix.get(e.get("containerId") or "")
         if host is None:
             continue
+        # BOTH INTENT CHANNELS, and this check needed them more than its
+        # siblings rather than less. The first cut had neither, which was
+        # a straight miss: `role: decoration` means "exempt from the
+        # lints that judge authored content" everywhere else in this file
+        # (see the composed-part note above), and the two promoted lints
+        # next door inherit that exemption free, because the `arrows`
+        # list they walk is already filtered. This loop walks `els`
+        # directly, so it has to say so itself — and a dimmed composite
+        # whose parts are furniture is exactly the shape that would have
+        # been nagged with nothing to do about it.
+        #
+        # EITHER SIDE BEING FURNITURE IS ENOUGH. A decoration label over
+        # an authored box and an authored label over a decoration box are
+        # both somebody's deliberate composite, and neither is the ghost
+        # this describes: the defect is a caption for a THING, left
+        # visible after the thing was hidden.
+        if "decoration" in (role_of(e), role_of(host)):
+            continue
         lo = e.get("opacity")
         ho = host.get("opacity")
         lo = 100 if lo is None else lo
         ho = 100 if ho is None else ho
         if lo <= ho:
             continue
+        key = "ghost:%s:%s" % (aid or "<artifact>", slugify(e["id"]))
+        if waives and key in waives:
+            continue
         warnings.append(
             "%s is drawn at %d%% over %s at %d%% — a bound label does "
             "not inherit its container's opacity, so the caption is "
             "%d points more visible than the thing it names and reads "
             "as a word floating with no box under it. Set both or "
-            "neither" % (e["id"], lo, name(host["id"]), ho, lo - ho))
+            "neither, or record the pairing with waive {action: waive, "
+            "key: %r, reason: ...}"
+            % (e["id"], lo, name(host["id"]), ho, lo - ho, key))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):

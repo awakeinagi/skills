@@ -5920,6 +5920,33 @@ class TestFanAttachPoints(unittest.TestCase):
             lo, hi = node["y"] + canvas.FAN_EDGE_MARGIN, node["y"] + h
             self.assertTrue(all(lo <= y <= hi - canvas.FAN_EDGE_MARGIN
                                 for y in ys), (shape, ys))
+            # AND THE AGENT IS TOLD, which is what v0.9 TASK-LINTPROMOTE
+            # changed about this scene (review M4). The shortfall above
+            # was a wrong number in a score vector until the corridor
+            # reading became `lint_layout`'s `shared_lane`; now the
+            # server hands the agent a warning about geometry it just
+            # produced and cannot improve on this side. That is the
+            # known over-fire surface of the promoted lint — 53 of 120
+            # swept fanned scenes, all cramped sides at >= 4 feet — and
+            # it is pinned HERE, as a fact, rather than left as a
+            # silence somebody rediscovers. Two directions to fail in:
+            # the day the fan learns to spill onto another border this
+            # goes quiet and this assertion says so, and the day the
+            # lint stops reading the drawing it goes quiet for the wrong
+            # reason and the sibling test above catches that instead.
+            said = [w for w in canvas.lint_layout(els)["warnings"]
+                    if "run together for" in w]
+            self.assertTrue(
+                said,
+                "%s %dx%d: the fan fell short of its pitch here but the "
+                "lint said nothing — either the fan improved (retire "
+                "this) or the lane check stopped reading the drawing"
+                % (shape, w, h))
+            # and the advice it gives must be followable on a side that
+            # has no room left: telling the agent to re-run the fan is
+            # the "unfollowable advice" defect this repo has recorded
+            # once already.
+            self.assertIn("too short to hold them all", said[0])
 
     def test_the_fan_survives_a_second_pass(self) -> None:
         """Re-running the post-pass on its own output moves nothing.
@@ -5952,6 +5979,311 @@ class TestFanAttachPoints(unittest.TestCase):
                    for e in els if e.get("type") == "arrow"]
         self.assertEqual(len(focuses), 3)
         self.assertTrue(any(abs(f) > 0.05 for f in focuses), focuses)
+
+
+class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
+    """`_pair_kind`'s five kinds, and the reading each one hands the agent.
+
+    v0.9 TASK-LINTPROMOTE fix round 1 (review M2). The classifier shipped
+    with three of its five kinds exercised only incidentally — `converge`
+    by the canonical corpus pin, `unrelated` by `argus-domain`, `fan` as
+    suppression — and NOTHING asserting `swapped` or `chain` in either
+    lint. The reviewer replaced all four of those message branches with
+    garbage and the full suite stayed green.
+
+    That is worst for `swapped`, which is the bidirectional check's OWN
+    STATED PREMISE and the branch a hand probe had already caught being
+    wrong once: the first cut ended its ternary chain on the `swapped`
+    reading, so every kind the gate let through was told it was a
+    2-cycle. That defect was found by hand, fixed by rewrite, and the
+    rewrite shipped untested — so it could return in silence. These are
+    the tests that would have caught it without the probe.
+
+    The truth table is asserted directly and the sentences through the
+    real lint, because the two can rot apart: a classifier that is right
+    while the branch selecting on it is wrong is exactly what shipped.
+    """
+
+    def _arrow(self, aid: str, pts: list[list[float]], x: float, y: float,
+               src: str | None, dst: str | None) -> dict:
+        """Build one bound arrow.
+
+        Args:
+            aid: Element id.
+            pts: Points, relative to `x`/`y`.
+            x: Element origin x.
+            y: Element origin y.
+            src: `startBinding` target id, or None to leave it unbound.
+            dst: `endBinding` target id, or None to leave it unbound.
+
+        Returns:
+            The arrow element dict.
+        """
+        return {"id": aid, "type": "arrow", "x": x, "y": y, "points": pts,
+                "width": 0, "height": 0, "customData": {"role": "edge"},
+                "startBinding": ({"elementId": src, "focus": 0, "gap": 1}
+                                 if src else None),
+                "endBinding": ({"elementId": dst, "focus": 0, "gap": 1}
+                               if dst else None)}
+
+    def _node(self, nid: str, x: float, y: float) -> dict:
+        """Build one 80x40 node box.
+
+        Args:
+            nid: Element id.
+            x: Left edge.
+            y: Top edge.
+
+        Returns:
+            The node element dict.
+        """
+        return {"id": nid, "type": "rectangle", "x": x, "y": y,
+                "width": 80, "height": 40, "customData": {"role": "node"}}
+
+    def test_the_five_kinds_are_what_the_bindings_say(self) -> None:
+        """The truth table, asserted directly rather than through a lint."""
+        a = self._arrow("a", [[0, 0], [10, 0]], 0, 0, "A", "B")
+        cases = [("swapped", "B", "A"), ("chain", "B", "C"),
+                 ("fan", "A", "C"), ("converge", "C", "B"),
+                 ("unrelated", "C", "D")]
+        for want, src, dst in cases:
+            b = self._arrow("b", [[0, 0], [10, 0]], 0, 0, src, dst)
+            self.assertEqual(canvas._pair_kind(a, b), want,
+                             "A->B against %s->%s" % (src, dst))
+
+    def test_chain_wins_over_fan_when_both_could_be_read(self) -> None:
+        """`A->B` and `B->A` share BOTH ends; the reversal is the reading.
+
+        The ordering inside `_pair_kind` is load-bearing and invisible
+        from any single case: a 2-cycle satisfies the `chain` test as
+        well, and answering `chain` there would hand the agent "they
+        continue each other" for a pair that is a reversal.
+        """
+        a = self._arrow("a", [[0, 0], [10, 0]], 0, 0, "A", "B")
+        b = self._arrow("b", [[0, 0], [10, 0]], 0, 0, "B", "A")
+        self.assertEqual(canvas._pair_kind(a, b), "swapped")
+
+    def test_a_self_loop_is_never_a_fan_or_a_convergence(self) -> None:
+        """The carve-out, from both sides of the pair.
+
+        A loop shares its node at both ends, so "same end" says nothing
+        about a common relation set. Reading it as a fan would have
+        suppressed the corpus's only live bidirectional finding.
+        """
+        loop = self._arrow("loop", [[0, 0], [10, 0]], 0, 0, "N", "N")
+        out = self._arrow("out", [[0, 0], [10, 0]], 0, 0, "N", "Z")
+        into = self._arrow("in", [[0, 0], [10, 0]], 0, 0, "Z", "N")
+        self.assertEqual(canvas._pair_kind(loop, out), "unrelated")
+        self.assertEqual(canvas._pair_kind(out, loop), "unrelated")
+        self.assertEqual(canvas._pair_kind(loop, into), "unrelated")
+
+    def test_unbound_ends_match_nothing(self) -> None:
+        """Two arrows binding nothing are unrelated, not a fan of Nones."""
+        a = self._arrow("a", [[0, 0], [10, 0]], 0, 0, None, None)
+        b = self._arrow("b", [[0, 0], [10, 0]], 0, 0, None, None)
+        self.assertEqual(canvas._pair_kind(a, b), "unrelated")
+        c = self._arrow("c", [[0, 0], [10, 0]], 0, 0, "A", None)
+        d = self._arrow("d", [[0, 0], [10, 0]], 0, 0, "B", None)
+        self.assertEqual(canvas._pair_kind(c, d), "unrelated")
+
+    def _swapped_scene(self) -> list[dict]:
+        """`A->B` and `B->A` drawn 6px apart on one line, fully overlapping.
+
+        Inside `LANE_TOL` and inside `BIDI_HEAD_TOL`, so ONE scene fires
+        both lints and both `swapped` branches are asserted off the same
+        geometry.
+
+        Returns:
+            The four-element scene.
+        """
+        return [self._node("A", 100, 100), self._node("B", 600, 100),
+                self._arrow("e1", [[0, 0], [420, 0]], 180, 110, "A", "B"),
+                self._arrow("e2", [[0, 0], [-420, 0]], 600, 116, "B", "A")]
+
+    def _chain_scene(self) -> list[dict]:
+        """`A->N` and `N->Z`, the second doubling back over the first.
+
+        `e1`'s final leg runs east into N at y=110; `e2` leaves N, goes
+        over the top and comes back west into Z at y=116, so the two
+        finals lie 6px apart, point opposite ways and overlap 100px.
+
+        Returns:
+            The five-element scene.
+        """
+        return [self._node("A", 100, 300), self._node("N", 600, 100),
+                self._node("Z", 100, 100),
+                self._arrow("e1", [[0, 0], [220, 0], [220, -210], [420, -210]],
+                            180, 320, "A", "N"),
+                self._arrow("e2", [[0, 0], [0, -40], [-140, -40], [-140, 16],
+                                   [-460, 16]], 640, 100, "N", "Z")]
+
+    def test_a_reversal_is_named_as_one_by_both_lints(self) -> None:
+        """`swapped`: both messages say each arrow is the other's reverse.
+
+        The bidirectional message is selected on "end on the same" and
+        not on "bidirectional edge": the LANE message's own `swapped`
+        clause contains that phrase too, so the looser filter matched
+        both and this test failed on its own selector before it could
+        say anything about the product.
+        """
+        li = canvas.lint_layout(self._swapped_scene())
+        lane = [w for w in li["warnings"] if "run together for" in w]
+        bidi = [w for w in li["warnings"] if "end on the same" in w]
+        self.assertEqual(len(lane), 1, li["warnings"])
+        self.assertEqual(len(bidi), 1, li["warnings"])
+        self.assertIn("each is the other's reverse", lane[0])
+        self.assertIn("each is the other's reverse", bidi[0])
+        # ...and not the sentence belonging to any other kind
+        for other in ("they leave", "they arrive at", "continue each other",
+                      "share no node"):
+            self.assertNotIn(other, lane[0])
+
+    def test_the_waive_keys_name_the_artifact_and_not_an_arrow(self) -> None:
+        """Every new lint's waive key carries the `aid` it was given.
+
+        THE REGRESSION PIN FOR A SCOPE BUG, and the scene is chosen to
+        reproduce it: these two arrows share an attach point at BOTH
+        ends, so `lint_layout`'s shared-attach block runs first and its
+        `for aid in (id1, id2)` loop — function-scoped, like every Python
+        loop variable — used to overwrite the `aid` PARAMETER for the
+        rest of the pass. The three promoted lints are the first code to
+        read `aid` after that point, so their keys came out
+        `lane:e2:e1:e2` instead of `lane:myflow:e1:e2`.
+
+        That is a live defect and not a cosmetic one: the key is what an
+        agent records a waive under, and it depended on which arrow pair
+        happened to share an attach point earlier in the same drawing.
+        Asserted for all three lints from one scene, because one shared
+        cause would break them all and one fix repairs them all.
+        """
+        els = self._swapped_scene()
+        els.append({"id": "A-label", "type": "text", "x": 110, "y": 110,
+                    "width": 40, "height": 20, "text": "A",
+                    "originalText": "A", "opacity": 100, "containerId": "A"})
+        for e in els:
+            if e["id"] == "A":
+                e["opacity"] = 0
+        li = canvas.lint_layout(els, aid="myflow")
+        keys = re.findall(r"key: '([^']+)'", " ".join(li["warnings"]))
+        self.assertEqual(
+            sorted(keys),
+            ["bidi:myflow:e1:e2", "ghost:myflow:a-label", "lane:myflow:e1:e2"],
+            li["warnings"])
+        # the shared-attach block DID run — otherwise this proves nothing
+        self.assertTrue([w for w in li["warnings"]
+                         if "share an attach point" in w], li["warnings"])
+
+    def test_a_chain_is_named_as_one_by_both_lints(self) -> None:
+        """`chain`: both messages name the node the merged stroke deletes.
+
+        The lane sentence has to carry the NODE, because that is the
+        whole finding — a step in the flow stops reading as a step — and
+        a branch that merely said "they continue each other" would leave
+        the agent hunting for which node.
+        """
+        li = canvas.lint_layout(self._chain_scene())
+        lane = [w for w in li["warnings"] if "run together for" in w]
+        bidi = [w for w in li["warnings"] if "bidirectional edge" in w]
+        self.assertEqual(len(lane), 1, li["warnings"])
+        self.assertEqual(len(bidi), 1, li["warnings"])
+        self.assertIn("continue each other through N", lane[0])
+        self.assertIn("stops being a step", lane[0])
+        self.assertIn("continue each other through a shared node", bidi[0])
+        for other in ("each is the other's reverse", "they leave",
+                      "they arrive at"):
+            self.assertNotIn(other, lane[0])
+
+
+class TestOrphanLabelHonoursIntent(unittest.TestCase):
+    """`orphan_label`'s two escape hatches, and that they are needed.
+
+    v0.9 TASK-LINTPROMOTE fix round 1 (review m1). The check shipped with
+    NEITHER channel: it walks `els` directly rather than the pre-filtered
+    `arrows` list its two siblings share, so it inherited nothing, and it
+    offered no waive key. `canvas.py` states that `role: decoration`
+    elements are "invisible to every lint" — this was the first
+    exception. Of the three promoted checks it is the one with zero
+    corpus witnesses, which makes it the one that most needs a way to say
+    "I meant that", not the least.
+    """
+
+    def _ghost(self, **over: object) -> list[dict]:
+        """A dimmed box carrying a fully-inked bound label.
+
+        Args:
+            **over: Fields merged onto the LABEL element.
+
+        Returns:
+            The two-element scene.
+        """
+        label = {"id": "g1-label", "type": "text", "x": 10, "y": 20,
+                 "width": 100, "height": 20, "text": "GHOST",
+                 "originalText": "GHOST", "opacity": 100,
+                 "containerId": "g1"}
+        label.update(over)
+        return [{"id": "g1", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 120, "height": 60, "opacity": 0,
+                 "customData": {"role": "node"}}, label]
+
+    def _fired(self, els, **kw):
+        """The orphan-label warnings for one scene.
+
+        Args:
+            els: The scene.
+            **kw: Passed through to `lint_layout`.
+
+        Returns:
+            Matching warning strings.
+        """
+        return [w for w in canvas.lint_layout(els, **kw)["warnings"]
+                if "does not inherit" in w]
+
+    def test_the_firing_pole_still_fires(self) -> None:
+        """Without either channel engaged, the ghost is still reported.
+
+        The pole both tests below need: a filter that silenced everything
+        would pass them and mean nothing.
+        """
+        said = self._fired(self._ghost())
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("g1-label", said[0])
+        self.assertIn("100%", said[0])
+        self.assertIn("0%", said[0])
+
+    def test_a_decoration_caption_is_not_this_defect(self) -> None:
+        """Furniture is exempt, from either side of the pairing.
+
+        A decoration label over an authored box and an authored label
+        over a decoration box are both somebody's deliberate composite.
+        The defect is a caption for a THING, left inked after the thing
+        was hidden — neither of these is that.
+        """
+        self.assertEqual(
+            self._fired(self._ghost(customData={"role": "decoration"})), [])
+        els = self._ghost()
+        els[0]["customData"] = {"role": "decoration"}
+        self.assertEqual(self._fired(els), [])
+
+    def test_a_recorded_waive_silences_it(self) -> None:
+        """The key the message offers is the key that works.
+
+        Asserted by READING THE KEY OUT OF THE MESSAGE rather than by
+        rebuilding it here: a check that told the agent one key and
+        honoured another would pass a hand-written expectation and fail
+        the only user who ever tried it.
+        """
+        said = self._fired(self._ghost(), aid="flow")
+        self.assertEqual(len(said), 1, said)
+        key = re.search(r"key: '([^']+)'", said[0]).group(1)
+        self.assertEqual(key, "ghost:flow:g1-label")
+        self.assertEqual(
+            self._fired(self._ghost(), aid="flow", waives={key: {}}), [])
+
+    def test_a_waive_for_another_artifact_does_not_leak(self) -> None:
+        """The key is artifact-scoped, so one waive does not silence two."""
+        self.assertEqual(
+            len(self._fired(self._ghost(), aid="other",
+                            waives={"ghost:flow:g1-label": {}})), 1)
 
 
 class TestBudgetsV03(Base):

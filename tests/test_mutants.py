@@ -10794,6 +10794,16 @@ def _lane_pair(pitch: float) -> list[dict]:
 # repair by hand, the exact geometry it had just created — a regression
 # of the class v0.9 Task 51 was opened to close. One pixel of the pitch
 # is the entire margin; this is what notices if it is ever spent.
+#
+# SCOPED TO THE ROOMY SIDE, and the qualifier matters (review M4). This
+# pair proves the clearance where the fan CAN achieve its pitch — which
+# is the regime it controls. It says nothing about a side too short to
+# hold its feet, where the fan falls short of 18px by arithmetic and the
+# lint reports the result: 53 of 120 swept fanned scenes, all of them
+# cramped sides at four or more feet, disclosed at `FAN_LANE_PITCH` and
+# pinned by `test_a_side_too_short_for_the_pitch_still_spreads`. Read
+# "one pixel is the entire margin" as a statement about the CONSTANT,
+# not about every drawing the fan touches.
 _register(Mutant(
     "unfanned_lane_reaches_the_agent",
     build=lambda: _lane_pair(16),
