@@ -285,7 +285,7 @@ them from), so the warning still applies to that one:
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text` |
-| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length`, `test_red_a_wide_string_in_a_narrow_box_paints_past_the_anchors`, `test_red_a_quarter_turned_slab_paints_80px_past_the_anchors`, `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (all five UNGATED — they run by default, so this whole row is live on every commit; see below) |
+| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length`, `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (all three UNGATED — they run by default, so this whole row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
 The bottom two rows are `@unittest.expectedFailure` method names rather
@@ -296,7 +296,7 @@ landing in the same commit as the marker's removal) but for three
 different reasons. Curator batch 23 refilled it the same day with three
 more, so read the emptiness as an event rather than as a state reached.
 
-ALL FIVE are now UNGATED, and the paragraph that used to sit here said
+ALL THREE are now UNGATED, and the paragraph that used to sit here said
 "two of the three… that is why the two runs differ by exactly one". Both
 halves changed on 2026-08-16 and in opposite directions. Curator batch 25
 added three ungated reds — `_scene_bbox` bounding stored geometry rather
@@ -304,20 +304,35 @@ than ink, and the client tier reading clean stripe garbage as a healthy
 drawing — none of which needs a browser, because each replaces the
 renderer or measures a pure function. Task 51c then flipped the row's
 last GATED red (the label riding foreign ink) by stopping `render_svg`
-occluding. So the gated and ungated runs of this module now report the
-SAME expected-failure count, measured at **5 and 5** — they differ by
-zero, and a reader who remembers the old "differ by exactly one" rule
-should stop applying it.
+occluding. v0.9 TASK-FRAMING then flipped batch 25's two `_scene_bbox`
+reds together, by teaching the helper to read the drawn extent. So the
+gated and ungated runs of this module report the SAME expected-failure
+count, measured at **3 and 3** — they differ by zero, and a reader who
+remembers the old "differ by exactly one" rule should stop applying it.
 
 Read that as an event, not a state reached: the moment any gated red is
 added it goes back to differing, and nothing enforces the parity.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**20 / 5 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 after curator batch 25 and task
-51; it read 17 / 3 / 0 before). Do not restate any of it as one suite ef
+**16 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-FRAMING; it read
+17 / 3 / 0 before batch 25). Do not restate any of it as one suite ef
 total.
+
+TWO NUMBERS MOVED IN THAT SENTENCE AND ONLY ONE OF THEM WAS TASK-FRAMING'S.
+The render 5 → 3 is its two flips. The model 20 → 16 was ALREADY WRONG at
+its base commit (286a5cb) — measured at pristine HEAD before any edit, so
+the drain happened somewhere in tasks 51/52/54 and this sentence was not
+carried with it. That is the SIXTH staleness of a hand-copied count in
+this file, and the first one the guard could not catch: `TestCoverage.
+test_the_handover_transcribes_the_reds_it_declares` parses the model ROW
+OF IDS out of this file, and the model row of ids was correct — the guard
+never looks at this paragraph. So the checked row and the unchecked
+sentence beside it disagreed by four, and the checked one is not what a
+reader quotes. Deriving a count is cheap (the grep is printed right here);
+the durable fix is a guard that reads these three numbers, and it is filed
+rather than built because it is not this task's surface.
 
 **Task 50 flipped `test_mutant_opacity_ghost_is_invisible_to_tier_one`**,
 the oldest of the three and the one that could not be fixed where it stood.

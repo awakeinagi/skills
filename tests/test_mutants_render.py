@@ -62,6 +62,7 @@ import hashlib
 import importlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -1051,14 +1052,88 @@ def _client_cache_key(elements: list[dict]) -> str:
         .encode("utf-8")).hexdigest()[:16]
 
 
-def _scene_bbox(elements: list[dict]) -> tuple[float, float, float, float]:
-    """The box a scene occupies, arrow waypoints included.
+def _drawn_corners(e: dict) -> list[tuple[float, float]]:
+    """Where ONE element's ink lands — advance and rotation included.
 
-    `x + width` bounds a rect but not always an arrow: an arrow's stored
-    width is its extent, and reading its `points` as well costs nothing
-    and cannot under-report. Anchors derived from an under-reported box
-    would stop bounding the scene, which is the one way `_anchored`'s
-    guarantee can fail.
+    Three bounds unioned in the element's own upright frame, because each
+    one holds ink the others let out:
+
+    - The STORED box, which is the honest bound for every class
+      Excalidraw paints inside its own rectangle.
+    - The `points` polyline, which overhangs the stored box on the three
+      point-strung classes — `canvas.ink_extent`'s own note, and the one
+      widening this function already made before v0.9 TASK-FRAMING.
+    - `canvas.ink_extent` OF THIS ELEMENT ALONE, which is the product's
+      bound and the only one of the three that knows what a string's real
+      advance is. Read rather than restated: a text's drawn extent is a
+      wrap rule plus a metrics table, and a second spelling of it here is
+      exactly how the frame this harness measures in and the frame the
+      export is made in would come to describe different pictures. The
+      numeric fields are coerced on the way in so this keeps
+      `_scene_bbox`'s tolerance for a half-built element; a DELETED
+      element answers `None` there and falls back to the two bounds
+      above, which is what this function already did with it.
+
+    Then `angle`, about the element's STORED centre — where Excalidraw
+    turns it, and deliberately not the centre of the painted box, which
+    for an overhanging string is a different point and would swing the
+    glyphs somewhere no renderer draws them.
+
+    The rotation is `test_mutants._painted_corners`' arithmetic in the
+    same order, which is not a stylistic choice: that function is the
+    reference the angle pins measure against, and they assert the
+    overhang is EXACTLY zero. Two spellings of one rotation agree to
+    within a float epsilon, not to the bit, and an epsilon is not zero.
+
+    Args:
+        e: One element. Missing or `None` numeric fields read as 0, so a
+            scene may carry an element that has not been positioned yet.
+
+    Returns:
+        The drawn box's corners — two when the element is upright, four
+        when it is turned. Callers only ever min/max over them.
+    """
+    x, y = float(e.get("x") or 0), float(e.get("y") or 0)
+    w, h = float(e.get("width") or 0), float(e.get("height") or 0)
+    xs, ys = [x, x + w], [y, y + h]
+    for px, py in (e.get("points") or []):
+        xs.append(x + float(px))
+        ys.append(y + float(py))
+    drawn = canvas.ink_extent([dict(e, x=x, y=y, width=w, height=h)], pad=0)
+    if drawn:
+        xs += [drawn[0], drawn[0] + drawn[2]]
+        ys += [drawn[1], drawn[1] + drawn[3]]
+    x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+    ang = float(e.get("angle") or 0)
+    if not ang:
+        return [(x0, y0), (x1, y1)]
+    cx, cy = x + w / 2.0, y + h / 2.0
+    out = []
+    for bx, by in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        px, py = bx - cx, by - cy
+        out.append((cx + px * math.cos(ang) - py * math.sin(ang),
+                    cy + px * math.sin(ang) + py * math.cos(ang)))
+    return out
+
+
+def _scene_bbox(elements: list[dict]) -> tuple[float, float, float, float]:
+    """The box a scene's INK occupies — the region `_anchored` frames.
+
+    THE INK, not the stored geometry (v0.9 TASK-FRAMING). This function
+    used to answer `x + width` widened by any `points`, and that box is
+    not where the drawing is on two element shapes the corpus can build:
+    a text whose stored width is an estimate narrower than its advance
+    paints past it, and any element carrying `angle` paints somewhere the
+    four unrotated numbers never mention. `_drawn_corners` is where both
+    are read; this is the union over them.
+
+    Why it matters here and not merely as tidiness: `_anchored`'s single
+    promise is that every variant of one ablation run frames the SAME
+    region, and it keeps that promise by placing anchors `_ANCHOR_GAP`
+    outside this box. Twenty-four pixels is the whole margin. A box that
+    under-reports by more than that puts real ink outside the framed
+    region, differently in each variant, and every delta measured through
+    the run is then taken between two differently-cropped pictures.
 
     Args:
         elements: The scene. An empty list, or one with no positioned
@@ -1069,12 +1144,9 @@ def _scene_bbox(elements: list[dict]) -> tuple[float, float, float, float]:
     """
     xs, ys = [], []
     for e in elements:
-        x, y = float(e.get("x") or 0), float(e.get("y") or 0)
-        xs += [x, x + float(e.get("width") or 0)]
-        ys += [y, y + float(e.get("height") or 0)]
-        for px, py in (e.get("points") or []):
-            xs.append(x + float(px))
-            ys.append(y + float(py))
+        for cx, cy in _drawn_corners(e):
+            xs.append(cx)
+            ys.append(cy)
     if not xs:
         return (0.0, 0.0, 0.0, 0.0)
     return (min(xs), min(ys), max(xs), max(ys))
@@ -2838,27 +2910,39 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# `_scene_bbox` bounds the stored geometry, not the ink (curator batch 25,
-# 2026-08-16; task-50-report.md §11's C5 and its review MINOR-3).
+# `_scene_bbox` bounds the INK (curator batch 25, 2026-08-16;
+# task-50-report.md §11's C5 and its review MINOR-3). BOTH REDS FLIPPED by
+# v0.9 TASK-FRAMING; the class keeps its name so the pins stay findable by
+# the reports that route to them, and reads now as the proven pole.
 #
 # `_anchored` exists to make one promise: whatever a variant scene loses, the
 # two anchors stay put, so every raster in an ablation run frames the same
 # region and the deltas are comparable. That promise rests entirely on
 # `_scene_bbox` bounding the scene, and its own docstring says as much —
 # "anchors derived from an under-reported box would stop bounding the scene,
-# which is the one way `_anchored`'s guarantee can fail". This is that
+# which is the one way `_anchored`'s guarantee can fail". This WAS that
 # failure, twice over, and `_ANCHOR_GAP`'s 24px is the whole margin between
 # a correct run and ink outside the frame.
 #
 # Task 56's lesson is the general form: stored geometry is not the ink. The
-# function reads `x`, `y`, `width`, `height` and `points`, which is the same
-# bound Task 56 spent a work package removing from the geometry checks.
+# function read `x`, `y`, `width`, `height` and `points`, which is the same
+# bound Task 56 spent a work package removing from the geometry checks; it
+# now reads the drawn extent through `_drawn_corners`, and these three tests
+# are what holds it there.
 #
-# BOTH REDS ARE HARNESS DEFECTS, which makes them unlike most of this file:
-# a wrong answer here does not misreport a drawing, it silently weakens every
-# ablation measurement taken through it. Neither is reachable by any corpus
-# scene today — that is why they are pins and not incidents — and the fix
-# belongs to whoever owns this module's framing, not to a curator.
+# BOTH WERE HARNESS DEFECTS, which made them unlike most of this file: a
+# wrong answer here does not misreport a drawing, it silently weakens every
+# ablation measurement taken through it. Neither was reachable by any corpus
+# scene — that is why they were pins and not incidents — and the fix belonged
+# to whoever owns this module's framing, not to a curator. It was taken
+# there: nothing in `canvas.py` changed for either flip.
+#
+# WHAT DID NOT FLIP WITH THEM, and must not be read as fixed by proxy:
+# `canvas.ink_extent` is still rotation-blind, and `test_mutants.
+# TestInkExtentIsRotationBlind` is still red on the same `_rotated_slab(90)`
+# scene. The two pins were built as sisters over one base scene precisely so
+# that fixing one could not quietly appear to close the other. This module's
+# framing now reads `angle`; the product's export framing does not.
 #
 # UNGATED, for the reason `TestContinuityNarrowingRegime` below is ungated:
 # no part of this needs a browser, and the rot it catches happens in ordinary
@@ -2867,7 +2951,7 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
 
 
 class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
-    """The anchors are placed around the geometry, not around the ink."""
+    """The anchors are placed around the ink, not around the stored box."""
 
     def _overhang(self, scene: list[dict[str, Any]],
                   ink: tuple[float, float, float, float]) -> float:
@@ -2889,36 +2973,41 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
         return max(bx0 - ix0, ix0 - bx1, by0 - iy0, iy0 - by1,
                    ix1 - bx1, iy1 - by1, 0.0)
 
-    @unittest.expectedFailure
     def test_red_a_wide_string_in_a_narrow_box_paints_past_the_anchors(
             self) -> None:
-        """Text advance overruns the stored box by 420px, on a 24px gap.
+        """WAS RED, curator batch 25's C5. FLIPPED by v0.9 TASK-FRAMING.
 
-        C5. A `text` element's stored `width` is an estimate an agent may
+        A `text` element's stored `width` is an estimate an agent may
         author badly and the client re-measures at load; the glyphs are
-        drawn at their real advance either way. `_scene_bbox` takes the
+        drawn at their real advance either way. `_scene_bbox` took the
         stored 20px. `canvas.ink_extent` — the product's own bound, which
         Task 46 and WP4 taught to measure the DRAWN lines — answers 440px
         for the same element.
 
-        MAGNITUDE AND DIRECTION: 420px of ink to the RIGHT of the box the
-        anchors are placed around, against `_ANCHOR_GAP`'s 24px of
-        margin. So this is not a near-miss to be padded away — the ink
-        leaves the framed region by more than seventeen times the entire
-        gap, and every variant raster in such a run is framed on a
-        different amount of clipped text.
+        MAGNITUDE AND DIRECTION AS FOUND, re-measured at the fix's base
+        and unchanged from the pin's: 420px of ink to the RIGHT of the
+        box the anchors were placed around, against `_ANCHOR_GAP`'s 24px
+        of margin. So this was not a near-miss to be padded away — the
+        ink left the framed region by more than seventeen times the
+        entire gap, and every variant raster in such a run was framed on
+        a different amount of clipped text. Corrected, `_scene_bbox`
+        answers `(0, 0, 440, 25)` and the overhang is 0.0.
+
+        THE CHEAPEST FIX WAS THE ONE THE PIN NAMED, and it was taken:
+        `_drawn_corners` unions `canvas.ink_extent` of the element into
+        the bound rather than restating the wrap-and-measure rule. So
+        this assertion is now true BY DELEGATION — which is the point.
+        It cannot pass by coincidence and then drift, because there is
+        one implementation of a string's advance and both sides of the
+        comparison read it. Had the fix re-derived the advance here, this
+        test would have been green on the day and quietly wrong the first
+        time task 46's wrap rule changed.
 
         MEASURED AGAINST THE PRODUCT'S BOUND, deliberately, rather than
-        against a number written here. `ink_extent` already solves this
-        exact problem for exports, so the assertion is that the harness's
-        bound is at least as wide as the shipped one — which is both the
-        honest comparison and the cheapest available fix for whoever
-        takes it. A literal would have made this pin the calibration
-        table it exists to argue against.
-
-        WHO FLIPS THIS: the owner of this module's framing helpers. Not a
-        curator, and not `canvas.py` — nothing in the product is wrong
-        here.
+        against a number written here: the assertion is that the
+        harness's bound is at least as wide as the shipped one. A literal
+        would have made this pin the calibration table it exists to argue
+        against — and would now be a second place to update.
         """
         scene = [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 20,
                   "height": 25, "fontSize": 20,
@@ -2932,37 +3021,64 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
             "%r, canvas.ink_extent says %r"
             % (over, _ANCHOR_GAP, _scene_bbox(scene), (x, y, x + w, y + h)))
 
-    @unittest.expectedFailure
     def test_red_a_quarter_turned_slab_paints_80px_past_the_anchors(
             self) -> None:
-        """`_scene_bbox` never reads `angle`, so rotation moves ink out.
+        """WAS RED, review MINOR-3. FLIPPED by v0.9 TASK-FRAMING.
 
-        Review MINOR-3, and the sister of
-        `test_mutants.TestInkExtentIsRotationBlind` — same base scene,
-        `tm._rotated_slab`, so the two pins cannot drift onto different
-        geometry. The point of keeping both is that they name DIFFERENT
-        CODE with different owners: `canvas.ink_extent` frames exports
-        and floors the tier-1 check, this places the ablation anchors.
-        A fix to either leaves the other standing.
+        The sister of `test_mutants.TestInkExtentIsRotationBlind` — same
+        base scene, `tm._rotated_slab`, so the two pins cannot drift onto
+        different geometry. The point of keeping both is that they name
+        DIFFERENT CODE with different owners: `canvas.ink_extent` frames
+        exports and floors the tier-1 check, this places the ablation
+        anchors. A fix to either leaves the other standing, and THAT IS
+        WHAT HAPPENED: this one is green and the sister is still red. If
+        both ever go green in one change, check that the change did not
+        make this module call the product's bound for the angle too.
 
-        MAGNITUDE AND DIRECTION: the 200x40 slab quarter-turned paints
-        from y=-80 to y=120; `_scene_bbox` answers y=0 to y=40. The ink
-        escapes 80px ABOVE the framed region, against `_ANCHOR_GAP`'s
-        24px — so, unlike the text case, this one is within the same
-        order as the gap and would read as a plausible margin to widen.
-        It is not: at 45 degrees the same slab reaches 130px out, and no
-        constant gap bounds a function that never reads the angle.
+        MAGNITUDE AND DIRECTION AS FOUND, re-measured at the fix's base
+        and unchanged from the pin's: the 200x40 slab quarter-turned
+        paints from y=-80 to y=120; `_scene_bbox` answered y=0 to y=40.
+        The ink escaped 80px ABOVE the framed region, against
+        `_ANCHOR_GAP`'s 24px — so, unlike the text case, this one was
+        within the same order as the gap and would have read as a
+        plausible margin to widen. It was not: at 45 degrees the same
+        slab's painted box is 169.7px tall against the stored 40 — 130px
+        of growth, 64.9px of it above the framed region — and no constant
+        gap bounds a function that never reads the angle. (The pin's own
+        "reaches 130px out" was that GROWTH, not the one-sided overhang
+        the `_overhang` helper measures; both re-measured here, and the
+        clause is spelled out because the two numbers differ by a factor
+        of two and the pin gave one name to both.)
 
-        WHY IT UNDER-REPORTS GEOMETRY AND NOT MERELY INK, which is
+        WHY IT UNDER-REPORTED GEOMETRY AND NOT MERELY INK, which is
         MINOR-3's actual claim and the reason it is filed apart from C5
         above: the text case is a disagreement about how wide a drawn
         string is, and reasonable bounds can differ on it. This one is
         not about ink at all. The corners are fixed by `x`, `y`,
         `width`, `height` and `angle` — five stored numbers — and the
-        function reads four of them.
+        function read four of them.
 
-        WHO FLIPS THIS: the same owner as C5 above. `tm._painted_corners`
-        is the reference implementation both pins measure against.
+        THE FIX ROTATES ABOUT THE STORED CENTRE, and this test does NOT
+        prove that choice — measured, not assumed. Two nearby spellings
+        were run against it: rotating about the PAINTED box's centre, and
+        the same rotation distributed into a different arithmetic order.
+        Both pass. The first passes because on this scene the painted box
+        IS the stored box, so the two centres coincide and the slab
+        cannot tell them apart; the second because the values here are
+        exact enough that two orderings agree to the bit.
+
+        So what this test pins is the SPAN, and the reason to rotate
+        about the stored centre is argued from the renderer rather than
+        held down here: Excalidraw turns an element about its own box's
+        centre, so a string overhanging that box swings with it, and
+        rotating about the painted box's centre would put the glyphs
+        somewhere nothing draws them. The scene that would separate the
+        two is a turned text whose stored width is dishonest — the two
+        pins' constructions crossed — and it is not written here because
+        the only available reference for where those glyphs land is this
+        module's own union, which would make the assertion a restatement
+        of the implementation. It wants a client render to be worth
+        anything; routed as such rather than faked cheaply.
         """
         scene = tm._rotated_slab(90)
         cs = tm._painted_corners(scene[0])
@@ -2978,13 +3094,22 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
 
     def test_the_bbox_does_bound_an_upright_scene_and_its_waypoints(
             self) -> None:
-        """Both reds' live pole: unturned and untexted, it is correct.
+        """Both pins' live pole: unturned and untexted, it is correct.
 
-        Without this, either red is satisfied by a `_scene_bbox` that had
-        stopped bounding anything — a degenerate box at the origin is
-        outside every scene's ink too, and it is exactly what the
-        function returns for an empty list. Three claims, on the shapes
-        the reds hold constant:
+        Load-bearing in BOTH directions, and more so now that the two
+        above are green. Without it, either pin is satisfied by a
+        `_scene_bbox` that had stopped bounding anything — a degenerate
+        box at the origin is outside every scene's ink too, and it is
+        exactly what the function returns for an empty list. And because
+        the first two claims here assert EXACT boxes rather than
+        containment, the opposite cheat fails too: a `_scene_bbox` that
+        widened everything by a constant, or returned some enormous
+        box, satisfies both overhang assertions above and fails here. An
+        over-wide frame is not harmless — the anchors are what pin every
+        variant of an ablation run to one grid, and a bound nobody can
+        predict is a bound nobody can debug a delta against.
+
+        Three claims, on the shapes the pins hold constant:
 
         The upright slab. `tm._rotated_slab(0)` is the reds' own base
         scene with the one field they turn on left flat, so the pair
