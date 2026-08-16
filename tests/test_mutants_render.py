@@ -103,7 +103,9 @@ def _browser() -> str:
     | `chromium-1234/chrome` | 90.1s | **4.619:1** |
     | `chromium_headless_shell-1148` | **35.3s** | **5.510:1** |
 
-    Every one of the 61 tests returns the same verdict under either, so
+    Every test in this tier returned the same verdict under either
+    (measured 2026-08-15, 61 tests at the time — a dated result, not a
+    live count), so
     switching is *tempting* and would cost nothing today. The reason not
     to is the second column. 4.62 against 5.51 is a fifth of the reading,
     on the one axis `TestLegibilityFloor` exists to measure — and it is
