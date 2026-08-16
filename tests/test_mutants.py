@@ -14789,12 +14789,19 @@ class TestCoverage(unittest.TestCase):
         """
         stated = handover_durable_counts()
         live = durable_red_counts()
+        # NO ORDINAL IN THIS MESSAGE, and the first draft had one ("this
+        # is the eighth time it has drifted"). Caught in review by
+        # TASK-FRAMING: a hand-maintained count, inside the guard whose
+        # whole subject is hand-maintained counts, guaranteed to be wrong
+        # the next time it fires. The history belongs in the docstring,
+        # where it is dated and stays true; a failure message should say
+        # what is wrong now. Naming both sides is what the reader needs
+        # to act, and both sides are derived.
         self.assertEqual(
             stated, live,
             "SESSION-HANDOVER.md's durable-count sentence reads %s for "
             "%s while the live decorators say %s. Edit the sentence — it "
-            "is a hand copy of a derived fact and this is the eighth "
-            "time it has drifted"
+            "is a hand copy of a derived fact and it has drifted before"
             % (" / ".join(map(str, stated)), ", ".join(DURABLE_RED_FILES),
                " / ".join(map(str, live))))
 

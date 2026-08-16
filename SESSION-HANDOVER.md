@@ -326,6 +326,16 @@ counts` derives all three numbers with the very grep printed above and
 fails when they part. Built at TASK-E9ENVELOPE, and watched failing
 against the real staleness before the numbers were corrected.
 
+WHY THE NUMBERS STAY rather than being replaced by the bare command,
+which was the standing queue item and is now superseded: this is the
+same choice already taken and written down for the sibling guard on the
+catalog-reds table — *"a reader opening the handover to learn what is
+red should not have to run the suite to find out, and a transcription
+that is CHECKED costs one line per flip"*. Deleting the numbers removes
+the staleness by removing the information; guarding them removes the
+staleness and keeps it. A live derived assertion beats both prose
+forms, so the numbers stay, checked.
+
 WHY IT EXISTS, because the record is the argument. This paragraph went
 stale SEVEN times. Sixth: two numbers moved and only one was
 TASK-FRAMING's — the render 5 → 3 was its two flips, while the model
