@@ -340,31 +340,36 @@ landing in the same commit as the marker's removal) but for three
 different reasons. Curator batch 23 refilled it the same day with three
 more, so read the emptiness as an event rather than as a state reached.
 
-ALL THREE are now UNGATED, and the paragraph that used to sit here said
-"two of the three… that is why the two runs differ by exactly one". Both
-halves changed on 2026-08-16 and in opposite directions. Curator batch 25
-added three ungated reds — `_scene_bbox` bounding stored geometry rather
-than ink, and the client tier reading clean stripe garbage as a healthy
-drawing — none of which needs a browser, because each replaces the
-renderer or measures a pure function. Task 51c then flipped the row's
-last GATED red (the label riding foreign ink) by stopping `render_svg`
-occluding. v0.9 TASK-FRAMING then flipped batch 25's two `_scene_bbox`
-reds together, by teaching the helper to read the drawn extent. So the
-gated and ungated runs of this module report the SAME expected-failure
-count, measured at **3 and 3** — they differ by zero, and a reader who
-remembers the old "differ by exactly one" rule should stop applying it.
+WHAT REMAINS IS UNGATED, which is why the gated and ungated runs of this
+module report the same expected-failure count. The history is worth
+keeping because it is all movement in one direction: the paragraph here
+once said "two of the three… that is why the two runs differ by exactly
+one"; curator batch 25 added three ungated reds (`_scene_bbox` bounding
+stored geometry rather than ink, and the client tier reading clean stripe
+garbage as healthy), none needing a browser because each replaces the
+renderer or measures a pure function; Task 51c flipped the row's last
+GATED red by stopping `render_svg` occluding; TASK-FRAMING flipped batch
+25's two `_scene_bbox` reds together.
 
-Read that as an event, not a state reached: the moment any gated red is
-added it goes back to differing, and nothing enforces the parity.
+**The parity is not enforced and the count is not stated here.** This
+passage read "measured at **3 and 3**" until 2026-08-16, when both runs
+measured **1** — the third figure in this section to be falsified by the
+flips recorded two paragraphs above it, in the same file, on the same
+day. Derive it if you need it (`MUTANTS_RENDER=1` and without, over
+`tests/test_mutants_render.py`), and read the parity as an event rather
+than a state reached: the moment any gated red is added the two runs
+differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**9 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-24-FOLLOW-UP,
-which is the first change since batch 23 to move the MIDDLE number; it
-read 11 / 3 / 0 at TASK-MICROFIX, which flipped three at once, 14 / 3 / 0
-at TASK-E9ENVELOPE, 16 / 3 / 0 at TASK-FRAMING and 17 / 3 / 0 before
-batch 25). Do not restate any of it as one suite ef total.
+**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at curator batch 26, which
+ADDED a model red rather than flipping one — the `commit`-callers pin,
+and the first movement of this sentence in the upward direction since
+batch 25; it read 9 / 1 / 0 at TASK-24-FOLLOW-UP, 11 / 3 / 0 at
+TASK-MICROFIX, 14 / 3 / 0 at TASK-E9ENVELOPE, 16 / 3 / 0 at TASK-FRAMING
+and 17 / 3 / 0 before batch 25). Do not restate any of it as one suite ef
+total.
 
 **THIS SENTENCE IS NOW GUARDED — stop hand-editing it and let the guard
 tell you.** `TestCoverage.test_the_handover_transcribes_the_durable_red_

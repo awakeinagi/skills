@@ -2819,6 +2819,76 @@ class TestCornerBiasReadsVerticesNotTurns(unittest.TestCase):
             self._slot_offset([[0, 0], [400, 0], [400, 400], [0, 400]]),
             places=3)
 
+    def test_a_turn_just_under_the_bar_is_read_as_a_straight_run(
+            self) -> None:
+        """The bar itself, from below. Curator batch 26, 2026-08-16.
+
+        `LABEL_CORNER_MIN_TURN_DEG` had no test either side of it: the
+        four pins around it use 0 degrees (collinear), 45, 90 and 135,
+        so the whole interval between "not a turn at all" and "obviously
+        a turn" was unmeasured and MOVING THE CONSTANT MOVED NOTHING
+        RED. Measured before writing this, at 32630e9, by editing the
+        constant in a scratch worktree and running the full suite: 5.0
+        to 6.0 and 5.0 to 4.0 both left 1127 tests OK. A threshold no
+        test straddles is a number, not a decision (task-microfix
+        concern 3).
+
+        WHY THE PAIR STRADDLES SO TIGHTLY — 4.858 and 5.143 degrees,
+        0.29 apart across a bar at 5.0 — rather than the "one degree
+        apart" the concern suggested. Round coordinates were the
+        constraint, not precision for its own sake: the second segment
+        rises 17px over 200 here and 18px in the pole below, which are
+        the two nearest whole-pixel rises that fall either side of the
+        bar. A wider pair would pin the constant to one significant
+        figure and let a recalibration to 5.9 pass silently, which is
+        the state this is repairing.
+
+        THIS DOES NOT ENDORSE 5.0. The value is argued from the slide's
+        own residual — the stub mismatch it LEAVES runs 16-36 degrees
+        under curvature, so repairing a 5-degree turn buys an alignment
+        three times worse than the one already tolerated — and NOT from
+        a measured population, because the population that would
+        calibrate it (near-collinear waypoints from `add_waypoint` and
+        the reroute walk) is not in the corpus. Whoever gets that data
+        should expect to move the bar and to edit these two scenes in
+        the same change. Failing here is the intended cost of moving it;
+        failing here SILENTLY was the defect.
+
+        DIRECTION: under the bar the two approaches read as one stroke
+        and the eye completes them, so the label must not move at all.
+        MAGNITUDE: exactly 0.0, which is a stronger claim than "small" —
+        a bias that fired weakly here would still be placing the label
+        by how the path was stored.
+        """
+        self.assertAlmostEqual(
+            self._slot_offset([[0, 0], [200, 0], [400, 17]]), 0.0, places=3)
+
+    def test_a_turn_just_over_the_bar_slides_the_label_clear(self) -> None:
+        """The bar from above: rule 8's other half, one pixel away.
+
+        The pair is the pin; either alone is worthless. Below the bar
+        alone is satisfied by a bias that has stopped firing (which is
+        exactly how a fix to the collinear over-fire could have gone
+        wrong, and what the 90-degree pole above was written to catch),
+        and above the bar alone is satisfied by a bias that fires on
+        everything, which is the r5-14 over-fire this whole class exists
+        for. Only the two together say the CONSTANT is where the
+        behaviour changes.
+
+        MAGNITUDE 38px, and it is 38 rather than the 18 the 90-degree
+        pole measures because the slide walks the drawn path outward
+        from the anchor to the first clearing position, and on a path
+        this close to horizontal that means travelling the label's own
+        long axis: half-width 30 plus `LABEL_CORNER_PAD` 8. The
+        90-degree elbow clears on the vertical leg at half-HEIGHT plus
+        the same pad. Asserting the exact number rather than "greater
+        than zero" is what makes this a magnitude claim — a bias that
+        fired and moved the label somewhere arbitrary would pass the
+        weaker form.
+        """
+        self.assertAlmostEqual(
+            self._slot_offset([[0, 0], [200, 0], [400, 18]]), 38.0, places=3)
+
 
 class TestTextOverlapAndClearanceQuietHalves(unittest.TestCase):
     """The quiet halves of Task 23's two checks, which its mutants cannot reach.
@@ -3822,6 +3892,40 @@ class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
         owns those two checks: if the collapse is intentional, this pin
         is its documentation, and if it is not, this is the scene the
         red should be built on.
+
+        THE SECOND AXIS, and the territory this pin does NOT cover.
+        Concern 2 named two callers still reading the DEFAULT line
+        height — `lint_layout`'s composed-content check and
+        `shape_clip`'s label measurement. Re-enumerated by the
+        TASK-24-FOLLOW-UP review and re-confirmed at 32630e9 by curator
+        batch 26, there are FIVE: those two, plus three that hold an
+        element and WRITE ITS HEIGHT from `text_dims` at the default —
+        `route_ctx`'s label sizing (canvas.py:4429), `_set_label`
+        (canvas.py:7220 and 7232) and `cmd_x_as_user` (canvas.py:16890).
+        The first two of the five only MEASURE; the last three STORE,
+        which is the worse half, because every later reader inherits the
+        number.
+
+        MEASURED, and stated as the arithmetic rather than as one
+        number, because the magnitude scales: a text stored through any
+        of the three keeps `lines * fontSize * 1.25` while the paint
+        draws `lines * fontSize * lineHeight`, so a three-line label the
+        client set to `lineHeight: 2.0` is under-measured by 36px at
+        fontSize 16 and 45px at 20. The review quotes 45; both are the
+        same defect at two sizes, and quoting either alone is how the
+        next reader concludes the other is a discrepancy.
+
+        NOTED AND NOT PINNED, and the reason is the same one that keeps
+        this test green. It is PRE-EXISTING and unchanged by the task
+        that found it, and the EXPORT is protected regardless —
+        `ink_extent` takes `max(stored, estimate-at-the-element's-own-
+        lineHeight)`, so no drawing is currently wrong because of it.
+        What is wrong is the stored geometry other lints read, and a red
+        asserting that would be asserting a miss nobody has demonstrated
+        on a real scene, which is exactly the trap the paragraph above
+        declines. If the line-height work later demonstrates a lint
+        going quiet on it, the five call sites are enumerated here and
+        this is the pin to grow.
         """
         boxed = el(id="t1", type="text", x=0, y=0, width=200, height=20,
                    text="yes\nno maybe", fontSize=16, autoResize=False,
@@ -5855,6 +5959,13 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         it is added. DIRECTION is that `FINDINGS=` must NOT absorb them,
         asserted second: that is the trap fix, and it is the one that
         breaks the three neighbours.
+
+        WHO FLIPS THIS: the WP5 load-findings task, which owns all four
+        of this class's reds. Written in by curator batch 26 (2026-08-16)
+        from the red-owner map: a plan-level owner existed and no FILE
+        said so, and a red whose owner lives only in a planning document
+        is one reorganisation away from being ownerless. Its three
+        siblings carry the same sentence.
         """
         root = self._quarantine_project()
         out = self._lint(root)
@@ -5947,6 +6058,13 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         respelled, so the two surfaces' repair poles stay one control:
         a reworded heading fails both together instead of retiring this
         one quietly.
+
+        WHO FLIPS THIS: the WP5 load-findings task, which owns all four
+        of this class's reds — and this one names the shape most
+        directly, since "a load-findings block on this surface" is the
+        fix the whole group is waiting on. Written in by curator batch
+        26 (2026-08-16) from the red-owner map, which found the owner
+        recorded at plan level and in no file.
         """
         root = self._quarantine_project()
         out = self._start(root)
@@ -5999,6 +6117,14 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         and a lint that read the queue, a producer that filed to the
         store, or a `.bad` file the loader still reports would each
         satisfy it.
+
+        WHO FLIPS THIS: the WP5 load-findings task, which owns all four
+        of this class's reds. Written in by curator batch 26
+        (2026-08-16) from the red-owner map. Worth flagging to that task
+        specifically: this one is the only member whose fix may not be a
+        surface change at all — the `.bad` rename is what destroys the
+        finding, so the repair may sit in the loader rather than in any
+        of the three surfaces the siblings name.
         """
         root = _scratch_project(self, {"a": _GOOD_ARTIFACT},
                                 {"0001-x": _GOOD_SAVE},
@@ -6796,6 +6922,17 @@ class TestBatchPathIntegrity(unittest.TestCase):
         the value it named. "Derived, never authored" is a defensible
         ruling for this attribute — it just has to be SAID, and a refusal
         naming `roundness` would flip this as readily as making it stick.
+
+        WHO FLIPS THIS: the mod-discard task, which owns the B1 class —
+        an accepted op whose attribute the server then discards, of
+        which `roundness` on a routed arrow is the instance this pins.
+        Written in by curator batch 26 (2026-08-16) from the red-owner
+        map, which found this red's owner recorded at plan level and in
+        no file. NOT a curator's and not this file's: the ruling the fix
+        has to make ("derived, never authored" versus "authored, and the
+        route respects it") is a product decision about what `mod` means
+        on a derived attribute, and the paragraph above deliberately
+        accepts either answer.
         """
         store, _ = self._store()
         store.apply_batch({
@@ -7126,6 +7263,419 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     "the legal form of %r raised nothing and left nothing "
                     "behind, so the reds beside it are measuring a store "
                     "that drops batches: %r" % (name, landed))
+
+    # The gate's RULES, one case each — curator batch 26 (2026-08-16),
+    # from the E-9 review's F1 deletion matrix. A SIBLING of `_E9_ESCAPES`
+    # rather than five more rows in it, because the two tables make
+    # different claims and merging them would cost the older one its
+    # meaning: `_E9_ESCAPES` is a RECORD of what escaped raw at 286a5cb,
+    # written in the tense of that measurement on purpose, and its
+    # docstring's "four cases / eight subTests" arithmetic is part of the
+    # record. This table claims nothing about history. It says that each
+    # of the five rules the fix installed is the ONLY thing standing
+    # between a real fault and a message that cannot name the op.
+    #
+    # RE-MEASURED BEFORE WRITING, at 32630e9, by deleting each rule in a
+    # scratch worktree and running the full suite — which is the whole
+    # reason these exist, so the number is worth stating: all five
+    # deletions left 1127 tests OK, ef=10. Four of the five degrade the
+    # contract from "names the offending op" back to a generic `internal
+    # error` naming a Python builtin, which is the r4-11 defect the E-9
+    # task was written to close, returning at four call sites. The fifth
+    # (bool) re-opens a D-2-class silent acceptance instead: `x: true` is
+    # an `int` subclass, so it lands stored as `1` and the D-2 red's own
+    # `_is_drawable_number` predicate reads it as a finite number and
+    # passes. No existing test COULD have caught any of them.
+    #
+    # Two of the five sites — `headline_for` and the `mod attrs` door —
+    # were the E-9 report's own headline discovery, named for the first
+    # time by its 209-batch sweep, and neither had a test of any kind.
+    # `names` is asserted alongside `op 0` because op-naming alone does
+    # not separate the gate from the backstop's own op-less sentence as
+    # sharply as naming the FIELD does: the gate knows which value it
+    # refused, and an envelope handed a bare scalar can never say.
+    _E9_GATE_RULES: ClassVar[dict[str, dict[str, Any]]] = {
+        "bool geometry (drawable_number's bool refusal)": {
+            "bad": [{"op": "add", "element": {
+                "type": "rectangle", "id": "q1", "x": True, "y": 0,
+                "width": 100, "height": 60}}],
+            "legal": [{"op": "add", "element": {
+                "type": "rectangle", "id": "q1", "x": 1, "y": 0,
+                "width": 100, "height": 60}}],
+            "names": "`x`",
+        },
+        "a pin question that is not a string (headline_for)": {
+            "bad": [{"op": "pin", "id": "pin-d", "target": "n1",
+                     "question": 42}],
+            "legal": [{"op": "pin", "id": "pin-d", "target": "n1",
+                       "question": "Q?"}],
+            "names": "`question`",
+        },
+        "geometry through the mod attrs door (_round_geom's second)": {
+            "bad": [{"op": "mod", "id": "n1",
+                     "attrs": {"x": float("nan")}}],
+            "legal": [{"op": "mod", "id": "n1", "attrs": {"x": 50}}],
+            "names": "`x`",
+        },
+        "an infinite coordinate (math.isfinite, not just NaN)": {
+            "bad": [{"op": "add", "element": {
+                "type": "rectangle", "id": "q1", "x": float("inf"), "y": 0,
+                "width": 100, "height": 60}}],
+            "legal": [{"op": "add", "element": {
+                "type": "rectangle", "id": "q1", "x": 300, "y": 0,
+                "width": 100, "height": 60}}],
+            "names": "`x`",
+        },
+        "an add element id that is not a string (det_seed)": {
+            "bad": [{"op": "add", "element": {
+                "type": "rectangle", "id": 42, "x": 0, "y": 0,
+                "width": 100, "height": 60}}],
+            "legal": [{"op": "add", "element": {
+                "type": "rectangle", "id": "q1", "x": 0, "y": 0,
+                "width": 100, "height": 60}}],
+            "names": "`id`",
+        },
+    }
+
+    def _effect_fingerprint(self, store: canvas.Store) -> tuple[Any, ...]:
+        """Everything the five legal poles can move, in one comparable value.
+
+        The legal half of rule 8 has to assert the effect ARRIVED, not
+        that nothing raised — a store that had quietly stopped applying
+        batches raises nothing either, which is the confusion
+        `TestPinIdentityIntegrity`'s quiet pole records. The three op
+        kinds here land in three different places (an element, a pin, an
+        existing element's geometry), so one fingerprint covering all
+        three is what lets the five poles share an assertion instead of
+        drifting into three near-copies of it.
+
+        Args:
+            store: The store to read, at whatever revision it holds.
+
+        Returns:
+            The scene's element ids, the registry's pin ids, and `n1`'s
+            position — enough that any of the five legal batches changes
+            it, and a dropped batch does not.
+        """
+        n1 = [e for e in store.scenes["flow"] if e["id"] == "n1"]
+        return (tuple(self._ids(store)),
+                tuple(p["id"] for p in store.registry.get("pins", [])),
+                tuple(n1[0].get(f) for f in ("x", "y")) if n1 else ())
+
+    def test_each_gate_rule_names_the_op_when_its_own_fault_arrives(
+            self) -> None:
+        """Delete any one of the five rules and exactly this test notices.
+
+        The E-9 envelope task closed nine field-gate rules; four of them
+        arrived pinned by the reds above and five did not, and the
+        difference was invisible because the BEHAVIOUR is correct on
+        every one. That is the silence doctrine §1 exists for: an
+        assessor who deletes a rule, runs 1127 tests and reads OK
+        concludes the rule was never load-bearing. It was.
+
+        WHAT THIS PINS THAT `_E9_ESCAPES` DOES NOT: that table is
+        organised by CALL SITE, one case per site, so a partial fix
+        flips a subTest at a time. This one is organised by RULE, and
+        the two do not line up — the `id` rule covers two sites from one
+        line, while the geometry rule guards two doors of which only the
+        `add` one has a case above. Read together they say the gate is
+        covered on both axes; either alone leaves the other's diagonal
+        open.
+
+        MAGNITUDE AND DIRECTION for a refusal are what the message
+        LOCATES, so both are asserted and neither on its own is enough.
+        `op 0` is direction: the answer points at an op rather than at a
+        Python builtin, which is precisely what the backstop cannot do
+        (it is handed an exception, sometimes a bare scalar, and has no
+        op to name). The field name is magnitude: the gate knows WHICH
+        value it refused. Delete the `isfinite` rule and the batch still
+        comes back a `BatchError` — the envelope catches the
+        `OverflowError` underneath — so an `assertIsInstance` alone
+        passes while the contract is broken, and only the message
+        assertions see it.
+
+        BOTH SURFACES, for the reason the D-1 red gives: the dry run is
+        the surface an agent reaches for to find out whether a batch
+        would land, and a `--check` that answers differently from apply
+        is worse than one that crashes. Structurally they cannot differ
+        here, since the gate sits in `_validate_batch`'s pre-scan which
+        both share; asserting it anyway is what would catch a future
+        change that moved the gate onto one arm.
+
+        BOOL IS THE ODD ONE and its failure mode is the opposite of the
+        other four: delete that rule and nothing errors at all, the
+        element lands at `x=1`, and the assertion that fires is the
+        `BatchError` one rather than the message. Its legal pole is
+        `x: 1` deliberately — the value the bool would have become — so
+        the pair differs only in the TYPE that arrived, and a fix that
+        started refusing the integer too would fail the pole.
+
+        Found during the TASK-E9ENVELOPE review (F1, MAJOR), written by
+        curator batch 26, 2026-08-16. Routed to a curator rather than to
+        the implementer by the run-5 rule: an acceptance test from the
+        hands that wrote the fix is the shape this repo keeps paying for.
+        """
+        for name, case in self._E9_GATE_RULES.items():
+            with self.subTest(rule=name, surface="apply"):
+                store, _ = self._store()
+                escaped = self._send_ops(store, case["bad"])
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "%s was not refused (%r) — the rule that refuses it "
+                    "is the only thing between this value and a scene "
+                    "that stores it" % (name, escaped))
+                joined = "\n".join(escaped.errors)
+                self.assertIn(
+                    "op 0", joined,
+                    "%s came back as %r, which names no op — the gate "
+                    "was bypassed and the envelope answered instead"
+                    % (name, joined))
+                self.assertIn(
+                    case["names"], joined,
+                    "%s came back as %r, which names an op but not the "
+                    "field %s it refused" % (name, joined, case["names"]))
+            with self.subTest(rule=name, surface="check"):
+                store, _ = self._store()
+                try:
+                    out = store.check_batch({
+                        "base_revn": store.head_revn(),
+                        "artifact": "flow", "ops": case["bad"]})
+                except Exception as exc:
+                    self.fail(
+                        "%s raised %s out of check_batch: %s — the dry "
+                        "run promises its errors arrive in the payload"
+                        % (name, type(exc).__name__, exc))
+                self.assertFalse(out["ok"], out)
+                joined = "\n".join(out["errors"])
+                self.assertIn("op 0", joined, joined)
+                self.assertIn(case["names"], joined, joined)
+
+    def test_the_five_gate_rules_let_their_legal_values_through(
+            self) -> None:
+        """Rule 8's other half: each refused value has a twin that lands.
+
+        Without this, the test above is satisfied by a gate that refuses
+        every batch it is handed — "a `BatchError` came back naming op
+        0" is true of a store that has stopped applying anything, and
+        the five rules would read as proven by a pipeline that had died.
+        Each `legal` batch differs from its `bad` twin in ONE value, so
+        what the pair measures is the value and not the op kind.
+
+        The effect is asserted by fingerprint rather than by exception,
+        because a batch silently dropped raises nothing either — see
+        `_effect_fingerprint`.
+        """
+        for name, case in self._E9_GATE_RULES.items():
+            with self.subTest(rule=name):
+                store, _ = self._store()
+                before = self._effect_fingerprint(store)
+                escaped = self._send_ops(store, case["legal"])
+                self.assertIsNone(
+                    escaped, "the legal twin of %r was refused: %r — the "
+                    "rule is refusing the value's whole type rather than "
+                    "the unusable half of it" % (name, escaped))
+                self.assertNotEqual(
+                    before, self._effect_fingerprint(store),
+                    "the legal twin of %r raised nothing and left nothing "
+                    "behind, so the rule beside it is measuring a store "
+                    "that drops batches" % name)
+
+    # `commit()`'s callers OUTSIDE `apply_batch` — curator batch 26
+    # (2026-08-16), from the E-9 review's F4 and spike-e9-backstop.md §6.
+    # RE-ENUMERATED at 32630e9 rather than copied, and the membership had
+    # drifted from the filed list even though the COUNT had not. The
+    # review names "handle_post, two out-of-session saves,
+    # accept_rollback, and revert_to", which counts `accept_rollback`
+    # twice (it IS one of the two out-of-session saves) and misses
+    # `tidy`. Measured, the five are `catch_up`, `tidy`,
+    # `accept_rollback`, `revert_to` and `handle_post`.
+    #
+    # Four of the five reproduce the raw escape; `revert_to` does not,
+    # and the reason is worth recording because it is the difference
+    # between an open door and a closed one. `revert_to` replays
+    # `state_at(revn)`, and every value in that state already survived a
+    # `commit` — which is exactly the call that raises. So no
+    # batch-borne bad value can reach it, and its exposure is limited to
+    # history written BEFORE the gate existed, or by some future writer
+    # that stores geometry without going through `commit`. Measured:
+    # `revert_to(1)` over clean history returns a record. It is named
+    # here as the fifth member of the class and deliberately not given a
+    # case, because a case would have to plant a pre-gate revision by
+    # writing save files by hand and would then be pinning the on-disk
+    # record format instead of this defect.
+    #
+    # `accept_rollback` and `tidy` are driven through their real entry
+    # points. The other two are driven as direct `commit()` calls
+    # carrying the exact `author` their caller passes — `"user"` for
+    # `handle_post`'s `/api/save`, `"out-of-session"` for `catch_up`'s —
+    # because reaching those two for real needs an HTTP body and an
+    # out-of-session disk edit respectively, neither of which is part of
+    # what this measures.
+    _COMMIT_CALLERS: ClassVar[tuple[str, ...]] = (
+        "handle_post (/api/save)", "catch_up", "accept_rollback", "tidy")
+
+    def _drive_commit_caller(self, which: str,
+                             planted: dict[str, Any]) -> Exception | None:
+        """Reach `commit` through one entry point that is not `apply_batch`.
+
+        Each arm plants the same element in `flow` and then drives one
+        caller, so what differs between the four subTests is the ROUTE
+        and never the value — which is what makes the result a statement
+        about the caller class rather than about one element.
+
+        Args:
+            which: One of `_COMMIT_CALLERS`.
+            planted: The element to append to the artifact's scene,
+                standing in for whatever a client posted or an
+                out-of-session editor left on disk.
+
+        Returns:
+            The exception that escaped the entry point, or `None` if the
+            save went through.
+
+        Raises:
+            AssertionError: If `which` is not a known caller, so a typo
+                in the table reads as a broken test rather than as a
+                silently skipped route.
+        """
+        store, _ = self._store()
+        scene = [*store.scenes["flow"], planted]
+        try:
+            if which == "handle_post (/api/save)":
+                store.commit(author="user", new_scenes={"flow": scene},
+                             base_revn=store.head_revn())
+            elif which == "catch_up":
+                store.commit(author="out-of-session",
+                             new_scenes={"flow": scene})
+            elif which == "accept_rollback":
+                store.scenes["flow"] = scene
+                store.rollback = {"revn": store.head_revn()}
+                store.accept_rollback()
+            elif which == "tidy":
+                store.scenes["flow"] = scene
+                store.tidy("flow")
+            else:
+                raise AssertionError("unknown commit caller %r" % which)
+        except Exception as exc:            # broad on purpose: see `_send_ops`
+            return exc
+        return None
+
+    @unittest.expectedFailure
+    def test_red_the_gate_guards_apply_batch_only_not_the_save_path(
+            self) -> None:
+        """Every save that skips `apply_batch` still escapes raw.
+
+        TASK-E9ENVELOPE put the field gate in `_validate_batch`'s
+        pre-scan, which is the right place for the surface it was scoped
+        to and covers nothing else. The envelope and the pre-image
+        restore are properties of **`apply_batch`**, not of `commit`, so
+        none of these four sits behind either: a client that posts a
+        scene carrying `width: NaN` to `/api/save` gets `ValueError:
+        cannot convert float NaN to integer` out of `handle_post`, which
+        catches only `StaleError` and lets everything else through to
+        the HTTP layer.
+
+        WHY THIS IS SCOPED TO THE CALLER CLASS AND NOT TO `/api/save`:
+        the concern as originally filed named one HTTP route, and a fix
+        written to that scope would close one of five doors and read as
+        complete. The four cases here are one per route on purpose, in
+        the same shape as `_E9_ESCAPES` — a partial fix flips a subTest
+        at a time and the failure names which caller is still open.
+
+        DIRECTION is the claim every red in this class makes and it is
+        unchanged here: the save resolves one way or the other, and a
+        traceback is neither. MAGNITUDE is what the message LOCATES.
+        `op 0` is not the right spelling on this surface — there are no
+        ops, only a posted scene — so the equivalent is asserted
+        instead: the message names the offending ELEMENT and the FIELD.
+        That is the assertion that separates a real fix from wrapping
+        `commit` in a bare `try`, which would convert the traceback to a
+        `BatchError` saying `internal error … ValueError` and leave the
+        caller exactly as unable to find the bad element as before.
+
+        WHAT WOULD FLIP IT: a field check on the way into `commit`,
+        reading the scenes it was handed with the same predicate
+        `element_field_faults` already applies to a batch. Refusing is
+        the settled ruling for this class (recorded in the D-2 red below,
+        with its three reasons), and unlike `_round_geom` this layer CAN
+        name what it refused — it holds whole elements, with ids.
+
+        WHO FLIPS THIS: the task that owns the `commit` entry, v0.10 or
+        the wave tail — NOT a curator and not this file. Filed by the
+        TASK-E9ENVELOPE review as F4 (MINOR, scope-critical); the
+        implementer's decision not to self-pin it is right by the run-5
+        rule and is why this is here.
+        """
+        planted = {"type": "rectangle", "id": "posted-bad", "x": 0, "y": 200,
+                   "width": float("nan"), "height": 60}
+        for which in self._COMMIT_CALLERS:
+            with self.subTest(caller=which):
+                escaped = self._drive_commit_caller(which, dict(planted))
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "%s let %s out: %s — the agent or client gets a raw "
+                    "traceback naming a Python builtin instead of the "
+                    "element that cannot be stored"
+                    % (which, type(escaped).__name__, escaped))
+                joined = "\n".join(escaped.errors)
+                self.assertIn(
+                    "posted-bad", joined,
+                    "%s refused the save as %r, which does not name the "
+                    "element — the caller has a whole scene to search and "
+                    "the message locates nothing in it" % (which, joined))
+                self.assertIn(
+                    "width", joined,
+                    "%s refused the save as %r, which names the element "
+                    "but not the field" % (which, joined))
+
+    def test_the_four_commit_callers_still_save_a_legal_scene(self) -> None:
+        """The red's live pole: the same four routes with a good element.
+
+        Without this the red above is satisfied by a `commit` that
+        refused every scene it was handed — "a `BatchError` came back
+        naming the element" is true of a save path that has stopped
+        saving, and a fix that over-refused would read as a success.
+        The planted element differs from the red's in ONE value, its
+        `width`, so the pair measures the value and not the route.
+
+        `tidy` is asserted as "did not raise" rather than "committed":
+        a scene it finds nothing to repair in returns a no-op by design
+        (an empty "saved without changing anything" revision was a v0.3
+        assessment bug), so demanding a new revision here would pin the
+        opposite of what that caller is supposed to do. The other three
+        must leave a revision behind, which is what rules out a save
+        path that silently drops the scene.
+        """
+        planted = {"type": "rectangle", "id": "posted-ok", "x": 0, "y": 200,
+                   "width": 100, "height": 60}
+        for which in self._COMMIT_CALLERS:
+            with self.subTest(caller=which):
+                escaped = self._drive_commit_caller(which, dict(planted))
+                self.assertIsNone(
+                    escaped, "%s refused a legal scene: %r — the red "
+                    "beside it is measuring a save path that refuses "
+                    "everything" % (which, escaped))
+
+    def test_a_legal_scene_through_commit_leaves_a_revision(self) -> None:
+        """The other half of the live pole: the save actually happened.
+
+        `_drive_commit_caller` builds its own store and throws it away,
+        so the test above can only see whether an exception escaped —
+        and a `commit` that returned cleanly without writing anything
+        raises nothing either. This drives the plainest of the four
+        routes against a store it keeps, and reads the revision counter.
+        """
+        store, _ = self._store()
+        before = store.head_revn()
+        store.commit(author="user", base_revn=before, new_scenes={
+            "flow": [*store.scenes["flow"], {
+                "type": "rectangle", "id": "posted-ok", "x": 0, "y": 200,
+                "width": 100, "height": 60}]})
+        self.assertGreater(
+            store.head_revn(), before,
+            "a legal scene through `commit` left no revision behind, so "
+            "the reds around it are measuring a store that drops saves")
+        self.assertIn("posted-ok", self._ids(store))
 
     def test_red_a_malformed_field_is_accepted_and_stored_as_geometry(
             self) -> None:
@@ -10718,11 +11268,21 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # announces itself as an unexpected success rather than a silent pass.
 # ---------------------------------------------------------------------------
 
-# Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-16 after curator batch 25, `mutants list --red` reports
-# 8 (of 41 entries) while this file carries 22 expectedFailure methods —
-# the catalogue has grown well past the "6 of 30" this paragraph carried
-# until today, which is the drift it warns about happening to itself. Task
+# Not every red in this file is a catalogue entry, and the gap is not small.
+# BOTH HALVES ARE DERIVABLE AND NEITHER IS STATED HERE ANY MORE — curator
+# batch 26, 2026-08-16, applying to this paragraph the treatment it had
+# already applied to one figure inside itself. Read them:
+#
+#     mutants list --red                      # the catalogue half
+#     grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/test_mutants.py
+#     HAND_AUTHORED_RED_CLASSES               # the other half, by class
+#
+# and the two halves must sum to the grep. The sentence that used to open
+# this paragraph carried THREE numbers, all three measured wrong at the
+# next reading — it claimed the catalogue reported 8 of 41 entries and the
+# file carried 22 expectedFailure methods, against a live 4 of 44 and 10.
+# It had gone stale inside one wave while warning, in its own next
+# sentence, about exactly that. The fix is not a better number. Task
 # 56 moved BOTH halves down at once, which no earlier change had done: it
 # flipped one catalogue red (`diamond_clearance_overfire`) and all three of
 # `TestShapeBlindAnnotationOverlap`'s, emptying that class, and it added
@@ -10745,12 +11305,17 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # the reason the command is now written out instead of its answer. The
 # figure that used to sit in this sentence is gone for the same reason: it
 # is derivable, it went stale twice, and the guard below derives it.
-# The fourteen outside live
-# in the seven classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# The reds outside the catalogue live
+# in the classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
 # `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
-# for why this paragraph no longer states them itself.
+# for why this paragraph no longer states them itself. It said "the
+# fourteen outside live in the seven classes" until 2026-08-16, when the
+# dict held six across two: the guard had been checking the dict against
+# the code for two days while this sentence, which no guard reads, drifted
+# by a factor of two in both figures. A number in prose beside a checked
+# structure is not a summary of it — it is a second, unchecked copy.
 # They are outside deliberately, because a Mutant is
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
@@ -10762,20 +11327,22 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # flipped it, the two numbers agreed at 16 for part of one day, and curator
 # batch 23 put a red back in that same class the same afternoon (the tier-1
 # export has no ceiling, and the reason given for not having one was
-# measured false). So the default line runs one ahead again, at 18 against
-# the 17 here. Read the brevity of that agreement as the warning: it says
-# only that every red in the suite happens to live in one file, which the
-# next red authored anywhere else undoes, and which lasted hours.
-# Task 50 removed the LAST expectedFailure from
-# `tests/test_mutants_render.py`, which is why the gated line no longer runs
-# ahead of the default one — those reds were never part of the count here,
-# they were the reason `MUTANTS_RENDER=1` used to read higher. State that as
-# the render file's own count (a grep for the DECORATOR, which is 0) and not
-# as a suite total: this paragraph was drafted claiming ef=16 on three
-# different lines at once, and a concurrent curator batch adding one red in
-# `test_backend.py` falsified it before the commit landed. Which is the
-# paragraph's own lesson arriving on schedule. Equally, do not reconcile
-# them by hand if they part again — go find the outside red.
+# measured false). Read the brevity of that agreement as the warning: it
+# says only that every red in the suite happened to live in one file, which
+# the next red authored anywhere else undoes, and which lasted hours.
+# HOW THE SUITE LINE RELATES TO THE GREP ABOVE, stated as a rule rather
+# than as a pair of numbers, because the pair was restated wrongly here
+# three times: the runtime `expected failures=N` counts every red the run
+# COLLECTED, so it is this file's grep plus every red in any other test
+# file whose class was not skipped. Take both greps and reconcile; do not
+# reconcile by hand if they part — go find the outside red.
+# `tests/test_mutants_render.py` is the one to check first, and the claim
+# that used to stand here — that Task 50 removed its LAST expectedFailure
+# — was false again by 2026-08-16 (grep it). The red it has now sits in
+# `TestClientTierReadsWhateverItIsHandedRegime`, which is UNGATED, so it
+# counts in the default line as well as the gated one; that is why the two
+# lines still agree, and the old sentence reached the right conclusion
+# from a premise that had stopped being true.
 # (The pair has read 16/15, 21/20, 17/16 and 15/14
 # before, and never the same 16 and 15 twice: Task 23 flipped two, curator
 # batch 19 added two once on each side of the CATALOGUE boundary, Task 24
@@ -10809,6 +11376,28 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # two. A red whose tail is dead is a red that will hand its flipper a
 # failure unrelated to the fix they just landed, and they will reasonably
 # read that as their own bug.
+#
+# ROUTING RULE, and the one exception to it (curator batch 26, 2026-08-16,
+# from the red-owner map's filing gap). Every hand-authored red in this
+# file carries a `WHO FLIPS THIS:` paragraph naming the task that owns its
+# fix. It is not decoration: five reds were found carrying owners that
+# existed only in a planning document, which is one reorganisation away
+# from ownerless, and the run-5 rule that a fix and its acceptance test
+# come from different hands is unenforceable when nobody can say whose the
+# fix is.
+#
+# THE CATALOGUE REDS BELOW ARE EXEMPT, and the exemption is a real hole
+# rather than a tidy convention. Their test methods are ONE-LINERS by
+# design — the quadruple lives in the `Mutant` object, the method just
+# calls `_run`, and a routing paragraph in a one-line docstring would put
+# the owner where the mutant is not. For those four the owner lives in
+# `RULE8_EXEMPT`'s reason string ("Delete this row when the check lands")
+# and in SESSION-HANDOVER.md's catalog-reds table. That is TWO places
+# neither of which is the test, and it is stated here rather than in each
+# method because saying it four times would be four copies of a fact that
+# is really one. If a catalogue red ever acquires an owner more specific
+# than "the task that lands this check", it needs a home this convention
+# does not currently give it.
 CATALOGUE: dict[str, Mutant] = {}
 
 
@@ -14303,8 +14892,16 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2,
                              "TestLoadFindingsReachTheAgent": 4}
+# `TestBatchPathIntegrity` went 1 -> 2 on 2026-08-16 (curator batch 26),
+# which is this dict's first arrival that is not a NEW defect: the
+# `commit`-callers red pins the residue of a fix that already landed.
+# TASK-E9ENVELOPE closed the field gate on `apply_batch` and its review
+# measured what the gate does not reach — five `commit` callers that
+# never see it — so the count rises because the surface was mapped, not
+# because anything regressed. Worth reading beside the departures below:
+# a class can gain a red from a task that only ever removed defects.
 # `TestBoundsLoopReadsTheLineHeight` LEFT this list on 2026-08-16 (v0.9
 # TASK-24-FOLLOW-UP), one day after it joined — the shortest stay this
 # dict has recorded, and the one worth reading beside the arrival note
@@ -14745,6 +15342,102 @@ def handover_durable_counts() -> tuple[int, int, int]:
             % (len(found), HANDOVER.name, found))
     stated = found[0]
     return (int(stated[0]), int(stated[1]), int(stated[2]))
+
+
+_HANDOVER_RENDER_ROW = "| render (`tests/test_mutants_render.py`) |"
+
+# The decorator and the `def` it sits on, as one match, so the method NAME
+# comes back rather than a count. `\(` immediately after the name is what
+# makes this survive the wrap the repo's line budget forces on a long test
+# name — `def test_red_…(\n        self) -> None:` is the shape in the file
+# and a pattern anchored on `self` would miss it.
+_RED_METHOD = re.compile(
+    r"^[ \t]*@unittest\.expectedFailure[ \t]*\n[ \t]*def[ \t]+(\w+)\(",
+    re.MULTILINE)
+
+
+def render_red_method_names() -> set[str]:
+    """The red method names in `tests/test_mutants_render.py`, derived.
+
+    The fifth census guard's derivation half (task24fu concern 5,
+    curator batch 26, 2026-08-16). The render row of the handover's
+    catalog-reds table is the ONE row of that table nothing derived —
+    its own cell said so, and said it had already been caught two
+    entries stale after TASK-24-FOLLOW-UP flipped two reds in a commit
+    where every guarded row failed loudly and this one sat silent. That
+    asymmetry is the whole argument: the rows beside it are checked, so
+    a reader has no way to tell that this one is not.
+
+    Names and not a count, deliberately. `durable_red_counts` already
+    derives the render file's NUMBER, and a second guard on the same
+    number would be a duplicate rather than a cover: the failure it
+    could not see is a row listing the right quantity of wrong names,
+    which is what a flip-and-add in one commit produces.
+
+    Returns:
+        Every method name carrying `@unittest.expectedFailure` in the
+        render module, gated classes included — the row transcribes the
+        FILE's reds and marks the gating in prose.
+
+    Raises:
+        AssertionError: If the render module is not beside this file, for
+            the reason `durable_red_counts` gives — a census guard that
+            silently reads nothing reports agreement while measuring
+            nothing, which is the defect it exists to close.
+    """
+    path = Path(__file__).resolve().parent / "test_mutants_render.py"
+    if not path.exists():
+        raise AssertionError(
+            "test_mutants_render.py is not beside this file, so the "
+            "render row's reds cannot be derived. If this is an isolated "
+            "mutation-proof tree, copy it in — the guard is not what you "
+            "are measuring and this failure is not a finding")
+    return set(_RED_METHOD.findall(path.read_text(encoding="utf-8")))
+
+
+def handover_render_reds() -> set[str]:
+    """The render-row red names SESSION-HANDOVER.md transcribes.
+
+    Reads the whole file and requires EXACTLY ONE row, for the reason
+    `handover_catalogue_reds` spells out: the silent direction is not a
+    wrong row (which fails loudly) but a CORRECT copy sitting above a
+    STALE canonical one, where the guard agrees with the copy and the
+    human reads the stale row.
+
+    Backticked names are filtered to those starting `test_`, because
+    this row's cell also backticks the FILE it names — an unfiltered
+    read would compare `test_mutants_render.py` against a set of method
+    names and fail on a correct row.
+
+    Returns:
+        Every backticked `test_`-prefixed name in the render row.
+
+    Raises:
+        AssertionError: If the file is absent, if the row is absent, or
+            if it appears more than once.
+    """
+    if not HANDOVER.exists():
+        raise AssertionError(
+            "%s is not in this tree, so the render row's transcription "
+            "cannot be checked. If this is an isolated mutation-proof "
+            "tree, copy the file in beside tests/" % HANDOVER)
+    rows = [line for line in HANDOVER.read_text(encoding="utf-8").splitlines()
+            if line.startswith(_HANDOVER_RENDER_ROW)]
+    if not rows:
+        raise AssertionError(
+            "no %r row in %s: the catalog-reds table has been renamed or "
+            "removed. If it is gone on purpose, delete this function and "
+            "its test in the same change — do not leave them matching "
+            "nothing" % (_HANDOVER_RENDER_ROW, HANDOVER.name))
+    if len(rows) > 1:
+        raise AssertionError(
+            "%d copies of the %r row in %s: %s. These names are "
+            "transcribed ONCE — a second copy is the census defect this "
+            "guard exists for, arriving by duplication instead of by "
+            "drift" % (len(rows), _HANDOVER_RENDER_ROW, HANDOVER.name, rows))
+    return {n for n in re.findall(
+        r"`([A-Za-z0-9_.]+)`", rows[0][len(_HANDOVER_RENDER_ROW):])
+        if n.startswith("test_")}
 
 
 def red_bearing_classes() -> dict[str, int]:
@@ -15296,6 +15989,56 @@ class TestCoverage(unittest.TestCase):
             "is a hand copy of a derived fact and it has drifted before"
             % (" / ".join(map(str, stated)), ", ".join(DURABLE_RED_FILES),
                " / ".join(map(str, live))))
+
+    def test_the_handover_transcribes_the_render_rows_reds(self) -> None:
+        """The fifth census guard: task24fu concern 5, batch 26, 2026-08-16.
+
+        The last unchecked row of the catalog-reds table. Its own cell
+        carried the disclosure — "*Nothing derives it, so nothing said
+        so — which is the argument for deriving it, not for transcribing
+        it more carefully*" — written the day TASK-24-FOLLOW-UP proved
+        it: that commit flipped two of the render row's reds, the
+        guarded model row and the durable counts BOTH failed in it, and
+        this row sat two entries stale into the next commit. A row that
+        can only be wrong quietly, standing in a table of rows that
+        cannot, is worse than an unguarded table — the company it keeps
+        is what makes a reader trust it.
+
+        NAMES, NOT A COUNT, and that is the whole reason this is a fifth
+        guard rather than a widening of the third.
+        `test_the_handover_transcribes_the_durable_red_counts` already
+        derives this file's red COUNT and has been green over a stale
+        row: a commit that flips one red and adds another leaves the
+        number right and both names wrong, which is precisely the motion
+        the census keeps recording (batch 23 refilled the row the same
+        afternoon Task 49 emptied it). Only a set comparison sees it.
+
+        DIRECTION IS ASSERTED IN BOTH SENSES, which a subset check would
+        not do: a name in the row that no longer carries a decorator is
+        a flip nobody transcribed, and a decorated method missing from
+        the row is a red nobody disclosed. The two failures need
+        different repairs and the message names which of them happened,
+        rather than reporting that two sets differ.
+
+        WHAT IT DOES NOT REACH, stated because every guard here states
+        its residual: the row's prose about GATING. The cell says the
+        red is ungated and runs on every commit, and nothing derives
+        that — a red moved into a `skipUnless` class would leave this
+        guard green and the sentence false. Deriving it means reading
+        class decorators, which is `red_bearing_classes`'s shape and a
+        different guard; it is named here so the gap is on the page
+        rather than discovered a sixth time.
+        """
+        stated = handover_render_reds()
+        live = render_red_method_names()
+        self.assertEqual(
+            stated, live,
+            "SESSION-HANDOVER.md's render row lists %s while the live "
+            "decorators in test_mutants_render.py say %s. Flipped but "
+            "still listed: %s. Red but undisclosed: %s"
+            % (sorted(stated) or "nothing", sorted(live) or "nothing",
+               sorted(stated - live) or "none", sorted(live - stated)
+               or "none"))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""

@@ -73,7 +73,7 @@ import tempfile
 import time
 import unittest
 import zlib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -624,8 +624,17 @@ def _side_band(extent: int) -> int:
     inherited (the pin records the measurement): the tempting one-line
     alternative is `_ends_line_up` comparing against `min()` of the two
     spans instead of `max()`, and replaying both shape tables under that
-    patch REOPENS two of the four over-merges `_SEVERED_SHAPES` pins.
+    patch REOPENS THREE of the four over-merges `_SEVERED_SHAPES` pins.
     The wrong number is produced here, so it is corrected here.
+
+    THREE, re-measured at 32630e9 by curator batch 26 (2026-08-16). This
+    read "two" in both places it is stated, which was the count when it
+    was taken; the third — "a stub 80px clear below the L" — drops from
+    2 pieces to 1 under the patch as well, and no version of this
+    sentence named it. The correction makes the argument STRONGER, which
+    is why it is worth the edit rather than worth leaving: the constraint
+    on the next person tempted by the one-line repair is three quarters
+    of the table, not half.
 
     Args:
         extent: The component's inclusive size on this axis, in pixels.
@@ -2719,6 +2728,22 @@ _BACK_LOOP_BROKEN_AT_TURN = ((10, 50, 185, 51),
 # fix in the wrong direction.
 _THIN_SLOPE = ((0, 0, 0, 3), (1, 3, 1, 6), (2, 6, 2, 9))
 _WIDE_SLOPE = tuple((x, x, x, x + 3) for x in range(8))
+# The same slope at SIX and at FOUR columns, the two band depths `_side_band`
+# returns between its floor and its ceiling — 3 and 2. The poles above sit at
+# the two ENDS of the function: `_THIN_SLOPE` at three columns reaches the
+# floor of 1, `_WIDE_SLOPE` at eight reaches the `_BAND` ceiling of 4, and
+# nothing sat anywhere it is genuinely halving. Curator batch 26, 2026-08-16,
+# from task-24-follow-up concern 3; measured, forcing extents 4-7 to the
+# ceiling in a scratch worktree left the whole 1127-test suite green.
+#
+# THE INTERVAL IS 4-7, not the 5-7 the concern names — the review's own NIT-2
+# says so and it is right: `_side_band` returns 2 at extents 4 and 5 and 3 at
+# 6 and 7. One scene per DEPTH rather than per extent, because the depth is
+# what the function returns and a pin at every width would be four copies of
+# two facts. Both widths are even, which keeps each scene's two bands exactly
+# adjacent and makes the pins arithmetic rather than approximate.
+_MID_SLOPE = tuple((x, x, x, x + 3) for x in range(6))
+_SMALL_SLOPE = tuple((x, x, x, x + 3) for x in range(4))
 
 
 # The other pole: breaks the eye completes, which the narrowing must not
@@ -3704,10 +3729,13 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
         THE CONSTRAINT THE FIX RESPECTS, measured rather than inherited:
         the tempting one-line repair was downstream, changing
         `_ends_line_up` to measure against `min()` of the two spans
-        instead of `max()`. That silences this scrap and REOPENS two of
-        the four over-merges `_SEVERED_SHAPES` pins — "a stub 67px clear
-        of the L's leg" and "a T-corner pair sharing one row of band"
-        both drop from 2 pieces to 1. Verified by patching
+        instead of `max()`. That silences this scrap and REOPENS THREE
+        of the four over-merges `_SEVERED_SHAPES` pins — "a stub 67px
+        clear of the L's leg", "a stub 80px clear below the L" and "a
+        T-corner pair sharing one row of band" all drop from 2 pieces to
+        1, and only the back edge's severed turn survives. (Re-measured
+        at 32630e9 by curator batch 26: this said "two" and named two,
+        omitting the 80px stub.) Verified by patching
         `_ends_line_up` in a throwaway tree and replaying both shape
         tables. So the repair went into the PROFILE, where the wrong
         number was produced, and not into the ratio that consumes it —
@@ -3753,6 +3781,72 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
             "ends: the band is no longer selecting a side" % (ends["left"],))
         self.assertEqual((ends["left"], ends["right"]), ((0, 6), (4, 10)),
                          "the wide slope's ends have moved: %s" % (ends,))
+
+    def test_the_halving_interval_keeps_the_two_ends_apart(self) -> None:
+        """`_side_band`'s middle: the interval nothing sat in.
+
+        Curator batch 26, 2026-08-16, from task-24-follow-up concern 3.
+        The two pins either side of this measure `_side_band` at its
+        FLOOR (three columns, band 1) and at its `_BAND` CEILING (eight
+        columns, band 4). Between them the function is doing the thing
+        it was written to do — halving — and no scene reached it, so the
+        halving arm was unmeasured for every extent from 4 to 7.
+        Measured before writing this, at 32630e9: forcing those four
+        extents to the ceiling in a scratch worktree left 1127 tests OK.
+        A branch that is only ever exercised at the two values where it
+        agrees with its own bounds is not exercised.
+
+        FOUR TO SEVEN, and the concern's "5-7" is one short — the
+        review's NIT-2 caught that and it is right. `_side_band` returns
+        2 at extents 4 and 5 and 3 at 6 and 7, so the interval holds two
+        DEPTHS, and the two scenes here are one per depth rather than
+        one per width. Both are even, which puts each scene's two bands
+        exactly adjacent and makes the claim arithmetic.
+
+        MAGNITUDE is the spans; DIRECTION is over, on both ends, which
+        is the direction that refuses continuations — `_ends_line_up`
+        measures against `max()` of the two spans, so an over-reported
+        end demands more overlap than a real stroke end can give. Same
+        direction the thin-slope red records, arriving by another route.
+
+        THE FOUR-COLUMN CASE IS THE SHARPER OF THE TWO and is why it is
+        worth carrying both. At six columns a flat band reads `(0, 6)`
+        and `(2, 8)` — over by a row each, with the two column sets
+        overlapping in the middle. At FOUR columns a flat band reads
+        `(0, 6)` at BOTH ends: not merely wrong but IDENTICAL, a span
+        with no direction in it at all, which is the exact failure
+        `_side_band` was written to remove. The scene that produces it
+        is 16 pixels, four over `MIN_BLOB`.
+
+        Asserted as exact pairs rather than as width bounds, unlike the
+        thin-slope red above. That one was written while its fix's shape
+        was still open and was deliberately left loose; this measures an
+        implementation that exists, and the point is that these specific
+        depths are where the behaviour sits.
+        """
+        for width, rects, bbox, band, want in (
+                (4, _SMALL_SLOPE, (0, 0, 3, 6), 2, ((0, 4), (2, 6))),
+                (6, _MID_SLOPE, (0, 0, 5, 8), 3, ((0, 5), (3, 8)))):
+            with self.subTest(columns=width):
+                self.assertEqual(
+                    _side_band(width), band,
+                    "`_side_band(%d)` is %d, not %d: the interval between "
+                    "the floor and the ceiling has moved and this scene no "
+                    "longer sits in it" % (width, _side_band(width), band))
+                ink = [y * 400 + x for x0, y0, x1, y1 in rects
+                       for y in range(y0, y1 + 1)
+                       for x in range(x0, x1 + 1)]
+                ends = _edge_profiles(400, bbox, ink)
+                self.assertNotEqual(
+                    ends["left"], ends["right"],
+                    "the %d-column slope reports the same span %s at both "
+                    "ends: the band is no longer selecting a side"
+                    % (width, (ends["left"],)))
+                self.assertEqual(
+                    (ends["left"], ends["right"]), want,
+                    "the %d-column slope's ends are %s, not %s — at the "
+                    "flat %dpx band both ends over-report"
+                    % (width, (ends,), (want,), _BAND))
 
     def test_fattening_both_ends_leaves_a_continuation_continuous(self
                                                                   ) -> None:
@@ -4552,6 +4646,98 @@ def _clear_runtime(root: Path) -> None:
             path.unlink()
 
 
+# The fewest dark pixels a snapshot of either span scene can hold and still
+# be a picture of it. Measured 2026-08-16 at 32630e9: the wide scene renders
+# 9500 and the narrow 5100, of which the rightmost node's own band is 961 in
+# both — so this floor sits an order of magnitude under a healthy render and
+# an order of magnitude over the zero a blank one produces. It is NOT a
+# tolerance on the assertion the mutant makes; nothing between 0 and a real
+# render is a state the product can reach.
+PAINTED_INK_FLOOR = 1000
+
+
+def _count_ink(pix: Sequence[int], pw: int, ph: int,
+               x0: int, x1: int) -> tuple[int, int]:
+    """Count dark pixels in one column band and in the whole raster.
+
+    Split out of `_rightmost_node_ink` so both numbers come from ONE walk
+    and one threshold — two counters could disagree about what "ink" is,
+    and the whole point of the pair is that they are comparable. Pure, so
+    the poles that prove the floor need no browser.
+
+    Args:
+        pix: Greyscale samples, row-major, from `read_png_gray`.
+        pw: Raster width in pixels.
+        ph: Raster height in pixels.
+        x0: First column of the band, inclusive.
+        x1: Last column of the band, exclusive; clipped to `pw`.
+
+    Returns:
+        `(band_ink, total_ink)` — dark pixels inside the band, and dark
+        pixels anywhere in the raster.
+    """
+    band = total = 0
+    hi = min(x1, pw)
+    for y in range(ph):
+        row = y * pw
+        for x in range(pw):
+            if pix[row + x] < 192:
+                total += 1
+                if x0 <= x < hi:
+                    band += 1
+    return band, total
+
+
+def _painted_or_raise(total: int, span: int, pw: int) -> None:
+    """Refuse to judge a band inside a raster nothing was drawn into.
+
+    THE FLAKE THIS EXISTS FOR, and the reason it is a `raise` and not an
+    assertion. `test_mutant_snapshot_cap_drops_the_rightmost_node`
+    failed intermittently under `MUTANTS_RENDER=1` and its failure read
+    "the rightmost node left no ink in its own column band" — which is
+    word for word what the real defect looks like. A headless chromium
+    screenshot that races the paint returns rc=0 with a PNG of the right
+    dimensions and nothing in it, so `validate_png` passes it, the band
+    is empty, and the test reports a cropped snapshot. Nothing could
+    tell the two apart, and the cost was not the red herring: the run
+    that flaked was a mortality sweep, where the failure was counted as
+    a witness under two UNRELATED killed detectors (recorded in
+    `mutants_mortality.py`) and corrupted the measurement.
+
+    The distinction is cheap because the two states are nothing alike. A
+    cropped snapshot still contains the rest of the drawing — the wide
+    scene's other two nodes and the arrow between them are 8539 of its
+    9500 dark pixels, and they are what the truncated raster kept while
+    the red was live. A render that never painted contains zero. So an
+    empty band inside an inked raster is the finding, and an empty band
+    inside an empty raster is the environment.
+
+    Raising rather than skipping, for `_browser`'s reason: the tier was
+    asked for, so not measuring is a failure. What changes is only WHICH
+    failure gets reported, and therefore whether a sweep counts it as
+    evidence about a detector.
+
+    Args:
+        total: Dark pixels anywhere in the raster, from `_count_ink`.
+        span: The scene's span, for the message.
+        pw: The raster's width, for the message.
+
+    Raises:
+        RuntimeError: If the raster holds less ink than any real render
+            of this scene can, which means the browser handed back a
+            blank or half-painted shot and there is nothing to measure.
+    """
+    if total < PAINTED_INK_FLOOR:
+        raise RuntimeError(
+            "the span-%d snapshot came back %dpx wide with %d dark pixels "
+            "in the whole raster (floor %d): the browser produced a blank "
+            "or half-painted shot, so the band count below it means "
+            "nothing. This is the environment, NOT a cropped snapshot — a "
+            "truncated render still holds the rest of the drawing. Re-run; "
+            "if it repeats, the render path is broken rather than flaky"
+            % (span, pw, total, PAINTED_INK_FLOOR))
+
+
 def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
     """Snapshot a `span`-wide flow and count ink where its last node lands.
 
@@ -4576,9 +4762,11 @@ def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
         width, and the width `render_svg` asked for.
 
     Raises:
-        RuntimeError: If the snapshot CLI exited non-zero or wrote no
-            PNG. Like `_browser`, this never degrades to a skip: the
-            tier was asked for, so not measuring is a failure.
+        RuntimeError: If the snapshot CLI exited non-zero, wrote no PNG,
+            or wrote one nothing was painted into (see
+            `_painted_or_raise`). Like `_browser`, this never degrades to
+            a skip: the tier was asked for, so not measuring is a
+            failure.
     """
     root = Path(workdir) / ("proj-%d" % span)
     # construction INSIDE the try: `_span_scene` writes a project tree and
@@ -4605,8 +4793,8 @@ def _rightmost_node_ink(span: int, workdir: str) -> tuple[int, int, int]:
     # This mapping is 1:1 BY CONSTRUCTION and the mutant's flip contract
     # depends on it — read that docstring before changing either.
     x0, x1 = span + SVG_PAD, span + 160 + SVG_PAD
-    ink = sum(1 for y in range(ph) for x in range(x0, min(x1, pw))
-              if pix[y * pw + x] < 192)
+    ink, total = _count_ink(pix, pw, ph, x0, x1)
+    _painted_or_raise(total, span, pw)
     return ink, pw, want_w
 
 
@@ -4748,6 +4936,64 @@ class TestSnapshotFramingRegime(unittest.TestCase):
                         "minx, so _rightmost_node_ink's band mapping is "
                         "wrong and the mutant is measuring the wrong "
                         "column" % want_w)
+
+    def test_a_blank_raster_is_reported_as_the_environment(self) -> None:
+        """The flake discriminator fires: nothing painted, nothing judged.
+
+        Curator batch 26, 2026-08-16, from the batch brief's item 3. The
+        half of `_painted_or_raise` that has to work — a raster with no
+        ink in it must come back as a `RuntimeError` about the browser,
+        not as the band assertion's "the rightmost node left no ink".
+        Those two sentences described the same observation until today,
+        which is why an intermittent blank shot was counted as evidence
+        under two unrelated killed detectors in a mortality sweep.
+
+        Ungated and browser-free on purpose, by the argument this class
+        was built on: what rots here is the numbers drifting apart in
+        ordinary editing, where nobody has `MUTANTS_RENDER=1` set, and a
+        gated guard would notice months late. Feeding a synthetic raster
+        also makes the blank case reachable at all — it is a race, and a
+        test that waited for it to happen would be the flake.
+        """
+        blank = [255] * (40 * 10)
+        band, total = _count_ink(blank, 40, 10, 5, 15)
+        self.assertEqual((band, total), (0, 0),
+                         "the ink counter found ink in an all-white raster")
+        with self.assertRaises(RuntimeError) as caught:
+            _painted_or_raise(total, WIDE_SPAN, 40)
+        self.assertIn("blank", str(caught.exception))
+
+    def test_a_painted_raster_is_judged_on_its_band(self) -> None:
+        """The other half: real ink counts, and the floor stays out of it.
+
+        Without this the discriminator above is satisfied by a floor set
+        so high that every render reads as blank — which would turn the
+        snapshot mutant into a permanent environmental error and read,
+        from the outside, exactly like a test that had stopped failing.
+
+        The two magnitudes are the ones measured at 32630e9 and they are
+        an order of magnitude apart in each direction: `PAINTED_INK_FLOOR`
+        must sit above zero and far below the 5100 dark pixels the
+        NARROWER of the two real scenes produces. A synthetic raster
+        carrying ink both inside and outside the band proves the counter
+        separates them rather than returning the same number twice, which
+        is what would make `total` useless as a control.
+        """
+        pw, ph = 40, 10
+        pix = [255] * (pw * ph)
+        for y in range(ph):
+            for x in (2, 7, 8):                     # one outside, two in
+                pix[y * pw + x] = 0
+        band, total = _count_ink(pix, pw, ph, 5, 15)
+        self.assertEqual((band, total), (2 * ph, 3 * ph))
+        self.assertGreater(PAINTED_INK_FLOOR, 0)
+        self.assertLess(
+            PAINTED_INK_FLOOR, 5100,
+            "the ink floor (%d) has risen past the 5100 dark pixels the "
+            "narrow scene measured at 32630e9: every real render now "
+            "reads as a blank one and the snapshot mutant can no longer "
+            "fail for its own reason" % PAINTED_INK_FLOOR)
+        _painted_or_raise(5100, NARROW_SPAN, 1440)
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "

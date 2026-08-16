@@ -19,6 +19,15 @@ import { testMini as test, expect } from "./harness";
  * drive and the only one of the four whose overlap has a named
  * downstream consequence; a fix that clears the drop belongs in a helper
  * all four call, and this spec is what proves the first of them.
+ *
+ * WHO FLIPS THIS: the e2e placement task, which owns all four insert
+ * sites. Written in by curator batch 26 (2026-08-16) from the red-owner
+ * map: this was one of five reds whose owner existed at plan level and
+ * in no file, and it is the only one of the five outside the Python
+ * suite — so it is also the only one no census guard would ever have
+ * counted as missing. The header note is the routing for this red by
+ * the convention batch 26 recorded; `test.fail()` below carries the
+ * redness, and the two must be removed in the same change as the fix.
  */
 
 type Box = { id: string; type: string; x: number; y: number;
