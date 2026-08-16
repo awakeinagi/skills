@@ -79,7 +79,7 @@ PROBES: dict[str, dict[str, str]] = {
         "file": "SESSION-HANDOVER.md",
         "why": "the catalogue-reds row loses an id the catalogue still "
                "declares red",
-        "old": "| model (default suite) | `framed_node_escapes_its_lane`, ",
+        "old": "| model (default suite) | `gray_text_on_ground`, ",
         "new": "| model (default suite) | ",
     },
     "hand-authored-count-drift": {
@@ -93,7 +93,7 @@ PROBES: dict[str, dict[str, str]] = {
         "test": "test_the_catalogue_reds_are_the_ones_declared",
         "file": "tests/test_mutants.py",
         "why": "a catalogue red is added and CATALOGUE_RED_IDS is not",
-        "old": 'CATALOGUE_RED_IDS = {"framed_node_escapes_its_lane",',
+        "old": 'CATALOGUE_RED_IDS = {"gray_text_on_ground",',
         "new": 'CATALOGUE_RED_IDS = {"a_red_nobody_declared",',
     },
 }

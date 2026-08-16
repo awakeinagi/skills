@@ -8646,6 +8646,59 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "re-issue the shape or drop the stroke"
                 % (deco["id"], int(spill), name(host["id"])))
 
+    # ---- WARNING: a member drawn outside the frame it claims ----------
+    # `frameId` is an assertion about geometry and nothing checked it.
+    # Every other frame-aware site reads the field for help slots,
+    # same-frame pairing and dot-row hunting — never for containment —
+    # so the tooling could not tell a lane with its members in it from a
+    # lane whose member sits 80px below (v0.9 WP5, the mutant
+    # `framed_node_escapes_its_lane`). The standing producer is
+    # `--relayout`: measured 2026-08-16 on a four-node lane, dagre re-laid
+    # the members into a column and left THREE of them wholly outside the
+    # frame with the lint reporting nothing at all.
+    #
+    # DRAWN OUTLINES, NOT BOXES — the shape-blindness family's seventh
+    # site would have been right here. A rhombus can corner a lane so
+    # that the two BOXES overlap and no ink does: box x 390..470 against
+    # a lane ending at x=400 reads +10px of overlap, while the rhombus's
+    # nearest facet at that height is 20px clear of the lane. So both
+    # halves go through `shape_overlap`, which measures the rendered
+    # outlines — the predicate as well as the number.
+    #
+    # ONE QUESTION, ONE NAME. This fires only when the member's ink is
+    # WHOLLY outside its lane, which is the case with an unambiguous
+    # number: the clear canvas between the two outlines, 0 when they are
+    # flush. A member half in and half out is a DIFFERENT question whose
+    # number is a different quantity (how much hangs over), and folding
+    # both under one check would make the magnitude mean two things —
+    # the mistake `false_bidirectional` was given its own name to avoid.
+    # It is deliberately not covered here; the measured producer below
+    # does not make them.
+    #
+    # Deliberately not the distance to the member's FAR edge: that is
+    # the gap plus the member's own size, so it reports a big node
+    # barely outside as a worse escape than a small node far away.
+    for mem in els:
+        fr = ix.get(mem.get("frameId") or "")
+        if fr is None or fr.get("type") != "frame" or mem is fr or \
+                mem.get("type") in ("arrow", "line") or \
+                mem.get("containerId") or \
+                mem.get("width", 0) <= 0 or mem.get("height", 0) <= 0:
+            # arrows route where they must and a bound label rides its
+            # host, so neither carries a placement claim of its own
+            continue
+        ox, oy = shape_overlap(fr, mem)
+        gap = -min(ox, oy)
+        if gap < 0:
+            continue        # some of its ink is still in the lane
+        where = ("drawn %dpx clear of it" % int(round(gap)) if gap > 0.5
+                 else "drawn hard against its edge, wholly outside")
+        warnings.append(
+            "%s says it is in frame %r but is %s — the membership and "
+            "the picture disagree; move it back inside the frame or drop "
+            "the frameId"
+            % (name(mem["id"]), fr.get("name") or fr["id"], where))
+
     # ---- WARNING: degenerate arrow geometry (WP4b e15) ----------------
     # This runs FIRST of the arrow checks because every one of them
     # starts by asking the points list a question a malformed list
@@ -16304,6 +16357,81 @@ def _mermaid_convert(project, definition, tab_timeout, allow_headless):
     return None, why
 
 
+def _relayout_frame_ops(els, ix, node_ops):
+    """Carry each lane frame along with the members that just re-laid.
+
+    Frames are not in the conversion — `_flow_to_mermaid` emits nodes,
+    dagre places nodes — so a re-layout used to walk every member out of
+    a lane that stayed exactly where it was. Measured 2026-08-16 on a
+    four-node lane re-laid into a column: three of the four members
+    ended up wholly outside the frame still claiming them, and the lint
+    said nothing (the silence half is `frame_containment`, built in the
+    same change; this is the producer half).
+
+    The frame is refitted to its members' new bounding box, keeping the
+    padding it already had on each side. Refit rather than translate,
+    because dagre does not preserve the members' relative spread — a row
+    that becomes a column needs a differently shaped lane, and a frame
+    that only slid would clip half of them.
+
+    Args:
+        els: The artifact's elements.
+        ix: `{id: element}` over `els`.
+        node_ops: The `mod x/y` ops already built for the nodes.
+
+    Returns:
+        A list of `mod` ops, one per frame whose box must change.
+    """
+    moved = {o["id"]: o["attrs"] for o in node_ops}
+    ops = []
+    for fr in els:
+        if fr.get("type") != "frame":
+            continue
+        mems = [e for e in els if e.get("frameId") == fr["id"]
+                and e.get("type") not in ("arrow", "line")
+                and not e.get("containerId")
+                and e.get("width", 0) > 0 and e.get("height", 0) > 0]
+        if not mems:
+            continue
+
+        def corners(e, at=None):
+            """The element's box, at its new position when it moved.
+
+            Args:
+                e: The member element.
+                at: Its `mod` attrs, or `None` if it did not move.
+
+            Returns:
+                `(x0, y0, x1, y1)` in scene coordinates.
+            """
+            x = at["x"] if at else e.get("x", 0)
+            y = at["y"] if at else e.get("y", 0)
+            return (x, y, x + e.get("width", 0), y + e.get("height", 0))
+
+        old = [corners(e) for e in mems]
+        new = [corners(e, moved.get(e["id"])) for e in mems]
+        # the padding the frame already carries, preserved side by side;
+        # a member that had escaped ALREADY would otherwise teach the
+        # refit a negative pad and bake the escape in
+        pad = (max(0, min(c[0] for c in old) - fr.get("x", 0)),
+               max(0, min(c[1] for c in old) - fr.get("y", 0)),
+               max(0, fr.get("x", 0) + fr.get("width", 0) -
+                   max(c[2] for c in old)),
+               max(0, fr.get("y", 0) + fr.get("height", 0) -
+                   max(c[3] for c in old)))
+        nx = int(round((min(c[0] for c in new) - pad[0]) / 4.0) * 4)
+        ny = int(round((min(c[1] for c in new) - pad[1]) / 4.0) * 4)
+        nw = int(round((max(c[2] for c in new) + pad[2] - nx) / 4.0) * 4)
+        nh = int(round((max(c[3] for c in new) + pad[3] - ny) / 4.0) * 4)
+        if (nx, ny, nw, nh) == (fr.get("x"), fr.get("y"),
+                                fr.get("width"), fr.get("height")):
+            continue
+        ops.append({"op": "mod", "id": fr["id"],
+                    "attrs": {"x": nx, "y": ny, "width": nw,
+                              "height": nh}})
+    return ops
+
+
 def _cmd_mermaid_relayout(args, project, store):
     """Re-lay an existing flow with dagre, as an ordinary revision.
 
@@ -16364,6 +16492,7 @@ def _cmd_mermaid_relayout(args, project, store):
         if abs(nx - ix[eid]["x"]) < 2 and abs(ny - ix[eid]["y"]) < 2:
             continue
         ops.append({"op": "mod", "id": eid, "attrs": {"x": nx, "y": ny}})
+    ops.extend(_relayout_frame_ops(els, ix, ops))
     if not ops:
         print_kv(relayout="noop",
                  note="dagre agrees with the current placement")

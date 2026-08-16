@@ -234,19 +234,23 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- **Four of the five catalog reds are ASPIRATIONAL** (re-measured
-  2026-08-16 after Task 54; the sentence read "four of the eight" from
-  batch 22 until the fifth flip drained the non-aspirational half to one):
+- **All three remaining catalog reds are ASPIRATIONAL** (re-measured
+  2026-08-16 after WP5 task 25; the sentence read "four of the five"
+  after Task 54, and "four of the eight" from batch 22 before that):
   they flip when their LINTS land, not when any
   existing code changes, and each flip must give its mutant a real
   other-pole neighbor.
-  One per aspirational check, exactly — `framed_node_escapes_its_lane`
-  (`frame_containment`), `gray_text_on_ground` (`contrast_text`),
-  `pale_stroke_node` (`contrast_object`), `tiny_font_text` (`min_font`).
+  One per aspirational check, exactly — `gray_text_on_ground`
+  (`contrast_text`), `pale_stroke_node` (`contrast_object`),
+  `tiny_font_text` (`min_font`) — and all three are WP7's contrast trio,
+  so this list now empties in one change or not at all.
   (`near_miss_clearance`/`min_clearance` and
   `unroled_text_over_node`/`text_overlaps_node` went when Task 23 landed
   both lints; `phantom_passthrough_shared_attach`/`phantom_passthrough`
-  went with WP4b's e1 in Task 24.) The other four are against checks
+  went with WP4b's e1 in Task 24;
+  `framed_node_escapes_its_lane`/`frame_containment` went with WP5 task
+  25, which built the containment lint AND the producer-side fix that
+  had been making escaped members.) The other four are against checks
   that already ship, and there were three until 2026-08-15:
   `diamond_clearance_overfire` (`min_clearance`) FLIPPED with Task 56 when
   the pair loop learned to measure the drawn outline, and batch 22's two
@@ -301,10 +305,12 @@ the flip author:
   three. Same root cause throughout; one clipping primitive addressed all
   six, but it had to be CALLED from each site, which is what the per-site
   pins measured — and the last three calls landed in Task 56. The standing
-  obligation the family leaves behind: when `frame_containment` is finally
-  built for `framed_node_escapes_its_lane`, it must measure the member's
-  DRAWN outline against the lane, or the family reopens at a seventh site
-  with the same sentence written about it.
+  obligation the family left behind was DISCHARGED by WP5 task 25:
+  `frame_containment` measures the member's DRAWN outline against the
+  lane, through `shape_overlap`, in the predicate as well as the
+  magnitude — a rhombus can corner a lane so the two boxes overlap by
+  10px and no ink does, and the box reading calls that contained. The
+  seventh site did not open. The family's count stands at six.
 
 Catalog reds, transcribed from live `mutants list --red` on 2026-08-15 —
 **re-run it rather than trusting this table** — though as of curator batch
@@ -321,7 +327,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `pale_stroke_node`, `tiny_font_text` |
+| model (default suite) | `gray_text_on_ground`, `pale_stroke_node`, `tiny_font_text` |
 | render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
@@ -362,11 +368,13 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at curator batch 26, which
-ADDED a model red rather than flipping one — the `commit`-callers pin,
-and the first movement of this sentence in the upward direction since
-batch 25; it read 9 / 1 / 0 at TASK-24-FOLLOW-UP, 11 / 3 / 0 at
+**9 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at v0.9 WP5 task 25, which
+flipped `framed_node_escapes_its_lane` when `frame_containment` became a
+real lint; it read 10 / 1 / 0 at curator batch 26 — which ADDED a model
+red rather than flipping one, the `commit`-callers pin, and the only
+upward movement of this sentence since batch 25 — 9 / 1 / 0 at
+TASK-24-FOLLOW-UP, 11 / 3 / 0 at
 TASK-MICROFIX, 14 / 3 / 0 at TASK-E9ENVELOPE, 16 / 3 / 0 at TASK-FRAMING
 and 17 / 3 / 0 before batch 25). Do not restate any of it as one suite ef
 total.
@@ -525,7 +533,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **22 detectors, 19 proven, 3 render-tier, 0
+  a reason. Coverage totals: **23 detectors, 20 proven, 3 render-tier, 0
   UNCOVERED** — CHECKED as of curator batch 23 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked

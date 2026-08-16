@@ -208,6 +208,21 @@ _ORPHAN_LABEL_RE = re.compile(
     r"(?P<element>[\w-]+) is drawn at \d+% over .+ at \d+% — a bound "
     r"label does not inherit .+ (?P<mag>\d+) points more visible")
 
+# v0.9 WP5 (task 25): the check that flips `framed_node_escapes_its_lane`
+# out of red-by-absence, added in the same change as the lint it names.
+# `element` is the MEMBER, not the frame — the frame is where it belongs
+# and the member is what is in the wrong place. MAGNITUDE is the clear
+# canvas between the two DRAWN outlines, which the lint prints only when
+# there is any: a member flush against the lane's edge is wholly outside
+# with a gap of zero, and it says "hard against its edge" instead of
+# "0px", so that arm matches with `magnitude: None` rather than pinning a
+# number that would read as "nothing is wrong". No dirmap — the escape
+# has a side but no axis worth naming; which edge it left by is legible
+# from the two ids.
+_FRAME_CONTAINMENT_RE = re.compile(
+    r"(?P<element>[\w-]+)(?: \(.+?\))? says it is in frame .+ but is "
+    r"drawn (?:(?P<mag>\d+)px clear of it|hard against its edge)")
+
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
     """One finding whose magnitude is the scene's crossing count.
@@ -340,6 +355,12 @@ DETECTORS: dict[str, dict] = {
     # Curator batch 25's C1, accepted in the same change. No dirmap — the
     # finding is one label over one host, with no axis to report.
     "orphan_label": {"lint_re": _ORPHAN_LABEL_RE},
+    # v0.9 WP5 (task 25): the last of the ASPIRATIONAL borrows in this
+    # table's history to become a real entry — `frame_containment` left
+    # that table the day its lint landed, and the mutant's borrowed
+    # `Silence("endpoint_gap")` neighbour was replaced by this check's
+    # own quiet pole in the same change.
+    "frame_containment": {"lint_re": _FRAME_CONTAINMENT_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -12069,11 +12090,23 @@ def _wrapped_ink_in_a_wide_frame() -> list[dict]:
 # WP5 defect and is NOT pinned here — pinning it means stubbing
 # `_mermaid_convert` and `cmd_apply` around a CLI command, which binds the
 # test to three internal names to prove a state this scene already holds.
+# (v0.9 WP5 task 25 fixed that half too — the re-layout now refits each
+# frame to its members — and pinned it where it belongs, on the command:
+# `TestMermaidSeeding.test_relayout_carries_the_frame_with_its_members`
+# in tests/test_backend.py.)
 #
 # MAGNITUDE: the escape is measured from the frame's near edge to the
 # member's near edge — 280 - 200 = 80px past the bottom. The ±25% band
 # excludes 140px (measuring to the member's FAR edge) and 0px (a bbox
 # overlap test, which would call this "not overlapping" and report nothing).
+#
+# FLIPPED by v0.9 WP5 (task 25): `frame_containment` is now a real lint
+# (canvas.py) and a real `DETECTORS` entry. The borrowed
+# `Silence("endpoint_gap")` neighbour — which could not fire over this
+# arrowless scene whatever the frames did — is gone, replaced by this
+# check's own quiet pole over the same control scene: the identical
+# `frameId` claim with the member inside, where a check that simply
+# fired on every framed member would fail.
 _register(Mutant(
     "framed_node_escapes_its_lane",
     build=lambda: _framed_flow(escaped=True),
@@ -12081,7 +12114,7 @@ _register(Mutant(
     expect=FindingSpec("frame_containment", element="s2",
                        magnitude=(80, 0.25)),
     neighbour=Neighbour(lambda: _framed_flow(escaped=False),
-                        Silence("endpoint_gap"))))
+                        Silence("frame_containment"))))
 
 # The role gate on text checks — RED BY ABSENCE (visualize-skill mine M2,
 # 2026-08-12). `role_of` defaults everything unroled to "node"
@@ -13887,11 +13920,10 @@ class TestMutantCatalogue(unittest.TestCase):
         # replaced — see the catalogue entry.
         self._run_neighbour("diamond_label_overflows_shape")
 
-    @unittest.expectedFailure
     def test_mutant_framed_node_escapes_its_lane(self) -> None:
-        """A member 80px below the lane its frameId claims goes unreported."""
-        # Nothing tests frameId against geometry; flips when WP5's
-        # containment check lands and takes a DETECTORS entry.
+        """FLIPPED: a member 80px below the lane it claims is reported."""
+        # v0.9 WP5 task 25: `frame_containment` landed in `lint_layout`
+        # and took a `DETECTORS` entry in the same change.
         self._run("framed_node_escapes_its_lane")
 
     def test_neighbour_framed_node_escapes_its_lane(self) -> None:
@@ -14521,10 +14553,10 @@ ASPIRATIONAL: dict[str, str] = {
     # flipped in the same change — with its borrowed neighbour replaced by
     # this check's own quiet pole, which is the debt the block below says
     # a flip owes.)
-    "frame_containment":
-        "WP5 — no check compares a member's geometry against the frame its "
-        "`frameId` names; lint_layout reads frameId for help slots and "
-        "same-frame pairing only, never for containment",
+    # (`frame_containment` left this table on 2026-08-16, v0.9 WP5 task
+    # 25: the containment lint landed, took a `DETECTORS` entry, and the
+    # mutant flipped in the same change — with its borrowed neighbour
+    # replaced by this check's own quiet pole.)
     # (`text_overlaps_node` and `min_clearance` left this table on
     # 2026-08-14, v0.9 WP4 Task 23: both checks landed, both took a
     # `DETECTORS` entry, and both mutants flipped in the same change.)
@@ -14548,14 +14580,15 @@ ASPIRATIONAL: dict[str, str] = {
 # yet — every one borrows a detector that does exist. The borrowings are not
 # equally strong, and the flip work differs accordingly:
 #
-#   frame_containment — neighbours `Silence("endpoint_gap")` over a scene
-#       with NO ARROWS, which proves liveness only: that check cannot
-#       fire there whatever the frames do. It earns its keep by refusing
-#       to match over any run where a detector crashed, and nothing more.
-#       (`unroled_text_over_node` stood here too until Task 23 flipped it;
-#       see the second worked example at the foot of this block.)
+#   the WP7 contrast trio (`contrast_text`, `contrast_object`,
+#       `min_font`) — all three borrow a detector that fires on something
+#       else about their scene, so the Silence proves the run was live
+#       and nothing about colour or type size.
+#       (`frame_containment` and `unroled_text_over_node` stood here too,
+#       flipped by WP5 task 25 and Task 23; both are worked examples at
+#       the foot of this block.)
 #
-# So when WP4b/WP5's lints land, dropping the `expectedFailure` is not the
+# So when WP7's lints land, dropping the `expectedFailure` is not the
 # whole change: give each mutant a real other-pole neighbour on the new
 # check at the same time, or the flip trades a red that meant something for
 # a green that does not.
@@ -14596,6 +14629,18 @@ ASPIRATIONAL: dict[str, str] = {
 # which voice answers. A Silence-on-a-clear-text control would have been the
 # easy shape and would have proved something else — that the check has a
 # quiet half — which is not what five rounds of this bug were about.
+#
+# `framed_node_escapes_its_lane` is the fifth (v0.9 WP5 task 25) and the
+# cheapest, because the curator had already built the control the debt
+# asks for: `_framed_flow(escaped=False)` is the same `frameId` claim
+# with the member inside, so the flip was one word — `Silence(
+# "endpoint_gap")` → `Silence("frame_containment")` — over a scene chosen
+# to differ from the mutant in the defect and nothing else. What that
+# pole cannot reach is the BOUNDARY: it has the member well inside, where
+# a check that read the lane's own edge as "outside" would stay quiet
+# anyway. A member drawn flush against that edge from the inside is the
+# sharper pole, and it is not pinned — filed for the curator, because the
+# hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
     # `crosses_through_bound` stood here from day one — the last DETECTORS
@@ -15048,8 +15093,13 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS = {"framed_node_escapes_its_lane", "gray_text_on_ground",
-                     "pale_stroke_node", "tiny_font_text"}
+CATALOGUE_RED_IDS = {"gray_text_on_ground", "pale_stroke_node",
+                     "tiny_font_text"}
+# `framed_node_escapes_its_lane` LEFT this set on 2026-08-16 (v0.9 WP5
+# task 25), the sixth catalogue entry to leave it by flipping and the
+# THIRD red-by-absence to go: `frame_containment` became a real lint and
+# a real `DETECTORS` row in one change, and what remains here is the WP7
+# contrast trio — the only aspirational checks left.
 # `headless_chain_reads_through_node` LEFT this set on 2026-08-16 (v0.9
 # TASK-24-FOLLOW-UP), the fifth catalogue entry to leave it by flipping.
 # It is the second RED-BY-ABSENCE to flip here — a pin whose whole
@@ -15529,10 +15579,6 @@ def red_bearing_classes() -> dict[str, int]:
 # do not exist, so `Silence` on them passes vacuously and the neighbour is
 # a placeholder holding the mutant's shape until one does.
 RULE8_EXEMPT: dict[str, str] = {
-    "framed_node_escapes_its_lane:neighbour":
-        "ASPIRATIONAL borrow — its own check `frame_containment` has no "
-        "detector, so the partner FindingSpec is RED and no green firing "
-        "exists to pair with. Delete this row when the check lands",
     "gray_text_on_ground:neighbour":
         "ASPIRATIONAL borrow — partner `contrast_text` is RED and has no "
         "detector. Delete this row when the check lands",
@@ -16122,13 +16168,24 @@ class TestCoverage(unittest.TestCase):
         in the same change, and the third flipped
         `test_red_no_check_names_the_label_left_visible`, the red whose
         whole content was that no check owned that class.
+
+        55 -> 56 on 2026-08-16 (v0.9 WP5, task 25): the
+        `frame_containment` warning — a member drawn wholly outside the
+        frame its `frameId` claims. No `UNCOVERED` row: it arrived with
+        a `DETECTORS` entry and flipped `framed_node_escapes_its_lane`
+        in the same change, which also drained `frame_containment` from
+        `ASPIRATIONAL` and deleted its `RULE8_EXEMPT` row. ONE site for
+        both wordings — the escape prints a gap when there is one and
+        "hard against its edge" when the member is flush and still
+        wholly out — and the regex alternates over the two, the same
+        shape as 46 -> 47's third crosses-through tier.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 55,
+        self.assertEqual(sites, 56,
                          "canvas.py lint_layout append-site count changed "
-                         "(55 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(56 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

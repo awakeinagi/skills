@@ -11030,6 +11030,53 @@ class TestMermaidSeeding(Base):
         self.assertIn("MOVES=3", out)       # the re-layout really ran
         self.assertNotIn("user-placed", out)
 
+    def test_relayout_carries_the_frame_with_its_members(self):
+        """A lane does not stay put while its members re-lay.
+
+        Frames are not in the conversion — `_flow_to_mermaid` emits
+        nodes and dagre places nodes — so the re-layout used to walk
+        every member out of a lane that never moved, leaving a `frameId`
+        the picture contradicts. Measured before the fix on this exact
+        scene: three of the four members ended up wholly outside the
+        frame and `lint_layout` reported nothing at all, which is why
+        this asserts the LINT as well as the geometry.
+        """
+        ops = [{"op": "add", "element": {
+            "type": "frame", "id": "laneA", "label": "Lane A", "x": 0,
+            "y": 0, "width": 900, "height": 200}}]
+        for i, nid in enumerate(("a", "b", "c", "d")):
+            ops.append({"op": "add", "element": {
+                "type": "rectangle", "id": nid, "label": nid.upper(),
+                "x": 40 + i * 220, "y": 60, "width": 140, "height": 60,
+                "role": "node", "frameId": "laneA"}})
+        for a, b in (("a", "b"), ("b", "c"), ("c", "d")):
+            ops.append({"op": "add",
+                        "element": {"type": "arrow", "id": "t_%s%s" % (a, b)},
+                        "from": a, "to": b})
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "laned",
+            "create": {"id": "laned", "type": "flow", "concept": "c",
+                       "name": "Laned"},
+            "ops": ops})
+        # the shape that breaks it: a row re-laid as a column, so the
+        # lane needs a different shape and not just a slide
+        self._relayout("laned", [
+            {"id": "n_" + n, "type": "rectangle", "x": 0, "y": i * 140,
+             "width": 140, "height": 60}
+            for i, n in enumerate(("a", "b", "c", "d"))])
+        els = canvas.Store(self.project).scenes["laned"]
+        fr = next(e for e in els if e["type"] == "frame")
+        for m in (e for e in els if e.get("frameId") == "laneA"):
+            self.assertGreaterEqual(m["x"], fr["x"], m["id"])
+            self.assertGreaterEqual(m["y"], fr["y"], m["id"])
+            self.assertLessEqual(m["x"] + m["width"],
+                                 fr["x"] + fr["width"], m["id"])
+            self.assertLessEqual(m["y"] + m["height"],
+                                 fr["y"] + fr["height"], m["id"])
+        self.assertEqual(
+            [w for w in canvas.lint_layout(els, artifact_type="flow")
+             ["warnings"] if "says it is in frame" in w], [])
+
     def test_cmd_refusals(self):
         """Unmapped types, existing artifacts and subgraphs refuse with
         named reasons; the ER path needs no server at all."""
