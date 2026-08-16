@@ -1763,10 +1763,40 @@ class TestRenderMutants(unittest.TestCase):
         change to it helps — measured: the recovered fragment sits at
         raster `(220, 67, 259, 68)` against `a1`'s stubs at rows 56-63,
         y-separated and x-disjoint from both, so every reasonable
-        continuity predicate keeps it apart. The fix belongs in
-        `ablation_findings`, which must subtract the ink that is not the
-        ablated element's — a second ablation of the backdrop alone, or
-        an intersection against the element's own drawn extent.
+        continuity predicate keeps it apart.
+
+        TWO FIX ROUTES, AND THIS PIN PICKS NEITHER. An earlier draft of
+        this docstring named one — "subtract the ink that is not the
+        ablated element's, in `ablation_findings`" — and that was
+        over-specification of exactly the kind the sibling red two tests
+        down refuses to commit (it asserts a span WIDTH rather than an
+        expected pair, "because the fix's shape is not this pin's to
+        choose"). The same discipline applies here and was not applied.
+        The routes are:
+
+        1. Subtract in `ablation_findings` — a second ablation of the
+           backdrop alone, or an intersection against the element's own
+           drawn extent. Closes this.
+        2. Stop `render_svg` occluding — give the label a non-painted
+           gap rather than an opaque rectangle over whatever lies
+           beneath. Closes this AND removes a divergence from the client,
+           which the parity section would also gain from.
+
+        WHY ROUTE 2 IS EVEN AVAILABLE, measured rather than reasoned:
+        `client_ablation_findings` does NOT inherit this defect, on this
+        exact scene, and the pin below asserts it. Both renderers draw
+        the same picture — an arrow broken behind its bound label — by
+        opposite means. `render_svg` paints an opaque backdrop OVER what
+        lies beneath; the real client simply does not draw the arrow
+        through the label's box. Only a painting mechanism occludes
+        third-party ink, and only an occluding one can hand it back on
+        ablation. So this is narrower than "ablation misattributes
+        foreign ink": it is specific to tier 1's backdrop-faking.
+
+        A corollary for whoever takes route 1: do NOT mirror the
+        subtraction into `client_ablation_findings`. There is nothing
+        there to subtract, and dead code under a live docstring is worse
+        than the gap it pretends to close.
 
         SCOPED TO THE ATTRIBUTION AND NOT TO THE MESSAGE. The `raw`
         string names `a2`'s bbox and it would be easy to assert on that,
@@ -1813,6 +1843,75 @@ class TestRenderMutants(unittest.TestCase):
             [f for f in finds if f["check"] == "ablation_continuity"], [])
         self.assertEqual(
             [f for f in finds if f["check"] == "ablation_existence"], [])
+
+    def test_the_client_reads_the_same_scene_as_one_whole_stroke(self
+                                                                 ) -> None:
+        """The client does NOT inherit the attribution defect above.
+
+        Curator batch 23, added on Task 50's measurement and re-measured
+        here before being written (2026-08-15). One scene, two renderers,
+        opposite answers, and the CLIENT is the correct one: tier 1
+        reports `a1` in 2 pieces with a third bbox belonging to `a2`,
+        while the app's own export reads `a1` as one whole stroke.
+
+        This is the cleanest available statement of why the client tier
+        exists, and it is a different statement from the opacity ghost
+        above. That one is a defect tier 1 CANNOT SEE; this is one tier 1
+        reports FALSELY. A tier that only caught misses would be worth
+        less than one that also catches inventions.
+
+        The mechanism, which is the transferable part: both renderers
+        produce the same picture by opposite means. `render_svg` paints
+        an opaque backdrop over whatever lies beneath the label; the
+        client draws no backdrop at all and simply omits the arrow
+        through the label's box. Ablating the label on the client
+        recovers glyphs and no rectangle. Only an occluding mechanism can
+        hand third-party ink back on ablation, so only tier 1 can
+        misattribute it.
+
+        THE LIVENESS CONTROL IS POSITIVE, AND IT HAD TO BE. This pin's
+        first draft asserted `ablation_existence` SILENT for `a1` and
+        called that the control, reasoning that silence there means the
+        ablation moved pixels. It does not, and the mutation proof said
+        so: with `client_ablation_findings` patched to return `[]`
+        unconditionally — a detector silent about everything — that draft
+        PASSED. An absent finding is exactly what a dead detector
+        produces, so no assertion about what is missing can prove the
+        instrument spoke.
+
+        The control is therefore a firing, in the SAME call over the same
+        renders: ablating the label `t1` must report its glyphs coming
+        apart. That is structural rather than incidental — "sent" is
+        separated ink at any size, so the pieces are there whatever the
+        anti-aliasing does — and a detector returning nothing fails it.
+        Measured at 3 pieces and asserted at >= 2, because the exact
+        component count of four glyphs is a font fact and the claim being
+        made is only "this instrument is awake".
+
+        WHEN THIS FLIPS: it does not, under either fix route named on the
+        red above. Route 1 (subtract in `ablation_findings`) leaves the
+        client untouched. Route 2 (stop `render_svg` occluding) makes
+        tier 1 agree with what this already asserts. It WOULD break if
+        someone reflexively mirrored a subtraction into the client and
+        got it wrong, which is the corollary that red records.
+        """
+        finds = client_ablation_findings(_label_over_foreign_stroke(True),
+                                         ["a1", "t1"])
+        self.assertEqual(
+            [f for f in finds if f["element"] == "a1"], [],
+            "the CLIENT now reports something about the labelled run, "
+            "where tier 1's false severance is the only complaint this "
+            "scene should draw — check whether the app started painting "
+            "a label backdrop: %s"
+            % [f["raw"] for f in finds if f["element"] == "a1"])
+        glyphs = [f for f in finds if f["element"] == "t1"
+                  and f["check"] == "ablation_continuity"]
+        self.assertTrue(
+            glyphs and glyphs[0]["magnitude"] >= 2,
+            "ablating the label reported %s, so this run's client render "
+            "produced nothing to measure and the silence above is "
+            "evidence about the instrument rather than about the arrow"
+            % (glyphs or "no continuity finding at all"))
 
     def test_mutant_label_backdrop_severs_connector(self) -> None:
         """A label parked on the elbow cuts the connector into two strokes.
