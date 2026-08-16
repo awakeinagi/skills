@@ -8230,13 +8230,22 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                               "its %dpx of stroke goes nowhere"
                               % round(drawn))
         # The head past the far outline of the node it binds: the stroke
-        # enters one side and the arrowhead lands out the other. The
-        # endpoint check below cannot see this one — it computes the
-        # interior run only `if not outside`, and a head a few px past
-        # the far border IS outside, so the run is never measured, while
-        # the gap itself is under `tol` and stays silent. A 3px overshoot
-        # on an 80px node therefore reads as a clean attachment while the
-        # picture shows the arrow crossing the whole box.
+        # enters one side and the arrowhead lands out the other.
+        #
+        # This arm was built (WP4b e15) because the endpoint check below
+        # could not see the scene at all: the interior run was measured
+        # only `if not outside`, a head past the far border IS outside,
+        # and the gap itself sat under `tol`, so a 3px overshoot on an
+        # 80px node read as a clean attachment. Task 54 put a tolerance
+        # floor under that gate, so within `tol` the two now speak
+        # together — the walk names the 78px crossed, this names the 3px
+        # poking out, and they are two readings of one repair rather
+        # than a duplicate. What keeps the arm load-bearing is the far
+        # side of the floor: past `tol` the walk hands the scene to
+        # `endpoint_gap`, which reports "ends 15px away" about an arrow
+        # that traversed the whole box — the anti-correlated severity
+        # the endpoint comment below names — and this is then the only
+        # voice measuring what was actually crossed.
         sb = (a.get("startBinding") or {}).get("elementId")
         eb = (a.get("endBinding") or {}).get("elementId")
         tgt = ix.get(eb) if eb and eb != sb else None
@@ -8381,6 +8390,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                            (max(gy1 - py, py - gy2, 0)) ** 2) ** 0.5
                 inside = 0 if outside else max(
                     min(px - gx1, gx2 - px, py - gy1, gy2 - py), 0)
+                # The tolerance floor the branch above has had since WP4
+                # and this one had not. The gate below reads `not
+                # outside`, so ANY positive gap — 1px — switched the
+                # interior walk off: moving a tail from ON a border to
+                # 3px PAST it made the drawing strictly worse (the arrow
+                # now crosses the WHOLE node and pokes out the far side)
+                # and took the lint from one error to silence in all
+                # three channels, up to the 15px where `endpoint_gap`
+                # finally speaks — and says "ends 15px away" about an
+                # arrow that traverses 100px of the box
+                # (`tolerable_gap_hides_interior_run`). It judges on the
+                # same quantity the diamond does, since `max(outside,
+                # inside)` IS `abs(shape_clearance)` for a box; written
+                # in the branch's own terms rather than calling the
+                # primitive because this math is also defined on a
+                # zero-area target, where clearance returns `None` and a
+                # far-away endpoint would lose its existing finding.
+                if max(outside, inside) <= tol:
+                    outside = inside = 0
             run = on_border = 0.0
             if not outside:
                 # Interior run adjacent to the endpoint: walk the path

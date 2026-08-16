@@ -11033,10 +11033,15 @@ class TestDegenerateArrowGeometry(Base):
     sitting inside a tolerance band, which is health's exact shape.
 
     Both poles are here for all four arms, and the overshoot arm carries
-    a second assertion the other three do not need: that the endpoint
-    check it sits next to is genuinely silent on that scene. That is the
-    hole it exists to close, so if it ever stops being a hole this class
-    should say so rather than keep a rule nothing needs.
+    a second assertion the other three do not need: what the endpoint
+    check it sits next to says on that scene. That assertion USED to be
+    silence — the hole this arm was built to close — and Task 54 closed
+    the near half of it by putting a tolerance floor under the
+    interior-run walk's gate. This class said it would rather say so
+    than keep a rule nothing needs, so it says so: within `tol` the two
+    checks now speak together, and the arm's remaining justification is
+    the far half, where `endpoint_gap` takes the scene and reports the
+    gap instead of the crossing. Both are asserted below.
     """
 
     def _chain(self, pts, ax=80, ay=120, bind=True):
@@ -11170,19 +11175,50 @@ class TestDegenerateArrowGeometry(Base):
         self.assertEqual(len(hits), 1, hits)
         self.assertIn("head sits 3px past N's far outline", hits[0])
 
-    def test_the_endpoint_check_alone_is_silent_on_that_overshoot(self):
-        """Why the arm exists: the neighbouring check cannot reach it.
+    def test_the_endpoint_check_now_reaches_that_overshoot(self):
+        """The hole this arm was built for, recorded as closed (Task 54).
 
-        The interior-run walk is gated on `not outside`, and a head past
-        the far border IS outside, so the run is never measured; the gap
-        itself is 3px against a 14px tolerance, so the attachment arm
-        stays quiet too. Between them a stroke drawn straight through an
-        80px box reads as a clean binding.
+        This assertion was `assertEqual(..., [])` from WP4b until
+        2026-08-16: the interior-run walk was gated on `not outside`, a
+        head past the far border IS outside, and the 3px gap sat under
+        the 14px tolerance, so between them a stroke drawn straight
+        through an 80px box read as a clean binding. The floor Task 54
+        put under that gate is what changed, and the class docstring's
+        standing instruction was to say so here rather than keep the
+        old rule.
+
+        So the pair is asserted rather than the silence, and the
+        magnitudes are what make it a pair and not a duplicate: the
+        walk names the 78px of N that was crossed (80 less the walk's
+        1px inset at each face), this arm names the 3px poking out the
+        far side. One repair, read from both ends.
         """
         lint = self._lint(self._chain([[0, 0], [203, 0]]))
         self.assertEqual(
-            [m for m in lint if "claims to bind" in m
-             or ("runs" in m and "inside it" in m)], [], lint)
+            len([m for m in lint if "runs 78px inside it" in m]), 1, lint)
+        self.assertEqual(
+            len([m for m in lint
+                 if "head sits 3px past N's far outline" in m]), 1, lint)
+
+    def test_past_the_floor_the_overshoot_arm_is_the_only_honest_voice(self):
+        """The half of the hole that did NOT close, and the arm's keep.
+
+        One px further out than the test above — 15px past N's far
+        outline against a 14px tolerance — and the floor ends. The walk
+        is gated off again and `endpoint_gap` takes the scene, which
+        reports the arrow "ends 15px away" from a node it has just
+        traversed end to end: the anti-correlated severity where deeper
+        damage reads as a smaller number. This arm is then the only
+        voice that says the whole node was crossed, which is why Task 54
+        closing the near half did not make it a rule nothing needs.
+        """
+        lint = self._lint(self._chain([[0, 0], [215, 0]]))
+        self.assertEqual(
+            len([m for m in lint if "ends 15px away" in m]), 1, lint)
+        self.assertFalse([m for m in lint if "inside it" in m], lint)
+        self.assertEqual(
+            len([m for m in lint
+                 if "head sits 15px past N's far outline" in m]), 1, lint)
 
     def test_one_broken_arrow_reports_one_warning(self):
         """A 2-point arrow collapsed onto one pixel says one thing.
@@ -11301,6 +11337,165 @@ class TestCrossesThroughRun(Base):
         # the thing an arrow drawn on a border never does
         self.assertFalse([e for e in lint["errors"] + lint["warnings"]
                           if "inside it" in e])
+
+
+class TestInteriorRunGateFloor(Base):
+    """v0.9 Task 54: the interior-run walk's gate gets a tolerance floor.
+
+    The walk is gated on `not outside`, and the rectangle branch
+    computed `outside` as a raw bbox distance with no floor under it, so
+    ANY positive gap switched the walk off entirely. Moving a tail from
+    ON a border to 1px PAST it therefore made the drawing strictly worse
+    — the arrow now crosses the whole node — and took the lint from one
+    error to silence, in errors, warnings and notes alike, all the way
+    out to the tolerance where `endpoint_gap` finally speaks and reports
+    the gap instead of the crossing (`tolerable_gap_hides_interior_run`).
+
+    The floor is one line, and a gate has two edges, so both are here.
+    """
+
+    def _crossing(self, gap):
+        """N and B, with an arrow crossing all of N from outside it.
+
+        N is a RECTANGLE on purpose: the diamond/ellipse branch has had
+        this floor since v0.9 WP4, so pinning the fix on one would pin a
+        scene that already worked. Its 100x80 also keeps `endpoint_tol`
+        at its 14px base rather than the height-derived value, which is
+        the number both edges below are stated against.
+
+        Args:
+            gap: Pixels the tail sits OUTSIDE N's left border. At 0 it
+                is exactly on the border, which is the pole the walk
+                could always see.
+
+        Returns:
+            The three-element flow scene: nodes N and B, arrow e1.
+        """
+        return [
+            {"id": "N", "type": "rectangle", "x": 200, "y": 100,
+             "width": 100, "height": 80, "customData": {"role": "node"}},
+            {"id": "B", "type": "rectangle", "x": 400, "y": 100,
+             "width": 100, "height": 80, "customData": {"role": "node"}},
+            {"id": "e1", "type": "arrow", "x": 200 - gap, "y": 140,
+             "points": [[0, 0], [200 + gap, 0]],
+             "startBinding": {"elementId": "N", "focus": 0, "gap": 0},
+             "endBinding": {"elementId": "B", "focus": 0, "gap": 0},
+             "customData": {"role": "edge"}},
+        ]
+
+    def _lint(self, els):
+        """Run the layout lint over a flow scene.
+
+        Args:
+            els: The scene's elements.
+
+        Returns:
+            The concatenated errors and warnings.
+        """
+        out = canvas.lint_layout(els, artifact_type="flow")
+        return out["errors"] + out["warnings"]
+
+    def test_a_tail_within_tolerance_still_reports_the_interior_run(self):
+        """The band the floor opened, and the magnitude is what pins it.
+
+        Every gap from 1px to the 14px tolerance now reports the same
+        98px — N's 100px width less the walk's 1px inset at each face —
+        because the run is clipped to the node and does not care how far
+        outside the tail began. A fix that measured from the tail rather
+        than from the outline would shrink this number as the gap grew,
+        which is the reading that would mean the floor was in the wrong
+        place.
+        """
+        for gap in (1, 3, 7, 14):
+            lint = self._lint(self._crossing(gap))
+            hits = [m for m in lint if "runs 98px inside it" in m]
+            self.assertEqual(len(hits), 1, (gap, lint))
+
+    def test_the_floor_leaves_the_walks_other_consumers_unchanged(self):
+        """THE COLLATERAL TEST: everything else the gate fix could move.
+
+        The fix zeroes `outside` and `inside` under the tolerance, which
+        is why these four and not others are the at-risk neighbours:
+
+        1. `endpoint_gap`'s DETACHED arm ("ends Npx away"). It reads the
+           two variables the floor overwrites, so a floor reaching one
+           px too far, or a gate opened rather than floored, replaces a
+           30px detachment with a crossing error and loses the 30. The
+           scene is deliberately the mutant's own geometry with the one
+           bit moved — a tail 30px out, still crossing all of N — so
+           what separates the two verdicts is only the floor's height.
+        2. `endpoint_gap`'s INSIDE arm ("ends Npx inside the shape"),
+           which reads the other overwritten variable. A floor written
+           against `outside` alone would leave it, one written against
+           both without the sign would silence it.
+        3. The ON-BORDER sentence (r5-5). It is the walk's other output
+           behind the SAME gate, so it changes reachability with the
+           fix; what must not change is what it says when it speaks —
+           the 32px magnitude, and the WARNING tier it keeps even when
+           the server owns the path, because the endpoint is legally
+           attached and the complaint is legibility.
+        4. The fanned attach point (r4-1). This is the one the floor
+           newly ADMITS to the walk: a perpendicular approach stopping
+           short of the border was gated off before and is walked now,
+           so if the floor were an open door rather than a floor, every
+           slightly-gapped attachment in the corpus would become a
+           crossing error. It must still score zero on both measures.
+        """
+        # 1. a real detachment keeps its own finding, not the walk's
+        lint = self._lint(self._crossing(30))
+        self.assertEqual(
+            len([m for m in lint if "ends 30px away" in m]), 1, lint)
+        self.assertFalse([m for m in lint if "inside it" in m], lint)
+
+        # 2. and so does the inside-the-shape half of the same check
+        deep = self._crossing(0)
+        deep[2].update({"x": 480, "points": [[0, 0], [-260, 0]]})
+        deep[2]["startBinding"] = {"elementId": "B", "focus": 0, "gap": 0}
+        deep[2]["endBinding"] = {"elementId": "N", "focus": 0, "gap": 0}
+        lint = self._lint(deep)
+        self.assertEqual(
+            len([m for m in lint
+                 if "its end point ends 20px inside the shape" in m]),
+            1, lint)
+
+        # 3. the r5-5 on-border run: same words, same 32px, same tier
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        dst = {"id": "d", "type": "rectangle", "x": 160, "y": 92,
+               "width": 160, "height": 64, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": "arrow", "x": 160, "y": 32,
+                 "points": [[0, 0], [0, 92]],
+                 "startBinding": {"elementId": "s", "focus": 0, "gap": 6},
+                 "endBinding": {"elementId": "d", "focus": 0, "gap": 6},
+                 "customData": {"role": "edge"}}
+        self.assertTrue(canvas.server_owns_geometry(arrow))
+        out = canvas.lint_layout([src, dst, arrow], artifact_type="flow")
+        self.assertEqual(
+            len([m for m in out["warnings"]
+                 if "runs 32px along s's own border" in m]), 1, out)
+        self.assertFalse([m for m in out["errors"] if "own border" in m],
+                         out["errors"])
+
+        # 4. the perpendicular approach the floor newly admits to the
+        #    walk scores zero across the whole band, at a fanned
+        #    off-centre attach point rather than the edge midpoint
+        for gap in (0, 3, 10, 14):
+            els = [
+                {"id": "N", "type": "rectangle", "x": 200, "y": 100,
+                 "width": 100, "height": 80,
+                 "customData": {"role": "node"}},
+                {"id": "B", "type": "rectangle", "x": 200, "y": 300,
+                 "width": 100, "height": 80,
+                 "customData": {"role": "node"}},
+                {"id": "e1", "type": "arrow", "x": 230, "y": 300,
+                 "points": [[0, 0], [0, -(120 - gap)]],
+                 "startBinding": {"elementId": "B", "focus": 0, "gap": 0},
+                 "endBinding": {"elementId": "N", "focus": 0, "gap": 0},
+                 "customData": {"role": "edge"}},
+            ]
+            self.assertFalse(
+                [m for m in self._lint(els)
+                 if "inside it" in m or "own border" in m], (gap, els))
 
 
 class TestBorderCollinearExit(Base):

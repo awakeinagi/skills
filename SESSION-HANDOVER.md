@@ -200,8 +200,10 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- **Four of the eight catalog reds are ASPIRATIONAL** (re-measured
-  2026-08-15, batch 22): they flip when their LINTS land, not when any
+- **Four of the five catalog reds are ASPIRATIONAL** (re-measured
+  2026-08-16 after Task 54; the sentence read "four of the eight" from
+  batch 22 until the fifth flip drained the non-aspirational half to one):
+  they flip when their LINTS land, not when any
   existing code changes, and each flip must give its mutant a real
   other-pole neighbor.
   One per aspirational check, exactly — `framed_node_escapes_its_lane`
@@ -223,26 +225,38 @@ the flip author:
   ellipse's corner void AND `float_diamond` learned to read a conic.
   That entry demanded both halves and got both; the check still carries
   the diamond's name, which is a census edit somebody owes. Of the
-  older two,
-  `headless_chain_reads_through_node` is batch 21's and deliberately
-  carries no magnitude (its own comment says why), and
-  `tolerable_gap_hides_interior_run` (`crosses_through_bound`)
-  is the reverse fault in the shape family, which the shape fix does NOT
-  touch:
-  `lint_layout`'s interior-run walk is gated on
-  `if not outside:` with no tolerance floor under the rectangle branch, so
-  moving an arrow's tail 3px PAST the node it crosses adds an overshoot to
-  a crossing and takes the lint from one error to total silence.
+  older two, `tolerable_gap_hides_interior_run` (`crosses_through_bound`)
+  FLIPPED with Task 54 on 2026-08-16, which leaves
+  `headless_chain_reads_through_node` — batch 21's, deliberately
+  carrying no magnitude (its own comment says why) — as the only
+  non-aspirational red left in the catalog.
+  Task 54's was the reverse fault in the shape family, which the shape
+  fix did NOT touch: `lint_layout`'s interior-run walk is gated on
+  `if not outside:`, and the rectangle branch had no tolerance floor
+  under it, so moving an arrow's tail 1px PAST the node it crosses added
+  an overshoot to a crossing and took the lint from one error to total
+  silence, out to the 14px where `endpoint_gap` speaks and reports the
+  gap rather than the crossing. The fix gave that branch the floor the
+  diamond branch has had since WP4 (`max(outside, inside) <= tol` zeroes
+  both, which for a box is the same `abs(shape_clearance)` test), and
+  all 24 frozen fixtures replay byte-identical across it — the silent
+  band was corpus-empty, which is why nothing in the corpus argued
+  against the gate for two versions.
   Neighbor quality differs in kind and
   the distinction is worth keeping: phantom's silence was *contingent* (the
   same builder with a shared attach point fires the borrowed
   `shared_corridor` check, so the quiet is evidence about the picture),
   where a liveness-only neighbor is merely *structural*. The strongest form
-  now in the catalog is `tolerable_gap_hides_interior_run`'s, which is not a
+  the catalog has held is `tolerable_gap_hides_interior_run`'s, which is not
+  a
   Silence at all: mutant and neighbor run the SAME builder 3px apart and
   both assert `crosses_through_bound` at 98px, so the pair pins a GATE — the
-  red says the check goes quiet, the green says what it must say when it
-  speaks, and neither pole can be satisfied by accident.
+  red said the check goes quiet, the green says what it must say when it
+  speaks, and neither pole can be satisfied by accident. It is now green on
+  both poles, which is the shape a flipped gate is supposed to leave behind:
+  the two ASSERTIONS are unweakened and still 3px apart, so the pair now
+  says the check answers the same 98px on either side of the bit that used
+  to silence it. Read it as the model when a gate needs pinning.
 - The **shape-blindness family** ran to six pinned instances, superseding an
   older three-instance sentence that stood here — the endpoint lint (bbox
   corners), `_seg_hits_rect` (over-fire) and `fit_label_in` (labels sized to
@@ -270,7 +284,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
+| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text` |
 | render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length`, `test_red_a_wide_string_in_a_narrow_box_paints_past_the_anchors`, `test_red_a_quarter_turned_slab_paints_80px_past_the_anchors`, `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (all five UNGATED — they run by default, so this whole row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 

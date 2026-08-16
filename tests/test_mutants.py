@@ -11557,6 +11557,20 @@ _register(Mutant(
     neighbour=Neighbour(_label_pair_stage,
                         Silence("label_label_overlap"))))
 
+# FLIPPED 2026-08-16 by Task 54, which gave the rectangle branch the
+# tolerance floor described below. Everything from here to the `_register`
+# is kept in the past tense it was written in, because the mechanism is
+# what the pin bought and re-deriving it from a green test is not possible.
+# What the fix changed is one line — `max(outside, inside) <= tol` zeroes
+# both before the gate reads them, which for a box is `abs(shape_clearance)`
+# and so the same test the diamond branch already made. What it did NOT
+# change is measured: all 24 frozen fixtures replay byte-identical (0
+# errors / 50 warnings / 20 notes / 10 crossing findings, before and
+# after), so the whole silent band was corpus-empty. The band's far side
+# is unmoved — at 15px `endpoint_gap` still takes the scene — and
+# `TestInteriorRunGateFloor` in test_backend.py is the named collateral
+# proof for the walk's other consumers.
+#
 # RED BY ABSENCE, and the direction is what indicts it: the mutation makes
 # the drawing WORSE and the lint goes from a loud ERROR to nothing at all.
 # Found during curator batch 20, 2026-08-14, from task 24's curator
@@ -11570,7 +11584,11 @@ _register(Mutant(
 # becomes 3.0, the walk never runs, and `max(outside, inside) > tol` is
 # false at 3 < 14. Verified live across all three lint channels: the base
 # scene emits one error, the mutated scene emits nothing, in errors,
-# warnings AND notes. The silent band is 3px..14px wide; at 15px the only
+# warnings AND notes. The silent band is 1px..14px wide — the original
+# entry said 3px, which was the mutation's own offset read back as if it
+# were the band's floor; re-measured at Task 54's head, ONE px of gap is
+# already total silence, which is the sharper statement of the same
+# defect — and at 15px the only
 # voice that returns is `endpoint_gap` saying "ends 15px away" about an
 # arrow that traverses 100px of the node — the anti-correlated severity
 # the endpoint comment at canvas.py already names.
@@ -12638,14 +12656,19 @@ class TestMutantCatalogue(unittest.TestCase):
         """
         self._run_neighbour("unroled_text_over_node")
 
-    @unittest.expectedFailure
     def test_mutant_tolerable_gap_hides_interior_run(self) -> None:
-        """An arrow crossing a whole node reads clean once its tail clears it.
+        """FLIPPED: a tail 3px PAST the node no longer buys the walk's silence.
 
-        Pushing the tail 3px PAST N's border adds an overshoot to a
-        crossing and takes the lint from one error to silence, because
-        the interior-run walk is gated on `outside` being zero and the
-        rectangle branch has no tolerance floor under it.
+        The interior-run walk is gated on `outside` being zero, and the
+        rectangle branch computed `outside` as a raw bbox distance with
+        no tolerance floor, so ANY positive gap switched the walk off
+        and this scene went from one error to silence in all three
+        channels. Task 54 gave that branch the floor the diamond branch
+        has had since v0.9 WP4 — `max(outside, inside) <= tol` zeroes
+        both, which for a box is the same `abs(shape_clearance)` test
+        the diamond makes. The gate is still a gate: at 15px the floor
+        ends and `endpoint_gap` takes the scene back, which is what the
+        neighbour below and `TestInteriorRunGateFloor` hold in place.
         """
         self._run("tolerable_gap_hides_interior_run")
 
@@ -12653,8 +12676,10 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same crossing with its tail ON the border: the walk speaks.
 
         Same node, same 98px of interior run, same named element — the
-        gate is the only thing that differs, so this pole is what proves
-        the check alive and numerate while the mutant stays red.
+        gate is the only thing that differs. While the mutant was red
+        this pole was what proved the check alive and numerate; now that
+        both poles speak it is what proves the fix did not buy its green
+        by firing on everything, since the magnitude is asserted at both.
         """
         self._run_neighbour("tolerable_gap_hides_interior_run")
 
@@ -13735,7 +13760,7 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS = {"framed_node_escapes_its_lane", "gray_text_on_ground",
                      "headless_chain_reads_through_node", "pale_stroke_node",
-                     "tiny_font_text", "tolerable_gap_hides_interior_run"}
+                     "tiny_font_text"}
 
 
 def catalogue_red_ids() -> set[str]:
