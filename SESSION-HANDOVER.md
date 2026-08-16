@@ -268,7 +268,7 @@ them from), so the warning still applies to that one:
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length` (both UNGATED — they run by default), `test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run` (gated) |
+| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length` (both UNGATED — they run by default) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
 The bottom two rows are `@unittest.expectedFailure` method names rather

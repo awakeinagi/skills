@@ -7754,13 +7754,22 @@ class TestArrowLabelAnchor(Base):
         self.assertIn("drawn=(70,-10)", row)
         self.assertNotIn("export=", row)
 
-    def test_svg_paints_a_backing_under_an_arrow_label(self):
+    def test_svg_breaks_the_stroke_under_an_arrow_label(self):
+        # the gap the client leaves behind a bound label, cut out of the
+        # arrow's OWN ink rather than painted over whatever lies beneath
+        # (v0.9 task 51 — this used to assert a second SVG_GROUND rect,
+        # and that rect erased other elements' ink; canvas.
+        # arrow_label_break has the measurement)
         arrow, text = self.elbow("scored by", [[0, 0], [300, 0]])
         canvas.recenter_label([arrow, text], arrow)
         svg, _, _ = canvas.render_svg([arrow, text])
-        self.assertIn(canvas.SVG_GROUND, svg)
-        # a backing rect exists that is not the full-canvas ground
-        self.assertGreaterEqual(svg.count("fill='%s'" % canvas.SVG_GROUND), 2)
+        self.assertIn("<mask id=", svg)
+        self.assertIn("mask='url(#", svg)
+        # exactly one opaque fill, the paper — nothing is painted over
+        self.assertEqual(svg.count("fill='%s'" % canvas.SVG_GROUND), 1)
+        bx, by, bw, bh = canvas.arrow_label_break(text)
+        self.assertIn("<rect x='%f' y='%f' width='%f' height='%f' "
+                      "fill='#000'/>" % (bx, by, bw, bh), svg)
 
 
 class TestAssessorUserEdits(Base):

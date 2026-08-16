@@ -1624,16 +1624,26 @@ class TestExportCompleteness(unittest.TestCase):
         self.assertEqual(_export_delta(scene, "x-1"), {"text": 1})
         self.assertEqual(_export_delta(scene, "x-2"), {"text": 1})
 
-    def test_bound_labels_reach_the_export_with_their_backdrop(self) -> None:
-        """Both label bindings survive, and the arrow label keeps its ground.
+    def test_bound_labels_reach_the_export_with_their_stroke_break(self
+                                                                   ) -> None:
+        """Both label bindings survive, and the arrow label keeps its gap.
 
         A label bound to a NODE and one bound to an ARROW take different
         paths through `paint`, and the arrow path is load-bearing: the
-        client breaks the stroke behind an edge label, this renderer has
-        no such notion, so it paints the ground back in under the text or
-        the export shows a connector struck through its own label (r5-14).
-        That backdrop is therefore part of what the edge label OWES — two
-        tags, not one. Pinning only the text would let it go quietly.
+        client breaks the stroke behind an edge label, and an export that
+        did not would show a connector struck through its own label
+        (r5-14). That break is therefore part of what the edge label
+        OWES; pinning only the text would let it go quietly.
+
+        The break's SHAPE changed with v0.9 task 51 and this pin moved
+        with it rather than being relaxed: it used to be one opaque
+        `SVG_GROUND` rect painted over the arrow, and it is now a mask
+        cutting the gap out of the arrow's own ink — a `defs`, a `mask`
+        and two rects, the white region and the black hole. The count is
+        asserted exactly for the same reason it always was: an
+        implementation that stopped emitting the break would otherwise
+        pass on the text tag alone. Why the opaque version had to go is
+        in `canvas.arrow_label_break`.
         """
         node = el(id="n1", type="rectangle", x=0, y=0, width=120, height=60,
                   boundElements=[{"id": "t-node", "type": "text"}])
@@ -1653,7 +1663,7 @@ class TestExportCompleteness(unittest.TestCase):
                     originalText="then")]
         self.assertEqual(_export_delta(scene, "t-node"), {"text": 1})
         self.assertEqual(_export_delta(scene, "t-edge"),
-                         {"text": 1, "rect": 1})
+                         {"text": 1, "defs": 1, "mask": 1, "rect": 2})
 
     def test_footnote_markers_match_the_footnote_list(self) -> None:
         """`--with-footnotes` cannot print a note nothing on the drawing marks.
@@ -3143,13 +3153,17 @@ def _bound_label_scene(label_last: bool) -> list[dict]:
     never passes `normalize_z_order`, so the other order is reachable
     without any op saying so.
 
-    What is at stake is not only the glyphs. A label bound to an arrow is
-    painted over an opaque ground rect, because the client breaks the
-    stroke behind the label and this renderer has no such notion
-    (canvas.py `paint`, the `arrow_ids` branch). Emitted BEFORE the
-    arrow, backdrop and glyphs both go down first and the stroke is drawn
-    straight across them: the r5-14 "connector struck through its own
-    label" picture, arrived at by ordering instead of by placement.
+    What is at stake is not only the glyphs. A label bound to an arrow
+    stands in a gap in that arrow's stroke, because the client breaks the
+    stroke behind the label. Until v0.9 task 51 this renderer faked the
+    gap by painting an opaque ground rect over the arrow AFTER it, which
+    made the picture depend on emission order: with the label first, rect
+    and glyphs both went down before the stroke and the stroke was drawn
+    straight across them — the r5-14 "connector struck through its own
+    label" picture, arrived at by ordering instead of by placement. The
+    gap is now cut out of the arrow's own ink with a mask
+    (`arrow_label_break`), so that failure mode is gone in BOTH orders
+    and this scene pins the order coming through anyway.
 
     Args:
         label_last: True for the product's order, arrow then label;
@@ -3168,37 +3182,41 @@ def _bound_label_scene(label_last: bool) -> list[dict]:
 
 
 def _label_offsets(scene: list[dict]) -> tuple[int, int]:
-    """Where the connector and its bound label land in the emitted SVG.
+    """Where the connector and its bound label's glyphs land in the SVG.
+
+    The glyphs and not the backdrop, since v0.9 task 51 there is no
+    backdrop: the gap the label sits in is masked out of the arrow's own
+    stroke, so the only mark the label makes is its text. That is also
+    what makes the two pins below able to say something stronger than
+    they used to — the order still decides which tag is emitted first,
+    and it no longer decides whether the reader can read the label.
 
     Args:
         scene: A scene built by `_bound_label_scene`.
 
     Returns:
-        `(connector_offset, label_offset)` as character positions in the
-        rendered SVG. The label's position is its BACKDROP's, not its
-        glyphs': the backdrop is the piece the stroke has to stay off,
-        and it is emitted first of the two, so it is the earlier of the
-        label's marks and the honest one to compare against.
+        `(connector_offset, glyph_offset)` as character positions in the
+        rendered SVG.
 
     Raises:
-        ValueError: If either element emitted no markup at all — export
+        ValueError: If either element emitted no markup at all, or if the
+            arrow's stroke carries no break for the label — export
             completeness rather than paint order, said out loud for the
             reason `_paint_offsets` says it.
     """
     svg = canvas.render_svg(scene)[0]
     stroke, glyphs = svg.find("<polyline"), svg.find(">then<")
-    backdrop = svg.rfind("fill='%s' stroke='none'" % canvas.SVG_GROUND,
-                         0, glyphs) if glyphs >= 0 else -1
     if stroke < 0 or glyphs < 0:
         raise ValueError(
             "the scene emitted no %s at all — that is export "
             "completeness, not paint order"
             % ("connector" if stroke < 0 else "label"))
-    if backdrop < 0:
+    if "mask='url(#" not in svg:
         raise ValueError(
-            "the label emitted no ground backdrop — the stroke-breaking "
-            "effect this scene is about is not in the markup at all")
-    return stroke, backdrop
+            "the connector's stroke carries no break for its label — the "
+            "stroke-breaking effect this scene is about is not in the "
+            "markup at all")
+    return stroke, glyphs
 
 
 class TestPaintOrder(unittest.TestCase):
@@ -3336,44 +3354,54 @@ class TestPaintOrder(unittest.TestCase):
         either direction, and a client save carries client order without
         passing `normalize_z_order`.
 
-        Asserted against the label's BACKDROP rather than its glyphs
-        because the backdrop is the thing the ordering defeats: it exists
-        to paint the stroke back out from under the label, and a stroke
-        emitted after it simply paints back in — the r5-14 struck-through
-        connector reached by ordering rather than by placement.
+        Asserted against the label's GLYPHS since v0.9 task 51, which is
+        a narrowing this test says out loud rather than absorbing. It used
+        to compare the label's opaque BACKDROP against the stroke, because
+        the backdrop was what the ordering defeated: it existed to paint
+        the stroke back out from under the label, and a stroke emitted
+        after it simply painted back in. There is no backdrop now — the
+        gap is masked out of the arrow's own ink — so what this pin still
+        covers is that the array order reaches the markup for this pair,
+        and what it no longer covers is a struck-through label, because
+        `_label_offsets` refuses a scene whose stroke carries no break at
+        all and no order can put the mask back.
 
         The render tier cannot carry this one, and that is measured, not
         assumed: at the product's own stroke widths the label's ablation
-        ink is 51px in BOTH orders (2026-08-14), because a 2px stroke
+        ink was 51px in BOTH orders (2026-08-14), because a 2px stroke
         laid across 16px glyphs falls inside `tolerant_diff`'s one-pixel
-        slack. The signal only clears the floor at stroke widths
+        slack. The signal only cleared the floor at stroke widths
         Excalidraw does not offer (measured 60px vs 12px at sw=6, 144px
         vs 0 at sw=12). Emission order says the same thing exactly, at no
         browser cost.
         """
-        stroke, backdrop = _label_offsets(_bound_label_scene(label_last=True))
+        stroke, glyphs = _label_offsets(_bound_label_scene(label_last=True))
         self.assertLess(
-            stroke, backdrop,
-            "label 't1' is declared after arrow 'a1' but its ground "
-            "backdrop is emitted at %d, before the stroke at %d: the "
-            "stroke is painted back across the label it was broken for"
-            % (backdrop, stroke))
+            stroke, glyphs,
+            "label 't1' is declared after arrow 'a1' but its glyphs are "
+            "emitted at %d, before the stroke at %d: the array order is "
+            "not reaching the markup" % (glyphs, stroke))
 
     def test_a_bound_label_declared_first_is_painted_under_its_arrow(self
                                                                     ) -> None:
-        """The bound-label contract's other pole: the defect, pinned live.
+        """The bound-label contract's other pole: the array is read here too.
 
-        The control for the pin above — the array is read here too, not
-        special-cased for bound text — and simultaneously the record of
-        what the bad order looks like, so a future reader can see that
-        the renderer really will draw the stroke over the label when told
-        to. This is why the invariant is worth holding upstream, in
-        `normalize_z_order`, which the pin below covers.
+        The control for the pin above — bound text is not special-cased
+        into a bucket of its own — and it used to be the live record of
+        what the bad order looked like, a stroke drawn across the label's
+        own backdrop. v0.9 task 51 took that picture away rather than
+        pinning it: the gap is cut out of the arrow's ink, so the label
+        survives this order too and the r5-14 struck-through connector is
+        no longer reachable by ordering. The invariant is still worth
+        holding upstream in `normalize_z_order` — the pin below covers
+        it — but for a different reason now, since what a bad order costs
+        here is the glyphs sitting under a foreign shape rather than
+        under their own arrow.
         """
-        stroke, backdrop = _label_offsets(_bound_label_scene(label_last=False))
+        stroke, glyphs = _label_offsets(_bound_label_scene(label_last=False))
         self.assertGreater(
-            stroke, backdrop,
-            "a label declared BEFORE its arrow must be painted under it")
+            stroke, glyphs,
+            "a label declared BEFORE its arrow must be emitted before it")
 
     def test_normalize_z_order_bands_the_whole_drawing(self) -> None:
         """The z-model itself, pinned — it had no test at all until now.

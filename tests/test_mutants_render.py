@@ -1877,12 +1877,38 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
                          % [f["raw"] for f in finds if f["element"] == "a1"])
         self.assertDetectorSpoke(finds)
 
-    @unittest.expectedFailure
     def test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run(self
                                                                     ) -> None:
-        """RED, curator batch 23 item 9. Owner: wave/Task 24-follow-up.
+        """WAS RED, curator batch 23 item 9. FLIPPED by v0.9 task 51.
 
-        An ATTRIBUTION defect, and the reason it is worth its own mutant
+        ROUTE 2 WAS TAKEN, and this is half of the record of it (the
+        other half is `canvas.arrow_label_break`, which is the function
+        the route created). `render_svg` no longer paints an opaque
+        backdrop over whatever lies beneath a bound label; it masks the
+        gap out of the labelled arrow's OWN stroke, which is the same
+        mechanism the client uses and therefore the same picture by the
+        same means rather than by opposite ones.
+
+        WHY NOT ROUTE 1, measured at the fix rather than argued. Route 1
+        — subtract the non-owned ink inside `ablation_findings` — closes
+        this test and nothing else: the occlusion stays, so the EXPORT
+        still hands an agent a picture in which one arrow has a hole
+        punched in it wherever another arrow's label happens to sit, and
+        that export is the only picture a headless agent ever sees of its
+        own drawing. It is a product defect and not only an instrument
+        artifact, so the instrument was the wrong place to close it. Route
+        2 also collapses the tier-1/client divergence the pin below
+        asserts, and takes with it a second defect nobody had listed: the
+        r5-14 struck-through label was reachable by EMISSION ORDER alone
+        (`TestPaintOrder`'s bound-label pair), because a backdrop painted
+        before its arrow is painted straight back over. A gap cut out of
+        the ink cannot be filled back in by ordering.
+
+        THE COROLLARY HELD: nothing was mirrored into
+        `client_ablation_findings`, which needed no change in either
+        route.
+
+        An ATTRIBUTION defect, and the reason it was worth its own mutant
         rather than a line in the continuity family: `a1` is a straight
         run with a label on it, which is `..._a_label_on_a_straight_run_
         is_silent`'s scene exactly and reads as one stroke. Add a foreign
@@ -1899,14 +1925,15 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
         y-separated and x-disjoint from both, so every reasonable
         continuity predicate keeps it apart.
 
-        TWO FIX ROUTES, AND THIS PIN PICKS NEITHER. An earlier draft of
-        this docstring named one — "subtract the ink that is not the
-        ablated element's, in `ablation_findings`" — and that was
+        TWO FIX ROUTES, AND THIS PIN PICKED NEITHER — deliberately, and
+        the choice was the fixer's, made and recorded above. An earlier
+        draft of this docstring named one — "subtract the ink that is not
+        the ablated element's, in `ablation_findings`" — and that was
         over-specification of exactly the kind the sibling red two tests
         down refuses to commit (it asserts a span WIDTH rather than an
         expected pair, "because the fix's shape is not this pin's to
         choose"). The same discipline applies here and was not applied.
-        The routes are:
+        The routes were:
 
         1. Subtract in `ablation_findings` — a second ablation of the
            backdrop alone, or an intersection against the element's own
@@ -1916,21 +1943,23 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
            beneath. Closes this AND removes a divergence from the client,
            which the parity section would also gain from.
 
-        WHY ROUTE 2 IS EVEN AVAILABLE, measured rather than reasoned:
+        WHY ROUTE 2 WAS EVEN AVAILABLE, measured rather than reasoned:
         `client_ablation_findings` does NOT inherit this defect, on this
-        exact scene, and the pin below asserts it. Both renderers draw
+        exact scene, and the pin below asserts it. Both renderers drew
         the same picture — an arrow broken behind its bound label — by
-        opposite means. `render_svg` paints an opaque backdrop OVER what
-        lies beneath; the real client simply does not draw the arrow
+        opposite means. `render_svg` painted an opaque backdrop OVER what
+        lay beneath; the real client simply does not draw the arrow
         through the label's box. Only a painting mechanism occludes
         third-party ink, and only an occluding one can hand it back on
-        ablation. So this is narrower than "ablation misattributes
-        foreign ink": it is specific to tier 1's backdrop-faking.
+        ablation. So this was narrower than "ablation misattributes
+        foreign ink": it was specific to tier 1's backdrop-faking, which
+        is what made stopping the backdrop a complete fix rather than a
+        patch on a symptom.
 
-        A corollary for whoever takes route 1: do NOT mirror the
-        subtraction into `client_ablation_findings`. There is nothing
-        there to subtract, and dead code under a live docstring is worse
-        than the gap it pretends to close.
+        A corollary for route 1, which nobody now has to take: do NOT
+        mirror the subtraction into `client_ablation_findings`. There is
+        nothing there to subtract, and dead code under a live docstring
+        is worse than the gap it pretends to close.
 
         SCOPED TO THE ATTRIBUTION AND NOT TO THE MESSAGE. The `raw`
         string names `a2`'s bbox and it would be easy to assert on that,
@@ -1991,28 +2020,43 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
 
     def test_the_client_reads_the_same_scene_as_one_whole_stroke(self
                                                                  ) -> None:
-        """The client does NOT inherit the attribution defect above.
+        """The client did not inherit the attribution defect above.
 
         Curator batch 23, added on Task 50's measurement and re-measured
         here before being written (2026-08-15). One scene, two renderers,
-        opposite answers, and the CLIENT is the correct one: tier 1
-        reports `a1` in 2 pieces with a third bbox belonging to `a2`,
-        while the app's own export reads `a1` as one whole stroke.
+        opposite answers, and the CLIENT was the correct one: tier 1
+        reported `a1` in 2 pieces with a third bbox belonging to `a2`,
+        while the app's own export read `a1` as one whole stroke.
 
-        This is the cleanest available statement of why the client tier
+        THE DIVERGENCE IS CLOSED, and this pin is what closed it — not by
+        being satisfied, which it always was, but by being the evidence
+        that named which side was right. v0.9 task 51 took route 2 on
+        the red above BECAUSE of this measurement: with two renderers
+        disagreeing and only one of them occluding, the one that
+        occludes is the one to change. Tier 1 now draws the gap the same
+        way the client does and agrees with what this asserts, which is
+        the outcome the "WHEN THIS FLIPS" paragraph below predicted for
+        that route. The pin stays, as the standing statement that the
+        two tiers agree here — a silent parity check is exactly what
+        notices the day one of them starts painting a backdrop again.
+
+        This was the cleanest available statement of why the client tier
         exists, and it is a different statement from the opacity ghost
-        above. That one is a defect tier 1 CANNOT SEE; this is one tier 1
-        reports FALSELY. A tier that only caught misses would be worth
-        less than one that also catches inventions.
+        above. That one is a defect tier 1 CANNOT SEE; this was one tier
+        1 reported FALSELY. A tier that only caught misses would be worth
+        less than one that also catches inventions — and this instance is
+        the one that paid for itself, because the false report is what
+        the fix went and removed from the product.
 
-        The mechanism, which is the transferable part: both renderers
-        produce the same picture by opposite means. `render_svg` paints
-        an opaque backdrop over whatever lies beneath the label; the
+        The mechanism, which is the transferable part: the two renderers
+        produced the same picture by opposite means. `render_svg` painted
+        an opaque backdrop over whatever lay beneath the label; the
         client draws no backdrop at all and simply omits the arrow
         through the label's box. Ablating the label on the client
         recovers glyphs and no rectangle. Only an occluding mechanism can
-        hand third-party ink back on ablation, so only tier 1 can
-        misattribute it.
+        hand third-party ink back on ablation, so only tier 1 could
+        misattribute it — and tier 1 stopped occluding
+        (`canvas.arrow_label_break`).
 
         THE LIVENESS CONTROL IS POSITIVE, AND IT HAD TO BE. This pin's
         first draft asserted `ablation_existence` SILENT for `a1` and
@@ -2033,12 +2077,14 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
         component count of four glyphs is a font fact and the claim being
         made is only "this instrument is awake".
 
-        WHEN THIS FLIPS: it does not, under either fix route named on the
-        red above. Route 1 (subtract in `ablation_findings`) leaves the
-        client untouched. Route 2 (stop `render_svg` occluding) makes
-        tier 1 agree with what this already asserts. It WOULD break if
-        someone reflexively mirrored a subtraction into the client and
-        got it wrong, which is the corollary that red records.
+        WHEN THIS FLIPS: it did not, under the route taken, and the
+        prediction is left standing because it was made in advance and
+        held. Route 1 (subtract in `ablation_findings`) would have left
+        the client untouched. Route 2 (stop `render_svg` occluding) was
+        taken and makes tier 1 agree with what this already asserted. It
+        WOULD still break if someone reflexively mirrored a subtraction
+        into the client and got it wrong, which is the corollary that red
+        records; nobody has, and there is now nothing to mirror.
         """
         finds = client_ablation_findings(_label_over_foreign_stroke(True),
                                          ["a1", "t1"])

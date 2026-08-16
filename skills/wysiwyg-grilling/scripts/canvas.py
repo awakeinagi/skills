@@ -6580,6 +6580,48 @@ def collect_footnotes(els):
             for i, e in enumerate(owners)]
 
 
+def arrow_label_break(el):
+    """The box a label bound to an arrow breaks that arrow's stroke in.
+
+    The client never draws a bound arrow THROUGH its label: it leaves the
+    stroke out of the label's box, so the reader sees a line with a
+    caption in a gap rather than a line struck through its own text. This
+    renderer had no such notion and faked it the other way round, by
+    painting an opaque `SVG_GROUND` rectangle over this box after the
+    arrow was down.
+
+    FAKING IT BY OCCLUSION MADE THE EXPORT LIE (v0.9 task 51, curator
+    batch 23 item 9). The rectangle covers whatever lies beneath it, not
+    just the arrow it belongs to — so an unrelated arrow that happened to
+    pass under a label came out of the export with a hole in it, and the
+    export is the only picture a headless agent ever sees of its own
+    drawing. It also made tier 1 disagree with the client on the one
+    scene where both were measured: the ablation instrument removes an
+    arrow, the backdrop goes with it, the foreign ink it was covering
+    comes back, and the delta is charged to a connector that never owned
+    it. The client, which never paints a backdrop, is silent and right.
+    So this box is now cut OUT of the arrow's own stroke with a mask, and
+    nothing is painted over anybody else's ink.
+
+    Args:
+        el: The bound label — a `type: "text"` with `containerId` naming
+            an arrow or a line.
+
+    Returns:
+        `(x, y, width, height)` in scene coordinates: the glyphs' extent
+        plus 4px each side and 2px top and bottom, which is the padding
+        the backdrop carried and which `LABEL_CORNER_PAD` is written
+        against.
+    """
+    lines, fs = painted_text_lines(el)
+    centred = el.get("textAlign") == "center"
+    tx = el.get("x", 0) + (el.get("width", 0) / 2 if centred else 0)
+    lh = fs * (el.get("lineHeight") or 1.25)
+    twid = max(text_dims(ln, fs)[0] for ln in lines) if lines else 0
+    return (tx - (twid / 2 if centred else 0) - 4, el.get("y", 0) - 2,
+            twid + 8, max(len(lines), 1) * lh + 4)
+
+
 def painted_text_lines(el):
     """The lines `render_svg` paints for a text element, and their size.
 
@@ -6805,10 +6847,37 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                                        minx, miny, w, h),
            "<rect x='%f' y='%f' width='%f' height='%f' fill='%s'/>"
            % (minx, miny, w, h, SVG_GROUND)]
-    # labels bound to arrows need the stroke painted back out from under
-    # them (v0.6) — collected once rather than per text element
+    # labels bound to arrows break their stroke (v0.6; by a mask rather
+    # than by an opaque backdrop since task 51 — see `arrow_label_break`)
+    # — collected once rather than per text element
     arrow_ids = {e["id"] for e in live
                  if e.get("type") in ("arrow", "line")}
+    breaks = {}
+    for e in live:
+        if e.get("type") == "text" and e.get("containerId") in arrow_ids:
+            breaks.setdefault(e["containerId"], []) \
+                .append(arrow_label_break(e))
+    # Masks are numbered rather than named after the element: an id is
+    # free-form agent text and would need escaping to survive as an XML
+    # attribute, and nothing outside this markup reads these names.
+    mask_of = {aid: "lblbreak%d" % i
+               for i, aid in enumerate(sorted(breaks))}
+    if breaks:
+        out.append("<defs>")
+        for aid in sorted(breaks):
+            # userSpaceOnUse on the REGION as well as the content: the
+            # default region is 120% of the masked object's own bbox,
+            # which clips a label riding the very end of a short arrow.
+            out.append("<mask id='%s' maskUnits='userSpaceOnUse' x='%f' "
+                       "y='%f' width='%f' height='%f'>"
+                       % (mask_of[aid], minx, miny, w, h))
+            out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                       "fill='#fff'/>" % (minx, miny, w, h))
+            for bx, by, bw, bh in breaks[aid]:
+                out.append("<rect x='%f' y='%f' width='%f' height='%f' "
+                           "fill='#000'/>" % (bx, by, bw, bh))
+            out.append("</mask>")
+        out.append("</defs>")
     # r5-15: never caption a drawing that already says its own name. A
     # frame paints `name` just above its own top-left corner, which on a
     # wireframe — one screen frame, wrapping everything — is a handful of
@@ -6869,6 +6938,10 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             # round caps and joins, the ruled classes keep the default
             caps = (" stroke-linecap='round' stroke-linejoin='round'"
                     if et == "freedraw" else "")
+            # the gap the client leaves for a bound label, cut out of
+            # this arrow's own ink and nobody else's (`arrow_label_break`)
+            brk = (" mask='url(#%s)'" % mask_of[e["id"]]
+                   if e.get("id") in mask_of else "")
             # A ROUNDED path is painted as the same Catmull-Rom Beziers
             # the client draws, from the same helper. This export is not
             # decoration: it is the only picture the agent ever sees of
@@ -6888,13 +6961,13 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                     % (b1[0], b1[1], b2[0], b2[1], b3[0], b3[1])
                     for (_b0, b1, b2, b3) in spans)
                 out.append("<path d='%s' fill='none' stroke='%s' "
-                           "stroke-width='%s'%s%s/>"
-                           % (d, stroke, sw, caps, _svg_dash(e)))
+                           "stroke-width='%s'%s%s%s/>"
+                           % (d, stroke, sw, caps, _svg_dash(e), brk))
             else:
                 path = " ".join("%f,%f" % p for p in abs_pts)
                 out.append("<polyline points='%s' fill='none' stroke='%s' "
-                           "stroke-width='%s'%s%s/>"
-                           % (path, stroke, sw, caps, _svg_dash(e)))
+                           "stroke-width='%s'%s%s%s/>"
+                           % (path, stroke, sw, caps, _svg_dash(e), brk))
             if et == "arrow" and e.get("endArrowhead") and len(abs_pts) > 1:
                 # the head goes along the DRAWN secant the client uses
                 # (`_arrival_path`), which on a sharp arrow is the final
@@ -6906,11 +6979,12 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 ln = (dx * dx + dy * dy) ** 0.5 or 1
                 ux, uy = dx / ln, dy / ln
                 px, py = -uy, ux
-                out.append("<polygon points='%f,%f %f,%f %f,%f' fill='%s'/>"
+                out.append("<polygon points='%f,%f %f,%f %f,%f' "
+                           "fill='%s'%s/>"
                            % (x2, y2, x2 - 10 * ux + 4 * px,
                               y2 - 10 * uy + 4 * py,
                               x2 - 10 * ux - 4 * px,
-                              y2 - 10 * uy - 4 * py, stroke))
+                              y2 - 10 * uy - 4 * py, stroke, brk))
         elif et == "text":
             # the wrap moved to `painted_text_lines` in v0.9 task 46 so
             # that the bounds loop above could read the same rule; the
@@ -6919,22 +6993,14 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
             lh = fs * (e.get("lineHeight") or 1.25)
-            # a label bound to an arrow rides its stroke (v0.6). This
-            # paints at the STORED coordinate, so the position under this
-            # backdrop is `arrow_label_slot` and not `arrow_label_anchor`
-            # — those are two functions since v0.9 WP4 and this renderer
-            # is the reason the second one exists. The client breaks the
-            # arrow behind the label; this renderer has no such notion, so
-            # paint the ground back in or the export shows a line struck
-            # through its own label.
-            if arrow_ids and e.get("containerId") in arrow_ids:
-                twid = max(text_dims(ln2, fs)[0] for ln2 in lines) \
-                    if lines else 0
-                out.append("<rect x='%f' y='%f' width='%f' height='%f' "
-                           "fill='%s' stroke='none'/>"
-                           % (tx - (twid / 2 if anchor == "middle" else 0)
-                              - 4, y - 2, twid + 8,
-                              max(len(lines), 1) * lh + 4, SVG_GROUND))
+            # A label bound to an arrow rides its stroke (v0.6), and the
+            # gap it sits in is cut out of that stroke up in `breaks`
+            # rather than painted over it here — see `arrow_label_break`
+            # for what the opaque version cost. The glyphs go down at the
+            # STORED coordinate, so the position inside that gap is
+            # `arrow_label_slot` and not `arrow_label_anchor`; those are
+            # two functions since v0.9 WP4 and this renderer is the
+            # reason the second one exists.
             for li, line in enumerate(lines):
                 out.append("<text x='%f' y='%f' font-size='%s' fill='%s' "
                            "text-anchor='%s' font-family='Nunito, sans-serif'>"
