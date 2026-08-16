@@ -155,4 +155,8 @@ no_implicit_optional = true
 [dependency-groups]
 dev = [
     "playwright>=1.40",
+    "pillow>=10",
+    "pytest>=8",
+    "pytest-xdist>=3",
+    "numpy>=1.26",
 ]
