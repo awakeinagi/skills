@@ -160,6 +160,42 @@ _ANNOTATION_ON_NODE_RE = re.compile(
 _MIN_CLEARANCE_RE = re.compile(
     r"are only (?P<mag>\d+)px apart \(spacing floor \d+px\) — "
     r"nudge (?P<element>[\w-]+) clear")
+# The two promoted geometry readings (canvas.py, v0.9 TASK-LINTPROMOTE).
+# Both name TWO ARROWS AND NO NODE, which is the case `_SHARED_ATTACH_RE`
+# above did not have to handle: those pairs share an attach site by
+# construction, and these need not share anything at all — an `unrelated`
+# pair is precisely the shape the bidirectional check is most interested
+# in. `element` is therefore the FIRST arrow in scene order. That pick is
+# deterministic rather than principled, which is the honest difference
+# from `_MIN_CLEARANCE_RE`'s (where paint order makes `b` the right
+# subject); both ids survive in `raw` either way, and no fix is scoped to
+# one of the two.
+#
+# MAGNITUDES are the shared run and the shared final extent — in both
+# cases how much of one line the two arrows are drawn on top of each
+# other for, which is the number the repair moves. The messages carry a
+# second number each (the lateral separation, the head offset) and the
+# regexes deliberately do NOT pin it: separation is what the tolerance
+# already gates, so a check reporting it as its headline would be
+# restating its own threshold.
+_SHARED_LANE_RE = re.compile(
+    r"arrows (?P<element>[\w-]+) and [\w-]+ run together for "
+    r"(?P<mag>\d+)px, \d+px apart on the same "
+    r"(?P<dir>horizontal|vertical) line")
+_FALSE_BIDI_LINT_RE = re.compile(
+    r"arrows (?P<element>[\w-]+) and [\w-]+ end on the same "
+    r"(?P<dir>horizontal|vertical) line \d+px apart pointing opposite "
+    r"ways, sharing (?P<mag>\d+)px of it")
+# Curator batch 25's C1, accepted by the same task. `element` is the
+# LABEL — the one element in a ghost scene a reader can see, and the
+# whole content of the red this flipped. MAGNITUDE is the opacity GAP
+# rather than either raw value: the two values are both in the message
+# and both are legible wrong answers (a check that reported the label's
+# own 100 would fire identically on a scene with nothing wrong with it),
+# while the gap is zero exactly when there is no finding.
+_ORPHAN_LABEL_RE = re.compile(
+    r"(?P<element>[\w-]+) is drawn at \d+% over .+ at \d+% — a bound "
+    r"label does not inherit .+ (?P<mag>\d+) points more visible")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -272,6 +308,27 @@ DETECTORS: dict[str, dict] = {
     "text_overlaps_node": {"lint_re": _TEXT_ON_NODE_RE},
     "annotation_overlaps_node": {"lint_re": _ANNOTATION_ON_NODE_RE},
     "min_clearance": {"lint_re": _MIN_CLEARANCE_RE},
+    # v0.9 TASK-LINTPROMOTE. The first two are LIVE-LINT SIBLINGS of
+    # `shared_corridor` and `false_bidi` below, not replacements, and the
+    # separate names are the point: those two entries read
+    # `tests/instruments` and answer "is this geometry present"; these
+    # read `canvas.lint_layout` and answer "is the agent told". A promoted
+    # check that kept one name would have made the two questions
+    # indistinguishable, and the discriminator is exactly where they
+    # differ — `false_bidirectional` is deliberately SILENT on the `t-agg`
+    # fan that `false_bidi` still reports, which is curator batch 21's
+    # disposition surviving the promotion instead of being overwritten by
+    # it. Both dirmaps keep the axis, which is where these findings' shape
+    # information lives: the same pair on the other axis is a different
+    # picture and a different repair.
+    "shared_lane": {"lint_re": _SHARED_LANE_RE,
+                    "dirmap": {"horizontal": "h", "vertical": "v"}},
+    "false_bidirectional": {"lint_re": _FALSE_BIDI_LINT_RE,
+                            "dirmap": {"horizontal": "h",
+                                       "vertical": "v"}},
+    # Curator batch 25's C1, accepted in the same change. No dirmap — the
+    # finding is one label over one host, with no axis to report.
+    "orphan_label": {"lint_re": _ORPHAN_LABEL_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -10678,6 +10735,173 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
                         Silence("shared_corridor"))))
 
+
+# ---------------------------------------------------------------------------
+# v0.9 TASK-LINTPROMOTE: the two readings above, as things the AGENT is
+# told. The three mutants here prove the live lints rather than the
+# instruments — same scenes, different entry point — and each carries the
+# pole that would have caught the specific way its promotion could have
+# gone wrong.
+# ---------------------------------------------------------------------------
+
+def _lane_pair(pitch: float) -> list[dict]:
+    """Two arrows converging on one node, their approaches `pitch` apart.
+
+    The corpus's own shape, reduced: `argus-r4-arm4`'s `e-in-sentiment`
+    and `e-edgar-sentiment` arrive at `sentiment-scorer` on finals 16px
+    apart — exactly on the lane tolerance — after running 80px together.
+    Two sources, one target, and nothing about the pair the auto-fan can
+    repair, because one of the two is authored.
+
+    Args:
+        pitch: Vertical gap between the two horizontal approach runs.
+
+    Returns:
+        The four-element scene: sources A and B, target N, arrows e1, e2.
+    """
+    return [el(id="A", type="rectangle", x=0, y=80, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="B", type="rectangle", x=0, y=200, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="N", type="rectangle", x=400, y=80, width=80, height=160,
+               customData={"role": "node"}),
+            el(id="e1", type="arrow", x=80, y=100, width=320, height=0,
+               points=[[0, 0], [320, 0]], customData={"role": "edge"},
+               startBinding={"elementId": "A", "focus": 0, "gap": 1},
+               endBinding={"elementId": "N", "focus": 0, "gap": 1}),
+            el(id="e2", type="arrow", x=80, y=220, width=320,
+               height=abs(100 + pitch - 220),
+               points=[[0, 0], [0, 100 + pitch - 220],
+                       [320, 100 + pitch - 220]],
+               customData={"role": "edge"},
+               startBinding={"elementId": "B", "focus": 0, "gap": 1},
+               endBinding={"elementId": "N", "focus": 0, "gap": 1})]
+
+
+# THE PROMOTION'S WHOLE POINT, and the pole is the half that matters.
+# `shared_corridor` has scored this geometry since the port while the
+# agent drawing it was told nothing; `shared_lane` is the same reading
+# arriving where a headless agent can act on it. MAGNITUDE is the shared
+# run — 320px here — and not the separation, which is what the tolerance
+# already gates.
+#
+# THE NEIGHBOUR IS THE AUTO-FAN'S OWN OUTPUT and it is load-bearing in a
+# way no other pole in this file is. `FAN_LANE_PITCH` is 18px precisely
+# because 16px lanes were what the even spread used to produce, and the
+# fan's output was therefore the drawing's own non-authored corridor
+# finding. Promoting the corridor reading into `lint_layout` without that
+# clearance would have had the server REPORT TO THE AGENT, as a defect to
+# repair by hand, the exact geometry it had just created — a regression
+# of the class v0.9 Task 51 was opened to close. One pixel of the pitch
+# is the entire margin; this is what notices if it is ever spent.
+_register(Mutant(
+    "unfanned_lane_reaches_the_agent",
+    build=lambda: _lane_pair(16),
+    op="unchanged", args={},
+    expect=FindingSpec("shared_lane", element="e1",
+                       magnitude=(320, 0.10), direction="h"),
+    neighbour=Neighbour(lambda: _lane_pair(canvas.FAN_LANE_PITCH),
+                        Silence("shared_lane"))))
+
+
+def _opposed_finals(fan: bool) -> list[dict]:
+    """Two arrows whose final legs meet head-on, bound as a fan or not.
+
+    THE GEOMETRY IS BYTE-IDENTICAL IN BOTH ARMS. Only `e2`'s bindings
+    move, and they move to the one arrangement that buys an exemption:
+    with `fan`, both arrows leave `S`, so the alignment a reader sees is
+    two branches of one relation set and the merged bidirectional reading
+    would assert a relation between `P` and `Q` that no arrow draws.
+    Without it, `e2` is a hand-drawn stroke binding nothing — the
+    `argus-domain` shape, where nothing explains why the two lie on one
+    line and 80px of it is drawn twice.
+
+    Args:
+        fan: True to bind `e2`'s start to `S`, the shared source.
+
+    Returns:
+        The five-element scene: `S`, `P`, `Q` and arrows `e1`, `e2`.
+    """
+    return [el(id="S", type="rectangle", x=0, y=140, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="P", type="rectangle", x=300, y=0, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="Q", type="rectangle", x=300, y=280, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="e1", type="arrow", x=340, y=200, width=0, height=-160,
+               points=[[0, 0], [0, -160]], customData={"role": "edge"},
+               startBinding={"elementId": "S", "focus": 0, "gap": 1},
+               endBinding={"elementId": "P", "focus": 0, "gap": 1}),
+            el(id="e2", type="arrow", x=340, y=120, width=0, height=160,
+               points=[[0, 0], [0, 160]], customData={"role": "edge"},
+               startBinding=({"elementId": "S", "focus": 0, "gap": 1}
+                             if fan else None),
+               endBinding={"elementId": "Q", "focus": 0, "gap": 1})]
+
+
+# THE DISCRIMINATOR, pinned from both sides, and the reason this check
+# could ship live at all. `false_bidi` has never been able to tell a
+# swapped pair — its own premise — from a fan whose branches the layout
+# aligned, and curator batch 21 recorded that gap while letting the
+# instrument's one corpus finding STAND, on the explicit ground that the
+# check "has NO counterpart in canvas.py" so no agent would ever be told
+# to repair a correct drawing. Promotion is what would have made that
+# false. `_pair_kind` is the counterpart to the gap rather than to the
+# check, and this pair is what proves it does the work.
+#
+# THE TWO ARMS DIFFER IN ONE BINDING AND NOTHING ELSE — same coordinates,
+# same 80px of shared final, same opposed heads. A check that fired on
+# the geometry passes the red and FAILS the neighbour, which is exactly
+# the promotion-without-the-discriminator this pair exists to forbid.
+_register(Mutant(
+    "opposed_finals_reach_the_agent_but_a_fan_does_not",
+    build=lambda: _opposed_finals(fan=False),
+    op="unchanged", args={},
+    expect=FindingSpec("false_bidirectional", element="e1",
+                       magnitude=(80, 0.10), direction="v"),
+    neighbour=Neighbour(lambda: _opposed_finals(fan=True),
+                        Silence("false_bidirectional"))))
+
+
+def _ghost_label(host_opacity: int, label_opacity: int) -> list[dict]:
+    """A labelled box, with the two opacities set independently.
+
+    Args:
+        host_opacity: Opacity stored on the container.
+        label_opacity: Opacity stored on its bound label.
+
+    Returns:
+        The two-element scene: container `g1` and its label.
+    """
+    return [el(id="g1", type="rectangle", x=0, y=0, width=120, height=60,
+               opacity=host_opacity, customData={"role": "node"},
+               boundElements=[{"id": "g1-label", "type": "text"}]),
+            el(id="g1-label", type="text", x=10, y=20, width=100,
+               height=20, text="GHOST", originalText="GHOST",
+               opacity=label_opacity, containerId="g1")]
+
+
+# Curator batch 25's C1, accepted. The red it flips
+# (`test_a_check_names_the_label_left_visible`) asserts that SOMETHING
+# names the label; this asserts what, with which number, and — in the
+# neighbour — that the check is reading the relation rather than the word
+# "opacity". A properly hidden node is silent: both elements at 0 is a
+# drawing that says exactly what it meant to.
+#
+# The neighbour is the pole a threshold rule would have failed. The
+# proposal's `owner < 20 <= label` fires on (0, 0) never and on (0, 100)
+# always, so it would pass this pair too — what it could not survive is
+# the corpus, where all 363 container/label pairs are (100, 100) and no
+# threshold is calibrated by anything. The relation needs no constant.
+_register(Mutant(
+    "orphan_label_is_named_at_last",
+    build=lambda: _ghost_label(0, 100),
+    op="unchanged", args={},
+    expect=FindingSpec("orphan_label", element="g1-label",
+                       magnitude=(100, 0.01)),
+    neighbour=Neighbour(lambda: _ghost_label(0, 0),
+                        Silence("orphan_label"))))
+
 # The shared-attach lint, proven — the first organic UNCOVERED drain. Its
 # firing conditions (canvas.py): two arrows bound to the same node
 # at either end, neither a self-loop, whose attach points on that node sit
@@ -11906,39 +12130,51 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
                          "measuring nothing")
         self.assertEqual(label.get("containerId"), "g1")
 
-    @unittest.expectedFailure
-    def test_red_no_check_names_the_label_left_visible(self) -> None:
-        """Every instrument names the box; none names the floating word.
+    def test_a_check_names_the_label_left_visible(self) -> None:
+        """Something finally names the floating word, not just the box.
 
-        The other half of C1 and the reason the tier that was built for
-        this class cannot see it. `collect_findings` over the ghost scene
-        returns ONE finding — `crossings_count` at 0.0, which is the
-        arrow count and says nothing about anything here. `lint_layout`
-        speaks twice and both times about `g1`: the opacity note and an
-        unconnected-node note. Nothing anywhere mentions `g1-label`,
-        which is the only element in the scene the reader can actually
-        see.
+        FLIPPED 2026-08-16 by v0.9 TASK-LINTPROMOTE, which accepted the
+        proposal this red was filed to argue for. The name lost its
+        `red_` prefix with the marker: what it asserts is now the
+        check's contract rather than its absence.
 
-        WHY THIS IS A SEPARATE RED from the construction defect above:
-        they have different owners and will not drain together. Fixing
-        the funnel makes this scene stop being a ghost, which flips this
-        test as a side effect — but the CHECK would still not exist, and
-        the next scene that produces an orphan label by another route
-        (a hand-placed text bound to a hidden container, a user hiding a
-        box in the client) would go unremarked again. Pinned separately
-        so that outcome is visible as this red flipping for the wrong
-        reason rather than as a hole nobody is looking at.
+        WHAT IT WAS. `collect_findings` over the ghost scene returned
+        ONE finding — `crossings_count` at 0.0, the arrow count, which
+        says nothing about anything here. `lint_layout` spoke twice and
+        both times about `g1`: the opacity note and an unconnected-node
+        note. Nothing anywhere mentioned `g1-label`, the only element in
+        the scene the reader can actually see.
 
-        NO MAGNITUDE IS ASSERTED AND THAT IS THE FINDING. Doctrine wants
-        magnitude and direction, and here there is neither, because no
-        entry in `DETECTORS` owns this class at all — there is no wrong
-        number to catch, only a silence. That is the strongest available
-        statement of the gap: a check that fired with the wrong magnitude
-        could at least be corrected.
+        WHAT CHANGED. `lint_layout` grew the orphan-label warning, on
+        the relation `label opacity > container opacity` rather than on
+        the proposal's `owner < 20 <= label` — the corpus holds 363
+        container/label pairs and every one is (100, 100), so no
+        threshold there is calibrated by anything, while the relation
+        needs no constant and states the same fact its sibling red pins
+        on the funnel.
 
-        WHO FLIPS THIS: a lint rule, which the curator charter forbids
-        this agent from writing. The batch report carries the proposal
-        for the owning work package to accept or reject.
+        THE SIBLING RED STAYS RED, deliberately, and the assertion below
+        keeps its own subject so the two cannot be confused. The funnel
+        still builds the label at full ink over a hidden box; what has
+        changed is only that the drawing now says so. Those were filed
+        apart because they have different owners, and this flipping while
+        that one stands is the shape of that split holding.
+
+        THE SEPARATION WAS THE POINT, and it paid. Fixing the funnel
+        would have made THIS scene stop being a ghost and flipped this
+        test as a side effect, while the check still did not exist and
+        the next orphan label arriving by another route — a hand-placed
+        text bound to a hidden container, a user hiding a box in the
+        client — went unremarked again. Filed apart so that outcome
+        would have been visible as a flip for the wrong reason. It
+        flipped for the right one: the funnel is untouched.
+
+        A MAGNITUDE IS ASSERTED NOW, and it could not be before. The red
+        stated a silence — no entry in `DETECTORS` owned this class, so
+        there was no wrong number to correct. There is a number now, and
+        this asserts it, because "some finding mentions the id" is
+        satisfied by a check that names the label while measuring
+        nothing.
         """
         scene = self._scene(opacity=0)
         lint = canvas.lint_layout(scene, artifact_type="flow")
@@ -11953,6 +12189,12 @@ class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
             "nothing said anything about the one element in this drawing "
             "that is visible; what was said, all of it about the box the "
             "reader cannot see: %s" % [f["raw"] for f in said])
+        self.assertTrue(
+            [f for f in named if "100%" in str(f["raw"])
+             and "0%" in str(f["raw"])],
+            "the label is named but its two opacities are not, so the "
+            "finding carries no magnitude to repair against: %s"
+            % [f["raw"] for f in named])
 
     def test_the_instruments_do_speak_about_this_scene(self) -> None:
         """The silence red's firing pole: they are awake, and wrong.
@@ -12633,6 +12875,43 @@ class TestMutantCatalogue(unittest.TestCase):
         # corridor mutant, deliberately — see `_run_neighbour`.
         self._run_neighbour("merged_stroke_caught_by_corridor")
 
+    def test_mutant_unfanned_lane_reaches_the_agent(self) -> None:
+        """Two approaches 16px apart are reported to the agent, not scored."""
+        # v0.9 TASK-LINTPROMOTE: `shared_corridor` has scored this shape
+        # since the port; `shared_lane` is the same reading arriving in
+        # `lint_layout`, where a headless agent can act on it.
+        self._run("unfanned_lane_reaches_the_agent")
+
+    def test_neighbour_unfanned_lane_reaches_the_agent(self) -> None:
+        """The auto-fan's own 18px output is not a defect it must repair."""
+        # The load-bearing pole of the whole promotion: one pixel of
+        # `FAN_LANE_PITCH` is the entire clearance between the fan's
+        # output and the lane the live lint now reports.
+        self._run_neighbour("unfanned_lane_reaches_the_agent")
+
+    def test_mutant_opposed_finals_reach_the_agent_but_a_fan_does_not(
+            self) -> None:
+        """Opposed finals nothing explains are reported to the agent."""
+        # The promoted `false_bidi`, firing where its premise holds.
+        self._run("opposed_finals_reach_the_agent_but_a_fan_does_not")
+
+    def test_neighbour_opposed_finals_reach_the_agent_but_a_fan_does_not(
+            self) -> None:
+        """One binding turns the same geometry into a fan, and it goes quiet."""
+        # Curator batch 21's disposition, surviving the promotion. The
+        # two arms differ in `e2`'s startBinding and in nothing else, so
+        # a check reading the geometry alone fails here.
+        self._run_neighbour("opposed_finals_reach_the_agent_but_a_fan_does_not")
+
+    def test_mutant_orphan_label_is_named_at_last(self) -> None:
+        """A caption at full ink over a hidden box is named, with its gap."""
+        # Curator batch 25's C1, accepted by TASK-LINTPROMOTE.
+        self._run("orphan_label_is_named_at_last")
+
+    def test_neighbour_orphan_label_is_named_at_last(self) -> None:
+        """A node hidden with its label says nothing: it meant that."""
+        self._run_neighbour("orphan_label_is_named_at_last")
+
     def test_mutant_shared_attach_point_fan_failed(self) -> None:
         """Two edges on one attach point: the lint names N and says why."""
         # No defect here — this proves the detector the ELK arm fired.
@@ -13298,7 +13577,7 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 3,
                              "TestBoundsLoopReadsTheLineHeight": 1,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
                              "TestInkExtentIsRotationBlind": 1,
-                             "TestLabelledGhostKeepsItsCaption": 2,
+                             "TestLabelledGhostKeepsItsCaption": 1,
                              "TestLoadFindingsReachTheAgent": 4,
                              "TestReplayOrderFidelity": 2}
 # `TestBoundsLoopReadsTheLineHeight` JOINED this list on 2026-08-15 (curator
@@ -13327,6 +13606,12 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 3,
 # wave-tail E-9 envelope task takes two, `make_element`'s owner one, a
 # not-yet-written lint rule one, `ink_extent`'s owner one), so a drain here
 # will arrive in pieces from several directions rather than in one flip.
+# THE FIRST PIECE LANDED THE NEXT DAY (2026-08-16, v0.9 TASK-LINTPROMOTE):
+# `TestLabelledGhostKeepsItsCaption` goes 2 -> 1 as the "not-yet-written lint
+# rule" gets written, and the prediction above is exactly what happened —
+# the class did NOT drain, because its other red belongs to `make_element`'s
+# owner and nothing in that change touched the funnel. This is what a
+# split-owner class looks like draining correctly.
 
 # The one class whose reds ARE catalogue entries, excluded from the
 # comparison above. Named rather than inlined so a rename of the class shows
@@ -14093,13 +14378,25 @@ class TestCoverage(unittest.TestCase):
         arrived with a `DETECTORS` entry and flipped
         `phantom_passthrough_shared_attach` in the same change, which
         also drained `phantom_passthrough` from `ASPIRATIONAL`.
+
+        51 -> 54 on 2026-08-16 (v0.9 TASK-LINTPROMOTE): three sites, and
+        NO `UNCOVERED` ROW FOR ANY OF THEM, which is the outcome this
+        pin was built to produce twice running. `shared_lane` and
+        `false_bidirectional` are the corridor and bidirectional
+        readings promoted out of `tests/instruments` into the lint the
+        agent reads; `orphan_label` is curator batch 25's C1 proposal,
+        accepted. All three arrived with a `DETECTORS` entry and a
+        proving mutant pair — a must-fire and a must-stay-quiet each —
+        in the same change, and the third flipped
+        `test_red_no_check_names_the_label_left_visible`, the red whose
+        whole content was that no check owned that class.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 51,
+        self.assertEqual(sites, 54,
                          "canvas.py lint_layout append-site count changed "
-                         "(51 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(54 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

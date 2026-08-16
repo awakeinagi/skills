@@ -2265,6 +2265,188 @@ def _rendered_path(arrow, samples=CURVE_SAMPLES):
     return out
 
 
+LANE_TOL = 16.0
+# The lateral gap below which two parallel runs stop reading as two
+# strokes. It is `tests/instruments.shared_corridors`' tolerance,
+# mirrored rather than imported — that module is deliberately standalone,
+# the same arrangement `HEAD_SECANT_T` documents — because the live lint
+# and the instrument ask ONE question, and a drift between them would put
+# the agent and the harness on different pictures of one drawing.
+# `FAN_LANE_PITCH` sits deliberately above it so the auto-fan's own
+# output clears the lane it would otherwise be reported for.
+LANE_RUN = 60.0
+# ...and how much of that lane two runs must share before it is worth
+# saying, same provenance. Below it the pair grazes and parts; above it a
+# reader tracking one edge has 60px of doubled stroke to get through
+# before the two separate again.
+
+
+def _lane_axis(stretch):
+    """Classify a DRAWN stretch as one axis-aligned run, from its chord.
+
+    Classified ONCE, from the chord between the stretch's ends, and never
+    per flattened micro-segment. `instruments._stretch_axis` records the
+    measurement in full and the summary is what binds here: a flattened
+    curved span is too diagonal to classify for about a third of its
+    length, and the micro-segments that do classify carry a continuously
+    DRIFTING fixed coordinate rather than the single constant a straight
+    run gives — so a per-segment reading cannot pair two arrows'
+    independent sample grids and goes silent on corridors a reader sees
+    at a glance (two 200px verticals 4px apart scored zero).
+
+    Reading the chord is honest here rather than a relapse to stored
+    geometry. A Catmull-Rom span at the client's own tightness
+    interpolates both of its stored vertices, so a stretch's first and
+    last samples ARE points the ink passes through, and what sits between
+    them is bounded smoothing that returns to the chord at both ends.
+
+    Args:
+        stretch: One sampled stretch, in scene coordinates.
+
+    Returns:
+        `(orientation, fixed, lo, hi)` — `"h"` or `"v"`, the cross-axis
+        coordinate the run holds, and its extent along its own axis — or
+        None when the chord is too diagonal for either reading.
+    """
+    if len(stretch) < 2:
+        return None
+    (x1, y1), (x2, y2) = stretch[0], stretch[-1]
+    if abs(x2 - x1) <= 2 and abs(y2 - y1) > 2:
+        return ("v", x1, min(y1, y2), max(y1, y2))
+    if abs(y2 - y1) <= 2 and abs(x2 - x1) > 2:
+        return ("h", y1, min(x1, x2), max(x1, x2))
+    return None
+
+
+def _pair_kind(a, b):
+    """Say what, if anything, explains two arrows lying on one line.
+
+    Curator batch 21's `_bidi_kind` proposal, GENERALIZED TO SERVE BOTH
+    promoted lints. The proposal asked for swapped/fan/converge/unrelated
+    for the bidirectional reading; the lane reading needs the same table
+    plus `chain`, and one classifier with two readers is the arrangement
+    `NEAR_AXIS` already documents for its own two — "how are these two
+    arrows related through their bindings" is one idea, and splitting it
+    would need a reason neither lint has. `instruments._corridor_kind`
+    stays as it is: it is that module's own three-way answer with its own
+    pinned consumers, and this is a finer partition of the same question.
+
+    The categories are ordered by what they say about the REPAIR, which
+    is the only thing either caller uses them for:
+
+    - `"swapped"` — each arrow is the other's reverse. Two one-way
+      arrows where one bidirectional relation was meant; the merged
+      reading is the model's own and the repair is to say so.
+    - `"chain"` — one arrow's target is the other's source, so the runs
+      continue each other and a merged stroke deletes the shared node as
+      a step in the flow.
+    - `"fan"` — they leave the same node: branches of one relation set.
+    - `"converge"` — they arrive at the same node, the mirror of `fan`,
+      and it earns the same reading.
+    - `"unrelated"` — no shared endpoint. Nothing explains the
+      alignment, which is what makes the alignment worth reporting.
+
+    A SELF-LOOP IS NEITHER A FAN NOR A CONVERGENCE, and this carve-out is
+    what keeps the exemption honest. A loop shares its node at BOTH ends,
+    so "same end" carries no information about a common relation set: a
+    loop's return leg landing on the line an outgoing edge departs by is
+    a collision, not a fan. Reading it as one would have hidden the only
+    live bidirectional finding on the frozen corpus — `argus-domain`'s
+    `r-run-rerun` against `r-run-signal`, 30px of doubled ink under
+    `pipeline-run`. A loop therefore falls through to `"unrelated"`,
+    which is the accurate answer to the question these names ask.
+
+    UNBOUND ENDS MATCH NOTHING, so an arrow that binds nothing reads as
+    `"unrelated"` whatever it happens to touch. Deliberate: the
+    exemptions are paid for by a DECLARED relation, and geometry that
+    merely looks like one is the thing being read.
+
+    Args:
+        a: The first arrow element.
+        b: The second arrow element.
+
+    Returns:
+        One of `"swapped"`, `"chain"`, `"fan"`, `"converge"`,
+        `"unrelated"`.
+    """
+    ea = ((a.get("startBinding") or {}).get("elementId"),
+          (a.get("endBinding") or {}).get("elementId"))
+    eb = ((b.get("startBinding") or {}).get("elementId"),
+          (b.get("endBinding") or {}).get("elementId"))
+    for ends in (ea, eb):
+        if ends[0] is not None and ends[0] == ends[1]:
+            return "unrelated"          # a self-loop explains nothing
+    if ea[0] and ea[1] and ea[0] == eb[1] and ea[1] == eb[0]:
+        return "swapped"
+    if (ea[0] and ea[0] == eb[1]) or (ea[1] and ea[1] == eb[0]):
+        return "chain"
+    if ea[0] and ea[0] == eb[0]:
+        return "fan"
+    if ea[1] and ea[1] == eb[1]:
+        return "converge"
+    return "unrelated"
+
+
+FLAT_BAND = 2.0
+# How far a stretch may wander off its own axis and still read as one
+# straight line. Mirrored from `tests/instruments` with the rest of the
+# bidirectional reading, and a FLOOR rather than the whole rule.
+TILT_RATIO = 1 / 14.0
+# ...and the ratio that floor implies at 28px, the shortest final span in
+# the frozen corpus. Above 28px the band is a constant 4.1 degrees of
+# tilt instead of a constant 2px of displacement, and it has to be: the
+# bow on a curved elbow is set by the leg BEFORE it, so a flat band read
+# the same 7.4px of displacement as disqualifying whether it sat on 18px
+# of approach or on 200px of it. At 200px the last quarter is dead
+# straight, the heads are 2px apart, and a reader sees one line.
+#
+# THEORY-MOTIVATED, NOT MEASURED, exactly as at its origin: no perception
+# result gives the angle at which a bowed stroke stops reading as a
+# straight one. What is defensible is the SHAPE of the rule — a fixed
+# pixel band is a fixed angle at exactly one length, and it varied
+# 37-fold in strictness across one corpus purely as an artifact of how
+# long each span happened to be.
+BIDI_HEAD_TOL = 8.0
+# How far apart two final legs may sit ACROSS their shared line and still
+# be read as landing on one line.
+BIDI_OVERLAP = -24.0
+# ...and how much of that line they must share. Negative because two
+# heads that stop just short of each other still merge: the gap is
+# thinner than the arrowheads that face across it. All three are
+# engineering choices with recorded derivations rather than measured
+# thresholds, which is why the check that reads them is a warning
+# phrased as a question.
+
+
+def _reads_as_line(stretch, idx):
+    """Test whether a rendered stretch reads as one straight axis line.
+
+    A straight chord's spread off the axis is exactly the endpoint
+    difference the check would compare anyway, so at 28px and under this
+    is the flat 2px test unchanged — the band only stops giving a curve
+    the benefit of its own chord. Above that it grows with the span, for
+    the reason `TILT_RATIO` records.
+
+    `max` and not a replacement, so the rule is one-directional: every
+    stretch the flat band admitted is still admitted at every length, and
+    the check above it can only gain findings from the scaling, never
+    lose them.
+
+    Args:
+        stretch: One sampled stretch, in scene coordinates.
+        idx: 0 to test horizontality (spread in y), 1 for verticality.
+
+    Returns:
+        True when the whole stretch stays inside the band its own length
+        earns — `FLAT_BAND`, or `TILT_RATIO` of its on-axis extent,
+        whichever is wider.
+    """
+    off = [p[1 - idx] for p in stretch]
+    on = [p[idx] for p in stretch]
+    return (max(off) - min(off)
+            <= max(FLAT_BAND, TILT_RATIO * (max(on) - min(on))))
+
+
 def derived_roundness(arrow):
     """Say what `roundness` a server-routed arrow must carry.
 
@@ -2974,6 +3156,15 @@ FAN_LANE_PITCH = 18.0
 # deliberately and live in two files; if the corridor instrument's
 # tolerance moves, this moves with it, and
 # `test_a_cramped_side_gets_lanes_wider_than_a_corridor` is what notices.
+#
+# THAT COUPLING IS NOW LOAD-BEARING IN A SECOND PLACE. `LANE_TOL` above
+# promoted the corridor reading into `lint_layout`, so the fan's own
+# output is no longer merely scored for a lane it cannot help — it would
+# be REPORTED TO THE AGENT as a defect to repair, by the same run that
+# just created it. `> LANE_TOL` is the whole of what keeps that quiet;
+# the assertion beside the corridor instrument in that test now runs the
+# live lint too, so the quiet pole fails loudly rather than by a number
+# nobody re-reads.
 FAN_EDGE_MARGIN = 8.0
 # ...and how much of each end of the side the widened fan leaves alone —
 # the same 8px window the slide fallback below refuses to step outside,
@@ -9223,6 +9414,215 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     % (fid, gid, name(tgt_id), round(bare), round(across),
                        round(covered)))
 
+    # ---- WARNING: two runs in one lane (v0.9 TASK-LINTPROMOTE) -------
+    # The corridor reading, promoted out of `tests/instruments` and into
+    # the lint an agent actually reads. It was measuring the drawing for
+    # the harness's score vector while the agent drawing that same scene
+    # was told nothing, and a headless agent cannot see a doubled stroke
+    # any other way.
+    #
+    # WHAT IT CLAIMS, and the claim is narrow: two runs hold the same
+    # cross-axis coordinate to within `LANE_TOL` for `LANE_RUN` of shared
+    # extent, so over that span there is one thick stroke on the page
+    # where the model has two edges, and neither can be followed to its
+    # own node through the overlap. It does NOT claim the routing is
+    # wrong — which is why the finding leads with its two magnitudes and
+    # leaves the judgement with the agent.
+    #
+    # A FAN FIRES HERE AND STAYS QUIET IN THE BIDIRECTIONAL CHECK BELOW,
+    # which looks inconsistent and is not: the two lints ask different
+    # questions of the same pair. A lane has a repair that IMPROVES the
+    # picture — separate the feet, which the auto-fan does by itself at
+    # `FAN_LANE_PITCH` — so a fan sharing a lane is worth saying. The
+    # merged bidirectional reading has no such repair: the only remedy is
+    # to offset one run and break an alignment the layout made on
+    # purpose. That is the argument that retired the broad e1 criterion
+    # and the argument curator batch 21 recorded for the `t-agg` pair.
+    # Fire where the repair helps; stay quiet where it does not.
+    #
+    # ON THE DRAWN PATH, chord-classified — see `_lane_axis`. Task 51's
+    # F8 lesson binds directly: a corridor count that fell 6 -> 1 when
+    # the same routes were rounded was reporting the CORNER STYLE rather
+    # than the drawing, and chord classification is what makes this
+    # answer identical sharp and curved. That invariance also keeps
+    # `gate_curvature`'s second arm out of this block — a check whose
+    # verdict moved under curvature would make the gate decline curves
+    # for reasons having nothing to do with the arrow it is judging.
+    #
+    # COST, and it is measured rather than asserted, because
+    # `gate_curvature` runs this whole function once per eligible arrow
+    # and multiplies anything careless here by 38 on the frozen corpus.
+    # EVERY ARROW IS FLATTENED EXACTLY ONCE, here, and both this block
+    # and the bidirectional one below read `drawn`; the pair loops then
+    # see nothing but tuples. Measured in CPU time over the 24 artifacts,
+    # min of six interleaved runs against the same baseline: flattening
+    # inside the inner loop cost +42% on the load path, flattening once
+    # per block +24%, and this sharing +9%. CPU TIME AND NOT WALL,
+    # deliberately — wall drifted 15-17% between two runs of the SAME
+    # build on the machine these were taken on, which is larger than the
+    # effect and made all three indistinguishable. No prefilter is owed
+    # beyond the sharing: there is one stretch per stored span whatever
+    # the roundness, and the pair loop is the size the arrow budget
+    # already caps.
+    drawn = [_rendered_stretches(a) for a in arrows]
+    lanes = [[ax for ax in (_lane_axis(s) for s in st) if ax is not None]
+             for st in drawn]
+    for i, la in enumerate(arrows):
+        for j in range(i + 1, len(arrows)):
+            lb = arrows[j]
+            best = None
+            for axa in lanes[i]:
+                for axb in lanes[j]:
+                    if axb[0] != axa[0]:
+                        continue
+                    sep = abs(axa[1] - axb[1])
+                    if sep > LANE_TOL:
+                        continue
+                    run = min(axa[3], axb[3]) - max(axa[2], axb[2])
+                    # WORST pair, where the instrument takes the first
+                    # that qualifies and breaks. Right for a count and
+                    # wrong for a message: the magnitude an agent
+                    # repairs against has to be the longest doubled
+                    # span, not whichever span the point list stored
+                    # first.
+                    if run >= LANE_RUN and (best is None or run > best[0]):
+                        best = (run, sep, axa[0])
+            if best is None:
+                continue
+            key = "lane:%s:%s:%s" % (aid or "<artifact>",
+                                     slugify(la["id"]), slugify(lb["id"]))
+            if waives and key in waives:
+                continue
+            rel = _pair_kind(la, lb)
+            if rel == "fan":
+                shared = (la.get("startBinding") or {}).get("elementId")
+                why = "they leave %s together" % name(shared)
+            elif rel == "converge":
+                shared = (la.get("endBinding") or {}).get("elementId")
+                why = "they arrive at %s together" % name(shared)
+            elif rel == "chain":
+                shared = ((la.get("endBinding") or {}).get("elementId")
+                          or (la.get("startBinding") or {}).get("elementId"))
+                why = ("they continue each other through %s, so the "
+                       "merged stroke reads as one relation and that "
+                       "node stops being a step" % name(shared))
+            elif rel == "swapped":
+                why = ("each is the other's reverse, so the pair reads "
+                       "as one bidirectional edge")
+            else:
+                why = "they share no node, so nothing explains the run"
+            warnings.append(
+                "arrows %s and %s run together for %dpx, %dpx apart on "
+                "the same %s line — inside the %dpx that reads as one "
+                "stroke, so the drawing has one thick line where the "
+                "model has two edges and neither can be followed through "
+                "the overlap. %s. Fan the feet apart (%dpx clears the "
+                "lane), offset one run with `mod points`, or record it "
+                "with waive {action: waive, key: %r, reason: ...}"
+                % (la["id"], lb["id"], round(best[0]), round(best[1]),
+                   "horizontal" if best[2] == "h" else "vertical",
+                   int(LANE_TOL), why, int(FAN_LANE_PITCH), key))
+
+    # ---- WARNING: a pair that reads as one bidirectional edge --------
+    # `tests/instruments.false_bidi`, promoted, and promoted WITH the
+    # discriminator it has always lacked. Both arrows' final legs read as
+    # one straight axis line, sit on that line within `BIDI_HEAD_TOL` of
+    # each other, run in opposite directions, and overlap: the visual
+    # signature of two one-way arrows a reader merges into one
+    # bidirectional relation the model never asserted.
+    #
+    # THE PREMISE IS NOT EMPIRICALLY ESTABLISHED and promotion does not
+    # upgrade it. No study compares double-headed arrows against paired
+    # opposed singles. It is well motivated — continuity is among the
+    # strongest predictors of path-tracing difficulty (Ware et al. 2002),
+    # and Holten & van Wijk (CHI 2009) found arrowhead OVERLAP is
+    # precisely why arrowheads underperform for direction tasks — and
+    # every tolerance it reads is an engineering choice with a recorded
+    # derivation rather than a measured threshold. Hence a warning
+    # phrased as a question about the picture, and never an error.
+    #
+    # WHAT THE PROMOTION ADDS is `_pair_kind`, and it is the whole reason
+    # this could ship live at all. Curator batch 21 measured the
+    # instrument's live corpus finding and let it STAND while recording
+    # that the drawing was CORRECT: `argus-run-flow`'s `t-agg` pair is
+    # one source fanning to two aligned targets, drawn the textbook way,
+    # and the merged reading would assert a relation between two nodes
+    # neither arrow connects. That disposition rested explicitly on this
+    # check having "NO counterpart in canvas.py", so no agent was ever
+    # told to repair that drawing. Promoting it without the
+    # discriminator would have broken exactly that and told the agent to
+    # offset one leg, degrading a correct picture — the failure mode the
+    # e1 criterion was retired for. Fans and convergences are therefore
+    # exempt, and the exemption is bought by a DECLARED relation rather
+    # than by a shape: see `_pair_kind` on self-loops and unbound ends.
+    # The final legs come off `drawn`, the lane block's flattening, for
+    # the reason recorded there: this loop is inside the same per-arrow
+    # gate pass, and re-flattening here was a third of the cost.
+    finals = [st[-1] if st else None for st in drawn]
+    for i, la in enumerate(arrows):
+        if finals[i] is None:
+            continue
+        for j in range(i + 1, len(arrows)):
+            lb = arrows[j]
+            if finals[j] is None:
+                continue
+            rel = _pair_kind(la, lb)
+            if rel in ("fan", "converge"):
+                continue        # the alignment is the layout doing its job
+            sa, sb = finals[i], finals[j]
+            for idx in (0, 1):
+                if not (_reads_as_line(sa, idx)
+                        and _reads_as_line(sb, idx)):
+                    continue
+                head = abs(sa[-1][1 - idx] - sb[-1][1 - idx])
+                if head > BIDI_HEAD_TOL:
+                    continue
+                if ((sa[-1][idx] - sa[0][idx])
+                        * (sb[-1][idx] - sb[0][idx])) >= 0:
+                    continue    # same direction: two lanes, not a bidi
+                av = [p[idx] for p in sa]
+                bv = [p[idx] for p in sb]
+                ov = min(max(av), max(bv)) - max(min(av), min(bv))
+                if ov <= BIDI_OVERLAP:
+                    continue
+                key = "bidi:%s:%s:%s" % (aid or "<artifact>",
+                                         slugify(la["id"]),
+                                         slugify(lb["id"]))
+                if waives and key in waives:
+                    continue
+                # Keyed on each surviving kind BY NAME, with a neutral
+                # fallback, and that shape is bought rather than tidy.
+                # Written as a chain ending in "each is the other's
+                # reverse", this branch stated the `swapped` reading for
+                # anything the gate above let through — so the probe that
+                # removes the exemption produced a fan being told it was
+                # a 2-cycle. The gate makes that unreachable today, which
+                # is exactly the kind of claim that rots the first time
+                # the gate is edited: a message that names a relation
+                # should be derivable from the relation.
+                if rel == "swapped":
+                    reading = ("each is the other's reverse, which is "
+                               "the relation a reader will take")
+                elif rel == "chain":
+                    reading = "they continue each other through a shared node"
+                elif rel == "unrelated":
+                    reading = ("neither declares a node that would "
+                               "explain the alignment")
+                else:
+                    reading = "they are drawn as %s" % rel
+                warnings.append(
+                    "arrows %s and %s end on the same %s line %dpx apart "
+                    "pointing opposite ways, sharing %dpx of it — the "
+                    "pair reads as one bidirectional edge, and %s. Is "
+                    "the relation symmetric? Draw it as one arrow with "
+                    "two heads. If it is not, offset one final leg, or "
+                    "record it with waive {action: waive, key: %r, "
+                    "reason: ...}"
+                    % (la["id"], lb["id"],
+                       "horizontal" if idx == 0 else "vertical",
+                       round(head), round(ov), reading, key))
+                break           # one axis is enough; the pair is one edit
+
     # stranded element: far outside everything else's bounding box
     if len(shapes) > 2:
         for e in shapes:
@@ -9257,6 +9657,54 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             notes.append("%s has opacity %s — opacity is state, not "
                          "style; static elements stay at 100"
                          % (e["id"], e.get("opacity")))
+    # ---- WARNING: a caption left inked over a hidden host ------------
+    # Curator batch 25's C1, accepted. A bound label does not inherit its
+    # container's opacity, so hiding a box leaves its caption at full ink
+    # — the reader sees a word floating with nothing under it, which is
+    # neither the hidden node that was asked for nor a visible one.
+    #
+    # THE OPACITY NOTE ABOVE ALREADY SPEAKS, and it is not this finding:
+    # it names the CONTAINER, the one element in that scene the reader
+    # cannot see, while nothing named the only element they can. C1's
+    # second red is that silence, and this is the check it says does not
+    # exist. Both survive, because they answer different questions and
+    # the note fires on scenes with no label at all.
+    #
+    # THE RULE IS A RELATION, NOT A THRESHOLD, and this is the one place
+    # the accepted proposal is changed. It arrived as
+    # `owner < 20 <= label`, and its own author called the 20 the weak
+    # part and asked for it to be calibrated or dropped. It cannot be
+    # calibrated: all 363 container/label pairs across the 24 frozen
+    # artifacts are (100, 100), so the corpus cannot tell any threshold
+    # from any other, and inventing one would be taste wearing a
+    # measurement's clothes. What IS defensible without a number is that
+    # A LABEL MUST NOT BE MORE VISIBLE THAN THE THING IT NAMES — which
+    # is the same inequality `TestLabelledGhostKeepsItsCaption` pins on
+    # the funnel, so the check and the pin now state one fact. It leaves
+    # the legitimate direction alone: a faint label on a solid box is
+    # someone's choice and says nothing.
+    #
+    # A WARNING, not an error and not a note. It is a legibility defect
+    # with a cosmetic repair, which is the middle tier by definition. It
+    # deliberately does NOT answer whether the note above should harden
+    # into a refusal — that is the product question C2 raises and batch
+    # 25 declined, and it is untouched here.
+    for e in els:
+        host = ix.get(e.get("containerId") or "")
+        if host is None:
+            continue
+        lo = e.get("opacity")
+        ho = host.get("opacity")
+        lo = 100 if lo is None else lo
+        ho = 100 if ho is None else ho
+        if lo <= ho:
+            continue
+        warnings.append(
+            "%s is drawn at %d%% over %s at %d%% — a bound label does "
+            "not inherit its container's opacity, so the caption is "
+            "%d points more visible than the thing it names and reads "
+            "as a word floating with no box under it. Set both or "
+            "neither" % (e["id"], lo, name(host["id"]), ho, lo - ho))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):

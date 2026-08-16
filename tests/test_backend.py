@@ -3694,10 +3694,30 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
         self.assertIsNone(loop.get("startBinding"))
         self.assertIsNone(loop.get("endBinding"))
         lint = self.lint_all()["argus-domain"]
-        named = [w for w in lint["warnings"] if "r-run-rerun" in w]
+        named = [w for w in lint["warnings"] if "binds nothing" in w]
         self.assertEqual(len(named), 1, lint["warnings"])
-        self.assertIn("binds nothing", named[0])
-        self.assertEqual(len(lint["warnings"]), 1,
+        self.assertIn("r-run-rerun", named[0])
+        # SECOND FINDING, SAME ARROW, DIFFERENT DEFECT (v0.9
+        # TASK-LINTPROMOTE). This test used to assert the artifact fired
+        # exactly one warning, as the unbound lint's over-fire guard.
+        # The promoted bidirectional check now names `r-run-rerun` too,
+        # and it is worth reading rather than counting past: the same
+        # hand-authored self-loop that binds nothing also brings its
+        # return leg up the line `r-run-signal` departs by, so 30px of
+        # ink under `pipeline-run` is drawn twice with a head at each
+        # end. One workaround, two defects, and the corpus's only live
+        # bidirectional finding.
+        #
+        # Both findings are pinned by shape and the total is pinned
+        # beside them, so this is a strictly tighter statement than the
+        # bare count it replaces — a third check waking up on this
+        # artifact still fails here, which is what the original count
+        # was protecting.
+        bidi = [w for w in lint["warnings"] if "bidirectional edge" in w]
+        self.assertEqual(len(bidi), 1, lint["warnings"])
+        self.assertIn("r-run-signal", bidi[0])
+        self.assertIn("sharing 30px", bidi[0])
+        self.assertEqual(len(lint["warnings"]), 2,
                          "unbound-lint over-fired: %r" % lint["warnings"])
 
 
@@ -3731,6 +3751,35 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
         for aid, r in self.lint_all().items():
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+    def test_the_canonical_lane_finding_survives_on_recorded_work(self):
+        """The one corpus lane the auto-fan structurally cannot reach.
+
+        `e-in-sentiment` is server-routed and `e-edgar-sentiment` is
+        authored, and they arrive at `sentiment-scorer` on finals 80px
+        long and EXACTLY 16px apart. That 16 is the whole reason this
+        pin exists. `LANE_TOL` is 16 and the comparison is `>`, so this
+        pair qualifies on the boundary and nowhere inside it: moving the
+        test to `>=`, or retuning the tolerance down by any amount at
+        all, drops the most-cited finding on the corpus and leaves every
+        other number in the suite standing.
+
+        Fanning cannot reach it either, which is why it is lint signal
+        rather than router backlog: the auto-fan needs two fannable feet
+        on a side, and one of these two is a 4-point authored path.
+
+        The MAGNITUDE is asserted, not just the fire. A check that found
+        this pair while measuring the wrong span would satisfy a
+        presence test and hand the agent a number that points at the
+        wrong part of the drawing.
+        """
+        said = [w for w in self.lint_all()["enrichment-flow"]["warnings"]
+                if "run together for" in w]
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("e-in-sentiment", said[0])
+        self.assertIn("e-edgar-sentiment", said[0])
+        self.assertIn("run together for 80px, 16px apart", said[0])
+        self.assertIn("they arrive at sentiment-scorer", said[0])
 
     def test_no_label_is_accused_of_hanging_over_its_shape(self):
         """v0.9 WP4's shape check must stay quiet on recorded work.
@@ -5819,6 +5868,24 @@ class TestFanAttachPoints(unittest.TestCase):
                 "the fan exists to stop these arrows reading as one "
                 "stroke and the drawing's own measure disagrees: %s"
                 % (shape, w, h, len(hits), hits))
+            # AND THE LIVE LINT, added by v0.9 TASK-LINTPROMOTE, which
+            # is when the stakes changed. While the corridor reading
+            # lived only in `tests/instruments` the cost of the fan
+            # tripping it was a wrong number in a score vector. It is
+            # now `lint_layout`'s `shared_lane`, so the same trip would
+            # have the server hand the AGENT a defect to repair by hand
+            # — the geometry the server itself had just produced, one
+            # call earlier, on purpose. The instrument assertion above
+            # cannot see that: it reads a different function, and the
+            # day the two tolerances drift apart it is the lint that
+            # speaks to a user.
+            said = [w_ for w_ in canvas.lint_layout(els)["warnings"]
+                    if "run together for" in w_]
+            self.assertEqual(
+                said, [],
+                "%s %dx%d: the fan's own output is reported to the agent "
+                "as a lane to repair — the server would be telling a "
+                "user to undo what it just did: %s" % (shape, w, h, said))
 
     def test_a_side_too_short_for_the_pitch_still_spreads(self) -> None:
         """A 64px side cannot hold four lanes, and says so by trying.

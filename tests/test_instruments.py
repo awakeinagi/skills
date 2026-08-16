@@ -334,7 +334,23 @@ class TestFalseBidiOnTheShippedFan(unittest.TestCase):
     assumed. `false_bidi` has NO counterpart in `canvas.py`: it lives
     only in these instruments, feeding `score_layout` and
     `compare_layouts`, so no agent and no user is ever told to repair
-    this drawing. The shipped corpus is curved, and curved it does not
+    this drawing.
+
+    THE FIRST CLAUSE EXPIRED ON 2026-08-16 (v0.9 TASK-LINTPROMOTE) AND
+    THE CONCLUSION SURVIVED IT, which is worth reading as one fact
+    rather than two. There IS a counterpart now — `lint_layout`'s
+    `false_bidirectional` — so the ground this disposition stood on is
+    gone. What replaced it is the discriminator the last paragraph below
+    asks for: `canvas._pair_kind` classifies the pair, and the live lint
+    is SILENT on a fan. So no agent is still told to repair this
+    drawing, but for a reason that has to hold rather than for a reason
+    nobody could break by accident. `opposed_finals_reach_the_agent_but_
+    a_fan_does_not`'s neighbour is what now carries it: same geometry,
+    one binding moved, and a check that read the shape alone fails
+    there. If that pole ever goes, this artifact is the first thing an
+    agent gets nagged about.
+
+    The shipped corpus is curved, and curved it does not
     fire at all (1 finding corpus-wide, the `argus-domain` pair the
     catalogue already holds); it appears only if the sharp era ships,
     and then the corpus total is 2. And the check's own docstring
@@ -351,6 +367,15 @@ class TestFalseBidiOnTheShippedFan(unittest.TestCase):
     no equivalent. That is a proposal for whoever owns the instrument,
     not a defect in the drawing, and the test below exists so the fact it
     rests on cannot go quiet: this finding is a FAN.
+
+    THE PROPOSAL WAS TAKEN, on the other side of the line. v0.9
+    TASK-LINTPROMOTE built `canvas._pair_kind` — the same distinction,
+    split five ways — and the LIVE lint discriminates on it. The
+    INSTRUMENT deliberately does not: it still reports this pair, and it
+    should, because it answers "is this geometry present" for a score
+    vector, while the lint answers "should the agent be told". Two
+    questions, two answers, and this test is still what keeps the fact
+    the disposition rests on from going quiet.
     """
 
     def _sharp_run_flow(self) -> list[dict]:

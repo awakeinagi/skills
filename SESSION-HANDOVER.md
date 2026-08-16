@@ -419,7 +419,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **19 detectors, 16 proven, 3 render-tier, 0
+  a reason. Coverage totals: **22 detectors, 19 proven, 3 render-tier, 0
   UNCOVERED** — CHECKED as of curator batch 23 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked
@@ -451,9 +451,14 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 curator batch 20 they are ALL finding codes enumerated out of `lint_layout`
 and `validate_scene`, each with a `canvas.py` line reference and "no proving
 mutant yet". Zero of them are registered detectors any more. Note the
-asymmetry: `--coverage` prints only the 18 rows in `DETECTORS`; these 46 live
+asymmetry: `--coverage` prints only the 22 rows in `DETECTORS`; these 46 live
 in the `UNCOVERED` dict in `tests/test_mutants.py` and are the backlog, not
-the table. The ledger drains a row at a time and that is the intended
+the table. (That row count said 18 until 2026-08-16 — a FOURTH hand copy of
+the same derived fact, one paragraph below the one batch 23 put a guard on
+and outside its reach, since the guard parses only the totals sentence. It is
+corrected here by derivation and left as prose deliberately: three of these
+have now gone stale, and the useful record is that the guard's scope is the
+sentence rather than the section.) The ledger drains a row at a time and that is the intended
 lifecycle: `shared_attach_point` (canvas.py:5688) left on 2026-08-12 when the
 ELK spike fired the lint in production and `shared_attach_point_fan_failed`
 promoted it into `DETECTORS`; `annotation_overlaps_node` left with Task 23;

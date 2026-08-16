@@ -852,7 +852,7 @@ class _Mortal(unittest.TestCase):
 
 @unittest.skipUnless(MORTALITY, "mortality sweep: set MUTANTS_MORTALITY=1")
 class TestModelTierMortality(_Mortal):
-    """The 12 lint checks and 4 instruments, killed one at a time.
+    """The 15 lint checks and 4 instruments, killed one at a time.
 
     These rows carry all three controls: inertness, the drop counter, and the
     surgicality probe over the catalogue's own scenes.
@@ -905,6 +905,23 @@ class TestModelTierMortality(_Mortal):
     def test_min_clearance_death_is_noticed(self) -> None:
         """Two elements crowded past the clearance floor, unreported."""
         self.assertMortal("min_clearance")
+
+    def test_shared_lane_death_is_noticed(self) -> None:
+        """Two arrows drawn in one lane, unreported."""
+        self.assertMortal("shared_lane")
+
+    def test_false_bidirectional_death_is_noticed(self) -> None:
+        """A pair reading as one bidirectional edge, unreported."""
+        # The LIVE lint, not `false_bidi` below. Both rows exist and both
+        # must die separately: killing the instrument leaves the agent
+        # still warned, and killing the lint leaves the score vector
+        # still right — which is exactly the split the promotion created
+        # and the reason the two carry different names.
+        self.assertMortal("false_bidirectional")
+
+    def test_orphan_label_death_is_noticed(self) -> None:
+        """A caption left inked over a hidden host, unreported."""
+        self.assertMortal("orphan_label")
 
     def test_crossings_count_death_is_noticed(self) -> None:
         """`edge_crossings` answering "none", everywhere."""
