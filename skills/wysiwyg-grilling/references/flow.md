@@ -61,18 +61,80 @@ An **async step is three nodes, not one**: trigger → in-progress →
 (success | error). Drawing only trigger→success hides two states the
 design must eventually hold — seed all three and let the user prune.
 
-**Seeding from mermaid** (v0.8): above ~7 nodes, write `flowchart TD`
-text and `canvas.py mermaid --file d.mmd --artifact <id> --concept <c>`
-instead of hand-placing — dagre's layering beats freehand coordinate
-math at that size (verified against the hand-laid Argus run-flow: the
-seed is a clean first draft, though a careful hand layout on the
-320/160 grid still reads better — so seed, then drag). Diamonds map to
-decisions, `([stadium])` stays rounded, edge labels ride along, `A -->
-A` routes as a reflexive loop. Immediately after seeding: classify the
-kinds (`mod attrs.kind` — mermaid can't carry them) and heed any
-label-run warnings by spreading nodes. Subgraphs are refused (converter
-limitation) — seed flat, add lanes as frames after. `--relayout` runs
-the same dagre over an existing messy flow as revertable `mod x/y` ops.
+**Seeding from mermaid** (v0.8) — **seed, then drag.** The seed is a
+first draft, not a layout: a careful hand layout on the 320/160 grid
+still reads better, and the seed's job is to get every node and edge onto
+the canvas correctly bound so you can arrange them.
+
+**Write it this way. The three knobs are free and they close most of the
+gap:**
+
+```
+%%{init: {'flowchart': {'nodeSpacing': 100, 'rankSpacing': 140}}}%%
+flowchart LR
+  <the happy path — every edge, start to finish>
+  <then the exceptions, branches and back-edges>
+```
+
+`LR` over `TD` is the biggest lever: it eliminates floating diamond
+endpoints and turns a three-screen scroll into a one-screen band.
+**Declaration order is the cheapest and it matters most** — dagre's
+within-rank ordering follows it, so *declare every edge of the happy path
+first, start to finish, then the exceptions.* At 12 nodes the three
+together measured 0 lint findings, 0 crossings, 0 shared corridors and 0
+false junctions: parity with the hand layout, not superiority.
+
+**The honest ceiling.** An older version of this page claimed the seed
+was worth it above ~7 nodes. That is withdrawn — it was measured and it
+failed. At **8** nodes the seed drew a **relationship that does not
+exist in the source** (two opposite-facing arrowheads 11–31px apart on
+one horizontal run, reading as a two-way link between steps that have
+none) and the lint reported **zero findings**. The hand layout of the
+same graph was correct, also lint-clean, and took under two minutes
+first try. Happy-path-first removes that particular defect outright,
+which is why the recipe above is not optional.
+
+**Where it is worth it, narrowly:**
+
+- **`erDiagram` → domain, always.** 0.27s, no browser, a genuinely good
+  picture. Use it every time.
+- **Structural capture above ~20 nodes**, where the value is "everything
+  is on the canvas and correctly bound" rather than "it is laid out".
+  Fidelity is flawless at every size measured (5/8/12/20/34 nodes: counts
+  match, labels byte-identical, shapes and reflexive edges correct,
+  nothing dropped or invented). It is the *layout* that fails, never the
+  capture. Wall clock is flat at ~10–11s whatever the size — it is the
+  browser launch — so the argument is real at 34 nodes and absent at 5.
+- **`--from-skeletons` replay** (0.30s, offline).
+
+It is **not** worth it in the 8–15 node band this page used to target.
+
+**Two silent degradations to know about:**
+
+- **`layout: elk` is accepted and ignored** — it falls back to dagre with
+  no error and no note, producing byte-identical output (measured), and
+  the reason is that the ELK layout package is simply not installed.
+  Dagre is the only usable flowchart layout in this build; the converter
+  also ships `swimlane` and `cose-bilkent`, neither usable for
+  flowcharts. Do not spend a round on the frontmatter.
+- **Most mermaid node shapes degrade to a plain rectangle, silently.**
+  Read off the converter's own shape switch, these are all the distinct
+  results you can get: `[]` rectangle · `([])` and `()` rounded
+  rectangle, *indistinguishable from each other* · `(())` circle ·
+  `((()))` double circle · `{}` diamond. Everything else — `[(Cylinder)]`,
+  `[[Subroutine]]`, `{{Hexagon}}`, the trapezoids and parallelograms —
+  comes back as a plain rectangle with no warning, so `[(Database)]`
+  reads exactly like `[Step]`. Use the five that survive and carry the
+  rest as node kinds (`mod attrs.kind`) instead.
+
+Diamonds map to decisions, `([stadium])` stays rounded, edge labels ride
+along, `A --> A` routes as a reflexive loop. Immediately after seeding:
+classify the kinds (`mod attrs.kind` — mermaid can't carry them) and heed
+any label-run warnings by spreading nodes. Subgraphs are refused
+(converter limitation) — seed flat, add lanes as frames after.
+`--relayout` runs the same dagre over an existing messy flow as
+revertable `mod x/y` ops; it carries lane frames along with their members
+and names any node the user placed by hand before it moves anything.
 
 ## Semantic facts (what the differ gives you to narrate)
 
