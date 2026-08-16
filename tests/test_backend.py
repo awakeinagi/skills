@@ -56,6 +56,44 @@ def seed_flow_batch(base_revn=0):
     }
 
 
+def crossing_lint_control():
+    """The `passes through` warnings a scene that MUST produce one makes.
+
+    The firing pole for this file's clean-routing silences, added by
+    curator batch 24 (2026-08-16). Two acceptance assertions — the argus
+    ingest fan and gap-list item 1 — say a router produced no crossings,
+    and the mortality spike measured that both survive `passes_through_
+    foreign` being killed: a check answering nothing reports the same
+    empty list a clean route does, so "the fan routes clean" was a
+    statement about the lint's silence and not about the drawing.
+
+    Deliberately the crudest possible positive: A and Z on one rank with
+    a single straight run between them and F parked in the middle of it.
+    Nothing here is routed, fitted or bound to F, so the only way this
+    goes quiet is the check itself going quiet — which is exactly the
+    event the callers need separated from their own success. It is a
+    module-level function rather than a mixin because the two callers
+    sit in unrelated classes, one of them a fixture replay.
+
+    Returns:
+        The warning lines naming a foreign node on an arrow's path.
+        Callers assert the count; one is what this scene draws.
+    """
+    els = [{"id": "A", "type": "rectangle", "x": 0, "y": 100, "width": 80,
+            "height": 40, "customData": {"role": "node"}},
+           {"id": "F", "type": "rectangle", "x": 200, "y": 100, "width": 80,
+            "height": 40, "customData": {"role": "node"}},
+           {"id": "Z", "type": "rectangle", "x": 400, "y": 100, "width": 80,
+            "height": 40, "customData": {"role": "node"}},
+           {"id": "e1", "type": "arrow", "x": 80, "y": 120,
+            "points": [[0, 0], [320, 0]],
+            "startBinding": {"elementId": "A", "focus": 0, "gap": 1},
+            "endBinding": {"elementId": "Z", "focus": 0, "gap": 1},
+            "customData": {"role": "edge", "route": "server"}}]
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    return [w for w in lint["warnings"] if "passes through" in w]
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-test-"))
@@ -3696,11 +3734,46 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
         hanging 11px over empty canvas. This artifact is a real session
         someone drew and reviewed, so a shape warning here is a false
         positive until proven otherwise — the standing count is zero.
+
+        THE OVERHANGING SCENE RIDES THE SAME LOOP. Curator batch 24
+        (2026-08-16), against the mortality spike's §4c: "the standing
+        count is zero" is a claim about the DRAWINGS, and a check that
+        has stopped answering produces the same zero. This test survived
+        every one of the spike's 21 detector kills, which is the
+        definition of a pin that proves nothing about its own
+        instrument. A diamond carrying one unsplittable word wider than
+        its chord is the smallest scene the check must speak on, and it
+        goes through `canvas.project_lint` inside this loop — not beside
+        it — so a regression that silenced only the fixture arm still
+        fails here.
         """
-        for aid, r in self.lint_all().items():
-            self.assertEqual(
-                [w for w in r["warnings"] if "overhangs" in w], [],
-                "shape-overhang warning on %s" % aid)
+        text = "Unsplittable" * 3
+        firing = [{"id": "n1", "type": "diamond", "x": 0, "y": 0,
+                   "width": 200, "height": 100,
+                   "customData": {"role": "node"},
+                   "boundElements": [{"id": "t1", "type": "text"}]},
+                  {"id": "t1", "type": "text", "x": 0, "y": 40,
+                   "width": canvas.text_dims(text, 16)[0], "height": 20,
+                   "text": text, "originalText": text, "fontSize": 16,
+                   "textAlign": "center", "verticalAlign": "middle",
+                   "containerId": "n1"}]
+        results = dict(self.lint_all())
+        results[None] = canvas.project_lint(self.project, firing,
+                                            registry=self.store.registry,
+                                            artifact_type="flow")
+        spoke: list[str] = []
+        for aid, r in results.items():
+            hits = [w for w in r["warnings"] if "overhangs" in w]
+            if aid is None:
+                spoke = hits
+            else:
+                self.assertEqual(hits, [],
+                                 "shape-overhang warning on %s" % aid)
+        self.assertEqual(len(spoke), 1,
+                         "a word wider than the rhombus it sits in must "
+                         "still be reported, or the zeros above are about "
+                         "the check and not about the session; got %s"
+                         % spoke)
 
 
 class TestArgusR5Fixture(FixtureReplayBase):
@@ -4780,6 +4853,15 @@ class TestObstacleRouter(Base):
         diagonal = [w for w in lint["warnings"] if "diagonally" in w]
         self.assertEqual(crossing, [])
         self.assertEqual(diagonal, [])
+        # The firing pole, added by curator batch 24 (2026-08-16). The two
+        # silences above are what the r4 gap list closed on, and the
+        # mortality spike measured that they survive `passes_through_
+        # foreign` being killed outright — a check that answers nothing
+        # reports exactly this clean fan. Same `lint_layout` entry point,
+        # one node parked on the straight run between A and Z, so the
+        # emptiness above means the ROUTER did its job rather than that
+        # nobody was watching.
+        self.assertEqual(len(crossing_lint_control()), 1)
 
     def test_clean_pairs_still_route_straight(self):
         self.store.apply_batch(seed_flow_batch())
@@ -4915,11 +4997,16 @@ class TestArgusAcceptance(Base):
     def test_gap_list_closed(self):
         self._seed_argus()
         s = self.store
-        # 1 — the ingest fan routes clean (was: diagonals through boxes)
+        # 1 — the ingest fan routes clean (was: diagonals through boxes).
+        # The control is not optional: curator batch 24 measured that this
+        # assertion passes with `passes_through_foreign` dead, so without
+        # it gap-list item 1 closes on the lint saying nothing rather than
+        # on the router routing.
         lint = canvas.lint_layout(s.scenes["pipeline-flow"])
         self.assertFalse([w for w in lint["warnings"]
                           if "passes through" in w or "diagonally" in w],
                          lint["warnings"])
+        self.assertEqual(len(crossing_lint_control()), 1)
         # 2 — X-box composed; nested card lints as nesting, not collision
         dash = {e["id"]: e for e in s.scenes["dashboard-wireframe"]}
         self.assertIn("chart-equity-x1", dash)
@@ -10229,12 +10316,44 @@ class TestPhantomPassThrough(Base):
         argument for the narrowing: those 70 were every chained node of
         every correct flow, and the finding's own remedy would have
         degraded each of those drawings.
+
+        THE SYNTHETIC SCENE RIDES THE SAME LOOP, and that is the point of
+        it rather than a convenience. Curator batch 24 (2026-08-16) added
+        it against the mortality spike's §4c class: a CORPUS-WIDE SILENCE
+        has no firing anywhere in it by construction — a corpus that
+        fires is a corpus with a defect — so it is a pure absence, and a
+        `phantom_passthrough` patched to answer nothing reports exactly
+        the zero this test asserts and passes. Measured: it did. The zero
+        was load-bearing (it is quoted above as the scope argument) and
+        the measurement could not carry it.
+
+        Appending `_rank(200)` to the iteration rather than asserting it
+        separately is what makes the repair worth anything, per guide
+        rule 8's second half: the firing has to run THROUGH the entry
+        point under test, and here that is `_hits` inside this loop.
+        Assert it before the loop and a caching or artifact-type
+        regression that silenced the corpus arm alone would still pass.
+        `TestCorridorKind.test_no_frozen_artifact_contains_a_merged_
+        stroke` is the same shape reached from the other side: its corpus
+        genuinely produces corridors, so its own non-empty output is the
+        firing and no synthetic scene is needed.
         """
         root = Path(__file__).resolve().parent / "fixtures"
-        for path in sorted(root.rglob("*.excalidraw")):
-            doc = json.loads(path.read_text())
-            self.assertEqual(self._hits(doc.get("elements") or []), [],
-                             path.name)
+        scenes = [(p.name, json.loads(p.read_text()).get("elements") or [])
+                  for p in sorted(root.rglob("*.excalidraw"))]
+        spoke: list[str] = []
+        for name, els in [*scenes, (None, self._rank(200))]:
+            hits = self._hits(els)
+            if name is None:
+                spoke = hits
+            else:
+                self.assertEqual(hits, [], name)
+        self.assertEqual(len(spoke), 1,
+                         "the shared-attach chain fed through this same "
+                         "loop must fire, or the zero above is a "
+                         "statement about the lint and not about the "
+                         "corpus; got %s" % spoke)
+        self.assertIn("80px of it has arrow drawn over it", spoke[0])
 
 
 class TestDegenerateArrowGeometry(Base):

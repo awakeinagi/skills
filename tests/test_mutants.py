@@ -8906,6 +8906,44 @@ def _rect_stage() -> list[dict]:
     return scene
 
 
+def _rect_stage_gapped() -> list[dict]:
+    """`_rect_stage` with its straight arrow stopping 40px short of `r1`.
+
+    The FIRING pole for the endpoint family's rectangle control, added by
+    curator batch 24 (2026-08-16) against the mortality spike's §4a
+    finding: `diamond_facet_overfire` asserted `Silence("endpoint_gap")`
+    on BOTH of its slots, so an `endpoint_gap` that had stopped answering
+    at all passed the mutant AND its neighbour. That is guide rule 8's
+    archetype sitting in the catalogue since WP4 — a second absence
+    proves nothing — and the repair has to be a scene where the same
+    check SPEAKS.
+
+    A rectangle is the right shape to prove it on, and that is the whole
+    reason this builder is `_rect_stage`'s twin rather than a diamond:
+    for a rectangle the bbox IS the outline, so the shape-blindness the
+    diamond mutants pin cannot reach this reading. Whatever WP4 does to
+    the shape clip, 40px of white space between `a1`'s head and `r1`'s
+    left border stays 40px, and the finding stays live evidence that the
+    check runs.
+
+    One variable moves against `_rect_stage`: `a1`'s length, 160px to
+    120px. The fanned siblings `a2`/`a3` are untouched and still land on
+    the border, so a check that had started over-firing on any bound
+    arrow would fail the r4-1 guard here rather than pass this pole by
+    accident. Measured 2026-08-16: `endpoint_gap` on `a1`, 40.0px,
+    direction `outside`, and nothing on `a2`/`a3`.
+
+    Returns:
+        The eight-element `_rect_stage` scene with `a1` shortened.
+    """
+    scene = _rect_stage()
+    for element in scene:
+        if element["id"] == "a1":
+            element["points"] = [[0, 0], [120, 0]]
+            element["width"] = 120
+    return scene
+
+
 def _labelled_shape(shape: str, width: int = 200) -> list[dict]:
     """One node carrying a bound label right at the old fitter's budget.
 
@@ -10031,12 +10069,32 @@ _register(Mutant(
 
 # Over-fire: a perfect facet-midpoint attachment is called 25px inside the
 # shape, as an error. Flips when WP4 clips to the shape.
+#
+# NEIGHBOUR REPOINTED by curator batch 24 (2026-08-16), from
+# `Neighbour(_rect_stage, Silence("endpoint_gap"))`. The mortality spike
+# (§4a) computed the catalogue's silence pairings and found this entry the
+# one place where BOTH slots assert the same Silence: an `endpoint_gap`
+# patched to answer nothing passed the mutant and its control alike, so the
+# pin proved nothing about its own instrument. Guide rule 8's archetype,
+# and it had been here since WP4 — the neighbour's old comment said its
+# expectation was "the same as the other two diamond mutants, deliberately",
+# which was true and was the defect: those two pair their Silence with a
+# FindingSpec and this one inherited the scene without the firing.
+#
+# The rectangle SILENCE pole is not lost, which is what makes the repoint
+# cheap: `diamond_corner_silence` and `diamond_wrong_direction` both still
+# carry `Neighbour(_rect_stage, Silence("endpoint_gap"))`, so the r4-1
+# fanned-sibling over-fire guard is asserted twice over in green runs. What
+# was missing everywhere was a GREEN firing, and `_rect_stage_gapped` is it.
 _register(Mutant(
     "diamond_facet_overfire",
     build=_diamond_stage,
     op="unchanged", args={},
     expect=Silence("endpoint_gap"),
-    neighbour=Neighbour(_rect_stage, Silence("endpoint_gap"))))
+    neighbour=Neighbour(_rect_stage_gapped,
+                        FindingSpec("endpoint_gap", element="a1",
+                                    magnitude=(40, 0.30),
+                                    direction="outside"))))
 
 # Over-fire: the through-node test used the node's bbox, so an arrow
 # clipping the diamond's empty corner read as passing through it. FIXED by
@@ -11609,9 +11667,15 @@ class TestMutantCatalogue(unittest.TestCase):
         self._run("diamond_facet_overfire")
 
     def test_neighbour_diamond_facet_overfire(self) -> None:
-        """Fanned rectangle attachments stay endpoint-silent."""
-        # Same control and same expectation as the other two diamond
-        # mutants, deliberately — see `_run_neighbour`.
+        """A rectangle attachment 40px short of its border is named.
+
+        REPOINTED by curator batch 24 — this used to read "fanned
+        rectangle attachments stay endpoint-silent", which was a second
+        absence beside the mutant's own, and the two of them together
+        said nothing a dead `endpoint_gap` would not also say. The
+        catalogue entry carries the reasoning; the silence it gave up is
+        still asserted by the two sibling diamond mutants.
+        """
         self._run_neighbour("diamond_facet_overfire")
 
     def test_mutant_foreign_diamond_corner_overfire(self) -> None:
@@ -11742,8 +11806,42 @@ class TestMutantCatalogue(unittest.TestCase):
         broad criterion produced over 24 shipped artifacts all look like
         this pole, so an implementation that earns the red above by
         dropping the terminator test buys it back here.
+
+        THE THIRD SCENE below is curator batch 24's repair of the
+        mortality spike's §4a second finding (2026-08-16). Both this
+        neighbour and the mutant's own `expect` name
+        `phantom_passthrough`, and while the mutant is RED its expect is
+        not evidence — so in a green run nothing asserted the check fires
+        on this pin's geometry at all, and a dead `phantom_passthrough`
+        passed the neighbour. The spike offered a cross-reference to
+        `curved_foot_axis_misreads_phantom_passthrough` as the cheap
+        alternative and rejected it in the same breath, correctly:
+        comments do not fail.
+
+        Why a third scene rather than repointing the neighbour, which
+        would have been one catalogue line. The neighbour's Silence is
+        this mutant's whole discriminator — `headless` is the ONLY thing
+        that differs between the two scenes, so an implementation that
+        reports collinear in/out pairs regardless of terminators fires on
+        both and fails here. Swapping it for a FindingSpec would buy the
+        firing pole by spending the pair, which is the assertion. The
+        firing therefore rides beside it, on the same builder, through
+        the same entry point `_run_neighbour` uses: one foot moved onto
+        N's far border is the shared-attach chain, and 80px of N really
+        does have arrow drawn across it.
         """
         self._run_neighbour("headless_chain_reads_through_node")
+        # The live half. Same builder, same check, same `collect_findings`
+        # call the neighbour above is judged on, so a detector that has
+        # stopped answering fails HERE rather than passing both poles.
+        spoke = [f for f in collect_findings(_attach_chain(shared=True))
+                 if f["check"] == "phantom_passthrough"]
+        self.assertEqual(
+            [(f["element"], f["magnitude"]) for f in spoke], [("N", 80.0)],
+            "the shared-attach chain draws 80px of arrow across N and "
+            "`phantom_passthrough` should say so; got %s. Until it does, "
+            "the silence asserted just above is about the instrument and "
+            "not about the picture" % spoke)
 
     def test_mutant_ellipse_corner_overfire(self) -> None:
         """An arrow 27px clear of the circle draws no complaint."""
@@ -12602,8 +12700,136 @@ def red_bearing_classes() -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
+# Guide rule 8, as data: the catalogue Silences allowed to stand without a
+# paired firing on the same check in the same mutant's other slot, keyed by
+# `<mutant id>:<slot>` and carrying the reason the gate below prints.
+#
+# Built by curator batch 24 (2026-08-16) out of the mortality spike's §4a,
+# which computed the pairing over all 35 Silences by walking these very
+# objects and found seven unpaired. Two were defects and are repaired
+# (`diamond_facet_overfire`'s neighbour now fires, and
+# `headless_chain_reads_through_node`'s neighbour test asserts a third
+# scene's firing beside the pole). The five below are the legitimate ones,
+# and putting them here rather than in a paragraph is the point of the
+# table: an ASPIRATIONAL borrow stops being prose the next agent may not
+# read and becomes a row a flip has to DELETE, in the same change that
+# gives the check a pole of its own.
+#
+# Adding a row is a judgement, not a convenience. The only reason this
+# table accepts is "no firing pole can be constructed", and the four
+# borrows qualify for the strongest possible version of it — their checks
+# do not exist, so `Silence` on them passes vacuously and the neighbour is
+# a placeholder holding the mutant's shape until one does.
+RULE8_EXEMPT: dict[str, str] = {
+    "framed_node_escapes_its_lane:neighbour":
+        "ASPIRATIONAL borrow — its own check `frame_containment` has no "
+        "detector, so the partner FindingSpec is RED and no green firing "
+        "exists to pair with. Delete this row when the check lands",
+    "gray_text_on_ground:neighbour":
+        "ASPIRATIONAL borrow — partner `contrast_text` is RED and has no "
+        "detector. Delete this row when the check lands",
+    "pale_stroke_node:neighbour":
+        "ASPIRATIONAL borrow — partner `contrast_object` is RED and has no "
+        "detector. Delete this row when the check lands",
+    "tiny_font_text:neighbour":
+        "ASPIRATIONAL borrow — partner `min_font` is RED and has no "
+        "detector. Delete this row when the check lands",
+    "headless_chain_reads_through_node:neighbour":
+        "the Silence IS this mutant's discriminator — `headless` is the "
+        "only variable between the two scenes — so a FindingSpec here "
+        "would buy the pole by spending the assertion. The firing rides "
+        "beside it instead: `test_neighbour_headless_chain_reads_through_"
+        "node` asserts `phantom_passthrough` fires at 80px on "
+        "`_attach_chain(shared=True)` through the same `collect_findings` "
+        "call, and dies with the detector (stub-checked 2026-08-16)",
+}
+
+
 class TestCoverage(unittest.TestCase):
     """Spec §3: every detector is proven or named, never silently unproven."""
+
+    def test_every_catalogue_silence_has_a_firing_beside_it(self) -> None:
+        """Guide rule 8, executed over the catalogue rather than remembered.
+
+        For every `Silence` in the catalogue — in a mutant's `expect` or
+        in its neighbour's — require a `FindingSpec` on the SAME check in
+        the same mutant's OTHER slot, or a declared reason in
+        `RULE8_EXEMPT`. A pin that asserts a check is quiet and has no
+        firing beside it passes when that check answers nothing at all,
+        and cannot tell the two apart; the mortality spike measured
+        exactly that against `diamond_facet_overfire`, which had carried
+        `Silence("endpoint_gap")` on BOTH slots since WP4 with a comment
+        explaining that the repetition was deliberate.
+
+        A RED mutant's own `expect` is not evidence, the same rule
+        `coverage_table` applies one level up and for the same reason: a
+        FindingSpec under `@unittest.expectedFailure` records a finding
+        the check does NOT emit today, so pairing a green Silence against
+        it means nothing in a green run asserts the check fires.
+
+        SCOPE, stated because the gate's silence about the rest is not
+        evidence about them. This walks `CATALOGUE` objects only. The
+        hand-authored silences in this file, `test_backend.py` and the
+        render tier are NOT covered — a static classifier over
+        `assertEqual(<expr>, [])` was prototyped and rejected in the same
+        spike, because deciding whether a paired firing exists is not a
+        decidable-by-ast question and a gate that cries wolf on a third of
+        its hits gets suppressed. The instrument for those is the
+        empirical stub sweep, run at each phase gate.
+        """
+        for mid in sorted(CATALOGUE):
+            mutant = CATALOGUE[mid]
+            method = getattr(TestMutantCatalogue, "test_mutant_%s" % mid,
+                             None)
+            red = bool(getattr(method, "__unittest_expecting_failure__",
+                               False))
+            slots = (("expect", mutant.expect, mutant.neighbour.expect,
+                      True),
+                     ("neighbour", mutant.neighbour.expect, mutant.expect,
+                      not red))
+            for slot, here, other, other_counts in slots:
+                if not isinstance(here, Silence):
+                    continue
+                key = "%s:%s" % (mid, slot)
+                paired = (other_counts and isinstance(other, FindingSpec)
+                          and other.check == here.check)
+                with self.subTest(mutant=mid, slot=slot):
+                    self.assertTrue(
+                        paired or key in RULE8_EXEMPT,
+                        "%s asserts %s is SILENT and nothing in this "
+                        "mutant makes it FIRE — a detector answering "
+                        "nothing passes both poles. Pair it, or declare "
+                        "the reason in RULE8_EXEMPT"
+                        % (key, here.check))
+
+    def test_the_rule_eight_exemptions_cannot_rot(self) -> None:
+        """`RULE8_EXEMPT` may not outlive the pairings it excuses.
+
+        The same discipline `ASPIRATIONAL` carries, for the same reason:
+        an exception table nobody prunes becomes a list of pins that
+        stopped being read. Every row must name a real catalogue slot,
+        must carry a reason, and must still be UNPAIRED — the moment a
+        flip gives one of these Silences a firing partner the row is
+        obsolete and has to go, or the next reader cannot tell which of
+        the entries are live judgements.
+        """
+        for key, reason in sorted(RULE8_EXEMPT.items()):
+            mid, _, slot = key.partition(":")
+            with self.subTest(exemption=key):
+                self.assertIn(mid, CATALOGUE,
+                              "RULE8_EXEMPT names %r, which is not a "
+                              "mutant" % mid)
+                self.assertIn(slot, ("expect", "neighbour"),
+                              "RULE8_EXEMPT key %r names no slot" % key)
+                self.assertTrue(str(reason).strip(),
+                                "RULE8_EXEMPT %s has no reason" % key)
+                mutant = CATALOGUE[mid]
+                here = (mutant.expect if slot == "expect"
+                        else mutant.neighbour.expect)
+                self.assertIsInstance(
+                    here, Silence,
+                    "RULE8_EXEMPT %s excuses a slot that is not a "
+                    "Silence — the row has gone stale" % key)
 
     def test_every_detector_is_proven_or_named(self) -> None:
         """Every DETECTORS entry is either proven or carries an UNCOVERED reason."""

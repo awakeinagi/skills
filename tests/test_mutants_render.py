@@ -1608,20 +1608,32 @@ def _back_edge_with_label(where: str) -> list[dict]:
     return [src, dst, arr, lbl]
 
 
-@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
-                             "(starts a headless browser)")
-class TestRenderMutants(unittest.TestCase):
-    """The two render-tier detectors, each proven and each held silent."""
+class AblationLiveness:
+    """The `assertDetectorSpoke` half of `_with_liveness_ghost`.
+
+    A mixin rather than a method on one class because curator batch 24
+    (2026-08-16) found the same dead-pin shape in three more classes —
+    the composed content and furniture visibility pairs and the paint
+    order pin — and the alternative was three copies of one assertion.
+    Mixed in ahead of `unittest.TestCase` so the assertion helpers it
+    calls resolve normally.
+
+    It carries no scene knowledge on purpose: everything about WHICH
+    scene is in `_with_liveness_ghost`, so a class can adopt the pair
+    without inheriting anything else about how `TestRenderMutants`
+    builds its drawings.
+    """
 
     def assertDetectorSpoke(self, finds: list[dict]) -> None:
         """Fail unless `ablation_findings` reported the liveness ghost.
 
-        The other half of every silence-shaped assertion in this class,
-        paired with `_with_liveness_ghost` — read that function for the
-        measurement that made it necessary. A test asserting only that a
-        connector drew no findings cannot tell a whole connector from a
-        detector that has stopped answering, and four tests here were in
-        exactly that state until curator batch 23 swept for it.
+        The other half of every silence-shaped ablation assertion in this
+        file, paired with `_with_liveness_ghost` — read that function for
+        the measurement that made it necessary. A test asserting only
+        that a connector drew no findings cannot tell a whole connector
+        from a detector that has stopped answering, and four tests were
+        in exactly that state until curator batch 23 swept for it, with
+        eight more found by the mortality spike a day later.
 
         The whole projection is asserted rather than "z1 appears
         somewhere", so this also fails if ablation broke in the other
@@ -1640,6 +1652,12 @@ class TestRenderMutants(unittest.TestCase):
             "and not about the drawing — or ablation is reporting live "
             "elements as absent"
             % [(f["check"], f["element"]) for f in finds])
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestRenderMutants(AblationLiveness, unittest.TestCase):
+    """The two render-tier detectors, each proven and each held silent."""
 
     def test_ablation_existence_fires_on_invisible_element(self) -> None:
         """An element whose ablation changes no pixels is not in the picture.
@@ -1697,9 +1715,20 @@ class TestRenderMutants(unittest.TestCase):
         One variable moves — `strokeColor`, from `SVG_GROUND` back to the
         default `#1e1e1e` — so the difference in verdict is the styling
         and nothing else.
+
+        The ghost is curator batch 24's repair (2026-08-16). This was the
+        purest instance the mortality spike found — a bare
+        `assertEqual(ablation_findings(...), [])` and nothing else — so
+        `ablation_findings` patched to return `[]` passed it, and the
+        "detector that reports every element as missing" this docstring
+        claims to stand against was only half the hazard. The other half
+        is a detector that reports nothing at all, and it took the same
+        one-line fix three siblings in this class already carried.
         """
-        scene = tm._styled_scene()
-        self.assertEqual(ablation_findings(scene, ["n1"]), [])
+        scene = _with_liveness_ghost(tm._styled_scene())
+        finds = ablation_findings(scene, ["n1", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "n1"], [])
+        self.assertDetectorSpoke(finds)
 
     def test_ablation_of_the_bbox_defining_element_still_reads(self) -> None:
         """Ablating the element that sets the viewport's own left edge.
@@ -2069,13 +2098,20 @@ class TestRenderMutants(unittest.TestCase):
         deliberately. r5-14's stored path was provably correct while the
         picture was severed, so a test that read `label["x"]` back would
         have agreed with the drawing that was wrong.
+
+        The ghost is curator batch 24's repair (2026-08-16). Both
+        assertions below are absences, and the second was carrying the
+        first: "no existence finding" was read as proof the arrow drew
+        something, when it is equally what a detector that has stopped
+        answering reports. The spike measured it — this passed with
+        `ablation_findings` stubbed to `[]` — so the claim that the
+        PRODUCT places this label well needed an instrument demonstrably
+        awake in the same call to mean anything.
         """
-        scene = _elbow_with_label("routed")
-        finds = ablation_findings(scene, ["a1"])
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_continuity"], [])
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_existence"], [])
+        scene = _with_liveness_ghost(_elbow_with_label("routed"))
+        finds = ablation_findings(scene, ["a1", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "a1"], [])
+        self.assertDetectorSpoke(finds)
 
     def test_neighbour_back_edge_label_on_the_leg_is_silent(self) -> None:
         """A backdrop mid-way down the back edge's leg is the idiom, not a cut.
@@ -2091,14 +2127,20 @@ class TestRenderMutants(unittest.TestCase):
         down the leg at x~358 and 25 raster rows apart, which is the
         property `_completed_by_eye` claims to test and, since the
         residual mask reaches it, does.
+
+        The ghost is curator batch 24's repair (2026-08-16), and this
+        test is where the general lesson is cheapest to see: the comment
+        below used to read "silence is only meaningful if the arrow drew
+        something at all" over an assertion that `ablation_existence`
+        found NOTHING. That is a second absence introduced as a control,
+        which is the exact shape guide rule 8 exists to refuse — and the
+        mortality sweep confirmed it, passing this test with the detector
+        stubbed dead.
         """
-        scene = _back_edge_with_label("leg")
-        finds = ablation_findings(scene, ["a1"])
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_continuity"], [])
-        # Silence is only meaningful if the arrow drew something at all.
-        self.assertEqual([f for f in finds
-                          if f["check"] == "ablation_existence"], [])
+        scene = _with_liveness_ghost(_back_edge_with_label("leg"))
+        finds = ablation_findings(scene, ["a1", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "a1"], [])
+        self.assertDetectorSpoke(finds)
 
     def test_mutant_l_shaped_remnant_hides_a_severed_back_edge(self) -> None:
         """FLIPPED by v0.9 WP4 (Task 48). Kept its red-era name.
@@ -2704,7 +2746,7 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
                              "(starts a headless browser)")
-class TestPaintOrderInPixels(unittest.TestCase):
+class TestPaintOrderInPixels(AblationLiveness, unittest.TestCase):
     """A decoration at index 0 leaves the connector visible — in the raster."""
 
     def test_a_decoration_at_index_zero_leaves_the_connector_in_the_picture(
@@ -2734,12 +2776,25 @@ class TestPaintOrderInPixels(unittest.TestCase):
         four type-filtered buckets in a throwaway tree: this test fails
         and the index-1 pole below does not, because the buckets painted
         shapes after arrows either way round.
+
+        The ghost is curator batch 24's (2026-08-16). The ink magnitude
+        this docstring argues for is real and stays, but it is the
+        mortality spike's GRADE B: it measures the substrate and never
+        calls `ablation_findings`, so it closes "a scene that drew
+        nothing" and leaves "a detector that says nothing" wide open.
+        Measured — this test passed with the producer stubbed to `[]`.
+        Task #67 classified it PARTIAL for that reason and warned against
+        an ast guard that would flag it identically with the vacuous
+        ones; the distinction such a guard cannot make is that this row
+        needed a control ADDED, not one replaced.
         """
-        scene = tm._backdrop_scene(behind=True)
+        scene = _with_liveness_ghost(tm._backdrop_scene(behind=True))
+        finds = ablation_findings(scene, ["e1", "z1"])
         self.assertEqual(
-            ablation_findings(scene, ["e1"]), [],
+            [f for f in finds if f["element"] == "e1"], [],
             "the connector is declared AFTER the panel that covers it and "
             "must survive into the raster")
+        self.assertDetectorSpoke(finds)
         ink = _element_ink(scene, "e1")[0]
         # 348px measured; the +-10% band excludes 0 (erased entirely),
         # which is the whole defect and is what the other pole reads.
@@ -2813,7 +2868,7 @@ def _kpi_tile(fill: str) -> list[dict]:
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
                              "(starts a headless browser)")
-class TestComposedContentVisibility(unittest.TestCase):
+class TestComposedContentVisibility(AblationLiveness, unittest.TestCase):
     """A tile's own value must survive its owner's fill."""
 
     def test_composed_value_survives_its_opaque_owner_by_measurement(self
@@ -2889,13 +2944,27 @@ class TestComposedContentVisibility(unittest.TestCase):
         banding rather than fixed it, and reinstating a text-last pass in
         `render_svg` would have restored the export/canvas disagreement
         WP4 removed — the export would show a value the user cannot see.
+
+        RE-EARNED AT THE FLIP, one batch late (curator batch 24,
+        2026-08-16), and the delay is the lesson. While this was RED the
+        assertion "the check is silent" was the DEFECT's signature, and a
+        dead detector satisfying it tripped the unexpected-success alarm
+        — the red was self-guarding. The moment task 44 dropped the
+        marker the identical line began asserting HEALTH, and a dead
+        detector agrees with that too. So a mutant that had genuinely
+        pinned something became one that pins nothing while `mutants
+        list` went on counting it as a proven pole — worse in kind than a
+        weak neighbour, because it reads as coverage. The flip contract's
+        second half is exactly this: a flip re-earns its control in the
+        same change, and the ghost below is what that costs.
         """
-        scene = _kpi_tile("#e9e5da")
-        finds = ablation_findings(scene, ["k1-value"])
+        scene = _with_liveness_ghost(_kpi_tile("#e9e5da"))
+        finds = ablation_findings(scene, ["k1-value", "z1"])
         self.assertEqual(
-            finds, [],
+            [f for f in finds if f["element"] == "k1-value"], [],
             "the tile's own value is painted under the tile: %s"
             % [f["raw"] for f in finds])
+        self.assertDetectorSpoke(finds)
 
     def test_neighbour_a_transparent_owner_leaves_its_value_visible(self
                                                                     ) -> None:
@@ -2907,10 +2976,21 @@ class TestComposedContentVisibility(unittest.TestCase):
         pixel-clean and the hazard went unnoticed. Without it the red
         would be satisfied by a renderer that drew no composed content at
         all.
+
+        TWO CONTROLS, and curator batch 24 (2026-08-16) added the second
+        because the first turned out to answer a different question than
+        its comment claimed. The ink measurement closes "nothing was
+        drawn either way" — a real confound, worth closing, and it is
+        GRADE B in the mortality spike's vocabulary: a positive fact that
+        never calls the instrument under test. `ablation_findings`
+        stubbed to `[]` passed this test with the ink assertion in place,
+        because measuring the substrate says nothing about the detector
+        reading it. The ghost is the grade-A half.
         """
-        scene = _kpi_tile("transparent")
-        self.assertEqual(
-            ablation_findings(scene, ["k1-value"]), [])
+        scene = _with_liveness_ghost(_kpi_tile("transparent"))
+        finds = ablation_findings(scene, ["k1-value", "z1"])
+        self.assertEqual([f for f in finds if f["element"] == "k1-value"], [])
+        self.assertDetectorSpoke(finds)
         # Silence has to mean "the value is in the picture", never
         # "nothing was drawn either way", so pin that there was ink:
         # 309px measured 2026-08-14, the same glyphs the red loses.
@@ -2997,7 +3077,7 @@ def _control_composite(kind: str, fill: str,
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
                              "(starts a headless browser)")
-class TestComposedFurnitureVisibility(unittest.TestCase):
+class TestComposedFurnitureVisibility(AblationLiveness, unittest.TestCase):
     """A control's own state glyph must survive its owner's fill."""
 
     def test_composed_furniture_survives_its_opaque_owner_by_measurement(
@@ -3125,13 +3205,23 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         model-tier half of this is that class's banding pin: its `w1`
         (`body_of`) member moved out of band 1 in this same change, and
         its docstring argues the move rather than quietly absorbing it.
+
+        RE-EARNED AT THE FLIP, one batch late (curator batch 24,
+        2026-08-16) — the composed CONTENT red next door carries the
+        argument and it applies here word for word. This pin's
+        `assertEqual(finds, [])` was the defect's own signature while the
+        marker was on and became an assertion of health when task 45 took
+        it off, and only the first of those two readings is one a dead
+        `ablation_findings` fails.
         """
-        scene = _control_composite("checkbox", "#e9e5da", {"checked": True})
-        finds = ablation_findings(scene, ["f1-box", "f1-chk"])
+        scene = _with_liveness_ghost(
+            _control_composite("checkbox", "#e9e5da", {"checked": True}))
+        finds = ablation_findings(scene, ["f1-box", "f1-chk", "z1"])
         self.assertEqual(
-            finds, [],
+            [f for f in finds if f["element"] != "z1"], [],
             "the checkbox's own box and check stroke are painted under the "
             "tile that owns them: %s" % [f["raw"] for f in finds])
+        self.assertDetectorSpoke(finds)
 
     def test_neighbour_a_transparent_owner_leaves_the_check_visible(self
                                                                     ) -> None:
@@ -3153,11 +3243,19 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         why nothing noticed the defect for so long), so a regression
         that broke composed controls outright would fail here first and
         the opaque pins would only echo it.
+
+        The ghost is curator batch 24's (2026-08-16), on the same
+        measurement as the content neighbour next door: the ink
+        assertion below is grade B — a positive fact about the SUBSTRATE
+        that never calls the detector — so it left this pin passing with
+        `ablation_findings` stubbed dead. Both controls are kept; they
+        close different confounds.
         """
-        scene = _control_composite("checkbox", "transparent",
-                                   {"checked": True})
-        self.assertEqual(
-            ablation_findings(scene, ["f1-box", "f1-chk"]), [])
+        scene = _with_liveness_ghost(
+            _control_composite("checkbox", "transparent", {"checked": True}))
+        finds = ablation_findings(scene, ["f1-box", "f1-chk", "z1"])
+        self.assertEqual([f for f in finds if f["element"] != "z1"], [])
+        self.assertDetectorSpoke(finds)
         # Silence has to mean "the control is in the picture", so pin the
         # ink: 36px on the check stroke, 92px on its box, measured
         # 2026-08-14 — the state glyph the defect took, and the outline
@@ -4065,6 +4163,46 @@ def _short_frame_probe() -> list[dict]:
 class TestRenderParity(unittest.TestCase):
     """Do the two render paths agree about what they both claim to draw?"""
 
+    def assertParityInstrumentSpoke(self, scene: list[dict]) -> None:
+        """Fail unless `parity_findings` reports a deliberately short frame.
+
+        `ablation_findings`' liveness ghost has no analogue here — a
+        parity finding is about a frame and not about an element, so
+        there is nothing to append to the scene that must be clipped.
+        The `frame_pad` seam is the equivalent, and it was built for
+        precisely this: at a negative value the caller measures a frame
+        it has made too small itself, so the same function on the same
+        scene must assemble a real finding.
+
+        Curator batch 24 (2026-08-16), against the mortality spike's §4b.
+        The two silences this serves each carried an `_element_ink(...) >
+        0` control, which closes "the label drew nothing" and closes
+        nothing else — `parity_findings` stubbed to `return []` passed
+        both, because ink is the substrate and not the instrument. Guide
+        rule 8's second half: the firing has to go through the entry
+        point under test.
+
+        Magnitude and direction are deliberately NOT pinned here. Which
+        edges a shrunken frame cuts depends on glyph metrics for these
+        two text scenes, and this helper's claim is only that the
+        instrument is awake; `test_the_clip_instrument_still_sees_ink_
+        leave_a_short_frame` owns the magnitude and the edge naming, on
+        a filled box whose geometry is fixed.
+
+        Args:
+            scene: The same scene the caller just asserted silent at the
+                default frame.
+        """
+        finds = parity_findings(scene, ["t1"], frame_pad=-_TIGHTEN)
+        self.assertEqual(
+            [(f["check"], f["element"]) for f in finds],
+            [("parity_clipped", "t1")],
+            "a frame %dpx short on every side cut none of this label's "
+            "ink: %s. The silence asserted at the honest frame is then "
+            "about the instrument and not about the framing"
+            % (_TIGHTEN, finds))
+        self.assertGreater(finds[0]["magnitude"], 0)
+
     def test_shipped_classes_agree_on_what_they_render(self) -> None:
         """Markup in tier 1 and ink in tier 2 are the same answer, per class.
 
@@ -4330,6 +4468,7 @@ class TestRenderParity(unittest.TestCase):
         # that there was ink to lose: silence has to mean "framed whole",
         # never "absent from both frames".
         self.assertGreater(_element_ink(scene, "t1")[0], 0)
+        self.assertParityInstrumentSpoke(scene)
 
     def test_mutant_wrapped_text_overruns_the_frames_bottom(self) -> None:
         """FLIPPED by v0.9 task 46. Kept its red-era name.
@@ -4420,6 +4559,7 @@ class TestRenderParity(unittest.TestCase):
         # A text that drew nothing at all would satisfy that too: silence
         # has to mean "framed whole", never "absent from both frames".
         self.assertGreater(_element_ink(scene, "t1")[0], 0)
+        self.assertParityInstrumentSpoke(scene)
 
 
 class TestRenderParityRegime(unittest.TestCase):
