@@ -86,13 +86,22 @@ false junctions: parity with the hand layout, not superiority.
 
 **The honest ceiling.** An older version of this page claimed the seed
 was worth it above ~7 nodes. That is withdrawn — it was measured and it
-failed. At **8** nodes the seed drew a **relationship that does not
-exist in the source** (two opposite-facing arrowheads 11–31px apart on
-one horizontal run, reading as a two-way link between steps that have
-none) and the lint reported **zero findings**. The hand layout of the
-same graph was correct, also lint-clean, and took under two minutes
-first try. Happy-path-first removes that particular defect outright,
-which is why the recipe above is not optional.
+failed. At **8** nodes, one above the stated threshold, the seed drew a
+flow whose geometry was wrong in two ways at once: an arrow ending
+**60px clear of the decision node it claims to bind** (the lint reports
+that one as an ERROR), and two arrows whose final chords run **opposed
+and collinear, overlapping by 31px** — the signature of a two-way link
+between steps that have none. The hand layout of the same eight nodes
+was correct first try and took about two minutes. Happy-path-first
+removes the opposed-chord defect outright, which is why the recipe above
+is not optional.
+
+Read the second defect as a caution, not a count: with arrows now drawn
+curved, those two chords render as crossing arcs rather than one
+straight bar, and the bidirectional instrument is deliberately quiet
+about a 40px approach that bows 8px off its chord. What is durable is
+the shape of the failure — the seeder places nodes so that unrelated
+edges land on top of each other, and it does not know it has.
 
 **Where it is worth it, narrowly:**
 
