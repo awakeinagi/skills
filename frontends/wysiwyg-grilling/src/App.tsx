@@ -742,7 +742,26 @@ export default function App() {
             fr.onload = () => res(fr.result as string);
             fr.readAsDataURL(blob);
           });
-          await apiPost("/api/screenshot/complete", { id: req.id, data_url: dataUrl });
+          // what this tab knows and the server can only re-derive: how
+          // many bytes left here, and off what canvas. The server checks
+          // the file it ends up holding against both (canvas.py,
+          // `validate_png`). The byte count is the load-bearing one — a
+          // payload truncated in transit keeps a valid PNG header and a
+          // plausible density, so nothing on that side can see it
+          // otherwise. Best effort throughout: a browser without
+          // createImageBitmap posts the count alone, and the server
+          // takes a report with fields missing (or with none at all,
+          // which is what every bundle older than this one sends).
+          let framed: { png_w: number; png_h: number } | null = null;
+          try {
+            const bmp = await createImageBitmap(blob);
+            framed = { png_w: bmp.width, png_h: bmp.height };
+            bmp.close();
+          } catch { /* older browser — the byte count still ships */ }
+          await apiPost("/api/screenshot/complete", {
+            id: req.id, data_url: dataUrl, bytes: blob.size,
+            artifact: aid, ...framed,
+          });
         } catch (e: any) {
           console.error("screenshot failed", e);
         }
