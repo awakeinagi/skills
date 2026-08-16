@@ -316,7 +316,12 @@ answer to a pinned question resolves the pin (`resolve_pin`, narrated).
 Write path: `canvas.py apply --file batch.json` (or stdin). The server
 validates the whole batch, applies atomically, writes a save record
 (`author: agent`), and answers with the revn + headline. Errors name the
-offending op — fix and resend; nothing partial ever lands. A 409 means your
+offending op — fix and resend; nothing partial ever lands. The one
+exception is a message starting `internal error`, the backstop for a fault
+nobody predicted: it names the exception instead of an op, and it says in
+its own words what the store was left holding — normally `nothing partial
+landed`, but if the write had already begun it tells you the revision is
+only partly written and to re-read the project. A 409 means your
 `base_revn` is stale: re-read `status` and rebase.
 
 ```json

@@ -224,6 +224,18 @@ class TestFailurePathAtomicity(unittest.TestCase):
         guard restores: `rename_artifact` mutates `artifact_meta` (and
         is the one op whose new name also belongs in the artifact FILE),
         `set_round` mutates the registry.
+
+        WHAT THE AGENT IS HANDED is asserted here too, as of the v0.9
+        envelope task, and the change is a tightening rather than a
+        move: this used to expect the bare `RuntimeError` to propagate,
+        which pinned the ABSENCE of an envelope on a path whose subject
+        was never the exception type — the docstring above says the
+        guard cannot ask what raised, and the same is true of the test.
+        A raw traceback out of `apply_batch` is the r4-11 defect, so the
+        commit-side backstop now converts it. Both halves of the old
+        claim survive inside the new one: the envelope's message names
+        `RuntimeError` verbatim, and `__cause__` is the original
+        exception, so nothing about the crash has become unobservable.
         """
         before = self.snapshot()
         before_meta = json.dumps(self.store.artifact_meta, sort_keys=True)
@@ -231,7 +243,7 @@ class TestFailurePathAtomicity(unittest.TestCase):
         before_file = path.read_bytes()
         boom = mock.Mock(side_effect=RuntimeError("boom"))
         with mock.patch.object(self.store, "_parse_kinds", boom), \
-                self.assertRaises(RuntimeError):
+                self.assertRaises(canvas.BatchError) as caught:
             self.store.apply_batch(
                 {"base_revn": self.store.head_revn(),
                  "artifact": "checkout-flow",
@@ -249,6 +261,11 @@ class TestFailurePathAtomicity(unittest.TestCase):
                          before_meta)
         self.assertEqual(path.read_bytes(), before_file,
                          "the crash left the rename in the artifact file")
+        said = "\n".join(caught.exception.errors)
+        self.assertIn("internal error committing the batch", said, said)
+        self.assertIn("RuntimeError", said, said)
+        self.assertIn("nothing partial landed", said, said)
+        self.assertIsInstance(caught.exception.__cause__, RuntimeError)
 
     def test_checking_the_same_batch_leaves_the_registry_byte_identical(
             self) -> None:

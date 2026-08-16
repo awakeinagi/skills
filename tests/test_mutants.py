@@ -6852,9 +6852,28 @@ class TestBatchPathIntegrity(unittest.TestCase):
                          "Renamed Ghost")
 
     # The E-9 envelope's WIDTH, curator batch 25 (2026-08-16), from
-    # spike-e9-backstop.md §6's D-1/D-2. The two reds below are PINS ONLY:
-    # their fix is the wave-tail E-9 envelope task's, never a curator's, and
+    # spike-e9-backstop.md §6's D-1/D-2. The two reds below were PINS ONLY:
+    # their fix was the wave-tail E-9 envelope task's, never a curator's, and
     # never the same hands that wrote the acceptance test (run 5's lesson).
+    # BOTH ARE GREEN as of v0.9 TASK-E9ENVELOPE. What follows is kept in the
+    # tense it was written in, because it is the measurement the fix was
+    # aimed at and re-tensing it would quietly turn a record into a claim.
+    #
+    # RE-MEASURED AGAIN at the fix's own head (286a5cb), and the surface was
+    # wider a THIRD time. The note below records 18 escapes across four call
+    # sites from 56 batches; sweeping eight bad values across every field of
+    # every op kind (209 batches) found 39 raw escapes on apply across SIX
+    # sites and 53 on `--check` across NINE, plus 21 batches accepted with
+    # unusable geometry stored and 11 where `--check` answered `ok: True`
+    # for a batch that crashes or corrupts on apply. Two sites are named
+    # here for the first time: `headline_for` (a non-string pin `question`,
+    # commit-side) and `lint_layout`/`bbox_pts`/`describe`, which are
+    # reached ONLY from the dry run — `check_batch` lints a would-be scene
+    # that the apply path never lints, so the surface an agent reaches for
+    # to avoid a crash had more crash sites than the one it was avoiding.
+    # The lesson is the one the curator drew and it has now held three
+    # times: measure at your own head, and widen the sweep before trusting
+    # the count you inherited.
     #
     # They sit under `test_red_a_non_dict_op_escapes_check_batch_as_a_bare_
     # crash` above and finish the sentence it started. That red closed the
@@ -6920,7 +6939,6 @@ class TestBatchPathIntegrity(unittest.TestCase):
                                       "height": 60}}],
     }
 
-    @unittest.expectedFailure
     def test_red_a_malformed_field_escapes_the_batch_path_raw(self) -> None:
         """Four field values leave `apply_batch` as bare Python tracebacks.
 
@@ -6974,6 +6992,37 @@ class TestBatchPathIntegrity(unittest.TestCase):
         and not this file. The four cases are one per call site on
         purpose, so a partial fix flips a subTest at a time and the
         failure names which site is still open.
+
+        FLIPPED by v0.9 TASK-E9ENVELOPE, and the per-site structure did
+        the job it was built for — the fix was staged one rule at a time
+        and each rule flipped its OWN subTests and no others, which is
+        the evidence that the four sites are independently covered
+        rather than jointly closed by one lucky change:
+
+            gate off, envelopes only   11 of 11 still failing
+            + the `id` rule            both pin-id cases flip (4)
+            + the `customData` rule    that case flips (2)
+            + the geometry rule        `width` flips, and D-2's 3 with it
+            full gate                  0 failing
+
+        The `gate off` row is the load-bearing one and it is why the
+        message assertions are here rather than a bare `assertRaises`.
+        With the envelopes in and the field gate out, all four faults do
+        come back as `BatchError` on both surfaces — and every subTest
+        still fails, because an envelope can say `internal error … —
+        TypeError` without being able to say WHICH op, and the dry run
+        still answered `ok: True` for the non-string pin id. Converting
+        the traceback was never the whole contract; naming the op was.
+
+        WHAT FIXED IT, per site: `op_field_faults`, a per-op field gate
+        in `_validate_batch`'s pre-scan, refusing a non-string `id`
+        (which closes both the unhashable case in the walk and the
+        `det_seed` case two call sites further on, from one rule), a
+        non-dict `customData`, and any geometry value that is not a
+        finite number. Because the gate sits in the code path BOTH
+        surfaces share, `--check` cannot disagree with apply about these
+        by construction — that is the fix's argument, not a coincidence
+        the check half happens to observe.
         """
         for name, ops in self._E9_ESCAPES.items():
             with self.subTest(case=name, surface="apply"):
@@ -7030,7 +7079,6 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     "behind, so the reds beside it are measuring a store "
                     "that drops batches: %r" % (name, landed))
 
-    @unittest.expectedFailure
     def test_red_a_malformed_field_is_accepted_and_stored_as_geometry(
             self) -> None:
         """Three batches land, storing values that are not numbers.
@@ -7042,15 +7090,39 @@ class TestBatchPathIntegrity(unittest.TestCase):
         renderer, the export, the client — is handed a scene whose
         geometry cannot be arithmetic on.
 
-        THE ASYMMETRY IS THE FINDING, not the individual values, and it
-        is inside ONE function. `_round_geom` raises on a NaN `width`
-        (that is D-1's fourth case, two tests up) and silently coerces a
-        NaN inside `points` to `0`. Same function, same species of input,
-        two behaviours, and neither is the third option a caller can act
-        on — an enveloped refusal. The `angle` case is here because the
-        re-measurement found it and the spike did not: it is a third
-        behaviour again, stored raw with no rounding pass reaching it at
-        all.
+        THE ASYMMETRY IS THE FINDING, not the individual values. As
+        filed it was described as living inside ONE function —
+        `_round_geom` raising on a NaN `width` (D-1's fourth case, two
+        tests up) while silently coercing a NaN inside `points` to `0`.
+        **That attribution was wrong, and TASK-E9ENVELOPE measured it
+        wrong before fixing anything.** `_round_geom(float("nan"))`
+        raises, full stop, on every field it is handed including the
+        coordinates inside `points`. The NaN in `points` never reaches
+        it: traced live, it is dropped in `fan_attach_points`, which
+        rebuilds an arrow's polyline from its endpoints for reasons that
+        have nothing to do with validation and takes the NaN out as a
+        side effect. So the two behaviours were never one function's
+        decision about bad input — they were two unrelated functions
+        that happened to be handed it, which is a stronger argument for
+        ruling at the door than the version in the file was. The
+        `angle` case is a third behaviour again, and that part stands:
+        stored raw, with no rounding pass reaching it at all.
+
+        THE RULING, recorded because the brief asked for one either
+        way: REFUSE, at the validator, for all of it. Coercion was the
+        rival and it loses on three counts. There is no honest value to
+        coerce TO — a NaN `x` becomes 0 and the element silently lands
+        on the origin, on top of whatever is already there, which is the
+        wrong-picture-told-confidently failure this whole campaign is
+        about. Neither existing behaviour was a considered policy worth
+        generalising: one is `int(round(nan))` raising by accident of
+        the stdlib, the other is an arrow repair pass. And only a
+        refusal can name the op — `_round_geom` is handed one scalar
+        with no op index, no field name and no artifact, so the contract
+        SKILL.md states is not even expressible there. `_round_geom` is
+        left exactly as it was: after the gate no batch-borne NaN
+        reaches it, and it still guards the paths that do not come
+        through a batch.
 
         MAGNITUDE AND DIRECTION for a storage defect are what the STORE
         ends up holding, so that is what is asserted: every geometry
@@ -7067,16 +7139,27 @@ class TestBatchPathIntegrity(unittest.TestCase):
         reds and it is deliberately not a demand for one fix — the fix's
         shape belongs to the wave-tail E-9 envelope task that owns D-1.
 
-        THREE OF THE FOUR ARE RED TODAY, measured 2026-08-16, and the
-        fourth is here BECAUSE it passes. The NaN inside `points` is the
-        coercion arm — `_round_geom` turns it into `[[0, 0], [1, 1]]`,
-        which is numeric, which this predicate accepts. It is carried
-        rather than dropped for two reasons: it is the other half of the
-        asymmetry the paragraph above is about, so deleting it would
-        leave that claim citing a case the file no longer contains; and
-        it holds the coercion down, so a later change that made this
-        route raise raw like its `width` sibling would turn a quiet pass
-        into a fourth red instead of going unnoticed.
+        THREE OF THE FOUR WERE RED as filed, measured 2026-08-16, and
+        the fourth was here BECAUSE it passed. The NaN inside `points`
+        was the coercion arm — it arrived stored as `[[0, 0], [1, 1]]`,
+        which is numeric, which this predicate accepts — and it was
+        carried rather than dropped so that the asymmetry claim above
+        kept citing a case the file still contained. It is now refused
+        like the other three, so all four take the same route and the
+        subTest that used to pass by coercion passes by refusal
+        instead. That is a real change in what it holds down and it is
+        worth naming: this case no longer guards the coercion, it
+        guards the ruling. A change that reinstated silent coercion
+        anywhere on the batch path would leave it green, and the thing
+        that would catch that is the D-1 red's message assertions, not
+        this one.
+
+        FLIPPED by v0.9 TASK-E9ENVELOPE. All four are refused by the
+        geometry half of `op_field_faults`, and the sweep behind the fix
+        is what says the predicate is met rather than the literals: 209
+        malformed batches through `apply_batch` stored 21 unusable
+        geometries at 286a5cb and store 0 after, with the legal poles
+        below still landing.
         """
         cases: dict[str, tuple[str, Any]] = {
             "a string where a coordinate belongs": ("x", "left"),
@@ -7203,6 +7286,209 @@ class TestBatchPathIntegrity(unittest.TestCase):
         if isinstance(v, bool) or not isinstance(v, (int, float)):
             return False
         return v == v and v not in (float("inf"), float("-inf"))
+
+    # The FIRING POLES for the three envelope arms TASK-E9ENVELOPE added
+    # (v0.9, 2026-08-16). They exist because the two reds above cannot
+    # reach them: the field gate refuses those four inputs before any
+    # envelope runs, so the reds now prove the GATE and say nothing at
+    # all about the backstop behind it. An `except Exception` that
+    # nothing evaluates is the dead-detector shape this repo keeps
+    # finding, and the E-9 spike was written about precisely that — the
+    # one arm that existed had no firing proof for two versions and a
+    # census generalised its silence into "unreachable".
+    #
+    # `TestPinIdentityIntegrity`'s pole covers the fourth arm
+    # (`apply_ops`) and is deliberately not duplicated here. These are
+    # its siblings, one per arm the envelope gained, and each injects
+    # into a DIFFERENT leaf so a single over-broad `try` cannot satisfy
+    # them all: `role_of` runs in the pre-scan before the walk,
+    # `_check_tripwires` inside the commit window before any write, and
+    # `write_json` inside the persist block past the point of no return.
+    # The spike confirmed those boundaries by contrast before any of
+    # this existed, which is why they are the injection points.
+
+    def _legal_add(self) -> list[dict[str, Any]]:
+        """One ordinary, legal batch — the carrier for every injection.
+
+        Shared so the fault is the only variable between a firing pole
+        and the quiet pole below. A batch that differed between them
+        would prove the batches differ, not that the envelope fired.
+
+        THE REGISTRY OP IS LOAD-BEARING and was added after a mutation
+        check caught its absence. With the `add` alone, `commit` mutates
+        NOTHING before the commit-window injection point — no pin
+        lifecycle to run, no created meta to seed, no registry op to
+        apply — so deleting the restore that pole exists to guard left
+        the whole class green. `set_round` writes into the registry
+        early in the commit window, which is what gives the pole
+        something to find un-restored.
+
+        Returns:
+            An op list adding `n2` clear of the seeded `n1`, and setting
+            the round, in that order.
+        """
+        return [{"op": "add", "element": {
+            "type": "rectangle", "id": "n2", "label": "N2", "x": 300,
+            "y": 0, "width": 100, "height": 60, "role": "node"}},
+            {"op": "registry", "action": "set_round", "round": 7}]
+
+    def test_the_legal_batch_lands_with_nothing_injected(self) -> None:
+        """The quiet pole all four injections are measured against.
+
+        Asserting both effects ARRIVE rather than that nothing raised: a
+        batch silently dropped raises nothing either, and a carrier the
+        store had started refusing for a reason of its own would make
+        every pole below read as a firing envelope. The registry half is
+        asserted for the same reason it is in the batch — a `set_round`
+        that had stopped writing would make the commit pole's restore
+        assertion vacuous without making it fail.
+        """
+        store, _ = self._store()
+        self.assertIsNone(self._send_ops(store, self._legal_add()))
+        self.assertIn("n2", self._ids(store))
+        self.assertEqual(store.registry["round"], 7)
+
+    def test_a_fault_in_the_prescan_comes_back_as_the_envelope(
+            self) -> None:
+        """A fault BEFORE the `try` is enveloped, on both surfaces.
+
+        `role_of` is called from `_validate_batch`'s pin scan, which
+        runs before the `apply_ops` call the original envelope was
+        written on — the spike injected here to demonstrate the
+        boundary and got `RAW:RuntimeError` for its trouble. That raw
+        escape is what this now refuses to allow back.
+
+        The check half matters more than the apply half and is the
+        reason this is one test rather than two: `check_batch`'s own
+        docstring promises it never raises, so a caller reaching for the
+        dry run precisely to avoid a try/except was handed the
+        traceback anyway. Asserting the payload contract — `ok` is
+        False and the errors are IN it — rather than an exception type,
+        because that is what the docstring actually says.
+        """
+        store, _ = self._store()
+        with mock.patch.object(canvas, "role_of",
+                               side_effect=RuntimeError("injected fault")):
+            escaped = self._send_ops(store, self._legal_add())
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "a pre-scan fault escaped as %r — the agent gets a raw "
+            "traceback from the half of the pipeline the E-9 envelope "
+            "never covered" % (escaped,))
+        said = "\n".join(escaped.errors)
+        self.assertIn("internal error validating the batch", said, said)
+        self.assertIn("RuntimeError", said, said)
+        self.assertIn("nothing partial landed", said, said)
+        store2, _ = self._store()
+        with mock.patch.object(canvas, "role_of",
+                               side_effect=RuntimeError("injected fault")):
+            out = store2.check_batch({"base_revn": store2.head_revn(),
+                                      "artifact": "flow",
+                                      "ops": self._legal_add()})
+        self.assertFalse(out["ok"], out)
+        self.assertTrue(
+            any("internal error validating the batch" in e
+                for e in out["errors"]),
+            "the dry run leaked the pre-scan fault: %r" % (out["errors"],))
+
+    def test_a_fault_in_the_commit_window_leaves_nothing_behind(
+            self) -> None:
+        """A fault AFTER the `try` is enveloped, and the claim is true.
+
+        The envelope's sentence says "nothing partial landed", and on
+        this side that is a claim about state rather than about wording,
+        so the state is what is asserted first. `commit` mutates the
+        registry and the artifact meta while the batch is still
+        deciding — the pin lifecycle, the created-artifact seed — and
+        r5-8 fixed that for the registry-op arm ALONE. A fault anywhere
+        else in the window kept those writes and then handed the caller
+        a raw traceback about something unrelated.
+
+        `_check_tripwires` is the injection point because it runs late
+        in that window: after the pin lifecycle and the registry ops
+        have both written, and before the persist block. That ordering
+        is exactly what makes the pole discriminating — commit's own
+        r5-8 guard wraps the `_apply_registry_ops` CALL, so it has
+        already let go by the time this fault arrives, and only the
+        caller's restore can put `round` back.
+        """
+        store, _ = self._store()
+        self._with_mappings(store)
+        before = json.dumps(store.registry, sort_keys=True, default=str)
+        with mock.patch.object(canvas.Store, "_check_tripwires",
+                               side_effect=RuntimeError("injected fault")):
+            escaped = self._send_ops(store, self._legal_add())
+        self.assertEqual(
+            json.dumps(store.registry, sort_keys=True, default=str), before,
+            "a crash inside the commit window left the registry carrying "
+            "a rejected batch's writes")
+        self.assertNotIn("n2", self._ids(store))
+        self.assertIsInstance(escaped, canvas.BatchError, "%r" % (escaped,))
+        said = "\n".join(escaped.errors)
+        self.assertIn("internal error committing the batch", said, said)
+        self.assertIn("nothing partial landed", said, said)
+
+    def test_a_fault_while_persisting_does_not_claim_nothing_landed(
+            self) -> None:
+        """Past the point of no return the envelope changes its story.
+
+        The one arm that must NOT say "nothing partial landed", and the
+        assertion is written as the absence of that phrase because this
+        is the case where it would be a lie: the persist block writes
+        the record file, then the artifact files, then the registry, so
+        a fault between two of them leaves a revision half on disk. An
+        envelope that reported the standard sentence here would be
+        worse than the traceback it replaced — the traceback at least
+        does not make a false promise about the store.
+
+        `write_json` is injected at the FIRST write, so the surrounding
+        claim (`revision N is only partly written`) is the pessimistic
+        reading rather than a description of this particular fault. It
+        is pessimistic on purpose: the block cannot know how far it got,
+        and "re-read the project" is the only advice that is right
+        whichever write failed.
+        """
+        store, _ = self._store()
+        with mock.patch.object(canvas, "write_json",
+                               side_effect=RuntimeError("injected fault")):
+            escaped = self._send_ops(store, self._legal_add())
+        self.assertIsInstance(escaped, canvas.BatchError, "%r" % (escaped,))
+        said = "\n".join(escaped.errors)
+        self.assertIn("internal error persisting the batch", said, said)
+        self.assertIn("only partly written", said, said)
+        self.assertNotIn(
+            "nothing partial landed", said,
+            "the persist arm inherited the pre-write sentence and is now "
+            "promising the agent something this path cannot deliver")
+
+    def test_a_fault_reading_the_batch_back_is_answered_not_raised(
+            self) -> None:
+        """The dry run's OWN work is enveloped too, not just the shared half.
+
+        `check_batch` does something `apply_batch` never does: it lints
+        and echoes a would-be scene. Those calls are the dry run's alone,
+        so an agent that ran `--check` to find out whether a batch was
+        safe could be crashed by a code path the apply it was checking
+        would never have entered. The re-measurement found eight such
+        cases before the field gate refused their input.
+
+        Asserted as a returned payload, never as an exception, because
+        the whole contract of this surface is that it answers.
+        """
+        store, _ = self._store()
+        with mock.patch.object(canvas, "project_lint",
+                               side_effect=RuntimeError("injected fault")):
+            out = store.check_batch({"base_revn": store.head_revn(),
+                                     "artifact": "flow",
+                                     "ops": self._legal_add()})
+        self.assertFalse(out["ok"], out)
+        self.assertTrue(
+            any("internal error reading the batch back" in e
+                for e in out["errors"]),
+            "the dry run leaked a fault from its own reading half: %r"
+            % (out["errors"],))
+        self.assertEqual(out["elements"], [],
+                         "a refusal answered with a scene: %r" % (out,))
 
 
 # ---------------------------------------------------------------------------
@@ -13626,7 +13912,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 3,
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestBoundsLoopReadsTheLineHeight": 1,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
                              "TestInkExtentIsRotationBlind": 1,

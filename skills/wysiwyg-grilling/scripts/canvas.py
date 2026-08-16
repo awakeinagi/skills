@@ -3541,6 +3541,204 @@ def index_fault(value, limit=None):
     return None
 
 
+# Every element field the pipeline beneath treats as a POSITION or a
+# SIZE. `angle` is in the list because the sweep behind this gate found
+# it stored raw — no rounding pass reaches it — so a NaN angle survived
+# all the way onto disk while a NaN width died in the normalizer.
+GEOM_FIELDS = ("x", "y", "width", "height", "angle")
+
+
+def drawable_number(value: Any) -> bool:
+    """Whether one geometry value is something a renderer can measure.
+
+    `bool` is refused for `index_fault`'s reason read onto geometry: it
+    is an `int` subclass, so a JSON `true` reads as x=1 and the element
+    lands a pixel off the origin instead of being questioned. Infinity
+    and NaN are refused because the drawing they describe does not
+    exist — there is no picture to render and no honest number to
+    coerce them to.
+
+    Args:
+        value: A candidate coordinate, dimension or angle, exactly as it
+            came off the wire.
+
+    Returns:
+        True for a finite `int` or `float` that is not a `bool`.
+    """
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value))
+
+
+def element_field_faults(spec: dict[str, Any]) -> list[str]:
+    """Say why one element spec cannot be stored, field by field.
+
+    Split from `op_field_faults` because an `add` carries its spec under
+    `element` while a `mod` carries the same fields under `attrs`, and
+    both reach the same writers — the sweep found `x: NaN` escaping from
+    both doors, so a check on one door alone leaves the other open.
+
+    Args:
+        spec: An `add` op's `element` block or a `mod` op's `attrs`
+            block. Absent fields are legal and skipped: an arrow has no
+            `angle` and a rectangle no `points`.
+
+    Returns:
+        A phrase per fault, each ready to follow `"op N (add): "`.
+        Empty when every field present can be stored.
+    """
+    faults = []
+    eid = spec.get("id")
+    if eid is not None and not isinstance(eid, str):
+        faults.append("needs a string `id`, got %r" % (eid,))
+    cdata = spec.get("customData")
+    if cdata is not None and not isinstance(cdata, dict):
+        faults.append("needs a `customData` object, got %r" % (cdata,))
+    for field in GEOM_FIELDS:
+        value = spec.get(field)
+        if value is not None and not drawable_number(value):
+            faults.append("needs a finite number for `%s`, got %r"
+                          % (field, value))
+    pts = spec.get("points")
+    if pts is not None and not isinstance(pts, list):
+        faults.append("needs a list of [x, y] `points`, got %r" % (pts,))
+    elif isinstance(pts, list):
+        for j, p in enumerate(pts):
+            if not isinstance(p, (list, tuple)) or len(p) < 2:
+                faults.append("`points`[%d] is not an [x, y] pair, got %r"
+                              % (j, p))
+            elif not (drawable_number(p[0]) and drawable_number(p[1])):
+                faults.append("`points`[%d] needs finite numbers, got %r"
+                              % (j, p))
+    return faults
+
+
+def op_field_faults(op: dict[str, Any]) -> list[str]:
+    """Say why one op's field VALUES cannot be acted on, or nothing.
+
+    The shape gate above this one asks whether an op is an object at
+    all; this asks whether the object's fields are the types the code
+    beneath assumes. Between them they are the reason a malformed batch
+    comes back as an error naming the op rather than as a traceback:
+    sweeping 209 malformed batches through `apply_batch` at 286a5cb
+    found 39 raw escapes and 21 batches ACCEPTED with unusable geometry
+    stored, and every one of them is a field this predicate now reads.
+
+    `id` is checked for every op kind that carries one, from a single
+    rule, because identity is a string in every consumer beneath: it is
+    a dict key in each index the pipeline builds (so a dict or a list
+    dies on `unhashable type` in the pre-scan), and `normalize_element`
+    hands it to `det_seed`, which calls `.encode` on it for the render
+    seed (so an int dies much later, inside the COMMIT, in a function
+    the spike never reached and the curator's sweep found only by
+    widening past it). One rule closes a fault on each side of the
+    pipeline, which is the argument for checking identity once rather
+    than at each consumer.
+
+    Args:
+        op: One op from a batch, already known to be a dict.
+
+    Returns:
+        A phrase per fault, each ready to follow `"op N (kind): "`.
+        Empty for an op whose fields can all be acted on. Registry ops
+        return empty: their fields are dispatched and validated by
+        `_apply_registry_ops`, which names its own faults.
+    """
+    kind = op.get("op")
+    if kind == "registry":
+        return []
+    if kind == "add":
+        spec = op.get("element")
+        if not isinstance(spec, dict):
+            spec = {k: v for k, v in op.items() if k != "op"}
+        return element_field_faults(spec)
+    faults = []
+    eid = op.get("id")
+    if eid is not None and not isinstance(eid, str):
+        faults.append("needs a string `id`, got %r" % (eid,))
+    if kind == "pin":
+        question = op.get("question")
+        if question is not None and not isinstance(question, str):
+            faults.append("needs a string `question`, got %r" % (question,))
+    if kind == "mod" and isinstance(op.get("attrs"), dict):
+        faults.extend(element_field_faults(op["attrs"]))
+    return faults
+
+
+ENVELOPE_AFTERMATH = "the batch was rejected whole; nothing partial landed"
+
+
+def _check_rejected(aid: str | None, errors: Sequence[str]) -> dict[str, Any]:
+    """The dry run's refusal payload, with every key its caller reads.
+
+    One builder behind all four of `check_batch`'s refusals. The two
+    that existed before the envelope work were byte-identical, so this
+    is not a drift being repaired — it is the count going from two to
+    four that makes hand-maintained copies the wrong shape. The payload
+    is a contract with the CLI and the server, both of which read keys
+    like `elements` unconditionally, so a refusal that omitted one
+    would hand its caller a `KeyError` from the surface it reached for
+    precisely to avoid an exception.
+
+    Args:
+        aid: The artifact the batch named, or None when it named none.
+        errors: Why the batch was refused, in the order found.
+
+    Returns:
+        The `ok: False` payload, carrying empty readings for every key
+        an accepted batch answers with.
+    """
+    return {"ok": False, "errors": list(errors), "artifact": aid,
+            "intent_echo": [], "notes": [], "layout_errors": [],
+            "layout_warnings": [], "layout_notes": [], "elements": []}
+
+
+def internal_error(errors: list[str], exc: BaseException, doing: str,
+                   at_op: int | None = None,
+                   aftermath: str = ENVELOPE_AFTERMATH) -> BatchError:
+    """Wrap an unpredicted fault in the envelope the agent can read.
+
+    ONE builder behind all four arms of the batch pipeline's backstop —
+    the validator pre-scan, `apply_ops`, the commit, and the dry run —
+    because the envelope used to cover only the middle one and the
+    difference was invisible from the outside: the three uncovered arms
+    handed the agent a raw traceback naming a Python builtin, and
+    SKILL.md's promise that errors name the offending op was false for
+    every fault that arose in them.
+
+    The sentence is `apply_ops`' original, word for word, so the arm
+    that was already proven keeps its spelling. `at_op` is supplied
+    wherever the fault arose in a walk that knows which op it was on;
+    `apply_ops` does not, and says nothing rather than guessing.
+
+    `aftermath` is a parameter and not a constant because the default
+    is a CLAIM, and it is not true everywhere the envelope is needed.
+    It holds for the three arms that run before anything is written —
+    the pre-scan, `apply_ops`, and the commit up to its persist block,
+    which puts its pre-image back. It does not hold inside the persist
+    block, where a fault can leave a revision half on disk, and that
+    arm passes its own sentence rather than inheriting a false one.
+
+    Args:
+        errors: Faults already collected, reported alongside so a batch
+            with both an ordinary error and a crash shows both.
+        exc: The fault that escaped.
+        doing: What the pipeline was doing, as a participle phrase —
+            "applying ops", "validating the batch", "committing".
+        at_op: Index of the op being processed, or None when the arm
+            cannot say.
+        aftermath: What the store is left holding, in the caller's own
+            words. Defaults to the rejected-whole claim above.
+
+    Returns:
+        The `BatchError` to raise, its `__cause__` left for the caller
+        to attach with `from`.
+    """
+    return BatchError([*errors,
+        "%sinternal error %s — %s: %s (%s)"
+        % ("op %d: " % at_op if at_op is not None else "", doing,
+           type(exc).__name__, exc, aftermath)])
+
+
 # How much clear stroke a label's backdrop must leave between its own
 # edge and the nearest turn, in px. The backdrop `render_svg` paints is
 # the label's box plus 4px each side, so this is that padding with a
@@ -11242,61 +11440,79 @@ class Store:
                 json.dumps(record, sort_keys=True, default=str)
                 .encode("utf-8")).hexdigest()[:7]
 
-            # persist: record file, artifact files, registry
-            rec_path = self.p.saves_dir / ("%04d-%s.json" % (revn, slug))
-            write_json(rec_path, record)
-            self.records[revn] = record
-            for aid, fmap in (new_files or {}).items():
-                if isinstance(fmap, dict) and fmap:
-                    merged = dict(self.artifact_files.get(aid) or {})
-                    merged.update(fmap)
-                    self.artifact_files[aid] = merged
-            for aid in artifacts:
-                if aid in new_scenes:
-                    self._write_artifact(aid, new_scenes[aid],
-                                         artifacts[aid]["meta"])
-            # `rename_artifact` used to write the new title through to the
-            # artifact file itself, from inside the commit window. Here
-            # is where that write belongs: the batch is accepted, the
-            # record is on disk, and nothing left can reject it. An
-            # artifact this batch also DREW was written by the loop above
-            # carrying the renamed meta (re-read after the ops, r3-10);
-            # this covers the registry-only rename, whose artifact is in
-            # no scene the batch touched.
-            for ch in reg_changes:
-                aid2 = ch.get("artifact")
-                if ch.get("action") == "artifact_renamed" and \
-                        aid2 not in artifacts:
-                    self._write_artifact(aid2, self.scenes.get(aid2) or [],
-                                         self.artifact_meta.get(aid2) or {})
-            self.registry["revn"] = revn
-            if forked:
-                # the outgoing branch keeps its own registry; the new one
-                # inherits the live sections, which are a copy of the
-                # drawing at this point (r3-17)
-                self._stash_scope(self.registry["head"])
-                self.registry["branches"].append(
-                    {"name": branch, "head": revn, "archived": False,
-                     # `head` ADVANCES, so without these a branch stops
-                     # identifying where it began after one more save,
-                     # and no surface joined it to its creating record
-                     # (r3-11). The rationale is NOT copied here: it
-                     # lives on that save's headline, and a second copy
-                     # would drift from the words the user can edit.
-                     "forked_from": self.registry["head"],
-                     "forked_at_revn": base,
-                     "origin_revn": revn})
-                self.registry["head"] = branch
-                self.checkout_revn = None
-            else:
-                self.head_branch()["head"] = revn
-            if author == "user":
-                self.registry["whose_move"] = "agent"
-            elif author == "agent":
-                self.registry["round"] = record["round"]
-                self.registry["whose_move"] = "user"
-            self._save_registry()
-            return record
+            # Past this line the batch is ACCEPTED and the writes begin,
+            # so this block is the point of no return and it gets its own
+            # arm rather than the caller's. The generic envelope says
+            # "nothing partial landed", which is true of every fault
+            # before this line and false of every fault after it: the
+            # record file is written first, then the artifact files, then
+            # the registry, and a fault between two of those leaves disk
+            # holding part of a revision. Rolling memory back would only
+            # add a second disagreement to the first, so the honest
+            # answer is to say what happened and name the revision, which
+            # is the one thing that makes the damage findable.
+            try:
+                # persist: record file, artifact files, registry
+                rec_path = self.p.saves_dir / ("%04d-%s.json" % (revn, slug))
+                write_json(rec_path, record)
+                self.records[revn] = record
+                for aid, fmap in (new_files or {}).items():
+                    if isinstance(fmap, dict) and fmap:
+                        merged = dict(self.artifact_files.get(aid) or {})
+                        merged.update(fmap)
+                        self.artifact_files[aid] = merged
+                for aid in artifacts:
+                    if aid in new_scenes:
+                        self._write_artifact(aid, new_scenes[aid],
+                                             artifacts[aid]["meta"])
+                # `rename_artifact` used to write the new title through to the
+                # artifact file itself, from inside the commit window. Here
+                # is where that write belongs: the batch is accepted, the
+                # record is on disk, and nothing left can reject it. An
+                # artifact this batch also DREW was written by the loop above
+                # carrying the renamed meta (re-read after the ops, r3-10);
+                # this covers the registry-only rename, whose artifact is in
+                # no scene the batch touched.
+                for ch in reg_changes:
+                    aid2 = ch.get("artifact")
+                    if ch.get("action") == "artifact_renamed" and \
+                            aid2 not in artifacts:
+                        self._write_artifact(aid2, self.scenes.get(aid2) or [],
+                                             self.artifact_meta.get(aid2) or {})
+                self.registry["revn"] = revn
+                if forked:
+                    # the outgoing branch keeps its own registry; the new one
+                    # inherits the live sections, which are a copy of the
+                    # drawing at this point (r3-17)
+                    self._stash_scope(self.registry["head"])
+                    self.registry["branches"].append(
+                        {"name": branch, "head": revn, "archived": False,
+                         # `head` ADVANCES, so without these a branch stops
+                         # identifying where it began after one more save,
+                         # and no surface joined it to its creating record
+                         # (r3-11). The rationale is NOT copied here: it
+                         # lives on that save's headline, and a second copy
+                         # would drift from the words the user can edit.
+                         "forked_from": self.registry["head"],
+                         "forked_at_revn": base,
+                         "origin_revn": revn})
+                    self.registry["head"] = branch
+                    self.checkout_revn = None
+                else:
+                    self.head_branch()["head"] = revn
+                if author == "user":
+                    self.registry["whose_move"] = "agent"
+                elif author == "agent":
+                    self.registry["round"] = record["round"]
+                    self.registry["whose_move"] = "user"
+                self._save_registry()
+                return record
+            except Exception as e:  # noqa: BLE001 — E-9 backstop, persist
+                raise internal_error(
+                    [], e, "persisting the batch",
+                    aftermath="the ops were accepted but revision %d is "
+                              "only partly written — re-read the project "
+                              "before retrying" % revn) from e
 
     def _seed_created_meta(self, new_meta):
         """Publish a batch's about-to-be-created artifacts into the cache.
@@ -12031,6 +12247,24 @@ class Store:
                     "op %d: every op must be an object with an `op` key, "
                     "got %r" % (i, o)
                     for i, o in enumerate(ops) if not isinstance(o, dict))
+                # Then the fields INSIDE each op, for the same reason one
+                # line up and at the next level down: the shape gate lets
+                # a perfectly good dict through, and the walk below is
+                # the first thing to subscript its `id` — which died on
+                # an unhashable dict, in a comprehension no envelope
+                # covered.
+                # Everything downstream of here — the walk, `apply_ops`,
+                # the commit, the lint the dry run finishes with — reads
+                # these values as strings and numbers, so this is the one
+                # place a wrong type can still be named with the op it
+                # arrived on. Refusing them here is also what ends the
+                # accepted-broken-geometry half: `x: 'left'` used to
+                # reach disk (D-2), and refusing is deliberately chosen
+                # over coercing — see `drawable_number`.
+                errors.extend(
+                    "op %d (%s): %s" % (i, o.get("op"), fault)
+                    for i, o in enumerate(ops) if isinstance(o, dict)
+                    for fault in op_field_faults(o))
             new_meta = {}
             if create:
                 aid = aid or create.get("id") or slugify(create.get("name", ""))
@@ -12223,11 +12457,13 @@ class Store:
             except Exception as e:  # noqa: BLE001 — E-9 backstop
                 # No traceback ever reaches the agent: SKILL.md promises
                 # "errors name the offending op", and the r4-11 crash
-                # arrived as a raw ValueError instead.
-                raise BatchError([*errors,
-                    "internal error applying ops — %s: %s (the batch was "
-                    "rejected whole; nothing partial landed)"
-                    % (type(e).__name__, e)]) from e
+                # arrived as a raw ValueError instead. The sentence moved
+                # into `internal_error` when the other three arms were
+                # added — this one was the only arm for two versions, and
+                # a second hand-written copy of its wording is how the
+                # four would drift into saying different things about the
+                # same fault. Its spelling is unchanged.
+                raise internal_error(errors, e, "applying ops") from e
             registry_ops = [o for o in ops if o.get("op") == "registry"]
             if errors:
                 raise BatchError(errors)
@@ -12329,11 +12565,21 @@ class Store:
             try:
                 checked = self._validate_batch(batch)
             except BatchError as e:
-                return {"ok": False, "errors": list(e.errors),
-                        "artifact": batch.get("artifact"), "intent_echo": [],
-                        "notes": [], "layout_errors": [],
-                        "layout_warnings": [], "layout_notes": [],
-                        "elements": []}
+                return _check_rejected(batch.get("artifact"), e.errors)
+            except Exception as e:  # noqa: BLE001 — E-9 backstop, dry run
+                # The dry run's own promise, four lines up in this
+                # docstring, is that it NEVER raises — a caller reaches
+                # for `--check` precisely so it need not catch anything,
+                # so a raw fault here escapes down the path taken to
+                # avoid one. It leaked for every validator-side fault
+                # until the pre-scan gained the gate above; this is the
+                # backstop for whatever the gate does not predict, and
+                # it is why the two surfaces cannot disagree: the same
+                # `_validate_batch` decides both, and both convert what
+                # escapes it.
+                return _check_rejected(
+                    batch.get("artifact"),
+                    internal_error([], e, "validating the batch").errors)
             aid = checked["artifact"]
             # registry ops are the other half of a batch and they failed
             # this way in the field (`set_budget` with arrows: 0). The
@@ -12344,31 +12590,43 @@ class Store:
             # self.registry and rename_artifact wrote past it.
             saved = self.registry
             reg_errors = []
-            with self._sandbox():
-                # same publish-before-ops as commit, so --check accepts
-                # exactly what apply accepts (BUG-03). No un-seeding
-                # needed: the sandbox throws the whole cache away.
-                self._seed_created_meta(checked["new_meta"])
-                try:
-                    self._apply_registry_ops(checked["registry_ops"],
-                                             reg_errors)
-                    reg_after = self.registry
-                except BatchError as e:
-                    reg_errors, reg_after = list(e.errors), saved
-            if reg_errors:
-                return {"ok": False, "errors": reg_errors, "artifact": aid,
-                        "intent_echo": [], "notes": [], "layout_errors": [],
-                        "layout_warnings": [], "layout_notes": [], "elements": []}
-            atype = (checked["new_meta"].get(aid) or
-                     self.artifact_meta.get(aid) or {}).get("artifact_type")
-            lint = project_lint(self.p, checked["new_els"], reg_after,
-                                artifact_type=atype, aid=aid)
+            # The reading half runs under the same backstop as the
+            # validating half, and it is not a formality: this is where
+            # the dry run does work the apply path does NOT do — the
+            # lint and the echo, against a scene that only ever exists
+            # here — so it is the one place `--check` can crash on a
+            # batch that applies clean. The sweep found exactly that,
+            # eight cases deep, before the gate refused their input.
+            try:
+                with self._sandbox():
+                    # same publish-before-ops as commit, so --check accepts
+                    # exactly what apply accepts (BUG-03). No un-seeding
+                    # needed: the sandbox throws the whole cache away.
+                    self._seed_created_meta(checked["new_meta"])
+                    try:
+                        self._apply_registry_ops(checked["registry_ops"],
+                                                 reg_errors)
+                        reg_after = self.registry
+                    except BatchError as e:
+                        reg_errors, reg_after = list(e.errors), saved
+                if reg_errors:
+                    return _check_rejected(aid, reg_errors)
+                atype = (checked["new_meta"].get(aid) or
+                         self.artifact_meta.get(aid) or {}).get("artifact_type")
+                lint = project_lint(self.p, checked["new_els"], reg_after,
+                                    artifact_type=atype, aid=aid)
+                echo = intent_echo(checked["ops"], checked["new_els"])
+                # a resolve that will find no ❓ to take down says so
+                # before it is queued, not only after it lands
+                notes = staged_pin_glyph_notes(checked["ops"])
+            except Exception as e:  # noqa: BLE001 — E-9 backstop, dry run
+                return _check_rejected(
+                    aid, internal_error([], e, "reading the batch back",
+                                        aftermath="nothing was applied — "
+                                        "this is a dry run").errors)
             return {"ok": True, "errors": [], "artifact": aid,
-                    "intent_echo": intent_echo(checked["ops"],
-                                               checked["new_els"]),
-                    # a resolve that will find no ❓ to take down says so
-                    # before it is queued, not only after it lands
-                    "notes": staged_pin_glyph_notes(checked["ops"]),
+                    "intent_echo": echo,
+                    "notes": notes,
                     "layout_errors": lint["errors"],
                     "layout_warnings": lint["warnings"],
                     "layout_notes": lint["notes"],
@@ -12394,7 +12652,24 @@ class Store:
             `StaleError` from `commit`.
         """
         with self.lock:
-            checked = self._validate_batch(batch)
+            # The pre-scan's half of the backstop. `_validate_batch`
+            # wraps `apply_ops` itself, and that arm works — which is
+            # exactly why ALL 39 raw escapes measured at 286a5cb came
+            # from outside it: 10 from the walk above the call, 29 from
+            # the commit below it, and none at all from the segment the
+            # envelope covered. The escapes were never evidence that the
+            # backstop was broken; they were evidence of where it
+            # stopped. The field gate refuses the faults that were
+            # measured; this is what covers the ones that were not,
+            # and it is deliberately outside the method rather than
+            # inside it so the pre-scan is covered end to end without a
+            # judgement about which of its lines can fault.
+            try:
+                checked = self._validate_batch(batch)
+            except BatchError:
+                raise
+            except Exception as e:  # noqa: BLE001 — E-9 backstop, pre-scan
+                raise internal_error([], e, "validating the batch") from e
             aid = checked["artifact"]
             new_els, new_meta = checked["new_els"], checked["new_meta"]
             pin_reg, registry_ops = checked["pin_reg"], checked["registry_ops"]
@@ -12481,16 +12756,41 @@ class Store:
                     if any(e["id"] == pid and role_of(e) == "pin"
                            for e in els2):
                         scenes[aid2] = [e for e in els2 if e["id"] != pid]
-            record = self.commit(
-                author="agent",
-                new_scenes=scenes,
-                base_revn=base_revn,
-                user_note=batch.get("note"),
-                registry_ops=registry_ops,
-                new_meta=new_meta,
-                extra_facts={aid: reroutes} if reroutes else None,
-                resolved_pins=resolved_now,
-                min_round=min_round)
+            # The commit's half, and the pre-image that makes its
+            # sentence true. `commit` mutates the registry and the
+            # artifact meta while the batch is still deciding — the pin
+            # lifecycle, the created-artifact seed, the registry ops —
+            # so a fault among them leaves those two caches carrying a
+            # rejected batch's writes. r5-8 fixed exactly this for the
+            # registry-op arm and only for it; the same restore covers
+            # every other line of that window here. Nothing else in the
+            # window is written: `self.scenes`, `self.records` and the
+            # branch pointers are all touched inside the persist block,
+            # which is past the point of no return and raises its own
+            # error saying so, so a fault reaching THIS handler is one
+            # that arose before any write. Verified by injection —
+            # see the task report's commit-side table.
+            # `StaleError` is a contract of its own (the caller retries
+            # on a fresh head) and is raised before anything is mutated,
+            # so it passes through unconverted.
+            pre_registry = copy.deepcopy(self.registry)
+            pre_meta = copy.deepcopy(self.artifact_meta)
+            try:
+                record = self.commit(
+                    author="agent",
+                    new_scenes=scenes,
+                    base_revn=base_revn,
+                    user_note=batch.get("note"),
+                    registry_ops=registry_ops,
+                    new_meta=new_meta,
+                    extra_facts={aid: reroutes} if reroutes else None,
+                    resolved_pins=resolved_now,
+                    min_round=min_round)
+            except (BatchError, StaleError):
+                raise
+            except Exception as e:  # noqa: BLE001 — E-9 backstop, commit
+                self.registry, self.artifact_meta = pre_registry, pre_meta
+                raise internal_error([], e, "committing the batch") from e
             for p in pin_reg:
                 self.registry["pins"].append({
                     "id": p["id"], "artifact": aid, "element": p["target"],
