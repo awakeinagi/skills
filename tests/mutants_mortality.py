@@ -24,6 +24,48 @@ witness when the originating spike measured it, and nothing else would have
 said so. A check dropping to one witness is a warning this sweep produces for
 nothing.
 
+BUT A WITNESS COUNT IS NOT COMPARABLE ACROSS A COMMIT THAT FLIPS A RED, and
+the correction is per-red rather than per-red-count. An
+`@unittest.expectedFailure` pin whose expectation A DEAD DETECTOR SATISFIES —
+a red asserting the check is SILENT, where that silence is the defect's own
+signature — turns UNEXPECTED SUCCESS when the check is killed, and `_bad`
+counts an unexpected success as a witness (correctly: a red going green IS a
+death noticed). Flipping such a red therefore takes a witness away with ZERO
+change to the detector, and the drop reads exactly like a lost test. **The
+converse red does not do this at all:** one asserting the check SHOULD fire
+and it does not stays an expected failure under the kill and contributes
+nothing, because a dead detector does not satisfy it either. So "every red
+adds one" is wrong in both directions — only silence-shaped reds count, and
+each must be checked rather than counted.
+
+Measured at `2cca618` across seven kills spanning both tiers: **zero** of the
+suite's 19 reds are silence-shaped in this sense — no kill produces a single
+unexpected success — so the correction is ZERO today and every witness count
+above is a plain test count. It has not always been: the originating spike's
+`ablation_continuity` row was three, one of which it recorded as "a RED pin
+turning UNEXPECTED SUCCESS". Before reading any witness-count delta as a lost
+guard, check whether a red was flipped in between, and check it by looking at
+the `unexpected` list the driver already reports rather than by counting reds.
+
+AND THE RENDER TIER'S WITNESS COUNTS CARRY ±1 OF NOISE THAT IS NOT THE
+DETECTOR'S. Measured directly: every render kill run TWICE at `2cca618`, same
+copy, same machine. `ablation_existence` (17), `client_ablation_existence` (3)
+and `parity_clipped` (3) reproduced their witness SETS exactly;
+`ablation_continuity` came back 3 then 2, and `client_ablation_continuity` 3
+then 4. **The kills themselves are deterministic — drop counts were identical
+across every pair (2/2, 17/17, 4/4, 3/3, 3/3).** The whole difference is one
+flaky test, `test_mutant_snapshot_cap_drops_the_rightmost_node`, which failed
+in one run of each and is a witness to neither: it appeared under two
+UNRELATED kills, and a snapshot cap has nothing to do with ablation
+continuity. It passed the inert run, so subtracting the inert baseline — the
+defence that exists for exactly this — did not catch it.
+
+So: **read a render-tier witness count as "about this many", and diff the
+witness SETS rather than the counts before believing a movement.** The driver
+already reports the ids; `_bad` returns a set for this reason. The model
+tier has no such caveat — all 16 rows reproduced byte-identically across runs
+at two different commits.
+
 WHAT IT CANNOT PROVE, and the distinction is the whole reason rule 8 exists.
 A NOTICED DEATH IS NOT A GOOD CONTROL. This module works at CHECK level: it
 answers "does this check's death cost anything anywhere". It says nothing
