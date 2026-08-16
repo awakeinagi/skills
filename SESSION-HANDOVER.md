@@ -260,10 +260,13 @@ the flip author:
   That entry demanded both halves and got both; the check still carries
   the diamond's name, which is a census edit somebody owes. Of the
   older two, `tolerable_gap_hides_interior_run` (`crosses_through_bound`)
-  FLIPPED with Task 54 on 2026-08-16, which leaves
-  `headless_chain_reads_through_node` — batch 21's, deliberately
-  carrying no magnitude (its own comment says why) — as the only
-  non-aspirational red left in the catalog.
+  FLIPPED with Task 54 on 2026-08-16, and
+  `headless_chain_reads_through_node` — batch 21's, filed deliberately
+  carrying no magnitude because the shipped template could not honestly
+  give it one — FLIPPED the same day with v0.9 TASK-24-FOLLOW-UP, which
+  paid that debt in the change it named: a second lint template reporting
+  the span the eye completes ACROSS a headless chain's node, plus the
+  magnitude on the entry. No non-aspirational red is left in the catalog.
   Task 54's was the reverse fault in the shape family, which the shape
   fix did NOT touch: `lint_layout`'s interior-run walk is gated on
   `if not outside:`, and the rectangle branch had no tolerance floor
@@ -318,9 +321,16 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text` |
-| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length`, `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (all three UNGATED — they run by default, so this whole row is live on every commit; see below) |
+| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `pale_stroke_node`, `tiny_font_text` |
+| render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
+
+The unchecked row proved the warning above it the same day it was
+written: v0.9 TASK-24-FOLLOW-UP flipped two of the render row's three in
+one commit and the guarded model row and the durable counts both failed
+in that commit while THIS row sat two entries stale until the next one.
+Nothing derives it, so nothing said so — which is the argument for
+deriving it, not for transcribing it more carefully.
 
 The bottom two rows are `@unittest.expectedFailure` method names rather
 than catalog ids because they sit outside `CATALOGUE`. The render row was
@@ -349,7 +359,7 @@ added it goes back to differing, and nothing enforces the parity.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+**9 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-24-FOLLOW-UP,
 which is the first change since batch 23 to move the MIDDLE number; it
 read 11 / 3 / 0 at TASK-MICROFIX, which flipped three at once, 14 / 3 / 0

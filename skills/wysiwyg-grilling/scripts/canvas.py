@@ -10022,12 +10022,24 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 continue    # degenerate or diagonal: no axis to share
             axis = 0 if abs(dx) > abs(dy) else 1
             step = dx if axis == 0 else dy
+            # Whether an arrowhead sits AT THIS NODE, which is the cue the
+            # no-ink arm below turns on. The end that terminates here is
+            # the one bound here: `endArrowhead` for a foot arriving,
+            # `startArrowhead` for one leaving. `endArrowhead` DEFAULTS
+            # TO PRESENT for an arrow, matching `make_element` and the
+            # client, so a scene that merely omits the field reads as
+            # terminated — the conservative direction, since the arm
+            # below is gated on the cue's ABSENCE and a missing field is
+            # not evidence of a missing arrowhead.
+            head = (a.get("endArrowhead", "arrow") if arriving
+                    else a.get("startArrowhead"))
             feet.setdefault(tgt_id, []).append(
-                (a["id"], arriving, axis, 1 if step > 0 else -1, foot))
+                (a["id"], arriving, axis, 1 if step > 0 else -1, foot,
+                 bool(head)))
     for tgt_id, fs in feet.items():
         tgt = ix[tgt_id]
-        for fid, f_arr, f_ax, f_sgn, f_pt in fs:
-            for gid, g_arr, g_ax, g_sgn, g_pt in fs:
+        for fid, f_arr, f_ax, f_sgn, f_pt, f_head in fs:
+            for gid, g_arr, g_ax, g_sgn, g_pt, g_head in fs:
                 if fid == gid or not f_arr or g_arr:
                     continue    # exactly one arriving, one leaving
                 if f_ax != g_ax or f_sgn == g_sgn:
@@ -10078,9 +10090,55 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 bare = max(0.0, min(fwd, s0 + across) - max(back, s0))
                 covered = across - bare
                 if covered < 1:
-                    continue    # feet on the outline either side: the
-                    #             body is between them and terminates
-                    #             both
+                    # NO INK OVER THE NODE — feet on the outline either
+                    # side, the body between them. Silent when either
+                    # stroke is terminated AT the node, and that silence
+                    # is a MEASURED decision, not an oversight: the broad
+                    # criterion that reports this configuration regardless
+                    # was implemented and swept before being cut, at 70
+                    # findings over the 24 frozen artifacts — every
+                    # chained node of every correct left-to-right flow,
+                    # with a remedy that would make each of those
+                    # drawings worse. Sweep survivor
+                    # `move_node_onto_rank:chain:ebb2e1f6` carries the
+                    # `allow` verdict and its own re-open condition (a
+                    # cold observer reporting a shipped chained node as a
+                    # pass-through); this arm is gated so as not to trip
+                    # it, and the survivor cell stays quiet.
+                    #
+                    # STRIP THE CUE AND THE ARGUMENT DOES NOT WEAKEN, IT
+                    # EVAPORATES. The 70 are safe because an arrowhead
+                    # ends the reading at the node before the eye
+                    # completes a stroke across the box. Two plain lines
+                    # meeting a box on opposite borders with nothing
+                    # terminating either is the configuration amodal
+                    # completion is actually about, and it is reachable
+                    # through shipped code: `_er_seed_ops` gives an end an
+                    # arrowhead only when its cardinality token carries
+                    # `*`, so an erDiagram one-to-one relation mints a
+                    # headless line and a chain of two of them through one
+                    # node is this scene, hand-authored by nobody.
+                    #
+                    # A SECOND TEMPLATE and not the one below, because the
+                    # one below reports how much of the node has arrow
+                    # drawn over it and that is 0 here BY CONSTRUCTION.
+                    # What this one names is the span the reader completes
+                    # ACROSS — the bare node between the two feet.
+                    if f_head or g_head or bare < 1:
+                        continue
+                    warnings.append(
+                        "arrows %s and %s read as one stroke through %s — "
+                        "they share a line and neither is terminated at "
+                        "the node, so %dpx of it is completed across by "
+                        "eye: nothing tells the reader the path ends "
+                        "here, and the pair reads as one relation "
+                        "straight from %s's predecessor to its successor. "
+                        "Give the strokes an arrowhead where they meet "
+                        "%s, fan the feet onto opposite borders, or "
+                        "offset one line"
+                        % (fid, gid, name(tgt_id), round(bare),
+                           name(tgt_id), name(tgt_id)))
+                    continue
                 warnings.append(
                     "arrows %s and %s read as one stroke through %s — "
                     "they share a line and leave %dpx of the node's %dpx "

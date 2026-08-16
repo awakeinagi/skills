@@ -78,9 +78,20 @@ _SHARED_ATTACH_RE = re.compile(
 # a wrong implementation could report, and so is the whole merged stroke
 # (448, the length `shared_corridor` and the spike both quote). Only
 # "how much of the node is covered" is this finding.
+#
+# TWO TEMPLATES SINCE 2026-08-16 (v0.9 TASK-24-FOLLOW-UP), one regex,
+# because they are one check answering about one node: the INK half says
+# how much of the node has arrow drawn over it, and the NO-INK half — two
+# headless strokes meeting opposite borders — says how much of it the
+# reader completes ACROSS. The alternation is on the VERB only, so the
+# magnitude group stays single and stays the third number in either
+# sentence. Deliberately not one wording for both: on the no-ink scene
+# "has arrow drawn over" is 0 by construction, and a template that
+# reported 80 in those words would be a message that lies.
 _PHANTOM_RE = re.compile(
     r"arrows [\w-]+ and [\w-]+ read as one stroke through "
-    r"(?P<element>[\w-]+).*?so (?P<mag>\d+)px of it has arrow drawn over")
+    r"(?P<element>[\w-]+).*?so (?P<mag>\d+)px of it "
+    r"(?:has arrow drawn over|is completed across)")
 # The other symmetric-pair template, and the only one that names no third
 # party to blame: two labels, and the reader has to be told BOTH or the
 # finding says nothing actionable. So `element` is the quoted pair verbatim
@@ -11300,25 +11311,47 @@ _register(Mutant(
 # pairs regardless of terminators fires on BOTH and fails the neighbour,
 # which is precisely the broad criterion the 70 already rejected; an
 # implementation that reads terminators fires on this and stays quiet
-# there. No `magnitude`: the current message template (and `_PHANTOM_RE`
-# with it) reports how much of the node has arrow drawn over it, and that
-# is 0 here BY CONSTRUCTION — the whole point is the no-ink case — so
-# demanding a number today would specify a message that lies. Whoever
-# lands the fix owes a second template naming the span the reader
-# completes across (80px, N's full width between the feet) and a magnitude
-# on this entry in the same change.
+# there.
 #
-# Honest caveat, kept because it is the reason this is a pin and not a
-# work order: no fixture exhibits it (0 headless arrows in 174) and no
-# cold observer has reported the misreading. It is the configuration where
-# the closing argument fails, encoded so that the day someone draws one
-# the harness has an opinion. Owner unassigned — Task 24 follow-up /
-# addendum wave.
+# FLIPPED 2026-08-16 by v0.9 TASK-24-FOLLOW-UP, and the debt this entry
+# recorded is paid in the same change it names. It carried no `magnitude`
+# because the shipped template (and `_PHANTOM_RE` with it) reported how
+# much of the node has arrow drawn over it, which is 0 here BY
+# CONSTRUCTION — the whole point is the no-ink case — so demanding a
+# number would have specified a message that lies. The entry said whoever
+# landed the fix owed a SECOND template naming the span the reader
+# completes across, and a magnitude here, in one change. Both arrived:
+# canvas.py's no-ink arm reports "80px of it is completed across by eye",
+# `_PHANTOM_RE` alternates on the verb so one magnitude group serves both
+# sentences, and 80 is asserted below at the same +-10% band its sibling
+# uses. The three wrong readings that band excludes are the same three,
+# and one of them changes role: 0 is now the COVERED span rather than the
+# bare one, so an implementation that reported the ink number here would
+# report zero and fail.
+#
+# THE GATE IS THE CUE AND NOTHING ELSE, which is what keeps the closed
+# no-ink ruling closed. The broad criterion — report every collinear
+# in/out pair — was measured at 70 findings over 24 shipped artifacts and
+# cut; sweep survivor `move_node_onto_rank:chain:ebb2e1f6` carries that
+# `allow` verdict with a falsifiable re-open condition (a cold observer
+# reporting a shipped chained node as a pass-through). The arm that
+# landed fires only where NEITHER stroke is terminated at the node, so
+# every one of the 70 is still silent, the survivor cell is still quiet,
+# and `test_live_sweep_reproduces_the_record` is untouched. The re-open
+# condition is not tripped, silently or otherwise: it is about the
+# terminated configuration, which nothing here reports.
+#
+# Honest caveat as filed, and it is unchanged by the flip: no fixture
+# exhibits this (0 headless arrows in 174) and no cold observer has
+# reported the misreading. It is the configuration where the closing
+# argument fails, and the harness now has an opinion the day someone
+# draws one — which was the whole point of encoding it.
 _register(Mutant(
     "headless_chain_reads_through_node",
     build=lambda: _attach_chain(shared=False, headless=True),
     op="unchanged", args={},
-    expect=FindingSpec("phantom_passthrough", element="N"),
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
                         Silence("phantom_passthrough"))))
 
@@ -13612,15 +13645,21 @@ class TestMutantCatalogue(unittest.TestCase):
         """Attach points 80px apart are past the lint's 12px window."""
         self._run_neighbour("shared_attach_point_fan_failed")
 
-    @unittest.expectedFailure
     def test_mutant_headless_chain_reads_through_node(self) -> None:
-        """RED BY ABSENCE: no terminator, and no finding either.
+        """FLIPPED 2026-08-16 by v0.9 TASK-24-FOLLOW-UP.
 
-        The ink half ships on the argument that an arrowhead ends the
-        reading before the eye completes a stroke across the box. Strip
-        the arrowheads — which a one-to-one erDiagram relation does
-        through the shipped seeder — and the lint is still silent,
-        because its gate is `covered >= 1` and nothing about the cue.
+        RED BY ABSENCE while it stood: the ink half ships on the argument
+        that an arrowhead ends the reading before the eye completes a
+        stroke across the box, and stripping the arrowheads — which a
+        one-to-one erDiagram relation does through the shipped seeder —
+        left the lint silent anyway, because its gate was `covered >= 1`
+        and nothing about the cue.
+
+        The gate now reads the cue. Where no ink crosses the node AND
+        neither stroke is terminated at it, the lint reports the span the
+        eye completes across — 80px, N's full width between the feet —
+        through a second template, and this entry's magnitude is asserted
+        at the same +-10% band its terminated sibling uses.
         """
         self._run("headless_chain_reads_through_node")
 
@@ -14413,8 +14452,14 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS = {"framed_node_escapes_its_lane", "gray_text_on_ground",
-                     "headless_chain_reads_through_node", "pale_stroke_node",
-                     "tiny_font_text"}
+                     "pale_stroke_node", "tiny_font_text"}
+# `headless_chain_reads_through_node` LEFT this set on 2026-08-16 (v0.9
+# TASK-24-FOLLOW-UP), the fifth catalogue entry to leave it by flipping.
+# It is the second RED-BY-ABSENCE to flip here — a pin whose whole
+# content was that no detector owned the class, discharged by the class
+# getting one — and its neighbour's `Silence` stops being paired against
+# a red expectation in the same move, which is the archetype curator
+# batch 24 gave a FindingSpec for.
 
 
 def catalogue_red_ids() -> set[str]:
@@ -15313,6 +15358,16 @@ class TestCoverage(unittest.TestCase):
         `phantom_passthrough_shared_attach` in the same change, which
         also drained `phantom_passthrough` from `ASPIRATIONAL`.
 
+        54 -> 55 on 2026-08-16 (v0.9 TASK-24-FOLLOW-UP): the e1 phantom
+        pass-through's NO-INK arm — two headless strokes meeting a node
+        on opposite borders, where the eye completes across and no
+        arrowhead says the path ends. No `UNCOVERED` row: it is a second
+        template for a check `DETECTORS` already covers by `lint_re`
+        (the regex alternates on the verb and matches both wordings),
+        and it flipped `headless_chain_reads_through_node` in the same
+        change. The nearest precedent is 46 -> 47's third crosses-through
+        tier, for the same reason and with the same shape of evidence.
+
         51 -> 54 on 2026-08-16 (v0.9 TASK-LINTPROMOTE): three sites, and
         NO `UNCOVERED` ROW FOR ANY OF THEM, which is the outcome this
         pin was built to produce twice running. `shared_lane` and
@@ -15328,9 +15383,9 @@ class TestCoverage(unittest.TestCase):
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 54,
+        self.assertEqual(sites, 55,
                          "canvas.py lint_layout append-site count changed "
-                         "(54 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(55 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
