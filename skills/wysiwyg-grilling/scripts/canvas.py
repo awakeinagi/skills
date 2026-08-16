@@ -3697,13 +3697,17 @@ def internal_error(errors: list[str], exc: BaseException, doing: str,
                    aftermath: str = ENVELOPE_AFTERMATH) -> BatchError:
     """Wrap an unpredicted fault in the envelope the agent can read.
 
-    ONE builder behind all four arms of the batch pipeline's backstop —
-    the validator pre-scan, `apply_ops`, the commit, and the dry run —
-    because the envelope used to cover only the middle one and the
-    difference was invisible from the outside: the three uncovered arms
-    handed the agent a raw traceback naming a Python builtin, and
-    SKILL.md's promise that errors name the offending op was false for
-    every fault that arose in them.
+    ONE builder behind EVERY arm of the batch pipeline's backstop — the
+    validator pre-scan, `apply_ops`, the commit, its persist block, and
+    both of the dry run's (validate and read back) — because the
+    envelope used to cover `apply_ops` alone and the difference was
+    invisible from the outside: every other arm handed the agent a raw
+    traceback naming a Python builtin, and SKILL.md's promise that
+    errors name the offending op was false for every fault that arose in
+    them. The membership is named rather than counted (E-9 review F2):
+    the first spelling said "four" against six live sites and the
+    paragraph below said "three" against four, so one docstring reported
+    two different memberships and neither was the code's.
 
     The sentence is `apply_ops`' original, word for word, so the arm
     that was already proven keeps its spelling. `at_op` is supplied
@@ -3712,11 +3716,13 @@ def internal_error(errors: list[str], exc: BaseException, doing: str,
 
     `aftermath` is a parameter and not a constant because the default
     is a CLAIM, and it is not true everywhere the envelope is needed.
-    It holds for the three arms that run before anything is written —
-    the pre-scan, `apply_ops`, and the commit up to its persist block,
-    which puts its pre-image back. It does not hold inside the persist
-    block, where a fault can leave a revision half on disk, and that
-    arm passes its own sentence rather than inheriting a false one.
+    It holds for the arms that run before anything is written — the
+    pre-scan, `apply_ops`, the dry run's validate arm, and the commit up
+    to its persist block, which puts its pre-image back. It does not
+    hold inside the persist block, where a fault can leave a revision
+    half on disk, nor in the dry run's read-back arm, which never
+    rejected anything to begin with; both pass their own sentence rather
+    than inheriting a false one.
 
     Args:
         errors: Faults already collected, reported alongside so a batch
@@ -12458,10 +12464,10 @@ class Store:
                 # No traceback ever reaches the agent: SKILL.md promises
                 # "errors name the offending op", and the r4-11 crash
                 # arrived as a raw ValueError instead. The sentence moved
-                # into `internal_error` when the other three arms were
-                # added — this one was the only arm for two versions, and
-                # a second hand-written copy of its wording is how the
-                # four would drift into saying different things about the
+                # into `internal_error` when the other arms were added —
+                # this one was the only arm for two versions, and a
+                # second hand-written copy of its wording is how they
+                # would drift into saying different things about the
                 # same fault. Its spelling is unchanged.
                 raise internal_error(errors, e, "applying ops") from e
             registry_ops = [o for o in ops if o.get("op") == "registry"]
