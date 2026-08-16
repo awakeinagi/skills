@@ -293,7 +293,7 @@ canvas-first questions become a place where the user's answers go quiet.
 | `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
 | `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
 
-**Event taxonomy** — all fourteen types, and who a type belongs to
+**Event taxonomy** — all fifteen types, and who a type belongs to
 decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
