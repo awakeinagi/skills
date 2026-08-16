@@ -140,3 +140,19 @@ no_implicit_optional = true
 # Target state — flip on once the ANN debt above is retired:
 # disallow_untyped_defs = true
 # disallow_incomplete_defs = true
+
+# ---------------------------------------------------------------------------
+# Dev/test dependencies — AGENTS.md constraint 5: stdlib-only binds ONLY the
+# skill bundle (skills/wysiwyg-grilling/). Tests, probes and tooling may use
+# these. Nothing here is required to RUN the suites (they are stdlib +
+# unittest by design, with loud skips where a package is missing); the group
+# exists so probes can say `uv run --group dev python3 <script>` — or, for a
+# one-off, `uv run --with playwright python3 <script>` — instead of hunting
+# for an install. Browser binaries: point playwright at the system chromium
+# via executable_path (the render tier's find_browsers pattern) rather than
+# `playwright install`'s ~150MB download.
+# ---------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+    "playwright>=1.40",
+]
