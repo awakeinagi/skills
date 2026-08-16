@@ -117,14 +117,17 @@ for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
 Non-catalog reds live in `TestLoadFindingsReachTheAgent` (4),
-`TestReplayOrderFidelity` (2), `TestBatchPathIntegrity` (1),
-`TestCornerBiasReadsVerticesNotTurns` (1) and
-`TestBoundsLoopReadsTheLineHeight` (1) — enumerated with reasons at the
-`CATALOGUE` pointer in tests/test_mutants.py. The last of those had been
-missing from this sentence since batch 23 added it to
-`HAND_AUTHORED_RED_CLASSES`, which is the sixth recorded staleness of this
-transcription and the second found by someone editing the line for an
-unrelated reason. Read the dict, not this sentence. `TestSnapshotTierOne` was a
+`TestBatchPathIntegrity` (3), `TestBoundsLoopReadsTheLineHeight` (1),
+`TestCornerBiasReadsVerticesNotTurns` (1),
+`TestInkExtentIsRotationBlind` (1) and
+`TestLabelledGhostKeepsItsCaption` (1) — enumerated with reasons at the
+`CATALOGUE` pointer in tests/test_mutants.py. That is the SEVENTH and
+EIGHTH recorded staleness of this transcription, both found on 2026-08-16
+by v0.9 Task 52 while here to delete one entry: `TestReplayOrderFidelity`
+(2) had drained and left, and batch 25's three arrivals — the two that
+took `TestBatchPathIntegrity` to 3, plus `TestInkExtentIsRotationBlind`
+and `TestLabelledGhostKeepsItsCaption` — had never been transcribed at
+all. Read the dict, not this sentence. `TestSnapshotTierOne` was a
 fifth, and the only one outside `tests/test_mutants.py`; it left on
 2026-08-16 when the self-report task recovered the tier-1 ceiling. Note
 that it was never in `HAND_AUTHORED_RED_CLASSES`, which scans one file and

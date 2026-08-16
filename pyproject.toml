@@ -87,7 +87,16 @@ suppress-dummy-args = true       # _ and __ need no annotation
     "D415",   #   2 summary missing terminal punctuation
     "DOC201", #  49 docstring missing Returns section
     "DOC501", #   4 docstring missing Raises section
-    "ANN",    # 474 missing type annotations
+    # 1008 missing type annotations: 658 ANN001 args, 340 returns
+    # (ANN201/202/204/205), 10 ANN002/003 varargs. RE-MEASURED 2026-08-16
+    # (v0.9 Task 52) and the line said 474, which matches no subset of the
+    # real breakdown — it is stale by provenance nobody can now recover,
+    # so read it as "re-measure before you quote it". Task 52 is also the
+    # first change to MOVE it (1011 -> 1008): `from __future__ import
+    # annotations` went in at the top of canvas.py, which is what makes
+    # the burn-down payable one touched function at a time instead of in
+    # one 1000-line sweep.
+    "ANN",
 
     # Code-quality findings, all pre-existing. 17 clear with
     # `uvx ruff check --fix`; the rest need a human. Worth a look first —

@@ -17,6 +17,15 @@ Commands:
 Canonical invocation:  uv run canvas.py <cmd>   (bare python3 works too)
 """
 
+# AGENTS.md § Type hints: annotations become strings, so the 3.9 floor can
+# still carry `list[str]` and `X | None`. Inert at runtime here — nothing in
+# this file reads `__annotations__` or `typing.get_type_hints` — which is
+# why it could be added mid-file-life (v0.9 Task 52) without a sweep: it
+# unblocks the ANN burn-down one touched function at a time instead of
+# demanding all 1008 at once (the count pyproject.toml recorded as 474
+# until the same task re-measured it).
+from __future__ import annotations
+
 import argparse
 import bisect
 import contextlib
@@ -39,9 +48,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 
 PROTOCOL_VERSION = 1
 SOURCE_NAME = "wysiwyg-grilling"
@@ -4843,29 +4854,82 @@ def _geometry_derived(el):
     return False
 
 
-def replay_changes(elements, changes):
-    """Replay forward change ops (the save-record grammar) onto an element
-    list — used for state reconstruction and inverse-replay revert."""
+def _add_index(ch: dict[str, Any]) -> int | None:
+    """The insertion point a recorded `add` asks for, if it asks for one.
+
+    Split out of `replay_changes` because two places need the same
+    reading of the field — the ordering of a change list's `add`s and
+    the insertion itself — and a record whose index disagrees between
+    those two is a record replayed into a different scene each way.
+
+    Args:
+        ch: A save-record change op, expected to be an `add`.
+
+    Returns:
+        The recorded index, or None when the record carries none or
+        carries something that is not a position at all.
+    """
+    # A value that is not a position falls back to the default the
+    # caller already documents for "no index given" — the end — rather
+    # than raising: `min` compares against an int, so a hand-edited
+    # `"2"` or `null` in one save record threw `TypeError` out of every
+    # path that reconstructs history. Nothing at load reads a change's
+    # index, so the project opened with `issues` EMPTY and then revert,
+    # checkout and rollback were all gone.
+    #
+    # The TYPE half of `index_fault` only, deliberately: it also refuses
+    # a NEGATIVE index, and the caller answers that one differently on
+    # purpose (see its clamp). `bool` is refused with it for the same
+    # reason `index_fault` refuses it — `min(True, 3)` is position 1, an
+    # answer nobody wrote.
+    idx = ch.get("index")
+    if not isinstance(idx, int) or isinstance(idx, bool):
+        return None
+    return idx
+
+
+def replay_changes(elements: Sequence[dict[str, Any]],
+                   changes: Sequence[dict[str, Any]],
+                   ) -> list[dict[str, Any]]:
+    """Replay forward change ops (the save-record grammar) onto a list.
+
+    Ops are applied in DEPENDENCY order, not record order: every `del`
+    first, then every `add` in ascending recorded index, then the rest
+    as recorded. `diff_scenes` indexes an `add` against the FINISHED
+    list but emits it ahead of the `del`s, so replaying in record order
+    inserts it into a list that still holds the doomed elements and it
+    lands one slot short for every deletion below it — permanently,
+    because nothing ever re-derives a recorded order. That single line
+    of arithmetic is the whole r5b-2 storm: `argus-r4-arm3`'s revn 42
+    adds two elements and deletes one, so from then on the replay of
+    `argus-domain` held its last two elements swapped against the file
+    on disk, and every later save diffed against that and minted
+    `reordered` facts about 28 elements nobody had touched.
+
+    Dels are matched by id, so hoisting them costs nothing. The
+    ascending sort is what makes a RUN of `add`s land where each was
+    recorded, and the `inverse` list needs it more than the forward one
+    does: inverses are built by reversing the change list, which hands
+    back the re-insertions in descending index order, and inserting the
+    lowest one last put every one of them in the wrong place.
+
+    Args:
+        elements: Baseline element list. Not mutated; dicts are copied.
+        changes: Save-record change ops, forward or inverse.
+
+    Returns:
+        A new element list with every op applied.
+    """
     els = [dict(e) for e in elements]
-    for ch in changes:
+    ordered = [c for c in changes if c["op"] == "del"]
+    ordered += sorted([c for c in changes if c["op"] == "add"],
+                      key=lambda c: (_add_index(c) is None, _add_index(c) or 0))
+    ordered += [c for c in changes if c["op"] not in ("add", "del")]
+    for ch in ordered:
         op = ch["op"]
         if op == "add":
-            # A value that is not a position at all falls back to the
-            # default this same expression already documents for "no
-            # index given" — the end — rather than raising: `min` compares
-            # against an int, so a hand-edited `"2"` or `null` in one save
-            # record threw `TypeError` out of every path that
-            # reconstructs history. Nothing at load reads a change's
-            # index, so the project opened with `issues` EMPTY and then
-            # revert, checkout and rollback were all gone.
-            #
-            # The TYPE half of `index_fault` only, deliberately: it also
-            # refuses a NEGATIVE index, and this branch answers that one
-            # differently on purpose (see the clamp below). `bool` is
-            # refused with it for the same reason `index_fault` refuses
-            # it — `min(True, 3)` is position 1, an answer nobody wrote.
-            idx = ch.get("index", len(els))
-            if not isinstance(idx, int) or isinstance(idx, bool):
+            idx = _add_index(ch)
+            if idx is None:
                 idx = len(els)
             # clamped at BOTH ends, like the legacy reorder branch below:
             # `insert` reads a negative index as an offset from the end,
@@ -4909,6 +4973,50 @@ def replay_changes(elements, changes):
                     pos = max(0, min(ch["to_index"], len(els)))
                     els.insert(pos, moving[0])
     return els
+
+
+def align_baseline_order(old_els: list[dict[str, Any]],
+                         cached_els: Sequence[dict[str, Any]] | None,
+                         ) -> list[dict[str, Any]]:
+    """Re-order a replayed baseline into the order the client was handed.
+
+    `commit` diffs the posted scene against `state_at(base)`, a replay
+    of the change log, while every client reads `Store.scenes` — the
+    artifact file as it sits on disk. The two are supposed to agree and
+    nothing asserts it, so a disagreement is read as the USER having
+    restacked the drawing: one four-pixel nudge on a drifted artifact
+    minted `reordered` facts about 28 elements nobody had touched
+    (r5b-2). `replay_changes` no longer manufactures that disagreement,
+    but it cannot unmake one already on disk — a hand-edited artifact
+    file, a partial restore, a save record lost to SAV-001 — and a
+    `reordered` fact is a claim about something a person did, so the
+    only sequence it may be measured against is the one that person was
+    actually shown.
+
+    Content still comes from the replay, which stays authoritative for
+    every attribute; only the sequence is taken from the cache. The
+    guards keep that narrow: with a duplicate id there is no element-
+    for-element mapping to re-order by, and with different id SETS the
+    cache is describing some other revision, where its sequence means
+    nothing.
+
+    Args:
+        old_els: Replayed baseline elements, in replay order.
+        cached_els: The same artifact as the client holds it, or None
+            when this commit is creating it.
+
+    Returns:
+        `old_els`' own elements in the cache's order, or `old_els`
+        unchanged whenever the two cannot be matched one for one.
+    """
+    if not cached_els or not old_els:
+        return old_els
+    by_id = {e["id"]: e for e in old_els}
+    order = [e.get("id") for e in cached_els]
+    if len(by_id) != len(old_els) or len(set(order)) != len(order) \
+            or set(order) != set(by_id):
+        return old_els
+    return [by_id[eid] for eid in order]
 
 
 # ---------------------------------------------------------------------------
@@ -10787,6 +10895,16 @@ class Store:
             sig = self.config.get("significant_attrs")
             for aid, els in sorted(new_scenes.items()):
                 old = (base_state.get(aid) or {}).get("elements", [])
+                # Measure the posted order against the order this client
+                # was HANDED, not against the replay's — see
+                # `align_baseline_order`. Two guards, and both are the
+                # point rather than caution: off head (`forked`) the
+                # cache describes a different revision than `base`, and
+                # `catch_up` exists precisely to record what disk does
+                # that history does not, so aligning its baseline would
+                # delete the one finding it is there to make.
+                if not forked and not reconciliation:
+                    old = align_baseline_order(old, self.scenes.get(aid))
                 # a scene can arrive carrying duplicate ids (two
                 # identical stickies once collided — v0.8 beats, E2):
                 # the load-time ART-003 repair dropped the copy on every

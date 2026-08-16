@@ -5465,13 +5465,19 @@ class TestReplayOrderFidelity(unittest.TestCase):
             self) -> None:
         """The live half: matched orders, and a nudge that says `moved: 1`.
 
-        Ungated and asserted in every commit, because both reds below are
-        negatives — "no drift", "no phantom facts" — and a negative
+        Ungated and asserted in every commit, because both tests below
+        are negatives — "no drift", "no phantom facts" — and a negative
         proves nothing if the probe cannot see the positive. This is the
         same builder with `drifted=False`, so it fails if `_drift_project`
         stops producing a loadable project, if `state_at` stops returning
         elements, or if the differ goes mute; each of those would
-        otherwise turn both reds green while measuring nothing at all.
+        otherwise turn both of them green while measuring nothing at all.
+
+        That reasoning outlived the reds it was written for (both flipped
+        in v0.9 Task 52) and is now the only thing standing between this
+        class and vacuous green, so it is worth restating: the two tests
+        below no longer carry `expectedFailure` to make a broken probe
+        loud. This one does.
         """
         store = self._drift_project(drifted=False)
         self.assertEqual(self._order_pairs(store), [("d", True)])
@@ -5479,45 +5485,57 @@ class TestReplayOrderFidelity(unittest.TestCase):
         self.assertEqual(summary["verb_counts"], {"moved": 1}, summary)
         self.assertEqual(summary["headline"], "n1 nudged")
 
-    @unittest.expectedFailure
-    def test_red_a_drifted_artifact_mints_phantom_reorder_facts(self) -> None:
-        """One element moves; the differ reports the other one reordered.
+    def test_a_drifted_artifact_mints_no_phantom_reorder_facts(self) -> None:
+        """One element moves; the differ says so, and says nothing else.
 
-        RED BY ASSERTION. Measured on this scene: `{"moved": 1,
-        "reordered": 2}` with the headline "n1 nudged (+2 more)" — the
-        magnitude is every element the two orders disagree about (both of
-        them here, 28 of 45 on the real fixture) and the direction is
-        false-positive, since nothing in this project has been reordered
-        by anyone. `n2` was not touched by this commit and is not touched
-        by the user in any commit; the reorder is an artifact of the
-        differ comparing the posted cache against a replay that never
-        agreed with it.
+        FLIPPED 2026-08-16 (v0.9 Task 52) by the third option this
+        docstring used to offer: `commit` now measures the posted scene
+        against the order the client was HANDED (`align_baseline_order`),
+        not against the replay. Was `{"moved": 1, "reordered": 2}` with
+        the headline "n1 nudged (+2 more)" — magnitude every element the
+        two orders disagreed about (both here, 28 of 45 on the real
+        fixture), direction false-positive, since nothing in this project
+        had been reordered by anyone.
 
-        Flips when something reconciles the two orders — at load, at
-        commit, or by making `commit` diff the cache it was handed rather
-        than the replay. Owner unassigned, filed for the addendum wave.
+        This is the half of the defect a correct replay cannot reach, and
+        that is why it is still worth its own test now that
+        `test_every_shipped_artifact_replays_in_its_cached_order` is
+        green. The disagreement here is not a replay bug — the record
+        says `[n1, n2]` and the file says `[n2, n1]`, with no index to
+        get wrong — so it stands for every way a drifted file can arrive
+        that nobody has thought of yet: a hand edit, a partial restore, a
+        save record lost to SAV-001. The rule this pins is that a
+        `reordered` fact is a claim about a person's action and may only
+        be measured against what that person was shown.
         """
         summary = self._nudge(self._drift_project(drifted=True))
         self.assertEqual(summary["verb_counts"], {"moved": 1}, summary)
 
-    @unittest.expectedFailure
-    def test_red_every_shipped_artifact_replays_in_its_cached_order(
-            self) -> None:
-        """The invariant nobody asserts, read over a real recorded session.
+    def test_every_shipped_artifact_replays_in_its_cached_order(self) -> None:
+        """The invariant nobody asserted, read over a real recorded session.
 
-        RED BY ASSERTION on `argus-r4-arm3` as committed: `argus-domain`
-        holds `pin-watchlist-real` and `r-run-rerun-label` at indices 43
-        and 44 in the cache and at 44 and 43 in the replay — same 45
-        elements, two of them swapped, on the richest real session on
-        record. The other six artifacts agree, which is exactly why the
-        storm reads as intermittent rather than as a bug: whether a save
-        detonates it depends only on which artifact it lands on.
-        `TestArgusR4Arm3Fixture.test_replays_full_history` walks past this
-        because it compares `head_revn` and the artifact id SET, never an
-        order.
+        FLIPPED 2026-08-16 (v0.9 Task 52) at the root the bisect found,
+        which is neither of the two halves of the store: `replay_changes`
+        applied a record's ops in RECORD order, and `diff_scenes` indexes
+        an `add` against the finished list while emitting it ahead of the
+        `del`s. So one save that both added and deleted left the added
+        element one slot short, for good. `argus-domain`'s revn 42 is
+        that save — two adds, one del — and it is why this fixture held
+        `pin-watchlist-real` and `r-run-rerun-label` at 43/44 in the
+        cache and 44/43 in the replay, same 45 elements, two swapped, on
+        the richest real session on record.
 
-        Element order is paint order, so this is not bookkeeping: the two
-        halves of the store disagree about what is drawn on top of what.
+        Kept over the whole corpus rather than over that one artifact
+        because the other six here always agreed, and that is exactly why
+        the storm read as intermittent rather than as a bug: whether a
+        save detonated it depended only on which artifact it landed on.
+        `TestArgusR4Arm3Fixture.test_replays_full_history` still walks
+        past all of it — it compares `head_revn` and the artifact id SET,
+        never an order — so this is the only place the invariant is held.
+
+        Element order is paint order, so this was never bookkeeping: the
+        two halves of the store disagreed about what is drawn on top of
+        what.
         """
         src = Path(__file__).resolve().parent / "fixtures" / "argus-r4-arm3"
         root = Path(tempfile.mkdtemp(prefix="mutants-fixture-"))
@@ -13588,8 +13606,18 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 3,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
                              "TestInkExtentIsRotationBlind": 1,
                              "TestLabelledGhostKeepsItsCaption": 1,
-                             "TestLoadFindingsReachTheAgent": 4,
-                             "TestReplayOrderFidelity": 2}
+                             "TestLoadFindingsReachTheAgent": 4}
+# `TestReplayOrderFidelity` LEFT this list on 2026-08-16 (v0.9 Task 52),
+# draining 2 -> 0 in one change, and it is the first class to leave by way
+# of TWO fixes rather than one: a root-cause fix in `replay_changes` for
+# the corpus red and a separate reconciliation in `commit` for the
+# synthetic one. Batch 25's note below predicted a split-owner class
+# drains "in pieces from several directions"; this is the same shape
+# inside a single task, and worth reading beside it — the two reds looked
+# like one defect pinned from both ends (the shape that let the curves
+# fold-in drain `TestLabelAnchorAgainstTheDrawnPosition`), and they were
+# not. Fixing only the root cause left the second red exactly as red as
+# it started.
 # `TestBoundsLoopReadsTheLineHeight` JOINED this list on 2026-08-15 (curator
 # batch 23 item 3) — the first arrival since batch 16 built the guard, and
 # the motion the counts exist for: one new class, one new red, and the two
