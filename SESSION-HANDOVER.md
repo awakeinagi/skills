@@ -315,24 +315,37 @@ added it goes back to differing, and nothing enforces the parity.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**16 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-FRAMING; it read
-17 / 3 / 0 before batch 25). Do not restate any of it as one suite ef
-total.
+**14 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-E9ENVELOPE; it read
+16 / 3 / 0 at TASK-FRAMING and 17 / 3 / 0 before batch 25). Do not restate
+any of it as one suite ef total.
 
-TWO NUMBERS MOVED IN THAT SENTENCE AND ONLY ONE OF THEM WAS TASK-FRAMING'S.
-The render 5 → 3 is its two flips. The model 20 → 16 was ALREADY WRONG at
-its base commit (286a5cb) — measured at pristine HEAD before any edit, so
-the drain happened somewhere in tasks 51/52/54 and this sentence was not
-carried with it. That is the SIXTH staleness of a hand-copied count in
-this file, and the first one the guard could not catch: `TestCoverage.
-test_the_handover_transcribes_the_reds_it_declares` parses the model ROW
-OF IDS out of this file, and the model row of ids was correct — the guard
-never looks at this paragraph. So the checked row and the unchecked
-sentence beside it disagreed by four, and the checked one is not what a
-reader quotes. Deriving a count is cheap (the grep is printed right here);
-the durable fix is a guard that reads these three numbers, and it is filed
-rather than built because it is not this task's surface.
+**THIS SENTENCE IS NOW GUARDED — stop hand-editing it and let the guard
+tell you.** `TestCoverage.test_the_handover_transcribes_the_durable_red_
+counts` derives all three numbers with the very grep printed above and
+fails when they part. Built at TASK-E9ENVELOPE, and watched failing
+against the real staleness before the numbers were corrected.
+
+WHY IT EXISTS, because the record is the argument. This paragraph went
+stale SEVEN times. Sixth: two numbers moved and only one was
+TASK-FRAMING's — the render 5 → 3 was its two flips, while the model
+20 → 16 had ALREADY been wrong at its base commit `286a5cb`, so the
+drain happened somewhere in tasks 51/52/54 and the sentence was never
+carried with it. Seventh: TASK-E9ENVELOPE's two model flips (16 → 14)
+falsified it again in `03ac73d`, **the very next commit to touch a
+red** — one commit after a careful hand correction. A hand copy that
+cannot survive a single commit is not a transcription problem, it is a
+missing assertion.
+
+And the three guards standing beside it were green through every one of
+those seven, correctly: they read the model ROW OF IDS, the coverage
+SENTENCE, and the class/count map, and none of them opens this
+paragraph. That is the distance rule again — a guard proves the property
+it evaluates and no part of the property standing next to it. The
+sharpest detail is that this sentence PRINTS ITS OWN DERIVATION, one
+line above the numbers: everything needed to keep it honest was already
+on the page for six of the seven events. Being cheap to derive is not
+the same as being derived.
 
 **Task 50 flipped `test_mutant_opacity_ghost_is_invisible_to_tier_one`**,
 the oldest of the three and the one that could not be fixed where it stood.

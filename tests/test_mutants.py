@@ -14170,6 +14170,91 @@ def handover_coverage_totals() -> tuple[int, int, int, int]:
             int(found.group(3)), int(found.group(4)))
 
 
+# The third hand copy in SESSION-HANDOVER.md, and the one that went stale
+# most often before anything watched it: the "durable form of the counts"
+# sentence. The two guards above read a TABLE OF IDS and a COVERAGE
+# SENTENCE and neither has ever looked at this paragraph, which is why it
+# drifted seven times while they stood green beside it — including once
+# within a single commit of being corrected by hand (TASK-FRAMING fixed it
+# in 627242d; TASK-E9ENVELOPE's two flips falsified it again in 03ac73d).
+#
+# The sentence prints its own derivation, which is what makes a guard
+# cheap: it names the exact grep. So this matches that grep rather than
+# asking `unittest` — deliberately, and the difference matters. The grep
+# counts DECORATOR LINES in the source; a runner counts what it executes,
+# which drops a decorated method whose class is gated or skipped. Those
+# are different numbers for good reasons, and the handover's sentence is
+# about the first. Reading it the other way would make this guard fail
+# honestly-written prose.
+_HANDOVER_DURABLE = re.compile(
+    r"\*\*(\d+) / (\d+) / (\d+)\*\*\s+for\s+`test_mutants\.py`,\s+"
+    r"`test_mutants_render\.py`\s+and\s+`test_backend\.py`", re.S)
+
+# In the order the sentence lists them, which is the order the tuple is
+# compared in — a guard that sorted them would pass a sentence with the
+# right three numbers against the wrong three files.
+DURABLE_RED_FILES = ("test_mutants.py", "test_mutants_render.py",
+                     "test_backend.py")
+
+_RED_DECORATOR = re.compile(r"^[ \t]*@unittest\.expectedFailure[ \t]*$",
+                            re.MULTILINE)
+
+
+def durable_red_counts() -> tuple[int, int, int]:
+    """Count red decorators per file, the way the handover says to.
+
+    Returns:
+        One count per entry of `DURABLE_RED_FILES`, in that order.
+
+    Raises:
+        AssertionError: If a named file is not in this tree, for the
+            reason `handover_catalogue_reds` gives at length — a census
+            guard that silently reads nothing reports agreement while
+            measuring nothing, which is the defect it exists to close.
+    """
+    here = Path(__file__).resolve().parent
+    counts = []
+    for name in DURABLE_RED_FILES:
+        path = here / name
+        if not path.exists():
+            raise AssertionError(
+                "%s is not beside this file, so the durable red counts "
+                "cannot be derived. If this is an isolated mutation-proof "
+                "tree, copy it in — the guard is not what you are "
+                "measuring and this failure is not a finding" % name)
+        counts.append(len(_RED_DECORATOR.findall(
+            path.read_text(encoding="utf-8"))))
+    return (counts[0], counts[1], counts[2])
+
+
+def handover_durable_counts() -> tuple[int, int, int]:
+    """The per-file red counts SESSION-HANDOVER.md states, as numbers.
+
+    Returns:
+        `(test_mutants, test_mutants_render, test_backend)` as the file's
+        own sentence spells them.
+
+    Raises:
+        AssertionError: If the file or the sentence is absent — the
+            sentence being reworded past what this reads is a finding
+            about the census, not a reason to return nothing.
+    """
+    if not HANDOVER.exists():
+        raise AssertionError(
+            "%s is not in this tree, so the durable-count transcription "
+            "cannot be checked. If this is an isolated mutation-proof "
+            "tree, copy the file in beside tests/" % HANDOVER)
+    found = _HANDOVER_DURABLE.search(HANDOVER.read_text(encoding="utf-8"))
+    if found is None:
+        raise AssertionError(
+            "no '**N / N / N** for `test_mutants.py`, "
+            "`test_mutants_render.py` and `test_backend.py`' sentence in "
+            "%s: the durable-count paragraph has been reworded past what "
+            "this reads. Re-anchor it or delete this function and its "
+            "test together" % HANDOVER.name)
+    return (int(found.group(1)), int(found.group(2)), int(found.group(3)))
+
+
 def red_bearing_classes() -> dict[str, int]:
     """Every TestCase in this module carrying an `expectedFailure`, counted.
 
@@ -14666,6 +14751,52 @@ class TestCoverage(unittest.TestCase):
             "UNCOVERED) = %s while coverage_table() reports %s. Update the "
             "sentence; this is a hand copy of a derived fact and it has "
             "drifted before" % (stated, live))
+
+    def test_the_handover_transcribes_the_durable_red_counts(self) -> None:
+        """The fourth census hand copy to get a guard, v0.9 (2026-08-16).
+
+        The one with the worst record by a distance. The handover's
+        "durable form of the counts" sentence had gone stale SEVEN times
+        by the day this was written, twice in the last two commits: it
+        was corrected by hand in TASK-FRAMING's `627242d` after standing
+        wrong-by-four since tasks 51/52/54, and TASK-E9ENVELOPE's two
+        flips falsified it again in `03ac73d`, the very next commit
+        touching a red. A hand copy that cannot survive one commit is
+        not a transcription problem, it is a missing assertion.
+
+        WHY THE THREE GUARDS BESIDE IT NEVER CAUGHT IT, which is the
+        general point and not an excuse: they read a table of ids, a
+        coverage sentence, and a class/count map. All three were CORRECT
+        every time this one was wrong, because none of them opens this
+        paragraph. That is the same distance rule
+        `test_the_handover_transcribes_the_reds_it_declares` was written
+        about — a guard proves the property it evaluates and no part of
+        the property standing next to it — arriving for the fourth time.
+        The lesson has now been paid for four times and the pattern is
+        exact: a derived fact is copied into prose for readability, the
+        copy is right the day it is written, and nothing rejoins them.
+
+        IRONY WORTH KEEPING, because it is the argument: the sentence
+        this checks PRINTS ITS OWN DERIVATION — the grep is written out
+        in the file, one line above the numbers. Everything needed to
+        keep it honest was already on the page for six of the seven
+        staleness events. Being cheap to derive is not the same as being
+        derived, and only the second one holds.
+
+        Matched to the grep and not to the runner, deliberately: see the
+        comment on `_HANDOVER_DURABLE` for why those are different
+        numbers and why the sentence means the first.
+        """
+        stated = handover_durable_counts()
+        live = durable_red_counts()
+        self.assertEqual(
+            stated, live,
+            "SESSION-HANDOVER.md's durable-count sentence reads %s for "
+            "%s while the live decorators say %s. Edit the sentence — it "
+            "is a hand copy of a derived fact and this is the eighth "
+            "time it has drifted"
+            % (" / ".join(map(str, stated)), ", ".join(DURABLE_RED_FILES),
+               " / ".join(map(str, live))))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""

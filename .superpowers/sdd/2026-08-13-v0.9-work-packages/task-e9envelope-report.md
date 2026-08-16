@@ -1,5 +1,12 @@
 # TASK-E9ENVELOPE — the batch pipeline's envelope covers its whole surface
 
+> **Follow-up landed after the report: see §9.** TASK-FRAMING measured
+> that my two flips left SESSION-HANDOVER.md's durable-count sentence
+> stale (16 / 3 / 0 against a live 14 / 3 / 0). I corrected it and
+> **built the guard** that has been filed-not-built through seven
+> staleness events.
+
+
 **BASE `286a5cb`** (v0.9 Task 54). **LANDED `03ac73d`** on `v0.9_wps`,
 on top of TASK-FRAMING's `627242d`, which arrived under me mid-landing
 and is what step 5 of the landing method exists to catch. Their two
@@ -383,3 +390,68 @@ for the correction.
    reflects their work and knows nothing of my two flips or the five
    tests I added. Whoever next reconciles it should re-derive both
    rows rather than add my numbers to theirs.
+
+---
+
+## 9. Follow-up — the durable-count sentence gets a guard
+
+Routed by TASK-FRAMING within minutes of my fix landing, measured not
+inferred, and correct: my two flips moved
+`SESSION-HANDOVER.md`'s "durable form of the counts" sentence and I had
+not carried it. It read **16 / 3 / 0**; the tree greps **14 / 3 / 0**.
+
+I corrected the sentence **and built the guard**, because the recurrence
+record is the argument for not just carrying a number again:
+
+- **Seventh staleness of this one paragraph.** The sixth was fixed BY
+  HAND in TASK-FRAMING's `627242d`, after standing wrong-by-four since
+  tasks 51/52/54. My `03ac73d` — the very next commit to touch a red —
+  falsified it again. A hand copy that cannot survive one commit is not
+  a transcription problem, it is a missing assertion.
+- **Three guards stood green beside it through all seven**, correctly:
+  they read the model row of ids, the coverage sentence, and the
+  class/count map, and none of them opens this paragraph. The distance
+  rule again — a guard proves the property it evaluates and no part of
+  the property standing next to it.
+- **The sentence prints its own derivation**, one line above the
+  numbers. Everything needed to keep it honest was on the page for six
+  of the seven events. Being cheap to derive is not being derived.
+
+`TestCoverage.test_the_handover_transcribes_the_durable_red_counts`,
+plus `durable_red_counts()` / `handover_durable_counts()` beside the two
+existing transcription helpers in `tests/test_mutants.py` — my surface,
+which is why I built it rather than filing it on.
+
+**Watched failing before the numbers were corrected**, per rule 8:
+`(16, 3, 0) != (14, 3, 0)`, by assertion, not by error. Stub-checked
+both directions: blinding the derivation regex leaves it FAILING (not a
+dead guard reporting agreement over an empty read), and rewording the
+sentence past its anchor raises an `AssertionError` naming the file
+rather than silently returning nothing.
+
+**Design choice worth stating, since it could reasonably go the other
+way.** It matches the GREP, not the runner. Those are different numbers
+— the grep counts decorator lines in the source, a runner drops a
+decorated method whose class is gated or skipped — and the handover's
+sentence is explicitly about the first, because it prints that grep.
+Reading it the other way would fail honestly-written prose.
+
+**One attribution corrected on the way through.** TASK-FRAMING credited
+my commit with fixing `tests/test_backend.py`'s Python 3.9 import. It
+did not — `03ac73d` does not touch that file. `aeac121` does, and its
+own message credits TASK-FRAMING with finding it. I only verified
+downstream: the full suite passes under `uv run --python 3.9`. Worth
+recording because a plausible name copied without deriving it is the
+same failure mode as the count this section is about.
+
+### Re-verified at the follow-up tip
+
+| | result |
+|---|---|
+| default suite | **1122, OK, ef=17** (38 skipped) |
+| gated render tier | **1122, OK, ef=17** |
+| **on the 3.9 floor** | **1122, OK, ef=17** |
+| `pre-commit run --all-files` | **all 15 hooks pass** |
+
+1122 rather than 1121 is the new guard. `ef` is unchanged: a guard is
+not a red.
