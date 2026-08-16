@@ -14187,21 +14187,46 @@ def handover_catalogue_reds() -> set[str]:
     the hand-copied table out of the file so the transcription can be
     compared to the derivation instead of trusted.
 
+    EXACTLY ONE row is required, and the walk that finds it reads the
+    WHOLE file rather than returning at the first hit. The first draft
+    returned on the first matching line, which is the same
+    first-match-wins hole `handover_durable_counts` was found to have
+    (v0.9 census, `2db8a5b`) — all three readers of this file had it,
+    and this one is the second of the two that change together.
+
+    THE DIRECTION THAT IS SILENT is the one to test, and it is not the
+    obvious one. A WRONG row placed above the canonical one fails loudly
+    and would have cleared this guard on a first look; what is silent is
+    a CORRECT copy above a STALE canonical row — the guard reads the
+    copy, finds it agrees with the derivation, and reports the census
+    healthy while the row a human reads is missing an id. Demonstrated
+    live before this fix landed.
+
+    RESIDUAL, stated rather than papered over: the exactly-one check
+    catches a duplicate in THIS spelling — a line starting with the row
+    label. The same ids restated as prose elsewhere in the file are
+    invisible to it, and the fifth hand copy of the durable counts that
+    `2db8a5b` deleted was exactly that shape. No guard here detects a
+    fact restated in new words; the discipline is the instruction, and
+    the pointers in the file are what carry it.
+
     Returns:
         Every backticked id in the model row of the "Catalog reds" table.
 
     Raises:
-        AssertionError: If the file or the row is absent. A census guard
-            that quietly returns an empty set when its subject moves is
-            worth less than no guard, because it reports agreement while
-            reading nothing — the exact shape of the defect this closes.
-            Both cases are ASSERTIONS and not the underlying OSError:
-            this file's own doctrine is that a red must be red by
-            assertion, and an isolated tree — `tests/` copied beside a
-            symlinked `skills/`, which is how every mutation proof in
-            this repo is run — hits the missing-file case as a matter of
-            course. It should read as one sentence about the tree, not
-            as a traceback about the census.
+        AssertionError: If the file is absent, if the row is absent, or
+            if the row appears more than once. A census guard that
+            quietly returns an empty set when its subject moves is worth
+            less than no guard, because it reports agreement while
+            reading nothing — the exact shape of the defect this closes,
+            and a guard that reads one of two copies is the same defect
+            wearing a table. Every case is an ASSERTION and not the
+            underlying OSError: this file's own doctrine is that a red
+            must be red by assertion, and an isolated tree — `tests/`
+            copied beside a symlinked `skills/`, which is how every
+            mutation proof in this repo is run — hits the missing-file
+            case as a matter of course. It should read as one sentence
+            about the tree, not as a traceback about the census.
     """
     if not HANDOVER.exists():
         raise AssertionError(
@@ -14209,15 +14234,23 @@ def handover_catalogue_reds() -> set[str]:
             "be checked. If this is an isolated mutation-proof tree, copy "
             "the file in beside tests/ — the guard is not what you are "
             "measuring and this failure is not a finding" % HANDOVER)
-    for line in HANDOVER.read_text(encoding="utf-8").splitlines():
-        if line.startswith(_HANDOVER_MODEL_ROW):
-            return set(re.findall(r"`([a-z0-9_]+)`",
-                                  line[len(_HANDOVER_MODEL_ROW):]))
-    raise AssertionError(
-        "no %r row in %s: the catalog-reds table has been renamed or "
-        "removed. If it is gone on purpose, delete this function and its "
-        "test in the same change — do not leave them matching nothing"
-        % (_HANDOVER_MODEL_ROW, HANDOVER.name))
+    rows = [line for line in HANDOVER.read_text(encoding="utf-8").splitlines()
+            if line.startswith(_HANDOVER_MODEL_ROW)]
+    if not rows:
+        raise AssertionError(
+            "no %r row in %s: the catalog-reds table has been renamed or "
+            "removed. If it is gone on purpose, delete this function and "
+            "its test in the same change — do not leave them matching "
+            "nothing" % (_HANDOVER_MODEL_ROW, HANDOVER.name))
+    if len(rows) > 1:
+        raise AssertionError(
+            "%d copies of the %r row in %s: %s. These ids are transcribed "
+            "ONCE, in the catalog-reds table, and pointed at from "
+            "everywhere else — a second copy is the census defect this "
+            "guard exists for, arriving by duplication instead of by "
+            "drift" % (len(rows), _HANDOVER_MODEL_ROW, HANDOVER.name, rows))
+    return set(re.findall(r"`([a-z0-9_]+)`",
+                          rows[0][len(_HANDOVER_MODEL_ROW):]))
 
 
 # The handover's transcription of `coverage_table`'s totals. Matched on the
@@ -14246,29 +14279,53 @@ def handover_coverage_totals() -> tuple[int, int, int, int]:
     handover's TRANSCRIPTION of the totals, which is the only part of
     the coverage story a reader gets without running anything.
 
+    EXACTLY ONE occurrence is required, for the reason and by the shape
+    `handover_durable_counts` records (v0.9 census, `2db8a5b`). This one
+    used `.search`, which takes the first match and ignores the rest, so
+    a stale canonical sentence sitting BELOW a correct copy was read as
+    healthy — verified silent in both masking directions before the fix.
+    All three readers of this file had the same hole; it was found in
+    them one at a time, which is the argument for changing the last two
+    together rather than as each is noticed.
+
+    RESIDUAL, the same one its two siblings carry: this catches a
+    duplicate of the SENTENCE, matched on its four numbers in order.
+    The same totals restated in fresh prose match nothing and are not
+    detected by anything built. The discipline is the instruction.
+
     Returns:
         `(detectors, proven, render_tier, uncovered)`.
 
     Raises:
-        AssertionError: If the file or the sentence is absent, for the
-            reason `handover_catalogue_reds` gives at length — a census
-            guard that reads nothing and reports agreement is worse than
-            no guard.
+        AssertionError: If the file is absent, if the sentence is
+            absent, or if it appears more than once, for the reason
+            `handover_catalogue_reds` gives at length — a census guard
+            that reads nothing and reports agreement is worse than no
+            guard, and one that reads a copy is worse still, because it
+            reports agreement with something.
     """
     if not HANDOVER.exists():
         raise AssertionError(
             "%s is not in this tree, so the coverage transcription cannot "
             "be checked. If this is an isolated mutation-proof tree, copy "
             "the file in beside tests/" % HANDOVER)
-    found = _HANDOVER_COVERAGE.search(HANDOVER.read_text(encoding="utf-8"))
-    if found is None:
+    found = _HANDOVER_COVERAGE.findall(HANDOVER.read_text(encoding="utf-8"))
+    if not found:
         raise AssertionError(
             "no '**N detectors, N proven, N render-tier, N UNCOVERED**' "
             "sentence in %s: the coverage bullet has been reworded past "
             "what this reads. Re-anchor it or delete this function and "
             "its test together" % HANDOVER.name)
-    return (int(found.group(1)), int(found.group(2)),
-            int(found.group(3)), int(found.group(4)))
+    if len(found) > 1:
+        raise AssertionError(
+            "%d copies of the coverage-totals sentence in %s: %s. These "
+            "totals are stated ONCE, in the coverage bullet, and pointed "
+            "at from everywhere else — a second copy is the census defect "
+            "this guard exists for, arriving by duplication instead of by "
+            "drift" % (len(found), HANDOVER.name, found))
+    stated = found[0]
+    return (int(stated[0]), int(stated[1]),
+            int(stated[2]), int(stated[3]))
 
 
 # The third hand copy in SESSION-HANDOVER.md, and the one that went stale

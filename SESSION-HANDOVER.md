@@ -41,15 +41,20 @@ repos idea-mined with everything dispositioned; methodology documented in
   machine discovers. Verify before any assessment work.
 - Health, re-measured 2026-08-13 after curator Batch D + follow-up: **~780+ unit tests (moving target — trust the SDD ledger, not this number)** (`python3 -m unittest discover -s tests`, ~9s) →
   `OK` (skips and expected-failure counts move with the drain — read them from the SDD ledger); with the render tier enabled
-  (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the render-enabled run `OK` — the 17 skips are the render tests,
-  21 of them (ef=3); **12 Playwright e2e**; `uvx pre-commit run
+  (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the render-enabled run `OK` — the skips are the render tests;
+  **12 Playwright e2e**; `uvx pre-commit run
   --all-files` green. The expected failures are red *by intent* — **do not
   read a count from this block**, which carried "29 (26 model + 3 render)"
   from a 2026-08-13 measurement until curator batch 23 deleted the numbers
   on 2026-08-15 (task 46 §9 C4 flagged the "3 render" as long dead). The
   block disclaims itself, but a disclaimed number is still the number
   people quote; §1a below carries the per-file measurement and the command
-  that produces it. (live source of truth: the SDD ledger at .superpowers/sdd/2026-08-13-v0.9-work-packages/progress.md — THIS FILE's counts lag by design between gate seams) (Batch D added
+  that produces it. Its last red count — a parenthesised `ef=3` for the
+  render tier, correct on the day and invisible to the guard that watches
+  the real sentence — went the same way at v0.9 TASK-MICROFIX, for the
+  same reason: a census number restated in prose is a fifth copy however
+  small, and this block's own disclaimer is the evidence that disclaimers
+  do not hold. (live source of truth: the SDD ledger at .superpowers/sdd/2026-08-13-v0.9-work-packages/progress.md — THIS FILE's counts lag by design between gate seams) (Batch D added
   `parity_clipped` — render_svg clips center-aligned labels at the viewBox's
   min side; the follow-up proved `text_overflow` both arms GREEN; coverage
   table 13 rows, UNCOVERED ledger 48).
@@ -76,13 +81,18 @@ own `TestCoverage` sibling. Read them there, or run `mutants list --red`.
 
 WHY THIS PARAGRAPH LOST ITS NUMBERS (v0.9 TASK-E9ENVELOPE, found by
 TASK-FRAMING). It was the FIFTH census hand copy, and by the time anyone
-looked, **all five of its claims were false**: the per-file counts (it
+looked, **all five of its claims were false**. Every figure below is
+QUOTED FROM THAT DEAD PARAGRAPH and paired with what was live *at that
+moment* — this is a record of an autopsy, not a statement of the census,
+and nothing in it should be read as current: the per-file counts (it
 said 17 / 3 / 0 against a live 14 / 3 / 0), the total (20 against 17),
 the catalog/hand-authored split (8 / 12 against a derived 5 / 9), how
 many render reds are ungated (it said two of three; all three are), and
 the two suite totals (`=19` and `=20`; both runs read the same number).
 It had been wrong by one before this wave and drifted three further with
-the flips.
+the flips. For what is red TODAY, read the guarded sentence and the two
+derived halves named above — the live per-file counts have already moved
+again since this autopsy was written, which is the whole argument.
 
 The damning part is not the drift, it is that this paragraph broke three
 rules its OWN section states below it: *"Do not restate any of that as a
