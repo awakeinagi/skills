@@ -38,14 +38,25 @@ nothing, because a dead detector does not satisfy it either. So "every red
 adds one" is wrong in both directions — only silence-shaped reds count, and
 each must be checked rather than counted.
 
-Measured at `2cca618` across seven kills spanning both tiers: **zero** of the
-suite's 19 reds are silence-shaped in this sense — no kill produces a single
-unexpected success — so the correction is ZERO today and every witness count
-above is a plain test count. It has not always been: the originating spike's
-`ablation_continuity` row was three, one of which it recorded as "a RED pin
-turning UNEXPECTED SUCCESS". Before reading any witness-count delta as a lost
-guard, check whether a red was flipped in between, and check it by looking at
-the `unexpected` list the driver already reports rather than by counting reds.
+Measured at `2cca618` across seven kills spanning both tiers: **no kill
+produced a single unexpected success**, so the correction was ZERO at that
+commit and every witness count above is a plain test count. It has not always
+been: the originating spike's `ablation_continuity` row was three, one of
+which it recorded as "a RED pin turning UNEXPECTED SUCCESS".
+
+That measurement is deliberately NOT stated as a fraction of the suite's
+reds, and the earlier draft that did state it that way is worth keeping as a
+warning. It said "zero of the suite's 19 reds" — and 19 was the MODEL tier's
+`expected failures` count at `bc48bb1`, carried forward by hand into a
+sentence dated to a later commit where it was already wrong (24 at `a2f5e6a`,
+and the render tier's reds were never in it). Exactly the stale-number
+failure this module's own provenance line exists to prevent, committed one
+level up in the prose. A red count is also the wrong instrument even when
+it is current: reds are added and flipped constantly, only silence-shaped
+ones can ever contribute, and flipping a NON-silence-shaped red moves the
+correction by nothing at all. So before reading a witness-count delta as a
+lost guard, read the `unexpected` list the driver already reports for the run
+in front of you. Never count reds.
 
 AND THE RENDER TIER'S WITNESS COUNTS CARRY ±1 OF NOISE THAT IS NOT THE
 DETECTOR'S. Measured directly: every render kill run TWICE at `2cca618`, same
@@ -63,8 +74,8 @@ defence that exists for exactly this — did not catch it.
 So: **read a render-tier witness count as "about this many", and diff the
 witness SETS rather than the counts before believing a movement.** The driver
 already reports the ids; `_bad` returns a set for this reason. The model
-tier has no such caveat — all 16 rows reproduced byte-identically across runs
-at two different commits.
+tier has no such caveat: all 16 of the model rows that existed at `2cca618`
+reproduced byte-identically across runs at two different commits.
 
 WHAT IT CANNOT PROVE, and the distinction is the whole reason rule 8 exists.
 A NOTICED DEATH IS NOT A GOOD CONTROL. This module works at CHECK level: it
@@ -113,8 +124,10 @@ three independent witnesses stand in front of every kill:
   because `_collect_crossings` emits one finding per scene whatever the answer
   is: blinding `edge_crossings` leaves its COUNT at 82 and moves only the
   number inside, which a count-only probe would have read as a kill that never
-  bit. All 16 model-tier checks fire somewhere in the catalogue, so all 16
-  carry this control. The render tier's three producers need a browser and
+  bit. Every model-tier check fires somewhere in the catalogue, so every one
+  of them carries this control — asserted per kill rather than pinned to a
+  count here, because the count moves whenever a detector is registered. The
+  render tier's three producers need a browser and
   `collect_findings` never calls them, so those five rows rest on inertness
   and the drop counter alone — said in their class docstring rather than left
   to be discovered.
@@ -125,8 +138,9 @@ under the inert run. The inert run is green, so the subtraction is a no-op by
 construction; it is written down anyway, because the day it stops being a
 no-op is the day a row would otherwise be fabricated.
 
-COST. One tree copy, then one full suite run per kill: ~7 minutes for the
-model tier's 16 checks and ~12 more for the render tier's 5, with the kills
+COST. One tree copy, then one full suite run per kill: measured at `2cca618`,
+~7 minutes for the model tier's 16 checks then and ~12 more for the render
+tier's 5, and it grows by roughly one suite run per check added, with the kills
 fanned out over `MUTANTS_MORTALITY_JOBS` workers (4 by default, 2 for the
 render tier, whose runs each drive a browser). Nothing is shared between
 workers that a test can observe: each gets its own `TMPDIR`, which is where
