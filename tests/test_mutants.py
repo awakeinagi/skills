@@ -11144,14 +11144,24 @@ _register(Mutant(
                         FindingSpec("passes_through_foreign",
                                     element="e1"))))
 
-# RED BY ABSENCE — F8, the curved corridor population the shipped pin does
-# not reach (curves-fold review §7, curated 2026-08-15). `_reads_as_line`
-# scales its band with the span it lands on while the bow that span carries
-# is set by the leg BEFORE it, so a short final after a long approach is
-# rejected by stage 2 and vanishes from `shared_corridors` entirely. The
-# review measured 75 of 224 axis-aligned-chord stretches rejected in the
-# all-curved corpus, 10% under the shipped gate; this is one of them,
-# minimized.
+# WAS RED BY ABSENCE — F8, the curved corridor population the shipped pin
+# did not reach (curves-fold review §7, curated 2026-08-15). FLIPPED GREEN
+# by v0.9 task 51. `_reads_as_line` scaled its band with the span it landed
+# on while the bow that span carries is set by the leg BEFORE it, so a short
+# final after a long approach was rejected by stage 2 and vanished from
+# `shared_corridors` entirely. The review measured 75 of 224
+# axis-aligned-chord stretches rejected in the all-curved corpus, 10% under
+# the shipped gate; this is one of them, minimized.
+#
+# THE FIX WAS NOT A WIDER BAND, which is what this entry's own flip
+# verification had already ruled out. Stage 2 left `shared_corridors`
+# altogether: a straightness gate can only suppress a chord reading it
+# shares, and over the 24 frozen artifacts its whole measured effect was to
+# make the corridor count depend on whether the corners were rounded (5 as
+# stored, 5 all-curved without it, 1 all-curved with it — roundness moves no
+# endpoint). `_reads_as_line` itself is untouched and `false_bidi` still
+# gates on it, which is why none of the six things the naive widen-the-
+# constant fix broke moved this time. See `_stretch_axis`.
 #
 # WHAT MAKES IT A DEFECT AND NOT A SENSITIVITY DROP: the two finals are
 # 15.0px apart sharp and 15.4px apart drawn, sampled at their midpoint. The
@@ -11167,9 +11177,9 @@ _register(Mutant(
 # THE NEIGHBOUR IS THE SHARP SCENE FIRING, not a Silence, for the reason
 # `tolerable_gap_hides_interior_run` states about gates: the red says the
 # check goes quiet, the green says what it must say when it speaks, and a
-# check that had gone quiet on both poles satisfies neither. Owner: the
-# corridor instrument's — a band set by the leg that produced the bow
-# rather than by the span that carries it. Unowned as of this batch.
+# check that had gone quiet on both poles satisfies neither. It is what
+# makes the flip mean something too: both poles now report the same 80px
+# corridor, which is the entry's claim that the drawing did not change.
 _register(Mutant(
     "curved_short_finals_escape_the_corridor",
     build=lambda: _short_finals(rounded=True),
@@ -11391,9 +11401,8 @@ class TestMutantCatalogue(unittest.TestCase):
         """Sharp, that chord IS the drawing, and the crossing is real."""
         self._run_neighbour("curved_bow_overstates_through_node_crossing")
 
-    @unittest.expectedFailure
     def test_mutant_curved_short_finals_escape_the_corridor(self) -> None:
-        """Two strokes 15px apart stop being a corridor once curved."""
+        """Two strokes 15px apart stay a corridor once curved (task 51)."""
         self._run("curved_short_finals_escape_the_corridor")
 
     def test_neighbour_curved_short_finals_escape_the_corridor(self) -> None:
@@ -12504,8 +12513,7 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # notices a red that started PASSING. Nothing noticed a red that was ADDED,
 # and an addition is what leaves a census stating six where seven is true.
 # Neither guard subsumes the other, and this one is the cheap half.
-CATALOGUE_RED_IDS = {"curved_short_finals_escape_the_corridor",
-                     "fanned_ellipse_foot_floats_in_the_void",
+CATALOGUE_RED_IDS = {"fanned_ellipse_foot_floats_in_the_void",
                      "framed_node_escapes_its_lane", "gray_text_on_ground",
                      "headless_chain_reads_through_node", "pale_stroke_node",
                      "tiny_font_text", "tolerable_gap_hides_interior_run"}

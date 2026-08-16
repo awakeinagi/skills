@@ -440,7 +440,7 @@ def _axis(
 def _stretch_axis(
     stretch: list[tuple[float, float]],
 ) -> tuple[str, float, float, float] | None:
-    """Classify a whole DRAWN stretch as one axis-aligned run.
+    """Classify a whole DRAWN stretch as one axis-aligned run, by its chord.
 
     The naive curvature fix for `shared_corridors` — swap the segment
     source and leave the rest — goes SILENT on real corridors, and that
@@ -454,37 +454,62 @@ def _stretch_axis(
     run gives. The pairwise matcher below cannot find a stable pairing
     across two arrows' independently drifting sample grids, so two 200px
     curved verticals 4px apart — obviously one thick stroke — scored
-    zero (v0.9 blind-spot 2 spike).
+    zero (v0.9 blind-spot 2 spike). So the stretch is classified ONCE,
+    and the chord is what classifies it.
 
-    The fix is `_reads_as_line`'s treatment, one level up: classify the
-    stretch ONCE, from its own chord, and let the bow earn a tolerance
-    against that chord rather than re-deriving an axis twenty times.
+    THE CHORD IS ON THE PAGE, which is what makes reading it honest here
+    rather than a relapse to stored geometry. A Catmull-Rom span at
+    `curveTightness: 0` interpolates both of its stored vertices
+    (`_bezier_spans`, verified against the client's own `bcurveTo` ops),
+    so a stretch's first and last samples ARE its stored endpoints and
+    the chord runs between two points the ink passes through. What sits
+    between them is the renderer's smoothing, and it is bounded: the
+    excursion off the chord peaks at 2/27 of the neighbouring leg's
+    perpendicular reach, in one lobe, returning to the chord at both
+    ends.
 
-    Two properties make this safe to swap in everywhere:
+    NO STRAIGHTNESS GATE, and this function used to have one — a
+    `_reads_as_line` second stage, dropped by v0.9 task 51. It could only
+    ever SUPPRESS (it is a filter over the same chord reading), and the
+    curves-fold review measured what it suppressed: 33% of the corpus's
+    cleanly axis-aligned stretches, 75 of 224, median chord 88px. The
+    mechanism is the asymmetry `_reads_as_line`'s own docstring names —
+    a span's bow is set by the leg BEFORE it while the band scales with
+    the span's own extent — so a short final after a long approach, the
+    commonest shape a router draws, is rejected on its neighbour's
+    length. Measured over the 24 frozen artifacts, the gate's whole
+    effect was to make the answer depend on a style toggle: 5 corridors
+    as stored (all sharp), 5 with the gate gone and every arrow rounded,
+    1 with the gate in place and every arrow rounded. Roundness moves no
+    endpoint. A corridor count that falls 5 -> 1 when the corners are
+    rounded is reporting the corner style, not the drawing.
 
-    - a SHARP stretch is a two-point chord, its spread off its own chord
-      is zero, and `_reads_as_line`'s band never goes below `FLAT_BAND`
-      — so this returns exactly what `_axis` returned, bit for bit;
-    - a curved stretch is judged on the same relative band `false_bidi`
-      already argues for, so the two curvature-aware instruments in this
-      module agree about what "reads as a line" means.
+    `false_bidi` keeps its `_reads_as_line` gate and keeps it strictly,
+    which is not an inconsistency: it claims two arrows read as ONE
+    BIDIRECTIONAL LINE, and a hooked 18px final does not read as one
+    line at any separation. This instrument claims only that two runs
+    share a lane, and a lane survives a bow. That split is also why this
+    change moves none of the six things the naive
+    widen-the-band-constant fix broke (curator batch 22 measured them):
+    all six read `_reads_as_line`, and this does not touch it.
+
+    KNOWN RESIDUAL, recorded rather than built for: two runs whose
+    chords are further apart than `tol` but whose bows bring the DRAWN
+    strokes together in the middle are not reported. Reaching it needs a
+    bow of most of `tol`, hence a neighbouring leg of ~14x that, and the
+    strokes would still separate at both ends. Nothing in the corpus
+    reaches it.
 
     Args:
         stretch: The sampled stretch in absolute coordinates.
 
     Returns:
         `(orientation, fixed_coord, extent_min, extent_max)` from the
-        stretch's CHORD, or None when the chord is diagonal or the bow
-        wanders too far off it to read as one run.
+        stretch's CHORD, or None when that chord is diagonal.
     """
     if len(stretch) < 2:
         return None
-    A = _axis((stretch[0], stretch[-1]))
-    if A is None:
-        return None
-    if not _reads_as_line(stretch, 0 if A[0] == "h" else 1):
-        return None
-    return A
+    return _axis((stretch[0], stretch[-1]))
 
 
 def _corridor_kind(a: dict, b: dict) -> str:
@@ -532,9 +557,12 @@ def shared_corridors(
     """Find near-collinear arrow pairs that read as one stroke.
 
     Ported from corridor.py, and rebuilt for curvature by v0.9: the unit
-    of comparison is a whole DRAWN stretch (`_stretch_axis`), not a
-    stored chord and not a flattened micro-segment. See `_stretch_axis`
-    for why the obvious swap is worse than doing nothing.
+    of comparison is a whole DRAWN stretch (`_stretch_axis`), classified
+    once from the chord between the two points the ink is pinned to, and
+    never a flattened micro-segment. See `_stretch_axis` for why the
+    obvious swap is worse than doing nothing, and for why the
+    straightness gate that sat on top of it until task 51 was measuring
+    the corner style rather than the drawing.
 
     Cost, unlike `crossing_sites`', does not move: there is one stretch
     per stored span either way, so no prefilter is owed here — the
