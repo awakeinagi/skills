@@ -3765,6 +3765,26 @@ _OVERSIZED_LABEL_ARTIFACT = json.dumps({
          "startBinding": {"elementId": "s1", "focus": 0, "gap": 1},
          "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}]})
 
+# An arrow bound to `n2` and stopping 50px short of it, with nothing about
+# the scene for the loader to repair. The FIRING pole for the endpoint_gap
+# silence in `test_art011_repair_reroutes_the_arrow_it_displaced`: that test
+# reads `collect_findings` off a Store-loaded scene and asserts no gap
+# survives the refit, which a dead endpoint_gap satisfies exactly as well as
+# a correct repair does. Geometry lifted from
+# `TestDetectorsAgainstRealLint.test_endpoint_gap_parses_from_real_lint_output`
+# on purpose — one spelling of this control, so a regex or threshold that
+# stopped matching moves both poles together instead of quietly retiring one.
+_GAPPED_ARROW_ARTIFACT = json.dumps({
+    "type": "excalidraw", "version": 2, "elements": [
+        {"id": "n1", "type": "rectangle", "x": 0, "y": 0, "width": 100,
+         "height": 100},
+        {"id": "n2", "type": "rectangle", "x": 300, "y": 0, "width": 100,
+         "height": 100},
+        {"id": "a1", "type": "arrow", "x": 100, "y": 50, "width": 150,
+         "height": 0, "points": [[0, 0], [150, 0]],
+         "startBinding": {"elementId": "n1", "focus": 0, "gap": 0},
+         "endBinding": {"elementId": "n2", "focus": 0, "gap": 0}}]})
+
 # One image element pointing at a fileId the `files` map does not hold, and
 # one `files` entry no element points at — the two directions of file-
 # reference integrity, in one artifact so a single load probes both.
@@ -4032,6 +4052,56 @@ class TestStoreIntegrity(unittest.TestCase):
                          "an unrepaired quarantine was written onto the "
                          "reconciliation record as repair work")
 
+    def test_a_real_repair_does_reach_the_resume_narration(self) -> None:
+        """The firing pole for the silence above (rule 8, 2026-08-15).
+
+        The test above asserts a quarantine-only load says "repair"
+        NOWHERE — not in the resume headline, not on `rec["repairs"]`.
+        Both halves of that are absences, and a `catch_up` that had lost
+        the ability to narrate a repair at all would satisfy them
+        perfectly: the silence-pairing census found nothing in this class
+        proving either channel can still say the word. This is that
+        proof, on the same two channels the silence names, through the
+        same `catch_up()` entry point.
+
+        The fixture is the reason this is a separate test rather than a
+        second half of that one. `repair_only` is gated on the RAW disk
+        hashes matching replayed history (canvas.py), so the headline
+        branch fires only when history already holds the artifact exactly
+        as it sits unrepaired on disk — which no `_scratch_project` load
+        can reach, since a store that has never committed has no history
+        to agree with. `commit` writes the artifact and the save record
+        from one element list, so the commit here is what puts the
+        UNREPAIRED scene into both, and the second store's divergence is
+        then the loader's own work and nothing else.
+
+        Measured, not assumed: without that commit the same artifact
+        reconciles under an "added ..." content headline, which populates
+        `rec["repairs"]` but never says "repair" — half a pole, and the
+        half that would have gone unnoticed.
+        """
+        root = _scratch_project(self, {"a": _GOOD_ARTIFACT}, {})
+        st = canvas.Store(canvas.Project(root))
+        st.commit(author="user", base_revn=st.head_revn(),
+                  new_scenes={"a": json.loads(
+                      _OVERSIZED_LABEL_ARTIFACT)["elements"]})
+        again = canvas.Store(canvas.Project(root))
+        self.assertEqual(
+            [i["code"] for i in again.scene_repairs],
+            ["ART-011", "ART-012"],
+            "the reload repaired nothing, so this proves no narration")
+        rec = again.catch_up()
+        headline = ((rec or {}).get("summary") or {}).get("headline") or ""
+        self.assertIn("repair", headline.lower(),
+                      "two repairs ran at load and the resume headline "
+                      "does not say so: %r" % (headline,))
+        self.assertEqual(
+            [i["code"] for i in (rec or {}).get("repairs") or []],
+            ["ART-011", "ART-012"],
+            "the reconciliation record carries no repair list, so the "
+            "silence next door is asserted against a dead channel "
+            "(rec=%r)" % (rec,))
+
     def test_the_fileref_artifact_loads_and_keeps_its_orphan(self) -> None:
         """The two file-reference tests' setup, asserted where nothing masks it.
 
@@ -4251,6 +4321,48 @@ class TestStoreIntegrity(unittest.TestCase):
                          % (st.issues,))
         self.assertIn("n1", said[0]["msg"])
         self.assertIn("a1", said[0]["msg"])
+
+    def test_a_gap_the_loader_did_not_make_is_still_reported(self) -> None:
+        """The firing pole for the silence above (rule 8, 2026-08-15).
+
+        The test above asserts `endpoint_gap` finds NOTHING once the
+        ART-011 refit has re-routed what it displaced. That is the right
+        claim and it is an absence, so a detector that had stopped
+        speaking would satisfy it exactly as well as a correct repair
+        does — and the silence-pairing census found `endpoint_gap` firing
+        copiously in `TestDetectorsAgainstRealLint` and nowhere inside
+        this class, which pairs a different instrument path: those
+        fixtures are element lists handed straight to `collect_findings`,
+        never a scene that went through `Store.load` first.
+
+        So this is the same detector, through this class's own entry
+        point — the artifact is written to disk, loaded, and judged off
+        `st.scenes`, which is where the silence reads too. A load that
+        started rewriting user geometry, or a `scenes` dict that stopped
+        carrying what the file said, would show up here as a lost finding
+        rather than next door as a false clean bill.
+
+        The load is asserted to have repaired NOTHING, which is what
+        keeps the two poles about one variable. `_GAPPED_ARROW_ARTIFACT`
+        carries no bound labels, so no refit is due; if a future loader
+        pass ever did re-route this arrow the premise assertion fails
+        here loudly, instead of the gap quietly disappearing and reading
+        as a dead detector.
+        """
+        st = self._load({"a": _GAPPED_ARROW_ARTIFACT},
+                        {"0001-x": _GOOD_SAVE})
+        self.assertEqual([i["code"] for i in st.issues], [],
+                         "the loader repaired this scene, so a missing "
+                         "gap below would not mean the detector spoke")
+        gaps = [f for f in collect_findings(st.scenes["a"])
+                if f["check"] == "endpoint_gap"]
+        self.assertEqual(
+            [(f["element"], f["direction"]) for f in gaps],
+            [("a1", "outside")],
+            "a1 stops 50px short of n2 and endpoint_gap says nothing — "
+            "the silence next door is asserted against a dead detector "
+            "(findings=%r)" % (collect_findings(st.scenes["a"]),))
+        self.assertAlmostEqual(gaps[0]["magnitude"], 50.0, delta=1.0)
 
     def test_red_dangling_file_reference_is_reported(self) -> None:
         """An image whose fileId names no file in `files` is reported.
@@ -5663,6 +5775,27 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         holds, so the agent learns which file left. DIRECTION is the
         claim: named as a drop, never as a repair, which is the same trap
         fix that a bare "print the issues" would walk into.
+
+        The REPAIR= assertion at the end was added on 2026-08-15 by the
+        silence-pairing census, and it is about the FLIP rather than
+        about today's redness. Two silences in this class say `_start`
+        prints no `REPAIR=` line — the second assertion below, and the
+        `noise` check in
+        `test_start_on_a_clean_load_invents_no_load_finding` — and both
+        are trivially true while the surface prints no load findings at
+        all. The pole that would make them readable cannot exist until
+        this red flips, so it is written here, inside the red, where it
+        becomes a CONDITION of flipping: a fix that prints quarantines
+        and not repairs leaves this failing on its last assertion instead
+        of going green and stranding two unpaired silences behind it.
+        That is what "the fix is a load-findings block, not a quarantine
+        special case" has to mean to be checkable.
+
+        `_OVERSIZED_LABEL_ARTIFACT` and the `REPAIR=ART-011:` prefix are
+        borrowed from `test_lint_names_a_load_time_repair` rather than
+        respelled, so the two surfaces' repair poles stay one control:
+        a reworded heading fails both together instead of retiring this
+        one quietly.
         """
         root = self._quarantine_project()
         out = self._start(root)
@@ -5681,6 +5814,14 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
              and any(i["code"] in ln for i in dropped)], [],
             "a quarantine repaired nothing and start files it as repair "
             "work: %r" % (out,))
+        repaired = self._start(_scratch_project(
+            self, {"a": _OVERSIZED_LABEL_ARTIFACT}, {"0001-x": _GOOD_SAVE}))
+        self.assertEqual(
+            len([ln for ln in repaired
+                 if ln.startswith("REPAIR=ART-011:")]), 1,
+            "the load refit a label and start says so nowhere, so the two "
+            "REPAIR= silences in this class are asserted against a "
+            "channel that has never spoken: %r" % (repaired,))
 
     @unittest.expectedFailure
     def test_red_a_pending_quarantine_reaches_no_durable_surface(
@@ -5777,6 +5918,20 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         or a `cmd_start` signature that moved — would make the red
         measure a command that never ran, and `expectedFailure` swallows
         that as readily as a real failure (doctrine §6).
+
+        The `noise` assertion is a silence with NO firing pole, and the
+        silence-pairing census (2026-08-15) could not give it one:
+        `cmd_start` prints no load-findings block at all, so no project
+        makes a `REPAIR=` or `QUARANTINE=` line appear on this surface
+        and the silence is true by construction rather than by health.
+        `REUSED=true` proves the command RAN; it cannot prove the
+        channel this test claims is quiet exists. The pole is owed by
+        whoever flips `test_red_start_names_no_load_finding` above, and
+        it is written into that red's last two assertions so the debt is
+        executable rather than a note here — when it goes green this
+        test's silence becomes readable in the same commit, and until
+        then the honest reading of this line is "unpaired, and pinned as
+        such next door".
         """
         root = _scratch_project(self, {"a": _GOOD_ARTIFACT,
                                        "b": _GOOD_ARTIFACT},
@@ -11572,15 +11727,57 @@ class TestMutantCatalogue(unittest.TestCase):
         (Path(__file__).parent / "fixtures" / "argus-r5").is_dir(),
         "argus-r5 fixture not present")
     def test_instruments_run_over_the_r5_fixture(self) -> None:
-        """Every promoted artifact parses and every detector completes."""
+        """Every promoted artifact parses and every detector completes.
+
+        The sweep is a SILENCE — "no detector crashed" — and it carries
+        its own firing pole since 2026-08-15 (rule 8), because two
+        different failures produce the same green here. The corpus loop
+        below asserts `detector-error` is absent; an instrument path that
+        had stopped REPORTING crashes, or a `collect_findings` whose
+        error arm had been refactored out from under this name, is also
+        absent, on every artifact, forever.
+
+        `TestEngineRules.test_crashing_detector_reports_detector_error`
+        proves the arm over an EMPTY scene and a synthetic registry,
+        which is a different question from the one asked here: this sweep
+        runs the shipped `DETECTORS` over real promoted drawings, and it
+        is that path a corpus-wide silence is a claim about. So the last
+        subTest injects a crash into a copy of the live registry and
+        re-runs the same call over the same corpus element list. It has
+        to speak there, or the six silences above it are unreadable.
+
+        The corpus is also asserted NON-EMPTY. `skipUnless` only checks
+        that the directory exists, so an emptied fixture would leave the
+        loop iterating nothing and passing — a vacuous green in a test
+        whose whole subject is whether the instruments ran at all.
+        """
         root = Path(__file__).parent / "fixtures" / "argus-r5" / "artifacts"
-        for path in sorted(root.iterdir()):
+        corpus = sorted(root.iterdir())
+        self.assertTrue(corpus, "the r5 fixture directory is empty, so "
+                                "this swept no artifact at all: %s" % root)
+        for path in corpus:
             with self.subTest(artifact=path.name):
                 data = json.loads(path.read_text())
                 els = data["elements"] if isinstance(data, dict) else data
                 finds = collect_findings(els)
                 self.assertNotIn("detector-error",
                                  {f["check"] for f in finds})
+        with self.subTest(artifact="synthetic crash"):
+            data = json.loads(corpus[0].read_text())
+            els = data["elements"] if isinstance(data, dict) else data
+            bad = dict(DETECTORS)
+            bad["boom"] = {"collect": lambda els: 1 / 0}
+            finds = collect_findings(els, registry=bad)
+            self.assertIn(
+                "detector-error", {f["check"] for f in finds},
+                "a detector raised over %s and the sweep's own instrument "
+                "path reported nothing — the silences above are asserted "
+                "against a channel that cannot speak" % corpus[0].name)
+            self.assertEqual(
+                [f["element"] for f in finds
+                 if f["check"] == "detector-error"], ["boom"],
+                "the crash was reported without naming which detector "
+                "raised, which is what makes the sweep actionable")
 
 
 # ---------------------------------------------------------------------------
