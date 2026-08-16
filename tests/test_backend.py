@@ -11008,7 +11008,7 @@ class TestMermaidSeeding(Base):
                                              "confirm"))
         note = next((ln for ln in out.splitlines()
                      if ln.startswith("NOTE=")), "")
-        self.assertIn("1 user-placed node", note)
+        self.assertIn("1 user-placed element", note)
         self.assertIn("payment", note)
         # and it names ONLY that one — the other three moved too
         for other in ("cart", "checkout", "confirm"):
@@ -11076,6 +11076,54 @@ class TestMermaidSeeding(Base):
         self.assertEqual(
             [w for w in canvas.lint_layout(els, artifact_type="flow")
              ["warnings"] if "says it is in frame" in w], [])
+
+    def test_relayout_of_a_misaligned_lane_that_agrees_is_still_a_noop(self):
+        """The frame refit may not invent a revision out of grid snapping.
+
+        The other pole of the test above, and the one the refit put at
+        risk. The refit snaps to the 4px grid and compares exactly, so a
+        lane sitting at coordinates a real drag produces — 3, not 4 —
+        never equalled its own snapped box and emitted a `mod` on a
+        canvas where dagre agreed with every single node. That turned
+        "noop, dagre agrees with the current placement" into a queued
+        revision nudging the lane by up to 3px, on exactly the messy
+        user-arranged flows `--relayout` exists for.
+
+        A tolerance would not have settled it: at (2,6) each axis is off
+        by exactly 2, which the node loop's `< 2` still admits. The gate
+        asks whether anything moved at all.
+        """
+        ops = [{"op": "add", "element": {
+            "type": "frame", "id": "laneA", "label": "Lane A", "x": 3,
+            "y": 0, "width": 900, "height": 200}}]
+        for i, nid in enumerate(("a", "b", "c", "d")):
+            ops.append({"op": "add", "element": {
+                "type": "rectangle", "id": nid, "label": nid.upper(),
+                "x": 40 + i * 220, "y": 60, "width": 140, "height": 60,
+                "role": "node", "frameId": "laneA"}})
+        for a, b in (("a", "b"), ("b", "c"), ("c", "d")):
+            ops.append({"op": "add",
+                        "element": {"type": "arrow", "id": "t_%s%s" % (a, b)},
+                        "from": a, "to": b})
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "askew",
+            "create": {"id": "askew", "type": "flow", "concept": "c",
+                       "name": "Askew"},
+            "ops": ops})
+        before = {e["id"]: (e.get("x"), e.get("y"), e.get("width"),
+                            e.get("height"))
+                  for e in canvas.Store(self.project).scenes["askew"]}
+        # dagre returns the placement the canvas already has
+        out = self._relayout("askew", [
+            {"id": "n_" + n, "type": "rectangle", "x": i * 220, "y": 0,
+             "width": 140, "height": 60}
+            for i, n in enumerate(("a", "b", "c", "d"))])
+        self.assertIn("RELAYOUT=noop", out)
+        self.assertNotIn("MOVES=", out)
+        after = {e["id"]: (e.get("x"), e.get("y"), e.get("width"),
+                           e.get("height"))
+                 for e in canvas.Store(self.project).scenes["askew"]}
+        self.assertEqual(before, after)     # and nothing was written
 
     def test_cmd_refusals(self):
         """Unmapped types, existing artifacts and subgraphs refuse with

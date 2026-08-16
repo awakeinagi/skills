@@ -8683,9 +8683,15 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         if fr is None or fr.get("type") != "frame" or mem is fr or \
                 mem.get("type") in ("arrow", "line") or \
                 mem.get("containerId") or \
-                mem.get("width", 0) <= 0 or mem.get("height", 0) <= 0:
+                mem.get("width", 0) <= 0 or mem.get("height", 0) <= 0 or \
+                fr.get("width", 0) <= 0 or fr.get("height", 0) <= 0:
             # arrows route where they must and a bound label rides its
-            # host, so neither carries a placement claim of its own
+            # host, so neither carries a placement claim of its own.
+            # The FRAME is size-guarded on the same line as the member
+            # and for a sharper reason: a lane with no width reads as
+            # separated from everything, so this check would indict
+            # every member it has rather than the one degenerate frame.
+            # Defensive only — nothing in the corpus reaches it.
             continue
         ox, oy = shape_overlap(fr, mem)
         gap = -min(ox, oy)
@@ -16391,7 +16397,22 @@ def _relayout_frame_ops(els, ix, node_ops):
                 and e.get("type") not in ("arrow", "line")
                 and not e.get("containerId")
                 and e.get("width", 0) > 0 and e.get("height", 0) > 0]
-        if not mems:
+        if not mems or not any(e["id"] in moved for e in mems):
+            # NOTHING OF THIS LANE'S MOVED, so its box already fits and
+            # any op here would be pure churn. The gate is per-frame
+            # rather than a global early return because a two-lane flow
+            # can re-lay one lane and leave the other alone.
+            #
+            # It is also what keeps `--relayout` able to say "noop".
+            # The refit snaps to the 4px grid and compares exactly, so a
+            # frame at coordinates a user's drag produced — 3, or 2 —
+            # never equals its own snapped box and emitted a `mod` on a
+            # canvas where dagre agreed with every node (measured: (3,0)
+            # moved x to 4; (2,6) emitted three attrs). A tolerance does
+            # not fix that: at (2,6) each axis is off by exactly 2, which
+            # the node loop's `< 2` would still admit. Asking whether
+            # anything moved answers the real question instead of
+            # widening a band until the symptom stops.
             continue
 
         def corners(e, at=None):
@@ -16505,7 +16526,12 @@ def _cmd_mermaid_relayout(args, project, store):
     placed = store.user_placed_ids(aid)
     moved_user = [o["id"] for o in ops if o["id"] in placed]
     if moved_user:
-        print("NOTE=this would move %d user-placed node(s): %s — their "
+        # "element", not "node": frames joined the moved set when the
+        # refit landed, and a user who dragged a LANE and is told this
+        # would move a "node" is being told about something they did not
+        # do. The set is right; the noun was inherited from when only
+        # rect/diamond/ellipse could be in it.
+        print("NOTE=this would move %d user-placed element(s): %s — their "
               "placement is theirs; under pulled cadence the banner asks "
               "first, otherwise narrate it"
               % (len(moved_user), ", ".join(moved_user[:5])))

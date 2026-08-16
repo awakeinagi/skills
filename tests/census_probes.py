@@ -71,8 +71,8 @@ PROBES: dict[str, dict[str, str]] = {
         "file": "SESSION-HANDOVER.md",
         "why": "the per-file red counts are hand-copied and have drifted "
                "seven recorded times",
-        "old": "**10 / 1 / 0** for `test_mutants.py`",
-        "new": "**9 / 1 / 0** for `test_mutants.py`",
+        "old": "**9 / 1 / 0** for `test_mutants.py`",
+        "new": "**8 / 1 / 0** for `test_mutants.py`",
     },
     "model-row-stale": {
         "test": "test_the_handover_transcribes_the_reds_it_declares",

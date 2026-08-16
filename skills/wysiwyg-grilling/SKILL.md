@@ -432,8 +432,9 @@ once landed the drawing is the truth, and the mermaid text is never
 re-applied over user edits. To re-lay an existing messy flow instead,
 `canvas.py mermaid --relayout --artifact <id>` — plain `mod x/y` ops,
 revertable, queued behind the banner under `pulled` cadence; lane frames
-are carried along with their members, and nodes the user placed by hand
-are named in the output before anything moves.
+are carried along with their members, and anything the user placed by
+hand — a dragged lane as readily as a dragged step — is named in the
+output before any of it moves.
 
 Per-type guidance (primitives, fact tables, seed archetypes):
 `references/wireframe.md` · `references/flow.md` · `references/domain.md` ·

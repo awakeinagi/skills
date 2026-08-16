@@ -161,11 +161,14 @@ looks exactly like a layout that worked. Check the drawing changed.
   Read off the converter's own shape switch, these are all the distinct
   results you can get: `[]` rectangle · `([])` and `()` rounded
   rectangle, *indistinguishable from each other* · `(())` circle ·
-  `((()))` double circle · `{}` diamond. Everything else — `[(Cylinder)]`,
+  `((()))` double circle · `{}` diamond. Every other shape — `[(Cylinder)]`,
   `[[Subroutine]]`, `{{Hexagon}}`, the trapezoids and parallelograms —
-  comes back as a plain rectangle with no warning, so `[(Database)]`
-  reads exactly like `[Step]`. Use the five that survive and carry the
-  rest as node kinds (`mod attrs.kind`) instead.
+  has no case in that switch and falls through to a plain rectangle with
+  no warning, so `[(Database)]` reads exactly like `[Step]`. (The parser
+  does know the shape it just discarded — `[(Cylinder)]` is recognised
+  well enough to get its label font shrunk — which is why nothing errors.)
+  Use the five that survive and carry the rest as node kinds
+  (`mod attrs.kind`) instead.
 
 Diamonds map to decisions, `([stadium])` stays rounded, edge labels ride
 along, `A --> A` routes as a reflexive loop. Immediately after seeding:
@@ -174,7 +177,9 @@ any label-run warnings by spreading nodes. Subgraphs are refused
 (converter limitation) — seed flat, add lanes as frames after.
 `--relayout` runs the same dagre over an existing messy flow as
 revertable `mod x/y` ops; it carries lane frames along with their members
-and names any node the user placed by hand before it moves anything.
+and names anything the user placed by hand — a dragged lane as readily
+as a dragged step — before it moves any of it. `MOVES=` counts elements,
+frames included, not nodes.
 
 ## Semantic facts (what the differ gives you to narrate)
 
