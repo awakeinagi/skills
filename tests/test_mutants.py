@@ -8135,6 +8135,120 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                     "backstop: %r" % (said,))
                 self.assertIn("target", said)
 
+    def _plain_add(self) -> list[dict[str, Any]]:
+        """One ordinary, legal `add` batch — the carrier AND the control.
+
+        The three E-9 tests below share this so the fault injection is
+        the only variable between the firing pole and the quiet one. A
+        pole whose scene differed from its control's would prove the two
+        scenes differ, not that the envelope fired.
+
+        Returns:
+            An op list adding `n2` clear of `n1`, which `_store` already
+            put at the origin.
+        """
+        return [{"op": "add", "element": {
+            "id": "n2", "type": "rectangle", "x": 300, "y": 0,
+            "width": 100, "height": 60, "label": "N2"}}]
+
+    def test_an_unpredicted_fault_surfaces_as_the_e9_envelope(self) -> None:
+        """FIRING pole for the silence above (spike-e9, 2026-08-16).
+
+        The red above asserts that a wrong field type does NOT reach the
+        E-9 backstop — `assertNotIn("internal error", said)`. That is a
+        silence about an envelope, and an envelope that had been deleted
+        outright satisfies it on every input forever. Nothing in this
+        class proved the phrase it forbids can be produced at all.
+
+        WHAT THIS PROVES, AND WHAT IT DOES NOT — the caveat is the point,
+        so it is stated before the mechanism. It proves the envelope is
+        WIRED AND SPELLED CORRECTLY: a fault arising inside `apply_ops`
+        comes back as a `BatchError` naming the exception type, on the
+        apply surface here and the check surface below. It does NOT prove
+        that any real-world fault reaches it, and it does NOT prove the
+        envelope is wide enough — it is not. The spike measured seven of
+        41 malformed batches escaping `apply_batch` as RAW exceptions
+        from both sides of the `try`, `--check` included, which is a live
+        defect in the curator's hands, not something these tests cover.
+
+        WHY AN INJECTED FAULT rather than a natural one, recorded so it
+        is not re-proposed a third time: the spike found 17 of 41
+        malformed batches reach E-9 with no injection at all, so the
+        route was never scarce. Every one of the 17 is the same species
+        of defect Task 41 just fixed — an unvalidated field type reaching
+        a raw operation — and the red above says in its own words that
+        such a field "is not one of those" faults E-9 exists for. A
+        firing pin on a natural route would therefore assert the exact
+        opposite of the pin it is meant to pair with, and would go red
+        the day someone validates that field, exactly as Task 41 turned
+        the `target` route from firing to silent. Those are defects to be
+        fixed, not behaviour to pin.
+
+        The injection still travels the real entry point, which is rule
+        8's second half: the batch goes `apply_batch` -> `_validate_batch`
+        -> `apply_ops` and passes every real gate; only the leaf
+        `make_element` is replaced, and `apply_ops` calls it for every
+        `add`. The spike confirmed the boundary by contrast — injecting
+        into `role_of` raises before the `try` and into
+        `normalize_element` after it, and neither is enveloped. Same
+        shape as the proven routing-envelope test,
+        `test_backend.TestRouterTotalityAndSelfLoops`.
+        """
+        store = self._store()
+        with mock.patch.object(canvas, "make_element",
+                               side_effect=RuntimeError("injected fault")):
+            escaped = self._send(store, "flow", self._plain_add())
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "an unpredicted fault escaped the E-9 envelope as %r — the "
+            "agent gets a raw traceback, which is the r4-11 defect"
+            % (escaped,))
+        said = "\n".join(escaped.errors)
+        self.assertIn("internal error applying ops", said, said)
+        self.assertIn("RuntimeError", said, said)
+        self.assertIn("nothing partial landed", said, said)
+
+    def test_the_same_batch_without_the_fault_stays_quiet(self) -> None:
+        """The pole's own control: uninjected, the identical batch lands.
+
+        Without this, an injection that had broken the batch for some
+        reason of its own — a patched name that no longer exists, a
+        scene the store would refuse anyway — would raise a `BatchError`
+        that reads as a firing envelope. Asserting the element ARRIVES
+        rather than merely that nothing raised, because a batch that was
+        silently dropped would also raise nothing.
+        """
+        store = self._store()
+        self.assertIsNone(self._send(store, "flow", self._plain_add()))
+        self.assertIn("n2", self._ids(store, "flow"))
+
+    def test_the_check_path_reports_the_same_envelope(self) -> None:
+        """The offline `--check` surface must not leak the traceback either.
+
+        `check_batch` is the dry-run half, and the sibling routing test
+        pins the same pair for the same reason: `--check` is what an
+        agent runs BEFORE applying, so an envelope present on one surface
+        and absent on the other leaks a raw traceback down the path
+        specifically taken to avoid one.
+
+        Scoped to the injected fault deliberately. The spike found this
+        surface really does still leak for validator-side and commit-side
+        faults (`pin/id={...}`, `add/customData=[...]`, `add/width=NaN`);
+        that is the open defect referenced above, and pinning it here
+        would be pinning a bug rather than a contract.
+        """
+        store = self._store()
+        with mock.patch.object(canvas, "make_element",
+                               side_effect=RuntimeError("injected fault")):
+            result = store.check_batch({"base_revn": store.head_revn(),
+                                        "artifact": "flow",
+                                        "ops": self._plain_add()})
+        self.assertFalse(result["ok"], result)
+        self.assertTrue(
+            any("internal error applying ops" in e for e in result["errors"]),
+            "the dry-run surface leaked the fault instead of enveloping "
+            "it: %r" % (result["errors"],))
+
     def test_the_echo_says_gone_for_an_element_its_batch_removed(
             self) -> None:
         """`intent_echo`'s missing-element branch, rehomed after a retirement.
