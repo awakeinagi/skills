@@ -218,6 +218,24 @@ class TestDiffer(Base):
              "from": "guest-info", "to": "payment"},
             {"op": "mod", "id": "t1", "attrs": {"to": "auth-choice"}},
         ], errors)
+        # RULING for the whole `assertEqual(errors, [])` pattern — 26
+        # sites as of 2026-08-16, and this is the recorded adjudication
+        # for all of them rather than 26 copies of a pole (rule-8
+        # census).
+        #
+        # These are PREMISE GUARDS, not check outputs. The claim is not
+        # "the validator found nothing wrong", it is "this fixture built,
+        # so everything asserted below it is about the subject and not
+        # about a batch that silently half-applied". That is why the
+        # right shape is one ruling, not one pole each.
+        #
+        # And the instrument is not at risk regardless: emptying
+        # `apply_ops`' errors list fails 19 tests across 12 classes
+        # (measured 2026-08-16), among them
+        # `TestHeldRevisions.test_invalid_ops_rejected_at_queue_time` and
+        # `TestComposedKindsAndTooltips.test_value_checked_reject_wrong_
+        # kind`, which assert it speaks. A validator that had gone quiet
+        # never reaches these lines.
         self.assertEqual(errors, [])
         # simulate the layout consequence: downstream nodes shift right
         for e in new_els:
@@ -773,6 +791,12 @@ class TestDeletionConsequences(Base):
         rewires = [f for f in facts if f["fact"] == "rewired"]
         self.assertTrue(all(f.get("consequence_of") == "checkout"
                             for f in rewires))
+        # FIRING POLE: `TestNoOpRewireIsNotASequenceChange.test_two_real_
+        # rewires_do_claim_a_re_sequence` (rule-8 census, 2026-08-16).
+        # This silence says the fact is suppressed because the rewires
+        # are a deletion's CONSEQUENCE — a claim only worth making if
+        # the fact can be minted at all, and until that pole landed
+        # nothing in the file ever asserted it fires.
         self.assertNotIn("sequence_reordered", [f["fact"] for f in facts])
         # the deletion carries the headline, not the arrow wreckage
         self.assertTrue(rec["summary"]["headline"].startswith("deleted"))
@@ -1375,6 +1399,15 @@ class TestSnapshotTierOne(Base):
         """
         out = self.snapshot(TAB_WIDE, 3000, 180)
         self.assertIn("width 3000 cuts a 3640px drawing short", out, out)
+        # ...and the NOTE that carries it. `..._passes_every_check_at_
+        # once` asserts this exact prefix is ABSENT from an honest
+        # export; the rule-8 census (2026-08-16) found nothing anywhere
+        # asserting it present, so that silence could not tell a clean
+        # pass from a `cmd_snapshot` that had stopped narrating its
+        # refusals. Same entry point, same run — this is where the
+        # string is already produced, so the pole costs no second
+        # snapshot.
+        self.assertIn("NOTE=tab export attempt", out, out)
 
     def test_tier_1_accepts_a_full_content_tab_export(self):
         """The live half: a complete export is taken, at tier 1.
@@ -2098,6 +2131,9 @@ class TestSnapshotTierOne(Base):
         out = self.snapshot(TAB_WIDE, 3640, 180, report=True)
         self.assertIn("TIER=1", out, out)
         self.assertIn("VALID=true", out, out)
+        # FIRING POLE for the refusal NOTE: `..._refuses_a_tab_export_
+        # short_of_the_drawing` asserts this same prefix present on the
+        # same entry point (rule-8 census, 2026-08-16).
         self.assertNotIn("NOTE=tab export attempt", out, out)
         self.assertNotIn("carried no self-report", out, out)
 
@@ -2608,6 +2644,16 @@ class TestAcceptanceFixes(Base):
         lint = canvas.lint_layout(els)
         self.assertFalse([n for n in lint["notes"] if "budget: 9" in n
                           and "screen" not in n])
+        # The firing half, in the same call and one variable away: the
+        # note is suppressed because these blocks sit in FRAMES, not
+        # because the check is gone. The rule-8 census (2026-08-16)
+        # found "unconnected node(s)" asserted absent here and asserted
+        # present nowhere in the file, so the framed silence was resting
+        # on an instrument nothing had ever heard speak.
+        unframed = [dict(e, frameId=None) for e in els
+                    if e.get("type") != "frame"]
+        self.assertTrue([n for n in canvas.lint_layout(unframed)["notes"]
+                         if "unconnected" in n])
         self.assertFalse([n for n in lint["notes"] if "unconnected" in n])
         # but 10+ blocks in ONE screen still notes, per screen
         for k in range(7, 11):
@@ -3606,6 +3652,13 @@ class FixtureReplayBase(unittest.TestCase):
 
     def setUp(self):
         """Copy the frozen project into a temp dir and load it."""
+        # This class is abstract, and since it acquired a test method of
+        # its own (`..._catchup_can_still_speak_...`) unittest collects
+        # it directly — where `FIXTURE` is "" and the copy below would
+        # take the whole fixtures TREE. Guarding here rather than in the
+        # test keeps any future base-class control covered too.
+        if not self.FIXTURE:
+            self.skipTest("abstract base — subclasses set FIXTURE")
         self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-fixture-"))
         src = Path(__file__).resolve().parent / "fixtures" / self.FIXTURE
         shutil.copytree(src, self.tmp / "project_knowledge")
@@ -3633,6 +3686,53 @@ class FixtureReplayBase(unittest.TestCase):
                 registry=self.store.registry,
                 artifact_type=self.store.artifact_type(aid), aid=aid)
         return out
+
+    def test_catchup_can_still_speak_about_this_fixture(self):
+        """The firing pole every replay class's `catch_up` silence needs.
+
+        The rule-8 census (2026-08-16) called the `catch_up`/
+        `scene_repairs` silences the file's largest DEFICIT cluster —
+        ~18 assertions over 7 classes that a load minted no
+        reconciliation, with nothing beside them proving one can be
+        minted. The stub sweep run for this task corrected half of that:
+        killing `Store.catch_up` already fails 7 tests in 5 classes, so
+        the detector is not dead and a plain cross-reference would have
+        been an honest close.
+
+        What those 7 do NOT cover is the half that bites here. Every one
+        of them drives a SYNTHETIC scene; these classes replay a frozen
+        real project, and `catch_up`'s `repair_only` branch is gated on
+        the raw disk hashes matching replayed history — a gate a fixture
+        can fail for reasons that have nothing to do with divergence
+        (TASK-CENSUSGAPS gap 1 lost half a pole to exactly that). A
+        `catch_up` that had gone quiet on THIS corpus, and only this
+        corpus, would leave all 7 green and every silence below it
+        vacuous.
+
+        So the control lives on the base and runs once per fixture,
+        against that fixture's own first artifact: an out-of-session
+        rename on disk, the same edit `TestCatchUp.test_out_of_session_
+        edit_reconciles` uses, through the same `Store` load the
+        silences read. Measured 2026-08-16: all four fixtures narrate
+        the rename and repair nothing.
+        """
+        aid = sorted(self.store.scenes)[0]
+        path = self.project.artifacts_dir / (aid + ".excalidraw")
+        doc = json.loads(path.read_text())
+        edited = next((e for e in doc["elements"]
+                       if e.get("type") == "text" and e.get("text")), None)
+        self.assertIsNotNone(edited, "fixture %s has no text to edit — the "
+                                     "premise of this control is gone"
+                             % self.FIXTURE)
+        edited["text"] = edited["originalText"] = "OUT OF SESSION"
+        path.write_text(json.dumps(doc))
+        rec = canvas.Store(self.project).catch_up()
+        self.assertIsNotNone(rec, "an out-of-session edit to %s minted no "
+                                  "reconciliation — every `catch_up` "
+                                  "silence in this class is vacuous" % aid)
+        self.assertTrue(rec["reconciliation"])
+        self.assertIn("renamed", [f["fact"] for f in
+                                  rec["artifacts"][aid]["facts"]])
 
 
 class TestArgusR4Arm3Fixture(FixtureReplayBase):
@@ -4325,6 +4425,14 @@ class TestClientRemeasure(Base):
                           base_revn=2)
         n = len(self.store.records)
         store = canvas.Store(self.project)
+        # FIRING POLE: `TestCatchUp.test_out_of_session_edit_reconciles`.
+        # Measured for the rule-8 census close (2026-08-16): killing
+        # `Store.catch_up` outright already fails 7 tests across 5
+        # classes, so the cross-reference is the honest close here — this
+        # is a synthetic scene, and the synthetic pole is its match. The
+        # per-fixture half the 7 do not cover lives on
+        # `FixtureReplayBase.test_catchup_can_still_speak_about_this_
+        # fixture`.
         self.assertIsNone(store.catch_up())     # no phantom reconciliation
         self.assertEqual(len(store.records), n)
 
@@ -4346,6 +4454,8 @@ class TestClientRemeasure(Base):
                  for a in ch["attrs"]}
         self.assertIn("autoResize", attrs)       # the flip itself is recorded
         store = canvas.Store(self.project)
+        # FIRING POLE: as above — `TestCatchUp`, plus the per-fixture
+        # control on `FixtureReplayBase`.
         self.assertIsNone(store.catch_up())     # ...and survives replay
 
     def test_wrapped_text_never_reaches_facts_or_disk(self):
@@ -4401,6 +4511,10 @@ class TestZOrderNormalization(Base):
     def test_zorder_survives_replay(self):
         self.store.apply_batch(seed_flow_batch())
         store = canvas.Store(self.project)
+        # FIRING POLE: `TestCatchUp.test_out_of_session_edit_reconciles`
+        # (rule-8 census close, 2026-08-16; killing `Store.catch_up`
+        # fails 7 tests in 5 classes), plus the per-fixture control on
+        # `FixtureReplayBase`.
         self.assertIsNone(store.catch_up())
 
 
@@ -4766,15 +4880,61 @@ class TestDrawingVocabulary(Base):
                           if "black hole" in e and "confirm" in e],
                          lint["errors"])
 
+    def test_a_non_store_terminal_is_still_a_black_hole(self):
+        """The firing pole for the exemption above.
+
+        The rule-8 census (2026-08-16) found this error asserted absent
+        once and asserted present nowhere in the file: a check that had
+        stopped answering would have read as "store is a legal
+        terminal" and nobody would have known the vocabulary rule was
+        gone. One variable moves — `confirm` is a transform rather than
+        a store — and the same `lint_layout` call the silence reads has
+        to name it.
+        """
+        self.store.apply_batch({
+            "base_revn": 1, "artifact": "checkout-flow", "ops": [
+                {"op": "mod", "id": "cart", "attrs": {"kind": "source"}},
+                {"op": "mod", "id": "checkout",
+                 "attrs": {"kind": "transform"}},
+                {"op": "mod", "id": "confirm",
+                 "attrs": {"kind": "transform"}}]})
+        lint = canvas.lint_layout(self.store.scenes["checkout-flow"])
+        self.assertTrue([e for e in lint["errors"]
+                         if "black hole" in e and "confirm" in e],
+                        lint["errors"])
+
     def test_axis_aligned_hand_points_render_sharp(self):
+        """A hand-authored path keeps its corners — beside a route that does not.
+
+        The rule-8 census (2026-08-16) tagged this NEEDS-DESIGN: the
+        silence says a four-point path the USER drew is left sharp, and
+        an assignment that had stopped happening at all would say the
+        same. It is not needs-design — the pole is one off-axis node
+        away. `t-audit` is server-routed to a target below the rank, so
+        the router elbows it to three points and `derived_roundness`
+        must stamp it; `t1` carries the same three-segment shape and
+        must not, because the author is the difference. Both read off
+        the same loaded scene, so a dead assignment fails the pair.
+        """
         self.store.apply_batch({
             "base_revn": 1, "artifact": "checkout-flow", "ops": [
                 {"op": "mod", "id": "t1",
                  "attrs": {"points": [[0, 0], [60, 0], [60, 80],
                                       [120, 80]]}}]})
-        t1 = next(e for e in self.store.scenes["checkout-flow"]
-                  if e["id"] == "t1")
-        self.assertIsNone(t1.get("roundness"))
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow", "ops": [
+                {"op": "add", "element": {"type": "rectangle", "id": "audit",
+                                          "label": "Audit", "x": 300,
+                                          "y": 420, "width": 140,
+                                          "height": 60, "role": "node"}},
+                {"op": "add", "element": {"type": "arrow", "id": "t-audit"},
+                 "from": "cart", "to": "audit"}]})
+        by_id = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        self.assertIsNone(by_id["t1"].get("roundness"))
+        self.assertGreaterEqual(len(by_id["t-audit"]["points"]), 3,
+                                "the routed arrow no longer elbows — this "
+                                "pole's premise, not the rule, has moved")
+        self.assertEqual(by_id["t-audit"].get("roundness"), {"type": 2})
 
 
 class TestDemoParityChrome(Base):
@@ -4824,6 +4984,10 @@ class TestDemoParityChrome(Base):
         self.assertEqual(by_id["cart"]["link"], "artifact:checkout-wire")
         # link changes must replay (they're significant now)
         store = canvas.Store(self.project)
+        # FIRING POLE: `TestCatchUp.test_out_of_session_edit_reconciles`
+        # (rule-8 census close, 2026-08-16; killing `Store.catch_up`
+        # fails 7 tests in 5 classes), plus the per-fixture control on
+        # `FixtureReplayBase`.
         self.assertIsNone(store.catch_up())
 
 
@@ -4850,6 +5014,10 @@ class TestPowerFeatures(Base):
         self.assertEqual(cart["x"] % 4, 0)
         self.assertEqual(cart["y"] % 4, 0)
         store = canvas.Store(self.project)
+        # FIRING POLE: `TestCatchUp.test_out_of_session_edit_reconciles`
+        # (rule-8 census close, 2026-08-16; killing `Store.catch_up`
+        # fails 7 tests in 5 classes), plus the per-fixture control on
+        # `FixtureReplayBase`.
         self.assertIsNone(store.catch_up())     # tidy replays cleanly
 
     def test_save_label_bookmark(self):
@@ -5693,6 +5861,15 @@ class TestRouterV03(Base):
                                   arrow["x"] + p2[0], arrow["y"] + p2[1],
                                   note)
             for p1, p2 in zip(pts, pts[1:]))
+        # The measurement's own liveness half. `crossed` is False either
+        # because the router detoured or because `_seg_hits_rect` has
+        # stopped seeing anything, and the rule-8 census (2026-08-16)
+        # found no positive control for it in this class. A straight run
+        # down the middle of the very same note must come back True.
+        self.assertTrue(canvas._seg_hits_rect(
+            note["x"] - 10, note["y"] + note["height"] / 2,
+            note["x"] + note["width"] + 10, note["y"] + note["height"] / 2,
+            note), "the corridor check no longer sees a run through it")
         self.assertFalse(crossed)
 
 
@@ -9081,6 +9258,30 @@ class TestNoOpRewireIsNotASequenceChange(Base):
                                           elementId="payment")
         self.assertIn("rewired", self.facts_after(repoint))
 
+    def test_two_real_rewires_do_claim_a_re_sequence(self):
+        """The firing pole for `sequence_reordered` — the whole file's.
+
+        The rule-8 census (2026-08-16) measured this fact asserted
+        SILENT twice — the sibling above, and
+        `TestDeletionConsequences.test_dangling_rewires_marked_
+        consequence` — and asserted to FIRE nowhere in 12k lines. A
+        detector that had stopped emitting it entirely would have passed
+        both, and `sequence_reordered` is the one fact the flow
+        reference tells the agent to LEAD WITH, so the silence was
+        covering the loudest thing the differ can say.
+
+        One variable separates this from the sibling: those bindings are
+        jiggled and land back on their own nodes, these are re-pointed
+        at different ones. Same fixture, same `facts_after` entry point,
+        so the firing runs through the differ the silence reads.
+        """
+        def repoint(ix):
+            ix["t1"]["endBinding"] = dict(ix["t1"]["endBinding"],
+                                          elementId="payment")
+            ix["t3"]["startBinding"] = dict(ix["t3"]["startBinding"],
+                                            elementId="checkout")
+        self.assertIn("sequence_reordered", self.facts_after(repoint))
+
 
 class TestDivergenceVerbs(Base):
     """Only meaning-changing facts arm a divergence tripwire (v0.6).
@@ -9421,6 +9622,22 @@ class TestRouterTotalityAndSelfLoops(Base):
         self.assertEqual(lint["errors"], [])
         self.assertFalse(any("wider than its arrow" in w and "loop" in w
                              for w in lint["warnings"]), lint["warnings"])
+        # The firing half. The rule-8 census (2026-08-16) tagged this
+        # NEEDS-DESIGN on the reading that the pole had to be a self-loop
+        # carrying a too-wide label — but that scene is the one the
+        # exemption deliberately swallows, so it could never fire. The
+        # control the silence actually needs is the same check speaking
+        # on a NON-loop: that separates "the exemption works" from "the
+        # check is dead", which is the only thing in doubt. Measured
+        # 2026-08-16: a 219px label on this fixture's 200px s→t run.
+        wide = canvas.apply_ops(self.flow_nodes(), [
+            {"op": "add", "element": {"id": "e3", "type": "arrow",
+                                      "label": "retry with exponential "
+                                               "backoff"},
+             "from": "s", "to": "t"}], [])
+        self.assertTrue(any("wider than its arrow" in w and "e3" in w
+                            for w in canvas.lint_layout(
+                                wide, artifact_type="flow")["warnings"]))
 
     def test_self_edge_excluded_from_reachability(self):
         els = []
