@@ -43,8 +43,13 @@ repos idea-mined with everything dispositioned; methodology documented in
   `OK` (skips and expected-failure counts move with the drain — read them from the SDD ledger); with the render tier enabled
   (`MUTANTS_RENDER=1`, same discover command, ~97s, real chromium) the render-enabled run `OK` — the 17 skips are the render tests,
   21 of them (ef=3); **12 Playwright e2e**; `uvx pre-commit run
-  --all-files` green. The 29 expected failures (26 model + 3 render) are red
-  *by intent* (see §1a). **The drain number is 27** (24 model + 3 render; live source of truth: the SDD ledger at .superpowers/sdd/2026-08-13-v0.9-work-packages/progress.md — THIS FILE's counts lag by design between gate seams) (Batch D added
+  --all-files` green. The expected failures are red *by intent* — **do not
+  read a count from this block**, which carried "29 (26 model + 3 render)"
+  from a 2026-08-13 measurement until curator batch 23 deleted the numbers
+  on 2026-08-15 (task 46 §9 C4 flagged the "3 render" as long dead). The
+  block disclaims itself, but a disclaimed number is still the number
+  people quote; §1a below carries the per-file measurement and the command
+  that produces it. (live source of truth: the SDD ledger at .superpowers/sdd/2026-08-13-v0.9-work-packages/progress.md — THIS FILE's counts lag by design between gate seams) (Batch D added
   `parity_clipped` — render_svg clips center-aligned labels at the viewBox's
   min side; the follow-up proved `text_overflow` both arms GREEN; coverage
   table 13 rows, UNCOVERED ledger 48).
@@ -64,15 +69,22 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after Task 50: **16 model-tier `expectedFailure` reds + 0 render-tier**,
-splitting as **8 catalog reds + 8 non-catalog**. Task 49 flipped
-`TestSnapshotTierOne`'s red — the last one living outside
-`tests/test_mutants.py` — and Task 50 flipped
-`test_mutant_opacity_ghost_is_invisible_to_tier_one`, which was the last
-one in `tests/test_mutants_render.py`. **The render tier is drained**, and
-that is the first time it has been: it has carried a red since it was
-built. Consequently the gated line no longer runs one ahead of the default
-line, which is what it did for the whole life of this file.
+after curator batch 23, per file: **17 in `tests/test_mutants.py`, 3 in
+`tests/test_mutants_render.py`, 1 in `tests/test_backend.py`** — 21 reds,
+of which 8 are catalog entries and 13 are hand-authored. Two of the three
+render-file reds are in the UNGATED regime classes and so run in the
+default suite too, which is why the two runs read `expected failures=20`
+by default and `=21` under `MUTANTS_RENDER=1`.
+
+Task 50 briefly drained the render file — the first time it had been empty
+since it was built, after `test_mutant_opacity_ghost_is_invisible_to_tier_one`
+flipped — and batch 23 put three back the same day: the interleaved
+back-loop and the band-trapped scrap (both from task 48's corpus replay,
+both ungated arithmetic) and the label riding foreign ink (gated). The
+drain lasted hours, which is the honest thing to record about it. Task 49
+had likewise emptied `tests/test_backend.py` and batch 23 refilled it with
+the tier-1 ceiling, so the default line runs ahead of the
+`tests/test_mutants.py` count again.
 
 Do not restate any of that as a suite `expected failures=N`. This paragraph
 was rewritten on 2026-08-15 claiming one N across three lines at once and a
@@ -239,19 +251,27 @@ them from), so the warning still applies to that one:
 | tier | red mutants |
 |---|---|
 | model (default suite) | `curved_short_finals_escape_the_corridor`, `fanned_ellipse_foot_floats_in_the_void`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`MUTANTS_RENDER=1`) | **none** |
+| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length` (both UNGATED — they run by default), `test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run` (gated) |
+| other (`tests/test_backend.py`) | `test_tier_1_refuses_an_export_twice_the_drawing` |
 
-The render row is `@unittest.expectedFailure` method names rather than
-catalog ids because they sit outside `CATALOGUE`. **It is now EMPTY**, and
-that is new: the render tier has carried a red continuously since it was
-built. Three left on consecutive days and all three the same way — the fix
-landing in the same commit as the marker's removal — but for three
-different reasons, which is the distinction the row is worth reading for.
-The durable form of the count, since totals here go stale between commits:
-`grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/test_mutants_render.py`
-reads **0**. Do not restate it as a suite ef total — the gated line used to
-run one ahead of the default line precisely because of this file, and with
-that gone the two agree only until the next red is authored anywhere.
+The bottom two rows are `@unittest.expectedFailure` method names rather
+than catalog ids because they sit outside `CATALOGUE`. The render row was
+EMPTY for part of 2026-08-15 — the first time since the file was built,
+after three reds left on consecutive days, each the same way (the fix
+landing in the same commit as the marker's removal) but for three
+different reasons. Curator batch 23 refilled it the same day with three
+more, so read the emptiness as an event rather than as a state reached.
+
+Two of the three are UNGATED: they live in `TestContinuityNarrowingRegime`,
+which needs no browser because it exercises `_completed_by_eye` and
+`_edge_profiles` as arithmetic, so they count toward the DEFAULT suite's
+expected failures as well as the gated one. That is why the two runs now
+differ by exactly one.
+
+The durable form of the counts, since totals here go stale between commits:
+`grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
+**17 / 3 / 1** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py`. Do not restate any of it as one suite ef total.
 
 **Task 50 flipped `test_mutant_opacity_ghost_is_invisible_to_tier_one`**,
 the oldest of the three and the one that could not be fixed where it stood.

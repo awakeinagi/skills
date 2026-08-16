@@ -247,6 +247,33 @@ def render_cache_dir() -> Path:
     the cache is serving the old face forever. Purge after any font
     change, and when a render-tier failure makes no sense.
 
+    NO MUTANT, AND THE JUDGEMENT IS RECORDED SO IT IS NOT RE-MADE
+    (curator batch 23 item 11, from task-perf-report candidate 2,
+    2026-08-15). That report asks whether a mutant can be built for "the
+    instrument silently reports stale pixels as fresh", and calls it the
+    one worth building if so. It cannot be built here, and the reason is
+    the exposure itself: a pin would have to vary the font stack and
+    assert the key moved, and the key does not consult the font stack, so
+    there is no input to vary. The assertion degenerates to comparing a
+    value with itself. Writing it anyway would produce a test that fails
+    for the rest of time without ever having measured anything, which is
+    worse than the gap it names.
+
+    What closes it is a MECHANISM and not a test — the fingerprint
+    manifest on the performance backlog: one line in this directory
+    holding the browser identity, `CHROME_FLAGS`, the wrapper and a
+    digest of `fc-list`, checked once per process and purging on
+    mismatch. The reviewer measured `fc-list | md5sum` at 43ms, 0.2% of a
+    warm run. When that lands the pin becomes trivial and should be
+    written in the same change: patch the digest, assert the cache
+    purged. Until then this docstring is the mitigation, and that is a
+    weaker thing than a test, said out loud rather than implied.
+
+    This is a NEW exposure and not an inherited one, which is the part
+    most worth remembering: the old per-test cache could not outlive a
+    font change, because it could not outlive the test. Persistence
+    bought the speed and created the staleness in the same commit.
+
     Set `MUTANTS_RENDER_CACHE` to relocate it — which is how the tests
     below get an empty cache to count hits and misses against, and how a
     run can be forced cold without disturbing anyone else's cache.
@@ -1368,6 +1395,76 @@ def _elbow_with_label(where: str) -> list[dict]:
     return scene
 
 
+def _label_over_foreign_stroke(foreign: bool) -> list[dict]:
+    """A straight labelled run, optionally crossed by ANOTHER arrow's ink.
+
+    Curator batch 23 item 9, from task 48 §9 candidate 3 (the corpus
+    instance is `argus-r4-arm3/enrichment-pipeline`'s `e-edgar-sent`),
+    2026-08-15. `render_svg` paints a bound label's opaque backdrop to
+    stand the arrow's own stroke out from under its text; ablating that
+    arrow removes the backdrop with it, so anything ELSE the backdrop was
+    covering comes back — and that recovered ink joins the delta as
+    pieces the connector never owned. `ablation_findings`' own docstring
+    has named this reachable since it was written; nothing reached it,
+    because the bbox over-merge used to swallow the extra pieces before
+    they were counted. Task 48's narrowing stopped swallowing them.
+
+    THE PAINT ORDER IS THE SCENE, and it is the part that took the
+    longest to get right, so it is written down rather than left in the
+    coordinates. The foreign arrow must be emitted BEFORE the label, or
+    it is drawn on top of the backdrop and is never covered at all — a
+    scene that looks identical in every stored coordinate and reproduces
+    nothing. `render_svg` paints in array order, so this builder returns
+    the foreign pair first.
+
+    THE CROSSING POINT is likewise deliberate: the backdrop runs
+    x 219..261, y 88..112, and the label's glyphs occupy roughly the top
+    two thirds of that. The foreign run dips to y=108, in the band the
+    backdrop covers and the glyphs do not, so the recovered ink is a
+    clean 40x2 fragment instead of a few pixels between letters. A
+    crossing through the glyphs is swallowed by the comparator's own
+    tolerance and reproduces nothing either.
+
+    Args:
+        foreign: True to add the crossing pair `n1`/`n2`/`a2`. False is
+            the same labelled run alone — the pole where the only thing
+            the backdrop covers is the arrow it belongs to.
+
+    Returns:
+        The scene in paint order: the foreign pair (if any), then rects
+        `s1`/`s2`, arrow `a1`, label `t1`.
+    """
+    els: list[dict] = []
+    if foreign:
+        els += [el(id="n1", type="rectangle", x=40, y=180, width=80,
+                   height=40, customData={"role": "node"}),
+                el(id="n2", type="rectangle", x=360, y=180, width=80,
+                   height=40, customData={"role": "node"}),
+                el(id="a2", type="arrow", x=120, y=200, width=240,
+                   height=0,
+                   points=[[0, 0], [60, 0], [60, -92], [180, -92],
+                           [180, 0], [240, 0]],
+                   startBinding={"elementId": "n1", "focus": 0, "gap": 1},
+                   endBinding={"elementId": "n2", "focus": 0, "gap": 1},
+                   customData={"role": "edge"})]
+    arr = el(id="a1", type="arrow", x=120, y=100, width=240, height=0,
+             points=[[0, 0], [240, 0]],
+             startBinding={"elementId": "s1", "focus": 0, "gap": 1},
+             endBinding={"elementId": "s2", "focus": 0, "gap": 1},
+             customData={"role": "edge"})
+    arr["boundElements"] = [{"id": "t1", "type": "text"}]
+    return [*els,
+            el(id="s1", type="rectangle", x=40, y=80, width=80, height=40,
+               customData={"role": "node"}),
+            el(id="s2", type="rectangle", x=360, y=80, width=80, height=40,
+               customData={"role": "node"}),
+            arr,
+            el(id="t1", type="text", x=210, y=90, width=60, height=20,
+               text="sent", fontSize=16, fontFamily=1, textAlign="center",
+               verticalAlign="middle", containerId="a1",
+               originalText="sent")]
+
+
 def _back_edge_with_label(where: str) -> list[dict]:
     """Two stacked rects joined by a back edge that turns TWICE.
 
@@ -1598,6 +1695,77 @@ class TestRenderMutants(unittest.TestCase):
                           if f["check"] == "ablation_continuity"], [])
         self.assertEqual([f for f in finds
                           if f["check"] == "ablation_existence"], [])
+
+    @unittest.expectedFailure
+    def test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run(self
+                                                                    ) -> None:
+        """RED, curator batch 23 item 9. Owner: wave/Task 24-follow-up.
+
+        An ATTRIBUTION defect, and the reason it is worth its own mutant
+        rather than a line in the continuity family: `a1` is a straight
+        run with a label on it, which is `..._a_label_on_a_straight_run_
+        is_silent`'s scene exactly and reads as one stroke. Add a foreign
+        arrow that happens to pass beneath `a1`'s label, change nothing
+        about `a1`, and the check speaks about `a1` — with a magnitude of
+        2 and a third bbox in its evidence that belongs to `a2`.
+
+        So the pieces are not miscounted; they are MISATTRIBUTED. The
+        ablation removes the backdrop along with the arrow, the foreign
+        stroke it was covering comes back, and the delta is no longer the
+        connector's own ink. `_completed_by_eye` is not at fault and no
+        change to it helps — measured: the recovered fragment sits at
+        raster `(220, 67, 259, 68)` against `a1`'s stubs at rows 56-63,
+        y-separated and x-disjoint from both, so every reasonable
+        continuity predicate keeps it apart. The fix belongs in
+        `ablation_findings`, which must subtract the ink that is not the
+        ablated element's — a second ablation of the backdrop alone, or
+        an intersection against the element's own drawn extent.
+
+        SCOPED TO THE ATTRIBUTION AND NOT TO THE MESSAGE. The `raw`
+        string names `a2`'s bbox and it would be easy to assert on that,
+        but the string is not the finding — a fix that corrected the
+        prose while still counting foreign pieces would satisfy such a
+        test. What must become true is that this check says nothing about
+        `a1`, so that is what is asserted.
+
+        `ablation_existence` is asserted silent alongside, for the reason
+        the neighbours below give: an empty delta would satisfy the
+        continuity assertion too, and "the arrow left the picture" has to
+        stay true for the silence to mean anything.
+        """
+        finds = ablation_findings(_label_over_foreign_stroke(True), ["a1"])
+        self.assertEqual(
+            [f for f in finds if f["check"] == "ablation_continuity"], [],
+            "ablating a1 un-covered another arrow's stroke and the "
+            "recovered ink was counted as a1's own: %s"
+            % [f["raw"] for f in finds
+               if f["check"] == "ablation_continuity"])
+        self.assertEqual(
+            [f for f in finds if f["check"] == "ablation_existence"], [])
+
+    def test_neighbour_the_same_label_covering_only_its_own_arrow(self
+                                                                  ) -> None:
+        """The other pole: one variable, the foreign arrow, removed.
+
+        The identical labelled run with nothing else in the scene, so the
+        only thing `a1`'s backdrop covers is `a1`. Silent, correctly.
+        That is what makes the red above about the FOREIGN ink rather
+        than about this builder's label placement — without it, a red
+        asserting silence would be satisfied by the label being parked
+        somewhere harmless, and would tell nobody which of the two
+        differences mattered.
+
+        This pair is two Silences, which is the weaker neighbour shape,
+        and the check's legitimate FIRING is proven a few tests down by
+        `test_mutant_label_backdrop_severs_connector` on
+        `_elbow_with_label("corner")` — asserted in every gated run, so
+        `ablation_continuity` cannot be dead while these two pass.
+        """
+        finds = ablation_findings(_label_over_foreign_stroke(False), ["a1"])
+        self.assertEqual(
+            [f for f in finds if f["check"] == "ablation_continuity"], [])
+        self.assertEqual(
+            [f for f in finds if f["check"] == "ablation_existence"], [])
 
     def test_mutant_label_backdrop_severs_connector(self) -> None:
         """A label parked on the elbow cuts the connector into two strokes.
@@ -1842,6 +2010,46 @@ _SEVERED_SHAPES = (
      (*_L_REMNANT, (122, 176, 258, 177))),
 )
 
+# THE INTERLEAVED BACK-LOOP, and its severed twin (curator batch 23 item 7,
+# from task 48 §9 candidate 1, 2026-08-15). The corpus instance is
+# `argus-r5/argus-domain`'s `r-pipeline-rerun`; this is the smallest path
+# that reproduces it, and the minimization is the work — the shape has to
+# double back UNDER its own top run, which four rectangles is the fewest
+# that expresses.
+#
+# The connector runs right along the top, turns down at its far end, and
+# returns leftward beneath itself. A bound label breaks the TOP run, which
+# is the tool's own idiom and must read as one stroke. It reads as two,
+# and the reason is not the ends test but the PREFILTER in front of it: the
+# back run stops 10px short of the left stub, so the two components are
+# x-SEPARATED by 10 while the break they actually have is 40px along the
+# top. `_completed_by_eye` picks the x axis, asks for the left stub's right
+# end against the whole piece's left end — and the piece's left end is the
+# BACK RUN, 69 rows below the gap. The ends it compares are not the ends
+# facing the gap.
+#
+# This is a hole in the two-piece model rather than in a constant, which is
+# why no threshold moves it: a component that doubles back has two ends on
+# the same side, and `ends` carries one span per side. Both members below
+# are the SAME loop with the SAME label; the single variable is where the
+# break falls.
+_BACK_LOOP_BROKEN_MID_RUN = ((10, 50, 100, 51), (140, 50, 200, 51),
+                             (199, 50, 200, 120), (110, 119, 200, 120))
+_BACK_LOOP_BROKEN_AT_TURN = ((10, 50, 185, 51),
+                             (199, 65, 200, 120), (110, 119, 200, 120))
+
+# A sloped run as a staircase of 1px columns, at two widths. Below `_BAND`
+# the left and right bands cover the same pixels and both ends report the
+# component's whole length; above it they discriminate (curator batch 23
+# item 8, from task 48 §9 candidate 2). Written as steps rather than as a
+# rectangle because the defect is about a SLOPE — a genuinely vertical
+# 2px stroke's left edge really is its whole length, and reading this pin
+# as being about thin strokes rather than about sloped ones would send the
+# fix in the wrong direction.
+_THIN_SLOPE = ((0, 0, 0, 3), (1, 3, 1, 6), (2, 6, 2, 9))
+_WIDE_SLOPE = tuple((x, x, x, x + 3) for x in range(8))
+
+
 # The other pole: breaks the eye completes, which the narrowing must not
 # start reporting. The third is the back edge's LEGITIMATE mid-leg break —
 # two L's, exactly the shape of the severed scene above, and the reason no
@@ -2003,6 +2211,141 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
         self.assertEqual([c["bbox"] for c in parts], [(122, 59, 283, 120)])
         self.assertEqual(parts[0]["ends"]["bottom"], (200, 283))
         self.assertEqual(parts[0]["ends"]["left"], (59, 60))
+
+    @unittest.expectedFailure
+    def test_a_back_loop_broken_mid_run_reads_as_one_stroke(self) -> None:
+        """RED, curator batch 23 item 7. Owner: wave/Task 24-follow-up.
+
+        `ablation_continuity` over-fires on a connector that doubles back
+        under itself. The label breaks the top run — the tool's own
+        idiom, which every other scene in this class reads as one stroke
+        — and this one comes apart, because the back run stops 10px short
+        of the left stub and so the boxes separate in x while the gap is
+        in the top run.
+
+        Magnitude and direction, both in the numbers the failure prints:
+        the predicate reports 2 pieces where a reader sees 1, and the
+        ends it compared are 69 rows apart (the stub's right end at rows
+        50-51 against the piece's left end at rows 119-120) when the ends
+        across the gap are the same two rows on both sides. Over-fire,
+        not under-fire — the check speaks where it should be silent,
+        which on a corpus run costs a false severance report on 1.7% of
+        arrows rather than a missed one.
+
+        No constant moves this. The piece that doubles back has two ends
+        on its left side and `ends` records one span per side, so the
+        right ends are not merely mis-ranked, they are absent from the
+        structure. The fix is to the two-piece model — either ends per
+        RUN rather than per side, or a prefilter that chooses its axis by
+        where the ink faces rather than by which projection separates.
+        """
+        groups = _synthetic_strokes(_BACK_LOOP_BROKEN_MID_RUN)
+        self.assertEqual(
+            len(groups), 1,
+            "a back-loop broken mid-run reads as %d pieces: the axis "
+            "prefilter picked the ends %s, which are not the ends across "
+            "the gap"
+            % (len(groups),
+               [c["ends"] for g in groups for c in g]))
+
+    def test_the_same_back_loop_severed_at_its_turn_reads_as_two(self
+                                                                 ) -> None:
+        """The neighbour, and the pole that keeps the red honest.
+
+        Same loop, same label, same four rectangles of ink — the single
+        variable is that the break falls on the TURN instead of on the
+        top run, which is a genuine severance a reader sees as two
+        pieces. It reads as two, correctly, today.
+
+        This is the gate shape rather than a liveness control: a fix that
+        widened the predicate until the red above passed would merge this
+        too, and merging this is exactly the r5-14 defect the narrowing
+        was built to stop. Neither pole can be satisfied by accident, and
+        a fix has to move one without moving the other.
+        """
+        groups = _synthetic_strokes(_BACK_LOOP_BROKEN_AT_TURN)
+        self.assertEqual(
+            len(groups), 2,
+            "the back-loop's erased turn reads as %d piece(s): a top run "
+            "and a vertical leg 199px to its right have been completed "
+            "into one stroke" % len(groups))
+
+    @unittest.expectedFailure
+    def test_a_thin_sloped_scrap_reports_an_end_not_its_length(self) -> None:
+        """RED, curator batch 23 item 8. Owner: wave/Task 24-follow-up.
+
+        `_edge_profiles` reports a component's whole LENGTH as its end
+        when the component is thinner than `_BAND`. The corpus instance
+        is `argus-r4-arm3/enrichment-pipeline`'s `e-edgar-insider`, whose
+        ablation leaves a 2x7 scrap of a sloped run; this is that shape
+        at 3 columns, the fewest that carries `MIN_BLOB`'s 12 pixels.
+
+        The scrap steps down one row per column, so its leftmost column
+        holds rows 0-3 and its rightmost rows 6-9 — genuinely different
+        ends, 6 rows apart. Both are reported as `(0, 9)`: at 3 columns
+        against a 4px band, `x < x0 + _BAND` and `x > x1 - _BAND` select
+        every pixel, so the two opposite ends are not merely wrong but
+        IDENTICAL, and the span carries no direction at all. Magnitude:
+        10 rows reported where 4 is the ink. Direction: over, on both
+        ends, which is the direction that refuses continuations —
+        `_ends_line_up` measures against `max()` of the two spans, so a
+        10-row phantom end demands ~6 rows of overlap from a real 2-row
+        stroke end and never gets it.
+
+        Asserted as a span WIDTH rather than as an expected pair, because
+        the fix's shape is not this pin's to choose: capping the profile
+        at the component's own cross-section is the obvious route and any
+        route that stops reporting the length satisfies this.
+
+        THE CONSTRAINT THE FIX MUST RESPECT, measured rather than
+        inherited: the tempting one-line repair is downstream, changing
+        `_ends_line_up` to measure against `min()` of the two spans
+        instead of `max()`. That silences this scrap and REOPENS two of
+        the four over-merges `_SEVERED_SHAPES` pins — "a stub 67px clear
+        of the L's leg" and "a T-corner pair sharing one row of band"
+        both drop from 2 pieces to 1. Verified by patching
+        `_ends_line_up` in a throwaway tree and replaying both shape
+        tables. So the repair belongs in the PROFILE, where the wrong
+        number is produced, and not in the ratio that consumes it.
+        """
+        ink = [y * 400 + x for x0, y0, x1, y1 in _THIN_SLOPE
+               for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
+        ends = _edge_profiles(400, (0, 0, 2, 9), ink)
+        span = ends["right"][1] - ends["right"][0] + 1
+        self.assertLessEqual(
+            span, 4,
+            "a 3-column sloped scrap reports a %d-row right end %s: its "
+            "rightmost column holds 4 rows, and its LEFT end reports the "
+            "identical span %s, so the profile has measured the "
+            "component's length instead of either of its ends"
+            % (span, ends["right"], ends["left"]))
+
+    def test_a_slope_wider_than_the_band_reports_ends_that_differ(self
+                                                                  ) -> None:
+        """The neighbour: above `_BAND` the profile discriminates.
+
+        The same staircase at 8 columns instead of 3, which is the single
+        variable. Here the left band and the right band select different
+        pixels, and the two ends come back `(0, 6)` and `(4, 10)` — six
+        rows apart, pointing where the stroke actually enters and leaves.
+
+        This is what makes the red above about the BAND and not about
+        `_edge_profiles` being broken generally: the function does the
+        job it was written for on any component wide enough to have two
+        distinguishable sides, and fails exactly when the component is
+        narrower than the window used to look at it. A fix that capped
+        every profile regardless of width would satisfy the red and break
+        this.
+        """
+        ink = [y * 400 + x for x0, y0, x1, y1 in _WIDE_SLOPE
+               for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
+        ends = _edge_profiles(400, (0, 0, 7, 10), ink)
+        self.assertNotEqual(
+            ends["left"], ends["right"],
+            "an 8-column sloped run reports the same span %s at both "
+            "ends: the band is no longer selecting a side" % (ends["left"],))
+        self.assertEqual((ends["left"], ends["right"]), ((0, 6), (4, 10)),
+                         "the wide slope's ends have moved: %s" % (ends,))
 
     def test_fattening_both_ends_leaves_a_continuation_continuous(self
                                                                   ) -> None:
@@ -2559,6 +2902,77 @@ class TestComposedFurnitureVisibility(unittest.TestCase):
         # that made it read as unchecked rather than as missing.
         self.assertAlmostEqual(
             _element_ink(scene, "f1-chk")[0], 36, delta=6)
+
+    def test_faint_furniture_survives_its_opaque_owner_by_measurement(self
+                                                                      ) -> None:
+        """Curator batch 23 item 2 (task 45 review MINOR-2), 2026-08-15.
+
+        The two composites `STATE_CONTROLS` had to leave out. Batch 17
+        excluded `body` and `image` furniture because their strokes read
+        as ABSENT at both poles — faint `#b8b2a5` at width 1 — so the
+        both-pole "an opaque owner costs this part nothing" shape cannot
+        be built for them, and task 45 §7.2 generalized that into "the
+        render tier cannot demonstrate the improvement" and deferred the
+        item a fourth time.
+
+        The generalization was too broad, and its own review measured
+        why. The both-pole shape is unavailable; the PRE-FIX versus
+        SHIPPED shape at the opaque pole alone is wide open, and it is
+        the mutant shape rather than the pole-comparison shape. Re-measured
+        here 2026-08-15: an `image` composite's `f1-x1` carries 208px
+        under an opaque owner with the shipped banding and 0px with the
+        pre-task-45 banding — at the DEFAULT `MIN_BLOB`, not at a
+        loosened floor, and 208 against 0 is not a marginal reading.
+
+        Both poles are asserted because both are measurable and they are
+        one variable apart: `normalize_z_order`'s output against the same
+        elements with the owner moved last, which is where task 44 left
+        furniture and what `render_svg`'s array-order paint then did with
+        it. That makes this a gate — the shipped order must show the
+        glyph, the buried order must hide it — so a regression that
+        banded furniture back down fails the first assertion, and a
+        "fix" that simply stopped the owner painting at all fails the
+        second.
+
+        WHY THE POLES RUN THE OTHER WAY HERE, since it looks wrong: with
+        a TRANSPARENT owner this same part measures 0px at the default
+        floor (4px at `min_blob=1`). The faint stroke has almost no
+        contrast against bare paper and plenty against `#e9e5da`, so the
+        opaque reading is the HIGHER one. That inversion is exactly why
+        batch 17's idiom could not reach these two, and reading this
+        test's numbers as a mistake is the trap it is written to avoid.
+
+        Raises:
+            RuntimeError: If `make_element` refused the image tile. Said
+                out loud for the reason `_control_composite` says it: a
+                rejected spec returns an empty list, and both poles of an
+                empty scene measure 0px and agree with each other.
+        """
+        ids: set[str] = set()
+        errors: list[str] = []
+        parts = canvas.make_element(
+            {"id": "f1", "type": "rectangle", "x": 0, "y": 0, "width": 220,
+             "height": 110, "kind": "image",
+             "backgroundColor": "#e9e5da"}, ids, errors)
+        if errors or not parts:
+            raise RuntimeError("make_element refused the image tile: %s"
+                               % errors)
+        shipped = canvas.normalize_z_order(parts)
+        # The pre-task-45 banding, reproduced by moving the owner last
+        # rather than by reverting `band()`: `render_svg` paints in array
+        # order, so an owner emitted after its parts covers them, which
+        # is precisely what band 3 over band 1 produced.
+        buried = sorted(shipped, key=lambda e: e["id"] == "f1")
+        self.assertAlmostEqual(
+            _element_ink(shipped, "f1-x1")[0], 208, delta=20,
+            msg="the image tile's X stroke measured %dpx under an opaque "
+                "owner: composed furniture is being painted over again"
+                % _element_ink(shipped, "f1-x1")[0])
+        self.assertEqual(
+            _element_ink(buried, "f1-x1")[0], 0,
+            "with the owner painted last the X stroke still measures "
+            "ink: the scene no longer reproduces the pre-fix burial, so "
+            "the assertion above is not measuring what it claims")
 
 
 # ---------------------------------------------------------------------------
@@ -3629,12 +4043,24 @@ class TestRenderParity(unittest.TestCase):
     def test_neighbour_honest_label_width_is_framed_whole(self) -> None:
         """With the stored width honest, tier 1's frame holds all its ink.
 
-        The other pole, and the control that keeps the red above
-        meaningful: same label, same anchoring, same position, and the
-        single variable is whether the stored width matches the string.
-        Without it the red would be satisfied by a renderer that framed
+        The other pole: same label, same anchoring, same position, and
+        the single variable is whether the stored width matches the
+        string. It keeps the test above meaningful in both directions —
+        without it that test would be satisfied by a renderer that framed
         nothing correctly, or by an instrument that reported a clip on
         every scene it was shown.
+
+        Kept its red-era name and, until curator batch 23 (2026-08-15),
+        its red-era prose: it called itself "the control that keeps the
+        RED above meaningful" when that red flipped at `0b7e7ba` (Task
+        22). Task 46's C3 caught the sentence and left it deliberately,
+        having corrected the identical one in its own neighbour, rather
+        than widening that diff into a docstring it had no other reason
+        to open. Both halves of the pair are green now, and what the pair
+        pins is a GATE rather than a defect — one stored width frames
+        whole, the other does not — so neither member is the other's
+        control any more. That is a change of kind and not just of
+        tense, which is why it is written out instead of edited away.
         """
         scene = _left_edge_label(_WIDE_LABEL_W)
         self.assertEqual(parity_findings(scene, ["t1"]), [])
@@ -3891,6 +4317,35 @@ class TestRenderParityRegime(unittest.TestCase):
         against the fourth line's whole em box rather than its baseline —
         a frame ending exactly on the baseline still cuts the tails off
         `p` and `g`, which is a loss the eye reads as a different word.
+
+        WHY THIS STAYS AN INEQUALITY (curator batch 23 item 6, from task
+        46's review MINOR-1, 2026-08-15). The review is right that this
+        test does not hold the line alone: under the family's own trap —
+        revert the loop to the unwrapped string AND widen the pad to 100
+        — the bottom lands at 120 against an ink bottom of 80 and this
+        passes. The review's suggested repair was exact equality against
+        `SVG_PAD`, matching the centered pin's style, with the
+        over-specification worry (another element could come to set the
+        bottom edge) noted as the reason not to insist.
+
+        Measured, and the repair does not work. Under that same cheat the
+        margin is 40.0 — EXACTLY `SVG_PAD` — so equality passes too, and
+        for a reason no assertion on this axis can escape: widening the
+        pad by 60 compensates precisely for the 60px of line height the
+        reverted loop fails to reserve, and the resulting frame is
+        numerically indistinguishable from the correct one. No function
+        of (bottom, ink_bottom) separates them.
+
+        What separates them is the PAIR, exactly as the review said: the
+        control pin next door asserts an honest scene's frame is
+        unchanged, and the widened pad moves it. So the note rather than
+        the change, and the note is worth more than the change would have
+        been — it records that a plausible tightening was tried against
+        the cheat it was proposed for and measured not to catch it. The
+        over-specification argument is secondary and also holds: `n1`
+        bottoms at y=20 against the text's 80 today, so the text does set
+        this edge, but that is a property of the scene and not of the
+        claim.
         """
         svg, _w, _h = canvas.render_svg(_wrapped_body_text(False))
         dims = _SVG_DIMS.search(svg)
@@ -4460,6 +4915,27 @@ class TestRenderCache(unittest.TestCase):
         derives `w`/`h` from the same `<svg>` tag it derives the markup
         from — so this splits no entry that exists. It is pinned so that
         the first caller that does cannot be handed the wrong crop.
+
+        Attributed by curator batch 23 item 12 (task-perf-report
+        candidate 3, 2026-08-15), because the origin is the interesting
+        part and it was about to be lost. The window size was ABSENT from
+        the key until that task, and the omission was latent for exactly
+        the reason above: no caller exercised it, so no test could have
+        failed and no run could have been wrong. Had a caller been added
+        first, the cache would have served the wrong crop and nothing
+        would have flagged it.
+
+        The class this belongs to, stated so it is recognisable next
+        time: CONTENT-ADDRESSING THAT OMITS A FIELD WHICH CHANGES THE
+        CONTENT. A hash of some of the inputs is not a content address,
+        it is a content address for a different question, and it fails
+        silently and permanently — every read is a hit, every hit is
+        confident, and the answer is stale. It is worth cataloguing as a
+        GREEN entry rather than a red because it is now closed: the value
+        here is the shape, not an open defect. Its two live siblings are
+        named in `_cache_key` (the browser behind a launcher indirection,
+        narrowed but not eliminated) and `render_cache_dir` (the system
+        font stack, which no cheap fingerprint reaches).
         """
         self.assertNotEqual(_cache_key("<svg/>", 240, 160),
                             _cache_key("<svg/>", 240, 161))

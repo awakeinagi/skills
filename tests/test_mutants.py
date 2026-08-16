@@ -3653,6 +3653,61 @@ class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
             "bottom line is outside the export"
             % (frame, ink, ink - frame))
 
+    def test_the_three_wrap_rules_disagree_about_a_newline(self) -> None:
+        r"""Curator batch 23 item 4 (task 46 §9 C2), 2026-08-15.
+
+        The divergence measured rather than described. Three places in
+        `canvas.py` wrap text and they are not quite the same rule:
+
+        - `painted_text_lines`, the renderer's — splits on `\\n` FIRST
+          and wraps each resulting line separately, so an explicit
+          newline is a HARD break the drawing honours;
+        - `lint_layout`'s composed-content check, which wraps
+          `txt.replace("\\n", " ")` at `room_w`;
+        - `shape_clip`'s label measurement, which does the same at
+          `box_w`.
+
+        The last two collapse the newline to a space. Task 46 unified the
+        wrap CONDITION and the font size across the renderer's two
+        readers and left these, correctly — they answer a different
+        question ("does it fit its container") and are outside that
+        task's scope. What was never written down is that the collapse
+        makes them measure a different STRING, and that nothing pinned it
+        as intentional.
+
+        On `"yes\\nno maybe"` in a 200px box the renderer paints two
+        lines and both lint rules measure one: 40px of ink against a
+        20px estimate, a factor of two, in the direction that reports a
+        fit where the drawing overflows. That is the bounds-versus-paint
+        family again at a third site.
+
+        GREEN AND NOT RED, deliberately. What is proven here is the
+        arithmetic divergence; what is NOT proven is that any shipped
+        lint goes silent on a real scene because of it, and asserting a
+        miss nobody has demonstrated would put a red in the catalogue
+        that no fix can be judged against. The open question for whoever
+        owns those two checks: if the collapse is intentional, this pin
+        is its documentation, and if it is not, this is the scene the
+        red should be built on.
+        """
+        boxed = el(id="t1", type="text", x=0, y=0, width=200, height=20,
+                   text="yes\nno maybe", fontSize=16, autoResize=False,
+                   lineHeight=1.25)
+        painted, fs = canvas.painted_text_lines(boxed)
+        collapsed = canvas.wrap_label_text(
+            boxed["text"].replace("\n", " "), boxed["width"], fs).split("\n")
+        self.assertEqual(
+            (len(painted), len(collapsed)), (2, 1),
+            "the renderer paints %r and the lint rules measure %r: the "
+            "newline divergence has moved, so re-derive the heights below"
+            % (painted, collapsed))
+        self.assertEqual(
+            (canvas.text_dims("\n".join(painted), fs)[1],
+             canvas.text_dims("\n".join(collapsed), fs)[1]), (40, 20),
+            "the two readings of one string no longer differ by a factor "
+            "of two; if they now agree, the collapse has been removed and "
+            "this pin should be deleted rather than re-tuned")
+
 
 # ---------------------------------------------------------------------------
 # Store integrity — the data-loss family (Batch A, 2026-08-12: flowchartai
