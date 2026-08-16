@@ -103,12 +103,29 @@ def _browser() -> str:
     | `chromium-1234/chrome` | 90.1s | **4.619:1** |
     | `chromium_headless_shell-1148` | **35.3s** | **5.510:1** |
 
-    Every one of the 58 tests returns the same verdict under either, so
+    Every one of the 61 tests returns the same verdict under either, so
     switching is *tempting* and would cost nothing today. The reason not
-    to is the second column. 4.62 against 5.51 is not a rounding
-    difference — it is the pair this file already documents twice (see
-    `_cache_key`, and the calibration table above `TestLegibilityFloor`)
-    as the difference between failing WCAG's 4.5:1 floor and passing it.
+    to is the second column. 4.62 against 5.51 is a fifth of the reading,
+    on the one axis `TestLegibilityFloor` exists to measure — and it is
+    the same disagreement the calibration table above that class already
+    records, which at 5px reads 4.12 against 5.27 and so does straddle
+    WCAG's 4.5:1 floor. (Both 6px figures clear 4.5; it is the step below
+    that changes the verdict a human would give. The table is the honest
+    statement of the divergence, not either single pair.)
+
+    It already costs margin on a LIVE pin.
+    `test_text_below_the_floor_degenerates_in_the_picture` requires the
+    below-floor word to lose at least 30% of the at-floor contrast:
+
+    | binary | 6px | 7px | ratio | headroom to 0.70 |
+    |---|---|---|---|---|
+    | `chrome` | 4.619 | 8.498 | 0.5435 | 0.157 |
+    | `headless_shell` | 5.510 | 8.770 | 0.6283 | **0.072** |
+
+    Preferring the faster binary would more than halve the margin on a
+    test that is passing today — and it would pass, quietly, on a fleet
+    that had silently re-calibrated itself.
+
     The corpus's pinned numbers were calibrated under `chrome`. Preferring
     `headless_shell` would re-calibrate the instrument on exactly those
     machines that happen to have one installed, and leave the machines
@@ -156,13 +173,17 @@ def _browser() -> str:
 def _mkworkdir() -> str:
     """Make a scratch directory for a test that needs one on disk.
 
-    Scratch, not renders: this is the throwaway root a test builds a
-    canvas PROJECT in (`_rightmost_node_ink` is the only caller left),
-    and its whole point is being fresh per test. Renders no longer come
-    here — they go to the shared cache `render_cache_dir` returns, which
-    is the opposite kind of directory in every respect, and conflating
-    the two is what made two `TestSnapshotFraming` tests collide on
-    `artifact 'wide' already exists` when the cache was first shared.
+    Scratch, not renders: what is left here is the throwaway root a test
+    needs on disk in its own right, and its whole point is being fresh
+    per test. Two classes call it — `TestSnapshotFraming`, whose tests
+    build a canvas PROJECT under it by way of `_rightmost_node_ink`, and
+    `TestRasterizeScaleToFit`, which asks `canvas.rasterize_svg` to write
+    a PNG somewhere. Renders no longer come here: they go to the shared
+    cache `render_cache_dir` returns, which is the opposite kind of
+    directory in every respect. Conflating the two is what made two
+    `TestSnapshotFraming` tests collide on `artifact 'wide' already
+    exists` when the cache was first shared, because a project root that
+    is reused already holds the artifact the test creates.
 
     Snap-confined chromium builds run in a mount namespace where the real
     `/tmp` is invisible, so when the chosen browser is one of those the
@@ -210,18 +231,105 @@ def render_cache_dir() -> Path:
     return root
 
 
-def _cache_key(svg: str, w: int, h: int) -> str:
+def _html_document(svg: str) -> str:
+    """Wrap an SVG in the page chromium is actually pointed at.
+
+    A named function and not an inline format string because the wrapper
+    is a RENDER INPUT: its `margin:0` is what makes the screenshot's
+    origin the drawing's origin, and anything ever added here — a
+    `@font-face`, a background, a different margin — moves pixels exactly
+    as a chromium flag would. `_cache_key` hashes what this returns, so
+    the wrapper cannot change without the key changing.
+
+    Args:
+        svg: The complete SVG document to draw.
+
+    Returns:
+        The HTML document to write out and load.
+    """
+    return ("<!doctype html><html><body style='margin:0'>%s"
+            "</body></html>" % svg)
+
+
+def _browser_identity() -> str:
+    """The chosen browser as something that CHANGES when the browser does.
+
+    The path alone is not the binary's identity, and the difference is
+    load-bearing now that renders outlive the run that made them. A
+    playwright build carries its number in its path
+    (`chromium-1234/...`), so a path comparison happens to work for those
+    — but `canvas.find_browsers` also returns PATH-found browsers like
+    `/snap/bin/chromium`, whose path is **stable across upgrades**. An
+    unattended `snap refresh` or `apt upgrade` replaces the binary under
+    an unchanged path, and a path-keyed cache would then serve
+    pre-upgrade pixels as fresh measurement, indefinitely, with nothing
+    to notice. This file's own calibration table records that a chromium
+    build change moves the legibility numbers by more than the margin
+    those tests have.
+
+    Size and mtime rather than a content hash: the binary is ~288 MB and
+    this is computed once per render, so hashing it would cost more than
+    the render. `os.stat` is microseconds and an upgrade cannot plausibly
+    leave both fields identical. A false MISS — after a copy, or a
+    touch — is harmless, because a key field can only split entries,
+    never merge them.
+
+    **The snap revision is read separately, and the stat alone would not
+    have covered the very case that motivates this.** `/snap/bin/chromium`
+    is a symlink to `/usr/bin/snap` — the launcher, not the browser — so
+    statting it fingerprints the snap TOOL, which a `snap refresh
+    chromium` does not touch. What moves is `/snap/<name>/current`, a
+    symlink to the revision number, and reading it costs 1.7 microseconds.
+
+    What this still does not cover: any OTHER launcher indirection — a
+    distro wrapper script, a flatpak — where a stable front path hides a
+    binary that changed. Asking the browser itself (`--version`) would be
+    general and is the obvious alternative; it is not used because it
+    costs 5.6s on the snap build, a quarter of a warm run, for a check
+    made on every render. The honest summary is that this closes the two
+    known indirections and narrows rather than eliminates the class; the
+    complete answer is the once-per-process fingerprint manifest tracked
+    as a follow-up, which can afford a subprocess.
+
+    Returns:
+        The path, the binary's size and mtime, and — for a snap — its
+        revision, NUL-joined. Propagates `_browser`'s `RuntimeError`
+        when there is no browser to stat.
+    """
+    path = _browser()
+    st = os.stat(path)
+    parts = [path, str(st.st_size), str(st.st_mtime_ns)]
+    if "/snap/" in path:
+        try:
+            parts.append(os.readlink(Path("/snap") / Path(path).name
+                                     / "current"))
+        except OSError:
+            # an unreadable revision degrades to the stat above rather
+            # than inventing a constant that looks like an answer
+            parts.append("snap-revision-unreadable")
+    return "\0".join(parts)
+
+
+def _cache_key(document: str, w: int, h: int) -> str:
     """The content address of one render.
 
-    Everything that can move a pixel and is under this file's control
-    goes in, because the cache now OUTLIVES the run that filled it:
+    Four fields, because the cache now OUTLIVES the run that filled it
+    and each of these moves pixels. **This is not the same as covering
+    everything that moves pixels** — the system fonts are not in here and
+    cannot cheaply be (see `render_cache_dir`), and `_browser_identity`
+    narrows rather than closes the question of whether a stable path
+    still names the same binary. Read those two before trusting a cached
+    render that surprises you; the fields below are what the key really
+    promises:
 
-    - **The browser binary.** Keyed on markup alone the cache is only
-      sound while one binary is in play: the min_font calibration sweeps
-      the same scenes across three chromium builds that disagree about
+    - **The browser binary, by identity and not by path** — see
+      `_browser_identity`. Keyed on markup alone the cache is only sound
+      while one binary is in play: the min_font calibration sweeps the
+      same scenes across three chromium builds that disagree about
       anti-aliasing, and a markup-keyed cache happily served build 151's
-      pixels for build 131 — returning 4.62:1 for a build that renders
-      5.51:1, the difference between failing WCAG's floor and passing it.
+      pixels for build 131 — reporting 4.62:1 for a build that renders
+      the same word at 5.51:1, a fifth of the measurement, on the axis
+      those tests exist to measure.
     - **`CHROME_FLAGS`.** They exist precisely because device scale,
       colour profile and subpixel text move pixels, so changing one and
       serving the old render would silently answer the old question.
@@ -230,14 +338,18 @@ def _cache_key(svg: str, w: int, h: int) -> str:
       the same `<svg>` tag it derives the markup from, so this splits no
       entry that exists today; it is here so that a future caller that
       shoots one document at two sizes cannot get one answer twice.
+    - **The whole HTML document, not the SVG fragment.** The wrapper
+      `_html_document` adds is a render input like any other, and hashing
+      only the fragment left a real hole: changing the wrapper's margin
+      produced different pixels under an unchanged key.
 
     A change to `canvas.render_svg` is safe BY CONSTRUCTION and needs no
-    entry here: the key hashes the markup, and the markup is that
-    function's output. Different drawing, different key. Nobody should
-    "fix" that by adding a version stamp.
+    entry here: the markup is that function's output and it is a
+    SUBSTRING of what this hashes. Different drawing, different key.
+    Nobody should "fix" that by adding a version stamp.
 
     Args:
-        svg: The complete SVG document to draw.
+        document: The complete HTML document, from `_html_document`.
         w: Browser window width in pixels.
         h: Browser window height in pixels.
 
@@ -246,7 +358,7 @@ def _cache_key(svg: str, w: int, h: int) -> str:
     """
     return hashlib.sha1(
         ("%s\0%s\0%dx%d\0%s"
-         % (_browser(), "\0".join(CHROME_FLAGS), w, h, svg))
+         % (_browser_identity(), "\0".join(CHROME_FLAGS), w, h, document))
         .encode("utf-8")).hexdigest()[:16]
 
 
@@ -280,13 +392,13 @@ def _rasterize(svg: str, w: int, h: int) -> bytes:
         RuntimeError: If the browser exited without writing a PNG.
     """
     cache = render_cache_dir()
-    name = _cache_key(svg, w, h)
+    document = _html_document(svg)
+    name = _cache_key(document, w, h)
     png = cache / (name + ".png")
     if png.exists():
         return png.read_bytes()
     html = cache / (name + ".html")
-    _atomic_write(html, ("<!doctype html><html><body style='margin:0'>%s"
-                         "</body></html>" % svg).encode("utf-8"))
+    _atomic_write(html, document.encode("utf-8"))
     # the suffix stays `.png`: chromium picks the encoder off the
     # extension and refuses a screenshot path ending in anything else
     tmp = cache / ("%s.%d.tmp.png" % (name, os.getpid()))
@@ -3516,7 +3628,12 @@ class TestRenderCache(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        """Point the cache at an empty directory this test owns."""
+        """Point the cache at an empty directory this test owns.
+
+        The stand-in browser is a REAL file, because the key stats the
+        binary for its size and mtime — a fake path would raise before it
+        ever reached the behaviour under test.
+        """
         self.cache = tempfile.mkdtemp(prefix="render-cache-test-")
         self.addCleanup(shutil.rmtree, self.cache, ignore_errors=True)
         env = mock.patch.dict(os.environ,
@@ -3526,11 +3643,28 @@ class TestRenderCache(unittest.TestCase):
         # an ambient opt-in must not decide what these measure; patch.dict
         # restores the whole mapping on stop, so popping here is temporary
         os.environ.pop("MUTANTS_RENDER_BROWSER", None)
+        self.binary = self._fake_binary("chromium-build-1", b"build one")
         found = mock.patch.object(canvas, "find_browsers",
-                                  lambda: ["/fake/chromium-build-1"])
+                                  lambda: [str(self.binary)])
         found.start()
         self.addCleanup(found.stop)
         self.starts: list[list[str]] = []
+
+    def _fake_binary(self, name: str, content: bytes) -> Path:
+        """Write a stand-in browser binary somewhere `os.stat` can see it.
+
+        Args:
+            name: Filename under this test's own directory.
+            content: Bytes to write — length is half of what the key
+                fingerprints, so distinct content means a distinct key.
+
+        Returns:
+            The path written.
+        """
+        path = Path(self.cache).parent / ("%s-%s" % (name, os.getpid()))
+        path.write_bytes(content)
+        self.addCleanup(path.unlink, missing_ok=True)
+        return path
 
     def _stub_browser(self, png: bytes = b"\x89PNG\r\n\x1a\nstub"
                       ) -> Callable[..., subprocess.CompletedProcess]:
@@ -3565,9 +3699,70 @@ class TestRenderCache(unittest.TestCase):
         build under test does not produce.
         """
         first = _cache_key("<svg/>", 240, 160)
-        with mock.patch.object(canvas, "find_browsers",
-                               lambda: ["/fake/chromium-build-2"]):
+        other = self._fake_binary("chromium-build-2", b"build two")
+        with mock.patch.object(canvas, "find_browsers", lambda: [str(other)]):
             self.assertNotEqual(first, _cache_key("<svg/>", 240, 160))
+
+    def test_the_key_changes_when_the_browser_is_upgraded_in_place(
+            self) -> None:
+        """Same path, new binary, new key — the routine upgrade case.
+
+        A playwright build carries its number in its path, so a path
+        comparison happens to distinguish those. `/snap/bin/chromium`
+        does not: an unattended `snap refresh` swaps the binary and
+        leaves the path alone. Keyed on the path, every cached render
+        would outlive the upgrade and be served as fresh measurement
+        forever — which is the failure this whole file exists to make
+        impossible, arrived at through the cache instead of the code.
+        """
+        before = _cache_key("<svg/>", 240, 160)
+        self.binary.write_bytes(b"a different build, and a longer one")
+        os.utime(self.binary, ns=(0, 10 ** 9))
+        self.assertNotEqual(before, _cache_key("<svg/>", 240, 160),
+                            "an in-place browser upgrade left the key "
+                            "unchanged: the cache now outlives the binary "
+                            "it was measured with")
+
+    def test_a_snap_browser_is_identified_by_its_revision(self) -> None:
+        """A snap refresh must change the key, and the stat cannot see it.
+
+        `/snap/bin/chromium` is a symlink to `/usr/bin/snap`, so size and
+        mtime describe the launcher, not the browser — they are identical
+        either side of a `snap refresh`. Only `/snap/<name>/current`
+        moves. Skipped where there is no snap layout to read, because the
+        alternative is asserting against a path this machine invented.
+        """
+        snap = Path("/snap/bin/chromium")
+        current = Path("/snap/chromium/current")
+        if not (snap.exists() and current.is_symlink()):
+            self.skipTest("no snap chromium layout on this machine")
+        with mock.patch.object(canvas, "find_browsers", lambda: [str(snap)]):
+            identity = _browser_identity()
+        self.assertIn(os.readlink(current), identity.split("\0"),
+                      "a snap browser's identity does not carry its "
+                      "revision, so a refresh would not change the key")
+
+    def test_the_key_changes_with_the_html_wrapper(self) -> None:
+        """The page the SVG is rendered INSIDE is a render input too.
+
+        `_html_document`'s `margin:0` is what makes the screenshot's
+        origin the drawing's origin; a `@font-face` or a background added
+        there would move pixels exactly as a chromium flag does. Hashing
+        the fragment rather than the document left that hole, and the
+        miss below is what closes it: the same SVG under a changed
+        wrapper must cost a fresh browser start, not serve the old
+        pixels.
+        """
+        with mock.patch.object(subprocess, "run", self._stub_browser()):
+            _rasterize("<svg>wrapped</svg>", 240, 160)
+            self.assertEqual(len(self.starts), 1)
+            with mock.patch.object(
+                    sys.modules[__name__], "_html_document",
+                    lambda svg: "<!doctype html><html><body "
+                                "style='margin:24px'>%s</body></html>" % svg):
+                _rasterize("<svg>wrapped</svg>", 240, 160)
+        self.assertEqual(len(self.starts), 2,
+                         "a changed HTML wrapper was served from cache")
 
     def test_the_key_changes_with_the_chrome_flags(self) -> None:
         """Flags move pixels by design, so they cannot sit outside the key.
@@ -3599,8 +3794,8 @@ class TestRenderCache(unittest.TestCase):
             got = _rasterize("<svg>one</svg>", 240, 160)
         self.assertEqual(got, b"\x89PNG\r\n\x1a\nstub")
         self.assertEqual(len(self.starts), 1)
-        entry = Path(self.cache) / (_cache_key("<svg>one</svg>", 240, 160)
-                                    + ".png")
+        entry = Path(self.cache) / (
+            _cache_key(_html_document("<svg>one</svg>"), 240, 160) + ".png")
         self.assertTrue(entry.exists(), "the miss cached nothing")
 
     def test_a_cached_render_starts_no_browser(self) -> None:
