@@ -68,13 +68,13 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/test_mutants_render.py`, `tests/pngdiff.py`, `tests/test_pngdiff.py`,
 `tests/mutants_sweep.json`.
 
-**What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after curator batch 23, per file: **17 in `tests/test_mutants.py`, 3 in
-`tests/test_mutants_render.py`, 1 in `tests/test_backend.py`** — 21 reds,
-of which 8 are catalog entries and 13 are hand-authored. Two of the three
-render-file reds are in the UNGATED regime classes and so run in the
-default suite too, which is why the two runs read `expected failures=20`
-by default and `=21` under `MUTANTS_RENDER=1`.
+**What is red, and why that is the deliverable.** Re-measured 2026-08-16
+after the self-report task, per file: **17 in `tests/test_mutants.py`, 3
+in `tests/test_mutants_render.py`, 0 in `tests/test_backend.py`** — 20
+reds, of which 8 are catalog entries and 12 are hand-authored. Two of the
+three render-file reds are in the UNGATED regime classes and so run in the
+default suite too, which is why the two runs read `expected failures=19`
+by default and `=20` under `MUTANTS_RENDER=1`.
 
 Task 50 briefly drained the render file — the first time it had been empty
 since it was built, after `test_mutant_opacity_ghost_is_invisible_to_tier_one`
@@ -82,9 +82,12 @@ flipped — and batch 23 put three back the same day: the interleaved
 back-loop and the band-trapped scrap (both from task 48's corpus replay,
 both ungated arithmetic) and the label riding foreign ink (gated). The
 drain lasted hours, which is the honest thing to record about it. Task 49
-had likewise emptied `tests/test_backend.py` and batch 23 refilled it with
-the tier-1 ceiling, so the default line runs ahead of the
-`tests/test_mutants.py` count again.
+had likewise emptied `tests/test_backend.py` and batch 23 refilled it the
+same day with the tier-1 ceiling; the self-report task flipped that one on
+2026-08-16 and the file is empty again. Its cycle — emptied, refilled
+within a day, emptied by the task the red was filed against — is the
+intended one running at full speed, and the only reason it is legible is
+that nobody restated the total while it was moving.
 
 Do not restate any of that as a suite `expected failures=N`. This paragraph
 was rewritten on 2026-08-15 claiming one N across three lines at once and a
@@ -115,9 +118,18 @@ does, and only because something now checks it.
 
 Non-catalog reds live in `TestLoadFindingsReachTheAgent` (4),
 `TestReplayOrderFidelity` (2), `TestBatchPathIntegrity` (1),
-`TestCornerBiasReadsVerticesNotTurns` (1) and `TestSnapshotTierOne` (1),
-the last in `tests/test_backend.py` rather than with the others —
-enumerated with reasons at the `CATALOGUE` pointer in tests/test_mutants.py.
+`TestCornerBiasReadsVerticesNotTurns` (1) and
+`TestBoundsLoopReadsTheLineHeight` (1) — enumerated with reasons at the
+`CATALOGUE` pointer in tests/test_mutants.py. The last of those had been
+missing from this sentence since batch 23 added it to
+`HAND_AUTHORED_RED_CLASSES`, which is the sixth recorded staleness of this
+transcription and the second found by someone editing the line for an
+unrelated reason. Read the dict, not this sentence. `TestSnapshotTierOne` was a
+fifth, and the only one outside `tests/test_mutants.py`; it left on
+2026-08-16 when the self-report task recovered the tier-1 ceiling. Note
+that it was never in `HAND_AUTHORED_RED_CLASSES`, which scans one file and
+could not have seen it — the one red in this repo that no derived guard
+covered was the one this sentence had to be edited by hand for.
 Export, Store and PaintOrder have all drained to zero and left that list,
 ShapeBlind joined them on 2026-08-15 (Task 56) and LabelAnchor on the
 curves fold-in.
@@ -252,7 +264,7 @@ them from), so the warning still applies to that one:
 |---|---|
 | model (default suite) | `curved_short_finals_escape_the_corridor`, `fanned_ellipse_foot_floats_in_the_void`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
 | render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length` (both UNGATED — they run by default), `test_mutant_a_label_riding_foreign_ink_is_not_a_severed_run` (gated) |
-| other (`tests/test_backend.py`) | `test_tier_1_refuses_an_export_twice_the_drawing` |
+| other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
 The bottom two rows are `@unittest.expectedFailure` method names rather
 than catalog ids because they sit outside `CATALOGUE`. The render row was
@@ -270,7 +282,7 @@ differ by exactly one.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**17 / 3 / 1** for `test_mutants.py`, `test_mutants_render.py` and
+**17 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py`. Do not restate any of it as one suite ef total.
 
 **Task 50 flipped `test_mutant_opacity_ghost_is_invisible_to_tier_one`**,
