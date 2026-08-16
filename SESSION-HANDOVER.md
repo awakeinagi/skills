@@ -390,8 +390,16 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. 18 detectors today (re-measured 2026-08-15 after curator batch
-  21): **15 proven, 3 render-tier, 0 UNCOVERED**. `crosses_through_bound` was
+  a reason. Coverage totals: **19 detectors, 16 proven, 3 render-tier, 0
+  UNCOVERED** — CHECKED as of curator batch 23 by
+  `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
+  parses that sentence and compares it to `coverage_table()`. It is checked
+  because it had drifted: it read "18 detectors ... 15 proven" from a
+  batch-21 measurement, and `label_on_foreign_node` was registered by the
+  curves fold-in without this line moving. The LEDGER was never wrong — the
+  gate has always refused an unproven detector — only this hand copy of its
+  totals was, which is the same disease as the reds table above and is now
+  closed the same way. `crosses_through_bound` was
   the last unproven row and the only one left from day one; batch 20 drained
   it with `tolerable_gap_hides_interior_run`. Every registered detector now
   has something watching it speak — so the next `DETECTORS` entry added

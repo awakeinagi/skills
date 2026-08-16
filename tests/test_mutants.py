@@ -12172,6 +12172,57 @@ def handover_catalogue_reds() -> set[str]:
         % (_HANDOVER_MODEL_ROW, HANDOVER.name))
 
 
+# The handover's transcription of `coverage_table`'s totals. Matched on the
+# four numbers in order rather than on surrounding prose, so the sentence
+# can be rewritten without breaking the guard and cannot be rewritten to say
+# something else about the same numbers.
+_HANDOVER_COVERAGE = re.compile(
+    r"\*\*(\d+) detectors, (\d+) proven, (\d+) render-tier, "
+    r"(\d+)\s*\n?\s*UNCOVERED\*\*")
+
+
+def handover_coverage_totals() -> tuple[int, int, int, int]:
+    """The coverage totals SESSION-HANDOVER.md states, as numbers.
+
+    Curator batch 23's reconciliation pass, 2026-08-15. The sibling of
+    `handover_catalogue_reds` and added for the same reason one batch
+    later: this sentence read "18 detectors ... 15 proven" from a
+    batch-21 measurement while the live table said 19 and 16, because
+    `label_on_foreign_node` was registered by the curves fold-in and the
+    hand copy did not move with it.
+
+    Worth being exact about what was and was not broken, because it
+    changes what this guards. `coverage_table`'s gate was never wrong —
+    a `DETECTORS` entry with no mutant and no reason has always failed
+    it — so no detector was ever silently unproven. What drifted was the
+    handover's TRANSCRIPTION of the totals, which is the only part of
+    the coverage story a reader gets without running anything.
+
+    Returns:
+        `(detectors, proven, render_tier, uncovered)`.
+
+    Raises:
+        AssertionError: If the file or the sentence is absent, for the
+            reason `handover_catalogue_reds` gives at length — a census
+            guard that reads nothing and reports agreement is worse than
+            no guard.
+    """
+    if not HANDOVER.exists():
+        raise AssertionError(
+            "%s is not in this tree, so the coverage transcription cannot "
+            "be checked. If this is an isolated mutation-proof tree, copy "
+            "the file in beside tests/" % HANDOVER)
+    found = _HANDOVER_COVERAGE.search(HANDOVER.read_text(encoding="utf-8"))
+    if found is None:
+        raise AssertionError(
+            "no '**N detectors, N proven, N render-tier, N UNCOVERED**' "
+            "sentence in %s: the coverage bullet has been reworded past "
+            "what this reads. Re-anchor it or delete this function and "
+            "its test together" % HANDOVER.name)
+    return (int(found.group(1)), int(found.group(2)),
+            int(found.group(3)), int(found.group(4)))
+
+
 def red_bearing_classes() -> dict[str, int]:
     """Every TestCase in this module carrying an `expectedFailure`, counted.
 
@@ -12501,6 +12552,45 @@ class TestCoverage(unittest.TestCase):
             "the fifth time it has drifted — edit the row, or delete the "
             "row and this test together"
             % (sorted(transcribed), sorted(catalogue_red_ids())))
+
+    def test_the_handover_transcribes_the_coverage_totals(self) -> None:
+        """Curator batch 23's reconciliation pass, 2026-08-15.
+
+        The third census hand copy to be given a guard, after the
+        non-catalogue red classes (batch 16) and the catalogue red ids
+        (batch 22, reach fixed by this batch's item 1). Found by
+        re-measuring rather than by being told: the handover claimed 18
+        detectors and 15 proven where `coverage_table` reports 19 and 16,
+        having missed `label_on_foreign_node`'s arrival with the curves
+        fold-in.
+
+        WHAT THIS DOES NOT MEAN, since a stale coverage figure sounds
+        worse than it is: no detector was ever unproven without saying
+        so. `test_every_detector_is_proven_or_named` is the gate and it
+        held throughout. The failure was confined to the transcription —
+        which matters because the transcription is what a reader who has
+        not run the suite actually reads, and it had been wrong for the
+        whole life of the curves fold-in.
+
+        Three of these guards now exist and they were all written the
+        same way, which is the pattern worth naming: a derived fact gets
+        copied into prose for readability, the copy is correct on the day
+        it is written, and nothing connects the two again. The fix is
+        never to delete the prose — people need it — but to make the copy
+        an assertion.
+        """
+        stated = handover_coverage_totals()
+        rows = coverage_table()
+        live = (len(rows),
+                sum(1 for _n, status, _e in rows if status == "proven"),
+                sum(1 for _n, status, _e in rows if status == "render-tier"),
+                sum(1 for _n, status, _e in rows if status == "UNCOVERED"))
+        self.assertEqual(
+            stated, live,
+            "SESSION-HANDOVER.md states (detectors, proven, render-tier, "
+            "UNCOVERED) = %s while coverage_table() reports %s. Update the "
+            "sentence; this is a hand copy of a derived fact and it has "
+            "drifted before" % (stated, live))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""
