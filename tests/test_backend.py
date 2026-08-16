@@ -1374,6 +1374,139 @@ class TestSnapshotTierOne(Base):
                 self.assertIn("TIER=1", out, out)
                 self.assertIn("VALID=true", out, out)
 
+    def test_the_slack_band_is_exactly_as_wide_as_it_was_calibrated(self):
+        """Curator batch 23 item 15 (task 49 §9), 2026-08-15.
+
+        The trade `floor_slack` makes, written as an assertion instead of
+        as a docstring. Tier 1 takes a raster up to `max(96, 5%)` short
+        of the drawing, so on this 3640px fixture the last 182px of the
+        right edge can be gone with `VALID=true` over it — a band eleven
+        times the 16px the same drawing's own rounding could explain.
+        This is NOT a demand that the band shrink: `floor_slack`'s
+        docstring records the two real corpus exports (−33 and −70px)
+        that a strict floor refused, and spike-selfreport.md §4 re-checked
+        the constant against the self-report protocol and kept it — the
+        proposed A1/B1/B2 split keeps 96px as the text-inclusive backstop
+        and buys its precision by ADDING gates, not by narrowing this one.
+        So the number here is stable, and pinning it is safe.
+
+        What the pin is for is the OTHER direction. The band is the tier's
+        blind spot, and a blind spot nobody measures grows: any later
+        change that widened `floor_slack` would leave every test in this
+        class green, because they all sit far outside it. Both poles are
+        asserted one pixel apart so the edge itself is the subject.
+        """
+        for short, tier_1_takes_it in ((100, True), (182, True),
+                                       (183, False), (200, False)):
+            with self.subTest(px_short=short):
+                ok, why = canvas.validate_png(
+                    self.fat_png(3640 - short, 180), want_w=3640,
+                    want_h=180, min_bpp=0.05, want_is_floor=True)
+                self.assertIs(
+                    ok, tier_1_takes_it,
+                    "a raster %dpx short of a 3640px drawing was %s (%s): "
+                    "the slack band's edge has moved off the 182px "
+                    "`floor_slack` was calibrated to"
+                    % (short, "taken" if ok else "refused", why))
+
+    def test_the_export_path_supplies_nothing_that_would_scale_it(self):
+        """Curator batch 23 item 16 (spike-selfreport §7.1), 2026-08-15.
+
+        The executable half of a correction three shipped surfaces have
+        not had yet: the tab export is NOT `devicePixelRatio`-scaled. The
+        spike drove one artifact through the real protocol at
+        `deviceScaleFactor` 1 and 2 and got byte-identical files, then
+        read the reason out of the vendored bundle — `exportToBlob` hands
+        `pp` its OWN canvas-maker, which overrides the `exportScale`
+        multiply, and with neither `maxWidthOrHeight` nor `getDimensions`
+        supplied that callback reduces to "same size, scale 1".
+
+        Those three absences are the whole mechanism, so they are what
+        this asserts. It goes red the day someone adds `getDimensions` to
+        either call site — which is precisely the day
+        `test_tier_1_keeps_a_retina_tab_export` above stops being fiction
+        and starts being a description, so the two are worth reading
+        together.
+        """
+        src = (Path(__file__).resolve().parents[1] / "frontends" /
+               "wysiwyg-grilling" / "src" / "App.tsx").read_text(
+                   encoding="utf-8")
+        calls = src.count("await exportToBlob({")
+        self.assertEqual(calls, 2,
+                         "App.tsx has %d exportToBlob call sites, not the "
+                         "2 this reasoning enumerated (the servicing path "
+                         "and the Export PNG button)" % calls)
+        for absent in ("exportScale", "maxWidthOrHeight", "getDimensions"):
+            with self.subTest(field=absent):
+                self.assertNotIn(
+                    absent, src,
+                    "App.tsx now supplies `%s`: the tab export may be "
+                    "scaled after all, so re-measure it at "
+                    "deviceScaleFactor 2 before trusting either the "
+                    "retina test above or the ceiling red below" % absent)
+
+    def test_the_two_forties_agree(self):
+        """Curator batch 23 item 13 (task 49 §7 item 2), 2026-08-15.
+
+        `ink_extent`'s `pad` default is the floor tier 1 measures the
+        export against; `exportPadding` is the margin the tab actually
+        frames with. They are the same 40 on purpose and by convention
+        only — two literals in two languages with no shared code, and
+        `ink_extent`'s docstring says so and then relies on the reader.
+        Move either one and the floor stops describing the picture it is
+        judging: raise the client's and every honest export reads
+        oversize, lower it and every one reads short by twice the drift.
+
+        Both call sites are checked rather than the first found, because
+        the servicing path and the user's Export PNG button are separate
+        literals and only the first is on the tier-1 path — a drift in
+        the second is a user exporting a differently-framed picture than
+        the agent sees, which is a quieter defect and not a smaller one.
+        """
+        import inspect
+        pad = inspect.signature(canvas.ink_extent).parameters["pad"].default
+        src = (Path(__file__).resolve().parents[1] / "frontends" /
+               "wysiwyg-grilling" / "src" / "App.tsx").read_text(
+                   encoding="utf-8")
+        client = [int(m) for m in re.findall(r"exportPadding:\s*(\d+)", src)]
+        self.assertEqual(len(client), 2,
+                         "App.tsx carries %d exportPadding literals, not "
+                         "the 2 this pin enumerated: %s"
+                         % (len(client), client))
+        self.assertEqual(
+            client, [pad, pad],
+            "App.tsx frames at %s while ink_extent pads at %s: the tier-1 "
+            "floor is now measuring a box the client never draws. These "
+            "are unconnected literals held together by convention — "
+            "change both or neither" % (client, pad))
+
+    @unittest.expectedFailure
+    def test_tier_1_refuses_an_export_twice_the_drawing(self):
+        """Curator batch 23 item 16, RED. Owner: the self-report task.
+
+        The cost of the fiction, and the discrimination it talked the
+        tier out of. Task 49 dropped tier 1's oversize band because
+        `exportToBlob` was believed to scale by `devicePixelRatio`, so an
+        export at 2x or 3x the floor had to be taken. The sibling above
+        measures that this never happens: the export is deterministic
+        scene pixels, the same bytes on every monitor. A raster twice the
+        drawing is therefore not a HiDPI user — it is a wrong file, and
+        nothing in this tier can say so.
+
+        This and `test_tier_1_keeps_a_retina_tab_export` assert opposite
+        things about one input, deliberately and visibly. They cannot both
+        be right, and until now the repo held only the half that agreed
+        with the comment. The self-report task owns the choice: recover
+        the ceiling §7.1 says is available and retire the retina test, or
+        keep the permissiveness and correct the three docstrings that
+        justify it by a mechanism that does not exist. Either way this
+        flips in the same change, per the flip contract — it is not a
+        vote for the first option, it is a refusal to leave the question
+        unasked.
+        """
+        out = self.snapshot(TAB_WIDE, 3640 * 2, 180 * 2, aid="oversize")
+        self.assertIn("far from", out, out)
+
 
 def seed_sequence_batch(base_revn=0):
     ops = []

@@ -3510,6 +3510,151 @@ class TestPaintOrder(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# The bounds loop and the paint loop must read the SAME text (curator batch
+# 23 item 3, from task 46 §9 C1 and that task's review, 2026-08-15).
+#
+# Task 46 closed one half of this: `painted_text_lines` made the WRAP one
+# rule, so the frame and the ink stopped describing different shapes. The
+# other half is still open and is the same defect through a different
+# input. `text_dims` computes height as `lines * fontSize * 1.25` with the
+# 1.25 written in; `paint` lays the same text out at
+# `fontSize * (e.get("lineHeight") or 1.25)`. Give one text a lineHeight
+# the client is perfectly willing to store and the two disagree by
+# `(lineHeight - 1.25) * fontSize` per line — downward, off the bottom of
+# the export, which is the direction that loses content rather than margin.
+#
+# LATENT, and worth being precise about what that does and does not mean:
+# all 454 text elements under `tests/fixtures` carry exactly 1.25, so no
+# corpus scene reaches it and no assessment round could have. That makes it
+# unreachable TODAY, not harmless — nothing in `canvas.py` writes the field
+# defensively, nothing rejects a foreign value on load, and the client's own
+# line-height control writes whatever the user picks. Task 46's own regime
+# guard named the hazard from the other side before this was written down:
+# `test_the_body_text_still_wraps_to_more_lines_than_it_is_bound_for` says a
+# `lineHeight` default change is the drift that would most easily silence
+# it.
+#
+# Model tier, not render: this is `render_svg`'s own markup against
+# `paint`'s own arithmetic, both stdlib, so it runs in every commit rather
+# than behind `MUTANTS_RENDER=1` — the same argument that put
+# `TestPaintOrder` above here.
+# ---------------------------------------------------------------------------
+
+_LINE_HEIGHT_VIEWBOX = re.compile(r"viewBox='(-?[\d.]+) (-?[\d.]+) "
+                                  r"(-?[\d.]+) (-?[\d.]+)'")
+# Three short lines at a round size, at the origin, and nothing else in the
+# scene: every number below is then `fontSize * lineHeight * lines` and can
+# be read without running anything. `\n`-separated rather than wrapped so
+# the line COUNT is not also a variable — the wrap is task 46's subject and
+# holding it fixed is what keeps this about the line HEIGHT.
+_LH_TEXT = "alpha\nbeta\ngamma"
+_LH_FONT = 20
+_LH_LINES = 3
+
+
+def _line_height_scene(line_height: float) -> list[dict]:
+    """One text element at the origin, at a given line height.
+
+    Args:
+        line_height: The element's `lineHeight`. 1.25 is Excalidraw's
+            default and the only value the corpus contains; anything
+            else is the mutation.
+
+    Returns:
+        A one-element scene. `width`/`height` are the STORED extents a
+        1.25 text would get, left alone deliberately when the mutation
+        runs: the client re-measures text on load, so a scene carrying a
+        taller line height with stale stored extents is not a corner
+        case but the ordinary state of one edited in the app.
+    """
+    return [el(id="t1", type="text", x=0, y=0, width=200,
+               height=_LH_FONT * _LH_LINES * 1.25, text=_LH_TEXT,
+               fontSize=_LH_FONT, lineHeight=line_height, textAlign="left")]
+
+
+def _frame_bottom(line_height: float) -> tuple[float, float]:
+    """Where the frame ends and where the ink ends, for one line height.
+
+    Args:
+        line_height: The scene's `lineHeight`.
+
+    Returns:
+        `(frame_bottom, ink_bottom)` in scene coordinates. `ink_bottom`
+        is the bottom of the last line's em box — not its baseline,
+        because a frame ending on the baseline still cuts the tails off
+        `p` and `g`, which the eye reads as a different word.
+    """
+    svg = canvas.render_svg(_line_height_scene(line_height))[0]
+    box = _LINE_HEIGHT_VIEWBOX.search(svg)
+    assert box is not None, "cannot parse the <svg> viewBox"
+    return (float(box.group(2)) + float(box.group(4)),
+            _LH_FONT * line_height * _LH_LINES)
+
+
+class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
+    """`text_dims` hardcodes 1.25; `paint` honours the element's."""
+
+    def test_the_default_line_height_is_framed_whole(self) -> None:
+        """The neighbour, and the pole that proves the loop works at all.
+
+        At the corpus's own 1.25 the two rules agree by coincidence of
+        the constant, the frame clears the ink by the full 40px pad, and
+        that is what makes the red below mean the line height rather
+        than "the bounds loop cannot frame text". Ungated and asserted in
+        every commit, per the neighbour contract: without it a fix that
+        simply grew every text frame by a fixed slab would satisfy the
+        red and be caught by nothing.
+
+        Asserted as a MARGIN and not as a bare "the frame contains the
+        ink", because containment alone is satisfied by a frame ten times
+        too big — and an over-wide frame is the failure mode a fix to the
+        red would most plausibly introduce.
+        """
+        frame, ink = _frame_bottom(1.25)
+        self.assertEqual(
+            frame - ink, 40.0,
+            "a default-line-height text should sit exactly the 40px pad "
+            "above the frame's bottom edge; it sits %g px above (frame "
+            "%g, ink %g)" % (frame - ink, frame, ink))
+
+    @unittest.expectedFailure
+    def test_a_double_spaced_text_is_framed_whole(self) -> None:
+        """RED. Owner: wave/Task 24-follow-up.
+
+        The one mutation is `lineHeight: 1.25 -> 2.0` — double spacing,
+        the least exotic non-default there is. Nothing else about the
+        scene moves, and that is the point: the same three lines at the
+        same size in the same place, painted 0.75 * 20 = 15px lower per
+        line, and the frame does not move AT ALL. `render_svg` returns a
+        byte-identical viewBox for both scenes.
+
+        Magnitude and direction, both asserted through the margin: the
+        last line's em box ends at y=120 against a frame that ends at
+        y=115, so the drawing's bottom line is cut 5px BELOW the export's
+        edge — margin −5 where the default text gets +40, a 45px swing
+        that all comes out of the bottom. Direction matters as much as
+        size here: the loop errs toward too SMALL, and a bound that errs
+        small is the one that removes content from a picture rather than
+        adding white space to it.
+
+        Not the largest reachable magnitude, deliberately. Three lines is
+        the fewest that shows the per-line accumulation, and the overrun
+        grows linearly with the line count — a twelve-line paragraph at
+        the same spacing runs 140px past its frame. The small case is
+        pinned because it is the one a fix is most likely to leave
+        behind.
+        """
+        frame, ink = _frame_bottom(2.0)
+        self.assertGreaterEqual(
+            frame, ink,
+            "the viewBox ends at %g but the double-spaced text's last "
+            "line runs to %g: `text_dims` reserved height for a 1.25 "
+            "line box while `paint` drew a 2.0 one, so %g px of the "
+            "bottom line is outside the export"
+            % (frame, ink, ink - frame))
+
+
+# ---------------------------------------------------------------------------
 # Store integrity — the data-loss family (Batch A, 2026-08-12: flowchartai
 # mine M6 §d for the load path, excalidraw-mcp mine M4 for file references,
 # the latter grounded in Excalidraw's own excalidrawDiff.ts:261 note that
@@ -9422,8 +9567,8 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-15 after v0.9 Task 49, `mutants list --red` reports
-# 8 (of 41 entries) while this file carries 16 expectedFailure methods —
+# re-measured 2026-08-15 after curator batch 23, `mutants list --red` reports
+# 8 (of 41 entries) while this file carries 17 expectedFailure methods —
 # the catalogue has grown well past the "6 of 30" this paragraph carried
 # until today, which is the drift it warns about happening to itself. Task
 # 56 moved BOTH halves down at once, which no earlier change had done: it
@@ -9436,13 +9581,18 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # 7/20, the largest single-batch addition this census has recorded), which
 # together are the reminder that the two halves do not move together and
 # that a total says nothing. COUNT THE METHODS WITH CARE: a bare
-# `grep -c @unittest.expectedFailure` says 24, because four mentions are
-# PROSE — this very paragraph, `test_red_mutants_are_red_by_mismatch_not_by
-# _error`'s docstring, and two in `coverage_table` and its guard — so
-# measure the METHODS (or read the runtime line) rather than the string.
-# That miscount is what once put "15" here when the true figure was 13.
-# The eight outside live
-# in the four classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# `grep -c @unittest.expectedFailure` says 21 against 17 real methods,
+# because four mentions are PROSE — this very paragraph,
+# `test_red_mutants_are_red_by_mismatch_not_by_error`'s docstring, and two
+# in `coverage_table` and its guard. Measure the METHODS, which is what
+# `grep -cE '^\s*@unittest\.expectedFailure\s*$'` does, or read the runtime
+# line. That miscount is what once put "15" here when the true figure was
+# 13, and the figure quoted in this sentence has ITSELF gone stale once
+# (it read 24 when the bare grep returned 21, caught in the task 49
+# re-review) — which is the joke this paragraph keeps telling on itself and
+# the reason the command is now written out instead of its answer.
+# The nine outside live
+# in the five classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
 # `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
@@ -9455,10 +9605,14 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # entirely — `TestSnapshotTierOne` in `tests/test_backend.py`, where the
 # connected tab's export was never measured against the drawing — so the
 # suite's default line ran exactly one ahead of the count here. Task 49
-# flipped it, and as of 2026-08-15 the two numbers AGREE at 16. Do not read
-# that agreement as the invariant: it says only that every red in the suite
-# currently lives in this file, which the next red authored anywhere else
-# undoes. Task 50 removed the LAST expectedFailure from
+# flipped it, the two numbers agreed at 16 for part of one day, and curator
+# batch 23 put a red back in that same class the same afternoon (the tier-1
+# export has no ceiling, and the reason given for not having one was
+# measured false). So the default line runs one ahead again, at 18 against
+# the 17 here. Read the brevity of that agreement as the warning: it says
+# only that every red in the suite happens to live in one file, which the
+# next red authored anywhere else undoes, and which lasted hours.
+# Task 50 removed the LAST expectedFailure from
 # `tests/test_mutants_render.py`, which is why the gated line no longer runs
 # ahead of the default one — those reds were never part of the count here,
 # they were the reason `MUTANTS_RENDER=1` used to read higher. State that as
@@ -11822,9 +11976,14 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
+                             "TestBoundsLoopReadsTheLineHeight": 1,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
                              "TestLoadFindingsReachTheAgent": 4,
                              "TestReplayOrderFidelity": 2}
+# `TestBoundsLoopReadsTheLineHeight` JOINED this list on 2026-08-15 (curator
+# batch 23 item 3) — the first arrival since batch 16 built the guard, and
+# the motion the counts exist for: one new class, one new red, and the two
+# prose statements of this fact below forced through the same edit.
 # `TestShapeBlindAnnotationOverlap` LEFT this list on 2026-08-15 (v0.9
 # Task 56) when its three reds flipped together — the whole class drained
 # in one change, which is what the fix was scoped to do. It still holds
@@ -11856,8 +12015,25 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # A count is satisfied by any six reds, so a batch that flips one red and
 # adds another leaves the total right and the census wrong — which is the
 # exact motion Task 56 and the curves fold-in both made. Naming them means
-# a flip costs one deletion here and an addition costs one line, and either
-# way the handover's prose is forced through the same edit.
+# a flip costs one deletion here and an addition costs one line.
+#
+# THAT SENTENCE USED TO END "and either way the handover's prose is forced
+# through the same edit", and it was FALSE when it was written (v0.9 task 45
+# §7.1, confirmed by that task's review info-1). This constant is compared
+# against the live decorators and nothing else; `SESSION-HANDOVER.md` was
+# never read, so the guard sat green on 2026-08-15 while the table it
+# claimed to force listed six of these eight ids — the FIFTH recorded
+# staleness of one hand-copied table, and the first one to happen while a
+# guard was standing over it promising it could not.
+#
+# The lesson, which is why this is written here at length rather than
+# fixed and forgotten: a guard's own comment is not evidence about the
+# guard's reach. Batch 22 built the constant, described the reach it
+# INTENDED, and the description outlived the intention by one commit. What
+# closes it is `test_the_handover_transcribes_the_reds_it_declares` below,
+# which parses the table out of the file and compares it to the same
+# derivation — so the claim is now made by an assertion instead of by a
+# sentence, and the two can no longer disagree.
 #
 # WHY THIS IS SAFE TO PIN when the flip contract already fails on an
 # unexpected success: the two guards catch opposite mistakes. The runner
@@ -11891,6 +12067,56 @@ def catalogue_red_ids() -> set[str]:
                        "__unittest_expecting_failure__", False)}
 
 
+HANDOVER = Path(__file__).resolve().parents[1] / "SESSION-HANDOVER.md"
+# The table cell this reads, by its row label. Matched on the label rather
+# than on a line number because the file is edited by every task in the
+# wave; a moved table should re-find itself, and a RENAMED row should fail
+# loudly rather than silently match nothing (which is the failure mode that
+# would turn this guard back into the sentence it replaced).
+_HANDOVER_MODEL_ROW = "| model (default suite) |"
+
+
+def handover_catalogue_reds() -> set[str]:
+    """The catalog reds SESSION-HANDOVER.md transcribes, as ids.
+
+    Curator batch 23 item 1 (task 45 §7.1), 2026-08-15. The half of the
+    census that batch 22's guard said it covered and did not: this reads
+    the hand-copied table out of the file so the transcription can be
+    compared to the derivation instead of trusted.
+
+    Returns:
+        Every backticked id in the model row of the "Catalog reds" table.
+
+    Raises:
+        AssertionError: If the file or the row is absent. A census guard
+            that quietly returns an empty set when its subject moves is
+            worth less than no guard, because it reports agreement while
+            reading nothing — the exact shape of the defect this closes.
+            Both cases are ASSERTIONS and not the underlying OSError:
+            this file's own doctrine is that a red must be red by
+            assertion, and an isolated tree — `tests/` copied beside a
+            symlinked `skills/`, which is how every mutation proof in
+            this repo is run — hits the missing-file case as a matter of
+            course. It should read as one sentence about the tree, not
+            as a traceback about the census.
+    """
+    if not HANDOVER.exists():
+        raise AssertionError(
+            "%s is not in this tree, so the census transcription cannot "
+            "be checked. If this is an isolated mutation-proof tree, copy "
+            "the file in beside tests/ — the guard is not what you are "
+            "measuring and this failure is not a finding" % HANDOVER)
+    for line in HANDOVER.read_text(encoding="utf-8").splitlines():
+        if line.startswith(_HANDOVER_MODEL_ROW):
+            return set(re.findall(r"`([a-z0-9_]+)`",
+                                  line[len(_HANDOVER_MODEL_ROW):]))
+    raise AssertionError(
+        "no %r row in %s: the catalog-reds table has been renamed or "
+        "removed. If it is gone on purpose, delete this function and its "
+        "test in the same change — do not leave them matching nothing"
+        % (_HANDOVER_MODEL_ROW, HANDOVER.name))
+
+
 def red_bearing_classes() -> dict[str, int]:
     """Every TestCase in this module carrying an `expectedFailure`, counted.
 
@@ -11913,6 +12139,50 @@ def red_bearing_classes() -> dict[str, int]:
         if reds:
             found[name] = reds
     return found
+
+
+# ---------------------------------------------------------------------------
+# TWO WAYS A VERIFICATION METHOD LIES, both banked from the v0.9 wave and
+# both recorded here rather than beside the code they happened to, because
+# what generalizes is the METHOD and not the function (curator batch 23
+# items 10 and 14, from task-perf-report §candidates 1 and 3 and task 49 §7
+# item 3, 2026-08-15). Doctrine §1 says silence is indistinguishable from
+# health; these are the two silences that fool careful people.
+#
+# 1. BOUNDARY BLINDNESS — "identical on every real raster" is not a proof.
+#    `pngdiff._dilate`'s two wrap guards were transposed, and the defect was
+#    BIT-IDENTICAL to correct on 100% of the corpus. Not nearly, exactly:
+#    the corpus cannot express the input that separates them, because every
+#    diagram has a paper margin and no real drawing inks an edge column. The
+#    check was right everywhere anyone looked and wrong at the image
+#    boundary, and the verification method that misses it — replay over
+#    every real raster, compare byte for byte — is the FIRST one a careful
+#    person reaches for and the most convincing when it comes back green.
+#    The existing right-edge pin caught this one, so the class is proven
+#    rather than open; what is worth carrying forward is that a corpus
+#    replay measures the corpus's imagination, not the code's domain. When
+#    a check has a boundary case the corpus structurally cannot produce,
+#    the pin has to be synthetic or there is no pin.
+#
+# 2. SURVIVING GUARDS — a green test is not evidence it still discriminates.
+#    Task 49 removed tier 1's oversize band, which was the entire mechanism
+#    `..._keeps_the_export_of_a_downscaled_drawing` had been written to
+#    exercise; the guard stayed green throughout, because a clamped 4000
+#    read as a FLOOR accepts 8080 just as happily as the old upper branch
+#    refused it. It went from pinning a decision to pinning nothing, and
+#    nothing said so — the naive fix it existed to keep out would have
+#    passed the whole suite. Curator batch 23 reproduced the shape a second
+#    time while pinning the slack band: widening `floor_slack` from 5% to
+#    10% leaves `..._admits_every_measured_real_export` green, because
+#    widening a floor only ever admits more.
+#
+#    The discipline: after a design change, mutation-check the guards that
+#    SURVIVED it, not only the tests it added. A test that was green before
+#    and green after has told you nothing about whether it is still
+#    watching, and the cheapest way to ask is to break the thing it names
+#    and see whether it notices. Retire by mutation rather than by taste
+#    when the answer is no — task 49 §6(a) is the precedent.
+# ---------------------------------------------------------------------------
 
 
 class TestCoverage(unittest.TestCase):
@@ -12141,6 +12411,41 @@ class TestCoverage(unittest.TestCase):
             "'What is red' section of SESSION-HANDOVER.md, which cites it "
             "by name rather than restating it"
             % (sorted(found), sorted(CATALOGUE_RED_IDS)))
+
+    def test_the_handover_transcribes_the_reds_it_declares(self) -> None:
+        """Curator batch 23 item 1 (task 45 §7.1), 2026-08-15.
+
+        The reach the guard above was described as having. Its comment
+        promised that naming ids "forces the handover's prose through the
+        same edit"; it compares a constant to the decorators and never
+        opens the file, so on 2026-08-15 it stood green over a table
+        listing six of eight — the FIFTH staleness of that transcription
+        and the first with a guard watching it.
+
+        The general lesson, and the reason this is a separate test rather
+        than a line added to its sibling: those are two different facts.
+        One says the declared set matches the code; this says the
+        transcribed set matches the declaration. A guard proves the
+        property it evaluates and no part of the property its author had
+        in mind, and the distance between those two is invisible from
+        inside the guard — it can only be closed by writing the second
+        assertion down.
+
+        The cheaper alternative was real and was rejected: the table
+        could simply be deleted, since §1a already says both halves are
+        derived and names where to read them. It stays because a reader
+        opening the handover to learn what is red should not have to run
+        the suite to find out, and a transcription that is CHECKED costs
+        one line per flip — the same line the flip already costs.
+        """
+        transcribed = handover_catalogue_reds()
+        self.assertEqual(
+            transcribed, catalogue_red_ids(),
+            "SESSION-HANDOVER.md's catalog-reds table lists %s while the "
+            "live decorators say %s. The table is a hand copy and this is "
+            "the fifth time it has drifted — edit the row, or delete the "
+            "row and this test together"
+            % (sorted(transcribed), sorted(catalogue_red_ids())))
 
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""

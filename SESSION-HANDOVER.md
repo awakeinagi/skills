@@ -224,13 +224,21 @@ the flip author:
   with the same sentence written about it.
 
 Catalog reds, transcribed from live `mutants list --red` on 2026-08-15 —
-**re-run it rather than trusting this table**, which is exactly the kind of
-hand copy that has gone stale here before (it named nine mutants of which
-eight had already flipped):
+**re-run it rather than trusting this table** — though as of curator batch
+23 (2026-08-15) you no longer have to take that on faith. The model row is
+now CHECKED: `TestCoverage.test_the_handover_transcribes_the_reds_it_declares`
+parses it out of this file and compares it to the live decorators, so a
+flip or an addition that does not edit the row fails the default suite.
+That guard exists because this hand copy went stale a FIFTH time — batch
+22 added `CATALOGUE_RED_IDS` and its comment claimed to force this table
+through the same edit, which it never did, and the row sat two ids short
+underneath it. The render row below is still an unchecked hand copy
+(its entries are method names outside `CATALOGUE`, with nothing to derive
+them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
+| model (default suite) | `curved_short_finals_escape_the_corridor`, `fanned_ellipse_foot_floats_in_the_void`, `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
 | render (`MUTANTS_RENDER=1`) | **none** |
 
 The render row is `@unittest.expectedFailure` method names rather than
