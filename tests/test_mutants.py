@@ -3610,20 +3610,32 @@ class TestPaintOrder(unittest.TestCase):
 #
 # Task 46 closed one half of this: `painted_text_lines` made the WRAP one
 # rule, so the frame and the ink stopped describing different shapes. The
-# other half is still open and is the same defect through a different
-# input. `text_dims` computes height as `lines * fontSize * 1.25` with the
-# 1.25 written in; `paint` lays the same text out at
-# `fontSize * (e.get("lineHeight") or 1.25)`. Give one text a lineHeight
-# the client is perfectly willing to store and the two disagree by
-# `(lineHeight - 1.25) * fontSize` per line — downward, off the bottom of
-# the export, which is the direction that loses content rather than margin.
+# other half was the same defect through a different input, and v0.9
+# TASK-24-FOLLOW-UP closed it: `text_dims` computed height as
+# `lines * fontSize * 1.25` with the 1.25 written in, while `paint` laid
+# the same text out at `fontSize * (e.get("lineHeight") or 1.25)`. Give
+# one text a lineHeight the client is perfectly willing to store and the
+# two disagreed by `(lineHeight - 1.25) * fontSize` per line — downward,
+# off the bottom of the export, which is the direction that loses content
+# rather than margin. `text_dims` now takes the multiplier and the bounds
+# loop passes the element's.
 #
-# LATENT, and worth being precise about what that does and does not mean:
+# The class stays, and both poles with it, for the reason the wrap half's
+# regime guard exists: the defect is one written-in constant away at all
+# times, and the corpus cannot see it (below). The pair is what would
+# notice — the neighbour holds the pad EXACTLY at 1.25, so a repair that
+# simply grew every text frame by a slab satisfies the flipped test and
+# fails the neighbour.
+#
+# LATENT WHEN PINNED, and worth being precise about what that does and
+# does not mean:
 # all 454 text elements under `tests/fixtures` carry exactly 1.25, so no
-# corpus scene reaches it and no assessment round could have. That makes it
-# unreachable TODAY, not harmless — nothing in `canvas.py` writes the field
-# defensively, nothing rejects a foreign value on load, and the client's own
-# line-height control writes whatever the user picks. Task 46's own regime
+# corpus scene reached it and no assessment round could have. That made it
+# unreachable at the time, not harmless — nothing in `canvas.py` writes the
+# field defensively, nothing rejects a foreign value on load, and the
+# client's own line-height control writes whatever the user picks. The same
+# sentence is why the flip moved no corpus number: it is the reachability
+# argument read forward instead of backward. Task 46's own regime
 # guard named the hazard from the other side before this was written down:
 # `test_the_body_text_still_wraps_to_more_lines_than_it_is_bound_for` says a
 # `lineHeight` default change is the drift that would most easily silence
@@ -3687,7 +3699,13 @@ def _frame_bottom(line_height: float) -> tuple[float, float]:
 
 
 class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
-    """`text_dims` hardcodes 1.25; `paint` honours the element's."""
+    """`text_dims` and `paint` read the same line height.
+
+    Held from both sides: the default at an EXACT 40px pad, and a
+    non-default framed whole. `text_dims` used to write 1.25 in while
+    `paint` read the element's, and the two poles are what keep any
+    future repair from buying one back with the other.
+    """
 
     def test_the_default_line_height_is_framed_whole(self) -> None:
         """The neighbour, and the pole that proves the loop works at all.
@@ -3712,32 +3730,41 @@ class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
             "above the frame's bottom edge; it sits %g px above (frame "
             "%g, ink %g)" % (frame - ink, frame, ink))
 
-    @unittest.expectedFailure
     def test_a_double_spaced_text_is_framed_whole(self) -> None:
-        """RED. Owner: wave/Task 24-follow-up.
+        """FLIPPED 2026-08-16 by v0.9 TASK-24-FOLLOW-UP.
+
+        `text_dims` took a `line_height` parameter and the bounds loop
+        passes the element's, so the height the frame reserves and the
+        height `paint` draws are one number. The assertion below is
+        unchanged from the red; what moved is that the frame now clears
+        the ink by the same 40px pad the neighbour above measures, at
+        every line height rather than at 1.25 alone.
 
         The one mutation is `lineHeight: 1.25 -> 2.0` — double spacing,
         the least exotic non-default there is. Nothing else about the
         scene moves, and that is the point: the same three lines at the
         same size in the same place, painted 0.75 * 20 = 15px lower per
-        line, and the frame does not move AT ALL. `render_svg` returns a
-        byte-identical viewBox for both scenes.
+        line. Before the fix the frame did not move AT ALL and
+        `render_svg` returned a byte-identical viewBox for both scenes.
 
-        Magnitude and direction, both asserted through the margin: the
-        last line's em box ends at y=120 against a frame that ends at
-        y=115, so the drawing's bottom line is cut 5px BELOW the export's
-        edge — margin −5 where the default text gets +40, a 45px swing
-        that all comes out of the bottom. Direction matters as much as
-        size here: the loop errs toward too SMALL, and a bound that errs
-        small is the one that removes content from a picture rather than
-        adding white space to it.
+        Magnitude and direction as they stood, both asserted through the
+        margin: the last line's em box ends at y=120 against a frame that
+        ended at y=115, so the drawing's bottom line was cut 5px BELOW
+        the export's edge — margin −5 where the default text gets +40, a
+        45px swing that all came out of the bottom. Direction mattered as
+        much as size: the loop erred toward too SMALL, and a bound that
+        errs small is the one that removes content from a picture rather
+        than adding white space to it. It now ends at y=160, the same
+        40px clear of the ink the neighbour pins.
 
         Not the largest reachable magnitude, deliberately. Three lines is
         the fewest that shows the per-line accumulation, and the overrun
-        grows linearly with the line count — a twelve-line paragraph at
-        the same spacing runs 140px past its frame. The small case is
+        grew linearly with the line count — a twelve-line paragraph at
+        the same spacing ran 140px past its frame. The small case is
         pinned because it is the one a fix is most likely to leave
-        behind.
+        behind, and this test is now the standing guard that it did not:
+        an inequality, so a fix that over-corrects the height is caught
+        by the neighbour's exact-margin pin instead of by this one.
         """
         frame, ink = _frame_bottom(2.0)
         self.assertGreaterEqual(
@@ -14238,8 +14265,16 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
-                             "TestBoundsLoopReadsTheLineHeight": 1,
                              "TestLoadFindingsReachTheAgent": 4}
+# `TestBoundsLoopReadsTheLineHeight` LEFT this list on 2026-08-16 (v0.9
+# TASK-24-FOLLOW-UP), one day after it joined — the shortest stay this
+# dict has recorded, and the one worth reading beside the arrival note
+# below: it joined as "the motion the counts exist for" and left by the
+# same motion in the opposite direction, through a fix the batch itself
+# had already measured (its report's item 3 verified that honouring the
+# element's `lineHeight` in `ink_extent` produced exactly one unexpected
+# success and moved nothing else). A curator that measures the plausible
+# fix before filing is why the flip cost one parameter.
 # `TestReplayOrderFidelity` LEFT this list on 2026-08-16 (v0.9 Task 52),
 # draining 2 -> 0 in one change, and it is the first class to leave by way
 # of TWO fixes rather than one: a root-cause fix in `replay_changes` for

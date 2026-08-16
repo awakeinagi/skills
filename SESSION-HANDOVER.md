@@ -349,11 +349,11 @@ added it goes back to differing, and nothing enforces the parity.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**11 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-MICROFIX, which
-flipped three at once; it read 14 / 3 / 0 at TASK-E9ENVELOPE, 16 / 3 / 0
-at TASK-FRAMING and 17 / 3 / 0 before batch 25). Do not restate any of it
-as one suite ef total.
+**10 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at v0.9 TASK-24-FOLLOW-UP; it
+read 11 / 3 / 0 at TASK-MICROFIX, which flipped three at once, 14 / 3 / 0
+at TASK-E9ENVELOPE, 16 / 3 / 0 at TASK-FRAMING and 17 / 3 / 0 before
+batch 25). Do not restate any of it as one suite ef total.
 
 **THIS SENTENCE IS NOW GUARDED — stop hand-editing it and let the guard
 tell you.** `TestCoverage.test_the_handover_transcribes_the_durable_red_

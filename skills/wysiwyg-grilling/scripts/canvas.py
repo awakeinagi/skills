@@ -1198,15 +1198,48 @@ def _display_width(line):
     return w
 
 
-def text_dims(text, font_size):
+def text_dims(text: str | None, font_size: float,
+              line_height: float = 1.25) -> tuple[int, int]:
+    """Estimate the extents a string occupies when it is painted.
+
+    The server has no font metrics, so every extent it reserves is this
+    estimate; the client re-measures on load and the two only ever have
+    to agree closely enough that nothing lands outside a frame drawn
+    around it.
+
+    `line_height` is a PARAMETER and not the 1.25 that used to be written
+    in, because `paint` lays text out at `fontSize * (lineHeight or
+    1.25)` and a caller that reserves height at a different multiplier is
+    describing a different block than the one drawn. The two disagree by
+    `(lineHeight - 1.25) * fontSize` per line, downward — off the bottom
+    of the export, the direction that loses content rather than margin —
+    and at double spacing that is the whole last line of a three-line
+    text (v0.9 Task 24 follow-up, curator batch 23 item 3). It defaults
+    to Excalidraw's own default so the callers that measure a string
+    rather than an element — wrap budgets, seeded values, label fits —
+    read unchanged; a caller holding an element should pass the
+    element's.
+
+    Args:
+        text: The string to measure. `None` and `""` both measure as one
+            empty line, since a text element with no content still
+            reserves a line box.
+        font_size: The size the string is set at, in px.
+        line_height: The element's `lineHeight` multiplier — the same
+            field `paint` reads.
+
+    Returns:
+        `(width_px, height_px)`, floored at 10px wide and at one line
+        box tall so a blank string still has an extent to place.
+    """
     lines = (text or "").split("\n")
     width = max((_display_width(l) for l in lines), default=0.4) \
         * font_size
-    height = max(len(lines), 1) * font_size * 1.25
+    height = max(len(lines), 1) * font_size * line_height
     # ceil + 2px: int() truncation is what wrapped '62' (28 < 28.8);
     # the pad absorbs sub-pixel rendering at autoResize:false widths
     width_px = int(width + 0.999) + 2
-    return (max(width_px, 10), max(int(height), int(font_size * 1.25)))
+    return (max(width_px, 10), max(int(height), int(font_size * line_height)))
 
 
 def wrap_label_text(text, inner, fs):
@@ -7556,8 +7589,19 @@ def ink_extent(els, pad=40):
                 # `painted_text_lines` is that rule and this loop reads
                 # it rather than restating it, so the frame and the ink
                 # cannot describe different shapes (v0.9 task 46).
+                # The LINE HEIGHT is the other half of that sentence and
+                # was still restated until v0.9 Task 24 follow-up: the
+                # wrap was one rule while `text_dims` reserved height at
+                # a written-in 1.25 and `paint` drew at the element's, so
+                # a double-spaced three-line text was framed for two
+                # lines and the third was painted below the viewBox.
+                # Latent on the corpus (all 454 texts carry 1.25) and not
+                # harmless — nothing writes or validates the field, and
+                # the client's line-height control writes what the user
+                # picks.
                 tlines, tfs = painted_text_lines(e)
-                tw, th = text_dims("\n".join(tlines), tfs)
+                tw, th = text_dims("\n".join(tlines), tfs,
+                                   e.get("lineHeight") or 1.25)
                 ew2, eh2 = max(ew2, tw), max(eh2, th)
                 if e.get("textAlign") == "center":
                     # ...and the same estimate overhangs LEFTWARD, which
