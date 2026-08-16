@@ -27,7 +27,7 @@ import unittest
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
@@ -6776,6 +6776,359 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertEqual(store.artifact_meta["ghost"]["name"],
                          "Renamed Ghost")
 
+    # The E-9 envelope's WIDTH, curator batch 25 (2026-08-16), from
+    # spike-e9-backstop.md §6's D-1/D-2. The two reds below are PINS ONLY:
+    # their fix is the wave-tail E-9 envelope task's, never a curator's, and
+    # never the same hands that wrote the acceptance test (run 5's lesson).
+    #
+    # They sit under `test_red_a_non_dict_op_escapes_check_batch_as_a_bare_
+    # crash` above and finish the sentence it started. That red closed the
+    # case where the OP is not a dict; these two are the case where the op
+    # is a perfectly good dict whose FIELD VALUES are not what the code
+    # beneath assumes — the half Task 38's shape check was never scoped to
+    # reach. `TestPinIdentityIntegrity`'s E-9 firing pole is the third
+    # member of the family and the one that proves the envelope is wired at
+    # all; its own docstring says outright that it does NOT prove the
+    # envelope is wide enough, and names this as the curator's. These are
+    # that pin. They do not duplicate it — it injects a fault to prove the
+    # envelope catches, they hand it real faults it does not.
+    #
+    # RE-MEASURED BEFORE PINNING, and the surface is WIDER than the spike
+    # recorded. The spike swept 41 malformed batches and found 7 escaping
+    # from "both sides of the try"; sweeping eight bad values across seven
+    # fields (56 batches) found 18 raw escapes across FOUR call sites, and
+    # one of the four is a route the spike never reached:
+    #
+    #   `_validate_batch`  unhashable pin/resolve_pin id -> TypeError
+    #   `_validate_batch`  non-dict `customData` -> AttributeError on .get
+    #   `det_seed`         non-str pin id -> AttributeError on .encode
+    #   `_round_geom`      NaN/inf `x`/`width` -> ValueError/OverflowError
+    #
+    # Three are the validator PRE-SCAN, before the `try`; the fourth is the
+    # COMMIT, inside it and past it. `det_seed` is in neither function the
+    # spike localised, which is why the sweep is recorded here rather than
+    # cited: a fix scoped to the two named files would leave it open and
+    # both reds would stay red with nobody able to say why.
+    _E9_ESCAPES: ClassVar[dict[str, list[dict[str, Any]]]] = {
+        "pin id is unhashable": [
+            {"op": "pin", "id": {"a": 1}, "target": "n1", "question": "Q?"}],
+        "pin id is not a string": [
+            {"op": "pin", "id": 42, "target": "n1", "question": "Q?"}],
+        "customData is not a dict": [
+            {"op": "add", "element": {"type": "rectangle", "id": "q1",
+                                      "x": 300, "y": 0, "width": 100,
+                                      "height": 60, "customData": [1, 2]}}],
+        "width is NaN": [
+            {"op": "add", "element": {"type": "rectangle", "id": "q1",
+                                      "x": 300, "y": 0,
+                                      "width": float("nan"), "height": 60}}],
+    }
+
+    # The same four ops with LEGAL values in the same fields — the live pole
+    # for both reds, and the reason they measure the envelope rather than a
+    # store that refuses everything. One value per case is changed and
+    # nothing else, so a fix that flipped the reds by rejecting all four
+    # shapes outright fails here instead of reading as a success.
+    _E9_LEGAL: ClassVar[dict[str, list[dict[str, Any]]]] = {
+        "pin id is unhashable": [
+            {"op": "pin", "id": "pin-b", "target": "n1", "question": "Q?"}],
+        "pin id is not a string": [
+            {"op": "pin", "id": "pin-c", "target": "n1", "question": "Q?"}],
+        "customData is not a dict": [
+            {"op": "add", "element": {"type": "rectangle", "id": "q1",
+                                      "x": 300, "y": 0, "width": 100,
+                                      "height": 60,
+                                      "customData": {"role": "node"}}}],
+        "width is NaN": [
+            {"op": "add", "element": {"type": "rectangle", "id": "q1",
+                                      "x": 300, "y": 0, "width": 100,
+                                      "height": 60}}],
+    }
+
+    @unittest.expectedFailure
+    def test_red_a_malformed_field_escapes_the_batch_path_raw(self) -> None:
+        """Four field values leave `apply_batch` as bare Python tracebacks.
+
+        D-1, spike-e9-backstop.md §6, re-measured 2026-08-16. The
+        contract this breaks is SKILL.md's, in its own words — errors
+        name the offending op — and what the agent gets instead is
+        `TypeError: unhashable type: 'dict'` with no op, no artifact and
+        no statement about whether anything landed. E-9 exists for
+        exactly this and these four walk around it.
+
+        WHY THIS IS THE SAME CLASS AS THE NON-DICT RED ABOVE and not a
+        rerun of it: that one was about an op that is not an op, and
+        Task 38 fixed it by checking every op's SHAPE before any arm
+        reads one. A dict with a bad field passes that check and reaches
+        the arm, so the shape gate is not where this lives. Two of the
+        four are not even in an arm — they are in the validator's
+        pre-scan, before the `try` the envelope is written on, which is
+        why widening the `except` alone would not close them.
+
+        DIRECTION is the whole claim and it is the same one every other
+        red in this class makes: the batch resolves one way or the other,
+        and a traceback is neither. MAGNITUDE is what the message
+        IDENTIFIES — asserted as the `op 0` prefix that
+        `test_red_a_non_dict_op_escapes_check_batch_as_a_bare_crash`
+        already fixed as this store's spelling for "which of your ops",
+        because an envelope that came back saying nothing locatable
+        would satisfy a bare `assertIsInstance` and still leave the
+        agent guessing.
+
+        BOTH SURFACES, in one test, because they are one defect: an
+        agent reaching for `--check` precisely so it can ask "would this
+        land?" without a try/except gets the traceback there too, and a
+        fix that enveloped only the apply path would leave the dry run —
+        the surface whose docstring PROMISES it never raises — still
+        leaking. The check half is asserted as the payload contract
+        rather than as an exception type, which is what that docstring
+        actually says.
+
+        MEASURED 2026-08-16, eight subTest failures across the four
+        cases, and one of them is worse than a leak. Three cases leak a
+        traceback out of `check_batch` as expected. The fourth, the
+        non-string pin id, comes back `ok: True` with the echo `op 0
+        (pin): 42 targets n1` — the dry run does not reach `det_seed`,
+        so it reports that a batch WOULD land which crashes the moment
+        it is applied. That is the one failure mode `--check` exists to
+        prevent, and it is why the check half asserts `ok` is False
+        rather than merely that nothing raised: an exception-only
+        assertion passes this case while the surface is actively lying.
+
+        WHO FLIPS THIS: the wave-tail E-9 envelope task, not a curator
+        and not this file. The four cases are one per call site on
+        purpose, so a partial fix flips a subTest at a time and the
+        failure names which site is still open.
+        """
+        for name, ops in self._E9_ESCAPES.items():
+            with self.subTest(case=name, surface="apply"):
+                store, _ = self._store()
+                escaped = self._send_ops(store, ops)
+                self.assertIsInstance(
+                    escaped, canvas.BatchError,
+                    "%s escaped apply_batch as %s: %s — the agent gets a "
+                    "raw traceback naming a Python builtin instead of an "
+                    "op, which is the r4-11 defect E-9 was written for"
+                    % (name, type(escaped).__name__, escaped))
+                self.assertIn("op 0", "\n".join(escaped.errors))
+            with self.subTest(case=name, surface="check"):
+                store, _ = self._store()
+                try:
+                    out = store.check_batch({
+                        "base_revn": store.head_revn(),
+                        "artifact": "flow", "ops": ops})
+                except Exception as exc:
+                    self.fail(
+                        "%s raised %s out of check_batch: %s — its "
+                        "docstring promises the errors come back in the "
+                        "payload so a caller needs no try/except"
+                        % (name, type(exc).__name__, exc))
+                self.assertFalse(out["ok"], out)
+                self.assertIn("op 0", "\n".join(out["errors"]))
+
+    def test_the_same_four_ops_with_legal_values_still_land(self) -> None:
+        """Both reds' live pole: one field made legal and they all apply.
+
+        Without this, either red is satisfied by a store that refused
+        every batch it was handed — "an envelope came back" and "the
+        errors were in the payload" are both true of a `apply_batch` that
+        had stopped applying anything at all. Each case here differs from
+        its namesake above in ONE field value, so what the pair measures
+        is the VALUE and not the op.
+
+        Asserting the effect ARRIVED rather than that nothing raised: a
+        batch silently dropped raises nothing either, which is the same
+        confusion `TestPinIdentityIntegrity`'s quiet pole records.
+        """
+        for name, ops in self._E9_LEGAL.items():
+            with self.subTest(case=name):
+                store, _ = self._store()
+                escaped = self._send_ops(store, ops)
+                self.assertIsNone(escaped,
+                                  "the legal form of %r was refused: %r"
+                                  % (name, escaped))
+                landed = self._ids(store) + [
+                    p["id"] for p in store.registry.get("pins", [])]
+                self.assertTrue(
+                    "q1" in landed or "pin-b" in landed or "pin-c" in landed,
+                    "the legal form of %r raised nothing and left nothing "
+                    "behind, so the reds beside it are measuring a store "
+                    "that drops batches: %r" % (name, landed))
+
+    @unittest.expectedFailure
+    def test_red_a_malformed_field_is_accepted_and_stored_as_geometry(
+            self) -> None:
+        """Three batches land, storing values that are not numbers.
+
+        D-2, and strictly worse than D-1 above: those at least refuse the
+        batch whole. Here `apply_batch` returns cleanly, the revision is
+        committed, and the artifact on disk carries `x='left'` where a
+        coordinate belongs. Every reader downstream — the lint, the
+        renderer, the export, the client — is handed a scene whose
+        geometry cannot be arithmetic on.
+
+        THE ASYMMETRY IS THE FINDING, not the individual values, and it
+        is inside ONE function. `_round_geom` raises on a NaN `width`
+        (that is D-1's fourth case, two tests up) and silently coerces a
+        NaN inside `points` to `0`. Same function, same species of input,
+        two behaviours, and neither is the third option a caller can act
+        on — an enveloped refusal. The `angle` case is here because the
+        re-measurement found it and the spike did not: it is a third
+        behaviour again, stored raw with no rounding pass reaching it at
+        all.
+
+        MAGNITUDE AND DIRECTION for a storage defect are what the STORE
+        ends up holding, so that is what is asserted: every geometry
+        value the scene keeps is a finite number or absent. That
+        predicate is deliberately wider than the three cases, because the
+        sweep behind this pin found ten accepted shapes across `x`,
+        `width` and `angle` and pinning three literals would let a fix
+        that special-cased them read as complete.
+
+        EITHER ANSWER IS HONEST and the test says so: refusing the batch
+        with an envelope passes this, and so does coercing the value to
+        something numeric. What cannot stand is accepting the batch and
+        keeping the value. That is the same shape as this class's other
+        reds and it is deliberately not a demand for one fix — the fix's
+        shape belongs to the wave-tail E-9 envelope task that owns D-1.
+
+        THREE OF THE FOUR ARE RED TODAY, measured 2026-08-16, and the
+        fourth is here BECAUSE it passes. The NaN inside `points` is the
+        coercion arm — `_round_geom` turns it into `[[0, 0], [1, 1]]`,
+        which is numeric, which this predicate accepts. It is carried
+        rather than dropped for two reasons: it is the other half of the
+        asymmetry the paragraph above is about, so deleting it would
+        leave that claim citing a case the file no longer contains; and
+        it holds the coercion down, so a later change that made this
+        route raise raw like its `width` sibling would turn a quiet pass
+        into a fourth red instead of going unnoticed.
+        """
+        cases: dict[str, tuple[str, Any]] = {
+            "a string where a coordinate belongs": ("x", "left"),
+            "a dict where a polyline belongs": ("points", {"a": 1}),
+            "a NaN inside the polyline": ("points", [[float("nan"),
+                                                      float("nan")], [1, 1]]),
+            "a NaN angle": ("angle", float("nan")),
+        }
+        for name, (field, value) in cases.items():
+            with self.subTest(case=name):
+                store, _ = self._store()
+                spec = {"type": "arrow" if field == "points" else "rectangle",
+                        "id": "q1", "x": 0, "y": 0, "width": 100,
+                        "height": 60}
+                spec[field] = value
+                escaped = self._send_ops(store, [{"op": "add",
+                                                  "element": spec}])
+                if escaped is not None:
+                    self.assertIsInstance(
+                        escaped, canvas.BatchError,
+                        "%s escaped raw rather than being refused: %r"
+                        % (name, escaped))
+                    continue
+                kept = [e for e in store.scenes["flow"] if e["id"] == "q1"]
+                self.assertTrue(kept, "%s was accepted and stored nothing"
+                                % name)
+                self.assertEqual(
+                    self._non_numeric_geometry(kept[0]), [],
+                    "%s was ACCEPTED and the scene now holds it: %r — a "
+                    "batch that neither refuses nor stores something a "
+                    "renderer can measure has resolved neither way"
+                    % (name, self._non_numeric_geometry(kept[0])))
+
+    def test_an_ordinary_add_stores_only_finite_numbers(self) -> None:
+        """The storage red's live pole: the predicate passes a good scene.
+
+        `_non_numeric_geometry` is the whole assertion above, so a
+        version of it that had stopped looking — a typo'd field list, a
+        walk that never entered `points` — would report `[]` for the
+        malformed scenes and flip that red while nothing was fixed. This
+        is the other direction: an ordinary arrow and an ordinary
+        rectangle, whose every geometry value the helper must find AND
+        accept.
+
+        The seeded `n1` is included rather than a fresh scene, so the
+        pole covers a labelled node too — bound text carries its own
+        `x`/`y`/`width`/`height` and is the class most likely to be
+        skipped by an over-narrow walk.
+        """
+        store, _ = self._store()
+        self.assertIsNone(self._send_ops(store, [{"op": "add", "element": {
+            "type": "arrow", "id": "q1", "x": 0, "y": 100, "width": 160,
+            "height": 0, "points": [[0, 0], [160, 0]]}}]))
+        seen = 0
+        for e in store.scenes["flow"]:
+            with self.subTest(element=e["id"]):
+                self.assertEqual(self._non_numeric_geometry(e), [],
+                                 "an ordinary scene reads as malformed")
+            seen += len(self._numeric_geometry_values(e))
+        self.assertGreaterEqual(
+            seen, 12, "the helper found %d geometry values in a three-element "
+            "scene, so the red beside it is asserting over an empty walk"
+            % seen)
+
+    def _numeric_geometry_values(self, el: dict[str, Any]) -> list[Any]:
+        """Every value in one element that has to be a number to be drawn.
+
+        Named separately from the predicate so the pole can COUNT what
+        the walk reached: a predicate that returns "nothing is wrong"
+        and a walk that visited nothing are indistinguishable from the
+        outside, which is the dead-detector shape rule 8 exists for.
+
+        Args:
+            el: One stored element.
+
+        Returns:
+            The element's positional and dimensional values, each
+            `points` coordinate included, with absent fields skipped —
+            an arrow legitimately has no `angle` and a rectangle no
+            `points`.
+        """
+        out = [el[k] for k in ("x", "y", "width", "height", "angle")
+               if el.get(k) is not None]
+        pts = el.get("points")
+        if isinstance(pts, list):
+            for p in pts:
+                if isinstance(p, (list, tuple)):
+                    out.extend(p)
+                else:
+                    out.append(p)
+        elif pts is not None:
+            out.append(pts)
+        return out
+
+    def _non_numeric_geometry(self, el: dict[str, Any]) -> list[Any]:
+        """The geometry values in one element a renderer cannot measure.
+
+        Booleans are rejected despite being `int`s, on the same reasoning
+        as this class's boolean-index red: `True` is not a position, and
+        a walk that accepted it would pass the one input that red exists
+        to name.
+
+        Args:
+            el: One stored element.
+
+        Returns:
+            Each value that is not a finite number, in the order found.
+            Empty for any element a renderer can draw.
+        """
+        return [v for v in self._numeric_geometry_values(el)
+                if not self._is_drawable_number(v)]
+
+    @staticmethod
+    def _is_drawable_number(v: Any) -> bool:
+        """Whether one stored value is something a renderer can measure.
+
+        Args:
+            v: A value taken from an element's geometry fields.
+
+        Returns:
+            True for a finite `int` or `float`. False for anything else,
+            for NaN, and for either infinity.
+        """
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return False
+        return v == v and v not in (float("inf"), float("-inf"))
+
 
 # ---------------------------------------------------------------------------
 # The queued round (v0.9 Task-10 review, F1 and F2, 2026-08-14). Both are
@@ -9957,8 +10310,8 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-15 after curator batch 23, `mutants list --red` reports
-# 8 (of 41 entries) while this file carries 17 expectedFailure methods —
+# re-measured 2026-08-16 after curator batch 25, `mutants list --red` reports
+# 8 (of 41 entries) while this file carries 22 expectedFailure methods —
 # the catalogue has grown well past the "6 of 30" this paragraph carried
 # until today, which is the drift it warns about happening to itself. Task
 # 56 moved BOTH halves down at once, which no earlier change had done: it
@@ -9971,8 +10324,8 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # 7/20, the largest single-batch addition this census has recorded), which
 # together are the reminder that the two halves do not move together and
 # that a total says nothing. COUNT THE METHODS WITH CARE: a bare
-# `grep -c @unittest.expectedFailure` says 21 against 17 real methods,
-# because four mentions are PROSE — this very paragraph,
+# `grep -c @unittest.expectedFailure` overcounts against the real methods,
+# because several mentions are PROSE — this very paragraph,
 # `test_red_mutants_are_red_by_mismatch_not_by_error`'s docstring, and two
 # in `coverage_table` and its guard. Measure the METHODS, which is what
 # `grep -cE '^\s*@unittest\.expectedFailure\s*$'` does, or read the runtime
@@ -9980,9 +10333,11 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # 13, and the figure quoted in this sentence has ITSELF gone stale once
 # (it read 24 when the bare grep returned 21, caught in the task 49
 # re-review) — which is the joke this paragraph keeps telling on itself and
-# the reason the command is now written out instead of its answer.
-# The nine outside live
-# in the five classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# the reason the command is now written out instead of its answer. The
+# figure that used to sit in this sentence is gone for the same reason: it
+# is derivable, it went stale twice, and the guard below derives it.
+# The fourteen outside live
+# in the seven classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
 # `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
@@ -11324,6 +11679,461 @@ _register(Mutant(
 # ---------------------------------------------------------------------------
 
 
+def _rotated_slab(angle_deg: float = 90.0) -> list[dict[str, Any]]:
+    """One long thin rectangle turned about its centre — the rotation base.
+
+    THE SHARED BASE SCENE for the angle-blindness family (curator batch
+    25, 2026-08-16). Two functions in two files carry the same defect —
+    `canvas.ink_extent`, which frames exports and floors the tier-1
+    check, and `test_mutants_render._scene_bbox`, which places the
+    ablation anchors — and they are pinned separately because they have
+    separate owners. One scene between them, so the pins cannot drift
+    onto different geometry and start describing different bugs.
+
+    Long and thin because the defect's magnitude is the difference
+    between the box's two sides: a square rotates onto itself and hides
+    it entirely, which is the scene an under-minimized pin would have
+    picked. 200x40 at the origin gives round numbers at right angles —
+    quarter-turned, the painted box is 40 wide and 200 tall, spanning
+    y=-80 to y=120 while both functions still answer y=0 to y=40.
+
+    Args:
+        angle_deg: Rotation in DEGREES, converted here; the stored field
+            is radians and reading a literal `1.5707963` in four test
+            bodies is how a scene stops being checkable by eye.
+
+    Returns:
+        A one-element scene: `r1`, a plain rectangle carrying `angle`.
+    """
+    return [{"id": "r1", "type": "rectangle", "x": 0, "y": 0,
+             "width": 200, "height": 40, "angle": math.radians(angle_deg),
+             "customData": {"role": "node"}}]
+
+
+def _painted_corners(el: dict[str, Any]) -> list[tuple[float, float]]:
+    """Where an element's four corners actually land once rotated.
+
+    The reference every angle-blindness pin measures against, and the
+    thing neither function under test computes. Excalidraw rotates about
+    the element's CENTRE, so this does too; a version that rotated about
+    the origin would put the corners somewhere no renderer draws them
+    and the pins would assert a defect that does not exist.
+
+    Args:
+        el: One element with `x`, `y`, `width`, `height` and optionally
+            `angle` in radians. An absent angle yields the stored box's
+            own corners, which is what makes this usable on both poles.
+
+    Returns:
+        The four corners in scene px, clockwise from the top left.
+    """
+    cx = el["x"] + el["width"] / 2.0
+    cy = el["y"] + el["height"] / 2.0
+    ang = el.get("angle") or 0.0
+    out = []
+    for dx, dy in ((0, 0), (el["width"], 0),
+                   (el["width"], el["height"]), (0, el["height"])):
+        px, py = el["x"] + dx - cx, el["y"] + dy - cy
+        out.append((cx + px * math.cos(ang) - py * math.sin(ang),
+                    cy + px * math.sin(ang) + py * math.cos(ang)))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# The labelled ghost (curator batch 25, 2026-08-16; task-50-report.md §11's
+# C1 and C2, and batch 23's "strongest unclaimed candidate").
+#
+# Hiding a box does not hide its name. `make_element`'s label funnel builds
+# the bound text from `BASE_DEFAULTS` and an explicit dict, and that dict
+# carries `fontSize`, `fontFamily` and a contrast-corrected `strokeColor`
+# from the container — so the funnel demonstrably DOES propagate style — and
+# does not carry `opacity`. The container's `opacity` arrives separately, in
+# the attribute copy loop, which writes to the shape and never to the label.
+# Set a node to `opacity: 0` and the drawing keeps the word at full ink with
+# no box under it: a caption for something the reader cannot see.
+#
+# WHY THIS CLASS AND NOT THE RENDER TIER, where an unlabelled opacity ghost
+# is already pinned (`test_mutant_opacity_ghost_is_invisible_to_tier_one`).
+# That pin is about what the RENDERERS can see — tier 1 has no notion of
+# opacity, the client does — and it is settled. This is a different fact and
+# it is visible in the MODEL: two elements, one meant to be invisible and one
+# not, produced by one op, and the stored scene says so in plain numbers. A
+# fact provable without a browser should be pinned without one; the render
+# tier would only be re-proving `render_svg`'s known opacity blindness.
+#
+# THE TWO REDS BELOW HAVE DIFFERENT OWNERS and that is why they are two.
+# The first is a construction defect and its fix is one line in a product
+# file no curator may touch. The second is a MISSING CHECK — no detector in
+# `DETECTORS` owns "a visible label bound to an invisible container", so
+# there is no wrong magnitude to assert, only a silence. Its fix is a lint
+# rule, which by the curator charter is proposed in a report and never
+# written into `canvas.py` here. They will not drain together and pretending
+# otherwise in one test would hide whichever landed second.
+#
+# C2 IS NOT A MISS AND IS PINNED GREEN, which is the honest reading and not
+# the convenient one. `lint_layout` DOES speak about the container — "g1 has
+# opacity 0 — opacity is state, not style" — with the right subject and the
+# right value. Measured 2026-08-16: the note fires, and the element is stored
+# anyway. That gap is a severity question the ledger itself files as a
+# product decision, so the state is held down rather than declared broken. A
+# curator who marked a working check red to make the batch look productive
+# would be padding the catalogue, which costs every future run.
+# ---------------------------------------------------------------------------
+
+
+class TestLabelledGhostKeepsItsCaption(unittest.TestCase):
+    """Hiding the box leaves the word: opacity stops at the container."""
+
+    def _scene(self, **overrides: Any) -> list[dict[str, Any]]:
+        """Build one labelled node through the real op path.
+
+        Through `apply_batch` rather than by writing elements out, because
+        the claim is about what `make_element`'s label funnel DOES to an
+        agent's spec — rule 8's second half. A hand-built pair of elements
+        would let this class pass while the funnel was bypassed entirely.
+
+        One node and nothing else: the ghost needs no neighbours to be a
+        ghost, and every extra element is another thing the reds could be
+        accidentally measuring.
+
+        Args:
+            **overrides: Element-spec fields merged over the defaults,
+                so the poles differ from the reds in exactly one key.
+
+        Returns:
+            The stored scene — the container followed by its bound label.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-ghost-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        spec = {"type": "rectangle", "id": "g1", "label": "GHOST",
+                "x": 0, "y": 0, "width": 120, "height": 60, "role": "node"}
+        spec.update(overrides)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [{"op": "add", "element": spec}]})
+        return store.scenes["flow"]
+
+    def _el(self, scene: list[dict[str, Any]], eid: str) -> dict[str, Any]:
+        """Fetch one element by id, failing loudly when it is absent.
+
+        Args:
+            scene: The stored scene.
+            eid: The element id to find.
+
+        Returns:
+            That element.
+        """
+        hit = [e for e in scene if e["id"] == eid]
+        self.assertEqual(len(hit), 1,
+                         "expected exactly one %r in %r"
+                         % (eid, [e["id"] for e in scene]))
+        return hit[0]
+
+    @unittest.expectedFailure
+    def test_red_the_bound_label_does_not_inherit_the_hidden_container(
+            self) -> None:
+        """`opacity: 0` on a node leaves its caption at full ink.
+
+        C1, task-50-report.md §11, re-measured 2026-08-16: the container
+        stores `opacity` 0 and `g1-label` stores 100, from one op. What
+        the reader sees is the word GHOST hanging in space with nothing
+        under it — not a hidden node, which is what was asked for, and
+        not a visible one either.
+
+        THE FUNNEL IS NOT STYLE-BLIND, WHICH IS WHAT MAKES THIS A DEFECT
+        rather than a design choice. The same block that builds this
+        label copies `fontSize` and `fontFamily` off the spec and
+        computes `strokeColor` from the container's own
+        `backgroundColor`, so it already treats the label as something
+        that must follow its container's appearance. `opacity` is the one
+        appearance attribute it does not carry, and it is the one that
+        decides whether the element is in the picture at all.
+
+        MAGNITUDE AND DIRECTION are the two stored numbers and the
+        DIRECTION is the half that matters: the label must not be MORE
+        opaque than the box it names. Asserted as an inequality rather
+        than as equality on purpose — a fix that clamped bound text to
+        its container satisfies it, and so does one that refused the op,
+        and the choice between those is not this pin's to make. Equality
+        would also forbid the legitimate case a future spec might want,
+        a faint label on a solid box.
+
+        WHO FLIPS THIS: whoever owns `make_element`'s label funnel. It is
+        a product file, so not a curator, and not the same hands that
+        wrote this test.
+        """
+        scene = self._scene(opacity=0)
+        box = self._el(scene, "g1")
+        label = self._el(scene, "g1-label")
+        self.assertLessEqual(
+            label.get("opacity", 100), box.get("opacity", 100),
+            "the container stores opacity %r and its bound label %r, so "
+            "hiding the node leaves its caption fully inked — a word "
+            "floating with no box under it"
+            % (box.get("opacity"), label.get("opacity")))
+
+    def test_the_funnel_does_carry_the_containers_other_styling(self
+                                                                ) -> None:
+        """The red's live pole: three attributes it DOES propagate.
+
+        Without this the red above is a claim about a funnel that might
+        never have run — a label built from defaults alone, or an op that
+        quietly produced no label, would satisfy "the label is not more
+        opaque" for reasons having nothing to do with opacity. Here the
+        same funnel on the same op is shown carrying `fontSize` and
+        `fontFamily` straight off the spec, and deriving `strokeColor`
+        from the container's fill.
+
+        The contrast rule is the sharpest of the three because it is
+        DERIVED rather than copied: a dark `backgroundColor` must turn
+        the label white. A funnel that had stopped reading the container
+        at all still copies literals; it cannot produce this.
+        """
+        scene = self._scene(fontSize=20, fontFamily=2,
+                            backgroundColor="#1e1e1e")
+        label = self._el(scene, "g1-label")
+        self.assertEqual(label.get("fontSize"), 20)
+        self.assertEqual(label.get("fontFamily"), 2)
+        self.assertEqual(label.get("strokeColor"), "#ffffff",
+                         "the label did not take its contrast colour off "
+                         "the container's dark fill, so this funnel is not "
+                         "reading the container and the red beside it is "
+                         "measuring nothing")
+        self.assertEqual(label.get("containerId"), "g1")
+
+    @unittest.expectedFailure
+    def test_red_no_check_names_the_label_left_visible(self) -> None:
+        """Every instrument names the box; none names the floating word.
+
+        The other half of C1 and the reason the tier that was built for
+        this class cannot see it. `collect_findings` over the ghost scene
+        returns ONE finding — `crossings_count` at 0.0, which is the
+        arrow count and says nothing about anything here. `lint_layout`
+        speaks twice and both times about `g1`: the opacity note and an
+        unconnected-node note. Nothing anywhere mentions `g1-label`,
+        which is the only element in the scene the reader can actually
+        see.
+
+        WHY THIS IS A SEPARATE RED from the construction defect above:
+        they have different owners and will not drain together. Fixing
+        the funnel makes this scene stop being a ghost, which flips this
+        test as a side effect — but the CHECK would still not exist, and
+        the next scene that produces an orphan label by another route
+        (a hand-placed text bound to a hidden container, a user hiding a
+        box in the client) would go unremarked again. Pinned separately
+        so that outcome is visible as this red flipping for the wrong
+        reason rather than as a hole nobody is looking at.
+
+        NO MAGNITUDE IS ASSERTED AND THAT IS THE FINDING. Doctrine wants
+        magnitude and direction, and here there is neither, because no
+        entry in `DETECTORS` owns this class at all — there is no wrong
+        number to catch, only a silence. That is the strongest available
+        statement of the gap: a check that fired with the wrong magnitude
+        could at least be corrected.
+
+        WHO FLIPS THIS: a lint rule, which the curator charter forbids
+        this agent from writing. The batch report carries the proposal
+        for the owning work package to accept or reject.
+        """
+        scene = self._scene(opacity=0)
+        lint = canvas.lint_layout(scene, artifact_type="flow")
+        said = collect_findings(scene) + [
+            {"check": "lint_layout", "element": None, "magnitude": None,
+             "direction": None, "raw": line}
+            for line in lint["errors"] + lint["warnings"] + lint["notes"]]
+        named = [f for f in said if "g1-label" in str(f["raw"])
+                 or f["element"] == "g1-label"]
+        self.assertTrue(
+            named,
+            "nothing said anything about the one element in this drawing "
+            "that is visible; what was said, all of it about the box the "
+            "reader cannot see: %s" % [f["raw"] for f in said])
+
+    def test_the_instruments_do_speak_about_this_scene(self) -> None:
+        """The silence red's firing pole: they are awake, and wrong.
+
+        Rule 8, both halves. "Nothing named the label" is exactly what a
+        dead `collect_findings` and a crashed `lint_layout` produce, so
+        the red above proves nothing on its own. This asserts the
+        opposite pole on the SAME scene through the SAME entry points:
+        both instruments run, both produce output, and `lint_layout`
+        names the container by id with the right value.
+
+        That last assertion is C2 and it is GREEN on purpose. The tool
+        DOES say the opacity is wrong — with the right subject and the
+        right number — and it stores the element regardless, which is
+        the gap task-50-report.md §11 filed. It is held down here as
+        state rather than marked red because whether a note should
+        harden into a refusal is a product decision, and a curator
+        declaring a working check broken would be padding the catalogue.
+        If that decision is ever taken, this test is what has to change,
+        deliberately.
+        """
+        scene = self._scene(opacity=0)
+        self.assertEqual([e["id"] for e in scene], ["g1", "g1-label"],
+                         "the ghost op stored something other than a "
+                         "container and its label")
+        finds = collect_findings(scene)
+        self.assertEqual([f for f in finds if f["check"] == "detector-error"],
+                         [], "a detector crashed, so the silence beside "
+                             "this is evidence about the harness")
+        self.assertTrue(finds, "collect_findings returned nothing at all")
+        notes = canvas.lint_layout(scene, artifact_type="flow")["notes"]
+        self.assertTrue(
+            [n for n in notes if "g1" in n and "opacity 0" in n],
+            "the opacity note has stopped firing, so this scene is no "
+            "longer the one the reds beside it describe: %r" % (notes,))
+        self.assertEqual(self._el(scene, "g1").get("opacity"), 0,
+                         "C2: the note fired and the element was stored "
+                         "with the opacity it complained about — if this "
+                         "now fails, the note has hardened into a refusal "
+                         "and the reds above need re-reading")
+
+
+# ---------------------------------------------------------------------------
+# `ink_extent` is rotation-blind (curator batch 25, 2026-08-16;
+# task-selfreport-report.md §10 candidate 1).
+#
+# The function bounds every non-point-strung element by its UNROTATED
+# `x/y/width/height`. `angle` is stored on the element and read by both
+# renderers; nothing in this bound consults it. So a rotated element's
+# painted box and its stored box are different rectangles, and the further
+# from a right multiple of a half-turn, the further apart.
+#
+# WHY IT IS NOW WORSE THAN WHEN IT WAS FILED. §10 called this load-bearing
+# in TWO directions, and it is: `ceiling_slack` carries 50% partly to
+# tolerate over-wide frames, and the tier-1 FLOOR under-reads by the same
+# blindness — a floor built from a box smaller than the ink admits rasters
+# that crop the drawing. Zero instances in the corpus is why this is a pin
+# and not an incident; one rotated element in one artifact is all it takes.
+#
+# THE SISTER PIN is `_scene_bbox` in tests/test_mutants_render.py, which is
+# angle-blind in exactly the same way and is task-50-report §11's C5 plus
+# its review MINOR-3. Both read `_rotated_slab`, so the two cannot drift
+# apart. They are separate tests because they are separate owners' code:
+# this one is `canvas.py`'s, the other is the harness's own.
+# ---------------------------------------------------------------------------
+
+
+class TestInkExtentIsRotationBlind(unittest.TestCase):
+    """The painted box and the stored box are not the same rectangle."""
+
+    def _extent_box(self, scene: list[dict[str, Any]]
+                    ) -> tuple[float, float, float, float]:
+        """`ink_extent` as corners rather than as origin-plus-size.
+
+        Unpadded, because a pad would let the pins pass on margin rather
+        than on the bound — 40px of default padding hides any defect
+        smaller than 40px and this family's whole subject is how far the
+        ink escapes.
+
+        Args:
+            scene: The elements to bound.
+
+        Returns:
+            `(minx, miny, maxx, maxy)` of the reported extent.
+        """
+        x, y, w, h = canvas.ink_extent(scene, pad=0)
+        return (x, y, x + w, y + h)
+
+    def _escape(self, scene: list[dict[str, Any]]) -> float:
+        """How far the worst painted corner falls outside the extent.
+
+        Args:
+            scene: A one-element scene; the element is measured against
+                the extent computed over that same scene.
+
+        Returns:
+            The largest distance from the reported box to a painted
+            corner, in px, on any side. Zero when the box contains the
+            ink, which is the answer a correct bound gives.
+        """
+        minx, miny, maxx, maxy = self._extent_box(scene)
+        worst = 0.0
+        for cx, cy in _painted_corners(scene[0]):
+            worst = max(worst, minx - cx, cx - maxx, miny - cy, cy - maxy)
+        return worst
+
+    @unittest.expectedFailure
+    def test_red_a_quarter_turned_slab_paints_80px_above_its_extent(
+            self) -> None:
+        """`ink_extent` frames a rotated element by the box it isn't in.
+
+        MAGNITUDE AND DIRECTION, both exact and both chosen so no
+        tolerance band can absorb them. The slab is 200x40 at the origin;
+        turned a quarter, it paints from y=-80 to y=120 and from x=80 to
+        x=120. `ink_extent` answers the stored box unchanged — y=0 to
+        y=40 — so the ink escapes by exactly 80px, ABOVE the reported
+        top, and the reported height under-reads the painted height by
+        160 of its 200px. Asserted as the containment that should hold,
+        with the measured 80 named in the message so a partial fix says
+        how far it got.
+
+        A HALF-TURN IS THE SHARPEST CONTROL and it is the pole below
+        rather than a case here: at 180 degrees the painted box and the
+        stored box coincide exactly, so a bound that had merely started
+        REFUSING rotated elements, or padding them by a constant, passes
+        the pole and fails this. The defect is not "rotation is
+        unhandled", it is "the angle is never read".
+
+        WHO FLIPS THIS: whoever owns `ink_extent` — a `canvas.py`
+        function, so not a curator. The fix is to bound by the painted
+        corners, which is what `_painted_corners` computes for the pins
+        and what the client's own export already does. Note for that
+        owner: the same change wants re-reading against `ceiling_slack`
+        and the tier-1 floor, both of which are calibrated against
+        today's under-read.
+        """
+        scene = _rotated_slab(90)
+        self.assertEqual(
+            self._escape(scene), 0.0,
+            "the quarter-turned slab paints %.0fpx outside the extent "
+            "meant to contain it: extent %r vs painted corners %r"
+            % (self._escape(scene), self._extent_box(scene),
+               [(round(x), round(y)) for x, y in
+                _painted_corners(scene[0])]))
+
+    def test_the_same_slab_unrotated_and_half_turned_is_bounded(self
+                                                                ) -> None:
+        """The red's live pole: two angles the blindness cannot show at.
+
+        Both poles of the same function on the same slab. At 0 degrees
+        the stored box IS the painted box, so this proves `ink_extent`
+        reaches this element and bounds it correctly — a function that
+        returned `None`, or a degenerate box, would satisfy the red
+        above by never containing anything.
+
+        At 180 degrees the element is genuinely rotated and the two
+        boxes still coincide, which is the assertion that keeps the red
+        honest about WHICH defect it names. A fix that special-cased any
+        non-zero angle — refusing it, or padding it by the diagonal —
+        would flip the red while making this pole wrong, and a reader
+        would have no way to tell a real fix from a blanket one.
+
+        THE HALF-TURN NEEDS A TOLERANCE and the red does not, which is
+        worth knowing before someone "tidies" them to match. `math.cos`
+        of pi is not exactly -1, so the 180-degree corners land 1.4e-14px
+        outside a box they belong exactly on. Six places is far below any
+        pixel and nowhere near the 80px the red measures, so no fix can
+        slip between them.
+        """
+        for angle in (0, 180):
+            with self.subTest(angle=angle):
+                scene = _rotated_slab(angle)
+                self.assertAlmostEqual(
+                    self._escape(scene), 0.0, places=6,
+                    msg="a %d-degree slab is not bounded by its own "
+                        "extent, so this function no longer bounds the "
+                        "case the red beside it contrasts against: %r"
+                        % (angle, self._extent_box(scene)))
+                self.assertEqual(self._extent_box(scene), (0, 0, 200, 40))
+
+
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
 
@@ -12484,9 +13294,11 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 3,
                              "TestBoundsLoopReadsTheLineHeight": 1,
                              "TestCornerBiasReadsVerticesNotTurns": 1,
+                             "TestInkExtentIsRotationBlind": 1,
+                             "TestLabelledGhostKeepsItsCaption": 2,
                              "TestLoadFindingsReachTheAgent": 4,
                              "TestReplayOrderFidelity": 2}
 # `TestBoundsLoopReadsTheLineHeight` JOINED this list on 2026-08-15 (curator
@@ -12506,6 +13318,15 @@ HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
 # single red intact, which is worth reading as the pair it is — two label
 # classes curated in one batch, one flipped by the fold-in and one not,
 # because they name different functions.
+# CURATOR BATCH 25 (2026-08-16) is the largest single arrival this dict has
+# taken: `TestBatchPathIntegrity` goes 1 -> 3 (the E-9 envelope's WIDTH,
+# spike-e9-backstop.md's D-1 and D-2), and two classes join —
+# `TestLabelledGhostKeepsItsCaption` with 2 and `TestInkExtentIsRotationBlind`
+# with 1. Worth noting for whoever reads the totals later: five of the seven
+# reds this batch filed are owned by work packages OUTSIDE the harness (the
+# wave-tail E-9 envelope task takes two, `make_element`'s owner one, a
+# not-yet-written lint rule one, `ink_extent`'s owner one), so a drain here
+# will arrive in pieces from several directions rather than in one flip.
 
 # The one class whose reds ARE catalogue entries, excluded from the
 # comparison above. Named rather than inlined so a rename of the class shows
@@ -12549,6 +13370,46 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # notices a red that started PASSING. Nothing noticed a red that was ADDED,
 # and an addition is what leaves a census stating six where seven is true.
 # Neither guard subsumes the other, and this one is the cheap half.
+#
+# ---------------------------------------------------------------------------
+# THE CALIBRATION-LITERAL DISCIPLINE (curator batch 25, 2026-08-16, from
+# task-selfreport-report.md §10 candidate 2). Filed here beside the census
+# constants because this is where this repo keeps its rules about keeping
+# guards honest, and because the rule generalizes past any one table:
+#
+#   IF A NUMBER IN A TEST CAN BE DERIVED FROM SOMETHING IN THIS REPO,
+#   DERIVING IT IS THE PIN. A LITERAL IS ONLY HONEST WHEN THE NUMBER CAN
+#   ONLY COME FROM OUTSIDE.
+#
+# The worked instance, which is why this is a rule and not an opinion: the
+# self-report task's six-row calibration table in `tests/test_backend.py`
+# held both its floor columns as literals. Those floors are pure server-side
+# derivations over fixtures frozen in this repo. With them written down,
+# `canvas.exact_ink_extent` could be neutered — made to return the FULL
+# extent, dropping the text filter that is its entire reason to exist — and
+# the whole suite stayed green. The calibration pins proved the constant was
+# safe against the numbers; nothing proved the numbers still came from the
+# function that computes them. A guard that cannot fail is not a guard.
+#
+# THE FIX SHAPE IS THE CORPUS DERIVATION, and it has landed:
+# `test_the_measured_table_still_describes_the_corpus` re-derives both floor
+# columns from the fixtures and compares them to the literals. Note what it
+# does NOT re-derive — the EXPORT column, because those widths can only come
+# from a browser. That split is the rule applied rather than a compromise
+# with it: two columns of one table, one derivable and one not, treated
+# differently for a stated reason.
+#
+# THIS IS DELIBERATELY NOT A GUARD, and the reason is the interesting part.
+# A census-style check would have to decide which literals in the suite are
+# derivable and which are genuinely external. Nothing can tell those apart
+# by inspection — `1520` is an export width and `1050` a computed floor, and
+# they sit in the same tuple. So such a guard needs a hand-maintained list of
+# exempt numbers, which is a table of literals that goes stale, which is the
+# defect it was built to prevent, one level up. The recursion terminates in
+# judgement, not in code, and a guard that pretended otherwise would be the
+# third instance of the thing this rule is about. What is buildable is what
+# already exists: a derivation beside each table that has one.
+# ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS = {"framed_node_escapes_its_lane", "gray_text_on_ground",
                      "headless_chain_reads_through_node", "pale_stroke_node",
                      "tiny_font_text", "tolerable_gap_hides_interior_run"}

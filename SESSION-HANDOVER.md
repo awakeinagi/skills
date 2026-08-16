@@ -268,7 +268,7 @@ them from), so the warning still applies to that one:
 | tier | red mutants |
 |---|---|
 | model (default suite) | `framed_node_escapes_its_lane`, `gray_text_on_ground`, `headless_chain_reads_through_node`, `pale_stroke_node`, `tiny_font_text`, `tolerable_gap_hides_interior_run` |
-| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length` (both UNGATED — they run by default) |
+| render (`tests/test_mutants_render.py`) | `test_a_back_loop_broken_mid_run_reads_as_one_stroke`, `test_a_thin_sloped_scrap_reports_an_end_not_its_length`, `test_red_a_wide_string_in_a_narrow_box_paints_past_the_anchors`, `test_red_a_quarter_turned_slab_paints_80px_past_the_anchors`, `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (all five UNGATED — they run by default, so this whole row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
 The bottom two rows are `@unittest.expectedFailure` method names rather
@@ -279,16 +279,28 @@ landing in the same commit as the marker's removal) but for three
 different reasons. Curator batch 23 refilled it the same day with three
 more, so read the emptiness as an event rather than as a state reached.
 
-Two of the three are UNGATED: they live in `TestContinuityNarrowingRegime`,
-which needs no browser because it exercises `_completed_by_eye` and
-`_edge_profiles` as arithmetic, so they count toward the DEFAULT suite's
-expected failures as well as the gated one. That is why the two runs now
-differ by exactly one.
+ALL FIVE are now UNGATED, and the paragraph that used to sit here said
+"two of the three… that is why the two runs differ by exactly one". Both
+halves changed on 2026-08-16 and in opposite directions. Curator batch 25
+added three ungated reds — `_scene_bbox` bounding stored geometry rather
+than ink, and the client tier reading clean stripe garbage as a healthy
+drawing — none of which needs a browser, because each replaces the
+renderer or measures a pure function. Task 51c then flipped the row's
+last GATED red (the label riding foreign ink) by stopping `render_svg`
+occluding. So the gated and ungated runs of this module now report the
+SAME expected-failure count, measured at **5 and 5** — they differ by
+zero, and a reader who remembers the old "differ by exactly one" rule
+should stop applying it.
+
+Read that as an event, not a state reached: the moment any gated red is
+added it goes back to differing, and nothing enforces the parity.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**17 / 3 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py`. Do not restate any of it as one suite ef total.
+**20 / 5 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 after curator batch 25 and task
+51; it read 17 / 3 / 0 before). Do not restate any of it as one suite ef
+total.
 
 **Task 50 flipped `test_mutant_opacity_ghost_is_invisible_to_tier_one`**,
 the oldest of the three and the one that could not be fixed where it stood.

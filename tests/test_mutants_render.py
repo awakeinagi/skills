@@ -65,11 +65,13 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+import zlib
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
@@ -2458,6 +2460,566 @@ def _synthetic_strokes(strokes: tuple[tuple[int, int, int, int], ...]
     residual = _ink_mask(w, h, strokes)
     blobs = [c for c in components(w, h, residual) if c["area"] >= MIN_BLOB]
     return _reader_strokes(_delta_components(w, h, blobs, residual))
+
+
+def _stripe_png(w: int, h: int, period: int, jitter: int = 0) -> bytes:
+    """A decodable grayscale PNG of vertical stripe garbage.
+
+    The corruption signature `canvas.cmd_snapshot` documents and the spike
+    behind this tier actually observed: a connected tab answering a
+    screenshot request returns banded noise rather than the drawing.
+    Reproduced here as a REAL PNG — valid signature, valid IHDR, valid
+    IDAT — because that is what makes it dangerous. A truncated or
+    malformed file is caught by every reader that touches it; this one
+    decodes perfectly and contains nothing.
+
+    `jitter` IS THE WHOLE EXPERIMENT and the reason this takes a second
+    parameter. Measured 2026-08-16 across three periods: with clean bands
+    (`jitter` 0) the tier reports NOTHING, and with the phase wobbling a
+    few px per row it reports continuity findings. Same density, same
+    band widths, opposite verdicts — so what decides whether this tier
+    can see the corruption is how COHERENT the garbage is, not how dense.
+    Both textures are things a broken readback produces.
+
+    Args:
+        w: Raster width in px.
+        h: Raster height in px.
+        period: Band half-cycle in px.
+        jitter: Maximum per-row phase wobble in px. Zero gives the clean
+            vertical banding the red below is built on.
+
+    Returns:
+        The PNG bytes.
+    """
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        """Frame one PNG chunk.
+
+        Args:
+            tag: The four-byte chunk type.
+            data: The chunk payload.
+
+        Returns:
+            Length, tag, payload and CRC, concatenated.
+        """
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff))
+
+    rows, seed = [], 999
+    for _y in range(h):
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff
+        phase = (seed % (jitter + 1)) if jitter else 0
+        rows.append(bytes(255 if ((x + phase) // period) % 2 else 0
+                          for x in range(w)))
+    raw = b"".join(b"\x00" + r for r in rows)
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 6))
+            + chunk(b"IEND", b""))
+
+
+def _flat_png(w: int, h: int, boxes: tuple[tuple[int, int, int, int], ...]
+              ) -> bytes:
+    """A white grayscale PNG carrying black rectangles — an honest render.
+
+    The control substrate for the garbage above: the same encoder, the
+    same dimensions, ordinary picture content. What the poles use to
+    prove the instrument fires through the injection point, so a red
+    about garbage cannot be satisfied by an injection that had broken
+    the pipeline for some reason of its own.
+
+    Args:
+        w: Raster width in px.
+        h: Raster height in px.
+        boxes: Inclusive `(x0, y0, x1, y1)` rectangles to paint black.
+
+    Returns:
+        The PNG bytes.
+    """
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        """Frame one PNG chunk.
+
+        Args:
+            tag: The four-byte chunk type.
+            data: The chunk payload.
+
+        Returns:
+            Length, tag, payload and CRC, concatenated.
+        """
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff))
+
+    rows = [bytearray(b"\xff" * w) for _ in range(h)]
+    for x0, y0, x1, y1 in boxes:
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                rows[y][x] = 0
+    raw = b"".join(b"\x00" + bytes(r) for r in rows)
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 6))
+            + chunk(b"IEND", b""))
+
+
+# ---------------------------------------------------------------------------
+# The client tier cannot tell a drawing from noise (curator batch 25,
+# 2026-08-16; task-50-report.md §11's C4).
+#
+# The spike behind this tier started a server without `--no-browser`, a
+# connected tab STOLE every screenshot request, and what came back was
+# vertical stripe garbage at 0.033 bytes/px. Today that is prevented by
+# `--no-browser` and pinned by one argv test, which is a pin on the CAUSE.
+# Nothing pins the EFFECT: no instrument anywhere asks whether the bytes the
+# tier just measured are a picture of the scene.
+#
+# MEASURED HERE, AND THE ANSWER DEPENDS ON THE TEXTURE — which is a sharper
+# finding than the candidate was filed as, and it took three passes to get
+# right, so the negative result is recorded beside the positive one:
+#
+#   CLEAN vertical bands  -> ZERO findings. A clean bill of health for a
+#                            drawing the tier never saw. NOT CAUGHT.
+#   bands with phase jitter -> continuity findings, garbage magnitudes.
+#   dense per-pixel noise -> every delta erased by the tolerant diff, so
+#                            every element reads as missing. CAUGHT.
+#
+# So the tier is not uniformly blind to corruption, and a pin claiming it was
+# would be wrong. What it cannot see is the COHERENT case, and coherence is
+# not a proxy for severity — clean banding is exactly what a stolen readback
+# of a scrolled tab looks like.
+#
+# THE PRESCRIBED CONTROL PASSES ON THE CASE THAT MATTERS. Mechanism 3 in this
+# file's section comment above rules out `validate_png`'s density floor for a
+# good reason (valid renders here run 0.028-0.058 bpp and straddle it) and
+# puts a STRUCTURAL control in its place: ablate a known-visible element in
+# the same call and pin that its delta is not empty. Against clean bands
+# every delta is enormous, so that control is satisfied on every element and
+# reports nothing. It was built to catch the render that produced NOTHING,
+# and it does — that is the dense-noise row above. It cannot see the render
+# that produced a confident wrong picture, and nothing else looks.
+#
+# WHY THIS IS NOT AN ARGUMENT FOR THE DENSITY FLOOR: these rasters run 0.007
+# to 0.010 bytes/px, far under `min_bpp`, so `validate_png` would have caught
+# them — and would also refuse the legitimately sparse mutant scenes the
+# section comment names, which is why it was rejected. The gap is real in
+# both directions and the fix is not obvious, which is exactly why it is
+# pinned rather than patched. The owner is this module's, not a curator's.
+#
+# UNGATED, AND THAT IS THE POINT: no browser is involved. `_client_shots` is
+# replaced wholesale, so what is under test is everything downstream of the
+# render — which is where the blindness lives.
+# ---------------------------------------------------------------------------
+
+
+class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
+    """Garbage in, clean verdict out — with the structural control green."""
+
+    W, H = 400, 300
+
+    def _findings(self, shots: dict[str, bytes],
+                  ids: list[str]) -> list[dict[str, Any]]:
+        """Run `client_ablation_findings` over supplied rasters.
+
+        The whole tier below the browser, with the browser replaced. The
+        scene passed in is `tm._diamond_stage()` in every case and is
+        never what decides the answer — the rasters are — which is the
+        arrangement that isolates the reading machinery from the
+        rendering.
+
+        Args:
+            shots: One PNG per variant key. Must carry `full` and an
+                `abl-<id>` for each of `ids`, which is the contract
+                `_client_shots` itself satisfies.
+            ids: The element ids to ablate.
+
+        Returns:
+            The findings the tier reports.
+        """
+        with mock.patch.object(sys.modules[__name__], "_client_shots",
+                               side_effect=lambda variants: shots):
+            return client_ablation_findings(tm._diamond_stage(), ids)
+
+    @unittest.expectedFailure
+    def test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing(
+            self) -> None:
+        """Three band rasters in, zero findings out, nothing raised.
+
+        C4. Each variant is clean vertical banding at a different period,
+        so the readback is not merely wrong but UNSTABLE between shots —
+        which is what a tab answering three separate screenshot requests
+        produces. Three band widths are swept rather than one, because a
+        single width would leave "this particular pattern" as a live
+        explanation for the silence.
+
+        WHAT A CORRECT INSTRUMENT WOULD DO, either of which passes this
+        test, because the fix's shape is not this pin's to choose:
+        REFUSE to measure — raise, the way `_client_shots` already raises
+        when a render does not come back — or report every element
+        missing, since none of them is in these pixels. What it must not
+        do is answer that the drawing is fine. That is the assertion.
+
+        MAGNITUDE AND DIRECTION are the count and its sign: zero findings
+        over a scene containing three elements, none of which appears in
+        any raster. The direction is the whole finding — the tier errs
+        toward SILENCE on corrupt input, which is the one direction a
+        measurement instrument must never err in, because silence is
+        indistinguishable from health (doctrine §1), and this is the tier
+        that exists to see what tier 1 cannot.
+
+        WHAT THIS DOES NOT CLAIM, and the sibling test below holds it
+        down: the tier is not blind to corruption in general. Dense
+        per-pixel noise IS caught — the tolerant diff erases it, every
+        delta comes back empty, and every element reads as missing, which
+        is the loud safe answer. The blindness is specific to COHERENT
+        garbage, and pinning it as though it were general would be a
+        wrong pin that a later measurement would have to undo.
+
+        WHY NOT THE DENSITY FLOOR: these rasters run under 0.010
+        bytes/px and `validate_png`'s `min_bpp=0.05` would refuse them —
+        and would also refuse the sparse mutant scenes this file
+        legitimately measures at 0.028. Mechanism 3 in the section
+        comment rejects it for that reason and the rejection stands;
+        named here so it is not re-proposed as the obvious fix.
+
+        WHO FLIPS THIS: this module's owner. It needs an instrument that
+        does not exist yet — a way to ask whether a raster is a picture
+        of a given scene — and that is a design question, not a patch.
+        """
+        for period in (4, 6, 8):
+            shots = {"full": _stripe_png(self.W, self.H, period),
+                     "abl-s1": _stripe_png(self.W, self.H, period + 1),
+                     "abl-s2": _stripe_png(self.W, self.H, period + 2)}
+            with self.subTest(period=period):
+                try:
+                    finds = self._findings(shots, ["s1", "s2"])
+                except RuntimeError:
+                    continue            # refusing to measure is a pass
+                self.assertNotEqual(
+                    finds, [],
+                    "the client tier read three rasters of clean stripe "
+                    "banding at %.4f bytes/px and reported a clean "
+                    "drawing: no element missing, no run severed, nothing "
+                    "raised. The structural control passes too — every "
+                    "delta is enormous — so no assertion anywhere in this "
+                    "file would notice"
+                    % (len(shots["full"]) / float(self.W * self.H)))
+
+    def test_wobbling_the_bands_makes_the_tier_invent_a_finding_instead(
+            self) -> None:
+        """The red's boundary: it speaks, and what it says is false.
+
+        This is what makes the red above a statement about COHERENCE
+        rather than a general claim that the tier cannot read corrupt
+        input. Same injection, same scene, same band widths, same density
+        to three decimals — only the phase wobble changes, and the
+        measured boundary is sharp: silent at 0, 1 and 2px of wobble, and
+        from 4px it starts reporting.
+
+        WHAT IT REPORTS IS THE POINT, and it is why this test is not
+        titled "caught". At 8px of wobble the tier says `s1`'s and `s2`'s
+        ink comes apart in 2 separated pieces — a specific, confident,
+        entirely false statement ABOUT THE DRAWING, derived from a raster
+        that contains no drawing. It is not a complaint about the render.
+
+        So the two textures are two failure modes of one gap rather than
+        a caught case and a missed one: handed a picture of nothing, this
+        tier either says nothing or invents a finding, and it has no
+        vocabulary at all for "I cannot measure this". That is the
+        sentence its owner needs, and neither test alone says it.
+
+        Its second job is rule 8: findings coming back here prove the
+        injection reaches the instrument, so the red's silence next door
+        is evidence about coherent garbage rather than about a
+        `mock.patch` that bound nothing.
+        """
+        shots = {"full": _stripe_png(self.W, self.H, 31, jitter=8),
+                 "abl-s1": _stripe_png(self.W, self.H, 29, jitter=8),
+                 "abl-s2": _stripe_png(self.W, self.H, 37, jitter=8)}
+        finds = self._findings(shots, ["s1", "s2"])
+        self.assertEqual(
+            sorted((f["check"], f["element"]) for f in finds),
+            [("ablation_continuity", "s1"), ("ablation_continuity", "s2")],
+            "wobbled banding no longer produces the invented continuity "
+            "findings this pair was measured on, so the red beside it has "
+            "stopped being about coherence and both need re-measuring: %r"
+            % ([(f["check"], f["element"], f["magnitude"])
+                for f in finds],))
+        self.assertEqual(
+            sorted({f["check"] for f in finds}), ["ablation_continuity"],
+            "a check outside this tier's two drawing checks has appeared "
+            "on a garbage raster — if that is a render-validity finding, "
+            "it is the instrument the red beside this one says does not "
+            "exist, and that red should be flipping: %r"
+            % (sorted({f["check"] for f in finds}),))
+
+    def test_both_client_checks_fire_through_the_injected_renderer(self
+                                                                   ) -> None:
+        """The red's firing pole: the same injection, honest rasters.
+
+        Rule 8, both halves, and without it the red above is worthless:
+        "zero findings came back" is exactly what a broken injection
+        produces, and `mock.patch` over a module-level name is precisely
+        the kind of thing that silently patches nothing. So both of this
+        tier's checks are made to fire through the SAME mechanism, on
+        pictures rather than noise.
+
+        `ablation_existence` fires on an identical pair — the ablated
+        raster equals the full one, so removing the element changed no
+        pixels, which is the "in the model, not in the picture" finding.
+
+        `ablation_continuity` fires on a delta that comes apart: the full
+        raster carries two widely separated boxes and the ablated one is
+        blank, so the recovered ink is two pieces. Asserted at >= 2
+        rather than exactly 2 for the reason the tier's other continuity
+        pins give — the piece count of real ink is a rendering fact and
+        the claim here is only that the instrument is awake.
+        """
+        blank = _flat_png(self.W, self.H, ())
+        one = _flat_png(self.W, self.H, ((40, 40, 90, 90),))
+        two = _flat_png(self.W, self.H, ((40, 40, 90, 90),
+                                         (300, 200, 350, 250)))
+        with self.subTest(check="ablation_existence"):
+            finds = self._findings({"full": one, "abl-s1": one}, ["s1"])
+            missing = [f for f in finds
+                       if f["check"] == "ablation_existence"
+                       and f["element"] == "s1"]
+            self.assertTrue(
+                missing, "an ablation that changed no pixels at all went "
+                         "unreported, so this injection is not reaching "
+                         "the tier: %r" % (finds,))
+        with self.subTest(check="ablation_continuity"):
+            finds = self._findings({"full": two, "abl-s1": blank}, ["s1"])
+            apart = [f for f in finds
+                     if f["check"] == "ablation_continuity"
+                     and f["element"] == "s1"]
+            self.assertTrue(
+                apart and apart[0]["magnitude"] >= 2,
+                "a delta of two separated boxes did not read as separated "
+                "ink, so the continuity half of this tier is not reached "
+                "by the injection either: %r" % (finds,))
+
+    def test_the_garbage_substrate_is_a_valid_png_of_the_right_size(self
+                                                                    ) -> None:
+        """The red's other control: its input decodes, and it is thin.
+
+        Two claims the red rests on and neither is self-evident. If the
+        stripe PNGs did not DECODE, the red would be measuring a reader
+        that choked rather than a tier that was fooled — the whole point
+        of C4 is that this file is structurally valid and semantically
+        empty. And if the density were not under `min_bpp`, the paragraph
+        in the red explaining why the obvious fix was rejected would be
+        describing a different file than the one it runs on.
+
+        The floor is read off the same constant the red's prose cites
+        rather than being retyped as a bare number, so the day someone
+        retunes it this control moves with it instead of asserting
+        yesterday's figure — the calibration-literal discipline recorded
+        in `tests/test_mutants.py` beside `CATALOGUE_RED_IDS`.
+
+        Both textures are checked, because the red and its boundary test
+        use different ones and a substrate control that covered only one
+        would leave the other unproven.
+        """
+        floor = 0.05                    # `cmd_snapshot`'s `min_bpp`
+        for period in (4, 6, 8, 29, 31, 37):
+            for jitter in (0, 4):
+                with self.subTest(period=period, jitter=jitter):
+                    data = _stripe_png(self.W, self.H, period, jitter)
+                    w, h, pix = read_png_gray(data)
+                    self.assertEqual((w, h), (self.W, self.H))
+                    self.assertEqual(len(pix), self.W * self.H)
+                    self.assertLess(len(data) / float(self.W * self.H),
+                                    floor)
+                    self.assertFalse(
+                        canvas.validate_png(data, want_w=self.W,
+                                            want_h=self.H,
+                                            min_bpp=floor)[0],
+                        "the density floor now ADMITS this garbage, so "
+                        "the red's account of why that instrument was "
+                        "rejected needs re-reading")
+
+
+# ---------------------------------------------------------------------------
+# `_scene_bbox` bounds the stored geometry, not the ink (curator batch 25,
+# 2026-08-16; task-50-report.md §11's C5 and its review MINOR-3).
+#
+# `_anchored` exists to make one promise: whatever a variant scene loses, the
+# two anchors stay put, so every raster in an ablation run frames the same
+# region and the deltas are comparable. That promise rests entirely on
+# `_scene_bbox` bounding the scene, and its own docstring says as much —
+# "anchors derived from an under-reported box would stop bounding the scene,
+# which is the one way `_anchored`'s guarantee can fail". This is that
+# failure, twice over, and `_ANCHOR_GAP`'s 24px is the whole margin between
+# a correct run and ink outside the frame.
+#
+# Task 56's lesson is the general form: stored geometry is not the ink. The
+# function reads `x`, `y`, `width`, `height` and `points`, which is the same
+# bound Task 56 spent a work package removing from the geometry checks.
+#
+# BOTH REDS ARE HARNESS DEFECTS, which makes them unlike most of this file:
+# a wrong answer here does not misreport a drawing, it silently weakens every
+# ablation measurement taken through it. Neither is reachable by any corpus
+# scene today — that is why they are pins and not incidents — and the fix
+# belongs to whoever owns this module's framing, not to a curator.
+#
+# UNGATED, for the reason `TestContinuityNarrowingRegime` below is ungated:
+# no part of this needs a browser, and the rot it catches happens in ordinary
+# editing where nobody has `MUTANTS_RENDER=1` set.
+# ---------------------------------------------------------------------------
+
+
+class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
+    """The anchors are placed around the geometry, not around the ink."""
+
+    def _overhang(self, scene: list[dict[str, Any]],
+                  ink: tuple[float, float, float, float]) -> float:
+        """How far real ink reaches past `_scene_bbox`'s answer.
+
+        Args:
+            scene: The scene to bound with `_scene_bbox`.
+            ink: `(minx, miny, maxx, maxy)` the ink actually occupies,
+                supplied by the caller because the two reds establish it
+                by different means — one asks `canvas.ink_extent`, the
+                other rotates the corners itself.
+
+        Returns:
+            The largest distance from the reported box to the ink, on
+            any side, in px. Zero when the box contains the ink.
+        """
+        bx0, by0, bx1, by1 = _scene_bbox(scene)
+        ix0, iy0, ix1, iy1 = ink
+        return max(bx0 - ix0, ix0 - bx1, by0 - iy0, iy0 - by1,
+                   ix1 - bx1, iy1 - by1, 0.0)
+
+    @unittest.expectedFailure
+    def test_red_a_wide_string_in_a_narrow_box_paints_past_the_anchors(
+            self) -> None:
+        """Text advance overruns the stored box by 420px, on a 24px gap.
+
+        C5. A `text` element's stored `width` is an estimate an agent may
+        author badly and the client re-measures at load; the glyphs are
+        drawn at their real advance either way. `_scene_bbox` takes the
+        stored 20px. `canvas.ink_extent` — the product's own bound, which
+        Task 46 and WP4 taught to measure the DRAWN lines — answers 440px
+        for the same element.
+
+        MAGNITUDE AND DIRECTION: 420px of ink to the RIGHT of the box the
+        anchors are placed around, against `_ANCHOR_GAP`'s 24px of
+        margin. So this is not a near-miss to be padded away — the ink
+        leaves the framed region by more than seventeen times the entire
+        gap, and every variant raster in such a run is framed on a
+        different amount of clipped text.
+
+        MEASURED AGAINST THE PRODUCT'S BOUND, deliberately, rather than
+        against a number written here. `ink_extent` already solves this
+        exact problem for exports, so the assertion is that the harness's
+        bound is at least as wide as the shipped one — which is both the
+        honest comparison and the cheapest available fix for whoever
+        takes it. A literal would have made this pin the calibration
+        table it exists to argue against.
+
+        WHO FLIPS THIS: the owner of this module's framing helpers. Not a
+        curator, and not `canvas.py` — nothing in the product is wrong
+        here.
+        """
+        scene = [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 20,
+                  "height": 25, "fontSize": 20,
+                  "text": "A" * 30, "originalText": "A" * 30}]
+        x, y, w, h = canvas.ink_extent(scene, pad=0)
+        over = self._overhang(scene, (x, y, x + w, y + h))
+        self.assertEqual(
+            over, 0.0,
+            "the drawn string reaches %.0fpx past the box the anchors are "
+            "placed around, and _ANCHOR_GAP is only %dpx: _scene_bbox says "
+            "%r, canvas.ink_extent says %r"
+            % (over, _ANCHOR_GAP, _scene_bbox(scene), (x, y, x + w, y + h)))
+
+    @unittest.expectedFailure
+    def test_red_a_quarter_turned_slab_paints_80px_past_the_anchors(
+            self) -> None:
+        """`_scene_bbox` never reads `angle`, so rotation moves ink out.
+
+        Review MINOR-3, and the sister of
+        `test_mutants.TestInkExtentIsRotationBlind` — same base scene,
+        `tm._rotated_slab`, so the two pins cannot drift onto different
+        geometry. The point of keeping both is that they name DIFFERENT
+        CODE with different owners: `canvas.ink_extent` frames exports
+        and floors the tier-1 check, this places the ablation anchors.
+        A fix to either leaves the other standing.
+
+        MAGNITUDE AND DIRECTION: the 200x40 slab quarter-turned paints
+        from y=-80 to y=120; `_scene_bbox` answers y=0 to y=40. The ink
+        escapes 80px ABOVE the framed region, against `_ANCHOR_GAP`'s
+        24px — so, unlike the text case, this one is within the same
+        order as the gap and would read as a plausible margin to widen.
+        It is not: at 45 degrees the same slab reaches 130px out, and no
+        constant gap bounds a function that never reads the angle.
+
+        WHY IT UNDER-REPORTS GEOMETRY AND NOT MERELY INK, which is
+        MINOR-3's actual claim and the reason it is filed apart from C5
+        above: the text case is a disagreement about how wide a drawn
+        string is, and reasonable bounds can differ on it. This one is
+        not about ink at all. The corners are fixed by `x`, `y`,
+        `width`, `height` and `angle` — five stored numbers — and the
+        function reads four of them.
+
+        WHO FLIPS THIS: the same owner as C5 above. `tm._painted_corners`
+        is the reference implementation both pins measure against.
+        """
+        scene = tm._rotated_slab(90)
+        cs = tm._painted_corners(scene[0])
+        ink = (min(c[0] for c in cs), min(c[1] for c in cs),
+               max(c[0] for c in cs), max(c[1] for c in cs))
+        over = self._overhang(scene, ink)
+        self.assertEqual(
+            over, 0.0,
+            "the quarter-turned slab paints %.0fpx outside the anchored "
+            "region (_ANCHOR_GAP is %dpx): _scene_bbox says %r, the "
+            "painted corners span %r"
+            % (over, _ANCHOR_GAP, _scene_bbox(scene), ink))
+
+    def test_the_bbox_does_bound_an_upright_scene_and_its_waypoints(
+            self) -> None:
+        """Both reds' live pole: unturned and untexted, it is correct.
+
+        Without this, either red is satisfied by a `_scene_bbox` that had
+        stopped bounding anything — a degenerate box at the origin is
+        outside every scene's ink too, and it is exactly what the
+        function returns for an empty list. Three claims, on the shapes
+        the reds hold constant:
+
+        The upright slab. `tm._rotated_slab(0)` is the reds' own base
+        scene with the one field they turn on left flat, so the pair
+        measures `angle` and nothing else about the element.
+
+        An arrow's WAYPOINTS, which is the one place this function
+        already goes beyond the stored box, and its docstring's own
+        claim: a route whose points reach past `x + width` must still be
+        bounded. A regression there would look identical to the reds
+        beside it and have a different cause.
+
+        A text element whose stored width is HONEST. This is what makes
+        C5 a statement about the estimate rather than about text as a
+        class — the same element type, bounded correctly, once the
+        stored box matches the advance `canvas.ink_extent` computes.
+        """
+        with self.subTest(case="upright slab"):
+            self.assertEqual(_scene_bbox(tm._rotated_slab(0)),
+                             (0.0, 0.0, 200.0, 40.0))
+        with self.subTest(case="arrow waypoints past the stored box"):
+            arrow = [{"id": "a1", "type": "arrow", "x": 0, "y": 0,
+                      "width": 10, "height": 10,
+                      "points": [[0, 0], [100, 60]]}]
+            self.assertEqual(_scene_bbox(arrow), (0.0, 0.0, 100.0, 60.0))
+        with self.subTest(case="text whose stored width is honest"):
+            honest = [{"id": "t1", "type": "text", "x": 0, "y": 0,
+                       "width": 440, "height": 25, "fontSize": 20,
+                       "text": "A" * 30, "originalText": "A" * 30}]
+            x, y, w, h = canvas.ink_extent(honest, pad=0)
+            self.assertEqual(self._overhang(honest, (x, y, x + w, y + h)),
+                             0.0,
+                             "a text whose stored width matches its advance "
+                             "is still not bounded, so C5's red is about "
+                             "text as a class rather than about the "
+                             "estimate")
 
 
 class TestContinuityNarrowingRegime(unittest.TestCase):
