@@ -62,12 +62,13 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
    The second case reads as that box's caption and is why a long elbow is
    worse than a long straight run: move the bend, don't nudge the label.
 3. **No shared attach points** (seeder + lint WARNING). N arrows on one edge
-   of length L attach at `L·k/(N+1)` for k=1..N, ≥12px apart — or use
-   binding `focus` values (±0.5 steps) to fan them. Two connectors sharing a
-   point, or parallel runs <12px apart, are flagged. The auto-fan only moves
-   **server-routed paths of 2 or 3 points** — it will not re-space a path
-   you authored, or one carrying more waypoints than that, and the warning
-   names which of the two disqualified it.
+   of length L attach at `L·k/(N+1)` for k=1..N — or use binding `focus`
+   values (±0.5 steps) to fan them. Two connectors sharing a point are
+   flagged within 12px. The auto-fan only moves **server-routed paths of 2
+   or 3 points** — it will not re-space a path you authored, or one carrying
+   more waypoints than that, and the warning names which of the two
+   disqualified it.
+   The feet are not the whole story — see *Two strokes, one lane* below.
 4. **Ports follow travel direction** (seeder). Use top/bottom ports when
    travel is mainly vertical, side ports only when mainly horizontal. Never
    puncture a side face to reach something above or below.
@@ -75,6 +76,28 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
    a node that is neither its source nor destination is flagged. Prefer
    re-routing; where two arrows must cross, bridge the less important one
    with a hop arc (`a 8,8 0 0,1 16,0`) — never bridge both.
+
+**Two strokes, one lane** (lint WARNING). Two arrows can leave a node
+correctly spaced and still end up drawn on top of each other further along.
+A pair holding the same line within **16px** for **60px or more** is flagged,
+with the shared run and the separation in px: over that stretch the drawing
+has one thick stroke where the model has two edges, and neither can be
+followed to its own node. The auto-fan leaves **18px** between feet, so it
+clears this by construction — a lane you are told about is one the fan could
+not reach (an authored path, or one with too many waypoints). Repair by
+moving a bend with `mod points`, not by nudging a foot.
+
+**Two arrows that read as one bidirectional edge** (lint WARNING). When two
+final legs land on one line pointing opposite ways and overlap, a reader
+merges them into a single two-headed relation the model never asserted. If
+the relation really is symmetric, say so with one arrow and two heads;
+otherwise offset one final leg. **Unless the pair shares a node** — a fan out
+of one source, or two edges converging on one target, is the layout aligning
+things deliberately, and offsetting a leg to satisfy a checker would make the
+picture worse. That case is silent on purpose.
+
+Both of these read the path as DRAWN, so rounding a corner never changes the
+answer, and both take a `waive` if the pairing is intentional.
 
 The router now avoids foreign boxes itself: it scores straight lines,
 both L-elbow orientations, and bounded Z-detours, and picks the cleanest
@@ -156,7 +179,12 @@ non-wrapping composed rows are judged on width. This is the one class of
 defect you are structurally blind to, so it is the lint to actually read)
 · element stranded far outside the
 artifact's cluster · bidirectional arrow (both arrowheads — split it into
-two labeled arrows) · activation bar that never closes. Wireframe form
+two labeled arrows) · activation bar that never closes · **a bound label
+left more opaque than the box it names** (v0.9 — a label does not inherit
+its container's opacity, so hiding a node leaves its caption at full ink:
+a word floating with nothing under it, which is neither the hidden node
+you asked for nor a visible one. The finding carries both values and the
+gap. Set both or neither). Wireframe form
 warnings (v0.4): submit button preceding its inputs in reading order ·
 input with no label (3.3.2) · asterisk in an input label (GOV.UK:
 "(optional)" instead) · same label mapped to different flow steps (3.2.4
