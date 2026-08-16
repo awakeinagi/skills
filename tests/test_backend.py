@@ -10946,6 +10946,90 @@ class TestMermaidSeeding(Base):
         # an unconnected node still gets declared (so dagre places it)
         self.assertIn('n_lone(["lone"])', text)
 
+    def _relayout(self, aid, skeletons):
+        """Run `mermaid --relayout` over `aid` with the browser stubbed.
+
+        The conversion is the only part of the command that needs a tab,
+        and it is not what these tests are about — stubbing it keeps the
+        guard, the op build and the NOTE on the real code path.
+
+        Args:
+            aid: The flow artifact to re-lay.
+            skeletons: What the conversion returns — the positions dagre
+                would have produced, keyed `n_<element id>`.
+
+        Returns:
+            The command's stdout, NOTE line included.
+        """
+        ns = argparse.Namespace(
+            project=str(self.tmp), artifact=aid, relayout=True, file=None,
+            concept=None, tab_timeout=5, no_headless=True, check=False,
+            render=False, from_skeletons=None)
+        buf = io.StringIO()
+        with mock.patch.object(canvas, "_mermaid_convert",
+                               return_value=(skeletons, None)), \
+                contextlib.redirect_stdout(buf):
+            canvas.cmd_mermaid(ns)
+        return buf.getvalue()
+
+    @staticmethod
+    def _dagre_row(*ids):
+        """Skeletons that put every named node on one new row.
+
+        Args:
+            ids: The element ids dagre placed, in left-to-right order.
+
+        Returns:
+            A skeleton list far enough from the seed's own coordinates
+            that every node earns a `mod x/y` op.
+        """
+        return [{"id": "n_" + eid, "type": "rectangle", "x": i * 300,
+                 "y": 400, "width": 140, "height": 60}
+                for i, eid in enumerate(ids)]
+
+    def test_relayout_names_the_node_the_user_dragged(self):
+        """The guard reads PLACEMENT authorship, not creation authorship.
+
+        `r5-11`: the guard filtered `customData.author == "user"` over an
+        ops list that only ever holds nodes the AGENT created — the empty
+        set by construction, so the one thing the NOTE exists to protect
+        was the one thing it could never name. A drag writes no `author`;
+        it writes a position. So the position gets its own authorship.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        els = self.scene()
+        for e in els:
+            if e["id"] == "payment":
+                e["x"] += 64
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els})
+        out = self._relayout("checkout-flow",
+                             self._dagre_row("cart", "checkout", "payment",
+                                             "confirm"))
+        note = next((ln for ln in out.splitlines()
+                     if ln.startswith("NOTE=")), "")
+        self.assertIn("1 user-placed node", note)
+        self.assertIn("payment", note)
+        # and it names ONLY that one — the other three moved too
+        for other in ("cart", "checkout", "confirm"):
+            self.assertNotIn(other, note)
+
+    def test_relayout_over_an_untouched_flow_says_nothing(self):
+        """The other pole: agent-drawn placement is the agent's to redo.
+
+        Without this arm the fix could be `moved_user = ops` — every
+        node named on every re-layout, which reads as caution and is
+        noise the user cannot act on.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        out = self._relayout("checkout-flow",
+                             self._dagre_row("cart", "checkout", "payment",
+                                             "confirm"))
+        # three of the four move: the re-layout anchors dagre's min
+        # corner onto the current one, so the leftmost node stays put
+        self.assertIn("MOVES=3", out)       # the re-layout really ran
+        self.assertNotIn("user-placed", out)
+
     def test_cmd_refusals(self):
         """Unmapped types, existing artifacts and subgraphs refuse with
         named reasons; the ER path needs no server at all."""

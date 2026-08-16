@@ -11442,6 +11442,51 @@ class Store:
                       "meta": meta.get(aid, {})}
                 for aid, els in state.items()}
 
+    def user_placed_ids(self, aid, revn=None):
+        """Elements in `aid` whose position was last set by a human.
+
+        PLACEMENT authorship, which is not creation authorship and was
+        being confused with it: `--relayout`'s "this would move N
+        user-placed nodes" guard filtered `customData.author == "user"`
+        over an ops list that only ever holds nodes the AGENT drew, so it
+        matched the empty set by construction and the one thing it exists
+        to protect was the one thing it could never name (`r5-11`).
+
+        DERIVED from the record chain rather than stamped onto the
+        element. A stamp was built first and measured: `customData` is in
+        this project's `significant_attrs`, so writing a `placed_by` key
+        on save emits a `mod` change beside the `move` — and
+        `mark_consequences` skips any move whose element also modded, so
+        every "these all shifted because you inserted a node" collapse
+        silently stopped happening. History already knows who moved what;
+        a second copy of it could only drift.
+
+        The last mover wins, so an agent re-layout the user consented to
+        hands the claim back. That is the honest reading of a guard whose
+        whole sentence is "their placement is theirs": once they let it be
+        re-laid, the position on the canvas is the agent's again.
+
+        Args:
+            aid: The artifact to read.
+            revn: Revision to read as of; defaults to head.
+
+        Returns:
+            The set of element ids a user save last positioned.
+        """
+        placed = {}
+        for r in self.lineage(self.head_revn() if revn is None else revn):
+            rec = self.records[r]
+            who = rec.get("author")
+            for ch in ((rec.get("artifacts") or {}).get(aid) or {}) \
+                    .get("changes") or []:
+                if ch.get("op") == "move":
+                    placed[ch["id"]] = who
+                elif ch.get("op") == "add":
+                    placed[ch["element"]["id"]] = who
+                elif ch.get("op") == "del":
+                    placed.pop(ch["element"]["id"], None)
+        return {eid for eid, who in placed.items() if who == "user"}
+
     # -- commit -----------------------------------------------------------
     def commit(self, author, new_scenes, base_revn=None, selection=None,
                user_note=None, fork_name=None, registry_ops=None,
@@ -16323,9 +16368,13 @@ def _cmd_mermaid_relayout(args, project, store):
         print_kv(relayout="noop",
                  note="dagre agrees with the current placement")
         return 0
-    moved_user = [o["id"] for o in ops
-                  if (ix[o["id"]].get("customData") or {})
-                  .get("author") == "user"]
+    # PLACEMENT authorship, not creation authorship: every node in an
+    # agent-seeded flow was CREATED by the agent, so the old
+    # `customData.author == "user"` filter ran over the empty set by
+    # construction (`r5-11`). `user_placed_ids` reads who moved each
+    # element last out of the record chain.
+    placed = store.user_placed_ids(aid)
+    moved_user = [o["id"] for o in ops if o["id"] in placed]
     if moved_user:
         print("NOTE=this would move %d user-placed node(s): %s — their "
               "placement is theirs; under pulled cadence the banner asks "
