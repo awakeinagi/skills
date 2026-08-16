@@ -2,6 +2,8 @@
 
 Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 """
+from __future__ import annotations
+
 import argparse
 import base64
 import contextlib
