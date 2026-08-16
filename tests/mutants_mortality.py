@@ -1,4 +1,4 @@
-"""Detector mortality: kill each registered check, require its death to hurt.
+r"""Detector mortality: kill each registered check, require its death to hurt.
 
 Every check this repo registers is supposed to be held down by some
 behavioural test. This module measures whether that is true, the only way it
@@ -46,17 +46,31 @@ which it recorded as "a RED pin turning UNEXPECTED SUCCESS".
 
 That measurement is deliberately NOT stated as a fraction of the suite's
 reds, and the earlier draft that did state it that way is worth keeping as a
-warning. It said "zero of the suite's 19 reds" — and 19 was the MODEL tier's
-`expected failures` count at `bc48bb1`, carried forward by hand into a
-sentence dated to a later commit where it was already wrong (24 at `a2f5e6a`,
-and the render tier's reds were never in it). Exactly the stale-number
-failure this module's own provenance line exists to prevent, committed one
-level up in the prose. A red count is also the wrong instrument even when
-it is current: reds are added and flipped constantly, only silence-shaped
-ones can ever contribute, and flipping a NON-silence-shaped red moves the
-correction by nothing at all. So before reading a witness-count delta as a
-lost guard, read the `unexpected` list the driver already reports for the run
-in front of you. Never count reds.
+warning — including the fact that the first correction of it was also wrong.
+The draft said "zero of the suite's 19 reds". **19 was real**: the whole
+suite's run-time `expected failures` count at `bc48bb1`, the first baseline
+taken here. It was carried by hand into a sentence dated to `2cca618`, where
+the true figure was 25 (24 at `7cc146a`). So the number was never invented,
+only MIS-DATED — and mis-dating is the failure mode that actually recurs in
+this repo, which the first fix of this paragraph obscured by calling it a
+tier-attribution error instead.
+
+A red count is the wrong instrument even when it is current. Reds are added
+and flipped constantly, only silence-shaped ones can ever contribute, and
+flipping a NON-silence-shaped red moves the correction by nothing at all.
+`tests/test_mutants.py` has carried a paragraph making this same argument
+about its own red census since before this module existed: that a bare
+`grep -c @unittest.expectedFailure` OVERCOUNTS because several matches are
+prose, that the honest count is
+`grep -cE '^\s*@unittest\.expectedFailure\s*$'` or the runner's own line, and
+that the figure it used to quote "is derivable, it went stale twice", so it
+was deleted rather than recounted. Two agents then reproduced that lesson
+from scratch, in the file next door, by quoting a stale red count and
+mis-diagnosing it with a bare grep. Read that paragraph before you count
+anything here.
+
+Better: do not count. Read the `unexpected` list the driver already reports
+for the run in front of you. Never count reds.
 
 AND THE RENDER TIER'S WITNESS COUNTS CARRY ±1 OF NOISE THAT IS NOT THE
 DETECTOR'S. Measured directly: every render kill run TWICE at `2cca618`, same
