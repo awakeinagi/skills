@@ -108,6 +108,9 @@ MIN_BLOB = 12
 # in pixels. Wide enough to hold a whole stroke including its anti-aliased
 # skirt — the ends being compared are 2px strokes, and a band thinner than
 # the stroke would read one edge of it and call that the direction it points.
+# A CEILING, not the value used: `_side_band` halves it on any component too
+# thin to hold two of them, or a scrap narrower than 8px reports its own
+# length at both ends.
 _BAND = 4
 
 # One pixel of slack on each end before they are compared, which is the same
@@ -552,9 +555,22 @@ def _delta_components(w: int, h: int, blobs: list[dict[str, Any]],
     component comes out of it a solid rectangle, and on the back-edge
     scene one of them is 33x larger than the stroke inside it. So each
     component's real ink is recovered here by intersecting its members
-    with the residual mask, and immediately reduced to four spans by
-    `_edge_profiles`. The pixel lists never leave this function; what
-    `_completed_by_eye` gets is a direction per end, not a picture.
+    with the residual mask, and reduced to four spans by `_edge_profiles`.
+
+    THE INK ITSELF NOW TRAVELS WITH IT, in `"ink"`, which reverses a line
+    this docstring used to draw ("the pixel lists never leave this
+    function"). That line was drawn against reasoning from BOXES, and it
+    is kept in force where it matters: `_completed_by_eye` still decides
+    on spans, and the four spans are still what the predicate compares.
+    What the ink buys is the ability to ask a component WHERE its ink
+    faces a given lane, which four spans cannot answer for a component
+    that doubles back — such a piece has two ends on one side and `ends`
+    records one span per side, so the second one is not mis-ranked but
+    absent (v0.9 Task 24 follow-up; `_facing_end`). The pixels are read
+    only through that question.
+
+    Coordinate pairs and not flat indices, so nothing downstream needs
+    the raster width to interpret them.
 
     Args:
         w: Raster width in pixels.
@@ -567,7 +583,7 @@ def _delta_components(w: int, h: int, blobs: list[dict[str, Any]],
 
     Returns:
         The merged components of at least `MIN_BLOB` pixels, each with
-        `"ends"` alongside its `"area"` and `"bbox"`.
+        `"ends"` and `"ink"` alongside its `"area"` and `"bbox"`.
     """
     mask = bytearray(w * h)
     for blob in blobs:
@@ -580,21 +596,60 @@ def _delta_components(w: int, h: int, blobs: list[dict[str, Any]],
     for c in components(w, h, mask, pixels=True):
         if c["area"] < MIN_BLOB:
             continue
-        c["ends"] = _edge_profiles(w, c["bbox"],
-                                   [i for i in c.pop("pixels") if residual[i]])
+        flat = [i for i in c.pop("pixels") if residual[i]]
+        c["ends"] = _edge_profiles(w, c["bbox"], flat)
+        c["ink"] = [(i % w, i // w) for i in flat]
         out.append(c)
     return out
+
+
+def _side_band(extent: int) -> int:
+    """How deep one end's band reaches into a component, on one axis.
+
+    `_BAND` is the depth a stroke's end needs to be seen whole, and it is
+    a CEILING here rather than the value: on a component narrower than
+    two bands the leftmost columns and the rightmost columns are the same
+    columns, both ends report the component's whole length, and the two
+    opposite ends come back not merely wrong but IDENTICAL — a span with
+    no direction in it at all (curator batch 23 item 8; the corpus
+    instance is a 2x7 scrap of a sloped run). Halving the extent makes
+    the two bands disjoint at every width of 2 or more, so an end is
+    always a side and never the whole thing.
+
+    The floor of 1 is the honest answer for a 1px extent and not a
+    guard: a component one column wide has one column, and both of its
+    horizontal ends really are it.
+
+    THE REPAIR BELONGS HERE and not downstream, measured rather than
+    inherited (the pin records the measurement): the tempting one-line
+    alternative is `_ends_line_up` comparing against `min()` of the two
+    spans instead of `max()`, and replaying both shape tables under that
+    patch REOPENS two of the four over-merges `_SEVERED_SHAPES` pins.
+    The wrong number is produced here, so it is corrected here.
+
+    Args:
+        extent: The component's inclusive size on this axis, in pixels.
+
+    Returns:
+        The band depth to use for both ends on that axis.
+    """
+    return max(1, min(_BAND, extent // 2))
 
 
 def _edge_profiles(w: int, bbox: tuple[int, ...],
                    ink: list[int]) -> dict[str, tuple[int, int]]:
     """Where a component's ink sits at each of its four ends.
 
-    Each side maps to the CROSS-AXIS span of the ink within `_BAND` of
+    Each side maps to the CROSS-AXIS span of the ink within a band of
     that side of the bounding box: `"left"` is the y-range of ink in the
     leftmost columns, `"bottom"` the x-range of ink in the bottom rows.
     An L-shaped remnant's `"bottom"` is therefore its leg's foot — two
     columns — and not the 158 columns its bbox is wide.
+
+    The band is `_side_band` of that axis's extent and not `_BAND`
+    flat, so the two opposite ends of a thin component are measured on
+    disjoint ink. Above `2 * _BAND` the two are the same number and
+    nothing about the ordinary case moves.
 
     Taken over the WHOLE merged component, deliberately, and not per
     member blob and unioned: a merged component's bbox edge band cuts
@@ -609,18 +664,19 @@ def _edge_profiles(w: int, bbox: tuple[int, ...],
 
     Returns:
         One `(lo, hi)` span per side named, inclusive. A side with no ink
-        within `_BAND` is absent — which cannot happen for a component
+        within its band is absent — which cannot happen for a component
         built from blob bounding boxes, since each of the four extremes
         of that union is a place some blob had ink.
     """
     x0, y0, x1, y1 = bbox
+    xb, yb = _side_band(x1 - x0 + 1), _side_band(y1 - y0 + 1)
     out: dict[str, tuple[int, int]] = {}
     for i in ink:
         x, y = i % w, i // w
-        for side, hit, q in (("left", x < x0 + _BAND, y),
-                             ("right", x > x1 - _BAND, y),
-                             ("top", y < y0 + _BAND, x),
-                             ("bottom", y > y1 - _BAND, x)):
+        for side, hit, q in (("left", x < x0 + xb, y),
+                             ("right", x > x1 - xb, y),
+                             ("top", y < y0 + yb, x),
+                             ("bottom", y > y1 - yb, x)):
             if not hit:
                 continue
             span = out.get(side)
@@ -693,10 +749,12 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
       break they actually have is 40px along the top run, so the
       prefilter picks an axis whose facing ends are not the ones facing
       the gap. The two-piece model does not describe this shape.
+      CLOSED by v0.9 Task 24 follow-up — `_facing_end`, below.
     - `argus-r4-arm3/enrichment-pipeline` `e-edgar-insider`. A component
       only 2px wide has its WHOLE ink inside `_BAND`, so a sloped run's
       2x7 scrap reports a 7-row "end" and the ratio's denominator is the
-      scrap's length rather than a stroke's width.
+      scrap's length rather than a stroke's width. CLOSED by the same
+      task — `_side_band`.
     - `argus-r4-arm3/enrichment-pipeline` `e-edgar-sent`, which is not
       this predicate's doing at all: that label rides across ANOTHER
       arrow's stroke, so ablating it un-covers foreign ink 177 rows away
@@ -712,9 +770,39 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
     overlap, which is F1's class, and this tier was meant to be the
     backstop for precisely that. F1 itself closed at 636da5d.
 
+    THE DOUBLED-BACK CASE, and why the bbox bands alone cannot decide it
+    (v0.9 Task 24 follow-up, from batch 23 item 7 — the first residue
+    above). `ends` records ONE span per side, and a component that turns
+    and comes back under itself has TWO ends on the same side: the
+    back run's, at the bbox edge, and the top run's, 30px inside it. The
+    band sees only the nearer, so a stub continuing into the top run was
+    compared against the back run 69 rows away and the pair came apart.
+    No constant moves that — the right end is not mis-ranked, it is
+    absent from the structure.
+
+    So when the recorded spans do not line up, each piece's facing end is
+    asked for AGAIN, this time against the other's lane (`_facing_end`),
+    and the answer is compared instead. Two properties keep that from
+    being a widening in disguise:
+
+    * IT CANNOT NARROW. The recorded-span test runs FIRST and unchanged,
+      so nothing that merged before stops merging. The second question is
+      only ever asked of a pair already refused.
+    * THE ANCHOR IS THE NARROWER END, both directions tried, and this is
+      the constraint the shape was chosen for rather than a tidiness. An
+      end's span is a stroke's cross-section where the end is real and
+      the piece's whole width where it is not, so anchoring on the
+      narrower one asks "where is the vague piece's ink, in the lane the
+      definite piece points down". Reversed, the L in
+      `_SEVERED_SHAPES`' fourth scene answers with its top run 116 rows
+      from the gap, and two PARALLEL runs then satisfy the ratio and
+      merge — which is the r5-14 over-merge this whole predicate exists
+      to refuse. Measured, not feared: that scene merges under the
+      unguarded version.
+
     Args:
         a: One component from `_delta_components`, with an inclusive
-            `bbox` of `(x0, y0, x1, y1)` and the `ends` spans.
+            `bbox` of `(x0, y0, x1, y1)`, the `ends` spans and its `ink`.
         b: The other component, same shape.
 
     Returns:
@@ -734,6 +822,124 @@ def _completed_by_eye(a: dict[str, Any], b: dict[str, Any]) -> bool:
             continue
         near, far = (lo, hi) if u1 < w1 else (hi, lo)
         if _ends_line_up(a["ends"][near], b["ends"][far]):
+            return True
+        if _relocated_ends_line_up(a, near, b, far):
+            return True
+    return False
+
+
+# Which axis a side name lies on, and whether it is that axis's LOW end.
+# A table because the two facts are read together and deriving either from
+# the other is how `_completed_by_eye`'s own comment says the square-bbox
+# misreading gets in.
+_SIDE_AXIS: dict[str, tuple[int, bool]] = {
+    "left": (0, True), "right": (0, False),
+    "top": (1, True), "bottom": (1, False)}
+
+
+def _facing_end(c: dict[str, Any], side: str,
+                lane: tuple[int, int]) -> tuple[int, int] | None:
+    """Where `c`'s ink faces a lane, when its bbox edge is facing elsewhere.
+
+    `_edge_profiles` anchors an end at the component's own bounding box,
+    which is right for a piece with one end per side and wrong for one
+    that doubles back. This asks the question the other way round: given
+    the lane the facing piece points down, find `c`'s closest approach to
+    that piece WITHIN the lane, and profile the band there.
+
+    The lane is grown by `2 * _SLACK`, which is not a fudge but the exact
+    reach of `_ends_line_up`: that comparator grows each of its two spans
+    by `_SLACK` before intersecting, so ink further out than two could
+    not have contributed an overlap anyway. Widening by exactly that much
+    is what makes this incapable of answering `None` where the recorded
+    spans would have merged.
+
+    The band is BOUNDED AT THE FACING COORDINATE and not merely capped
+    `depth` beyond it — `edge <= p < edge + depth`, both sides. The lane
+    is what located `edge`, so a piece with ink further out on the same
+    axis OUTSIDE the lane still has it, and a one-sided test hands that
+    ink back: on the back-loop it put the back run's own columns into the
+    top run's end and answered with the whole 71-row height. Caught by
+    the pin refusing to flip, which is the pair working as designed.
+
+    Within the band the span is then measured over ALL of `c`'s ink in
+    the stroke it found and not just the lane's share, equally
+    deliberately. Clipping the span to the lane would make every
+    comparison self-fulfilling — a span cut to the lane overlaps the lane
+    by construction — and on the back-loop's severed twin that is the
+    difference between refusing and merging two parallel runs 68 rows
+    apart. So the restriction is by CONTIGUITY, which is a property of
+    the ink, and not by the lane, which is the question being asked.
+
+    Args:
+        c: The component to ask, with `bbox` and `ink`.
+        side: Which of `c`'s sides faces the gap.
+        lane: The other piece's end span, on the cross axis.
+
+    Returns:
+        The inclusive cross-axis span of `c`'s ink at that end, or None
+        when `c` has no ink in the lane at all — no ink facing the lane
+        is no end facing it, and there is nothing to compare.
+    """
+    axis, low = _SIDE_AXIS[side]
+    lo, hi = lane[0] - 2 * _SLACK, lane[1] + 2 * _SLACK
+    inside = [p for p in c["ink"] if lo <= p[1 - axis] <= hi]
+    if not inside:
+        return None
+    x0, y0, x1, y1 = c["bbox"]
+    depth = _side_band((x1 - x0 if axis == 0 else y1 - y0) + 1)
+    if low:
+        edge = min(p[axis] for p in inside)
+        band = [p for p in c["ink"] if edge <= p[axis] < edge + depth]
+    else:
+        edge = max(p[axis] for p in inside)
+        band = [p for p in c["ink"] if edge - depth < p[axis] <= edge]
+    # An end is ONE stroke's cross-section, so it is CONTIGUOUS, and on a
+    # doubled-back piece that is the difference between an answer and the
+    # component's height: the back run crosses under the top run's own
+    # columns, so the band there holds two strokes 67 rows apart and the
+    # bare min/max reads the pair as one 71-row end. Take the run holding
+    # the ink that located `edge` and leave the rest of the band alone.
+    # Contiguous to within `_SLACK` — a 1px hole is the anti-aliasing
+    # budget the comparator already spends, not a second stroke.
+    qs = sorted({p[1 - axis] for p in band})
+    i = qs.index(next(p[1 - axis] for p in inside if p[axis] == edge))
+    lo_i = hi_i = i
+    while lo_i > 0 and qs[lo_i] - qs[lo_i - 1] - 1 <= _SLACK:
+        lo_i -= 1
+    while hi_i < len(qs) - 1 and qs[hi_i + 1] - qs[hi_i] - 1 <= _SLACK:
+        hi_i += 1
+    return (qs[lo_i], qs[hi_i])
+
+
+def _relocated_ends_line_up(a: dict[str, Any], near: str,
+                            b: dict[str, Any], far: str) -> bool:
+    """Do the two pieces line up once the vague end is looked for again?
+
+    The doubled-back arm of `_completed_by_eye`, kept out of it so the
+    cheap path reads as the two lines it is. Only the piece with the
+    WIDER recorded end is relocated, and only against the narrower one's
+    lane — see that function's note for the over-merge the other
+    direction reopens. Equal widths qualify both ways, which is the
+    ordinary case for two stroke ends and is what makes this independent
+    of the order the caller happened to pair the components in.
+
+    Args:
+        a: One component, whose `near` side faces the gap.
+        near: `a`'s facing side.
+        b: The other component, whose `far` side faces the gap.
+        far: `b`'s facing side.
+
+    Returns:
+        True if either relocation reads as one stroke.
+    """
+    for anchor, a_side, other, o_side in ((a, near, b, far),
+                                          (b, far, a, near)):
+        lane, wide = anchor["ends"][a_side], other["ends"][o_side]
+        if lane[1] - lane[0] > wide[1] - wide[0]:
+            continue    # the anchor is the vaguer of the two ends
+        end = _facing_end(other, o_side, lane)
+        if end is not None and _ends_line_up(lane, end):
             return True
     return False
 
@@ -2587,12 +2793,21 @@ def _stripe_png(w: int, h: int, period: int, jitter: int = 0) -> bytes:
     decodes perfectly and contains nothing.
 
     `jitter` IS THE WHOLE EXPERIMENT and the reason this takes a second
-    parameter. Measured 2026-08-16 across three periods: with clean bands
-    (`jitter` 0) the tier reports NOTHING, and with the phase wobbling a
-    few px per row it reports continuity findings. Same density, same
-    band widths, opposite verdicts — so what decides whether this tier
-    can see the corruption is how COHERENT the garbage is, not how dense.
-    Both textures are things a broken readback produces.
+    parameter. With clean bands (`jitter` 0) the tier reports NOTHING;
+    with the phase wobbling enough px per row it invents continuity
+    findings. Same density, same band widths, opposite verdicts — so
+    what decides whether this tier says anything at all is the TEXTURE
+    of the garbage and not how dense it is. Both are things a broken
+    readback produces.
+
+    RE-MEASURED 2026-08-16 (v0.9 TASK-24-FOLLOW-UP): the wobble at which
+    it starts is not a threshold. It read as one — silent to 2px,
+    reporting from 4 — and after `_facing_end` the sweep is silent to
+    14px and sporadic above it. Sweep before quoting a number; the
+    sibling test carries the current one.
+
+    Deterministic by a written-in seed, so a sweep is reproducible and a
+    plateau in it is a real plateau rather than a lucky draw.
 
     Args:
         w: Raster width in px.
@@ -2781,9 +2996,19 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
         down: the tier is not blind to corruption in general. Dense
         per-pixel noise IS caught — the tolerant diff erases it, every
         delta comes back empty, and every element reads as missing, which
-        is the loud safe answer. The blindness is specific to COHERENT
-        garbage, and pinning it as though it were general would be a
-        wrong pin that a later measurement would have to undo.
+        is the loud safe answer.
+
+        HOW WIDE THE BLINDNESS IS, re-measured 2026-08-16 by v0.9
+        TASK-24-FOLLOW-UP and BROADER than this pin used to say. It read
+        "specific to COHERENT garbage", on a sibling measurement that
+        found a sharp boundary at 4px of phase wobble. After
+        `_facing_end` that boundary is a scatter: banding is silent at
+        every wobble from 0 to 14px and sporadically reporting above it.
+        So the class this red pins is "banded garbage", coherent or
+        moderately wobbled, and the honest statement of its edge is that
+        there is no clean edge — read the sibling's re-measured sweep
+        rather than inferring one. The ASSERTION here has not moved and
+        neither has the defect; only the size of the class it stands for.
 
         WHY NOT THE DENSITY FLOOR: these rasters run under 0.010
         bytes/px and `validate_png`'s `min_bpp=0.05` would refuse them —
@@ -2817,18 +3042,11 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
 
     def test_wobbling_the_bands_makes_the_tier_invent_a_finding_instead(
             self) -> None:
-        """The red's boundary: it speaks, and what it says is false.
-
-        This is what makes the red above a statement about COHERENCE
-        rather than a general claim that the tier cannot read corrupt
-        input. Same injection, same scene, same band widths, same density
-        to three decimals — only the phase wobble changes, and the
-        measured boundary is sharp: silent at 0, 1 and 2px of wobble, and
-        from 4px it starts reporting.
+        """The other failure mode: it speaks, and what it says is false.
 
         WHAT IT REPORTS IS THE POINT, and it is why this test is not
-        titled "caught". At 8px of wobble the tier says `s1`'s and `s2`'s
-        ink comes apart in 2 separated pieces — a specific, confident,
+        titled "caught". On the wobbled raster the tier says `s2`'s ink
+        comes apart in 2 separated pieces — a specific, confident,
         entirely false statement ABOUT THE DRAWING, derived from a raster
         that contains no drawing. It is not a complaint about the render.
 
@@ -2838,21 +3056,52 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
         vocabulary at all for "I cannot measure this". That is the
         sentence its owner needs, and neither test alone says it.
 
-        Its second job is rule 8: findings coming back here prove the
-        injection reaches the instrument, so the red's silence next door
-        is evidence about coherent garbage rather than about a
-        `mock.patch` that bound nothing.
+        RE-MEASURED 2026-08-16 (v0.9 TASK-24-FOLLOW-UP), and the pin
+        caught the change rather than being adjusted to it — this test
+        went red on the continuity widening and is what sent anyone
+        looking. WHAT IT USED TO SAY, and no longer can: that the
+        boundary is SHARP and the red beside it is therefore about
+        COHERENCE — silent at 0, 1 and 2px of wobble, reporting from 4px,
+        both elements at 8px. After `_facing_end` the same sweep is a
+        SCATTER and not a threshold: silent at every wobble from 0 to 14,
+        one element at 16, silent at 18-21, one element at 22 and 24-26,
+        silent at 27-33, one at 34-38, silent at 40. So the constants
+        move to 25 — the middle of the widest measured plateau, 24-26 —
+        and the CLAIM narrows with them, to "wobbled banding CAN make
+        this tier invent a finding" from "wobble is what decides".
+
+        THE CONSEQUENCE BELONGS TO THE RED'S OWNER and is not repaired
+        here: that red's own docstring cited this boundary for the
+        sentence "the blindness is specific to COHERENT garbage", and
+        that sentence is now false in the direction that makes the red
+        BROADER — clean banding and 8px-wobbled banding are both silent
+        now. The red is untouched and still red; what changed is the
+        scope of the class it pins, which is corrected in its prose.
+
+        Not a regression to mourn, on the reading this file already
+        takes: a false finding about a drawing that is not there is
+        exactly what the title calls it, so fewer of them is not the tier
+        getting worse. The gap the red names — no vocabulary for "I
+        cannot measure this" — is untouched either way.
+
+        Its second job is rule 8, and it is the SECONDARY holder of it:
+        findings coming back here prove the injection reaches the
+        instrument, and `test_both_client_checks_fire_through_the_
+        injected_renderer` below holds that same proof on honest rasters
+        where no texture measurement can move it.
         """
-        shots = {"full": _stripe_png(self.W, self.H, 31, jitter=8),
-                 "abl-s1": _stripe_png(self.W, self.H, 29, jitter=8),
-                 "abl-s2": _stripe_png(self.W, self.H, 37, jitter=8)}
+        shots = {"full": _stripe_png(self.W, self.H, 31, jitter=25),
+                 "abl-s1": _stripe_png(self.W, self.H, 29, jitter=25),
+                 "abl-s2": _stripe_png(self.W, self.H, 37, jitter=25)}
         finds = self._findings(shots, ["s1", "s2"])
         self.assertEqual(
             sorted((f["check"], f["element"]) for f in finds),
-            [("ablation_continuity", "s1"), ("ablation_continuity", "s2")],
+            [("ablation_continuity", "s2")],
             "wobbled banding no longer produces the invented continuity "
-            "findings this pair was measured on, so the red beside it has "
-            "stopped being about coherence and both need re-measuring: %r"
+            "finding this scene was measured on, so the red beside it has "
+            "stopped having a firing pole at all and both need "
+            "re-measuring — sweep `jitter` before choosing a new constant, "
+            "because this stopped being a threshold: %r"
             % ([(f["check"], f["element"], f["magnitude"])
                 for f in finds],))
         self.assertEqual(
@@ -3344,32 +3593,45 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
         self.assertEqual(parts[0]["ends"]["bottom"], (200, 283))
         self.assertEqual(parts[0]["ends"]["left"], (59, 60))
 
-    @unittest.expectedFailure
     def test_a_back_loop_broken_mid_run_reads_as_one_stroke(self) -> None:
-        """RED, curator batch 23 item 7. Owner: wave/Task 24-follow-up.
+        """FLIPPED 2026-08-16 by v0.9 TASK-24-FOLLOW-UP.
 
-        `ablation_continuity` over-fires on a connector that doubles back
-        under itself. The label breaks the top run — the tool's own
-        idiom, which every other scene in this class reads as one stroke
-        — and this one comes apart, because the back run stops 10px short
-        of the left stub and so the boxes separate in x while the gap is
-        in the top run.
+        `_facing_end` asks the doubled-back piece where its ink faces the
+        stub's lane rather than taking the span at its own bbox edge, and
+        the answer is the top run's left end at rows 50-51 — the same two
+        rows the stub ends on. The assertion below is unchanged.
 
-        Magnitude and direction, both in the numbers the failure prints:
-        the predicate reports 2 pieces where a reader sees 1, and the
-        ends it compared are 69 rows apart (the stub's right end at rows
-        50-51 against the piece's left end at rows 119-120) when the ends
-        across the gap are the same two rows on both sides. Over-fire,
-        not under-fire — the check speaks where it should be silent,
-        which on a corpus run costs a false severance report on 1.7% of
-        arrows rather than a missed one.
+        THE NEIGHBOUR BELOW DID THE WORK, during the fix and not after
+        it: two drafts of `_facing_end` satisfied this test and merged
+        the severed twin or the L-and-run pair `_SEVERED_SHAPES` pins,
+        and both were caught by the poles before anything was believed.
+        A one-sided band handed the back run's own columns into the top
+        run's end; an unguarded anchor choice let a long horizontal run
+        stand in as another long horizontal run's end.
 
-        No constant moves this. The piece that doubles back has two ends
-        on its left side and `ends` records one span per side, so the
-        right ends are not merely mis-ranked, they are absent from the
-        structure. The fix is to the two-piece model — either ends per
-        RUN rather than per side, or a prefilter that chooses its axis by
-        where the ink faces rather than by which projection separates.
+        `ablation_continuity` used to over-fire on a connector that
+        doubles back under itself. The label breaks the top run — the
+        tool's own idiom, which every other scene in this class reads as
+        one stroke — and this one came apart, because the back run stops
+        10px short of the left stub and so the boxes separate in x while
+        the gap is in the top run.
+
+        Magnitude and direction as they stood, both in the numbers the
+        failure printed: the predicate reported 2 pieces where a reader
+        sees 1, and the ends it compared were 69 rows apart (the stub's
+        right end at rows 50-51 against the piece's left end at rows
+        119-120) when the ends across the gap are the same two rows on
+        both sides. Over-fire, not under-fire — the check spoke where it
+        should be silent, which on a corpus run cost a false severance
+        report on 1.7% of arrows rather than a missed one.
+
+        No constant moved it, and the pin said so: the piece that doubles
+        back has two ends on its left side and `ends` records one span per
+        side, so the right end was not merely mis-ranked, it was absent
+        from the structure. Of the two routes named here the fix took the
+        second — the ends are found by where the ink faces, not by which
+        projection separates — and `ends` itself is untouched, so the
+        first route stays available to whoever needs it next.
         """
         groups = _synthetic_strokes(_BACK_LOOP_BROKEN_MID_RUN)
         self.assertEqual(
@@ -3402,43 +3664,56 @@ class TestContinuityNarrowingRegime(unittest.TestCase):
             "and a vertical leg 199px to its right have been completed "
             "into one stroke" % len(groups))
 
-    @unittest.expectedFailure
     def test_a_thin_sloped_scrap_reports_an_end_not_its_length(self) -> None:
-        """RED, curator batch 23 item 8. Owner: wave/Task 24-follow-up.
+        """FLIPPED 2026-08-16 by v0.9 TASK-24-FOLLOW-UP.
 
-        `_edge_profiles` reports a component's whole LENGTH as its end
-        when the component is thinner than `_BAND`. The corpus instance
-        is `argus-r4-arm3/enrichment-pipeline`'s `e-edgar-insider`, whose
-        ablation leaves a 2x7 scrap of a sloped run; this is that shape
-        at 3 columns, the fewest that carries `MIN_BLOB`'s 12 pixels.
+        `_side_band` caps each end's band at half the component's extent
+        on that axis, so the two opposite ends are measured on disjoint
+        ink at every width of 2px or more. The assertion below is
+        unchanged; the scrap's right end is now its rightmost column's 4
+        rows, and its left end the leftmost column's, 6 rows apart.
+
+        `_edge_profiles` used to report a component's whole LENGTH as its
+        end when the component was thinner than `_BAND`. The corpus
+        instance is `argus-r4-arm3/enrichment-pipeline`'s
+        `e-edgar-insider`, whose ablation leaves a 2x7 scrap of a sloped
+        run; this is that shape at 3 columns, the fewest that carries
+        `MIN_BLOB`'s 12 pixels.
 
         The scrap steps down one row per column, so its leftmost column
         holds rows 0-3 and its rightmost rows 6-9 — genuinely different
-        ends, 6 rows apart. Both are reported as `(0, 9)`: at 3 columns
-        against a 4px band, `x < x0 + _BAND` and `x > x1 - _BAND` select
-        every pixel, so the two opposite ends are not merely wrong but
-        IDENTICAL, and the span carries no direction at all. Magnitude:
-        10 rows reported where 4 is the ink. Direction: over, on both
-        ends, which is the direction that refuses continuations —
+        ends, 6 rows apart. Both were reported as `(0, 9)`: at 3 columns
+        against a flat 4px band, `x < x0 + _BAND` and `x > x1 - _BAND`
+        selected every pixel, so the two opposite ends were not merely
+        wrong but IDENTICAL, and the span carried no direction at all.
+        Magnitude: 10 rows reported where 4 is the ink. Direction: over,
+        on both ends, which is the direction that refuses continuations —
         `_ends_line_up` measures against `max()` of the two spans, so a
-        10-row phantom end demands ~6 rows of overlap from a real 2-row
-        stroke end and never gets it.
+        10-row phantom end demanded ~6 rows of overlap from a real 2-row
+        stroke end and never got it.
 
         Asserted as a span WIDTH rather than as an expected pair, because
-        the fix's shape is not this pin's to choose: capping the profile
+        the fix's shape was not this pin's to choose: capping the profile
         at the component's own cross-section is the obvious route and any
-        route that stops reporting the length satisfies this.
+        route that stops reporting the length satisfies this. That is the
+        route taken — `_side_band`, half the extent — and the pin is left
+        as the width bound it was written as rather than tightened to the
+        pair the current implementation happens to produce, since the
+        claim is still "an end is not a length".
 
-        THE CONSTRAINT THE FIX MUST RESPECT, measured rather than
-        inherited: the tempting one-line repair is downstream, changing
+        THE CONSTRAINT THE FIX RESPECTS, measured rather than inherited:
+        the tempting one-line repair was downstream, changing
         `_ends_line_up` to measure against `min()` of the two spans
         instead of `max()`. That silences this scrap and REOPENS two of
         the four over-merges `_SEVERED_SHAPES` pins — "a stub 67px clear
         of the L's leg" and "a T-corner pair sharing one row of band"
         both drop from 2 pieces to 1. Verified by patching
         `_ends_line_up` in a throwaway tree and replaying both shape
-        tables. So the repair belongs in the PROFILE, where the wrong
-        number is produced, and not in the ratio that consumes it.
+        tables. So the repair went into the PROFILE, where the wrong
+        number was produced, and not into the ratio that consumes it —
+        and `_ends_line_up` is untouched, which is what leaves that
+        measurement standing as a live constraint on the next repair
+        rather than as a spent one.
         """
         ink = [y * 400 + x for x0, y0, x1, y1 in _THIN_SLOPE
                for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
