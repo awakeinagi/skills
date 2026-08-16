@@ -256,28 +256,67 @@ the sentence failing to complete IS the test that the reading isn't ready.
 
 ## The event loop — watch the log, react to their moves
 
-This is standing procedure, not a fallback: **after every move of yours,
-arm a watch on the events log and react to what lands.** The log path is
-printed by `start` and `status` as `EVENTS_LOG=`; one JSON line per event.
+**This is standing procedure, not a fallback. After every move of yours,
+arm a watch on the events log, and treat what lands as the user's move.**
+The log path is printed by `start` and `status` as `EVENTS_LOG=`; one
+JSON line per event.
 
-- **Tier 1**: `Monitor` the file with `persistent: true` — you are
-  re-invoked per event, your turn still ends normally. **Filter to the
-  user's events or you will be woken by your own echoes** — the log
-  carries every `agent_revision` you apply (in a real session that was
-  87% of the traffic, and an unfiltered agent narrated its own drawing
-  back as the user's move). The filter that works:
-  `grep -E '"type": ?"(save|pin_answer|tripwire_answer|branch_switch|suggest_view|config_changed|reconciliation)"'`
-- **Tier 3**: `canvas.py wait --timeout 540` when no Monitor tool exists —
-  it now defaults to `--for user` (same filter, server-side); exits 3 on
-  timeout, always strictly under Bash's 600s ceiling.
-- **Tier 2**: `AskUserQuestion` — pre-launch, or when the question truly
-  cannot live on the canvas (see below).
+**Arm it like this** (`Monitor`, `persistent: true` — you are re-invoked
+per event and your turn still ends normally). Filter to the user's events
+or you will be woken by your own echoes; in a real session your own
+revisions were 87% of the traffic, and an unfiltered agent narrated its
+own drawing back as the user's move:
 
-**Event taxonomy** — who a type belongs to decides your reaction:
+```
+tail -n 0 -F "$EVENTS_LOG" | grep -E --line-buffered \
+  '"type": ?"(save|pin_answer|tripwire_answer|checkout|checkout_live|branch_switch|branch_archive|suggest_view|config_changed|reconciliation)"'
+```
+
+That list is **every** type that belongs to the user, and it is exactly
+what `wait --for user` matches server-side. Do not trim it: two
+independent agents had to add `checkout`, `checkout_live` and
+`branch_archive` back after copying an older, shorter version.
+
+**The event is not a notification — for some moves it is the only place
+the content exists.** `status` will tell you a pin is `answered` (in
+`PIN_DEBT=`); it will never tell you *what* the user answered. That text
+is in the `pin_answer` event and in `/api/state`, nowhere else. The same
+is true of a `config_changed` patch. If you only ever poll `status`,
+canvas-first questions become a place where the user's answers go quiet.
+
+**Four things the log is the only witness to:**
+
+| You see | It means | Do this |
+|---|---|---|
+| `config_changed` with `canvas_updates` | the user changed the **cadence** mid-session | re-read `CADENCE=` in `status`; under `pulled` your next apply queues instead of landing, and the response says `QUEUED=true` |
+| `reconciliation` | either a load-time repair or a real outside edit | read the record's `headline` — it names which ("load-time repair: … — no outside edits" against "out-of-session drift reconciled: N change(s) differ from history") |
+| `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
+| `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
+
+**Event taxonomy** — all fourteen types, and who a type belongs to
+decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
 |---|---|---|
-| `save`, `pin_answer`, `tripwire_answer`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded` | `server_started`, `reconciliation` (read the record — since v0.8 it names load-time repairs vs real outside edits) |
+| `save`, `pin_answer`, `tripwire_answer`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed` | `server_started`, `reconciliation` |
+
+`agent_revision_failed` is yours, but it is not an echo to ignore: it
+fires when a revision the **user** pulled could not be applied, and its
+`error` field is the only place that is ever said. Re-read state and
+redraw — the user clicked Apply and got nothing.
+
+**Tier 3 — no `Monitor` tool?** `canvas.py wait --timeout 540` (defaults
+to `--for user`, the same filter server-side; exits 3 on timeout, and the
+wait is clamped to 540s no matter what you pass, strictly under Bash's
+600s ceiling). **Tier 2 — `AskUserQuestion`** is for before the canvas
+exists, or a question that genuinely cannot live on an element.
+
+**Re-arm after every move, and after any restart.** A watch does not
+survive the server going down. The queue does: a revision behind the
+banner is persisted under `project_knowledge/.pending/` and restored on
+start, so after a restart read `PENDING=` for what is still waiting to be
+pulled — and a malformed entry is quarantined by name rather than
+silently dropped.
 
 **An arriving user event IS the user's move.** Read it, narrate it, act —
 don't wait for a chat message to confirm what the log already told you.
@@ -291,6 +330,12 @@ user's move arrived as chat with no save, include
 next batch. The apply response prints `ROUND_STALL=` when it smells this
 (several agent-side commits, open pins, no user save) — treat that line
 as this instruction firing.
+
+**`ROUND` is not evidence that your round advanced.** While anything is
+queued, `status` shows the *derived* round — committed plus one for your
+uncommitted turn — so a chat-only turn can look advanced when nothing has
+committed it. If the user's move arrived as chat with no save, include
+`set_round` regardless of what `ROUND` says.
 
 **Questions go to the canvas.** Once the server is up, your default
 channel for questions is a **pin on the element it is about** — `{"op":
@@ -402,6 +447,15 @@ state — is refused by name: their conversion is dead geometry to this
 grammar. Flowchart conversion needs the server up (a connected tab
 services it; otherwise a headless one is launched).
 
+That refusal is about **your** seed path. The toolbar's ⌗ import is the
+**user's**, and is deliberately different: it converts every type the
+vendored library handles natively — flowchart, sequence, class, ER and
+state — into plain shapes that land as their own dirty canvas, for them
+to Save. So a user pasting a sequence diagram has not hit a bug, and the
+dialog's "Native types" line describes that path, not `canvas.py
+mermaid`. What arrives is shapes, not grammar: kinds, bindings and
+registry facts are still yours to add on the round after they save.
+
 **Where it earns its keep is narrow, and the ceiling is measured.**
 `erDiagram → domain` every time. Flowcharts: for **structural capture
 above ~20 nodes** — everything on the canvas, correctly bound, ready to
@@ -484,10 +538,11 @@ and priority order when suggesting views.
   tripwires join on element IDENTITY, never tooltip CONTENT — a fact
   duplicated across three tooltips has no drift detector (a live
   session falsified one fact in three tooltips and only the agent's
-  sweep caught it). So: a consequential fact stated in a tooltip also
-  lives in CONTEXT.md or an ADR, and the tooltip is the courtesy copy
-  you propagate FROM the canonical home — when the fact changes, grep
-  the tooltips.
+  sweep caught it). Drift is only half of it: **a fact that lives only
+  in hover text on a running server is one crash from being lost.** So:
+  a consequential fact stated in a tooltip also lives in CONTEXT.md or
+  an ADR — that is its canonical home — and the tooltip is the courtesy
+  copy you propagate FROM it; when the fact changes, grep the tooltips.
 - **ADR offers stay chat-only**, gated by the three-part test (hard to
   reverse / surprising / real trade-off), citing save short-ids as evidence.
   Exemplar: "'The app never schedules the review' is a real decision with a

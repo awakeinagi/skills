@@ -50,7 +50,13 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
 1. **Orthogonal over diagonal** (seeder + lint WARNING). When source and
    destination share neither axis, route a two-bend elbow (radius 8px; 6px
    when tight), never a straight diagonal. A diagonal between off-axis nodes
-   is flagged.
+   is flagged. The **pixel radius is suspended** for the sharp campaign
+   (v0.9): nothing writes 8px or 6px anywhere. A routed corner is
+   Excalidraw's proportional `roundness: {"type": 2}` — proposed by
+   `derived_roundness` for any route with a turn, then granted or refused
+   per arrow by `gate_curvature`, so whether a given elbow draws a corner
+   at all is a decision, not a constant. Stage 3 may restore a radius; the
+   §6 rule stands as written until it does.
 2. **Labels ride the arc midpoint** (seeder + lint WARNING). A label bound
    to an arrow is placed by the *client*, at the midpoint of the path by
    arc length — it discards any offset you store, so the old "6–10px
