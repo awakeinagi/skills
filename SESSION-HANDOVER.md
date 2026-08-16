@@ -64,9 +64,14 @@ purpose), `tests/tests_helpers.py`, `tests/test_instruments.py`,
 `tests/mutants_sweep.json`.
 
 **What is red, and why that is the deliverable.** Re-measured 2026-08-15
-after Task 48: **17 model-tier `expectedFailure` reds + 1 render-tier**,
-matching the suite's `expected failures=17` default and `=18` under
-`MUTANTS_RENDER=1`. That splits as **8 catalog reds + 9 non-catalog**.
+after Task 49: **16 model-tier `expectedFailure` reds + 1 render-tier**,
+matching the suite's `expected failures=16` default and `=17` under
+`MUTANTS_RENDER=1`. That splits as **8 catalog reds + 8 non-catalog**.
+Task 49 flipped `TestSnapshotTierOne`'s red — the last one living outside
+`tests/test_mutants.py` — so every remaining model-tier red is now in that
+one file and the two counts coincide at 16. That is drain state, not an
+invariant; see the census comment above `CATALOGUE` before reconciling
+them by hand.
 
 **THE TWO HALVES ARE NOW BOTH DERIVED, AND NEITHER IS RESTATED HERE.** The
 catalog half is `CATALOGUE_RED_IDS` in tests/test_mutants.py, checked

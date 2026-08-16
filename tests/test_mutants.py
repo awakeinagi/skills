@@ -9422,8 +9422,10 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # Not every red in this file is a catalogue entry, and the gap is not small:
-# re-measured 2026-08-15 after v0.9 Task 56, `mutants list --red` reports
-# 6 (of 30 entries) while this file carries 16 expectedFailure methods. Task
+# re-measured 2026-08-15 after v0.9 Task 49, `mutants list --red` reports
+# 8 (of 41 entries) while this file carries 16 expectedFailure methods —
+# the catalogue has grown well past the "6 of 30" this paragraph carried
+# until today, which is the drift it warns about happening to itself. Task
 # 56 moved BOTH halves down at once, which no earlier change had done: it
 # flipped one catalogue red (`diamond_clearance_overfire`) and all three of
 # `TestShapeBlindAnnotationOverlap`'s, emptying that class, and it added
@@ -9439,8 +9441,8 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # _error`'s docstring, and two in `coverage_table` and its guard — so
 # measure the METHODS (or read the runtime line) rather than the string.
 # That miscount is what once put "15" here when the true figure was 13.
-# The ten outside live
-# in the five classes `HAND_AUTHORED_RED_CLASSES` names, which since
+# The eight outside live
+# in the four classes `HAND_AUTHORED_RED_CLASSES` names, which since
 # curator batch 16 is a CHECKED structure rather than a sentence — read the
 # counts there, and see
 # `TestCoverage.test_the_hand_authored_red_classes_are_the_ones_that_exist`
@@ -9449,17 +9451,21 @@ def _fanned_void_foot(shape: str) -> list[dict]:
 # judged by `collect_findings` over an ELEMENT LIST and none of what they
 # measure is in one. Each class carries its own standing guard for its reds;
 # the one below covers CATALOGUE alone.
-# And since curator batch 15 one red lives outside this file entirely —
-# `TestSnapshotTierOne` in `tests/test_backend.py`, where the connected tab's
-# export is never measured against the drawing — so the suite's default line
-# reads `expected failures=15` against the 14 counted here. The two numbers
-# are meant to differ by exactly that one. (They have read 16/15, 21/20 and
-# 17/16 before, and they are not the same 16 and 15 each time: Task 23
-# flipped two, curator batch 19 added two once on each side of the CATALOGUE
-# boundary, Task 24 flipped two more, batch 20 added one, batch 21 added six,
-# Task 56 flipped four and the curves fold-in flipped two — a fair warning
-# that matching totals prove nothing here and only the split is worth
-# reading.)
+# From curator batch 15 until v0.9 Task 49 one red lived outside this file
+# entirely — `TestSnapshotTierOne` in `tests/test_backend.py`, where the
+# connected tab's export was never measured against the drawing — so the
+# suite's default line ran exactly one ahead of the count here. Task 49
+# flipped it, and as of 2026-08-15 the two numbers AGREE at 16. Do not read
+# that agreement as the invariant: it says only that every red in the suite
+# currently lives in this file, which the next red authored anywhere else
+# undoes. Equally, do not reconcile them by hand if they part again — go
+# find the outside red. (The pair has read 16/15, 21/20, 17/16 and 15/14
+# before, and never the same 16 and 15 twice: Task 23 flipped two, curator
+# batch 19 added two once on each side of the CATALOGUE boundary, Task 24
+# flipped two more, batch 20 added one, batch 21 added six, Task 56 flipped
+# four, the curves fold-in flipped two and Task 49 flipped the outside one —
+# a fair warning that totals prove nothing here, matching or not, and only
+# the split is worth reading.)
 # These counts are a hand enumeration and drift silently, so re-measure them
 # rather than trusting them. Twice caught stale now, and the second time is
 # the instructive one: on 2026-08-12 this read "(5)" for `TestStoreIntegrity`

@@ -1158,9 +1158,9 @@ class TestSnapshotTierOne(Base):
     """The connected tab's export — the tier the agent gets FIRST.
 
     v0.9 WP4 taught `validate_png` that a raster short of the drawing has
-    content cut off it, and wired the yardstick into tier 2. Tier 1 calls
-    it with `min_bpp` only, so the tier the agent reaches first, and
-    quotes as the picture, is checked for health and never for
+    content cut off it, and wired the yardstick into tier 2. Tier 1
+    called it with `min_bpp` only, so the tier the agent reaches first,
+    and quotes as the picture, was checked for health and never for
     completeness. These tests drive `cmd_snapshot` with a fake tab: the
     transport is faked, the decision under test — what tier 1 does with
     the bytes — is the shipped one.
@@ -1168,9 +1168,13 @@ class TestSnapshotTierOne(Base):
     The yardstick is the EXPORT path's, not `render_svg`'s. The tab
     exports through `exportToBlob` with `exportPadding: 40` and no
     `exportScale` (App.tsx, screenshot servicing), so it frames to the
-    content's own bounding box plus 40px each side, at scale 1 —
-    independent of the caption, footnotes and uniform downscale that set
-    `render_svg`'s dimensions. Curator batch 15, item 1 (2026-08-14).
+    content's own bounding box plus 40px each side — independent of the
+    caption, footnotes and uniform downscale that set `render_svg`'s
+    dimensions. Task 49 wired that box in as `ink_extent` and made it a
+    FLOOR rather than a target, because the missing `exportScale` leaves
+    the scale to the browser's `devicePixelRatio`: four of the five tests
+    below are 1x, and the fifth is why there is no ceiling.
+    Curator batch 15, item 1 (2026-08-14); flipped 2026-08-15.
     """
 
     def fat_png(self, w, h):
@@ -1193,7 +1197,7 @@ class TestSnapshotTierOne(Base):
                 ihdr + b"\0\0\0\0")
         return head + b"\0" * max(0, int(w * h * 0.06) - len(head))
 
-    def snapshot(self, els, png_w, png_h):
+    def snapshot(self, els, png_w, png_h, aid="a"):
         """Run `cmd_snapshot` against a tab that answers with one PNG.
 
         The fake stands in for the transport only: health, the screenshot
@@ -1206,13 +1210,16 @@ class TestSnapshotTierOne(Base):
             els: Elements to seed the artifact with.
             png_w: IHDR width of the PNG the tab hands back.
             png_h: IHDR height of the PNG the tab hands back.
+            aid: Artifact to create and snapshot. Only a test calling
+                this TWICE needs it — the second create would collide on
+                the id, and the second batch on `base_revn`.
 
         Returns:
             Everything `cmd_snapshot` printed.
         """
         self.store.apply_batch(
-            {"base_revn": 0, "artifact": "a",
-             "create": {"id": "a", "name": "A", "type": "flow"},
+            {"base_revn": self.store.head_revn(), "artifact": aid,
+             "create": {"id": aid, "name": aid.upper(), "type": "flow"},
              "ops": [{"op": "add", "element": dict(e)} for e in els]})
         self.project.shots_dir.mkdir(parents=True, exist_ok=True)
         self.project.state_path.write_text(
@@ -1230,7 +1237,7 @@ class TestSnapshotTierOne(Base):
             raise AssertionError("unexpected call: %s" % url)
 
         args = argparse.Namespace(
-            project=str(self.tmp), artifact="a",
+            project=str(self.tmp), artifact=aid,
             out=str(self.tmp / "snap.png"), tab_timeout=8, no_tab=False,
             no_headless=True)
         buf = io.StringIO()
@@ -1239,17 +1246,18 @@ class TestSnapshotTierOne(Base):
             canvas.cmd_snapshot(args)
         return buf.getvalue()
 
-    @unittest.expectedFailure
     def test_tier_1_refuses_a_tab_export_short_of_the_drawing(self):
-        """Tier 1 takes a raster 640px short of the drawing (RED).
+        """FLIPPED (v0.9 task 49): tier 1 measured the export.
 
         The v0.9 WP4 shape, on the other tier: 3000px of a drawing the
-        tab frames at 3640px is 640px of picture missing off the right
-        edge, and tier 1 reports `VALID=true` over it. One assertion,
-        carrying both magnitude and direction — the NOTE can only be
+        tab frames at 3640px was 640px of picture missing off the right
+        edge, and tier 1 reported `VALID=true` over it. `cmd_snapshot`
+        now computes that 3640 with `ink_extent` — the same padded box
+        `render_svg` frames with, taken BEFORE the `RASTER_MAX_*` clamp —
+        and hands it to `validate_png` as a floor. One assertion,
+        carrying both magnitude and direction: the NOTE can only be
         printed by a refusal, and it names 3000 against 3640, i.e. short
-        rather than padded. Nothing follows it: while this is red the
-        method stops here.
+        rather than padded.
         """
         out = self.snapshot(TAB_WIDE, 3000, 180)
         self.assertIn("width 3000 cuts a 3640px drawing short", out, out)
@@ -1281,6 +1289,44 @@ class TestSnapshotTierOne(Base):
         self.assertEqual((w, h), (4000, 89))  # the mismatch is the point
         out = self.snapshot(TAB_HUGE, 8080, 180)
         self.assertIn("TIER=1", out, out)
+
+    def test_tier_1_refuses_a_short_export_of_a_downscaled_drawing(self):
+        """The sibling above keeps the naive fix out; alone it no longer
+        can.
+
+        `..._keeps_the_export_of_a_downscaled_drawing` was written to
+        refuse `render_svg`'s clamped dimensions as the yardstick, and it
+        did that by watching an 8080px export get rejected as "far from
+        requested" against a 4000px ask. Task 49 dropped that upper
+        branch for tier 1 (retina), which also disarmed the guard: a
+        clamped 4000 used as a FLOOR accepts 8080 quite happily, so the
+        naive fix passed the whole suite while measuring the wrong
+        drawing. What it cannot do is refuse a TRUNCATED export of the
+        same drawing — 5000px against 4000 looks fine to it, and against
+        the true 8080 floor is 3080px of picture gone. Same defect the
+        class was opened for, on the drawing where the clamp bites.
+        """
+        out = self.snapshot(TAB_HUGE, 5000, 180)
+        self.assertIn("width 5000 cuts a 8080px drawing short", out, out)
+
+    def test_tier_1_keeps_a_retina_tab_export(self):
+        """The floor has no ceiling, because the tab picks the scale.
+
+        `exportToBlob` is called without `exportScale`, so it falls back
+        to `devicePixelRatio` when that is 1, 2 or 3 — the monitor the
+        user happened to open the tab on, never reported to the server.
+        A 2x or 3x export is the SAME drawing at more pixels and must be
+        taken. The other three fixtures here are all implicitly 1x, so
+        without this a tolerance band tied to the 1x floor would refuse
+        every HiDPI user's export and no test would say so (v0.9 task
+        49; the spike named this as the fix's own blind spot).
+        """
+        for scale in (2, 3):
+            with self.subTest(scale=scale):
+                out = self.snapshot(TAB_WIDE, 3640 * scale, 180 * scale,
+                                    aid="a%d" % scale)
+                self.assertIn("TIER=1", out, out)
+                self.assertIn("VALID=true", out, out)
 
 
 def seed_sequence_batch(base_revn=0):

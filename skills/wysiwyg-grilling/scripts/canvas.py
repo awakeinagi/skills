@@ -6499,31 +6499,33 @@ def painted_text_lines(el):
     return lines, fs
 
 
-def render_svg(els, title="", footnotes=False, glossary=None):
-    """Deterministic stdlib SVG of an element array — the snapshot CLI's
-    tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
-    (drawn from the same coordinates the lint reads); text set in system
-    fonts, so it is an approximation of Excalidraw's hand-drawn look, not
-    a replica — good for legibility checks, never for style judgments.
+def ink_extent(els, pad=40):
+    """A drawing's painted bounding box, padded — before any clamp.
+
+    `render_svg` computed this inline and then scaled the answer down to
+    `RASTER_MAX_*`; the connected tab frames the SAME box at the same
+    40px pad and scales it UP by its browser's `devicePixelRatio`. Both
+    want the box unclamped and unscaled, so it lives here rather than
+    inside either caller — `cmd_snapshot`'s tier-1 floor is the second
+    one (v0.9 task 49).
+
+    The 40 is a literal in two places that agree by convention and not
+    by shared code: this default and `exportPadding: 40` in App.tsx's
+    screenshot servicing. Changing one without the other silently moves
+    the tier-1 floor off the export it is measuring.
 
     Args:
-        els: The artifact's elements.
-        title: Optional caption drawn top-left, suppressed when a frame
-            in the drawing already carries the same name (r5-15).
-        footnotes: Mark tooltip-bearing elements and print their text
-            below the drawing, so an exported artifact carries its own
-            detail instead of losing it with the hover.
-        glossary: Optional `(term, definition)` pairs appended under the
-            footnotes — the words the drawing assumes.
+        els: The artifact's elements; deleted ones are skipped.
+        pad: Margin added on every side, in px.
 
     Returns:
-        `(svg_text, width, height)`.
+        `(minx, miny, w, h)` in scene px, or `None` when nothing is live
+        — an empty drawing has no extent, which is not the same as one
+        of zero size and reads differently at a call site.
     """
     live = [e for e in els if not e.get("isDeleted")]
     if not live:
-        return ("<svg xmlns='http://www.w3.org/2000/svg' width='320' "
-                "height='80'><text x='16' y='45' font-size='14'>"
-                "(empty artifact)</text></svg>"), 320, 80
+        return None
     xs, ys, x2s, y2s = [], [], [], []
     for e in live:
         # bound what is actually PAINTED. For the three point-strung
@@ -6533,6 +6535,15 @@ def render_svg(els, title="", footnotes=False, glossary=None):
         # bounding by the box cropped the tail of the user's own mark out
         # of the export (v0.9 WP4). Every other class is painted inside
         # its box, so the box is the honest bound.
+        # A ROUNDED arrow is bounded by its chords here, and the drawn
+        # spline bows outside them. That is deliberate and it is safe in
+        # both directions: the client's spline INTERPOLATES every stored
+        # vertex (`_bezier_spans`), so the drawn curve's box contains the
+        # chord box and this can only ever read SMALL. For the viewBox
+        # that costs a few px of margin the bow may reach into; for a
+        # floor it errs toward admitting, which is the direction a floor
+        # must err in (v0.9 task 49 recalibration, measured against
+        # `_rendered_path` after the curves fold).
         if e.get("type") in ("arrow", "line", "freedraw"):
             for p in e.get("points") or [[0, 0]]:
                 xs.append(e.get("x", 0) + p[0])
@@ -6577,12 +6588,38 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             ys.append(ey)
             x2s.append(ex + ew2)
             y2s.append(ey + eh2)
-    pad = 40
+    return (min(xs) - pad, min(ys) - pad,
+            max(x2s) - min(xs) + 2 * pad, max(y2s) - min(ys) + 2 * pad)
+
+
+def render_svg(els, title="", footnotes=False, glossary=None):
+    """Deterministic stdlib SVG of an element array — the snapshot CLI's
+    tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
+    (drawn from the same coordinates the lint reads); text set in system
+    fonts, so it is an approximation of Excalidraw's hand-drawn look, not
+    a replica — good for legibility checks, never for style judgments.
+
+    Args:
+        els: The artifact's elements.
+        title: Optional caption drawn top-left, suppressed when a frame
+            in the drawing already carries the same name (r5-15).
+        footnotes: Mark tooltip-bearing elements and print their text
+            below the drawing, so an exported artifact carries its own
+            detail instead of losing it with the hover.
+        glossary: Optional `(term, definition)` pairs appended under the
+            footnotes — the words the drawing assumes.
+
+    Returns:
+        `(svg_text, width, height)`.
+    """
+    live = [e for e in els if not e.get("isDeleted")]
+    if not live:
+        return ("<svg xmlns='http://www.w3.org/2000/svg' width='320' "
+                "height='80'><text x='16' y='45' font-size='14'>"
+                "(empty artifact)</text></svg>"), 320, 80
     notes = collect_footnotes(live) if footnotes else []
     gloss = list(glossary or []) if footnotes else []
-    minx, miny = min(xs) - pad, min(ys) - pad
-    w = max(x2s) - min(xs) + 2 * pad
-    h = max(y2s) - min(ys) + 2 * pad
+    minx, miny, w, h = ink_extent(live)
     # room under the drawing for the notes block, wrapped to the width
     note_lines = []
     for n, lbl, tip, _e in notes:
@@ -6810,7 +6847,8 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     return "\n".join(out), int(w * scale), int(h * scale)
 
 
-def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):
+def validate_png(data, want_w=None, want_h=None, min_bpp=0.02,
+                 want_is_floor=False):
     """Sanity-check a PNG: signature, IHDR dims, bytes-per-pixel floor.
 
     The demo's corrupted cold-start exports sat at ~0.03 bytes/px versus
@@ -6836,6 +6874,14 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):
         want_w: The drawing's width in device pixels, if known.
         want_h: The drawing's height in device pixels, if known.
         min_bpp: Bytes-per-pixel floor; 0 disables it.
+        want_is_floor: Read `want_w`/`want_h` as a LOWER BOUND and drop
+            the oversize band entirely. Tier 1 needs this: the tab
+            exports at its own browser's `devicePixelRatio` (1, 2 or 3),
+            which is decided by whatever monitor the user opened the tab
+            on and is never reported to the server, so an honest retina
+            export is 2-3x the floor and the 20%-or-64px band would
+            refuse it. Oversize is harmless anyway per the paragraph
+            above; on this path it is also NORMAL.
 
     Returns:
         `(ok, detail)` — `detail` is the dimensions and density, or why
@@ -6853,10 +6899,11 @@ def validate_png(data, want_w=None, want_h=None, min_bpp=0.02):
         return False, "width %d cuts a %dpx drawing short" % (w, want_w)
     if want_h and h + 2 < want_h:
         return False, "height %d cuts a %dpx drawing short" % (h, want_h)
-    if want_w and w - want_w > max(64, want_w * 0.2):
-        return False, "width %d far from requested %d" % (w, want_w)
-    if want_h and h - want_h > max(64, want_h * 0.2):
-        return False, "height %d far from requested %d" % (h, want_h)
+    if not want_is_floor:
+        if want_w and w - want_w > max(64, want_w * 0.2):
+            return False, "width %d far from requested %d" % (w, want_w)
+        if want_h and h - want_h > max(64, want_h * 0.2):
+            return False, "height %d far from requested %d" % (h, want_h)
     bpp = len(data) / float(w * h)
     if min_bpp and bpp < min_bpp:
         return False, "suspiciously thin (%.3f bytes/px)" % bpp
@@ -14464,6 +14511,20 @@ def cmd_snapshot(args):
 
     # ---- tier 1: connected browser tab (true Excalidraw rendering) ----
     if alive and not args.no_tab:
+        # the smallest export the tab could honestly hand back. It frames
+        # through `exportToBlob` to the content's own box plus
+        # `exportPadding: 40` a side (App.tsx, screenshot servicing) and
+        # then scales by `devicePixelRatio` — 1, 2 or 3, whatever monitor
+        # the user's browser opened on, never reported here. So the s=1
+        # box is a FLOOR and there is no ceiling to check against:
+        # anything smaller has the drawing's edge cut off it, anything
+        # larger is the same picture at more pixels. NOT `render_svg`'s
+        # dimensions, which are this box clamped to `RASTER_MAX_*` and
+        # run 8080px of drawing down to 4000 — passing those would refuse
+        # an honest export of a wide drawing as "far from requested".
+        floor = ink_extent(els)
+        min_w = int(floor[2]) if floor else 0
+        min_h = int(floor[3]) if floor else 0
         for attempt in (1, 2):
             try:
                 resp = http_json(state["url"] + "api/screenshot/request",
@@ -14491,7 +14552,8 @@ def cmd_snapshot(args):
             # Part 3: bad ≤0.032, good ≥0.124) can't occur on the
             # deterministic tier-2 route — and sparse-but-valid renders
             # legitimately sit below any floor that would catch it
-            ok, why = validate_png(data, min_bpp=0.05)
+            ok, why = validate_png(data, want_w=min_w, want_h=min_h,
+                                   min_bpp=0.05, want_is_floor=True)
             if ok:
                 shutil.copyfile(str(shot), str(out_png))
                 print_kv(tier="1", png=str(out_png), valid="true",
