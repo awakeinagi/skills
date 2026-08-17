@@ -33,6 +33,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 import canvas
+import focus_probe
 import instruments
 from tests_helpers import el
 
@@ -9226,6 +9227,162 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE STORED BINDING AND THE FINAL INK (curator batch 27, 2026-08-17, from
+# TASK-FOCUS fix round 1's filed-not-fixed note). A third producer promise,
+# and the quietest kind: not a decision made badly but a correct decision
+# recorded a moment too early.
+#
+# Both `route_arrow` and `fan_attach_points` solve `focus` from the
+# FRACTIONAL route and only then call `_stamp_route`, whose `_snap_geom`
+# rounds `x`, `y` and every point to whole pixels. So the value persisted
+# describes a foot that no longer exists: the client aims at the ray the
+# stored focus names, the ink stands where the snap put it, and the two
+# part by up to half a pixel of rounding — amplified along the side by the
+# focus geometry into the 0.35px the wave measured on 28 of 306 corpus
+# endpoints. One line's ordering, in two places.
+#
+# WHY IT IS A RED AND NOT A MUTANT: `collect_findings` has nothing to say
+# here. The scene is well-formed, every lint is silent and correctly so —
+# the defect is a disagreement between a STORED value and the geometry
+# beside it, which is a property of the producer, not a reading of the
+# picture. Same argument, same shape, as the class above.
+#
+# BASE: two 101x61 rectangles, 260px apart — the smallest odd-dimensioned
+# pair whose centre line lands on a half pixel. MUTATION: none; the pass
+# IS the defect. MAGNITUDE: the tangential slip the client redraws,
+# 0.39px, against 0.01px once the focus is re-solved on the snapped
+# geometry — asserted through `focus_probe.client_draws`, the transcription
+# of the client's own aiming, so the number is the one the reader's eye
+# would follow along the side rather than a difference of two abstract
+# focus scalars. DIRECTION: along the side the foot stands on. NEIGHBOUR:
+# the same pair at 100x60, where the route lands on whole pixels, the snap
+# moves nothing, and the stored focus is exact — green, ungated, and the
+# thing that proves this pair measures the ORDERING and not the router.
+#
+# OWNER: TASK-FOCUS. The fix is to stamp before solving (or to re-solve
+# after stamping) at both call sites; a curator writing that line would be
+# writing the acceptance test for their own patch.
+# ---------------------------------------------------------------------------
+
+
+class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
+    """A binding solved before the snap describes a foot that moved."""
+
+    @staticmethod
+    def _routed(w: float, h: float) -> tuple[dict, dict]:
+        """Route one arrow between two `w` x `h` nodes 260px apart.
+
+        The destination is offset on both axes so the router picks an
+        elbow and the foot lands on a vertical side, which is what makes
+        the slip measurable along y.
+
+        Args:
+            w: Both nodes' width.
+            h: Both nodes' height.
+
+        Returns:
+            `(src, arrow)` after `route_arrow` has run and stamped.
+        """
+        src = el(id="a", type="rectangle", x=0.0, y=0.0, width=w, height=h,
+                 customData={"role": "node"})
+        dst = el(id="b", type="rectangle", x=260.0, y=200.0, width=w,
+                 height=h, customData={"role": "node"})
+        arrow = el(id="e1", type="arrow", points=[[0, 0], [1, 1]])
+        canvas.route_arrow(arrow, src, dst)
+        return src, arrow
+
+    @classmethod
+    def _slip(cls, node: dict, arrow: dict, focus: float) -> float:
+        """How far along its side the client redraws the start foot.
+
+        Args:
+            node: The node the start foot stands on.
+            arrow: The routed, stamped arrow.
+            focus: The focus value to aim with.
+
+        Returns:
+            The tangential (along-side) displacement in px.
+        """
+        pts = arrow["points"]
+        foot = (arrow["x"], arrow["y"])
+        adj = (arrow["x"] + pts[1][0], arrow["y"] + pts[1][1])
+        gap = arrow["startBinding"]["gap"]
+        drawn = focus_probe.client_draws(node, focus, gap, adj, foot)
+        return abs(drawn[1] - foot[1])
+
+    @unittest.expectedFailure
+    def test_red_the_stored_focus_predates_the_snap_that_moved_it(
+            self) -> None:
+        """101x61 nodes: the stored focus aims 0.39px off the drawn foot.
+
+        `route_arrow` computes both `focus` values from `path`, then
+        `_stamp_route` rounds the geometry underneath them. On an odd
+        width the centre line sits on a half pixel, so the snap moves the
+        foot and the stored focus is left describing where it used to be.
+
+        WHAT THE PICTURE WRONGLY SAYS: nothing a reader would name —
+        this is a sub-pixel lie, and that is exactly why it needs a pin.
+        It is invisible until it is not: the slip is measured along the
+        side, which is the axis fan lanes and port assignments are
+        decided on, and `FAN_LANE_PITCH` is 18px of a budget nothing else
+        is spending.
+
+        WHAT THE CHECKS REPORTED: nothing, correctly. No lint reads a
+        stored binding against the geometry stored beside it.
+
+        ONE ASSERTION, AND IT IS THE INVARIANT: the slip the stored
+        focus draws against the slip the re-solved focus draws. A second
+        assertion pinning 0.3916 as a literal would be the wrong shape
+        here and was written and removed — it holds TODAY and would go
+        on holding after a fix moved the first number to match the
+        second, so the test could never flip. The measurement is in the
+        failure message instead, where a reader gets both numbers and
+        the flip contract still works: 0.3916px stored against 0.0094px
+        re-solved, at this head.
+        """
+        node, arrow = self._routed(101.0, 61.0)
+        stored = arrow["startBinding"]["focus"]
+        pts = arrow["points"]
+        resolved = canvas.solve_focus(
+            node, arrow["x"] + pts[1][0], arrow["y"] + pts[1][1],
+            arrow["x"], arrow["y"], arrow["startBinding"]["gap"])
+        slip = self._slip(node, arrow, stored)
+        self.assertAlmostEqual(
+            slip, self._slip(node, arrow, resolved), places=2,
+            msg="the stored focus %.4f draws the foot %.4fpx along the "
+                "side; re-solved on the SNAPPED geometry it is %.4f and "
+                "draws %.4fpx. `_stamp_route` runs after the solve at "
+                "both call sites (canvas.py route_arrow, "
+                "fan_attach_points), so every fractional route persists "
+                "a binding for a foot the snap has already moved"
+                % (stored, slip, resolved, self._slip(node, arrow,
+                                                      resolved)))
+
+    def test_a_whole_pixel_route_stores_a_binding_that_is_exact(
+            self) -> None:
+        """The green pole: at 100x60 the snap moves nothing.
+
+        The same nodes, the same call, the same ordering — only the
+        dimensions are even, so `_snap_geom` finds the route already on
+        whole pixels and rounds nothing. The stored focus and the focus
+        re-solved afterwards are the same value and draw the same foot.
+        That is what makes the red above a statement about WHEN the
+        binding is solved rather than about how.
+        """
+        node, arrow = self._routed(100.0, 60.0)
+        stored = arrow["startBinding"]["focus"]
+        pts = arrow["points"]
+        resolved = canvas.solve_focus(
+            node, arrow["x"] + pts[1][0], arrow["y"] + pts[1][1],
+            arrow["x"], arrow["y"], arrow["startBinding"]["gap"])
+        self.assertEqual(stored, resolved,
+                         "an unrounded route should need no re-solve")
+        self.assertAlmostEqual(
+            self._slip(node, arrow, stored), 0.0, places=3,
+            msg="a whole-pixel route's stored binding draws its own foot")
+
+
+# ---------------------------------------------------------------------------
 # Pin identity (v0.9 Task-7 review, 2026-08-13; findings M2, R1 and the
 # report's own disclosure, each reproduced by the reviewer against the
 # shipped code). The class above judges what a batch does to the MODEL;
@@ -11216,7 +11373,8 @@ def _crowded_pair_shaped(dx: int, dy: int,
 
 
 def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
-                  font_size: int = 16, opacity: int = 100) -> list[dict]:
+                  font_size: int = 16, opacity: int = 100,
+                  role: str = "node") -> list[dict]:
     """A node and a free text on the ground, styled to order.
 
     One base for every legibility mutant, since they differ only in which
@@ -11231,18 +11389,26 @@ def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
     it (4.5 and 3.0), which is why 60% is a firing text pole and a silent
     object one — see `faded_ink_reads_as_full_strength`.
 
+    `role` exists for one pair only and changes no geometry and no
+    colour: `hyphen_in_the_role_blinds_the_object_reader` needs two
+    scenes identical to the byte except for the word the 1.4.11 message
+    opens with, because that word is what this file's own regex reads.
+    Every other caller takes the default and is unmoved.
+
     Args:
         text_color: The free text's `strokeColor` (its ink).
         stroke: The node's `strokeColor`.
         font_size: The free text's `fontSize`.
         opacity: Excalidraw 0-100 opacity, on both elements.
+        role: The node's `customData.role`, which `canvas.py` prints as
+            the noun of the 1.4.11 finding.
 
     Returns:
         The two-element scene: node `n1`, then free text `t1`.
     """
     return [el(id="n1", type="rectangle", x=0, y=0, width=200, height=100,
                strokeColor=stroke, backgroundColor="transparent",
-               opacity=opacity, customData={"role": "node"}),
+               opacity=opacity, customData={"role": role}),
             el(id="t1", type="text", x=0, y=160, width=120, height=20,
                text="status", fontSize=font_size, opacity=opacity,
                strokeColor=text_color)]
@@ -14820,6 +14986,58 @@ _register(Mutant(
                         FindingSpec("shared_attach_point",
                                     element="hub"))))
 
+# THE BLIND EYE IS THIS FILE'S OWN, which makes this the only red here
+# whose fix lands in `tests/test_mutants.py` rather than in the product.
+# `_CONTRAST_OBJECT_RE` opens `^\w+ ` to read the noun `canvas.py` prints
+# in front of a 1.4.11 finding — and that noun is `role_of(e) or "shape"`,
+# a free-form string. `\w` does not match a hyphen or a space, so the
+# lint speaks and `collect_findings` returns NOTHING. That is the
+# vacuous-`Silence` hazard the regex's own comment claims to be built
+# against, arriving through the character class instead of through an
+# alternation: enumerating the nouns was rejected precisely so a new role
+# could not be silently unmatchable, and a new role is silently
+# unmatchable anyway.
+#
+# WHAT THE PICTURE WRONGLY SAYS: nothing — the drawing is honestly bad
+# and `canvas.py` honestly says so. The false statement is the HARNESS's:
+# "no contrast_object finding on this scene". A `Silence("contrast_
+# object")` neighbour written over any hyphenated role passes without a
+# detector ever being consulted, which is the one failure mode every
+# other entry in this file exists to make impossible.
+#
+# THE PAIR DIFFERS BY ONE STRING AND NOTHING ELSE. Same #b0b0b0 stroke,
+# same ground, same 2.11:1 — measured identical in both lint lines, so
+# the magnitude assertion is not the thing that moves. Only `note-text`
+# versus `node` moves, and the reader goes from 1 finding to 0. It is
+# `pale_stroke_node`'s scene with a hyphen in it.
+#
+# HONEST ABOUT REACH, because the review that filed this hedged it as
+# latent and the hedge is half right. Censused over the fixture corpus,
+# the roles carried by 1.4.11-eligible element types (rectangle, diamond,
+# ellipse, arrow, line, frame) are `node` (466), `decoration` (46) and
+# `note` (10) — all `\w+`, so nothing in the corpus trips it TODAY. But
+# `note-text` is already a role in that corpus, on text elements, and the
+# vocabulary is not an enum: `role_of` reads whatever `customData` holds.
+# The distance to a live blindness is one author putting an existing role
+# on a shape, not a new feature.
+#
+# THE FIX THAT FLIPS THIS is a noun class matching what the message can
+# actually contain — `[\w -]+?` with the element id still anchored, or
+# reading the noun as everything before the id. It belongs to whoever
+# owns the WCAG lint surface (v0.9 WP7 / TASK-PALETTE), not here: this
+# file's job is to hold the claim, and a curator who repairs the reader
+# is a curator grading their own homework. Origin: task-29 review
+# minor-2, curated during curator batch 27, 2026-08-17.
+_register(Mutant(
+    "hyphen_in_the_role_blinds_the_object_reader",
+    build=lambda: _styled_scene(stroke="#b0b0b0", role="note-text"),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_object", element="n1",
+                       magnitude=(2.11, 0.05)),
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#b0b0b0", role="node"),
+                        FindingSpec("contrast_object", element="n1",
+                                    magnitude=(2.11, 0.05)))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -15665,6 +15883,19 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_corner_feet_outside_the_square(self) -> None:
         """The looser pair across the same corner is the firing pole."""
         self._run_neighbour("corner_feet_outside_the_square")
+
+    @unittest.expectedFailure
+    def test_mutant_hyphen_in_the_role_blinds_the_object_reader(self) -> None:
+        """The lint names a 2.11:1 outline and this file reads no finding."""
+        # `_CONTRAST_OBJECT_RE`'s `^\w+ ` noun cannot span the hyphen in a
+        # role like `note-text`; flips when the noun class matches what
+        # `canvas.py` can actually print in front of the element id.
+        self._run("hyphen_in_the_role_blinds_the_object_reader")
+
+    def test_neighbour_hyphen_in_the_role_blinds_the_object_reader(
+            self) -> None:
+        """The same stroke under a one-word role IS read, at the same 2.11."""
+        self._run_neighbour("hyphen_in_the_role_blinds_the_object_reader")
 
     def test_mutant_diamond_facet_overfire(self) -> None:
         """A perfect facet-midpoint attachment draws no complaint."""
@@ -16553,7 +16784,8 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestMermaidEdgeLabelEscaping": 1,
-                             "TestRouterPassesDoNotWorsenTheDrawing": 2}
+                             "TestRouterPassesDoNotWorsenTheDrawing": 2,
+                             "TestStoredBindingsDescribeTheFinalInk": 1}
 # TWO CLASSES JOINED on 2026-08-16 (the spike-program curator batch), and
 # they are here rather than in `CATALOGUE` for one reason each, both of
 # which are the same reason: their subject is not a finding about a scene.
@@ -16742,7 +16974,8 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS = {"corner_feet_outside_the_square",
                      "flush_stack_border_run_under_the_band",
-                     "grazing_arrival_reads_as_square"}
+                     "grazing_arrival_reads_as_square",
+                     "hyphen_in_the_role_blinds_the_object_reader"}
 # THE EMPTINESS LASTED ONE COMMIT, and that is the most useful thing this
 # constant has ever recorded. Task 29 emptied it on 2026-08-16 — the WP7
 # contrast trio was the whole of what was left, all three red-by-absence,

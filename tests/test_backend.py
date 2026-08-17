@@ -5,6 +5,7 @@ Run: python3 -m pytest tests/ -q   (or python3 tests/test_backend.py)
 from __future__ import annotations
 
 import argparse
+import ast
 import base64
 import contextlib
 import io
@@ -12207,6 +12208,112 @@ class TestEventLoopAndRounds(Base):
         unclassified = emitted - classified
         self.assertFalse(unclassified,
                          "event types with no owner: %r" % unclassified)
+
+    @staticmethod
+    def _emitted_event_types():
+        """Every event type `canvas.py` can emit, parsed rather than grepped.
+
+        AST rather than a regex BECAUSE OF THE MISS THIS GUARD ANSWERS.
+        Task 26's hand census grepped line-anchored and read 14 where the
+        source has 15 — `agent_revision_failed`'s literal sits on the
+        line AFTER its open paren, so a per-line reader walks straight
+        past the one type that commit existed to document. A parser has
+        no line concept and cannot repeat that, which is the property
+        being bought; the sibling guard above still uses its whitespace-
+        skipping regex and agrees today, and if the two ever part the
+        parser is right.
+
+        Returns:
+            The set of string literals passed first to any `.events.append`
+            or bare `events.append` call. Non-literal first arguments (the
+            replay path re-appends whole dicts) are not types and are
+            skipped.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        out = set()
+        for node in ast.walk(ast.parse(src)):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            if not isinstance(fn, ast.Attribute) or fn.attr != "append":
+                continue
+            tgt = fn.value
+            owner = (tgt.id if isinstance(tgt, ast.Name)
+                     else tgt.attr if isinstance(tgt, ast.Attribute)
+                     else None)
+            if owner != "events" or not node.args:
+                continue
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value,
+                                                              str):
+                out.add(first.value)
+        return out
+
+    def test_the_skill_taxonomy_table_is_the_emitted_set(self):
+        """SKILL.md's taxonomy is DERIVED-AND-COMPARED, not transcribed.
+
+        THE GUARD THIS REPO DID NOT HAVE, and the gap was found the
+        expensive way: task 26 shipped a census of these types that was
+        wrong by one, and the type it missed was the type the commit
+        existed to add. The old guard one method up asks only
+        `emitted - classified`, which is one direction of one of the
+        three comparisons that matter — it is green over a constant
+        naming a type nothing emits, and green over ANY drift in the
+        skill file, which is the copy an agent actually reads.
+
+        All three claims are checked here, both ways each:
+
+        1. the emitted set equals the classified constants,
+        2. each of the table's three cells equals its constant, so a type
+           that changes OWNER is caught and not just one that vanishes —
+           the whole point of the table is who reacts to what,
+        3. the spelled numeral in the sentence above the table equals the
+           cardinality, which is the literal that went stale.
+        """
+        emitted = self._emitted_event_types()
+        system = {"server_started", "reconciliation"}
+        self.assertEqual(
+            emitted,
+            set(canvas.USER_EVENT_TYPES) | set(canvas.AGENT_EVENT_TYPES)
+            | system,
+            "the emitted types and the classified constants have parted")
+
+        # NOT `.resolve()`, deliberately: the census probe runs this in a
+        # scratch tree whose `scripts/` is a symlink back here, so
+        # resolving would walk out of the copy and read the real file —
+        # a guard that cannot be perturbed is a guard nobody can trust.
+        skill = (Path(canvas.__file__).parent.parent
+                 / "SKILL.md").read_text(encoding="utf-8")
+        rows = [ln for ln in skill.splitlines()
+                if ln.startswith("|") and "`agent_revision_discarded`" in ln]
+        self.assertEqual(len(rows), 1,
+                         "the taxonomy row is not findable; re-anchor this "
+                         "guard rather than deleting it")
+        cells = [c.strip() for c in rows[0].strip("|").split("|")]
+        self.assertEqual(len(cells), 3, "the taxonomy table lost a column")
+        theirs, yours, sysc = (set(re.findall(r"`([a-z_]+)`", c))
+                               for c in cells)
+        self.assertEqual(theirs, set(canvas.USER_EVENT_TYPES),
+                         "the skill's THEIRS cell and USER_EVENT_TYPES "
+                         "disagree — an agent narrating this table would "
+                         "take the wrong round")
+        self.assertEqual(yours, set(canvas.AGENT_EVENT_TYPES),
+                         "the skill's YOURS cell and AGENT_EVENT_TYPES "
+                         "disagree")
+        self.assertEqual(sysc, system, "the skill's SYSTEM cell drifted")
+
+        words = ("zero", "one", "two", "three", "four", "five", "six",
+                 "seven", "eight", "nine", "ten", "eleven", "twelve",
+                 "thirteen", "fourteen", "fifteen", "sixteen",
+                 "seventeen", "eighteen", "nineteen", "twenty")
+        said = re.search(r"\*\*Event taxonomy\*\* — all (\w+) types", skill)
+        self.assertIsNotNone(said, "the taxonomy sentence has been reworded "
+                                   "away from its own numeral")
+        self.assertLess(len(emitted), len(words),
+                        "more event types than this spelling table covers")
+        self.assertEqual(said.group(1), words[len(emitted)],
+                         "SKILL.md says %r types and canvas.py emits %d"
+                         % (said.group(1), len(emitted)))
 
     def seed_round_stall(self):
         """One artifact, one open pin, then N agent-only commits."""

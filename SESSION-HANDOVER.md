@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `corner_feet_outside_the_square`, `flush_stack_border_run_under_the_band`, `grazing_arrival_reads_as_square` |
+| model (default suite) | `corner_feet_outside_the_square`, `flush_stack_border_run_under_the_band`, `grazing_arrival_reads_as_square`, `hyphen_in_the_role_blinds_the_object_reader` |
 | render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
@@ -376,13 +376,24 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**7 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at v0.9 WP8 task 30, which
-flipped the mod-roundness red — `mod roundness` on a server-routed arrow
-is now refused by name instead of accepted and re-derived away — taking
-`TestBatchPathIntegrity` 2 -> 1 and this file 8 -> 7. DERIVED from the
-grep, not decremented: the batch below had just moved it and the two
-changes are hours apart. It read 8 / 1 / 0 at the spike-program curator
+**PLACEHOLDER** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at curator batch 27, folding onto
+v0.9 WP8 task 30 of the same afternoon. THREE CHANGES MOVED THIS NUMBER
+WITHIN HOURS AND THEY WENT BOTH WAYS, which is the whole reason it is
+derived: task 30 FLIPPED the mod-roundness red — `mod roundness` on a
+server-routed arrow is now refused by name instead of accepted and
+re-derived away — taking `TestBatchPathIntegrity` 2 -> 1 and
+`test_mutants.py` 8 -> 7; batch 27 then ADDED four reds, three here and
+one in `test_backend.py`, which had been drained to zero the day before.
+The four: `hyphen_in_the_role_blinds_the_object_reader`, the first entry
+in this file whose subject is the HARNESS's own reader rather than a
+product check; `TestStoredBindingsDescribeTheFinalInk`, a binding solved
+one line before the snap that moved its foot;
+`TestFurnitureIsNotAnUnconnectedNode`, an activation bar reported as an
+orphan on a correct sequence; and, in `test_backend.py`, the glossary
+challenge that is re-asked after it has been ruled on. Nobody may add or
+subtract along that chain — run the grep. It read 8 / 1 / 0 at the
+spike-program curator
 batch, which ADDED six model reds rather than flipping any — three
 `CATALOGUE` entries in the attach-side family and three hand-authored
 producer/emitter pins — the largest single upward movement this sentence
