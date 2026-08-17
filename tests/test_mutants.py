@@ -9383,6 +9383,107 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE ORPHAN NOTE ON A CORRECT SEQUENCE (curator batch 27, 2026-08-17, from
+# the Task 28 review's MAJOR-1). r5-16 was the finding that an unbindable
+# party header read as an unconnected node, and the repair the note implied
+# — bind the messages to the headers — would have made the drawing WRONG.
+# `SEQUENCE_PARTY_KINDS` closed that for `actor`, `system`, `context` and
+# `lifeline`. It did not close it for the ACTIVATION BAR, which is the same
+# shape of furniture: `kind: activation`, no role, so `role_of` calls it a
+# node, and a bar is unbound by construction because messages bind lifeline
+# to lifeline and a bar is drawn ON a lifeline.
+#
+# THE SCENE IS THE CATALOGUE'S OWN HEALTHY NEIGHBOUR, which is what makes
+# this worth a pin rather than a note. `_sequence_scene(80)` is the closing
+# bar — the scene `activation_bar_outlives_its_conversation` uses to prove
+# its check has a quiet half, built from references/sequence.md's minimal
+# honest protocol sketch. Lint's ENTIRE output on it is one line, and that
+# line is false: r5-16's metric, 100%, unmoved, on a drawing with nothing
+# wrong with it.
+#
+# THE OBVIOUS FIX IS THE WRONG ONE and the review measured why: adding
+# `activation` to `SEQUENCE_PARTY_KINDS` also widens the sequence-arm GATE
+# (`any(kind_of(e) in SEQUENCE_PARTY_KINDS ...)`), so a scene holding only
+# bars would start linting as a sequence. Two questions — "is this a
+# sequence?" and "is this unbindable furniture?" — coincide today by
+# accident, and the fix wants a SEPARATE furniture set. OWNER: TASK-POLISH.
+#
+# BASE: `_sequence_scene(80)`, shared with the catalogue entry rather than
+# copied. MUTATION: none. MAGNITUDE: the share of lint's output that is
+# this false sentence — 1 of 1. NEIGHBOUR: a flow with a genuinely
+# unconnected node, where the same note is the right thing to say and the
+# agent can act on it; green, ungated, and the reason this red cannot be
+# satisfied by deleting the check.
+# ---------------------------------------------------------------------------
+
+
+class TestFurnitureIsNotAnUnconnectedNode(unittest.TestCase):
+    """A bar that cannot be bound must not be reported as unbound."""
+
+    @staticmethod
+    def _unconnected(els: list[dict], artifact_type: str) -> list[str]:
+        """The `unconnected node(s)` lines lint emits over `els`.
+
+        Args:
+            els: The scene.
+            artifact_type: The type to lint as.
+
+        Returns:
+            Every note naming unconnected nodes, in emission order.
+        """
+        lint = canvas.lint_layout(els, artifact_type=artifact_type)
+        return [ln for ln in lint["errors"] + lint["warnings"] + lint["notes"]
+                if ln.startswith("unconnected node(s):")]
+
+    @unittest.expectedFailure
+    def test_red_a_closing_activation_bar_reads_as_an_orphan(self) -> None:
+        """The whole of lint's output on a correct sequence, and it is wrong.
+
+        WHAT THE PICTURE WRONGLY SAYS: nothing — the drawing is right.
+        The false statement is the LINT's, and it is the only statement
+        it makes: `unconnected node(s): bar1` on a two-party
+        request/response with a bar that opens on the request and closes
+        on the reply. An agent reading this has one instruction and no
+        way to execute it: a bar is drawn on a lifeline, messages bind
+        lifeline to lifeline, and binding a message to the bar would
+        move the arrowhead off the party it is addressed to.
+
+        WHAT THE CHECKS REPORTED: exactly this and nothing else. The
+        assertion is on the note being ABSENT and, separately, on it
+        being lint's whole output — because the second is the number
+        r5-16 was argued with, and a fix that merely buried the note
+        under other noise would satisfy the first alone.
+        """
+        els = _sequence_scene(80)
+        lint = canvas.lint_layout(els, artifact_type="sequence")
+        total = lint["errors"] + lint["warnings"] + lint["notes"]
+        self.assertEqual(
+            self._unconnected(els, "sequence"), [],
+            "an activation bar is furniture: `kind: activation`, no role, "
+            "unbindable by construction — and it is %d of %d of what lint "
+            "has to say about a correct sequence: %r"
+            % (len(self._unconnected(els, "sequence")), len(total), total))
+
+    def test_a_real_orphan_in_a_flow_is_still_named(self) -> None:
+        """The green pole: the note fires where an agent can act on it.
+
+        Two flow nodes and one arrow binding neither of them, so `n2`
+        is genuinely unconnected and the repair — draw the edge — is
+        something the agent can do. This is what stops the red above
+        being satisfied by deleting the check, and it is the half that
+        runs on every commit.
+        """
+        els = [el(id="n1", type="rectangle", x=0, y=0, width=120, height=60,
+                  customData={"role": "node"}),
+               el(id="n2", type="rectangle", x=300, y=0, width=120,
+                  height=60, customData={"role": "node"})]
+        notes = self._unconnected(els, "flow")
+        self.assertEqual(len(notes), 1, "the orphan note went silent")
+        self.assertIn("n1", notes[0])
+        self.assertIn("n2", notes[0])
+
+
+# ---------------------------------------------------------------------------
 # Pin identity (v0.9 Task-7 review, 2026-08-13; findings M2, R1 and the
 # report's own disclosure, each reproduced by the reviewer against the
 # shipped code). The class above judges what a batch does to the MODEL;
@@ -16783,9 +16884,19 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
+                             "TestFurnitureIsNotAnUnconnectedNode": 1,
                              "TestMermaidEdgeLabelEscaping": 1,
                              "TestRouterPassesDoNotWorsenTheDrawing": 2,
                              "TestStoredBindingsDescribeTheFinalInk": 1}
+# TWO MORE JOINED on 2026-08-17 (curator batch 27), and the split holds:
+# `TestStoredBindingsDescribeTheFinalInk` compares a STORED value against
+# the geometry beside it, which is not a reading of a picture at all, and
+# `TestFurnitureIsNotAnUnconnectedNode` is a lint OVER-fire whose check has
+# no entry in `DETECTORS` — there is no code for `collect_findings` to
+# report and so no `FindingSpec` to write. Both carry their firing pole in
+# the same class, which is the rule-8 obligation an entry outside
+# `CATALOGUE` still owes even though the gate cannot see it.
+#
 # TWO CLASSES JOINED on 2026-08-16 (the spike-program curator batch), and
 # they are here rather than in `CATALOGUE` for one reason each, both of
 # which are the same reason: their subject is not a finding about a scene.

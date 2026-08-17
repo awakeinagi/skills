@@ -337,7 +337,7 @@ them from), so the warning still applies to that one:
 |---|---|
 | model (default suite) | `corner_feet_outside_the_square`, `flush_stack_border_run_under_the_band`, `grazing_arrival_reads_as_square`, `hyphen_in_the_role_blinds_the_object_reader` |
 | render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
-| other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
+| other (`tests/test_backend.py`) | `test_red_an_answered_glossary_challenge_is_asked_again` (refilled 2026-08-17 by curator batch 27, one day after it drained) |
 
 The unchecked row proved the warning above it the same day it was
 written: v0.9 TASK-24-FOLLOW-UP flipped two of the render row's three in
@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**PLACEHOLDER** for `test_mutants.py`, `test_mutants_render.py` and
+**10 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-derived 2026-08-17 at curator batch 27, folding onto
 v0.9 WP8 task 30 of the same afternoon. THREE CHANGES MOVED THIS NUMBER
 WITHIN HOURS AND THEY WENT BOTH WAYS, which is the whole reason it is

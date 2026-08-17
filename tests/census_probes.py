@@ -94,9 +94,20 @@ PROBES: dict[str, dict[str, str]] = {
         "file": "SESSION-HANDOVER.md",
         "why": "the per-file red counts are hand-copied and have drifted "
                "seven recorded times",
-        "old": " / 0** for `test_mutants.py`",
-        "new": " / 7** for `test_mutants.py`",
+        "old": "reads\n**",
+        "new": "reads\n**9",
     },
+    # AND THIS ONE DIED WITHIN THE HOUR of the note below being written,
+    # which is the best evidence for it. Batch 27 re-anchored the three
+    # below on the rule, left this one alone because it was passing, and
+    # then moved the durable counts itself — taking the ` / 0**` anchor
+    # with it. Re-anchored the same way: the word `reads` and the `**`
+    # that opens the numbers do not move, and prepending a `9` to the
+    # FIRST digit changes the value whatever the digits are. A `0`
+    # prepended to the LAST one would not — the file's own rejected-fix
+    # note above is about exactly that degeneracy, and `test_backend.py`'s
+    # count was 0 yesterday and will be again.
+    #
     # THE NEXT THREE ALL DIED AGAIN inside one wave, and TWO AGENTS
     # RE-ANCHORED THEM WITHIN AN HOUR OF EACH OTHER — v0.9 WP8 task 30
     # and curator batch 27, both on 2026-08-17, neither aware of the

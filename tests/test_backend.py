@@ -7215,6 +7215,64 @@ class TestFocusRoundTrip(unittest.TestCase):
         zero = focus_probe.client_draws(node, 0, 6, (402.4, 160.0), foot)
         self.assertAlmostEqual(abs(zero[0] - foot[0]), 19.145, places=3)
 
+    def test_a_conics_box_corner_is_given_a_side_name_on_purpose(
+            self) -> None:
+        """`_edge_side` names a side 32.75px off an ellipse's ink. ALLOWED.
+
+        THIS PIN RECORDS A JUDGEMENT, not a defect, and it exists so the
+        judgement is never made twice. `_edge_side`'s four bbox arms run
+        FIRST and unconditionally, so a conic gets a side name for any
+        point near its BOX — and the box corner of a 200x100 ellipse is
+        32.75px from the drawn outline, out in blank canvas. The conic
+        arm underneath (`shape_clip` within `eps`) is only ever reached
+        by points the box arms miss. On a rectangle the same corner is
+        the ink, 0.00px, which is the comparison that makes the conic
+        reading visibly wrong rather than merely loose.
+
+        A GUARD FOR THIS WAS BUILT AND REJECTED ON MEASUREMENT
+        (TASK-NARRATION, 2026-08-17). Refusing a side name to points off
+        a conic's ink refuses 9 of 346 corpus endpoints, and 5 of those
+        are fanned feet standing 4-8px off an ellipse where the side
+        sentence is both true and wanted — the narration wants to say
+        "arrives on the left" about a foot the fan slid, and eps=2.5 is
+        tighter than the fan's own spread. The case the guard defends —
+        an endpoint genuinely stranded off the ink — is already reported
+        LOUDLY by `endpoint_gap` as an ERROR in the same response, so the
+        guard would trade five true sentences for a warning the reader
+        already has.
+
+        So this is `allow`, in the sweep's sense: a real inaccuracy, no
+        picture consequence, reason written down. What is pinned is the
+        MEASUREMENT, so that a future reader who rediscovers the
+        wrongness finds the arithmetic that made it tolerable, and so
+        that a fix which changes the trade has to change this test and
+        say why. Owner if it is ever re-opened: TASK-FOCUS-FOLLOWUP,
+        which owns conic calibration.
+        """
+        ell = {"type": "ellipse", "x": 0.0, "y": 0.0,
+               "width": 200.0, "height": 100.0}
+        corner = (0.0, 0.0)
+
+        def off_the_ink(node: dict, px: float, py: float) -> float:
+            """How far `(px, py)` stands from `node`'s drawn outline."""
+            cx = node["x"] + node["width"] / 2.0
+            cy = node["y"] + node["height"] / 2.0
+            dx, dy = px - cx, py - cy
+            span = canvas.shape_clip(node, cx, cy, dx, dy)
+            return abs(1.0 - span[1]) * (dx * dx + dy * dy) ** 0.5
+
+        self.assertEqual(canvas._edge_side(ell, *corner), "left")
+        self.assertAlmostEqual(off_the_ink(ell, *corner), 32.75, places=2)
+        # the same point on a rectangle IS the outline — the bbox arms are
+        # exactly right there, which is why they run first at all
+        rect = dict(ell, type="rectangle")
+        self.assertEqual(canvas._edge_side(rect, *corner), "left")
+        self.assertAlmostEqual(off_the_ink(rect, *corner), 0.0, places=6)
+        # and the side midpoint, the one place a conic touches its box,
+        # is named for the right reason rather than by accident
+        self.assertEqual(canvas._edge_side(ell, 0.0, 50.0), "left")
+        self.assertAlmostEqual(off_the_ink(ell, 0.0, 50.0), 0.0, places=6)
+
     def test_an_unreachable_side_is_refused_by_arithmetic_not_by_a_constant(
             self) -> None:
         """WHICH mechanism refuses an impossible foot — pinned on purpose.
@@ -10986,6 +11044,120 @@ class TestGlossaryDivergence(Base):
         self.assertEqual(tws[0]["sibling"], "Booking")
         self.assertIn("Booking", tws[0]["question"])
         self.assertIn("Reservation", tws[0]["question"])
+
+    @unittest.expectedFailure
+    def test_red_an_answered_glossary_challenge_is_asked_again(self):
+        """A settled ruling does not survive the next entity (MAJOR-2).
+
+        The mapping arm has three suppression paths — the
+        `intentionally-divergent` note, `_annotation_covers` for `kinds`
+        scoping, `_policy_covers` for class-level policies. The glossary
+        arm has none. Its only suppression is the open-tripwire dedupe
+
+            seen = {t.get("mapping") for t in self.registry["tripwires"]
+                    if t.get("status") == "open"}
+
+        which is a while-you-have-not-answered-yet guard, not a ruling.
+        The moment the user answers, the key leaves `seen` and the same
+        question is armed again for every remaining entity drawn from
+        that term — up to seven more asks on the eight-entity domain
+        diagram this scope was built for.
+
+        ONLY THE CONVERGENT ANSWER IS SELF-LIMITING: "the glossary
+        follows" rewrites CONTEXT.md and the term stops existing, so the
+        question cannot recur. "Intentional divergence" — the answer the
+        question is FOR — leaves the term settled and everything else
+        re-armed. That is the failure the repo already paid for once
+        (v0.6 r3-7, three tripwires for one cause), and the shape
+        `_glossary_divergence`'s own docstring rejects auto-mapping to
+        avoid.
+
+        The fix is a recorded ruling keyed on the TERM, the glossary
+        analogue of `intentionally-divergent`. OWNER: TASK-POLISH.
+        Curator batch 27, 2026-08-17, from the Task 28 review.
+        """
+        self.seed(labels=("Booking", "Booking"))
+        first = self.rename("ent0", "Reservation")
+        self.assertEqual(len(first), 1, "the first challenge did not fire")
+        self.store.answer_tripwire(first[0]["id"], "Intentional divergence")
+        again = self.rename("ent1", "Slot", base_revn=2)
+        self.assertEqual(
+            again, [],
+            "'Booking' was ruled on and the ruling did not stick: renaming "
+            "a second entity off the same settled term re-asks it — %r"
+            % ([t.get("question") for t in again],))
+
+    def test_an_open_glossary_challenge_is_not_asked_twice(self):
+        """The green pole: the dedupe that DOES exist works.
+
+        While the first challenge is still open, a second entity leaving
+        the same term adds no second tripwire. This is what makes the red
+        above a statement about RULINGS rather than about the glossary
+        arm being unguarded — the guard is real, it is just scoped to the
+        window before an answer instead of after one.
+        """
+        self.seed(labels=("Booking", "Booking"))
+        self.assertEqual(len(self.rename("ent0", "Reservation")), 1)
+        self.assertEqual(self.rename("ent1", "Slot", base_revn=2), [])
+
+    def test_the_glossary_challenge_flag_is_stamped_and_read_by_nobody(self):
+        """`glossary_challenge=True` is inert, and now actively misleading.
+
+        Stamped unconditionally on every `entity_renamed` fact at one
+        site and read NOWHERE — not by canvas.py, not by a test, not by
+        the frontend, not by a reference doc. It ships: two of the
+        `argus-r5` save fixtures carry it.
+
+        WHAT MAKES IT WORSE THAN DEAD is that a real mechanism now
+        answers the same question correctly — a glossary tripwire fires
+        only when the OLD label was a settled term — so the flag and the
+        tripwire list DISAGREE on every rename of a non-term entity, and
+        the flag is the one that says "challenge" on all of them.
+
+        Pinned as a TRIPWIRE rather than as a red: the field is
+        harmless while nothing reads it, and this fails the day someone
+        adds a reader without deciding what it should mean. Either
+        outcome is fine and both require this test to be edited, which
+        is the whole point. OWNER of the ruling: TASK-POLISH, with
+        MAJOR-2 above. Curator batch 27, 2026-08-17.
+
+        THIS FILE IS ON THE EXPECTED LIST because writing the census
+        made it a mention — a self-reference, named rather than filtered
+        out, since a filter would also hide a real reader added here.
+        `canvas.py`'s count is asserted separately at ONE, which is the
+        claim that actually matters: one producer.
+
+        CODE ONLY, and that boundary was learned the same hour: the
+        first version walked `.md` too and went red the moment the
+        handover named the red method above, whose own name contains the
+        string. A CONSUMER IS CODE. Prose about a dead field is not a
+        reader of it, and a census that counts sentences is an anchor on
+        a moving corpus — this file's other subject entirely.
+        """
+        root = Path(canvas.__file__).resolve().parents[3]
+        readers = []
+        for path in sorted(root.rglob("*.py")) + sorted(root.rglob("*.ts")) \
+                + sorted(root.rglob("*.tsx")):
+            if "node_modules" in path.parts or ".git" in path.parts:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            if "glossary_challenge" in text:
+                readers.append(path.relative_to(root).as_posix())
+        self.assertEqual(
+            readers, ["skills/wysiwyg-grilling/scripts/canvas.py",
+                      "tests/test_backend.py"],
+            "`glossary_challenge` gained or lost a site. It was one "
+            "producer and zero consumers at curator batch 27; if a "
+            "consumer arrived, the flag needs a meaning first — it is "
+            "stamped on EVERY entity rename while the glossary tripwire "
+            "fires only on settled terms, so the two disagree by design")
+        self.assertEqual(
+            Path(canvas.__file__).read_text(encoding="utf-8").count(
+                "glossary_challenge"), 1,
+            "the producer is supposed to be a single unconditional stamp")
 
     def test_renaming_a_genuinely_new_entity_is_silent(self):
         """The control the plan names: `Trolley` is nobody's term.
