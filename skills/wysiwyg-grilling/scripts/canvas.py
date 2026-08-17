@@ -13056,6 +13056,54 @@ class Store:
         return {eid for eid, who in placed.items() if who == "user"}
 
     # -- commit -----------------------------------------------------------
+    @staticmethod
+    def _refuse_unstorable(new_scenes):
+        """Refuse a scene carrying a value the store cannot hold.
+
+        The field gate on the `commit` door, which is a DIFFERENT door
+        from `apply_batch`'s. TASK-E9ENVELOPE put the same predicate in
+        `_validate_batch`'s pre-scan, and the envelope and pre-image
+        restore are properties of `apply_batch` rather than of `commit`
+        — so every caller that reaches the write path without composing
+        a batch went round it. There are four: `/api/save` through
+        `handle_post`, `catch_up`, `accept_rollback` and `tidy`. A
+        client posting `width: NaN` to `/api/save` got `ValueError:
+        cannot convert float NaN to integer` out of the HTTP layer,
+        which names a Python builtin and not the element.
+
+        REFUSING rather than coercing, which is the ruling this class
+        settled with its reasons: there is no honest value to coerce a
+        NaN coordinate TO, since 0 silently lands the element on the
+        origin on top of whatever is already there — the
+        wrong-picture-told-confidently failure. This layer can also do
+        what `_round_geom` structurally cannot: it holds whole elements
+        with ids, so it can say WHICH element and WHICH field.
+
+        Runs before anything is read or written, so a refused save
+        leaves the store untouched rather than half-updated.
+
+        Args:
+            new_scenes: `{artifact_id: element list}`, as handed to
+                `commit`.
+
+        Raises:
+            BatchError: If any element carries a field the store cannot
+                hold, one message per fault, each naming the artifact,
+                the element and the field.
+        """
+        errors = []
+        for aid, els in sorted((new_scenes or {}).items()):
+            for i, spec in enumerate(els or []):
+                if not isinstance(spec, dict):
+                    errors.append("%s element %d is not an object, got %r"
+                                  % (aid, i, spec))
+                    continue
+                for fault in element_field_faults(spec):
+                    errors.append("%s element %r %s"
+                                  % (aid, spec.get("id", "<no id>"), fault))
+        if errors:
+            raise BatchError(errors)
+
     def commit(self, author, new_scenes, base_revn=None, selection=None,
                user_note=None, fork_name=None, registry_ops=None,
                new_meta=None, reconciliation=False, extra_facts=None,
@@ -13064,6 +13112,7 @@ class Store:
         (only changed artifacts need be present). `min_round` is a floor
         on the round this save is stamped with, for a caller that has
         already advertised one. Returns the save record."""
+        self._refuse_unstorable(new_scenes)
         with self.lock:
             head = self.head_revn()
             branch = self.registry["head"]
@@ -15543,6 +15592,14 @@ class Store:
             base = self.scenes.get(aid)
             if base is None:
                 raise BatchError(["tidy: unknown artifact %r" % aid])
+            # `commit`'s own gate cannot cover this caller: tidy REPAIRS
+            # before it saves, so an unstorable value crashes inside
+            # `_tidy_pass` (`int(round(nan))`) without the write path
+            # ever being reached. Same predicate, one door earlier —
+            # which is also the honest place for it, since what tidy is
+            # handed here is not a posted scene but whatever is already
+            # loaded.
+            self._refuse_unstorable({aid: base})
 
             def noop(headline):
                 return {"revn": self.head_revn(), "noop": True,

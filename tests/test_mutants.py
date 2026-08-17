@@ -8147,7 +8147,6 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "which is the condition that minted the v0.8 phantoms"
             % (len(disagree), len(routed)))
 
-    @unittest.expectedFailure
     def test_red_the_gate_guards_apply_batch_only_not_the_save_path(
             self) -> None:
         """Every save that skips `apply_batch` still escapes raw.
@@ -8180,18 +8179,33 @@ class TestBatchPathIntegrity(unittest.TestCase):
         `BatchError` saying `internal error … ValueError` and leave the
         caller exactly as unable to find the bad element as before.
 
-        WHAT WOULD FLIP IT: a field check on the way into `commit`,
+        FLIPPED by TASK-POLISH, and it took TWO gates rather than the
+        one the paragraph below predicted — which is the subTest design
+        earning its keep, because the shortfall announced itself as a
+        named caller instead of a number.
+
+        `Store._refuse_unstorable` runs the same `element_field_faults`
+        predicate over the scenes handed to `commit`, before the lock
+        and before anything is read, so a refused save leaves the store
+        untouched. That closes three. `tidy` stayed open because it
+        REPAIRS before it saves: the NaN died inside `_tidy_pass`'s
+        `int(round(nan))` and the write path was never reached. It calls
+        the same helper one door earlier, on the scene it is about to
+        repair. Stubbing either gate alone reopens exactly its own
+        callers and no others.
+
+        WHAT FLIPPED IT: a field check on the way into `commit`,
         reading the scenes it was handed with the same predicate
         `element_field_faults` already applies to a batch. Refusing is
         the settled ruling for this class (recorded in the D-2 red below,
         with its three reasons), and unlike `_round_geom` this layer CAN
         name what it refused — it holds whole elements, with ids.
 
-        WHO FLIPS THIS: the task that owns the `commit` entry, v0.10 or
-        the wave tail — NOT a curator and not this file. Filed by the
-        TASK-E9ENVELOPE review as F4 (MINOR, scope-critical); the
+        WHO FLIPPED IT: filed by the TASK-E9ENVELOPE review as F4
+        (MINOR, scope-critical), pinned by curator batch 26, and drained
+        inside v0.9 by TASK-POLISH rather than deferred to v0.10. The
         implementer's decision not to self-pin it is right by the run-5
-        rule and is why this is here.
+        rule and is why this was here to flip.
         """
         planted = {"type": "rectangle", "id": "posted-bad", "x": 0, "y": 200,
                    "width": float("nan"), "height": 60}
@@ -17445,7 +17459,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
-    "TestBatchPathIntegrity": 1,
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
