@@ -458,6 +458,31 @@ it "agent asked a question" with no Apply action.
   `SCOPES + QUARANTINED = the files on disk`.
 - `canvas.py pending [--discard <id>]` → what is queued behind the user's
   banner, with each entry's artifact, note and op count.
+- `canvas.py reroute [--artifact <id>] [--apply]` → arrows an OLDER router
+  drew, and what today's would draw instead. Nothing re-routes on load, so
+  a project laid out by an earlier version keeps that geometry forever:
+  legs arriving at a shoulder instead of square to a side, feet the client
+  re-aims somewhere the stored path does not go. **Dry run by default**:
+  one `REROUTE=<id>: <arrow>: …` line per arrow, then
+  `ARTIFACTS`/`ARROWS`/`CHECKPOINT`/`APPLIED=false`. `--apply` needs
+  `--artifact` — consent is given one drawing at a time, never
+  project-wide — and commits an ordinary agent revision, so **reverting
+  that save restores the old geometry exactly**. Arrows whose geometry is
+  the USER's (`mod points`, hand-reshaped, unmarked bent paths) are
+  neither reported nor touched.
+  - **The offer is made only when it would straighten the drawing**, not
+    whenever a re-route would change something. The router and the fan do
+    not converge — routing reads the other arrows' paths and the fan then
+    moves them — so on nine of the frozen corpus's 24 artifacts a pass
+    keeps moving arrows however many times it runs. What stops after the
+    first pass is the improvement, so the offer withdraws itself once you
+    accept it, and pressing again is a no-op rather than another revision.
+    Same wall `tidy` hits and answers by refusing; refusing here would fix
+    none of the corpus's crooked endpoints, since all of them sit on
+    artifacts that cycle.
+  - `start` and `lint` print a `LEGACY_ROUTING=` line per affected
+    artifact. That is all a load ever does about it — **the loader never
+    redraws the picture the user last saw.**
 - `canvas.py export --artifact <id> --with-footnotes` → SVG carrying its
   tooltips as numbered footnotes plus the glossary — for handover.
 - `canvas.py export --artifact <id> --format mermaid [--direction TD|LR]
@@ -490,6 +515,10 @@ it "agent asked a question" with no Apply action.
   context only, never truth).
 - `POST <url>api/tidy {"artifact": id}` → grid-snap + re-route + re-fan +
   z-order as an ordinary agent revision (revertible).
+- `POST <url>api/reroute {"artifact": id}` → what `reroute --apply` posts
+  to when a server is up. Use the CLI: writing the files directly behind a
+  running store makes the re-route arrive as an out-of-session edit, and
+  the user gets told they made it.
 - `POST <url>api/pending/resolve {"id": N, "action": ...}` → the banner's
   own buttons: `apply_now`, `after_save`, or `discard` (v0.5 — the user's
   way to say no). The user drives this; you supersede or re-send.

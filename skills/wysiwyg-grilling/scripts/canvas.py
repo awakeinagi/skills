@@ -4066,6 +4066,283 @@ def fan_attach_points(els):
         recenter_label(els, a)
 
 
+REROUTE_TOL_PX = 1.0
+# How far a re-routed point may sit from the stored one and still count as
+# the same drawing. Routed geometry is snapped to whole pixels before it is
+# stamped (`_snap_geom`), so anything a re-route genuinely redraws moves by
+# at least 1px; the tolerance is here for the fractional coordinates older
+# pipelines wrote, not to hide a real move.
+
+REROUTE_TOL_FOCUS = 0.005
+# Half of `solve_focus`'s last stored digit (it rounds to 3dp). A focus
+# difference is a REAL difference even at zero pixels: focus is what the
+# client aims along, so a stale one draws the foot somewhere the stored
+# geometry does not say — the whole reason a fossil is visible at all.
+
+
+def reroute_scene(els):
+    """Redraw the scene's server-owned arrows the way today's router would.
+
+    A legacy artifact keeps whatever geometry the pipeline of its day
+    wrote: `apply_ops` re-routes on a node move and after add/mod/del,
+    but an artifact opened from disk is never re-routed, so a project
+    laid out by an older router stays laid out by it forever. Measured
+    on the frozen corpus at this head: re-routing the 153 server-owned
+    both-ends-bound arrows takes non-normal endpoints 60 → 2.
+
+    THE AUTHORED-ARROW BOUNDARY IS ABSOLUTE and is not re-litigated
+    here: this touches exactly the set `fan_attach_points` iterates
+    (`server_owns_geometry`), so a `mod points` path, a path the user
+    reshaped on the canvas, and an unmarked bent path are all left as
+    drawn. An arrow with only one end bound has no pair to route
+    between, so its PATH is left as drawn — its binding focus is still
+    re-solved, because that is what the shipped fan does to every
+    server-owned arrow on every apply, and a focus aiming the client
+    somewhere the path does not go is exactly what a fossil is.
+
+    NOTHING IS MUTATED. The work happens on a deep copy, which is what
+    lets a caller show the user what WOULD change before anything does —
+    the load path detects and the CLI's dry run reports, and neither can
+    leak a write by forgetting to copy.
+
+    ONE PASS, exactly as a save gets. `apply_ops` runs its routing
+    post-pass once per batch and never iterates, so one pass is what
+    "drawn by today's pipeline" means; `reroute_is_fossil` is where the
+    fact that a second pass would move it again gets handled, because
+    that is a question about the scene, not about this function.
+
+    Consumers: `Store.legacy_routing` (detection), `Store.reroute` (the
+    consent-gated apply), and TASK-FOCUS-FOLLOWUP's fixture rebase,
+    which drives the same mechanism rather than growing a second one.
+
+    Args:
+        els: The scene's elements, as loaded. Not mutated.
+
+    Returns:
+        `(elements, changes)`. `elements` is the re-routed copy, already
+        through `rebuild_bound_elements` so its derived roundness matches
+        its new geometry — skip that and 22 of the 58 endpoints this
+        fixes read as non-normal again, because a re-routed path keeps a
+        curvature it can no longer earn. `changes` has one entry per
+        arrow that actually moved: `{"id", "moved_px", "refocused",
+        "was_points", "now_points"}`, sorted by id.
+    """
+    out = copy.deepcopy(els)
+    ix = {e["id"]: e for e in out}
+    # The annotation exclusion follows `_tidy_pass`, `reroute_and_confess`
+    # and `fan_attach_points`' own `fan_obstacles`. `apply_ops`' obstacle
+    # set is the one site that omits it — noted, not changed here.
+    obstacles = [e for e in out
+                 if e.get("type") in ("rectangle", "diamond", "ellipse")
+                 and role_of(e) not in ("label", "pin", "decoration",
+                                        "annotation")]
+    soft = [e for e in out if e.get("type") == "text"
+            and (e.get("containerId") or role_of(e) == "annotation")]
+    for a in out:
+        if a.get("type") != "arrow":
+            continue
+        src = ix.get((a.get("startBinding") or {}).get("elementId"))
+        dst = ix.get((a.get("endBinding") or {}).get("elementId"))
+        if src is None or dst is None or not server_owns_geometry(a):
+            continue
+        # `other_arrows` is read fresh each time, as every other caller
+        # reads it: the crossing term must see the paths already re-routed
+        # in this pass, not the fossils they replaced.
+        route_arrow(a, src, dst, obstacles, soft_obstacles=soft,
+                    other_arrows=[(t["id"], t.get("x", 0), t.get("y", 0),
+                                   t.get("points") or [])
+                                  for t in out if t.get("type") == "arrow"
+                                  and len(t.get("points") or []) >= 2])
+        recenter_label(out, a)
+    fan_attach_points(out)
+    rebuild_bound_elements(out)
+    was = {e["id"]: e for e in els if e.get("type") == "arrow"}
+    changes = []
+    for a in out:
+        old = was.get(a.get("id"))
+        if a.get("type") != "arrow" or old is None:
+            continue
+        moved = _reroute_shift(old, a)
+        refocused = _reroute_refocus(old, a)
+        if moved <= REROUTE_TOL_PX and not refocused:
+            continue
+        changes.append({"id": a["id"], "moved_px": moved,
+                        "refocused": refocused,
+                        "was_points": len(old.get("points") or []),
+                        "now_points": len(a.get("points") or [])})
+    return out, sorted(changes, key=lambda c: c["id"])
+
+
+REROUTE_SQUARE_TOL = 10.0
+# Degrees of lean that still counts as arriving square. The spike's own
+# class boundary, and the bar both censuses of the endpoint residue
+# reconciled at.
+
+_SIDE_NORMALS = {"top": (0.0, -1.0), "bottom": (0.0, 1.0),
+                 "left": (-1.0, 0.0), "right": (1.0, 0.0)}
+
+
+def oblique_arrivals(els):
+    """Bound endpoints whose DRAWN final leg does not meet its side square.
+
+    The fossil, as the user sees it rather than as the file stores it: a
+    foot standing on a node's top edge with the line coming in almost
+    along that edge reads as an arrow sliding past the box, not entering
+    it. Measured off `_arrival_path`, so it is the flattened path the
+    client actually draws — a curved final leg's chord says something
+    else.
+
+    NOT `_arrival_lean`, which the curvature gate uses: that measures
+    lean off the nearest CARDINAL, so a horizontal leg arriving at a TOP
+    edge scores a perfect 0.0 while being as wrong as an arrival can be.
+    That is the `along` class, 16 of the 70 endpoints the residue census
+    counted, and it is exactly what has to be visible here.
+
+    Args:
+        els: A scene's elements.
+
+    Returns:
+        `[(arrow_id, "start"|"end")]` for every bound endpoint over
+        `REROUTE_SQUARE_TOL`, in scene order.
+    """
+    ix = {e["id"]: e for e in els}
+    out = []
+    for a in els:
+        if a.get("type") != "arrow":
+            continue
+        for at_end, battr in ((False, "startBinding"), (True, "endBinding")):
+            node = ix.get((a.get(battr) or {}).get("elementId"))
+            if node is None:
+                continue
+            seq, prev = _arrival_path(a, at_end)
+            if prev is None or not seq:
+                continue
+            foot = seq[0]
+            side = _edge_side(node, foot[0], foot[1])
+            vx, vy = foot[0] - prev[0], foot[1] - prev[1]
+            if side is None or not (vx or vy):
+                continue
+            nx, ny = _SIDE_NORMALS[side]
+            cos = abs((vx * nx + vy * ny) / math.hypot(vx, vy))
+            lean = math.degrees(math.acos(max(-1.0, min(1.0, cos))))
+            if lean > REROUTE_SQUARE_TOL:
+                out.append((a["id"], "end" if at_end else "start"))
+    return out
+
+
+def reroute_is_fossil(els):
+    """Would a re-route make this drawing read straighter?
+
+    THE OBVIOUS TEST IS WRONG, and getting it wrong is how this feature
+    would have nagged forever. "One pass would change it" looks like the
+    definition of stale, but route-then-fan does not converge: the
+    router reads the other arrows' current paths and the fan then moves
+    them, so on 9 of the 24 frozen artifacts the pipeline never settles
+    (eight cycle with period 2, `argus-r5 / tuesday-triage` with period
+    6). Under that, "a pass would change it" is true of a legacy scene
+    AND of the re-routed one, so the NOTE would re-fire after the user
+    accepted it and every press would write another revision — BUG-02's
+    exact shape.
+
+    Two answers were tried and discarded before this one. `tidy`'s —
+    refuse what will not settle — is right for a repair button and
+    useless here: all 60 of the corpus's crooked endpoints sit on
+    artifacts that cycle, so a refusing re-route fixes none of them.
+    Orbit membership ("is this scene something the pipeline can emit?")
+    is decidable but wrong for the same reason `tidy`'s is right — the
+    pipeline's orbit has a TAIL, and one pass out of a fossil lands on
+    it rather than on the cycle, so an accepted re-route still failed
+    the test.
+
+    What settles it is to stop asking about the pipeline and ask about
+    the DRAWING, which is the one thing here that does not oscillate: a
+    re-route is offered when it strictly reduces the number of endpoints
+    arriving crooked. Legacy scenes improve (60 crooked endpoints across
+    the corpus become 2); their re-routed successors do not, so the
+    offer withdraws itself; a scene with nothing crooked is never
+    offered at all, at the cost of one comparison instead of a router
+    pass.
+
+    Args:
+        els: The scene's elements, as loaded. Not mutated.
+
+    Returns:
+        True when a re-route would leave strictly fewer crooked
+        arrivals than the scene has now.
+    """
+    before = len(oblique_arrivals(els))
+    if not before:
+        return False
+    return len(oblique_arrivals(reroute_scene(els)[0])) < before
+
+
+def _reroute_shift(was, now):
+    """How far the drawn path moved, in pixels.
+
+    Args:
+        was: The stored arrow.
+        now: The same arrow after the re-route.
+
+    Returns:
+        The largest distance any point travelled — or `inf` when the
+        point COUNT changed, since a 2-point path becoming an elbow is a
+        different drawing and no single distance describes it.
+    """
+    pa = [(was.get("x", 0) + p[0], was.get("y", 0) + p[1])
+          for p in (was.get("points") or [])]
+    pb = [(now.get("x", 0) + p[0], now.get("y", 0) + p[1])
+          for p in (now.get("points") or [])]
+    if len(pa) != len(pb):
+        return float("inf")
+    return max((math.hypot(x1 - x2, y1 - y2)
+                for (x1, y1), (x2, y2) in zip(pa, pb)), default=0.0)
+
+
+def _reroute_refocus(was, now):
+    """Which ends the re-route re-aimed.
+
+    Args:
+        was: The stored arrow.
+        now: The same arrow after the re-route.
+
+    Returns:
+        `["start"]`, `["end"]`, both, or `[]`. A focus change with no
+        pixel change is still a change the user sees, because focus is
+        what the client aims along when it re-draws the foot.
+    """
+    ends = []
+    for which, key in (("start", "startBinding"), ("end", "endBinding")):
+        b1, b2 = (was.get(key) or {}), (now.get(key) or {})
+        if abs((b1.get("focus") or 0) - (b2.get("focus") or 0)) \
+                > REROUTE_TOL_FOCUS or (b1.get("gap") or 0) != \
+                (b2.get("gap") or 0):
+            ends.append(which)
+    return ends
+
+
+def reroute_line(change):
+    """One arrow's re-route, in a sentence a user can check against the ink.
+
+    Args:
+        change: An entry from `reroute_scene`'s `changes`.
+
+    Returns:
+        A single line naming the arrow, how far it moves and which ends
+        get re-aimed — never a bare id, because "12 arrows change" is
+        not consent, it is a number.
+    """
+    if change["was_points"] != change["now_points"]:
+        what = "%d-point path becomes %d-point" % (change["was_points"],
+                                                   change["now_points"])
+    elif change["moved_px"] > REROUTE_TOL_PX:
+        what = "path moves up to %.0fpx" % change["moved_px"]
+    else:
+        what = "path unchanged"
+    if change["refocused"]:
+        what += "; %s re-aimed" % "/".join(change["refocused"])
+    return "%s: %s" % (change["id"], what)
+
+
 # ---------------------------------------------------------------------------
 # op engine — one grammar, both directions (spec §6.2): the op vocabulary
 # mirrors the save-record change vocabulary. validate-all-then-apply.
@@ -6726,6 +7003,22 @@ def _domain_facts(old_ix, new_ix, old_labels, new_labels, changes, adds,
                 gone = {d["id"] for d in dels}
                 os_, oe_ = _norm_binding(old_arrow.get("startBinding")), \
                     _norm_binding(old_arrow.get("endBinding"))
+                # BUG-01's guard, which the FLOW arm has carried since the
+                # brownfield round and this one never got: the client
+                # rewrites the binding OBJECT (focus, gap) whenever an
+                # endpoint is dragged and dropped back on the entity it
+                # came from, so the attribute shows in the diff while
+                # nothing was re-pointed. On a domain artifact that
+                # narrated as "rewired Earnings Event→Issuer to Earnings
+                # Event→Issuer" — a relationship change reported to the
+                # user when the model did not move. Reachable from a plain
+                # user save (verified), and from anything that re-solves a
+                # binding focus, which is now a thing the tool does:
+                # `reroute` re-aims three of tearsheet-domain's arrows
+                # without touching a pixel of their paths.
+                if (os_, oe_) == (_norm_binding(el.get("startBinding")),
+                                  _norm_binding(el.get("endBinding"))):
+                    continue
                 _, _, osl, oel = _arrow_ends(old_arrow, old_ix, old_labels)
                 _, _, nsl, nel = _arrow_ends(el, new_ix, new_labels)
                 kw = {"from": "%s→%s" % (osl, oel),
@@ -15680,6 +15973,128 @@ class Store:
                           "%d arrow(s), normalized z-order"
                           % (snapped, rerouted))
 
+    def legacy_routing(self):
+        """Which loaded artifacts still carry an older router's geometry.
+
+        DETECTION ONLY. A load may say what it noticed; it may never
+        quietly redraw the picture the user last saw, so this is a pure
+        read over `reroute_scene`'s throwaway copy and nothing it
+        computes reaches disk. `Store.reroute` is the half that changes
+        anything, and only with the user's explicit yes.
+
+        LAZY AND MEMOISED, deliberately. A whole-project pass costs up
+        to ~185ms on the frozen corpus (measured at this head), and
+        `Store` is built by nearly every CLI verb and by the test suite
+        thousands of times — computing this in `__init__` would put a
+        router pass behind `status`. The memo key is `state_stamp`, the
+        same one `lint_debt` uses, so a write invalidates it and a poll
+        does not; and `reroute_is_fossil` costs nothing at all on a
+        drawing with no crooked arrivals, which is the everyday case.
+
+        Returns:
+            `{artifact_id: [change, ...]}` for artifacts a re-route
+            would straighten (`reroute_is_fossil`), each list as
+            `reroute_scene` returns it. Empty for a project already
+            drawn the way today's router draws.
+        """
+        with self.lock:
+            key = self.state_stamp()
+            cached = getattr(self, "_legacy_routing_cache", None)
+            if cached and cached[0] == key:
+                return cached[1]
+            found = {}
+            for aid, els in sorted(self.scenes.items()):
+                if not reroute_is_fossil(els):
+                    continue
+                changes = reroute_scene(els)[1]
+                if changes:
+                    found[aid] = changes
+            self._legacy_routing_cache = (key, found)
+            return found
+
+    def legacy_routing_notes(self):
+        """The load-time NOTE, one line per artifact a re-route would fix.
+
+        Returns:
+            `[str]` — empty when nothing is fossilised, which is the
+            everyday case and has to stay silent: a resume surface that
+            says something on every project trains an agent to skip it.
+        """
+        return ["%s: %d arrow(s) carry legacy routing and %d endpoint(s) "
+                "arrive crooked — `canvas.py reroute --artifact %s` shows "
+                "what today's router would draw instead; nothing changes "
+                "without --apply"
+                % (aid, len(ch), len(oblique_arrivals(self.scenes[aid])),
+                   aid)
+                for aid, ch in sorted(self.legacy_routing().items())]
+
+    def reroute(self, aid):
+        """Re-route one artifact's fossil arrows, as a revertible revision.
+
+        The consent gate is the CLI's (`reroute` reports; `--apply`
+        acts) and the checkpoint is this commit's own base: reverting
+        the save it returns restores the geometry exactly, which is why
+        this goes through `commit` rather than through `apply_ops`. It
+        could not go through ops anyway — a `mod points` marks the arrow
+        `routed: "authored"`, so expressing a re-route as ops would
+        disown every arrow it touched and freeze the fossil in place
+        permanently.
+
+        Every changed arrow gets its own `rerouted` fact, so the save
+        narrates arrow by arrow instead of as one anonymous count. The
+        geometry diff alone would not: bound-arrow geometry is derived,
+        and a save carrying only derived changes narrates as an empty
+        one (the same reason `apply_batch` synthesises these facts for a
+        hand `mod points`).
+
+        GATED ON `reroute_is_fossil`, not on "a pass would change
+        something" — that is the difference between a verb the user can
+        press once and a verb that writes a revision on every press
+        forever, which is BUG-02's exact shape. The router and the fan
+        do not converge, so on nine of the frozen corpus's artifacts a
+        pass keeps moving arrows however many times it is run; what
+        stops after the first is the IMPROVEMENT.
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            The save record, or a `noop: True` stand-in when a re-route
+            would not straighten the drawing — committing anyway would
+            write a revision headlined "saved without changing
+            anything", or worse, one that changed the picture for
+            nothing.
+
+        Raises:
+            BatchError: If `aid` names no artifact.
+        """
+        with self.lock:
+            base = self.scenes.get(aid)
+            if base is None:
+                raise BatchError(["reroute: unknown artifact %r" % aid])
+            if not reroute_is_fossil(base):
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline": "nothing on %s arrives "
+                                                "crooked — leaving it as "
+                                                "drawn" % aid,
+                                    "verb_counts": {}, "suppressed": 0}}
+            els, changes = reroute_scene(base)
+            if not changes:
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline": "%s is already routed the "
+                                                "way today's router would "
+                                                "draw it" % aid,
+                                    "verb_counts": {}, "suppressed": 0}}
+            return self.commit(
+                author="agent", new_scenes={aid: els},
+                base_revn=self.head_revn(),
+                user_note="re-routed %d legacy arrow(s): %s — revert this "
+                          "save to put the old geometry back"
+                          % (len(changes),
+                             "; ".join(reroute_line(c) for c in changes)),
+                extra_facts={aid: [{"fact": "rerouted", "element": c["id"],
+                                    "arrow": c["id"]} for c in changes]})
+
     def label_save(self, revn, label):
         """Bookmark a save (Phase 6): a short human name shown in the
         timeline and graph. Stored on the record; content-addressing
@@ -16516,6 +16931,25 @@ class ServerApp:
                                tidy=True)
             return {"ok": True, "revn": record["revn"],
                     "headline": record["summary"]["headline"]}
+        if path == "/api/reroute":
+            # The CLI posts here whenever a server is up rather than
+            # writing the files itself: a direct write would land as an
+            # out-of-session edit the running store then reconciles, so
+            # the user would be told THEY changed the drawing.
+            aid = body.get("artifact")
+            try:
+                record = self.store.reroute(aid)
+            except (BatchError, StaleError) as e:
+                return err(400, str(e))
+            if record.get("noop"):
+                return {"ok": True, "revn": record["revn"], "noop": True,
+                        "headline": record["summary"]["headline"]}
+            self.events.append("agent_revision", revn=record["revn"],
+                               short_id=record["short_id"],
+                               headline=record["summary"]["headline"],
+                               reroute=True)
+            return {"ok": True, "revn": record["revn"],
+                    "headline": record["summary"]["headline"]}
         if path == "/api/save-label":
             try:
                 rec = self.store.label_save(int(body.get("revn") or 0),
@@ -17080,11 +17514,21 @@ def cmd_start(args):
     # `cmd_lint`: on the spawn path the findings are already on disk, and
     # on the reuse path an HTTP round-trip would make the first thing an
     # agent runs depend on a second request succeeding.
+    #
+    # LEGACY_ROUTING is a third heading and not a fourth kind of repair:
+    # the loader changed nothing and is saying so. A legacy artifact keeps
+    # the geometry an older router gave it, because nothing re-routes on
+    # load — which is exactly the silence the user ruled against, and the
+    # remedy it names (`reroute`) is consent-gated, so this line is the
+    # whole of what a load is allowed to do about it.
     try:
-        for i in Store(project).issues:
+        store = Store(project)
+        for i in store.issues:
             print("%s=%s: %s"
                   % ("REPAIR" if i.get("repaired") else "QUARANTINE",
                      i.get("code"), i.get("msg")))
+        for line in store.legacy_routing_notes():
+            print("LEGACY_ROUTING=%s" % line)
     except (OSError, ValueError) as e:
         # a project too broken to open is not a reason to withhold the URL
         # that was just printed — the canvas is up and the session can run
@@ -17407,6 +17851,94 @@ def cmd_export(args):
     return 0
 
 
+def cmd_reroute(args):
+    """Report — and, with consent, apply — a re-route of legacy geometry.
+
+    DRY RUN IS THE DEFAULT and `--apply` is the whole consent gate, in
+    the shape `--relayout` set: say what would change, name the save to
+    revert to, and only then let an explicit flag act. `--apply` also
+    requires `--artifact`, so consent is given one drawing at a time —
+    a project-wide survey is a report, never a blanket yes.
+
+    The user's own arrows are not in scope at any point:
+    `reroute_scene` touches only what the server routed, so `mod
+    points` paths and hand-reshaped ones are neither reported nor
+    redrawn.
+
+    Args:
+        args: Parsed CLI args — `project`, optional `artifact`, `apply`.
+
+    Returns:
+        Process exit code: 0 on a report or a successful apply, 2 on a
+        bad artifact id or an `--apply` with no artifact named.
+    """
+    project = Project(args.project)
+    store = Store(project)
+    fossils = store.legacy_routing()
+    if args.artifact:
+        if args.artifact not in store.scenes:
+            die("ERROR=unknown artifact %r (known: %s)"
+                % (args.artifact, ", ".join(sorted(store.scenes)) or "none"),
+                2)
+        fossils = {k: v for k, v in fossils.items() if k == args.artifact}
+    for aid, changes in sorted(fossils.items()):
+        for c in changes:
+            print("REROUTE=%s: %s" % (aid, reroute_line(c)))
+    arrows = sum(len(v) for v in fossils.values())
+    if not args.apply:
+        print_kv(artifacts=len(fossils), arrows=arrows, applied="false",
+                 checkpoint="revert save #%d to restore the current "
+                            "geometry" % store.head_revn(),
+                 note="nothing was changed — re-run with --artifact ID "
+                      "--apply to accept this for one artifact"
+                      if arrows else "every server-routed arrow is already "
+                      "drawn the way today's router would draw it")
+        return 0
+    if not args.artifact:
+        die("ERROR=--apply needs --artifact ID. Consent is per drawing: "
+            "run `reroute` with no flags to survey the project, then "
+            "accept one artifact at a time.", 2)
+    # Through the server whenever one is up, exactly as `apply` does.
+    # Writing the files behind a running store makes the re-route arrive
+    # as an out-of-session edit, and the user gets told they made it.
+    state = project.read_state()
+    if server_alive(state):
+        try:
+            resp = http_json(state["url"] + "api/reroute",
+                             payload={"artifact": args.artifact},
+                             timeout=30.0)
+        except urllib.error.HTTPError as e:
+            try:
+                payload = json.loads(e.read().decode("utf-8"))
+            except ValueError:
+                payload = {"error": str(e)}
+            die("ERROR=%s" % payload.get("error", str(e)), 5)
+        except (OSError, ValueError, urllib.error.URLError) as e:
+            die("ERROR=server unreachable (%s) — run canvas.py start" % e, 3)
+        print_kv(artifact=args.artifact, arrows=arrows, applied="true",
+                 revn=resp.get("revn"), noop=str(bool(resp.get("noop"))).lower(),
+                 headline=resp.get("headline"))
+        return 0
+    try:
+        record = store.reroute(args.artifact)
+    except (BatchError, StaleError) as e:
+        die("ERROR=%s" % e, 5)
+    if record.get("noop"):
+        print_kv(artifact=args.artifact, applied="false", noop="true",
+                 headline=record["summary"]["headline"])
+        return 0
+    EventLog(project.events_path).append(
+        "agent_revision", revn=record["revn"],
+        short_id=record["short_id"],
+        headline=record["summary"]["headline"], offline=True, reroute=True)
+    print_kv(artifact=args.artifact, arrows=arrows, applied="true",
+             revn=record["revn"], short_id=record["short_id"],
+             headline=record["summary"]["headline"],
+             checkpoint="revert save #%d to put the old geometry back"
+                        % record["revn"], offline="true")
+    return 0
+
+
 def cmd_lint(args):
     """Print the standing lint findings, bodies and all.
 
@@ -17457,6 +17989,14 @@ def cmd_lint(args):
         dropped += 0 if repaired else 1
         print("%s=%s: %s" % ("REPAIR" if repaired else "QUARANTINE",
                              i.get("code"), i.get("msg")))
+    # What the load NOTICED and deliberately left alone. `lint` is the
+    # server-free surface for load findings, so it carries this beside
+    # them — but under its own heading, because a fossil is not a repair
+    # (nothing was mended) and not a quarantine (nothing was dropped),
+    # and printing it as either would be a false sentence about the file.
+    for line in store.legacy_routing_notes():
+        if not args.artifact or line.startswith(args.artifact + ":"):
+            print("LEGACY_ROUTING=%s" % line)
     # SCOPES, not ARTIFACTS (r5-1). This counts what was LINTED, and the
     # registry is a scope with findings of its own and no artifact behind
     # it — so a project with one artifact printed `ARTIFACTS=2` under the
@@ -19709,6 +20249,16 @@ def main(argv=None):
                                     "(status shows only the counts)")
     p.add_argument("--artifact", default=None,
                    help="limit to one artifact id")
+    p = sub.add_parser("reroute", help="report (and with --apply, accept) a "
+                                       "re-route of arrows an older router "
+                                       "drew — dry run by default")
+    p.add_argument("--artifact", default=None,
+                   help="limit to one artifact id (required with --apply: "
+                        "consent is given one drawing at a time)")
+    p.add_argument("--apply", action="store_true",
+                   help="accept the re-route for --artifact and commit it "
+                        "as an ordinary revision — reverting that save "
+                        "restores the old geometry exactly")
     p = sub.add_parser("pending", help="list revisions held behind the "
                                        "user's banner")
     p.add_argument("--discard", type=int, default=None,
@@ -19796,7 +20346,7 @@ def main(argv=None):
     handlers = {
         "start": cmd_start, "status": cmd_status, "stop": cmd_stop,
         "wait": cmd_wait, "apply": cmd_apply, "lint": cmd_lint,
-        "export": cmd_export,
+        "export": cmd_export, "reroute": cmd_reroute,
         "pending": cmd_pending, "screenshot": cmd_snapshot,
         "snapshot": cmd_snapshot, "mermaid": cmd_mermaid,
         "serve": cmd_serve,

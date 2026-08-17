@@ -10,6 +10,7 @@ import base64
 import contextlib
 import io
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -17,6 +18,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
@@ -11264,6 +11266,526 @@ class TestNoOpRewireIsNotASequenceChange(Base):
             ix["t3"]["startBinding"] = dict(ix["t3"]["startBinding"],
                                             elementId="checkout")
         self.assertIn("sequence_reordered", self.facts_after(repoint))
+
+
+def seed_domain_batch(base_revn=0):
+    """Two entities and one relationship — the domain sibling of the flow seed.
+
+    Args:
+        base_revn: Head the batch is written against.
+
+    Returns:
+        An op batch creating `shop-domain`.
+    """
+    return {
+        "base_revn": base_revn,
+        "artifact": "shop-domain",
+        "create": {"id": "shop-domain", "name": "Shop Domain",
+                   "type": "domain", "concept": "shop",
+                   "concept_name": "Shop"},
+        "ops": [
+            {"op": "add", "element": {"type": "rectangle", "id": "order",
+                                      "label": "Order", "x": 40, "y": 40,
+                                      "width": 140, "height": 60,
+                                      "kind": "entity"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "customer",
+                                      "label": "Customer", "x": 400,
+                                      "y": 40, "width": 140, "height": 60,
+                                      "kind": "entity"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "invoice",
+                                      "label": "Invoice", "x": 400,
+                                      "y": 240, "width": 140, "height": 60,
+                                      "kind": "entity"}},
+            {"op": "add", "element": {"type": "arrow", "id": "r1",
+                                      "label": "placed by",
+                                      "from": "order", "to": "customer"}},
+        ],
+    }
+
+
+class TestNoOpRewireOnADomainArtifactIsNotARelationshipChange(Base):
+    """BUG-01's guard, on the arm that never got it.
+
+    The flow arm has compared normalized bindings since the brownfield
+    round; the DOMAIN arm built its `relationship_rewired` fact from the
+    presence of the attribute alone. So an endpoint dropped back on the
+    entity it came from — which rewrites the binding OBJECT and nothing
+    else — narrated as "rewired Order→Customer to Order→Customer": a
+    change to the model, reported to the user, when the model did not
+    move. Found by TASK-REROUTE (a re-route re-solves focus, which is
+    the same edit), and verified reachable from a plain user save first.
+    """
+
+    def setUp(self):
+        """Seed the domain artifact both poles are measured on."""
+        super().setUp()
+        self.store.apply_batch(seed_domain_batch())
+
+    def facts_after(self, mutate):
+        """Commit a mutated scene as the user and return its fact verbs.
+
+        Args:
+            mutate: Callback handed `{id: element}` for the scene copy.
+
+        Returns:
+            The fact verbs the save recorded.
+        """
+        els = [dict(e) for e in self.store.scenes["shop-domain"]]
+        mutate({e["id"]: e for e in els})
+        rec = self.store.commit(author="user",
+                                new_scenes={"shop-domain": els})
+        return [f["fact"] for a in rec["artifacts"].values()
+                for f in a["facts"]]
+
+    def test_a_re_aimed_binding_is_not_a_rewired_relationship(self):
+        def jiggle(ix):
+            b = dict(ix["r1"]["startBinding"])
+            b["focus"] = round(b.get("focus", 0) + 0.11, 3)
+            b["gap"] = b.get("gap", 6) + 1
+            ix["r1"]["startBinding"] = b
+        self.assertNotIn("relationship_rewired", self.facts_after(jiggle))
+
+    def test_a_real_re_pointing_still_fires(self):
+        # the firing half — the guard must not silence the fact itself
+        def repoint(ix):
+            ix["r1"]["endBinding"] = dict(ix["r1"]["endBinding"],
+                                          elementId="invoice")
+        self.assertIn("relationship_rewired", self.facts_after(repoint))
+
+
+class TestRerouteScene(Base):
+    """The callable surface: what a re-route touches, and what it will not.
+
+    `reroute_scene` is the one mechanism behind the load-time NOTE, the
+    `reroute` verb and (by design) TASK-FOCUS-FOLLOWUP's fixture rebase,
+    so the authored-arrow boundary is asserted HERE rather than once per
+    consumer.
+    """
+
+    def setUp(self):
+        """Seed a flow drawn by today's router — the silent pole's scene."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def fossilise(self, arrow_id="t1"):
+        """Freeze one arrow the way an older router left it, and reload.
+
+        The geometry is the shape that MATTERS: a foot standing on
+        `cart`'s right edge with the line coming in 29° off square, and
+        the same at `checkout`'s left. A fossil the user cannot see is
+        not one this offers to fix, so a merely-different path would
+        prove nothing about the detector.
+
+        Re-stamps the route signature, so the arrow stays the SERVER's —
+        which is the whole point: a fossil is geometry nobody hand-drew.
+
+        Args:
+            arrow_id: The arrow to overwrite.
+
+        Returns:
+            The reloaded store, off disk, through the real load path.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == arrow_id:
+                e["x"], e["y"] = 180, 130
+                e["points"] = [[0, 0], [80, 45]]
+                canvas._stamp_route(e)
+        self.store.commit(author="agent",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        return canvas.Store(self.project)
+
+    def test_a_scene_drawn_today_has_nothing_to_re_route(self):
+        """The everyday silent pole, through the real load path."""
+        store = canvas.Store(self.project)
+        self.assertEqual(store.legacy_routing(), {})
+        self.assertEqual(store.legacy_routing_notes(), [])
+
+    def test_a_fossil_is_found_and_named(self):
+        store = self.fossilise()
+        found = store.legacy_routing()
+        self.assertEqual(list(found), ["checkout-flow"])
+        self.assertIn("t1", [c["id"] for c in found["checkout-flow"]])
+        self.assertIn("checkout-flow", store.legacy_routing_notes()[0])
+        self.assertIn("reroute --artifact checkout-flow",
+                      store.legacy_routing_notes()[0])
+
+    def test_detection_mutates_nothing(self):
+        """A load may notice; it may never redraw what the user last saw."""
+        store = self.fossilise()
+        raw = self.project.artifacts_dir / "checkout-flow.excalidraw"
+        on_disk = raw.read_text()
+        before = json.dumps(store.scenes["checkout-flow"], sort_keys=True)
+        head = store.head_revn()
+        self.assertTrue(store.legacy_routing(), "nothing was detected — "
+                                                "this proves no silence")
+        self.assertEqual(json.dumps(store.scenes["checkout-flow"],
+                                    sort_keys=True), before)
+        self.assertEqual(store.head_revn(), head)
+        self.assertEqual(raw.read_text(), on_disk)
+
+    def test_reroute_scene_does_not_touch_its_input(self):
+        els = self.store.scenes["checkout-flow"]
+        before = json.dumps(els, sort_keys=True)
+        canvas.reroute_scene(els)
+        self.assertEqual(json.dumps(els, sort_keys=True), before)
+
+    def test_an_authored_path_is_neither_reported_nor_redrawn(self):
+        """The boundary, in all three shapes `server_owns_geometry` knows.
+
+        `routed: "authored"` (a `mod points` path), a signature that no
+        longer matches (the user reshaped it on the canvas), and an
+        unmarked bent path (a v0 scene). None of the three may appear in
+        the report, and none may move when the re-route runs.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        ix = {e["id"]: e for e in els}
+        ix["t1"]["customData"] = dict(ix["t1"].get("customData") or {},
+                                      routed="authored")
+        ix["t1"]["points"] = [[0, 0], [40, 40], [180, 0]]
+        ix["t2"]["points"] = [[0, 0], [40, 40], [180, 0]]   # signature stale
+        ix["t3"]["customData"] = {}                          # unmarked, bent
+        ix["t3"]["points"] = [[0, 0], [40, 40], [180, 0]]
+        out, changes = canvas.reroute_scene(els)
+        self.assertEqual([c["id"] for c in changes
+                          if c["id"] in ("t1", "t2", "t3")], [])
+        after = {e["id"]: e for e in out}
+        for aid in ("t1", "t2", "t3"):
+            self.assertEqual(after[aid]["points"], ix[aid]["points"], aid)
+
+    def test_a_one_ended_arrow_has_no_pair_to_route_between(self):
+        """No pair, no route: its PATH is left exactly as it was drawn.
+
+        It still shows up in the report, and that is not a leak — the
+        shipped fan re-solves the binding focus of every server-owned
+        arrow on every apply, one-ended ones included, and a focus that
+        aims the client somewhere the path does not go is precisely what
+        a fossil is. So the assertion is on the geometry, which the
+        router may not touch, and not on the arrow's absence.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "t1":
+                e["endBinding"] = None
+                e["points"] = [[0, 0], [180, 90]]
+                canvas._stamp_route(e)
+        was = {e["id"]: e for e in els}["t1"]
+        out, changes = canvas.reroute_scene(els)
+        now = {e["id"]: e for e in out}["t1"]
+        self.assertEqual((now["x"], now["y"], now["points"]),
+                         (was["x"], was["y"], was["points"]))
+        self.assertEqual([c["moved_px"] for c in changes
+                          if c["id"] == "t1"], [0.0])
+
+
+class TestRerouteIsConsentGated(Base):
+    """Report first, act only when told to, and stay revertible.
+
+    The user's ruling (2026-08-17) took `--relayout`'s shape: a dry run
+    that says what would change and names the save to revert to, an
+    explicit flag that applies, and a narration that goes arrow by arrow
+    rather than handing over one anonymous count.
+    """
+
+    def setUp(self):
+        """Seed a flow and fossilise two of its arrows."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("t1", "t3"):
+                e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
+                e["points"] = [[0, 0], [150, -70]]
+                canvas._stamp_route(e)
+        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.store = canvas.Store(self.project)
+
+    def cli(self, **kw):
+        """Run `cmd_reroute` and return its stdout lines.
+
+        Args:
+            **kw: Overrides for the arg namespace (`artifact`, `apply`).
+
+        Returns:
+            Stdout, split into lines.
+        """
+        ns = argparse.Namespace(project=self.tmp, artifact=None, apply=False)
+        for k, v in kw.items():
+            setattr(ns, k, v)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), \
+                contextlib.redirect_stderr(io.StringIO()):
+            canvas.cmd_reroute(ns)
+        return buf.getvalue().splitlines()
+
+    def geometry(self):
+        raw = json.loads((self.project.artifacts_dir /
+                          "checkout-flow.excalidraw").read_text())
+        return {e["id"]: (e.get("x"), e.get("y"), e.get("points"))
+                for e in raw["elements"] if e.get("type") == "arrow"}
+
+    def test_the_dry_run_reports_every_arrow_by_name(self):
+        out = self.cli()
+        named = [ln for ln in out if ln.startswith("REROUTE=")]
+        self.assertEqual(len(named), 2, out)
+        self.assertTrue(any("t1:" in ln for ln in named), out)
+        self.assertTrue(any("t3:" in ln for ln in named), out)
+        self.assertIn("APPLIED=false", out)
+        self.assertTrue(any(ln.startswith("CHECKPOINT=revert save #")
+                            for ln in out), out)
+
+    def test_the_dry_run_changes_nothing(self):
+        before, head = self.geometry(), self.store.head_revn()
+        self.cli()
+        self.assertEqual(self.geometry(), before)
+        self.assertEqual(canvas.Store(self.project).head_revn(), head)
+
+    def test_apply_without_an_artifact_refuses(self):
+        before = self.geometry()
+        with self.assertRaises(SystemExit) as e:
+            self.cli(apply=True)
+        self.assertEqual(e.exception.code, 2)
+        self.assertEqual(self.geometry(), before)
+
+    def test_apply_commits_and_narrates_arrow_by_arrow(self):
+        rec = self.store.reroute("checkout-flow")
+        facts = rec["artifacts"]["checkout-flow"]["facts"]
+        self.assertEqual(sorted(f["element"] for f in facts
+                                if f["fact"] == "rerouted"), ["t1", "t3"])
+        self.assertIn("rerouted", rec["summary"]["headline"])
+        self.assertIn("revert this save", rec.get("user_note") or "")
+        self.assertIn("t1:", rec.get("user_note") or "")
+
+    def test_the_save_is_the_checkpoint(self):
+        before = self.geometry()
+        rec = self.store.reroute("checkout-flow")
+        self.assertNotEqual(self.geometry(), before)
+        self.store.revert_to(rec["revn"] - 1)
+        self.assertEqual(self.geometry(), before)
+
+    def test_a_second_reroute_has_nothing_left_to_do(self):
+        self.store.reroute("checkout-flow")
+        head = self.store.head_revn()
+        again = self.store.reroute("checkout-flow")
+        self.assertTrue(again.get("noop"), again["summary"]["headline"])
+        self.assertEqual(self.store.head_revn(), head)
+
+    def test_the_note_goes_quiet_once_the_re_route_lands(self):
+        self.store.reroute("checkout-flow")
+        self.assertEqual(canvas.Store(self.project).legacy_routing_notes(),
+                         [])
+
+    def test_an_unknown_artifact_raises(self):
+        with self.assertRaises(canvas.BatchError):
+            self.store.reroute("ghost")
+
+
+class TestRerouteReachesTheFossilsOnTheFrozenCorpus(unittest.TestCase):
+    """The outcome claim, measured on the drawing rather than on the store.
+
+    A foot whose final leg does not arrive square to the side it stands
+    on is what a user SEES when they open a legacy artifact. Measured at
+    this head over all 24 frozen artifacts (153 server-owned,
+    both-ends-bound arrows): non-normal endpoints 60 before, 2 after,
+    and the 2 are the two ends of one 12.6° arrow
+    (`tearsheet-domain / r-earnings-issuer`) — the spike's number,
+    reproduced.
+
+    ASSERTED AS A RELATIONSHIP, not as 60 and 2. TASK-FOCUS-FOLLOWUP's
+    fixture rebase will re-route these files, at which point the BEFORE
+    becomes the after and an equality pin would fail for the right
+    reason. What must never regress is that a re-route leaves the
+    drawing no worse, and leaves at most a couple of oblique arrivals on
+    a corpus this size.
+
+    The bound is also what pins the roundness re-derivation:
+    `reroute_scene` runs `rebuild_bound_elements` because a re-routed
+    path otherwise keeps a curvature it can no longer earn — drop that
+    line and this corpus comes out at 24, not 2.
+    """
+
+    NORMALS: ClassVar[dict] = {"top": (0, -1), "bottom": (0, 1),
+                               "left": (-1, 0), "right": (1, 0)}
+
+    def non_normal(self, els):
+        """Endpoints whose drawn final leg leans more than 10° off square.
+
+        Args:
+            els: A scene's elements.
+
+        Returns:
+            `[(arrow_id, which_end)]` for every bound endpoint over the bar.
+        """
+        ix = {e["id"]: e for e in els}
+        out = []
+        for a in els:
+            if a.get("type") != "arrow":
+                continue
+            pts = instruments.rendered_path(a)
+            if len(pts) < 2:
+                continue
+            for which, key in (("start", "startBinding"),
+                               ("end", "endBinding")):
+                node = ix.get((a.get(key) or {}).get("elementId"))
+                if node is None:
+                    continue
+                foot, prev = ((pts[0], pts[1]) if which == "start"
+                              else (pts[-1], pts[-2]))
+                side = canvas._edge_side(node, foot[0], foot[1])
+                vx, vy = foot[0] - prev[0], foot[1] - prev[1]
+                if not side or not (vx or vy):
+                    continue
+                nx, ny = self.NORMALS[side]
+                cos = abs((vx * nx + vy * ny) / math.hypot(vx, vy))
+                if math.degrees(math.acos(max(-1.0, min(1.0, cos)))) > 10.0:
+                    out.append((a["id"], which))
+        return out
+
+    def test_a_re_route_leaves_the_corpus_arriving_square(self):
+        root = Path(__file__).resolve().parent / "fixtures"
+        before = after = owned = 0
+        for path in sorted(root.glob("*/artifacts/*.excalidraw")):
+            doc, _ = canvas.validate_scene(json.loads(path.read_text()),
+                                           path.stem)
+            els = canvas.normalize_scene_doc(doc)["elements"]
+            ix = {e["id"]: e for e in els}
+            owned += len([a for a in els if a.get("type") == "arrow"
+                          and canvas.server_owns_geometry(a)
+                          and ix.get((a.get("startBinding") or {})
+                                     .get("elementId")) is not None
+                          and ix.get((a.get("endBinding") or {})
+                                     .get("elementId")) is not None])
+            before += len(self.non_normal(els))
+            after += len(self.non_normal(canvas.reroute_scene(els)[0]))
+        self.assertGreater(owned, 100, "the corpus lost its arrows — this "
+                                       "measures nothing")
+        self.assertLessEqual(after, before)
+        self.assertLessEqual(after, 2, "a re-route left %d oblique arrivals "
+                                       "(was %d)" % (after, before))
+
+
+class TestObliqueArrivals(Base):
+    """The measure the offer is gated on, both poles.
+
+    `_arrival_lean` — the curvature gate's arm — reads lean off the
+    nearest CARDINAL, so an arrow arriving edge-on to the side it lands
+    on scores a perfect 0.0. That is the `along` class, and it is a
+    quarter of the endpoint residue, so a detector built on the gate's
+    measure would have gone silent on the loudest fossils there are.
+    """
+
+    def scene(self, x, y, points):
+        """One node and one arrow bound to it at a chosen angle.
+
+        Args:
+            x: The arrow's absolute x.
+            y: The arrow's absolute y.
+            points: The arrow's relative point list.
+
+        Returns:
+            The two-element scene.
+        """
+        return [canvas.normalize_element(e) for e in (
+            {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+             "width": 120, "height": 60},
+            {"id": "a1", "type": "arrow", "x": x, "y": y, "points": points,
+             "startBinding": {"elementId": "n1", "focus": 0, "gap": 6}})]
+
+    def test_a_square_arrival_is_not_counted(self):
+        # foot on the right edge, leg leaving straight out along it
+        self.assertEqual(canvas.oblique_arrivals(
+            self.scene(120, 30, [[0, 0], [90, 0]])), [])
+
+    def test_a_leg_running_along_the_side_it_lands_on_is_counted(self):
+        # the `along` class: foot on the TOP edge, leg horizontal — dead
+        # cardinal, so `_arrival_lean` scores it 0.0 and sees nothing
+        scene = self.scene(60, 0, [[0, 0], [90, 0]])
+        self.assertEqual(canvas._arrival_lean(scene[1]), 0.0)
+        self.assertEqual(canvas.oblique_arrivals(scene),
+                         [("a1", "start")])
+
+    def test_an_oblique_arrival_is_counted(self):
+        self.assertEqual(canvas.oblique_arrivals(
+            self.scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
+
+    def test_an_unbound_end_has_nothing_to_be_square_to(self):
+        scene = self.scene(120, 30, [[0, 0], [90, 60]])
+        scene[1]["startBinding"] = None
+        self.assertEqual(canvas.oblique_arrivals(scene), [])
+
+
+class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
+    """The nag, which is the defect this feature nearly shipped.
+
+    Route-then-fan does not converge — the router reads the other
+    arrows' current paths and the fan then moves them — so "one pass
+    would change this scene" is true of a legacy artifact AND of its own
+    re-routed successor. A detector built on that would have re-offered
+    its own output after the user accepted it, and every press would
+    have written another revision: BUG-02, with a fresh coat of paint.
+
+    Driven on the frozen corpus rather than on a synthetic pair,
+    because that non-convergence is a property of real scenes: nine of
+    the 24 artifacts never settle, and `argus-r5 / tuesday-triage`
+    cycles with period SIX. Two synthetic arrows converge in one pass
+    and prove nothing about the case that broke.
+    """
+
+    FIXTURE = "argus-r5"
+
+    def setUp(self):
+        """Copy the frozen project and open it."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-reroute-"))
+        src = Path(__file__).resolve().parent / "fixtures" / self.FIXTURE
+        shutil.copytree(src, self.tmp / "project_knowledge")
+        self.project = canvas.Project(self.tmp)
+        self.store = canvas.Store(self.project)
+
+    def tearDown(self):
+        """Remove the temp copy and the shared runtime files."""
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def test_the_pipeline_really_does_not_settle(self):
+        """The premise. If this ever goes green, the design can simplify.
+
+        A re-route of `tuesday-triage`'s output moves it again, and
+        again — which is why the offer cannot be gated on "a pass would
+        change something". Flip this deliberately if the router and the
+        fan are ever made to converge; do not weaken it quietly.
+        """
+        els = self.store.scenes["tuesday-triage"]
+        once = canvas.reroute_scene(els)[0]
+        self.assertTrue(canvas.reroute_scene(once)[1],
+                        "a second pass changed nothing — the pipeline "
+                        "converges now and `reroute_is_fossil` can be "
+                        "simplified to a fixed-point test")
+
+    def test_the_offer_stands_before_and_falls_after(self):
+        flagged = sorted(self.store.legacy_routing())
+        self.assertTrue(flagged, "nothing was offered — this fixture no "
+                                 "longer carries legacy routing")
+        for aid in flagged:
+            self.assertFalse(self.store.reroute(aid).get("noop"), aid)
+        reopened = canvas.Store(self.project)
+        self.assertEqual(reopened.legacy_routing_notes(), [])
+        for aid in flagged:
+            self.assertTrue(reopened.reroute(aid).get("noop"), aid)
+
+    def test_the_re_route_straightens_what_it_touched(self):
+        flagged = sorted(self.store.legacy_routing())
+        before = sum(len(canvas.oblique_arrivals(self.store.scenes[aid]))
+                     for aid in flagged)
+        for aid in flagged:
+            self.store.reroute(aid)
+        after = sum(len(canvas.oblique_arrivals(self.store.scenes[aid]))
+                    for aid in flagged)
+        self.assertLess(after, before)
 
 
 class TestDivergenceVerbs(Base):
