@@ -53,7 +53,7 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 PROTOCOL_VERSION = 1
 SOURCE_NAME = "wysiwyg-grilling"
@@ -259,7 +259,18 @@ def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def die(msg, code=2):
+def die(msg: str, code: int = 2) -> NoReturn:
+    """Print one line to stderr and exit.
+
+    Annotated `NoReturn` so callers do not need an unreachable `return`
+    after it to satisfy the type checker — which matters wherever `die`
+    is the last statement of an error branch.
+
+    Args:
+        msg: The message. Trailing whitespace is stripped and one
+            newline added.
+        code: Process exit status.
+    """
     sys.stderr.write(msg.rstrip() + "\n")
     sys.exit(code)
 
@@ -19384,6 +19395,15 @@ def _x_user_note(text, x, y, w=230, h=90, existing=None):
 def _x_user_pin(target, question, x, y):
     """A user-authored `❓ ask` pin, as the rail's button posts it.
 
+    `customData` matches `askUserPin`'s exactly, which it did not until
+    TASK-POLISH: the client stamps `direction: "user"` and this did not,
+    while this seeded an `answer: None` the client never writes. Inert,
+    because pin ingestion reads the fields it wants by name — and inert
+    is what the NOTE divergence was too, for four assessment runs, until
+    a check started consulting the field nobody had aligned (r5-7). A
+    driver that posts what the product does not is a finding built on a
+    scene no user could produce.
+
     Args:
         target: Element id the question is about.
         question: The question text.
@@ -19403,8 +19423,44 @@ def _x_user_pin(target, question, x, y):
         "strokeColor": "#b45309", "autoResize": True,
         "customData": {"role": "pin", "author": "user", "target": target,
                        "question": question, "status": "open",
-                       "answer": None}})
+                       "direction": "user"}})
     return el
+
+
+def _x_post(url: str, payload: dict[str, Any], what: str) -> dict[str, Any]:
+    """POST one assessor verb's request, or die with an `ERROR=` line.
+
+    The three verbs that return early — `answer`, `config`, `checkout` —
+    posted with no `try` at all, so a server rejection came back as a
+    raw `HTTPError` traceback. That breaks the promise v0.8 made and
+    r5-12 pinned: every failure prints `ERROR=`. The save POST at the
+    bottom of `cmd_x_as_user` is the shape being matched.
+
+    WIDER than that model by one clause, deliberately. The save path
+    catches `HTTPError` only, which leaves a refused connection or a
+    timeout printing a traceback — and the promise is about every
+    failure, not every HTTP failure. The two are separated because they
+    tell an assessor different things: a rejection means the request was
+    wrong, an unreachable server means the session is gone. The save
+    path is left as it is, since changing it is a behaviour change to a
+    path this chore was not scoped to; the asymmetry is deliberate and
+    recorded rather than left to be discovered.
+
+    Args:
+        url: Fully-qualified endpoint.
+        payload: JSON body.
+        what: The verb's name, for the message.
+
+    Returns:
+        The decoded JSON response.
+    """
+    try:
+        return http_json(url, payload=payload)
+    except urllib.error.HTTPError as e:
+        die("ERROR=%s refused by the server (%s)" % (what, e), 5)
+    except (urllib.error.URLError, OSError) as e:
+        die("ERROR=%s could not reach the server at %s (%s)"
+            % (what, url, e), 5)
 
 
 def cmd_x_as_user(args):
@@ -19430,15 +19486,15 @@ def cmd_x_as_user(args):
     url = state["url"]
     verb = args.verb
     if verb == "answer":
-        http_json(url + "api/pins/answer",
-                  payload={"id": args.target, "answer": args.text})
+        _x_post(url + "api/pins/answer", {"id": args.target,
+                                          "answer": args.text}, "answer")
         print_kv(answered=args.target)
         return 0
     if verb == "config":
         key, _, val = (args.text or "").partition("=")
         if not key or not val:
             die("ERROR=config wants key=value", 2)
-        http_json(url + "api/config", payload={"patch": {key: val}})
+        _x_post(url + "api/config", {"patch": {key: val}}, "config")
         print_kv(config=key, value=val)
         return 0
     if verb == "checkout":
@@ -19454,7 +19510,7 @@ def cmd_x_as_user(args):
         except (TypeError, ValueError):
             die("ERROR=checkout wants --target <revn> — a save number "
                 "from `canvas.py status` (got %r)" % (args.target,), 2)
-        http_json(url + "api/checkout", payload={"revn": revn})
+        _x_post(url + "api/checkout", {"revn": revn}, "checkout")
         print_kv(checked_out=revn)
         return 0
     aid = args.artifact

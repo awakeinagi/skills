@@ -10136,26 +10136,126 @@ class TestAssessorUserEdits(Base):
         return self.store.commit(author="user", new_scenes={"f": els},
                                  base_revn=self.store.head_revn())
 
-    @staticmethod
-    def client_sticky_custom_data():
-        """The `customData` the 🗒 note button posts, read off App.tsx.
+    # A field the client fills in at runtime (`question: q`,
+    # `target: target.id`) rather than writing as a literal. The parser
+    # reports the KEY and this marker, never a guessed value: what parity
+    # can be checked for such a field is that both sides stamp it at all.
+    RUNTIME = "<supplied at runtime>"
+
+    @classmethod
+    def client_custom_data(cls, builder, next_builder):
+        """The `customData` blocks one App.tsx builder inserts.
 
         Parsed rather than restated: an expectation copied by hand into
         this file agrees with the client exactly once — the day it is
         written — and then drifts in silence, which is the failure r5-7
-        IS. The slice is `addStickyNote`'s body alone, so a `role:`
-        belonging to any neighbouring builder cannot wander in.
+        IS. The slice is the named builder's body alone, so a `role:`
+        belonging to a neighbouring builder cannot wander in.
+
+        EVERY PAIR IS CAPTURED, not only the string-literal ones. The
+        first version of this matched `key: "value"` and so read a field
+        whose value is an expression as ABSENT — `question: q` and
+        `target: target.id` simply vanished, and a field added later as
+        `pinned: true` would vanish the same way, silently narrowing the
+        parity claim to whatever happened to be quoted. A key with a
+        non-literal value is reported with `RUNTIME` as its value, which
+        keeps it in the comparison instead of dropping it out of one.
+
+        Args:
+            builder: The `const <name>` the block belongs to.
+            next_builder: The `const <name>` that follows it, bounding
+                the slice.
 
         Returns:
-            One dict per element the button inserts, in insert order.
+            One dict per element the builder inserts, in insert order,
+            mapping every stamped key to its literal value or `RUNTIME`.
+
+        Raises:
+            AssertionError: If either boundary is missing from App.tsx,
+                so a renamed builder fails loudly rather than parsing an
+                empty slice into a vacuously passing comparison.
         """
         src = (Path(__file__).resolve().parents[1] / "frontends" /
                "wysiwyg-grilling" / "src" / "App.tsx").read_text(
                    encoding="utf-8")
-        body = src.split("const addStickyNote", 1)[1].split(
-            "const askUserPin", 1)[0]
-        return [dict(re.findall(r'(\w+):\s*"([^"]*)"', m))
-                for m in re.findall(r"customData:\s*\{([^}]*)\}", body)]
+        for anchor in (builder, next_builder):
+            if src.count(anchor) != 1:
+                # raised, not asserted: `python -O` strips `assert` and
+                # this guard is the only thing between a renamed builder
+                # and an empty slice that compares equal to nothing
+                raise AssertionError(
+                    "%r appears %d times in App.tsx; the parity parser "
+                    "needs it exactly once to bound a builder's body"
+                    % (anchor, src.count(anchor)))
+        body = src.split(builder, 1)[1].split(next_builder, 1)[0]
+        blocks = []
+        for m in re.findall(r"customData:\s*\{([^}]*)\}", body):
+            stamped = {}
+            for pair in m.split(","):
+                if ":" not in pair:
+                    continue
+                key, _, raw = pair.partition(":")
+                lit = re.fullmatch(r'\s*"([^"]*)"\s*', raw)
+                stamped[key.strip()] = lit.group(1) if lit else cls.RUNTIME
+            blocks.append(stamped)
+        return blocks
+
+    @classmethod
+    def client_sticky_custom_data(cls):
+        """The `customData` the 🗒 note button posts, read off App.tsx.
+
+        Returns:
+            One dict per element `addStickyNote` inserts, in order.
+        """
+        return cls.client_custom_data("const addStickyNote",
+                                      "const askUserPin")
+
+    @classmethod
+    def client_pin_custom_data(cls):
+        """The `customData` the ❓ ask button posts, read off App.tsx.
+
+        Returns:
+            One dict per element `askUserPin` inserts, in order.
+        """
+        return cls.client_custom_data("const askUserPin",
+                                      "const dismissPin")
+
+    def assert_stamp_parity(self, ours, client, what):
+        """Compare an adapter's stamp against the client's, key by key.
+
+        Split from the note test because the pin needed the same
+        comparison and the pin is the half that was actually diverging.
+        Keys are compared as SETS first, which is the assertion that
+        catches a field one side stamps and the other does not — the
+        failure this parity family exists for. Literal values are then
+        compared; a `RUNTIME` field is checked for presence only, since
+        the client's value for it does not exist until a user types it.
+
+        Args:
+            ours: `customData` dicts from the canvas.py adapter, in
+                insert order.
+            client: The same, parsed out of App.tsx.
+            what: The button's name, for the failure message.
+        """
+        self.assertEqual(
+            len(ours), len(client),
+            "%s inserts %d stamped element(s) and the adapter posts %d"
+            % (what, len(client), len(ours)))
+        for i, (mine, theirs) in enumerate(zip(ours, client)):
+            self.assertEqual(
+                set(mine or {}), set(theirs),
+                "element %d: `x-as-user` stamps %s where the %s button "
+                "stamps %s — a user edit the product itself never writes, "
+                "driving findings that carry the authority of real ones"
+                % (i, sorted(mine or {}), what, sorted(theirs)))
+            for key, value in theirs.items():
+                if value is self.RUNTIME:
+                    continue
+                self.assertEqual(
+                    (mine or {}).get(key), value,
+                    "element %d: %s stamps %s=%r where the %s button "
+                    "stamps %r" % (i, "x-as-user", key,
+                                   (mine or {}).get(key), what, value))
 
     def test_the_adapter_stamps_the_notes_the_client_stamps(self):
         """r5-7: `x-as-user note` posts the client's roles, not its own.
@@ -10180,11 +10280,53 @@ class TestAssessorUserEdits(Base):
                          "was written against: %s" % (len(client), client))
         ours = [e.get("customData")
                 for e in canvas._x_user_note("crowded trades", 40, 400)]
+        self.assert_stamp_parity(ours, client, "🗒 note")
+
+    def test_the_adapter_stamps_the_pin_the_client_stamps(self):
+        """The half the note test's shape left unchecked.
+
+        The note stamp was pinned and the PIN stamp was not, and the pin
+        was the one diverging: the client stamps `direction: "user"` and
+        the adapter did not, while the adapter seeded an `answer: None`
+        the client never writes. Inert only because pin ingestion reads
+        the fields it wants by name rather than taking the block whole —
+        which is exactly the kind of "harmless today" that the note
+        divergence also was, for four assessment runs, until a check
+        started consulting the field nobody had aligned.
+
+        `question` and `target` are runtime-supplied on the client side,
+        so what is asserted about them is that both sides stamp the KEY.
+        That is the assertion that matters here anyway: the divergence
+        was a key present on one side and absent on the other.
+        """
+        client = self.client_pin_custom_data()
+        self.assertEqual(len(client), 1,
+                         "askUserPin now inserts %d stamped element(s), "
+                         "not the 1 this parity test was written against: "
+                         "%s" % (len(client), client))
+        ours = [canvas._x_user_pin("a", "does this hold?", 3, 5)
+                .get("customData")]
+        self.assert_stamp_parity(ours, client, "❓ ask")
+
+    def test_the_parity_parser_reads_a_non_string_field(self):
+        """A field whose value is not a quoted string must not vanish.
+
+        The parser's first version matched `key: "value"` only, so
+        `question: q` and `target: target.id` were invisible to it and a
+        field added later as `pinned: true` would be invisible the same
+        way — the parity claim narrowing itself in silence, which is the
+        failure mode this whole family exists to prevent. Asserted on
+        the REAL client rather than on a synthetic string, so it also
+        fails if those two fields stop being stamped.
+        """
+        pin, = self.client_pin_custom_data()
         self.assertEqual(
-            ours, client,
-            "`x-as-user note` posts %s where the 🗒 button posts %s — a "
-            "user edit the product itself never writes, driving findings "
-            "that carry the authority of real ones" % (ours, client))
+            {k for k, v in pin.items() if v is self.RUNTIME},
+            {"question", "target"},
+            "the runtime-valued fields askUserPin stamps have moved: %r"
+            % (pin,))
+        self.assertEqual(pin.get("direction"), "user",
+                         "the literal fields are no longer being read")
 
     def test_a_user_note_lands_as_an_annotation(self):
         # the role change is only worth having if the pipeline BEHIND it
@@ -12909,11 +13051,18 @@ class TestXAsUserFidelity(unittest.TestCase):
         narrower than "this function never leaks a traceback". What is
         covered beyond arguments: the state faults (no such element, not
         a checkbox), the artifact READ, which catches `OSError`,
-        `ValueError` and `URLError`, and the save POST, which catches
-        `HTTPError`. What is not: the save POST does not catch a
-        socket-level failure, and the three early-returning verbs —
-        `answer`, `config`, `checkout` — post with no `try` at all, so a
-        server or socket error in any of them still surfaces raw.
+        `ValueError` and `URLError`, the save POST, which catches
+        `HTTPError`, and — since TASK-POLISH — the three early-returning
+        verbs `answer`, `config` and `checkout`, which posted with no
+        `try` at all and now go through `_x_post` (`HTTPError` and the
+        socket-level `URLError`/`OSError`, with different messages,
+        because a rejection and an unreachable server tell an assessor
+        different things). WHAT IS STILL NOT COVERED, stated so the gap
+        is a decision rather than a discovery: the save POST catches
+        `HTTPError` only, so a socket-level failure THERE still surfaces
+        raw. `_x_post` is deliberately wider than the path it was
+        modelled on; widening the save path too is a behaviour change to
+        a path this chore was not scoped to.
         `checkout` fed
         its default empty `--target` straight to `int()`, so the one verb
         an assessor reaches for while lost in history answered with a
@@ -12941,6 +13090,47 @@ class TestXAsUserFidelity(unittest.TestCase):
                       self.x("checkout", "--target", "1").stdout)
         self.assertEqual(
             canvas.http_json(self.url() + "api/state")["checkout_revn"], 1)
+
+    def test_a_rejected_answer_is_an_error_line_not_a_traceback(self):
+        """The early-returning verbs' envelope, both directions.
+
+        `answer` stands for its two siblings: all three now post through
+        `_x_post`, and this is the one whose refusal is reachable
+        without breaking the server or the project — `/api/pins/answer`
+        returns 404 for an unknown pin id, which is the shape an
+        assessor hits by pasting a stale id out of an earlier round.
+
+        Before the fix that printed `urllib.error.HTTPError: HTTP Error
+        404` with a traceback, against v0.8's promise that every failure
+        prints `ERROR=`, and the troubleshooting page teaches a
+        traceback to mean the tool itself is broken — so the assessor is
+        told to stop rather than to fix the id.
+
+        THE HAPPY POLE IS ASSERTED TOO, on a real pin answered through
+        the same verb, because an envelope that swallowed the success
+        path would keep the promise by breaking the command.
+        """
+        out = self.x_fails("answer", "--target", "pin-does-not-exist",
+                           "--text", "yes")
+        said = out.stdout + out.stderr
+        self.assertIn("ERROR=", said, said)
+        self.assertIn("answer", said, said)
+        self.assertNotIn("Traceback", said, said)
+
+        # the live pole: a pin that exists is answered and says so
+        canvas.http_json(
+            self.url() + "api/apply",
+            payload={"base_revn": canvas.http_json(
+                self.url() + "api/state")["head_revn"],
+                "artifact": "w",
+                "ops": [{"op": "pin", "target": "panel",
+                         "id": "pin-envelope",
+                         "question": "which source wins?"}]})
+        pins = canvas.http_json(self.url() + "api/state")["pins"]
+        self.assertTrue(pins, "the pin op left no pin to answer")
+        got = self.x("answer", "--target", pins[-1]["id"], "--text", "edgar")
+        self.assertIn("ANSWERED=", got.stdout, got.stdout)
+        self.assertNotIn("ERROR=", got.stdout + got.stderr)
 
     def test_verbs_write_what_the_client_writes(self):
         # rename re-measures like the client does
