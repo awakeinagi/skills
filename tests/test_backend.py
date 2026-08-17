@@ -7083,14 +7083,30 @@ class TestFocusRoundTrip(unittest.TestCase):
         STRAIGHT: it targets `foot + gap * axis_normal` and scores where
         the aim crosses that side's axis-aligned line. On a rhombus or an
         ellipse neither is the outline the client will actually intersect,
-        so the answer is systematically a little off — measured over the
-        corpus re-routed at head, the server's own diamond feet are 30x
-        worse than its rectangle feet (worst 3.837px against 0.494px,
-        mean 1.016 against 0.038) while still clearing 4px on all 41
-        conic endpoints. Constructed geometry reaches 5.7px. Reported,
-        not fixed, by ruling; the owner of any fix is whoever next opens
-        `solve_focus`, and the thing to change is the target and the
-        scoring, not this number.
+        so the answer is systematically off. Measured over the 306
+        server-owned corpus endpoints RE-ROUTED AT THIS HEAD:
+
+            shape        n    worst    mean   over 4px
+            rectangle  244   0.0780  0.0042      0
+            rounded     21   0.0125  0.0023      0
+            ellipse     20   1.9919  0.2761      0
+            diamond     21   4.0909  1.0647      2
+
+        The server's own diamond feet are **250x** worse than its
+        rectangle feet by mean and 52x by worst case, and TWO OF THE 21
+        DO NOT CLEAR 4px — they sit at 4.0909, which is why this ceiling
+        is 4.0 and not lower and why the number is a finding rather than
+        a budget. Constructed geometry reaches 5.7px.
+
+        An earlier version of this paragraph quoted 3.837/0.494/1.016/
+        0.038 and said "still clearing 4px on all 41 conic endpoints"
+        while claiming to describe the head. Those were the BASE arm's
+        figures, measured before the solve-ordering fix in the same task
+        moved the rectangle population an order of magnitude and left the
+        conic residual standing. Quoting one arm's numbers under the
+        other arm's label is the failure this repo has recorded twice
+        already; it is recorded a third time here rather than silently
+        overwritten.
 
         The rounded rectangle is a different story and belongs in the
         same test because the contrast is the evidence: its along-side

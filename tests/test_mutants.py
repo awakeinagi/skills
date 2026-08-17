@@ -9597,8 +9597,19 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
         shipped router (`_round_geom` stubbed to the identity) and the
         OLD ORDERING IS RE-RUN: the focus it would have stored still
         draws this foot 0.39px away, against 0.01px for the value that is
-        stored now. Revert the ordering at either call site and the third
-        assertion fails, because `stored` becomes the pre-snap answer.
+        stored now.
+
+        WHICH ASSERTION CATCHES WHAT, stated exactly, because the first
+        draft of this docstring got it wrong. Reverting the ordering at
+        either call site fails the FIRST assertion — `stored` becomes the
+        pre-snap answer and stops agreeing with the re-solve (measured:
+        0.3916px against 0.0094px). The third assertion does NOT fire on
+        that revert; `was` is computed independently of what the producer
+        stored, so it stays large either way. What the third assertion
+        guards is SPECIMEN DRIFT: if the router ever lands 101x61 on
+        whole pixels, the old ordering stops costing anything, the first
+        assertion becomes vacuous, and this one says so instead of
+        passing quietly.
         """
         node, arrow = self._routed(101.0, 61.0)
         stored = arrow["startBinding"]["focus"]
