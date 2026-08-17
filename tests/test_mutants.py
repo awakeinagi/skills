@@ -9703,14 +9703,18 @@ class TestTheAnnotationBudgetCountsWhatTheClientDraws(unittest.TestCase):
 # (`any(kind_of(e) in SEQUENCE_PARTY_KINDS ...)`), so a scene holding only
 # bars would start linting as a sequence. Two questions — "is this a
 # sequence?" and "is this unbindable furniture?" — coincide today by
-# accident, and the fix wants a SEPARATE furniture set. OWNER: TASK-POLISH.
+# accident, and the fix wants a SEPARATE furniture set. FLIPPED by
+# TASK-POLISH with exactly that: `SEQUENCE_FURNITURE_KINDS`, read by the
+# orphan check only, with the gate left on the party set — and a second
+# green pole below asserting the gate did not widen, since that is the
+# half a passing red cannot see.
 #
 # BASE: `_sequence_scene(80)`, shared with the catalogue entry rather than
 # copied. MUTATION: none. MAGNITUDE: the share of lint's output that is
-# this false sentence — 1 of 1. NEIGHBOUR: a flow with a genuinely
-# unconnected node, where the same note is the right thing to say and the
-# agent can act on it; green, ungated, and the reason this red cannot be
-# satisfied by deleting the check.
+# this false sentence — 1 of 1, and 0 of 0 after the fix. NEIGHBOUR: a
+# flow with a genuinely unconnected node, where the same note is the right
+# thing to say and the agent can act on it; green, ungated, and the reason
+# this red cannot be satisfied by deleting the check.
 # ---------------------------------------------------------------------------
 
 
@@ -9732,9 +9736,17 @@ class TestFurnitureIsNotAnUnconnectedNode(unittest.TestCase):
         return [ln for ln in lint["errors"] + lint["warnings"] + lint["notes"]
                 if ln.startswith("unconnected node(s):")]
 
-    @unittest.expectedFailure
     def test_red_a_closing_activation_bar_reads_as_an_orphan(self) -> None:
         """The whole of lint's output on a correct sequence, and it is wrong.
+
+        FLIPPED by TASK-POLISH in the shape task 28's review ruled: a
+        SEPARATE `SEQUENCE_FURNITURE_KINDS`, read by the orphan check
+        alone, rather than `activation` widening `SEQUENCE_PARTY_KINDS`
+        and with it the sequence-arm gate. The two sets have the same
+        members but for one, and they are still two sets, because they
+        answer two questions — "is this a sequence?" and "is this
+        unbindable furniture?" — that agreed by accident until a bar
+        made them disagree.
 
         WHAT THE PICTURE WRONGLY SAYS: nothing — the drawing is right.
         The false statement is the LINT's, and it is the only statement
@@ -9745,11 +9757,15 @@ class TestFurnitureIsNotAnUnconnectedNode(unittest.TestCase):
         lifeline to lifeline, and binding a message to the bar would
         move the arrowhead off the party it is addressed to.
 
-        WHAT THE CHECKS REPORTED: exactly this and nothing else. The
-        assertion is on the note being ABSENT and, separately, on it
-        being lint's whole output — because the second is the number
-        r5-16 was argued with, and a fix that merely buried the note
-        under other noise would satisfy the first alone.
+        WHAT THE CHECKS REPORTED: exactly this and nothing else. So the
+        assertion is on the note being ABSENT and, separately, on lint
+        having NOTHING to say about this scene at all — because the
+        second is the number r5-16 was argued with, and a fix that
+        merely moved the false sentence into a different bucket, or
+        bought silence here by going quiet everywhere, would satisfy the
+        first alone. MEASURED at the flip: 1 of 1 became 0 of 0, while
+        the same scene 160px taller still draws both of its real
+        warnings (`_sequence_scene(240)`, the catalogue mutant).
         """
         els = _sequence_scene(80)
         lint = canvas.lint_layout(els, artifact_type="sequence")
@@ -9760,6 +9776,42 @@ class TestFurnitureIsNotAnUnconnectedNode(unittest.TestCase):
             "unbindable by construction — and it is %d of %d of what lint "
             "has to say about a correct sequence: %r"
             % (len(self._unconnected(els, "sequence")), len(total), total))
+        self.assertEqual(
+            total, [],
+            "the orphan note went away and lint found something else to "
+            "say about a correct sequence — r5-16's metric is the SHARE "
+            "of output that is false, so a replacement sentence is the "
+            "same finding wearing a different bucket: %r" % (total,))
+
+    def test_a_bar_only_scene_does_not_start_linting_as_a_sequence(
+            self) -> None:
+        """The other pole of the RULING: the gate did not widen.
+
+        The fix task 28's review measured as WRONG was adding
+        `activation` to `SEQUENCE_PARTY_KINDS`, because that set is also
+        the sequence-arm's gate — a scene of bars and nothing else would
+        begin drawing sequence verdicts about a drawing that is not a
+        sequence. This asserts the gate on the smallest scene that tells
+        the two sets apart: activation bars only, no party, no lifeline.
+        A message travelling UP the page is a sequence ERROR and nothing
+        anywhere else, so its absence is the gate staying shut.
+        """
+        els = [el(id="bar%d" % i, type="rectangle", x=100 + i * 40, y=100,
+                  width=8, height=80, customData={"kind": "activation"})
+               for i in range(2)]
+        els.append(el(id="up", type="arrow", x=120, y=300, width=200,
+                      height=-120, points=[[0, 0], [200, -120]],
+                      customData={"role": "edge"}))
+        lint = canvas.lint_layout(els, artifact_type="sequence")
+        self.assertEqual(
+            [ln for ln in lint["errors"] if "travels UP the page" in ln], [],
+            "a scene holding only activation bars opened the sequence "
+            "arm's gate — `SEQUENCE_PARTY_KINDS` answers 'is this a "
+            "sequence?' and a bar is not evidence of one: %r"
+            % (lint["errors"],))
+        self.assertNotIn("activation", canvas.SEQUENCE_PARTY_KINDS,
+                         "the party set absorbed the furniture kind, which "
+                         "is the fix the review measured as wrong")
 
     def test_a_real_orphan_in_a_flow_is_still_named(self) -> None:
         """The green pole: the note fires where an agent can act on it.
@@ -17231,7 +17283,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
     "TestBatchPathIntegrity": 2,
-    "TestFurnitureIsNotAnUnconnectedNode": 1,
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
@@ -17240,11 +17291,17 @@ HAND_AUTHORED_RED_CLASSES = {
 # TWO MORE JOINED on 2026-08-17 (curator batch 27), and the split holds:
 # `TestStoredBindingsDescribeTheFinalInk` compares a STORED value against
 # the geometry beside it, which is not a reading of a picture at all, and
-# `TestFurnitureIsNotAnUnconnectedNode` is a lint OVER-fire whose check has
+# `TestFurnitureIsNotAnUnconnectedNode` was a lint OVER-fire whose check has
 # no entry in `DETECTORS` — there is no code for `collect_findings` to
-# report and so no `FindingSpec` to write. Both carry their firing pole in
+# report and so no `FindingSpec` to write. Both carried their firing pole in
 # the same class, which is the rule-8 obligation an entry outside
 # `CATALOGUE` still owes even though the gate cannot see it.
+# `TestFurnitureIsNotAnUnconnectedNode` LEFT the list the next day
+# (TASK-POLISH), one batch after joining it — the activation-bar exemption
+# landed and the class kept both of its green poles, so it is a class with
+# no reds and therefore not a member. It is the shortest stay recorded
+# here, and it is the rule working: the dict lost a line rather than a
+# number, because a class does not become "0" when its last red flips.
 #
 # TWO CLASSES JOINED on 2026-08-16 (the spike-program curator batch), and
 # they are here rather than in `CATALOGUE` for one reason each, both of
@@ -18244,11 +18301,13 @@ class TestCoverage(unittest.TestCase):
             {k: v for k, v in found.items() if k != CATALOGUE_RED_CLASS},
             HAND_AUTHORED_RED_CLASSES,
             "the hand-authored reds in this file have moved: measured %s "
-            "against a declared %s. Update HAND_AUTHORED_RED_CLASSES, the "
-            "residual-gap paragraph in "
-            "test_no_two_mutants_encode_the_same_defect, and the counts in "
-            "the CATALOGUE section comment — they are one fact stated in "
-            "three places, which is why this drifts"
+            "against a declared %s. Update HAND_AUTHORED_RED_CLASSES — and "
+            "note that a class whose LAST red flips leaves the dict "
+            "entirely rather than dropping to 0. The two prose sites this "
+            "message used to send you to (the dedupe guard's residual-gap "
+            "paragraph and the CATALOGUE section comment) now both defer "
+            "to the constant instead of restating it, so there is one "
+            "place left, which was the point of making them defer"
             % ({k: v for k, v in sorted(found.items())
                 if k != CATALOGUE_RED_CLASS}, HAND_AUTHORED_RED_CLASSES))
 

@@ -9228,14 +9228,26 @@ def intent_echo(ops, els):
 FLOW_KINDS = {"source", "transform", "agent", "control", "sink", "store"}
 
 # The parties of a sequence, plus the timeline each one owns
-# (references/sequence.md). Two checks read this set and they must read
-# the SAME one: the arm that judges message geometry, and the orphan
-# check that must not judge these at all. A party header carries no
-# binding by construction — messages bind lifeline-to-lifeline — so a
-# CORRECT sequence put every actor in the unconnected note, and the only
-# repair available to a headless agent would have been to bind messages
-# to the headers, which is the wrong drawing (r5-16).
+# (references/sequence.md). This set answers ONE question — "is this
+# scene a sequence?" — and it is the gate the sequence-invariant arm
+# opens on. Keep it to kinds whose presence means a sequence is being
+# drawn: a scene holding only activation bars is not one, so `activation`
+# belongs in the furniture set below and not here.
 SEQUENCE_PARTY_KINDS = {"actor", "system", "context", "lifeline"}
+# What a sequence draws that CANNOT carry a binding, and so must never be
+# reported as an unconnected node. A party header is unbound by
+# construction — messages bind lifeline-to-lifeline — so a CORRECT
+# sequence put every actor in the unconnected note, and the only repair
+# available to a headless agent would have been to bind messages to the
+# headers, which is the wrong drawing (r5-16). An activation bar is the
+# same shape of furniture one step further in: it is drawn ON a lifeline,
+# so binding a message to it would move the arrowhead off the party the
+# message is addressed to. It stayed orphaned for a whole task because
+# the two questions — "is this a sequence?" and "is this unbindable
+# furniture?" — happened to have the same answer set, and widening the
+# party set to fix it would have opened the gate on bars alone (task 28
+# MAJOR-1). They are separate sets because they are separate questions.
+SEQUENCE_FURNITURE_KINDS = SEQUENCE_PARTY_KINDS | {"activation"}
 # How far a message endpoint may sit from an activation bar's edge and
 # still be read as the message that opens or closes it. The seeder puts
 # messages 80px apart and spans a bar exactly request→response, so this
@@ -11941,7 +11953,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # positive); same for the node budget, which is per-SCREEN there
     # because the state-variant convention draws normal+degraded pairs
     # in one artifact (references/wireframe.md)
-    # sequence parties are the same shape of false positive one type
+    # sequence furniture is the same shape of false positive one type
     # over: a message binds LIFELINE to LIFELINE, so an actor header is
     # unbound in every correct sequence ever drawn. The check fired on
     # all four headers of a well-formed diagram and was 100% of what
@@ -11950,12 +11962,15 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # drawing wrong (r5-16). The exemption is by KIND rather than by
     # artifact_type: a party header is a party header in a `sequence`,
     # in a DMF party map, and in whatever the type is called the day
-    # someone seeds one under another name.
+    # someone seeds one under another name. It reads
+    # `SEQUENCE_FURNITURE_KINDS`, not the party set the sequence arm
+    # gates on — an activation bar is unbindable furniture without being
+    # evidence that a sequence is what is drawn.
     framed = {n["id"]: n.get("frameId") for n in nodes}
     in_frames = any(v for v in framed.values())
     orphans = [n["id"] for n in nodes
                if n["id"] not in bound_ids and not framed.get(n["id"])
-               and kind_of(n) not in SEQUENCE_PARTY_KINDS]
+               and kind_of(n) not in SEQUENCE_FURNITURE_KINDS]
     if orphans and not in_frames:
         notes.append("unconnected node(s): %s" % ", ".join(
             name(o) for o in orphans[:4]))

@@ -376,8 +376,14 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**13 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at curator batch 27, folding onto
+**12 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 during TASK-POLISH, which is
+draining what curator batch 27 filed that morning — the activation-bar
+orphan flipped first, taking `test_mutants.py` 13 -> 12 and emptying
+`TestFurnitureIsNotAnUnconnectedNode`, which therefore LEAVES
+`HAND_AUTHORED_RED_CLASSES` one day after joining it. Batch 27's own
+re-derivation, still true of everything it describes, follows: taken at
+that batch, folding onto
 v0.9 WP8 task 30 of the same afternoon. THREE CHANGES MOVED THIS NUMBER
 WITHIN HOURS AND THEY WENT BOTH WAYS, which is the whole reason it is
 derived: task 30 FLIPPED the mod-roundness red — `mod roundness` on a
