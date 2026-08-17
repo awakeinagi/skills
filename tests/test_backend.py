@@ -11719,18 +11719,26 @@ class TestObliqueArrivals(Base):
 class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
     """The nag, which is the defect this feature nearly shipped.
 
-    Route-then-fan does not converge — the router reads the other
-    arrows' current paths and the fan then moves them — so "one pass
-    would change this scene" is true of a legacy artifact AND of its own
-    re-routed successor. A detector built on that would have re-offered
-    its own output after the user accepted it, and every press would
-    have written another revision: BUG-02, with a fresh coat of paint.
+    The pipeline does not converge, so "one pass would change this
+    scene" is true of a legacy artifact AND of its own re-routed
+    successor. A detector built on that would have re-offered its own
+    output after the user accepted it, and every press would have
+    written another revision: BUG-02, with a fresh coat of paint.
 
-    Driven on the frozen corpus rather than on a synthetic pair,
-    because that non-convergence is a property of real scenes: nine of
-    the 24 artifacts never settle, and `argus-r5 / tuesday-triage`
-    cycles with period SIX. Two synthetic arrows converge in one pass
-    and prove nothing about the case that broke.
+    WHAT OSCILLATES IS `route_arrow` AGAINST AN OBSTACLE SET — not the
+    fan, which an earlier draft of this docstring blamed. Ablated over
+    the corpus: route-only orbits the same nine artifacts as the shipped
+    route+fan pass, dropping the crossing term changes nothing, and both
+    `fan only` and `route with no obstacles` orbit ZERO of 24. Obstacle-
+    free routing is a pure function of the two endpoints and fixes on
+    pass one; the fan is a net stabiliser. `TestTheOscillatorIsTheRouter`
+    below holds that attribution to the measurement.
+
+    Driven on the frozen corpus rather than on a synthetic pair, because
+    the non-convergence is a property of real scenes: nine of the 24
+    artifacts never settle and `argus-r5 / tuesday-triage` cycles with
+    period SIX. Two synthetic arrows converge in one pass and prove
+    nothing about the case that broke.
     """
 
     FIXTURE = "argus-r5"
@@ -11752,12 +11760,19 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
                 p.unlink()
 
     def test_the_pipeline_really_does_not_settle(self):
-        """The premise. If this ever goes green, the design can simplify.
+        """The premise, and it is GREEN BY DESIGN — read that carefully.
+
+        This asserts a DEFECT still exists, because `reroute_is_fossil`'s
+        whole shape is a workaround for it. It is not a red awaiting a
+        fix and must not be counted as one: it passes today and is meant
+        to FAIL the day obstacle-aware routing is made idempotent, which
+        is the day `reroute_is_fossil` can collapse to a fixed-point
+        test and this class can go. Whoever lands that convergence owns
+        this flip; do not weaken it quietly to make a suite green.
 
         A re-route of `tuesday-triage`'s output moves it again, and
         again — which is why the offer cannot be gated on "a pass would
-        change something". Flip this deliberately if the router and the
-        fan are ever made to converge; do not weaken it quietly.
+        change something".
         """
         els = self.store.scenes["tuesday-triage"]
         once = canvas.reroute_scene(els)[0]
@@ -11786,6 +11801,286 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
         after = sum(len(canvas.oblique_arrivals(self.store.scenes[aid]))
                     for aid in flagged)
         self.assertLess(after, before)
+
+    def test_declining_says_which_kind_of_decline_it_is(self):
+        """`daily-run` is the scene the first draft lied about.
+
+        Two crooked arrivals and six arrows a pass would move, and
+        `reroute_is_fossil` says no because moving them straightens
+        nothing. The decline sentence used to be "nothing arrives
+        crooked", which the user can see is false.
+        """
+        head = self.store.reroute("daily-run")["summary"]["headline"]
+        self.assertTrue(canvas.oblique_arrivals(
+            self.store.scenes["daily-run"]), "the premise moved: daily-run "
+                                             "has nothing crooked any more")
+        self.assertNotIn("nothing on daily-run arrives crooked", head)
+        self.assertIn("still arrive crooked", head)
+        self.assertIn("would not straighten", head)
+
+    def test_the_other_decline_still_says_nothing_is_crooked(self):
+        # the silent half: a genuinely square drawing must not be told it
+        # has crooked arrivals this cannot reach
+        self.assertEqual(canvas.oblique_arrivals(
+            self.store.scenes["edgar-late"]), [])
+        self.assertIn("nothing on edgar-late arrives crooked",
+                      self.store.reroute("edgar-late")["summary"]["headline"])
+
+
+class TestTheOscillatorIsTheRouter(unittest.TestCase):
+    """Which component actually fails to converge — held to the ablation.
+
+    An earlier draft of `reroute_is_fossil` blamed "the router reads the
+    other arrows' paths and the fan then moves them", naming two
+    innocent parties: the fan and the crossing term. Measuring each arm
+    separately over the frozen corpus exonerates both and leaves one
+    mechanism standing — obstacle-aware routing, iterated.
+
+    This is an attribution pin. Prose in a docstring rots silently; a
+    wrong cause sends the next person to fix the wrong component, which
+    is the more expensive failure.
+    """
+
+    def scenes(self):
+        """Every frozen artifact, loaded the way a project would load it.
+
+        Returns:
+            `[(name, elements)]`.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        out = []
+        for path in sorted(root.glob("*/artifacts/*.excalidraw")):
+            doc, _ = canvas.validate_scene(json.loads(path.read_text()),
+                                           path.stem)
+            out.append((path.parent.parent.name + "/" + path.stem,
+                        canvas.normalize_scene_doc(doc)["elements"]))
+        return out
+
+    def one_pass(self, els, route=True, fan=True, obstacles=True):
+        """A single pipeline pass with components ablated.
+
+        Args:
+            els: Scene elements. Not mutated.
+            route: Run the router.
+            fan: Run the attach-point fan.
+            obstacles: Give the router an obstacle set at all.
+
+        Returns:
+            The new elements.
+        """
+        out = json.loads(json.dumps(els))
+        ix = {e["id"]: e for e in out}
+        obs = [e for e in out
+               if e.get("type") in ("rectangle", "diamond", "ellipse")
+               and canvas.role_of(e) not in ("label", "pin", "decoration",
+                                             "annotation")] if obstacles \
+            else []
+        soft = [e for e in out if e.get("type") == "text"
+                and (e.get("containerId") or
+                     canvas.role_of(e) == "annotation")] if obstacles else []
+        if route:
+            for a in out:
+                if a.get("type") != "arrow":
+                    continue
+                s = ix.get((a.get("startBinding") or {}).get("elementId"))
+                d = ix.get((a.get("endBinding") or {}).get("elementId"))
+                if s is None or d is None or \
+                        not canvas.server_owns_geometry(a):
+                    continue
+                canvas.route_arrow(
+                    a, s, d, obs, soft_obstacles=soft,
+                    other_arrows=[(t["id"], t.get("x", 0), t.get("y", 0),
+                                   t.get("points") or [])
+                                  for t in out if t.get("type") == "arrow"
+                                  and len(t.get("points") or []) >= 2])
+                canvas.recenter_label(out, a)
+        if fan:
+            canvas.fan_attach_points(out)
+        canvas.rebuild_bound_elements(out)
+        return out
+
+    def orbiters(self, **ablate):
+        """Which artifacts never reach a fixed point under this arm.
+
+        Args:
+            **ablate: Passed to `one_pass`.
+
+        Returns:
+            The sorted names.
+        """
+        def h(els):
+            return canvas.scene_hash(
+                canvas.normalize_scene_doc({"elements": els})["elements"])
+
+        bad = []
+        for name, els in self.scenes():
+            seen, cur = [h(els)], els
+            for _ in range(12):
+                cur = self.one_pass(cur, **ablate)
+                hh = h(cur)
+                if hh == seen[-1]:
+                    break
+                if hh in seen:
+                    bad.append(name)
+                    break
+                seen.append(hh)
+            else:
+                bad.append(name)
+        return sorted(bad)
+
+    def test_the_router_alone_orbits_exactly_what_the_pipeline_does(self):
+        self.assertEqual(self.orbiters(fan=False), self.orbiters())
+
+    def test_the_fan_alone_is_a_fixed_point_everywhere(self):
+        self.assertEqual(self.orbiters(route=False), [])
+
+    def test_routing_without_obstacles_settles_on_the_first_pass(self):
+        # a pure function of the two endpoints — nothing left to re-decide
+        self.assertEqual(self.orbiters(fan=False, obstacles=False), [])
+
+    def test_nine_frozen_artifacts_never_settle(self):
+        """The count, made mechanical because prose disagreed about it.
+
+        The task report said nine and fix-round review said eight, which
+        a sentence in a markdown file cannot settle. Measured five ways
+        here — full-scene, drawn-only and geometry-only hashes, and both
+        "never settles" and "a second pass still moves it" — this is
+        nine, and here it is by name so any future disagreement is a
+        failing test naming the artifact rather than two prose numbers.
+        """
+        self.assertEqual(self.orbiters(), [
+            "argus-r4-arm3/aggregation-flow",
+            "argus-r4-arm3/argus-run-flow",
+            "argus-r4-arm3/publication-flow",
+            "argus-r4-arm4/daily-run-flow",
+            "argus-r5/edgar-late",
+            "argus-r5/enrichment-flow",
+            "argus-r5/tuesday-triage",
+            "tearsheet-demo/tearsheet-domain",
+            "tearsheet-demo/tearsheet-pipeline"])
+
+
+class TestRerouteSaysTheSameThingOnBothPaths(Base):
+    """`--apply` through a server and `--apply` to disk, on one no-op.
+
+    Both branches spelled the outcome by hand and disagreed on the one
+    event they can both produce: offline said `APPLIED=false NOOP=true`,
+    the server said `APPLIED=true NOOP=true` — one key, two surfaces,
+    opposite values — and `CHECKPOINT=` appeared on the offline apply
+    and nowhere else. Neither path had a test at all, which is why the
+    disagreement could exist.
+
+    The server is patched rather than run, the way `cmd_apply`'s own
+    branch tests do it: this measures what the command PRINTS, not what
+    a socket does. `/api/reroute`'s handler is exercised directly for
+    the half a patched response cannot cover.
+    """
+
+    def setUp(self):
+        """Seed a flow and fossilise two arrows into crooked arrivals."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("t1", "t3"):
+                e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
+                e["points"] = [[0, 0], [150, -70]]
+                canvas._stamp_route(e)
+        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.store = canvas.Store(self.project)
+
+    def cli(self, resp=None, **kw):
+        """Run `cmd_reroute --apply`, optionally against a fake server.
+
+        Args:
+            resp: The `/api/reroute` payload to answer with. None runs
+                the offline branch.
+            **kw: Overrides for the arg namespace.
+
+        Returns:
+            Stdout as a `{KEY: value}` dict.
+        """
+        ns = argparse.Namespace(project=self.tmp, artifact="checkout-flow",
+                                apply=True)
+        for k, v in kw.items():
+            setattr(ns, k, v)
+        buf = io.StringIO()
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(contextlib.redirect_stdout(buf))
+            stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+            if resp is not None:
+                self.project.state_path.write_text(json.dumps(
+                    {"url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
+                     "protocol_version": canvas.PROTOCOL_VERSION}),
+                    encoding="utf-8")
+                stack.enter_context(mock.patch.object(
+                    canvas, "server_alive", lambda s: True))
+                stack.enter_context(mock.patch.object(
+                    canvas, "http_json", lambda *a, **k: resp))
+            else:
+                stack.enter_context(mock.patch.object(
+                    canvas, "server_alive", lambda s: False))
+            canvas.cmd_reroute(ns)
+        return dict(ln.split("=", 1) for ln in buf.getvalue().splitlines()
+                    if "=" in ln and not ln.startswith("REROUTE="))
+
+    def test_a_committed_apply_reads_the_same_either_way(self):
+        offline = self.cli()
+        server = self.cli(resp={"ok": True, "revn": offline["REVN"],
+                                "short_id": offline.get("SHORT_ID"),
+                                "noop": False,
+                                "headline": offline["HEADLINE"]})
+        for key in ("APPLIED", "NOOP", "REVN", "SHORT_ID", "HEADLINE",
+                    "CHECKPOINT"):
+            self.assertEqual(offline.get(key), server.get(key), key)
+        self.assertEqual(offline["APPLIED"], "true")
+        self.assertEqual(offline["NOOP"], "false")
+        self.assertIn("revert save #", offline["CHECKPOINT"])
+
+    def test_a_no_op_reads_the_same_either_way(self):
+        self.store.reroute("checkout-flow")          # spend the offer
+        head = canvas.Store(self.project).head_revn()
+        offline = self.cli()
+        server = self.cli(resp={"ok": True, "revn": head, "noop": True,
+                                "headline": offline["HEADLINE"]})
+        for key in ("APPLIED", "NOOP", "REVN", "HEADLINE", "CHECKPOINT"):
+            self.assertEqual(offline.get(key), server.get(key), key)
+        self.assertEqual(offline["APPLIED"], "false")
+        self.assertEqual(offline["NOOP"], "true")
+
+    def test_the_checkpoint_is_printed_on_a_no_op_too(self):
+        # a key that vanishes when the news is good reads as "nobody
+        # said", not as "nothing happened" (the QUARANTINED= rule)
+        self.store.reroute("checkout-flow")
+        out = self.cli()
+        self.assertIn("CHECKPOINT", out)
+        self.assertIn("nothing was written", out["CHECKPOINT"])
+
+    def test_the_endpoint_commits_and_reports_its_save(self):
+        app = canvas.ServerApp(self.project)
+        try:
+            resp = app.handle_post("/api/reroute",
+                                   {"artifact": "checkout-flow"})
+            self.assertTrue(resp["ok"])
+            self.assertFalse(resp["noop"])
+            self.assertIn("short_id", resp)
+            self.assertIn("rerouted", resp["headline"])
+            again = app.handle_post("/api/reroute",
+                                    {"artifact": "checkout-flow"})
+            self.assertTrue(again["noop"])
+            self.assertEqual(again["revn"], resp["revn"])
+        finally:
+            app.log_file.close()
+
+    def test_the_endpoint_refuses_an_unknown_artifact(self):
+        app = canvas.ServerApp(self.project)
+        try:
+            with self.assertRaises(canvas._Err) as e:
+                app.handle_post("/api/reroute", {"artifact": "ghost"})
+            self.assertEqual(e.exception.status, 400)
+        finally:
+            app.log_file.close()
 
 
 class TestDivergenceVerbs(Base):

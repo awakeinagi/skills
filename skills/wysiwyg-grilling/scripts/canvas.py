@@ -4235,14 +4235,33 @@ def reroute_is_fossil(els):
 
     THE OBVIOUS TEST IS WRONG, and getting it wrong is how this feature
     would have nagged forever. "One pass would change it" looks like the
-    definition of stale, but route-then-fan does not converge: the
-    router reads the other arrows' current paths and the fan then moves
-    them, so on 9 of the 24 frozen artifacts the pipeline never settles
-    (eight cycle with period 2, `argus-r5 / tuesday-triage` with period
-    6). Under that, "a pass would change it" is true of a legacy scene
-    AND of the re-routed one, so the NOTE would re-fire after the user
-    accepted it and every press would write another revision — BUG-02's
-    exact shape.
+    definition of stale, but the pipeline does not converge: on 9 of the
+    24 frozen artifacts it never reaches a fixed point (eight cycle with
+    period 2, `argus-r5 / tuesday-triage` with period 6). Under that, "a
+    pass would change it" is true of a legacy scene AND of the
+    re-routed one, so the NOTE would re-fire after the user accepted it
+    and every press would write another revision — BUG-02's exact shape.
+
+    WHAT OSCILLATES IS `route_arrow` ITERATED AGAINST AN OBSTACLE SET,
+    and naming it precisely matters because the first draft of this
+    docstring blamed the wrong parts. Four-way ablation over the corpus
+    (`route only` / `fan only` / `route with no obstacles` / `route with
+    no crossing term`) settles it:
+
+    | arm | artifacts that never settle |
+    |---|---|
+    | route + fan (shipped) | 9 / 24 |
+    | route only | 9 / 24 — the same nine |
+    | route only, no crossing term | 9 / 24 — the same nine |
+    | route only, no obstacles | **0 / 24** |
+    | fan only | **0 / 24** |
+
+    So the fan is exonerated — it neither adds an orbiter nor removes
+    one, and alone it is a fixed point everywhere — and so is the
+    crossing term. Strip the obstacle set and routing becomes a pure
+    function of the two endpoints, which fixes on pass one. The
+    oscillation is the obstacle-avoidance search re-deciding against a
+    scene its own previous decision moved.
 
     Two answers were tried and discarded before this one. `tidy`'s —
     refuse what will not settle — is right for a repair button and
@@ -4257,23 +4276,54 @@ def reroute_is_fossil(els):
     What settles it is to stop asking about the pipeline and ask about
     the DRAWING, which is the one thing here that does not oscillate: a
     re-route is offered when it strictly reduces the number of endpoints
-    arriving crooked. Legacy scenes improve (60 crooked endpoints across
-    the corpus become 2); their re-routed successors do not, so the
-    offer withdraws itself; a scene with nothing crooked is never
-    offered at all, at the cost of one comparison instead of a router
-    pass.
+    arriving crooked. That is a well-founded descent on a non-negative
+    integer, so it can be accepted only finitely often. Legacy scenes
+    improve (60 crooked endpoints across the corpus become 2); their
+    re-routed successors do not, so the offer withdraws itself; a scene
+    with nothing crooked is never offered at all, at the cost of one
+    comparison instead of a router pass.
 
     Args:
         els: The scene's elements, as loaded. Not mutated.
 
     Returns:
         True when a re-route would leave strictly fewer crooked
-        arrivals than the scene has now.
+        arrivals than the scene has now. False covers TWO different
+        situations — nothing crooked, and crooked beyond this
+        mechanism's reach — which callers must not narrate as one; see
+        `reroute_decline`.
     """
     before = len(oblique_arrivals(els))
     if not before:
         return False
     return len(oblique_arrivals(reroute_scene(els)[0])) < before
+
+
+def reroute_decline(els, aid):
+    """Say why a re-route was NOT offered, without saying a false thing.
+
+    `reroute_is_fossil` returns False for two unrelated reasons and the
+    first draft narrated both with the sentence for the first: on
+    `argus-r5 / daily-run` — 2 crooked arrivals, 6 arrows a pass would
+    move — the tool said "nothing arrives crooked", and the CLI said the
+    artifact was "already drawn the way today's router would draw it".
+    Both false, and false in the direction that tells a user their
+    drawing is fine when they can see that it is not.
+
+    Args:
+        els: The scene's elements.
+        aid: The artifact id, named in the sentence.
+
+    Returns:
+        The decline sentence, true of whichever case applies.
+    """
+    crooked = len(oblique_arrivals(els))
+    if not crooked:
+        return "nothing on %s arrives crooked — leaving it as drawn" % aid
+    return ("%d endpoint(s) on %s still arrive crooked, but a re-route "
+            "would not straighten any of them — leaving it as drawn. The "
+            "remedy is the drawing, not the router: move the nodes apart, "
+            "or author the path with `mod points`" % (crooked, aid))
 
 
 def _reroute_shift(was, now):
@@ -16003,14 +16053,36 @@ class Store:
             if cached and cached[0] == key:
                 return cached[1]
             found = {}
-            for aid, els in sorted(self.scenes.items()):
-                if not reroute_is_fossil(els):
-                    continue
-                changes = reroute_scene(els)[1]
+            for aid in sorted(self.scenes):
+                changes = self.legacy_routing_for(aid)
                 if changes:
                     found[aid] = changes
             self._legacy_routing_cache = (key, found)
             return found
+
+    def legacy_routing_for(self, aid):
+        """The same question about ONE artifact, at one artifact's cost.
+
+        `reroute --artifact X` used to ask `legacy_routing` and throw
+        away 23 artifacts' worth of routing — up to ~0.4s of work to
+        answer a question about one drawing. The whole-project map is
+        still what gets memoised, because that is what the resume
+        surfaces print; this is the pushdown for the single-artifact
+        callers.
+
+        Args:
+            aid: Artifact id. Unknown ids answer empty rather than
+                raising — the callers that care check `scenes` first and
+                give a better message than a KeyError.
+
+        Returns:
+            `[change, ...]` as `reroute_scene` returns them, empty when
+            a re-route would not straighten this drawing.
+        """
+        els = self.scenes.get(aid)
+        if els is None or not reroute_is_fossil(els):
+            return []
+        return reroute_scene(els)[1]
 
     def legacy_routing_notes(self):
         """The load-time NOTE, one line per artifact a re-route would fix.
@@ -16074,9 +16146,7 @@ class Store:
                 raise BatchError(["reroute: unknown artifact %r" % aid])
             if not reroute_is_fossil(base):
                 return {"revn": self.head_revn(), "noop": True,
-                        "summary": {"headline": "nothing on %s arrives "
-                                                "crooked — leaving it as "
-                                                "drawn" % aid,
+                        "summary": {"headline": reroute_decline(base, aid),
                                     "verb_counts": {}, "suppressed": 0}}
             els, changes = reroute_scene(base)
             if not changes:
@@ -16948,7 +17018,12 @@ class ServerApp:
                                short_id=record["short_id"],
                                headline=record["summary"]["headline"],
                                reroute=True)
-            return {"ok": True, "revn": record["revn"],
+            # `short_id` rides the response so the CLI's two paths can
+            # print the same keys — without it the server branch was
+            # missing one the offline branch had, which is how the two
+            # drifted apart in the first place.
+            return {"ok": True, "revn": record["revn"], "noop": False,
+                    "short_id": record["short_id"],
                     "headline": record["summary"]["headline"]}
         if path == "/api/save-label":
             try:
@@ -17874,25 +17949,36 @@ def cmd_reroute(args):
     """
     project = Project(args.project)
     store = Store(project)
-    fossils = store.legacy_routing()
     if args.artifact:
         if args.artifact not in store.scenes:
             die("ERROR=unknown artifact %r (known: %s)"
                 % (args.artifact, ", ".join(sorted(store.scenes)) or "none"),
                 2)
-        fossils = {k: v for k, v in fossils.items() if k == args.artifact}
+        # PUSHDOWN, not a filter: asking `legacy_routing` and discarding
+        # 23 artifacts spent up to ~0.4s of routing to answer a question
+        # about one drawing.
+        changes = store.legacy_routing_for(args.artifact)
+        fossils = {args.artifact: changes} if changes else {}
+    else:
+        fossils = store.legacy_routing()
     for aid, changes in sorted(fossils.items()):
         for c in changes:
             print("REROUTE=%s: %s" % (aid, reroute_line(c)))
     arrows = sum(len(v) for v in fossils.values())
     if not args.apply:
+        if arrows:
+            note = ("nothing was changed — re-run with --artifact ID "
+                    "--apply to accept this for one artifact")
+        elif args.artifact:
+            note = reroute_decline(store.scenes[args.artifact], args.artifact)
+        else:
+            note = "; ".join(reroute_decline(els, aid) for aid, els
+                             in sorted(store.scenes.items())) or \
+                "this project has no artifacts"
         print_kv(artifacts=len(fossils), arrows=arrows, applied="false",
                  checkpoint="revert save #%d to restore the current "
                             "geometry" % store.head_revn(),
-                 note="nothing was changed — re-run with --artifact ID "
-                      "--apply to accept this for one artifact"
-                      if arrows else "every server-routed arrow is already "
-                      "drawn the way today's router would draw it")
+                 note=note)
         return 0
     if not args.artifact:
         die("ERROR=--apply needs --artifact ID. Consent is per drawing: "
@@ -17915,27 +18001,64 @@ def cmd_reroute(args):
             die("ERROR=%s" % payload.get("error", str(e)), 5)
         except (OSError, ValueError, urllib.error.URLError) as e:
             die("ERROR=server unreachable (%s) — run canvas.py start" % e, 3)
-        print_kv(artifact=args.artifact, arrows=arrows, applied="true",
-                 revn=resp.get("revn"), noop=str(bool(resp.get("noop"))).lower(),
-                 headline=resp.get("headline"))
-        return 0
+        return _print_reroute_applied(
+            args.artifact, arrows, resp.get("revn"), resp.get("short_id"),
+            resp.get("headline"), bool(resp.get("noop")), offline=False)
     try:
         record = store.reroute(args.artifact)
     except (BatchError, StaleError) as e:
         die("ERROR=%s" % e, 5)
-    if record.get("noop"):
-        print_kv(artifact=args.artifact, applied="false", noop="true",
-                 headline=record["summary"]["headline"])
-        return 0
-    EventLog(project.events_path).append(
-        "agent_revision", revn=record["revn"],
-        short_id=record["short_id"],
-        headline=record["summary"]["headline"], offline=True, reroute=True)
-    print_kv(artifact=args.artifact, arrows=arrows, applied="true",
-             revn=record["revn"], short_id=record["short_id"],
-             headline=record["summary"]["headline"],
-             checkpoint="revert save #%d to put the old geometry back"
-                        % record["revn"], offline="true")
+    noop = bool(record.get("noop"))
+    if not noop:
+        EventLog(project.events_path).append(
+            "agent_revision", revn=record["revn"],
+            short_id=record["short_id"],
+            headline=record["summary"]["headline"], offline=True,
+            reroute=True)
+    return _print_reroute_applied(
+        args.artifact, arrows, record["revn"], record.get("short_id"),
+        record["summary"]["headline"], noop, offline=True)
+
+
+def _print_reroute_applied(aid, arrows, revn, short_id, headline, noop,
+                           offline):
+    """Print an `--apply` result, the SAME way whichever path produced it.
+
+    ONE PRINTER BECAUSE TWO SURFACES DISAGREED. The server branch and
+    the offline branch each spelled the outcome by hand, and on the one
+    event they can both produce — a no-op — they said opposite things:
+    offline `APPLIED=false NOOP=true`, server `APPLIED=true NOOP=true`.
+    `CHECKPOINT=` was on the offline apply and nowhere else. That is the
+    `SCOPES=`/`ARTIFACTS=` defect exactly — one key, two surfaces, two
+    meanings, and nothing that forces them together — so the branches
+    are gone and only the values differ.
+
+    `CHECKPOINT` prints on both outcomes rather than vanishing on a
+    no-op, for the reason `QUARANTINED=` prints at zero: a key that
+    disappears when the news is good reads as "nobody said", not as
+    "nothing happened".
+
+    Args:
+        aid: The artifact.
+        arrows: How many arrows the local detection named.
+        revn: Head revn after the call — the new save, or the unmoved
+            head when nothing was written.
+        short_id: The save's short id, when the path has one.
+        headline: The record's headline.
+        noop: Whether anything was actually committed.
+        offline: Whether this went straight to disk or through a server.
+
+    Returns:
+        Process exit code: 0.
+    """
+    print_kv(artifact=aid, arrows=arrows,
+             applied=str(not noop).lower(), noop=str(noop).lower(),
+             revn=revn, short_id=short_id, headline=headline,
+             checkpoint=("nothing was written — head is still save #%s"
+                         % revn) if noop else
+                        ("revert save #%s to put the old geometry back"
+                         % revn),
+             offline=str(offline).lower())
     return 0
 
 

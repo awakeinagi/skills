@@ -471,15 +471,27 @@ it "agent asked a question" with no Apply action.
   the USER's (`mod points`, hand-reshaped, unmarked bent paths) are
   neither reported nor touched.
   - **The offer is made only when it would straighten the drawing**, not
-    whenever a re-route would change something. The router and the fan do
-    not converge — routing reads the other arrows' paths and the fan then
-    moves them — so on nine of the frozen corpus's 24 artifacts a pass
-    keeps moving arrows however many times it runs. What stops after the
-    first pass is the improvement, so the offer withdraws itself once you
-    accept it, and pressing again is a no-op rather than another revision.
-    Same wall `tidy` hits and answers by refusing; refusing here would fix
-    none of the corpus's crooked endpoints, since all of them sit on
-    artifacts that cycle.
+    whenever a re-route would change something. Obstacle-aware routing is
+    not idempotent — the search re-decides against a scene its own last
+    decision moved — so on nine of the frozen corpus's 24 artifacts a pass
+    keeps moving arrows however many times it runs. (Ablated: the fan and
+    the crossing term are not involved; routing with no obstacle set fixes
+    on pass one.) What stops after the first pass is the improvement, so
+    the offer withdraws itself once you accept it, and pressing again is a
+    no-op rather than another revision. Same wall `tidy` hits and answers
+    by refusing; refusing here would fix none of the corpus's crooked
+    endpoints, since all of them sit on artifacts that cycle.
+  - **Two different declines, two different sentences.** "Nothing arrives
+    crooked" means the drawing is square and there is nothing to do; "N
+    endpoints still arrive crooked, but a re-route would not straighten
+    any of them" means the geometry is beyond this mechanism and the
+    remedy is the drawing — move the nodes apart, or author the path with
+    `mod points`. Do not read the second as the first.
+  - `--apply` prints the same keys whether or not a server is up and
+    whether or not anything was committed:
+    `ARTIFACT`/`ARROWS`/`APPLIED`/`NOOP`/`REVN`/`HEADLINE`/`CHECKPOINT`/
+    `OFFLINE`. `CHECKPOINT` prints on a no-op too, naming the head that
+    did not move.
   - `start` and `lint` print a `LEGACY_ROUTING=` line per affected
     artifact. That is all a load ever does about it — **the loader never
     redraws the picture the user last saw.**
