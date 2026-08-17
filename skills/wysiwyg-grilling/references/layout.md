@@ -281,6 +281,14 @@ palette in response to your `kind:` composite; there is no decision of
 yours to question. A decoration or annotation **you** styled is asked,
 and answered with a waive.
 
+**Known: annotations trip `contrast_text` on the default ink.** An
+annotation you give no `strokeColor` is minted at `#5c8a5f`, which reads
+3.89:1 — under the 4.5 floor. The finding is correct and the palette is
+what disagrees with it; the fix is a pending product decision, not
+something to work around. Until it is settled, pass a darker explicit
+`strokeColor` on annotations you care about, or waive with
+`ink:<aid>:<id>` and a reason. Do not read the finding as noise.
+
 ## Annotations (seeder + lint WARNING)
 
 A free `text` annotation declares its subject: `annotates: <element-id>` in

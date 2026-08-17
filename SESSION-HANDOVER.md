@@ -678,7 +678,7 @@ when WP4 lands, not deleted. Its body says so. Note its polarity is the
 is **green now and goes red when the fix lands**, whereas a mutant asserts the
 right behavior and is red now. Its state is unchanged by the harness work.
 
-## 4. Decisions — ALL FOUR RULED, 2026-08-12 grilling session
+## 4. Decisions — four RULED 2026-08-12; one OPEN from v0.9 WP7
 
 1. **The commit — RESOLVED: split commits on `v0.8_correctness`, R4 archived
    out.** Commit 1: the fixture set (argus-r5 + test_backend + e2e README —
@@ -704,6 +704,32 @@ right behavior and is red now. Its state is unchanged by the harness work.
    clone cannot read; the harness's FIX-SOON backlog
    (`docs/superpowers/reviews/2026-08-11-mutation-harness/`) exists only on
    this machine.
+5. **The annotation ink vs its own new contrast lint — OPEN, needs a user
+   ruling.** v0.9 WP7 task 29 shipped `contrast_text` (WCAG 1.4.3, 4.5:1) and
+   the first thing it found was this skill's own palette. `canvas.py` mints
+   annotation ink at **`#5c8a5f`**, which reads **3.89:1** on the `#fdfcf8`
+   ground — so **every annotation the skill draws from here on trips the
+   check**, and those are the only 3 findings the new lint produces across
+   all 24 frozen artifacts. The lint is right; the palette is what disagrees
+   with it. Two live options — darken the default until it clears 4.5:1, or
+   let each artifact record an `ink:<aid>:<id>` waive. One option is ruled
+   OUT already: moving the 4.5 floor to fit the palette is the threshold
+   fudge the harness contract forbids. Note darkening does not reduce the
+   corpus count (the fixtures are frozen and keep the old ink); measured
+   blast radius is the mint site plus one assertion at
+   `tests/test_backend.py:5937`. Task 29 deliberately did not pick — it is a
+   visual-identity call (decision 4's authorship colour language: agent notes
+   green, user stickies yellow), not a lint-tuning one. **The full statement
+   lives at the mint site in `canvas.py`**, on purpose: this entry and that
+   comment are the only two copies a fresh clone can read, because decision 4
+   above keeps `docs/` local and the design doc with it.
+
+   *Related, and a gap rather than a pending decision:* the composed-furniture
+   ink `#b8b2a5` (slider tracks, image-placeholder X strokes, `render_svg`'s
+   own placeholder) reads **2.06:1** against 1.4.11's 3:1 floor — 16 elements
+   across 3 artifacts. `lint_layout` exempts server-composed parts, since the
+   agent did not choose those colours and the frozen fixtures cannot record a
+   waive, so this is a real defect **no tier now reports**. Same owner.
 
 ## 5. The mermaid spike — read this before touching WP5
 

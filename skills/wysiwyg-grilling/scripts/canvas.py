@@ -1503,6 +1503,32 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             "strokeColor" not in spec:
         # agent notes read green, user sticky notes read yellow (the demo's
         # authorship color language, v0.3) — explicit strokeColor wins
+        #
+        # THIS DEFAULT TRIPS `contrast_text`, MEASURED (v0.9 WP7 task 29):
+        # #5c8a5f reads 3.89:1 on the #fdfcf8 ground where 1.4.3 asks
+        # 4.5:1, so every annotation drawn without an explicit colour
+        # draws a legibility question about a colour the agent did not
+        # choose. It is the whole of that lint's over-fire on the 24
+        # frozen artifacts — 3 findings, all of them this line.
+        #
+        # NOT a bug in the lint (3.89 is under 4.5) and NOT RESOLVED. The
+        # options are: darken this until it clears 4.5 on #fdfcf8, or let
+        # each artifact record an `ink:<aid>:<id>` waive. Relaxing the 4.5
+        # floor to fit the palette is the one option ruled out — that is
+        # the threshold fudge the harness contract forbids. Darkening does
+        # NOT reduce the corpus count: the fixtures are frozen and keep
+        # this ink either way. Measured blast radius of a change: this
+        # line, plus one assertion at tests/test_backend.py:5937.
+        #
+        # THE RULING IS PENDING WITH THE USER — it is a visual-identity
+        # decision (the v0.3 authorship colour language above), not a
+        # lint-tuning one. Do not pick one quietly. Stated in full here
+        # rather than only by reference because `docs/` is gitignored by
+        # §4 of SESSION-HANDOVER.md, so a fresh clone cannot read the
+        # design doc; where that doc IS present it is
+        # docs/todo/contrast-and-min-font-lints.md § "The annotation
+        # default trips this lint", and the handover's §4 carries the
+        # open ruling.
         el["strokeColor"] = "#5c8a5f"
     if etype == "text":
         fs = spec.get("fontSize", 16)
