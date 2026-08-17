@@ -242,6 +242,131 @@ const markerAnchor = (e: any, dx = 0, dy = 0, corner: "br" | "tr" = "br") => {
   };
 };
 
+/** A rectangle in scene coordinates. */
+type Rect = { x: number; y: number; w: number; h: number };
+
+/** A point in scene coordinates. */
+type Pt = { x: number; y: number };
+
+/** The parts of a scene element that decide where an insert may land. */
+type SceneEl = {
+  id?: string; type?: string; x: number; y: number;
+  width?: number; height?: number; points?: number[][];
+  isDeleted?: boolean; customData?: { role?: string } | null;
+};
+
+/** Scene px kept between a fresh insert and whatever it lands beside. */
+const DROP_GAP = 24;
+
+/** How many obstacles one direction of the nudge search will step past. */
+const DROP_HOPS = 12;
+
+/** The sticky note's box — the label is inset 8px inside it. */
+const NOTE_W = 180, NOTE_H = 90;
+
+/**
+ * A live element's occupied box.
+ *
+ * Arrows, lines and freedraw carry their real extent in `points`, which run
+ * from `x`/`y` and may go LEFT of or ABOVE it; stored `width`/`height` alone
+ * would leave a note dropped on half an arrow. The union of the stored box
+ * and the point hull is what an insert has to clear, and it degrades to the
+ * stored box for every element that has no points.
+ * @param e Any live scene element.
+ * @returns The element's occupied rectangle in scene coords.
+ */
+const elBox = (e: SceneEl): Rect => {
+  const pts: number[][] = Array.isArray(e.points) ? e.points : [];
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const x = e.x + Math.min(0, ...xs), y = e.y + Math.min(0, ...ys);
+  return { x, y,
+           w: e.x + Math.max(e.width || 0, ...xs) - x,
+           h: e.y + Math.max(e.height || 0, ...ys) - y };
+};
+
+/**
+ * Where a `w`×`h` insert should land, given where the user is looking.
+ *
+ * `want` is the viewport centre, and the viewport centre is over a node
+ * exactly when the user has zoomed in on one to comment about it — the
+ * moment they reach for 🗒, ＋ insert or a template. Dropping there buries
+ * the thing they are talking about (the r5-13 shape, arriving by their own
+ * hand), so the insert slides out from under whatever it covers.
+ *
+ * A drop that is ALREADY clear is returned untouched: on empty canvas the
+ * centre of the view is the right answer and relocating it would be the
+ * opposite defect. Otherwise each of the four directions is stepped past
+ * the content in its way, and the winner is the shortest trip that is also
+ * still on screen — falling back to the shortest trip, then (if the search
+ * is boxed in) to the r5-10 rule the ⌗ import already uses: right of
+ * everything drawn, top-aligned with it.
+ * @param want Desired top-left in scene coords (the viewport centre).
+ * @param w Width of the insert.
+ * @param h Height of the insert.
+ * @param boxes Occupied boxes the insert must clear.
+ * @param view The visible scene rectangle — preferred, not required.
+ * @returns The top-left the insert should take.
+ */
+const clearSpot = (want: Pt, w: number, h: number,
+                   boxes: Rect[], view?: Rect): Pt => {
+  const over = (x: number, y: number) => boxes.filter(
+    (b) => x < b.x + b.w && b.x < x + w && y < b.y + b.h && b.y < y + h);
+  if (!over(want.x, want.y).length) return { x: want.x, y: want.y };
+  const cands: { x: number; y: number; d: number; seen: boolean }[] = [];
+  for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+    let x = want.x, y = want.y, hit = over(x, y);
+    for (let hop = 0; hop < DROP_HOPS && hit.length; hop++) {
+      if (dx > 0) x = Math.max(...hit.map((b) => b.x + b.w)) + DROP_GAP;
+      else if (dx < 0) x = Math.min(...hit.map((b) => b.x)) - DROP_GAP - w;
+      else if (dy > 0) y = Math.max(...hit.map((b) => b.y + b.h)) + DROP_GAP;
+      else y = Math.min(...hit.map((b) => b.y)) - DROP_GAP - h;
+      hit = over(x, y);
+    }
+    if (hit.length) continue;
+    cands.push({ x, y, d: Math.abs(x - want.x) + Math.abs(y - want.y),
+      seen: !!view && x >= view.x && y >= view.y &&
+            x + w <= view.x + view.w && y + h <= view.y + view.h });
+  }
+  if (!cands.length) {
+    return { x: Math.max(...boxes.map((b) => b.x + b.w)) + DROP_GAP,
+             y: Math.min(...boxes.map((b) => b.y)) };
+  }
+  cands.sort((a, b) => Number(b.seen) - Number(a.seen) || a.d - b.d);
+  return { x: cands[0].x, y: cands[0].y };
+};
+
+/**
+ * Where a ❓ glyph sits: hugging its target, never in a neighbour.
+ *
+ * Mirrors `pin_spot` in canvas.py, the same way `markerAnchor` mirrors
+ * `marker_anchor` — the agent's pin seeder learned this in r4b-3 and the
+ * user's own ❓ button never did: a constant top-right offset is
+ * layout-density-blind, so on a tight wireframe grid the glyph missed its
+ * target entirely and sat inside the NEXT panel, reading as a question
+ * about that one. On flows, where there are hundreds of px of air, nothing
+ * moves.
+ * @param target The element the question is about.
+ * @param live The scene, as collision candidates.
+ * @param size Glyph bbox edge in px.
+ * @returns The glyph's top-left in scene coords.
+ */
+const pinSpot = (target: SceneEl, live: SceneEl[], size = 26): Pt => {
+  const p = markerAnchor(target, 8, -8, "tr");
+  const foreign = live.filter((e) =>
+    e.id !== target.id && !e.isDeleted &&
+    ["rectangle", "diamond", "ellipse", "frame"].includes(e.type || "") &&
+    !["label", "pin", "decoration", "annotation"]
+      .includes(e.customData?.role || ""));
+  const buried = foreign.some((e) => {
+    const b = elBox(e);
+    return p.x < b.x + b.w && b.x < p.x + size &&
+           p.y < b.y + b.h && b.y < p.y + size;
+  });
+  return buried
+    ? { x: target.x + (target.width || 0) - size - 2, y: target.y + 2 }
+    : p;
+};
+
 
 export default function App() {
   const [state, setState] = useState<any>(null);
@@ -1011,14 +1136,76 @@ export default function App() {
     };
   }, [camera]);
 
+  /** The scene rectangle the camera is currently showing. */
+  const viewRect = useCallback((): Rect => {
+    const a = appStateRef.current || {};
+    const z = camera.zoom || 1;
+    return { x: -camera.scrollX, y: -camera.scrollY,
+             w: (a.width || 800) / z, h: (a.height || 600) / z };
+  }, [camera]);
+
+  /**
+   * Top-left for a `w`×`h` insert: the centre of the view, nudged clear.
+   *
+   * Frames are containers you draw things INSIDE, so they are not obstacles
+   * for the things — landing within one is the point, landing on a node, a
+   * label or another note is the harm. A frame insert is the exception and
+   * passes `avoidFrames`: two screens stacked on each other is not a
+   * container relationship, it is a mess.
+   * @param w Width of the insert.
+   * @param h Height of the insert.
+   * @param avoidFrames Treat frames as obstacles too (frame inserts).
+   * @returns The top-left the insert should take, in scene coords.
+   */
+  const dropClear = useCallback((w: number, h: number, avoidFrames = false) => {
+    const c = sceneCenter();
+    const boxes = (apiRef.current?.getSceneElements() || [])
+      .filter((e: SceneEl) => !e.isDeleted &&
+              (avoidFrames || e.type !== "frame"))
+      .map(elBox);
+    return clearSpot({ x: c.x - w / 2, y: c.y - h / 2 }, w, h,
+                     boxes, viewRect());
+  }, [sceneCenter, viewRect]);
+
+  /**
+   * Bring the view to a fresh insert, but only if it landed off screen.
+   *
+   * The nudge is what makes this necessary: zoomed in on one tile there may
+   * be no clear spot in view at all, and an insert the user cannot see is
+   * indistinguishable from one that never happened. Scrolling when it IS in
+   * view would be the gratuitous half of the same defect, so this does
+   * nothing in that case — and it keeps the zoom either way.
+   *
+   * The scroll is written straight into `appState` rather than through
+   * `scrollToContent`, which takes REAL scene elements: handed the raw
+   * skeletons an insert is made of, it drove Excalidraw into a render
+   * loop (React #185) and the insert never landed at all.
+   * @param els The elements just inserted.
+   */
+  const revealInsert = useCallback((els: SceneEl[]) => {
+    const api = apiRef.current;
+    if (!api || !els.length) return;
+    const v = viewRect();
+    const bs = els.map(elBox);
+    const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
+    const x1 = Math.max(...bs.map((b) => b.x + b.w));
+    const y1 = Math.max(...bs.map((b) => b.y + b.h));
+    if (x0 >= v.x && y0 >= v.y && x1 <= v.x + v.w && y1 <= v.y + v.h) return;
+    const z = camera.zoom || 1;
+    const a = appStateRef.current || {};
+    api.updateScene({ appState: {
+      scrollX: (a.width || 800) / 2 / z - (x0 + x1) / 2,
+      scrollY: (a.height || 600) / 2 / z - (y0 + y1) / 2 } });
+  }, [camera, viewRect]);
+
   const addStickyNote = useCallback(() => {
     const text = window.prompt("Sticky note (yours — the agent reads it as a requirement):");
     if (!text) return;
-    const { x, y } = sceneCenter();
+    const { x, y } = dropClear(NOTE_W, NOTE_H);
     const id = `note-user-${Date.now().toString(36)}`;
-    insertElements([
+    const els = [
       {
-        id, type: "rectangle", x: x - 90, y: y - 45, width: 180, height: 90,
+        id, type: "rectangle", x, y, width: NOTE_W, height: NOTE_H,
         backgroundColor: "#fbf3c9", strokeColor: "#c9b961",
         fillStyle: "solid", strokeWidth: 1, roughness: 1, opacity: 100,
         angle: 0, roundness: null, groupIds: [], frameId: null,
@@ -1026,15 +1213,17 @@ export default function App() {
         customData: { role: "annotation", author: "user" },
       },
       {
-        id: `${id}-label`, type: "text", x: x - 82, y: y - 37,
-        width: 164, height: 74, text, originalText: text, fontSize: 14,
-        fontFamily: 6, textAlign: "left", verticalAlign: "top",
+        id: `${id}-label`, type: "text", x: x + 8, y: y + 8,
+        width: NOTE_W - 16, height: NOTE_H - 16, text, originalText: text,
+        fontSize: 14, fontFamily: 6, textAlign: "left", verticalAlign: "top",
         lineHeight: 1.25, containerId: id, autoResize: false,
         strokeColor: "#4a4433", customData: { role: "label" },
       },
-    ]);
+    ];
+    insertElements(els);
+    revealInsert(els);
     toast("Note added — Save to record it.");
-  }, [insertElements, sceneCenter, toast]);
+  }, [dropClear, insertElements, revealInsert, toast]);
 
   const askUserPin = useCallback(() => {
     const api = apiRef.current;
@@ -1050,9 +1239,12 @@ export default function App() {
     const q = window.prompt("Your question about this element (the agent answers on its move):");
     if (!q) return;
     const id = `pin-user-${Date.now().toString(36)}`;
+    // anchored, not centred: a pin is ABOUT one element, so it hugs that
+    // element's top-right rather than landing where the view happens to
+    // be — `pinSpot` is the part that keeps the hug out of a neighbour.
+    const spot = pinSpot(target, api.getSceneElements());
     insertElements([{
-      id, type: "text", x: target.x + (target.width || 0) + 8,
-      y: target.y - 8, width: 26, height: 26, text: "❓",
+      id, type: "text", x: spot.x, y: spot.y, width: 26, height: 26, text: "❓",
       originalText: "❓", fontSize: 20, fontFamily: 6,
       textAlign: "center", verticalAlign: "top", lineHeight: 1.25,
       containerId: null, autoResize: true, strokeColor: "#5b9dff",
@@ -1454,19 +1646,21 @@ export default function App() {
   }, [toast]);
 
   const insertFrame = useCallback((w: number, h: number, label: string) => {
-    const { x, y } = sceneCenter();
+    const { x, y } = dropClear(w, h, true);
     const id = `frame-user-${Date.now().toString(36)}`;
-    insertElements([{
-      id, type: "frame", x: Math.round(x - w / 2), y: Math.round(y - h / 2),
+    const els = [{
+      id, type: "frame", x: Math.round(x), y: Math.round(y),
       width: w, height: h, name: `SCREEN — ${label}`,
       angle: 0, strokeColor: "#bbb", backgroundColor: "transparent",
       fillStyle: "solid", strokeWidth: 1, strokeStyle: "solid",
       roughness: 0, opacity: 100, groupIds: [], frameId: null,
       roundness: null, boundElements: [], locked: false,
-    }]);
+    }];
+    insertElements(els);
+    revealInsert(els);
     setInsertOpen(false);
     toast(`${label} frame added — rename it on canvas, Save to record it.`);
-  }, [insertElements, sceneCenter, toast]);
+  }, [dropClear, insertElements, revealInsert, toast]);
 
   /** Paste a mermaid diagram as the USER's own drawing (WP9).
    *
@@ -1537,13 +1731,24 @@ export default function App() {
   }, [mermaidText, insertElements, sceneCenter, toast]);
 
   const insertTemplate = useCallback((kind: string, name: string) => {
-    const { x, y } = sceneCenter();
-    const els = templateElements(kind, Math.round(x), Math.round(y));
-    if (!els.length) return;
+    // built at the origin first: the template's own size is what decides
+    // where it fits, and only the built elements know it (each archetype
+    // carries its own extent, and a screen-sized one clears more than a
+    // note does).
+    const built = templateElements(kind, 0, 0);
+    if (!built.length) return;
+    const bs = built.map(elBox);
+    const bx = Math.min(...bs.map((b) => b.x));
+    const by = Math.min(...bs.map((b) => b.y));
+    const spot = dropClear(Math.max(...bs.map((b) => b.x + b.w)) - bx,
+                           Math.max(...bs.map((b) => b.y + b.h)) - by);
+    const dx = Math.round(spot.x - bx), dy = Math.round(spot.y - by);
+    const els = built.map((e) => ({ ...e, x: e.x + dx, y: e.y + dy }));
     insertElements(els);
+    revealInsert(els);
     setInsertOpen(false);
     toast(`${name} added — edit the labels, Save, and the agent reads it back.`);
-  }, [insertElements, sceneCenter, toast]);
+  }, [dropClear, insertElements, revealInsert, toast]);
 
   const labelSave = useCallback((revn: number, current: string) => {
     const v = window.prompt("Bookmark this save:", current || "");
@@ -1661,7 +1866,7 @@ export default function App() {
         <button className="icon-btn" title="add a sticky note (yours — reads as a requirement)" disabled={viewingRevn != null} onClick={addStickyNote}>🗒 note</button>
         <button className="icon-btn" title="pin a question on the selected element — the agent answers on its move" disabled={viewingRevn != null} onClick={askUserPin}>❓ ask</button>
         <div className="insert-wrap">
-          <button className="icon-btn" title="drop a screen frame or an archetype template at the centre of the view"
+          <button className="icon-btn" title="drop a screen frame or an archetype template where you are looking — clear of what is already drawn there"
             disabled={viewingRevn != null}
             onClick={() => setInsertOpen((o) => !o)}>+ insert ▾</button>
           {insertOpen && (

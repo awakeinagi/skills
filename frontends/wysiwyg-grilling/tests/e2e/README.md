@@ -66,7 +66,7 @@ with the pinned `@playwright/test`; regenerate with
 | r5-8 rejected batch mutates the registry | unittest | reject a batch containing a valid registry op; the registry must be unchanged on the server AND on disk |
 | r5-13 sticky note trips ART-011 forever | unittest | `TestArgusR5Fixture.test_sticky_note_forces_a_repair_on_every_load` — flip it to `repairs == []` when fixed |
 | r5-10 ⌗ dialog import quality | e2e-flow | extend `mermaid.spec` — paste onto a non-empty artifact, assert no mid-word-broken label |
-| r5-10's other four insert sites | e2e-dom | `placement.spec` — 🗒 note onto the tile the user has zoomed to; **red by intent** (`test.fail()`), the note buries `kpi`/`kpi-value`/`kpi-label` today. `addStickyNote`, `insertFrame`, `askUserPin`, `insertTemplate` still place at `sceneCenter()`; the note stands for all four |
+| r5-10's other four insert sites | e2e-dom | `placement.spec` — **flipped green** (v0.9 TASK-PLACEMENT): 🗒 note and a template onto the tile the user has zoomed to, plus the opposite pole (a drop that was already clear does not move). `addStickyNote`, `insertFrame` and `insertTemplate` take their spot from `dropClear`; `askUserPin` never used `sceneCenter` — it is anchored to its target and took `pinSpot`, the client mirror of `pin_spot` (r4b-3) |
 | r5-5 border-collinear routing | unittest | an edge leaving a side-edge midpoint must not run along its own box's border |
 | Mermaid seed (WP9) | e2e-flow | `mermaid.spec` — CLI seed through the LIVE tab handshake (`--no-headless` so a fallback can't mask it), semantic slugs + self-loop on disk; import dialog → user Save. Skeleton→op mapping itself is unittest (`TestMermaidSeeding`, captured fixture) |
 

@@ -5,8 +5,8 @@ import { testMini as test, expect } from "./harness";
  * r5-10 fixed one half of this for the ⌗ dialog only: an import used to
  * centre on the viewport, so a paste landed 36 shapes on top of the
  * artifact you had open, and it now goes clear of everything live. The
- * other four insert sites — `addStickyNote`, `insertFrame`, `askUserPin`
- * and `insertTemplate` in `App.tsx` — still place at `sceneCenter()`.
+ * other insert sites — `addStickyNote`, `insertFrame`, `askUserPin` and
+ * `insertTemplate` in `App.tsx` — still placed at `sceneCenter()`.
  *
  * A note dropped squarely on a node is the r5-13 shape (a note that then
  * trips ART-011 on every load) arriving by the user's own hand, and the
@@ -15,19 +15,21 @@ import { testMini as test, expect } from "./harness";
  * can see this: the placement is computed from the live camera, which
  * exists nowhere in the backend suite.
  *
- * The sticky note stands for its three siblings. It is the cheapest to
- * drive and the only one of the four whose overlap has a named
- * downstream consequence; a fix that clears the drop belongs in a helper
- * all four call, and this spec is what proves the first of them.
+ * FLIPPED by the e2e placement task (v0.9), which owns all four sites.
+ * Three of them now take their top-left from `dropClear`, the shared
+ * helper the header called for: it returns the viewport centre untouched
+ * when that is clear, and otherwise slides the insert out from under the
+ * content by the shortest trip that is still on screen. The fourth,
+ * `askUserPin`, never used `sceneCenter` at all — it is anchored to the
+ * element the question is about, so it took the OTHER half of the fix:
+ * `pinSpot`, the client mirror of `canvas.py`'s `pin_spot`, which hugs
+ * the target and falls inside its own corner rather than into a
+ * neighbour (r4b-3, which the agent's seeder learned and the user's ❓
+ * button had not).
  *
- * WHO FLIPS THIS: the e2e placement task, which owns all four insert
- * sites. Written in by curator batch 26 (2026-08-16) from the red-owner
- * map: this was one of five reds whose owner existed at plan level and
- * in no file, and it is the only one of the five outside the Python
- * suite — so it is also the only one no census guard would ever have
- * counted as missing. The header note is the routing for this red by
- * the convention batch 26 recorded; `test.fail()` below carries the
- * redness, and the two must be removed in the same change as the fix.
+ * Three tests, both poles: the buried drop is cleared; a drop that was
+ * already clear does not move; and the template site — a sibling of the
+ * one the note stands for — clears the same tile with a 420px archetype.
  */
 
 type Box = { id: string; type: string; x: number; y: number;
@@ -76,7 +78,6 @@ const covered = (note: Box, live: Box[]): string[] =>
 
 test("a sticky note lands clear of the tile the user is looking at",
   async ({ page, canvas }) => {
-    test.fail();   // RED BY INTENT — `addStickyNote` uses sceneCenter()
     await page.goto(canvas.url);
     await expect(page.locator(".save-btn")).toBeVisible({ timeout: 10_000 });
     // the user zooms in on the KPI tile to ask about it, which is what
@@ -96,11 +97,31 @@ test("a sticky note lands clear of the tile the user is looking at",
       { timeout: 10_000 }).toBeGreaterThan(0);
     const before = await boxes(page);
     const fresh = await addNote(page, "62 out of what?", before);
-    const note = fresh.find((e) => e.type === "rectangle");
+    const note = fresh.find((e) => e.type === "rectangle") as Box;
     expect(note, "no note rectangle was inserted").toBeTruthy();
-    // the whole claim: the note buried nothing. It lands at (136,195)
-    // 180x90 today, wholly inside the 292x120 KPI tile at (80,180).
-    expect(covered(note as Box, before)).toEqual([]);
+    // the whole claim: the note buried nothing. Before the fix it landed
+    // at (136,195) 180x90, wholly inside the 292x120 KPI tile at (80,180).
+    expect(covered(note, before)).toEqual([]);
+    // its bound label rode along — a note whose text stayed on the tile
+    // would clear the assertion above and still bury the thing
+    const label = fresh.find((e) => e.type === "text") as Box;
+    expect(label, "the note's label was not inserted").toBeTruthy();
+    expect(covered(label, before)).toEqual([]);
+    // and the user can SEE it: clearing the tile is worthless if the note
+    // goes somewhere off screen, which zoomed this far in it must, so the
+    // view follows it
+    await expect.poll(() => page.evaluate(([x, y]) => {
+      const p = (window as unknown as { __sceneToScreen?:
+        (a: number, b: number) => { x: number; y: number } | null })
+        .__sceneToScreen?.(x, y);
+      return p && p.x > 0 && p.x < 1440 && p.y > 0 && p.y < 900;
+    }, [note.x + note.w / 2, note.y + note.h / 2]),
+      { timeout: 10_000 }).toBe(true);
+    // it went to the nearest clear air, not off to the far side of the
+    // drawing: the seeded screen is ~600x400, and a note flung clear of
+    // EVERYTHING (the ⌗ import's coarser rule) would be past all of it
+    expect(Math.abs(note.x - 136)).toBeLessThan(400);
+    expect(Math.abs(note.y - 195)).toBeLessThan(400);
   });
 
 test("a sticky note dropped on clear canvas stays where the user looks",
@@ -130,4 +151,39 @@ test("a sticky note dropped on clear canvas stays where the user looks",
     // and it went where the user was looking, not off to the side
     expect(note.x).toBeGreaterThan(3000);
     expect(note.y).toBeGreaterThan(3000);
+  });
+
+test("an archetype template clears the tile too, not just the note",
+  async ({ page, canvas }) => {
+    // The sibling site. The note is the cheap one to drive; the template
+    // is the one that would do the most damage, because it arrives as a
+    // whole screen — 420x308 of boxes and bound labels — and a fix
+    // written for a 180x90 note would leave it burying the tile it was
+    // sized against. Same camera, same tile, same claim.
+    await page.goto(canvas.url);
+    await expect(page.locator(".save-btn")).toBeVisible({ timeout: 10_000 });
+    await page.evaluate(() => {
+      const api = (window as unknown as { excalidrawAPI: {
+        getSceneElements: () => Array<{ id: string }>;
+        scrollToContent: (e: unknown, o: unknown) => void } }).excalidrawAPI;
+      const kpi = api.getSceneElements().find((e) => e.id === "kpi");
+      api.scrollToContent([kpi], { fitToViewport: true,
+                                   viewportZoomFactor: 0.5 });
+    });
+    await expect.poll(() => page.evaluate(() =>
+      Math.round((window as unknown as { __sceneToScreen?:
+        (a: number, b: number) => { x: number } | null })
+        .__sceneToScreen?.(226, 240)?.x ?? -1)),
+      { timeout: 10_000 }).toBeGreaterThan(0);
+    const before = await boxes(page);
+    await page.locator("button[title^='drop a screen frame']").click();
+    await page.locator(".insert-menu .item", { hasText: "Dashboard grid" })
+      .click();
+    await expect(page.locator(".toasts")).toContainText("Dashboard grid added",
+      { timeout: 10_000 });
+    const known = new Set(before.map((e) => e.id));
+    const fresh = (await boxes(page)).filter((e) => !known.has(e.id));
+    expect(fresh.length, "the template inserted nothing").toBeGreaterThan(5);
+    // every piece of it, boxes and labels alike, landed on clear canvas
+    for (const e of fresh) expect(covered(e, before), e.id).toEqual([]);
   });
