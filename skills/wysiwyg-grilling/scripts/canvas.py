@@ -3361,6 +3361,19 @@ FOCUS_LAND_TOL = 50.0
 # be harmless (see the table: 14.0 rejects nothing that was drawing
 # correctly either), but the claim was never true and is not the reason
 # for this number.
+#
+# BOTH SWEEPS ABOVE PREDATE THE CONIC BRANCH and describe a revision that
+# scored a rhombus and an ellipse with the straight-side model. They are
+# left standing because they are what justified the constant, and dated
+# because they no longer describe how a conic is scored. Re-swept at this
+# head — 7,140 corner-weighted feet, seven box shapes, three node shapes,
+# five leans — the backstop fires 107 times, ALL of them rectangles and
+# every one an INFINITE landing rather than a finite-but-absurd one; no
+# diamond or ellipse foot reached it at all. That is the expected shape
+# of the change, not a refutation of the older figures: `_outline_offset`
+# asks the real outline, so a conic aim now either lands somewhere real
+# or misses entirely. It is a DIFFERENT GRID from the 21,420-foot sweep
+# above and does not replace its numbers.
 
 
 def _drawn_offset(ax: float, ay: float, vx: float, vy: float, tx: float,
@@ -3424,6 +3437,58 @@ def _drawn_offset(ax: float, ay: float, vx: float, vy: float, tx: float,
     return abs(r)
 
 
+def _outline_offset(node: dict[str, Any], ax: float, ay: float, vx: float,
+                    vy: float, tgx: float, tgy: float,
+                    gap: float) -> float:
+    """`_drawn_offset` for a shape whose outline is not four straight lines.
+
+    THE STRAIGHT-SIDE MODEL IS THE DEFECT THIS REPLACES, on conics.
+    `_drawn_offset` solves where the aim crosses the target's
+    AXIS-ALIGNED side line, which is the outline of a rectangle and of
+    nothing else. On a rhombus or an ellipse the client intersects a
+    facet or a curve, so the landing that model predicts is not the
+    landing that happens — measured over the corpus, that was worth up to
+    4.09px on a diamond against 0.08px on a rectangle, and up to 5.7px on
+    constructed geometry, with a focus that draws the same foot to 0.002px
+    sitting unused inside the wire format.
+
+    This asks the shape instead. `shape_clip` already knows all three
+    outlines and takes a NEGATIVE inset, so `inset=-gap` is exactly the
+    gap-expanded shape the client builds: an ellipse grown to
+    `(w/2 + gap, h/2 + gap)` — which is `intersectEllipseWithLineSegment`
+    verbatim — and a rhombus whose vertices move out along the axes by
+    `gap`, which is `deconstructDiamondElement`'s square-cornered branch.
+    The client takes the intersection NEAREST the adjacent point, which
+    is the near root.
+
+    Args:
+        node: The bound node element.
+        ax: The adjacent point's x — where the client aims FROM.
+        ay: The adjacent point's y.
+        vx: x of the aim vector, adjacent -> focus point.
+        vy: y of the aim vector.
+        tgx: The target point's x — where the foot should land.
+        tgy: The target point's y.
+        gap: The binding gap the outline is expanded by.
+
+    Returns:
+        The distance from the landing to the target in px, or infinity
+        when the aim never lands on the outline in front of the archer.
+        Infinite covers two cases that both mean "this cannot be
+        expressed": the ray misses the shape entirely, and the adjacent
+        point lies INSIDE the gap-expanded outline — where the ray leaves
+        through one crossing only and the client draws the focus point
+        itself, a branch this solve does not model.
+    """
+    span = shape_clip(node, ax, ay, vx, vy, inset=-gap)
+    if span is None:
+        return float("inf")
+    t = span[0]
+    if t <= 0:
+        return float("inf")
+    return ((ax + vx * t - tgx) ** 2 + (ay + vy * t - tgy) ** 2) ** 0.5
+
+
 def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
                 py: float, gap: float = 0) -> float:
     """The focus value that makes the client DRAW the foot where it is stored.
@@ -3460,12 +3525,25 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
     review, IMPORTANT-1 and -2).
 
     What settles it now is that the search minimises WHERE THE CLIENT
-    LANDS THE FOOT (`_drawn_offset`) rather than how far off-angle the
-    aim points, and scores a side the aim cannot reach as infinite. Focus
-    0 is the search's own opening bid, so an unreachable geometry loses
-    to it on the arithmetic. `FOCUS_LAND_TOL` sits behind that as a
-    backstop for shapes the straight-side model does not describe; it is
-    not what rejects the classes above.
+    LANDS THE FOOT rather than how far off-angle the aim points, and
+    scores an aim that cannot reach the foot as infinite. Focus 0 is the
+    search's own opening bid, so an unreachable geometry loses to it on
+    the arithmetic. `FOCUS_LAND_TOL` sits behind that as a backstop; it
+    is not what rejects the classes above.
+
+    THE LANDING IS ASKED OF THE SHAPE, and which shape decides which
+    question. A rectangle's outline is its box, so `_drawn_offset` solves
+    where the aim crosses the target side's own line and that is exact.
+    A rhombus or an ellipse is a different outline entirely — the foot's
+    outward direction is the CENTRE RAY, the distance out is not `gap`,
+    and the crossing is with a facet or a curve — so `_outline_offset`
+    asks `shape_clip` instead, at `inset=-gap`, which is the same
+    gap-expanded shape the client builds. Treating those two as one cost
+    up to 4.09px on a corpus diamond against 0.08px on a rectangle until
+    they were separated. A ROUNDED rectangle still takes the straight
+    branch and still pays for it (~2px under a lean, sides sitting
+    `gap * cos` out) because `shape_clip` has no rounded-corner geometry
+    to ask.
 
     Args:
         node: The bound node element.
@@ -3507,16 +3585,28 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
     #
     # Away from a corner this is exactly one side and the behaviour is
     # bit-for-bit what it was.
+    #
+    # A CONIC HAS NO SIDES TO BE IN A CORNER OF. Its outline is one closed
+    # curve, the foot's outward direction is the centre ray rather than
+    # any axis normal, and `_solve_focus_on` does not read `side` at all
+    # on that branch — so solving it once per name would compute the same
+    # answer two or three times. `_edge_sides` is still the gate, because
+    # a foot standing on no side of the box is a foot this has no
+    # business solving for; it just no longer picks the arithmetic.
+    sides = _edge_sides(node, px, py)
+    if sides and node.get("type") in ("diamond", "ellipse"):
+        sides = sides[:1]
     best, best_off = 0.0, float("inf")
-    for side in _edge_sides(node, px, py):
+    for side in sides:
         f, off = _solve_focus_on(node, side, ax, ay, px, py, gap)
         if off < best_off:
             best, best_off = f, off
     # THE ACCEPTANCE CHECK — a backstop, and `FOCUS_LAND_TOL` says why it
     # is not the thing doing the work. An unreachable side already scores
     # an infinite landing above and so loses to focus 0's baseline; this
-    # catches only a finite-but-absurd landing on a shape the
-    # straight-side model does not describe.
+    # catches only a finite-but-absurd landing on a shape the model in
+    # use does not describe — which, since conics got their own branch,
+    # means a ROUNDED rectangle and nothing else.
     if best_off > FOCUS_LAND_TOL:
         return 0
     return best
@@ -3574,13 +3664,38 @@ def _solve_focus_on(node: dict[str, Any], side: str, ax: float, ay: float,
 
     Returns:
         `(focus, landing)` — the best focus for this side and how far
-        along the side the client would land it from the stored foot.
+        from the stored foot the client would land it. Along the side on
+        a rectangle; along the outline on a conic, where `side` names
+        nothing the arithmetic uses.
     """
     w, h = node.get("width", 0), node.get("height", 0)
     cx, cy = node["x"] + w / 2.0, node["y"] + h / 2.0
-    nx, ny = {"left": (-1.0, 0.0), "right": (1.0, 0.0),
-              "top": (0.0, -1.0), "bottom": (0.0, 1.0)}[side]
-    lx, ly = (px + nx * gap) - ax, (py + ny * gap) - ay
+    conic = node.get("type") in ("diamond", "ellipse")
+    # WHERE THE FOOT IS SUPPOSED TO END UP, and the two shapes disagree
+    # about it. On a rectangle the outline IS the box, so the client puts
+    # the foot `gap` straight out along the side's own normal. On a conic
+    # the outline is a curve the box only touches at four points: the
+    # direction out is the CENTRE RAY — which is how `_fan_point` and
+    # `edge_anchor` put the foot there in the first place — and the
+    # distance out is whatever that ray has to travel to reach the
+    # gap-expanded shape, which is not `gap` and is not constant along a
+    # side. Asking `shape_clip` is the whole fix.
+    if conic:
+        ux, uy = px - cx, py - cy
+        m = (ux * ux + uy * uy) ** 0.5
+        if m < 1e-12:
+            return 0.0, float("inf")
+        ux, uy = ux / m, uy / m
+        span = shape_clip(node, cx, cy, ux, uy, inset=-gap)
+        if span is None:
+            return 0.0, float("inf")
+        nx, ny = ux, uy
+        tgx, tgy = cx + ux * span[1], cy + uy * span[1]
+    else:
+        nx, ny = {"left": (-1.0, 0.0), "right": (1.0, 0.0),
+                  "top": (0.0, -1.0), "bottom": (0.0, 1.0)}[side]
+        tgx, tgy = px + nx * gap, py + ny * gap
+    lx, ly = tgx - ax, tgy - ay
     if abs(lx) < 1e-12 and abs(ly) < 1e-12:
         return 0.0, float("inf")
     if node.get("type") == "diamond":
@@ -3591,19 +3706,34 @@ def _solve_focus_on(node: dict[str, Any], side: str, ax: float, ay: float,
                 (w / 2.0, h / 2.0), (-w / 2.0, h / 2.0)]
     # the side's unit tangent — the direction a slip actually moves in
     sx, sy = -ny, nx
-    tgx, tgy = px + nx * gap, py + ny * gap
     # How far along this side the client can land AT ALL: the outline is
     # the box grown by `gap`, so the side runs from one gap-expanded
     # corner to the other. A crossing past either end means the ray left
     # through the neighbouring side and this side was the wrong guess.
+    # A conic has no such ends — its outline closes — so the extent test
+    # is the straight-side branch's alone.
     half = (w if sx else h) / 2.0 + gap
     mid = (cx if sx else cy) - (tgx if sx else tgy)
     lo, hi = mid - half, mid + half
+
+    def landed(vx: float, vy: float) -> float:
+        """Score one aim: how far from the target the client lands it.
+
+        Args:
+            vx: x of the aim vector, adjacent -> focus point.
+            vy: y of the aim vector.
+
+        Returns:
+            The offset in px, or infinity when the aim cannot land here.
+        """
+        if conic:
+            return _outline_offset(node, ax, ay, vx, vy, tgx, tgy, gap)
+        return _drawn_offset(ax, ay, vx, vy, tgx, tgy, sx, sy, lo, hi)
+
     # focus 0 aims at the centre, and that is the answer to beat: it is
     # exact whenever the target line passes through the centre, which is
     # every perpendicular approach through a side midpoint.
-    best, best_off = 0.0, _drawn_offset(ax, ay, cx - ax, cy - ay,
-                                        tgx, tgy, sx, sy, lo, hi)
+    best, best_off = 0.0, landed(cx - ax, cy - ay)
     for rx, ry in rays:
         den = rx * ly - ry * lx
         if abs(den) < 1e-12:
@@ -3631,8 +3761,7 @@ def _solve_focus_on(node: dict[str, Any], side: str, ax: float, ay: float,
             # aiming away from the foot leaves through the far side
             if (fx - ax) * lx + (fy - ay) * ly <= 0:
                 continue
-            off = _drawn_offset(ax, ay, fx - ax, fy - ay, tgx, tgy, sx, sy,
-                                lo, hi)
+            off = landed(fx - ax, fy - ay)
             if off < best_off:
                 best, best_off = f, off
     return best, best_off

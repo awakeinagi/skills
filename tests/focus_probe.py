@@ -41,6 +41,7 @@ HUB_W, HUB_H = 200.0, 64.0
 APPROACH = 240.0
 GAP = 6
 ADAPTIVE = {"type": 3}
+PROPORTIONAL = {"type": 2}      # what a rounded DIAMOND carries (:351)
 # `(name, type, roundness, side, offset along that side, lean)`.
 #
 # ROWS 1-3 ARE THE ORIGINAL PIN and their arithmetic must not move: the
@@ -59,14 +60,25 @@ ADAPTIVE = {"type": 3}
 # which is literally what `tangential_slip` used to build), in this
 # scene's own coordinates:
 #
-#     diamond   drawn (2042.000, 455.552) vs the box model's
-#               (1966.401, 470.000) — 76.97px apart
-#     ellipse   drawn (2410.401, 411.695) vs (2394.000, 403.283) — 18.43px
+#     diamond   drawn (2046.853, 453.842) vs the box model's
+#               (1966.401, 470.000) — 82.06px apart
+#     ellipse   drawn (2411.331, 411.177) vs (2394.000, 403.283) — 19.05px
 #     round     drawn (2968.910, 466.025) vs (2970.949, 470.000) — 4.47px
 #
-# All six drawn points are the BROWSER's, read at the commit that added
-# these rows, and the transcription reproduces every one of them to three
-# decimals.
+# ROW 7 IS THE ONE THAT REACHES A CURVE. `rounddiamond` sits near the
+# rhombus's bottom vertex, which is the only region where the client's
+# NEAREST intersection is a corner Bezier rather than a facet — checked
+# by asking which primitive produced the winning hit, not inferred from
+# the shape. Without it the rounded-diamond deconstruction and
+# `_curve_hits` were transcribed code that no assertion reached.
+#
+# All seven drawn points are the BROWSER's, and the transcription
+# reproduces every one of them to three decimals.
+#
+# The diamond and ellipse rows moved once, when `_solve_focus_on` learned
+# to solve conics against the real outline instead of an axis-aligned
+# side line (focus -0.42 -> -0.473 and -0.308 -> -0.293). The stored foot
+# did not move; where the client puts it did.
 #
 # The rounded rectangle's divergence is the smallest AND the most
 # instructive: it is almost entirely NORMAL. A rounded box's gap outline
@@ -84,12 +96,48 @@ SPECIMENS = (
     ("diamond", "diamond", None, "bottom", HUB_W * 12.0 / 14.0, 0.0),
     ("ellipse", "ellipse", None, "left", HUB_H * 2.0 / 14.0, -120.0),
     ("round", "rectangle", ADAPTIVE, "bottom", HUB_W * 5.0 / 14.0, 120.0),
+    ("rounddiamond", "diamond", PROPORTIONAL, "bottom",
+     HUB_W * 11.0 / 28.0, 100.0),
 )
 # outward normal and along-side tangent, per side name
 SIDE_AXES = {"top": ((0.0, -1.0), (1.0, 0.0)),
              "bottom": ((0.0, 1.0), (1.0, 0.0)),
              "left": ((-1.0, 0.0), (0.0, 1.0)),
              "right": ((1.0, 0.0), (0.0, 1.0))}
+
+
+def slip_axes(hub: dict[str, Any], side: str,
+              foot: Any) -> tuple[tuple[float, float], tuple[float, float]]:
+    """The axes a slip on THIS shape should be resolved onto.
+
+    THE AXIS IS PART OF THE MEASUREMENT AND GETTING IT WRONG HIDES
+    THINGS. A rectangle's foot slides along its side, so the side's own
+    tangent is the axis a fan lane or a port assignment is decided on. A
+    conic's foot slides along a curve, and the direction it was placed in
+    — by `_fan_point`, by `edge_anchor`, by `shape_clip` — is the CENTRE
+    RAY, so the axis is that ray's perpendicular. Measured on the box
+    tangent instead, the diamond specimen read 0.000px while sitting
+    4.148px away along its own outline: the drawn point happened to share
+    an x with the stored foot. That reading survived a whole round of
+    review because it was the flattering one.
+
+    Args:
+        hub: The bound node element.
+        side: The side name the foot was placed on.
+        foot: The stored endpoint, in scene coordinates.
+
+    Returns:
+        `(normal, tangent)`, both unit vectors, outward normal first.
+    """
+    if hub.get("type") not in ("diamond", "ellipse"):
+        return SIDE_AXES[side]
+    w, h = hub.get("width", 0.0), hub.get("height", 0.0)
+    cx, cy = hub["x"] + w / 2.0, hub["y"] + h / 2.0
+    dx, dy = foot[0] - cx, foot[1] - cy
+    m = (dx * dx + dy * dy) ** 0.5
+    if m == 0:
+        return SIDE_AXES[side]
+    return (dx / m, dy / m), (-dy / m, dx / m)
 
 
 def probe_elements() -> list[dict[str, Any]]:
@@ -203,7 +251,8 @@ def probe_manifest(els: list[dict[str, Any]]) -> list[dict[str, Any]]:
         a = ix["probe-%s" % name]
         hub = ix["hub-%s" % name]
         pts = a["points"]
-        normal, tangent = SIDE_AXES[side]
+        foot = (a["x"] + pts[-1][0], a["y"] + pts[-1][1])
+        normal, tangent = slip_axes(hub, side, foot)
         rec = {
             "name": name, "arrow": a["id"], "hub": hub["id"],
             "shape": kind, "roundness": rnd, "side": side,

@@ -7025,11 +7025,27 @@ class TestFocusRoundTrip(unittest.TestCase):
         of its bounding box — points no part of the ellipse is drawn
         near — and the aim is then intersected against a real ellipse.
         Both readings are transcribed where they belong.
+
+        THE FOURTH ROW REACHES A BEZIER and is here because nothing else
+        did. `rounddiamond` is placed near the rhombus's bottom vertex,
+        which is the only region where the NEAREST intersection is a
+        corner curve rather than a facet — verified by asking which
+        primitive produced the winning hit, not assumed from the shape.
+        Before it, the rounded-diamond deconstruction was transcribed
+        code with no assertion on it anywhere (this task's own round-1
+        concern 5).
+
+        The three original conic values moved once, in round 2, when
+        `_solve_focus_on` learned to solve conics against the real
+        outline: diamond -0.42 -> -0.473, ellipse -0.308 -> -0.293. The
+        rounded rectangle did not move, because it is still solved by the
+        straight-side model on purpose.
         """
         for name, focus, drawn in (
-                ("diamond", -0.42, (2042.000, 455.552)),
-                ("ellipse", -0.308, (2410.401, 411.695)),
-                ("round", 0.417, (2968.910, 466.025))):
+                ("diamond", -0.473, (2046.853, 453.842)),
+                ("ellipse", -0.293, (2411.331, 411.177)),
+                ("round", 0.417, (2968.910, 466.025)),
+                ("rounddiamond", 0.344, (3479.064, 462.767))):
             r = self.by_name[name]
             self.assertEqual(r["focus"], focus,
                              "%s: the specimen's stored focus moved, so the "
@@ -7078,48 +7094,59 @@ class TestFocusRoundTrip(unittest.TestCase):
         replacing "some focus is nonzero" as the only thing asserted
         about a foot on a curved outline.
 
-        THE CEILING IS 4px HERE AND 0.5px THERE, AND THE GAP IS A FINDING
-        RATHER THAN A TOLERANCE. `_solve_focus_on` models every side as
-        STRAIGHT: it targets `foot + gap * axis_normal` and scores where
-        the aim crosses that side's axis-aligned line. On a rhombus or an
-        ellipse neither is the outline the client will actually intersect,
-        so the answer is systematically off. Measured over the 306
-        server-owned corpus endpoints RE-ROUTED AT THIS HEAD:
+        THREE CEILINGS, ONE PER MODEL, AND EACH IS A MEASUREMENT.
+        `_solve_focus_on` has two branches and they are not equally
+        exact:
 
-            shape        n    worst    mean   over 4px
-            rectangle  244   0.0780  0.0042      0
-            rounded     21   0.0125  0.0023      0
-            ellipse     20   1.9919  0.2761      0
-            diamond     21   4.0909  1.0647      2
+        - **Sharp rectangle, 0.5px.** The outline IS the box, so the
+          straight-side model is exact and only rounding is left.
+        - **Diamond and ellipse, 1.0px.** Round 2 gave these their own
+          branch: the target is where the CENTRE RAY through the foot
+          meets the gap-expanded outline, and the score is where the aim
+          actually lands on that outline, both asked of `shape_clip`.
+        - **Rounded rectangle, 3.0px.** Still the straight-side model, on
+          purpose — `shape_clip` has no rounded-corner geometry, so there
+          is nothing better to ask. Its sides sit `gap * cos` out (2.025
+          rather than 6 here), which costs nothing square-on and grows
+          with the LEAN, because a nearer line met at an angle is met
+          sooner: 0.04px at 0 lean, 2.09px at this row's 120px.
 
-        The server's own diamond feet are **250x** worse than its
-        rectangle feet by mean and 52x by worst case, and TWO OF THE 21
-        DO NOT CLEAR 4px — they sit at 4.0909, which is why this ceiling
-        is 4.0 and not lower and why the number is a finding rather than
-        a budget. Constructed geometry reaches 5.7px.
+        Measured over the 306 server-owned corpus endpoints re-routed at
+        this head, before and after round 2's conic branch:
 
-        An earlier version of this paragraph quoted 3.837/0.494/1.016/
-        0.038 and said "still clearing 4px on all 41 conic endpoints"
-        while claiming to describe the head. Those were the BASE arm's
-        figures, measured before the solve-ordering fix in the same task
-        moved the rectangle population an order of magnitude and left the
-        conic residual standing. Quoting one arm's numbers under the
-        other arm's label is the failure this repo has recorded twice
-        already; it is recorded a third time here rather than silently
-        overwritten.
+            shape        n     worst           mean          over 4px
+            rectangle  244   0.0780 -> 0.0780  0.0042 -> 0.0042   0
+            rounded     21   0.0125 -> 0.0125  0.0023 -> 0.0023   0
+            ellipse     20   1.9919 -> 0.0143  0.2761 -> 0.0016   0
+            diamond     21   4.0909 -> 0.5130  1.0647 -> 0.0754   0
 
-        The rounded rectangle is a different story and belongs in the
-        same test because the contrast is the evidence: its along-side
-        error is 0.04px square-on and only grows under a LEAN (2.09px at
-        this row's 120px lean), because a side line that sits 2.025px out
-        instead of 6 is met sooner when it is met at an angle.
+        Rectangles are byte-identical — 0 of 244 stored focus values
+        moved, checked by comparison and not by inspection — because they
+        do not take the new branch at all. The ellipse is now as exact as
+        a rectangle. THE DIAMOND'S REMAINING 0.5130 IS NOT THIS MODEL'S
+        ERROR: with the client's `floor(w/2) + 1` vertex offset removed
+        from the transcription the same corpus reads 0.018 worst / 0.004
+        mean, so what is left is the client disagreeing with the
+        symmetric rhombus `shape_clip` draws. Closing it means changing
+        the shared geometry primitive, which is a far wider blast radius
+        than a focus solve.
+
+        A PREVIOUS VERSION OF THIS PARAGRAPH quoted 3.837/0.494/1.016/
+        0.038 as "re-routed at head" when they were the BASE arm's
+        figures. Recorded rather than silently overwritten: quoting one
+        arm's numbers under another arm's label is a failure this file's
+        history already carries twice.
         """
+        ceiling = {("rectangle", False): 0.5, ("rectangle", True): 3.0,
+                   ("diamond", False): 1.0, ("diamond", True): 1.0,
+                   ("ellipse", False): 1.0}
         seen = set()
         for r in self.recs:
             slip = focus_probe.tangential_slip(r)
-            seen.add((r["shape"], r["roundness"] is not None))
+            kind = (r["shape"], r["roundness"] is not None)
+            seen.add(kind)
             self.assertLess(
-                slip, 4.0,
+                slip, ceiling[kind],
                 "%s (%s%s): the fan stored focus %r and the client redraws "
                 "the foot %.3fpx along the outline"
                 % (r["name"], r["shape"], ", rounded" if r["roundness"]
@@ -7138,9 +7165,11 @@ class TestFocusRoundTrip(unittest.TestCase):
                 "%s: redrawn inside its own node" % r["name"])
         self.assertEqual(
             seen, {("rectangle", False), ("rectangle", True),
-                   ("diamond", False), ("ellipse", False)},
-            "every node shape `shape_clip` knows about has to be in the "
-            "specimen scene, or this class is narrow again: %r" % (seen,))
+                   ("diamond", False), ("diamond", True),
+                   ("ellipse", False)},
+            "every node shape `shape_clip` knows about, sharp and rounded, "
+            "has to be in the specimen scene or this class is narrow "
+            "again: %r" % (seen,))
 
     def test_the_outline_the_client_intersects_is_not_the_one_we_draw(self):
         """Three facts about the client's outline, each a surprise.
@@ -7218,16 +7247,18 @@ class TestFocusRoundTrip(unittest.TestCase):
         the binding is solved on the snapped points, and the
         transcription re-derives where the client will put the foot.
 
-        The ceilings are the same two the class already argues for and
-        for the same reason — the straight-side model is exact on a
-        square-cornered rectangle and approximate on everything else.
-        Measured worst-case at the commit that added this: rectangle
-        0.03px, rounded rectangle 1.48px, diamond 2.54px, ellipse 2.46px.
+        The ceilings are the class's own three and carry the same
+        reasons. Measured worst-case over this grid, before and after
+        round 2 gave conics their own branch: rectangle 0.0324 ->
+        0.0324, rounded rectangle 1.4831 -> 1.4831, diamond 2.5368 ->
+        0.0311, ellipse 2.4573 -> 0.0219. The two the model describes
+        exactly did not move by a float; the two it approximated became
+        as exact as they are.
         """
         for kind, rnd, tol in (("rectangle", None, 0.5),
-                               ("rectangle", {"type": 3}, 4.0),
-                               ("diamond", None, 4.0),
-                               ("ellipse", None, 4.0)):
+                               ("rectangle", {"type": 3}, 3.0),
+                               ("diamond", None, 1.0),
+                               ("ellipse", None, 1.0)):
             for dx, dy in ((320.0, 0.0), (320.0, 180.0), (0.0, 260.0),
                            (-320.0, 180.0), (280.0, 90.0)):
                 src = {"id": "s", "type": kind, "x": 100.0, "y": 300.0,
