@@ -8900,16 +8900,37 @@ def find_browsers():
 
 PORT_TOL = 2.0
 # How far off a side's midpoint a foot may stand and still be called THE
-# port. Deliberately tighter than any lint tolerance in this file, and
-# the tightness is the whole safety argument: a foot within 2px of a
-# midpoint approached square has `binding_focus` 0 (measured: 227 of the
-# corpus's 229 such feet, the other two 0.01 and 0.02), and focus 0
-# re-derives to that same midpoint. So the sentence "leaves the bottom of
-# Validate" survives the client re-deriving the foot, which is the only
-# way a narrated reading can go stale between the server saying it and
-# the user seeing it. Loosening this to the endpoint lint's 12px buys a
-# few more sentences and starts importing the focus sign convention,
-# which is exactly the thing the reading must not depend on.
+# port, and deliberately tighter than any lint tolerance in this file.
+# The client re-derives a bound foot from the stored focus, so a narrated
+# port has to survive that re-derivation or "leaves the bottom of
+# Validate" goes stale between the server saying it and the user seeing
+# it. `solve_focus` says which focus draws a foot where it is stored,
+# and fed the stored adjacent point the client itself aims from, it
+# answers exactly 0 for 226 of the corpus's 229 at-port feet; the other
+# three answer |f| <= 0.008. Focus 0 aims at the node centre, and
+# through a side midpoint that lands back on the midpoint.
+#
+# THE TIGHTNESS IS ONLY HALF THE ARGUMENT, and `solve_focus`'s own
+# docstring is what says so: 0 is the answer for a PERPENDICULAR
+# approach through a midpoint, not for any approach through one. The
+# corpus comes out clean because its at-port feet also arrive square in
+# their STORED geometry — 228 of 229 within 0.5 degrees of the normal,
+# and the one endpoint past that bar is one of the three that is not
+# focus 0. That is a property of those drawings, not of this constant.
+#
+# So this constant and `NORMAL_COS` interact, and neither alone is the
+# guarantee: the 25 degrees of slack are granted on the DRAWN leg, and
+# reading the same 229 feet off their drawn secants instead drops the
+# focus-0 count to 176. A hand-authored arrow whose stored chord leans
+# while its foot sits on a midpoint is the shape that would narrate a
+# port the client then moves; the corpus holds none, and nothing here
+# forbids one. Loosening PORT_TOL toward the endpoint lint's 12px widens
+# exactly that gap, which is why it is 2.
+#
+# (An earlier draft of this comment cited `binding_focus`, which
+# TASK-FOCUS deleted one commit before this landed, for being wrong in
+# precisely the way that matters here — it computed a focus from the
+# foot alone, and focus is a property of the whole approach ray.)
 
 NORMAL_COS = 0.9063
 # cos(25 degrees) — how square an approach must be before the side it
@@ -9055,7 +9076,12 @@ def port_phrase(arrow: dict[str, Any], ix: dict[str, Any]) -> str:
         if node is None:
             continue
         port, _off, at_port = port_approach(node, arrow, at_end)
-        if port in ("off-approach", "off-shape"):
+        # A WHITELIST, so `endpoint_port`'s "unavailable by construction"
+        # is true of this caller too. Blacklisting the two refusal tokens
+        # read the same today and made the next refusal token a side
+        # name: whatever a future arm returns, it is not one of four face
+        # names, so it says nothing rather than saying itself.
+        if port not in ("left", "right", "top", "bottom"):
             continue
         # Off centre, but never WHICH WAY off centre. The direction is a
         # claim about the offset's sign, and the sign is what the client

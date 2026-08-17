@@ -1191,6 +1191,62 @@ class TestPortEcho(Base):
         self.assertIn("leaves the right of cart", ln)
         self.assertIn("arrives at the left of checkout", ln)
 
+    def slide_t1(self, y):
+        """Put t1's tail on cart's right face at row `y`, arriving square.
+
+        cart is (40,120) 140x60, so its right face runs x=180 over
+        y=120..180 with its midpoint at 150; checkout's left face is
+        x=260 over the same rows. A horizontal leg between them is
+        square to both, so `y` alone moves the feet off centre and the
+        approach never becomes the reason for a refusal.
+
+        Args:
+            y: The row both feet sit on.
+
+        Returns:
+            The first `intent_echo` line of the dry run.
+        """
+        out = self.store.check_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "t1",
+                     "attrs": {"x": 180, "y": y,
+                               "points": [[0, 0], [80, 0]]}}]})
+        self.assertTrue(out["ok"], out["errors"])
+        return out["intent_echo"][0]
+
+    def test_the_echo_names_an_off_centre_foot_by_its_edge(self):
+        """The second phrasing arm — 47 of the corpus's 346 endpoints.
+
+        A foot square to a face but away from its midpoint is still worth
+        naming; it is the difference between "meets Checkout on the left"
+        and knowing nothing about the connector at all. The possessive
+        form is deliberate and is what distinguishes it from the at-port
+        sentence: "cart's right EDGE" is a face, "the right of cart" is
+        the port.
+        """
+        ln = self.slide_t1(130)
+        self.assertIn("t1 binds cart → checkout", ln)
+        self.assertIn("leaves cart's right edge, off centre", ln)
+        self.assertIn("arrives at checkout's left edge, off centre", ln)
+        # the at-port wording is NOT what an off-centre foot gets
+        self.assertNotIn("the right of cart", ln)
+
+    def test_the_off_centre_phrase_never_says_which_way(self):
+        """Two feet off centre in OPPOSITE directions, one sentence.
+
+        The offset's sign is the one thing this vocabulary refuses to
+        speak, because the sign is what the client and the server
+        currently disagree about on bottom and left faces — narrating a
+        direction would be wrong today and right once that settles. The
+        property is pinned as an identity rather than as the absence of
+        some list of words, so a phrasing that started leaking direction
+        by any wording at all fails here.
+        """
+        low, high = self.slide_t1(130), self.slide_t1(170)
+        # -20px and +20px along the same faces
+        self.assertEqual(low, high)
+        self.assertIn("off centre", low)
+
     def test_the_echo_is_silent_about_an_end_the_approach_forbids(self):
         """The SILENCE pole, beside the firing above.
 
