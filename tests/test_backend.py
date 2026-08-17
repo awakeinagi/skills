@@ -6567,6 +6567,92 @@ class TestFocusRoundTrip(unittest.TestCase):
                         "worst tangential slip %.3fpx at %r" % (worst,
                                                                 worst_at))
 
+    # -- the residual acceptance check, pinned in BOTH directions --------
+    #
+    # `solve_focus` is a minimiser, and a minimiser always has a winner.
+    # Without a ceiling on how bad the winner may be it degrades to a
+    # CONFIDENT wrong answer — a clamped ±0.9 — exactly where it has
+    # least right to be confident. The two tests below are a pair on
+    # purpose: one that the guard fires, one that it does not. Either
+    # alone is satisfiable by a constant.
+
+    def test_an_inexpressible_geometry_gets_0_and_not_a_confident_0_9(self):
+        """When no focus can express it, say 0 — don't guess loudly.
+
+        Two shapes of inexpressible, both from the v0.9 TASK-FOCUS
+        review. `_edge_side` names a real side for either, so the
+        `side is None` guard never sees them and the search runs anyway:
+
+        - **`along`** — the final leg runs edge-on to the side it lands
+          on, so no ray from the adjacent point can enter through that
+          side at any focus.
+        - **a corner foot on a steep lean** — the reviewer's probe, and
+          the one that shows the cost: the minimiser answered ±0.9 and
+          the client drew the foot 62.5px away.
+
+        The `along` row also pins the property that made this a defect
+        rather than a wart: it is NOT slip-invariant. With the adjacent
+        point inside the box footprint the clamped answer drew the foot
+        90px out where 0 draws it exactly.
+        """
+        hub = {"type": "rectangle", "x": 400.0, "y": 400.0,
+               "width": 200.0, "height": 64.0}
+        for foot, adj, why in (
+                ((500.0, 464.0), (300.0, 464.0), "along, adjacent outside"),
+                ((500.0, 464.0), (450.0, 464.0), "along, adjacent inside"),
+                ((440.0, 464.0), (560.0, 464.0), "along, other direction"),
+                ((595.0, 464.0), (195.0, 524.0), "corner foot, 400px lean"),
+                ((405.0, 464.0), (805.0, 524.0), "corner foot, mirrored")):
+            f = canvas.solve_focus(hub, adj[0], adj[1], foot[0], foot[1], 6)
+            self.assertEqual(f, 0, "%s: expressible by nothing, so the "
+                                   "answer is 0 — got %r" % (why, f))
+        # and the case that proves 0 is the SAFE answer, not just the
+        # humble one: the clamped guess drew this foot 90px out
+        f_wrong = -0.9
+        drawn = focus_probe.client_draws(hub, f_wrong, 6, (450.0, 464.0),
+                                         (500.0, 464.0))
+        self.assertGreater(abs(drawn[0] - 500.0), 50.0)
+        drawn0 = focus_probe.client_draws(hub, 0, 6, (450.0, 464.0),
+                                          (500.0, 464.0))
+        self.assertLess(abs(drawn0[0] - 500.0), 0.5)
+
+    def test_the_guard_does_not_fire_on_a_foot_a_focus_can_reach(self):
+        """The other direction — including at the boundary.
+
+        A ceiling that rejects everything would pass the test above and
+        be a total regression, so this pins what must still come back
+        NON-zero. The last row is the one that matters: a foot 5px from
+        the corner approached SQUARE needs |focus| past the ±0.9 the
+        wire format allows, so it is legitimately clamped and still
+        lands within 4px — the guard must accept a clamp it can honour
+        while rejecting one it cannot. That row sits at residual 3.89px
+        against a 4.0px ceiling, so tightening `FOCUS_AIM_TOL` without
+        thinking breaks here rather than silently degrading a drawing.
+        """
+        hub = {"type": "rectangle", "x": 400.0, "y": 400.0,
+               "width": 200.0, "height": 64.0}
+        for foot, adj, why in (
+                ((450.0, 464.0), (450.0, 704.0), "left quarter point"),
+                ((550.0, 464.0), (550.0, 704.0), "right quarter point"),
+                ((470.0, 464.0), (550.0, 704.0), "oblique, 80px lean"),
+                ((440.0, 464.0), (600.0, 704.0), "oblique, 160px lean"),
+                ((595.0, 464.0), (595.0, 704.0), "near-corner, square on")):
+            f = canvas.solve_focus(hub, adj[0], adj[1], foot[0], foot[1], 6)
+            self.assertNotEqual(f, 0, "%s: this foot IS expressible and the "
+                                      "guard swallowed it" % why)
+            drawn = focus_probe.client_draws(hub, f, 6, adj, foot)
+            self.assertLess(abs(drawn[0] - foot[0]), 4.0,
+                            "%s: accepted focus %r draws %.2fpx out"
+                            % (why, f, abs(drawn[0] - foot[0])))
+        # the midpoint pole is 0 for the RIGHT reason (it is exact), not
+        # because the guard rejected it — asserted next to its neighbours
+        # so the two reasons for a 0 cannot be confused
+        self.assertEqual(canvas.solve_focus(hub, 500.0, 704.0, 500.0,
+                                            464.0, 6), 0)
+        mid = focus_probe.client_draws(hub, 0, 6, (500.0, 704.0),
+                                       (500.0, 464.0))
+        self.assertAlmostEqual(mid[0], 500.0, places=6)
+
 
 class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
     """`_pair_kind`'s five kinds, and the reading each one hands the agent.
