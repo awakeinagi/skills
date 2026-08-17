@@ -263,7 +263,11 @@ the sentence failing to complete IS the test that the reading isn't ready.
   later. When one ruling covers a class of mappings, record it once as a
   class-level ruling (`pattern` on `annotate_mapping`), not N copies.
   **N tripwires with one cause is one tripwire**: narrate the cause, not
-  the count.
+  the count. A **glossary** challenge needs no annotation to settle it:
+  answering it records the ruling against the term itself, so the other
+  entities drawn from that term stop asking. Still act on the answer —
+  "the glossary follows" is a CONTEXT.md edit you owe — but do not
+  re-ask, and do not read the silence as the drawing having converged.
 
 ## The event loop — watch the log, react to their moves
 

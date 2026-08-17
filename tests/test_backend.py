@@ -11045,9 +11045,15 @@ class TestGlossaryDivergence(Base):
         self.assertIn("Booking", tws[0]["question"])
         self.assertIn("Reservation", tws[0]["question"])
 
-    @unittest.expectedFailure
     def test_red_an_answered_glossary_challenge_is_asked_again(self):
         """A settled ruling does not survive the next entity (MAJOR-2).
+
+        FLIPPED by TASK-POLISH: answering a glossary challenge records a
+        ruling in `registry["glossary_rulings"]`, keyed on the term by
+        `_glossary_key` — the same key the tripwire already carried, so
+        the dedupe and the ruling cannot spell it differently. The three
+        poles below say what the ruling is NOT: not a reading of the
+        answer, not a blanket mute, and not something a dismissal earns.
 
         The mapping arm has three suppression paths — the
         `intentionally-divergent` note, `_annotation_covers` for `kinds`
@@ -11086,6 +11092,91 @@ class TestGlossaryDivergence(Base):
             "'Booking' was ruled on and the ruling did not stick: renaming "
             "a second entity off the same settled term re-asks it — %r"
             % ([t.get("question") for t in again],))
+
+    def test_a_ruling_on_one_term_does_not_mute_another(self):
+        """The ruling is keyed on the TERM, so it silences one question.
+
+        The failure mode a suppression path invites is the one SKILL.md
+        warns about for unscoped mapping annotations — muting everything
+        forever because one thing was excused once. `Booking` is ruled
+        on; `Vendor`, a second settled term on the same drawing, walks
+        off it in the very next batch and is still asked about. That is
+        what makes the flip above a statement about the QUESTION being
+        settled rather than about the arm going quiet.
+        """
+        self.seed(labels=("Booking", "Vendor"))
+        first = self.rename("ent0", "Reservation")
+        self.store.answer_tripwire(first[0]["id"], "Intentional divergence")
+        again = self.rename("ent1", "Supplier", base_revn=2)
+        self.assertEqual(len(again), 1,
+                         "ruling on 'Booking' silenced 'Vendor' too — the "
+                         "ruling is keyed on the term, not on the arm")
+        self.assertEqual(again[0]["sibling"], "Vendor")
+
+    def test_the_ruling_does_not_read_which_way_the_user_ruled(self):
+        """Free text settles the question; the check issues no verdict.
+
+        The two offered choices point the AGENT in opposite directions —
+        "the glossary follows" sends it to CONTEXT.md, "intentional
+        divergence" sends it nowhere — but both mean the user has been
+        asked and has answered, which is the only thing this check is
+        entitled to conclude. The answer here is neither choice and not
+        parseable as either; deciding it did not count would be the
+        tripwire ruling on an answer instead of asking a question.
+        """
+        self.seed(labels=("Booking", "Booking"))
+        first = self.rename("ent0", "Reservation")
+        self.store.answer_tripwire(
+            first[0]["id"], "both are wrong, we'll settle it on Thursday")
+        self.assertEqual(
+            self.rename("ent1", "Slot", base_revn=2), [],
+            "an answer the check could not classify was treated as no "
+            "answer — the user was asked and replied")
+
+    def test_the_ruling_outlives_the_process_that_recorded_it(self):
+        """A ruling held only in memory is a ruling until the next start.
+
+        `glossary_rulings` is registry state and branch-scoped like the
+        tripwires it settles, so this reloads the project from disk
+        rather than trusting the live object — the defect being fixed was
+        a suppression that did not survive an ANSWER, and a fix that did
+        not survive a RESTART would be the same bug one lifetime longer.
+        """
+        self.seed(labels=("Booking", "Booking"))
+        first = self.rename("ent0", "Reservation")
+        self.store.answer_tripwire(first[0]["id"], "Intentional divergence")
+        reloaded = canvas.Store(canvas.Project(self.tmp))
+        rec, _ = reloaded.apply_batch({
+            "base_revn": 2, "artifact": "dom",
+            "ops": [{"op": "mod", "id": "ent1-label",
+                     "attrs": {"text": "Slot"}}]})
+        self.assertEqual(rec["tripwires"], [],
+                         "the ruling did not reach disk — re-asked after a "
+                         "reload")
+
+    def test_dismissing_a_challenge_unanswered_does_not_rule_on_it(self):
+        """Resolving is the agent closing a card; only an answer rules.
+
+        The boundary is deliberate and is why `_glossary_ruling` hangs
+        off `answer_tripwire` and not off the resolve op. `resolve` is
+        housekeeping the AGENT does — it can run without the user ever
+        seeing the question — so treating it as a ruling would let the
+        thing being asked about silence the question about it. An
+        unanswered question that gets closed is not settled, and the
+        next entity off that term asks again.
+        """
+        self.seed(labels=("Booking", "Booking"))
+        first = self.rename("ent0", "Reservation")
+        self.store.apply_batch({
+            "base_revn": 2, "artifact": "dom",
+            "ops": [{"op": "registry", "action": "resolve_tripwire",
+                     "id": first[0]["id"]}]})
+        self.assertEqual(
+            self.store.registry.get("glossary_rulings") or {}, {},
+            "closing an unanswered card recorded a ruling nobody gave")
+        again = self.rename("ent1", "Slot", base_revn=3)
+        self.assertEqual(len(again), 1,
+                         "a dismissed question was treated as a settled one")
 
     def test_an_open_glossary_challenge_is_not_asked_twice(self):
         """The green pole: the dedupe that DOES exist works.

@@ -225,6 +225,11 @@ DEFAULT_REGISTRY = {
     "divergence_policies": [],
     "budgets": {},
     "waives": {},
+    # answered glossary challenges, keyed `glossary:<slug>` — the same key
+    # the tripwire carries, spelled once in `_glossary_key`. The mapping
+    # arm's `intentionally-divergent` note lives on the mapping record; a
+    # settled term has no record to live on, so its ruling lives here.
+    "glossary_rulings": {},
 }
 
 
@@ -981,7 +986,8 @@ def _mig_config_0002(d):
 # What stays project-level: migrations, revn, head, branches — the shape
 # of history itself, which no branch may disagree about.
 BRANCH_SCOPED = ("concepts", "mappings", "declined", "pins", "tripwires",
-                 "divergence_policies", "budgets", "waives")
+                 "divergence_policies", "budgets", "waives",
+                 "glossary_rulings")
 
 
 def _mig_registry_0002(reg):
@@ -12152,6 +12158,24 @@ def parse_glossary_terms(text):
     return terms
 
 
+def _glossary_key(term):
+    """Name a settled term for the tripwire and ruling that share it.
+
+    Spelled once because three places must agree on it exactly: the key
+    a glossary tripwire carries, the open-question dedupe that reads it,
+    and the ruling recorded when the question is answered. Two of those
+    are in different methods a thousand lines apart, and a key format
+    inlined at each would be a silent re-ask the day one of them drifted.
+
+    Args:
+        term: The settled glossary term, in its CONTEXT.md spelling.
+
+    Returns:
+        The `glossary:<slug>` key for that term.
+    """
+    return "glossary:%s" % slugify(term)
+
+
 def parse_glossary_pairs(text):
     """CONTEXT.md → ordered `(term, definition)` pairs.
 
@@ -13611,6 +13635,17 @@ class Store:
         says nothing here. A rename TOWARD a term is convergence and is
         equally quiet.
 
+        SUPPRESSED BY A RECORDED RULING, which is the parity the mapping
+        arm had and this one did not (task 28 review, MAJOR-2). Its only
+        guard used to be the open-tripwire dedupe below, and that is a
+        while-you-have-not-answered-yet guard rather than a ruling: the
+        moment the user answered, the key left `seen` and the same
+        question re-armed for every remaining entity drawn from the term.
+        Only the CONVERGENT answer was self-limiting, because "the
+        glossary follows" rewrites CONTEXT.md and the term stops
+        existing — so the answer the question is FOR, intentional
+        divergence, was the one that re-asked forever.
+
         Args:
             renamed_from: `artifact#element` -> `(old label, new label)`
                 for every naming fact in this batch.
@@ -13627,10 +13662,11 @@ class Store:
         # (v0.6 r3-7, three tripwires for one cause)
         seen = {t.get("mapping") for t in self.registry["tripwires"]
                 if t.get("status") == "open"}
+        ruled = self.registry.get("glossary_rulings") or {}
         for ref, (was, now) in sorted(renamed_from.items()):
             term = terms.get(str(was or "").strip().lower())
-            key = "glossary:%s" % slugify(term) if term else None
-            if term is None or key in seen:
+            key = _glossary_key(term) if term else None
+            if term is None or key in seen or key in ruled:
                 continue
             seen.add(key)
             entry = {"mapping": key, "changed": ref, "sibling": term,
@@ -13818,6 +13854,36 @@ class Store:
     @staticmethod
     def _mapping_key(m):
         return "%s:%s" % (m.get("concept"), "+".join(m.get("elements") or []))
+
+    def _glossary_ruling(self, t):
+        """Record that a glossary challenge has been ruled on, if it is one.
+
+        The glossary analogue of annotating a mapping
+        `intentionally-divergent`, and it lands in the registry for the
+        same reason: a ruling the user gave has to outlive the question
+        that carried it. It does not READ the answer. Which way the user
+        ruled is between them and the agent — "the glossary follows"
+        sends the agent to CONTEXT.md, "intentional divergence" sends it
+        nowhere — but either way the question has been PUT and answered,
+        and re-arming it on the next entity drawn from the same term is
+        the repo asking a settled question again. Interpreting free text
+        to decide whether the ruling counts would be this check issuing
+        a verdict on an answer, which is the one thing a tripwire is
+        built not to do: it asks.
+
+        Keyed on the TERM and not on the element, so it suppresses the
+        re-ask without muting anything else — a different term renamed
+        off the drawing is a different question and still fires.
+
+        Args:
+            t: The tripwire record just answered. Ignored unless its
+                `kind` is `glossary`.
+        """
+        if t.get("kind") != "glossary" or not t.get("mapping"):
+            return
+        self.registry.setdefault("glossary_rulings", {})[t["mapping"]] = {
+            "term": t.get("sibling"), "tripwire": t.get("id"),
+            "answer": t.get("answer"), "at": t.get("answered_at")}
 
     # -- registry ops (co-authored: these only exist inside a commit) -----
     def _apply_registry_ops(self, ops, errors):
@@ -14802,9 +14868,30 @@ class Store:
 
     # -- pins -------------------------------------------------------------
     def answer_tripwire(self, tw_id, answer):
-        """In-place tripwire answer (buttons or free text) — same
-        first-class wake semantics as a pin answer. The agent acts on it
-        (propagate / annotate the mapping / converse) and resolves."""
+        """Answer a tripwire in place, and record the ruling it carries.
+
+        Buttons or free text, with the same first-class wake semantics
+        as a pin answer: the agent acts on it (propagate / annotate the
+        mapping / converse) and then resolves.
+
+        A GLOSSARY challenge also lands a durable ruling here — see
+        `_glossary_ruling`. Answering is the hook rather than resolving
+        because resolving is the agent closing a card, while answering
+        is the user ruling; a question dismissed without an answer was
+        never settled and is allowed to re-arm.
+
+        Args:
+            tw_id: The tripwire's id.
+            answer: The user's answer, from a choice or free text. Stored
+                verbatim and never parsed.
+
+        Returns:
+            The updated tripwire record.
+
+        Raises:
+            BatchError: If no tripwire has that id, or it has reached a
+                status past answering.
+        """
         with self.lock:
             t = next((t for t in self.registry["tripwires"]
                       if t.get("id") == tw_id), None)
@@ -14816,6 +14903,7 @@ class Store:
             t["status"] = "answered"
             t["answer"] = answer
             t["answered_at"] = now_iso()
+            self._glossary_ruling(t)
             self._save_registry()
             return t
 
