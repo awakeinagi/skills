@@ -38,6 +38,14 @@ when it actually lands: `canvas.py x-pending --apply` prints them, and
 the `agent_revision` event carries any `notes` when the user applies
 from the banner instead.
 
+An `ECHO=` line for an arrow names its bound nodes and then, where the
+drawing supports it, the faces its ends land on: `arrow t3 binds payment →
+checkout — leaves the right of payment, arrives at checkout's left edge,
+off centre` (v0.9). The clause is appended, so `binds A → B` is still
+there to grep for, and it is **silent** about an end whose arrival slides
+along the face or comes in obliquely — describe the path there, never
+guess a side.
+
 **Fixing a queued revision:** re-send it with `supersedes: <pending_id>`
 so the corrected batch *replaces* the original. Without it the user is
 left with two banners for one intent and no way to tell them apart. A

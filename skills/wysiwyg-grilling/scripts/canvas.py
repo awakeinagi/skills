@@ -8898,6 +8898,177 @@ def find_browsers():
     return found + snaps
 
 
+PORT_TOL = 2.0
+# How far off a side's midpoint a foot may stand and still be called THE
+# port. Deliberately tighter than any lint tolerance in this file, and
+# the tightness is the whole safety argument: a foot within 2px of a
+# midpoint approached square has `binding_focus` 0 (measured: 227 of the
+# corpus's 229 such feet, the other two 0.01 and 0.02), and focus 0
+# re-derives to that same midpoint. So the sentence "leaves the bottom of
+# Validate" survives the client re-deriving the foot, which is the only
+# way a narrated reading can go stale between the server saying it and
+# the user seeing it. Loosening this to the endpoint lint's 12px buys a
+# few more sentences and starts importing the focus sign convention,
+# which is exactly the thing the reading must not depend on.
+
+NORMAL_COS = 0.9063
+# cos(25 degrees) — how square an approach must be before the side it
+# lands on is worth naming at all. An arrow that slides ALONG a face or
+# arrives obliquely has a foot on that face and a reader who sees no
+# such thing, so naming the side would narrate geometry the drawing does
+# not show. Calibrated, not swept: it refuses 70 of the corpus's 346
+# bound endpoints, against the 72 non-normal arrivals spike-focus-verify
+# counted in a live browser over the same 346 by a different instrument.
+
+
+def endpoint_port(node: dict[str, Any], adj: tuple[float, float] | None,
+                  foot: tuple[float, float],
+                  tol: float = PORT_TOL) -> tuple[str, float, bool]:
+    """Read where on a node a foot lands, and whether it may be named.
+
+    The reading layer's one primitive. It is deliberately blind to
+    `focus`: its inputs are points and boxes, so nothing it says can move
+    when a focus value is rewritten, and the narration has no ordering
+    dependency on the focus work (measured: zeroing, sign-flipping and
+    randomising every stored focus in the corpus moved 0 of 346
+    readings).
+
+    THE APPROACH TEST IS FOLDED INTO THE PORT, not returned beside it.
+    A caller handed `("left", 0.0, False)` cannot tell "on the left face
+    but off centre" — say the edge — from "on the left face but the
+    approach forbids naming it" — say the path — and a triple that
+    cannot express its own phrasing table produced "leaves market-feed's
+    left edge, off centre" about a foot standing exactly ON the centre.
+    A disqualified endpoint gets no side name by construction.
+
+    `_edge_side` is the ONE authority on which face a foot is on, bbox
+    arms and all, and this deliberately adds no ink test of its own. A
+    conic's bbox arms do name a side for a foot at a BOX corner, 37px of
+    empty canvas off a 200x80 rhombus — but a foot that far out is an
+    `endpoint_gap` ERROR the agent is already reading in the same
+    response, so a second refusal here buys nothing. It costs, though:
+    an ink guard at `_edge_side`'s own 2.5px eps refuses 9 of the 346
+    corpus endpoints, 5 of them fanned feet sitting 4–8px off an
+    ellipse's shoulder where "leaves run-trigger's top edge, off centre"
+    is both true and the sentence a reader wants. Silence is the more
+    expensive mistake here; the loud check already covers the other one.
+
+    Args:
+        node: The bound node element.
+        adj: The drawn path point the arrow travels FROM into the foot,
+            or None when there is no leg to read a direction off.
+        foot: The bound endpoint, in scene coordinates.
+        tol: How far off the midpoint still counts as AT the port.
+
+    Returns:
+        `(port, offset_px, at_port)`. `port` is `"left"`, `"right"`,
+        `"top"` or `"bottom"` when the side is nameable, `"off-approach"`
+        when the arrival is not square enough to name one, and
+        `"off-shape"` when the foot stands on no side at all.
+        `offset_px` is the signed distance along that side from its
+        midpoint, positive to the right or downward, and 0.0 whenever
+        the port is not nameable. `at_port` is True only within `tol`.
+    """
+    side = _edge_side(node, foot[0], foot[1])
+    if side is None:
+        return "off-shape", 0.0, False
+    if adj is None:
+        return "off-approach", 0.0, False
+    dx, dy = foot[0] - adj[0], foot[1] - adj[1]
+    mag = (dx * dx + dy * dy) ** 0.5
+    if mag < 1e-9:      # a degenerate leg has no direction to be square
+        return "off-approach", 0.0, False
+    nx, ny = {"left": (1.0, 0.0), "right": (-1.0, 0.0),
+              "top": (0.0, 1.0), "bottom": (0.0, -1.0)}[side]
+    if (dx * nx + dy * ny) / mag < NORMAL_COS:
+        return "off-approach", 0.0, False
+    w, h = node.get("width", 0), node.get("height", 0)
+    # The midpoint of a side is the same point on the box and on the ink
+    # for every shape this file draws — it is a rhombus's vertex and an
+    # ellipse's extremum — so one formula serves all three, and a port
+    # reading never has to ask what type it is looking at. Only the
+    # CORNERS differ between box and ink, and a corner is never within
+    # `tol` of a midpoint, so no `at_port` claim can turn on one.
+    cx, cy = node["x"] + w / 2.0, node["y"] + h / 2.0
+    off = (foot[1] - cy) if side in ("left", "right") else (foot[0] - cx)
+    return side, off, abs(off) <= tol
+
+
+def port_approach(node: dict[str, Any], arrow: dict[str, Any], at_end: bool,
+                  tol: float = PORT_TOL) -> tuple[str, float, bool]:
+    """`endpoint_port` for one bound end of an arrow, read off the DRAWING.
+
+    The leg comes from `_arrival_path`, so a curved arrow is read along
+    the flattened curve the client actually renders and along the same
+    sample the arrowhead's direction is taken from. Reading the stored
+    chord instead would put a curved final leg up to 56.8 degrees off its
+    drawn arrival — enough to name the wrong side of the node in a
+    sentence the user is looking straight at.
+
+    Args:
+        node: The node this end binds to.
+        arrow: The arrow (or line) element.
+        at_end: True for the `endBinding` side, False for `startBinding`.
+        tol: Passed through to `endpoint_port`.
+
+    Returns:
+        `endpoint_port`'s triple. An arrow with no drawable segment reads
+        `("off-approach", 0.0, False)`: there is no leg, so there is no
+        arrival to call square.
+    """
+    seq, prev = _arrival_path(arrow, at_end)
+    if not seq:
+        return "off-approach", 0.0, False
+    return endpoint_port(node, prev, seq[0], tol)
+
+
+def port_phrase(arrow: dict[str, Any], ix: dict[str, Any]) -> str:
+    """The port clause of an arrow's echo line, or "" when unsayable.
+
+    `arrow t3 binds payment → checkout` names the nodes and says nothing
+    about where on them the arrow lands, and the echo is the one surface
+    that speaks on the agent's OWN moves — the facts pipeline
+    deliberately does not narrate agent-authored records back. So this is
+    where the agent gets to read its own drawing.
+
+    It is APPENDED to the binding sentence rather than folded into it, so
+    every caller that greps the echo for `binds A → B` keeps working.
+
+    SILENCE IS THE POINT of the refusal arm: an end whose approach
+    forbids naming a side contributes nothing rather than a hedge, and
+    the doctrine tells the agent to describe the path there instead of
+    guessing a face.
+
+    Args:
+        arrow: The arrow element, with its bindings and drawn points.
+        ix: Scene elements by id, for looking the bound nodes up.
+
+    Returns:
+        `" — leaves the bottom of a, arrives at b's left edge, off
+        centre"` and its variants, or `""` when neither end is nameable.
+    """
+    parts = []
+    for at_end, battr, verb in ((False, "startBinding", "leaves"),
+                                (True, "endBinding", "arrives at")):
+        nid = (arrow.get(battr) or {}).get("elementId")
+        node = ix.get(nid) if nid else None
+        if node is None:
+            continue
+        port, _off, at_port = port_approach(node, arrow, at_end)
+        if port in ("off-approach", "off-shape"):
+            continue
+        # Off centre, but never WHICH WAY off centre. The direction is a
+        # claim about the offset's sign, and the sign is what the client
+        # and the server currently disagree about on bottom and left
+        # faces; saying "a third of the way right" would be wrong today
+        # and right after that is settled. "off centre" is true in both
+        # worlds.
+        parts.append("%s the %s of %s" % (verb, port, node["id"]) if at_port
+                     else "%s %s's %s edge, off centre"
+                     % (verb, node["id"], port))
+    return " — " + ", ".join(parts) if parts else ""
+
+
 def intent_echo(ops, els):
     """One line per drawing op stating its OBSERVABLE consequence against
     the final scene — because `apply` accepting a batch is not the same as
@@ -8920,8 +9091,12 @@ def intent_echo(ops, els):
                 return "line %s at (%d,%d), %d points" % (
                     eid, el.get("x", 0), el.get("y", 0),
                     len(el.get("points") or []))
-            return "arrow %s binds %s → %s" % (eid, s or "∅ (unbound)",
-                                               d or "∅ (unbound)")
+            # the port clause is APPENDED — "binds A → B" stays the head
+            # of the sentence, and is silent about any end whose approach
+            # forbids naming a face (`port_phrase`)
+            return "arrow %s binds %s → %s%s" % (eid, s or "∅ (unbound)",
+                                                 d or "∅ (unbound)",
+                                                 port_phrase(el, ix))
         lbl = labels.get(eid)
         return "%s%s at (%d,%d) %dx%d" % (
             eid, " (%r)" % lbl if lbl else "",

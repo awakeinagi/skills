@@ -974,6 +974,249 @@ class TestIntentEcho(Base):
         self.assertTrue(any("confirm deleted" in ln for ln in echo))
 
 
+def port_node(etype="rectangle", x=100, y=100, w=200, h=80):
+    """A node to read ports off: centre (200,140), faces at 100/300/100/180.
+
+    Args:
+        etype: Element type — `rectangle`, `diamond` or `ellipse`.
+        x: Box left.
+        y: Box top.
+        w: Box width.
+        h: Box height.
+
+    Returns:
+        The node element.
+    """
+    return {"id": "n", "type": etype, "x": x, "y": y,
+            "width": w, "height": h}
+
+
+# Where each face's midpoint is on `port_node`, and a point 60px out
+# along the inward normal — an approach that is square by construction.
+PORT_SPECIMENS = {"left": ((100.0, 140.0), (40.0, 140.0)),
+                  "right": ((300.0, 140.0), (360.0, 140.0)),
+                  "top": ((200.0, 100.0), (200.0, 40.0)),
+                  "bottom": ((200.0, 180.0), (200.0, 240.0))}
+
+
+class TestPortReading(unittest.TestCase):
+    """`endpoint_port` / `port_approach` — the narration's reading layer.
+
+    The vocabulary that lets the echo say WHERE on a node an arrow lands,
+    not just which nodes it joins. Measured against the 24 frozen
+    artifacts before it landed: 346 bound endpoints read 229 at a port,
+    47 on a face off centre, and 70 refused — and the refusal set is what
+    keeps the along-face and oblique specimens out of the narration.
+    """
+
+    def test_each_face_midpoint_reads_as_that_port(self):
+        """A square approach onto a face midpoint names that face."""
+        for side, (foot, adj) in PORT_SPECIMENS.items():
+            with self.subTest(side=side):
+                port, off, at = canvas.endpoint_port(port_node(), adj, foot)
+                self.assertEqual(port, side)
+                self.assertEqual(off, 0.0)
+                self.assertTrue(at)
+
+    def test_both_poles_of_a_face_read_off_port_with_a_signed_offset(self):
+        """Off centre is nameable, and the sign is right/down positive.
+
+        The sign is the one thing here a caller could get backwards
+        silently, so it is pinned on both poles of all four faces rather
+        than inferred from one.
+        """
+        for side, (foot, adj) in PORT_SPECIMENS.items():
+            along = (0.0, 1.0) if side in ("left", "right") else (1.0, 0.0)
+            for pole in (-30.0, 30.0):
+                with self.subTest(side=side, pole=pole):
+                    slid = (foot[0] + along[0] * pole,
+                            foot[1] + along[1] * pole)
+                    port, off, at = canvas.endpoint_port(
+                        port_node(), (adj[0] + along[0] * pole,
+                                      adj[1] + along[1] * pole), slid)
+                    self.assertEqual(port, side)
+                    self.assertEqual(off, pole)
+                    self.assertFalse(at)
+
+    def test_a_foot_on_no_face_reads_off_shape(self):
+        """Dead centre of a rectangle is on no face and gets no name."""
+        self.assertEqual(
+            canvas.endpoint_port(port_node(), (40.0, 140.0), (200.0, 140.0)),
+            ("off-shape", 0.0, False))
+
+    def test_the_approach_disqualifies_a_foot_that_stands_on_a_port(self):
+        """A foot ON the port whose arrival slides ALONG the face.
+
+        The correction the spike's sketched triple could not express: the
+        naive foot-only reading calls this a port (it is one, to the
+        pixel) and narrates "leaves the left of n" about an arrow that
+        never crosses the left face at all. 19 of the corpus's 346
+        endpoints are this shape, including both ends of the specimen
+        that motivated the whole check.
+        """
+        node, (foot, _adj) = port_node(), PORT_SPECIMENS["left"]
+        # travelling straight DOWN the left face, arriving at its midpoint
+        self.assertEqual(canvas.endpoint_port(node, (100.0, 40.0), foot),
+                         ("off-approach", 0.0, False))
+        # and the naive reading it replaces would have named the face
+        self.assertEqual(canvas._edge_side(node, foot[0], foot[1]), "left")
+
+    def test_an_oblique_approach_is_refused_and_a_near_square_one_is_not(self):
+        """`NORMAL_COS` is a threshold, not a blanket refusal.
+
+        Both poles of the 25-degree bar, so a classifier that had gone
+        blanket-silent — the failure that reads as "nothing to say about
+        this drawing" — cannot pass.
+        """
+        node, (foot, _adj) = port_node(), PORT_SPECIMENS["left"]
+        # 30.3 degrees off the inward normal: refused
+        self.assertEqual(
+            canvas.endpoint_port(node, (foot[0] - 60, foot[1] - 35), foot),
+            ("off-approach", 0.0, False))
+        # 19.3 degrees off the same normal: named
+        self.assertEqual(
+            canvas.endpoint_port(node, (foot[0] - 60, foot[1] - 21), foot),
+            ("left", 0.0, True))
+
+    def test_a_conic_reads_its_ink_and_not_only_its_box(self):
+        """A foot on a rhombus's facet is on a face; a bbox reader sees none.
+
+        The ink is where `edge_anchor` and `_fan_point` both put a foot,
+        and it leaves the box everywhere except the four midpoints — so a
+        classifier keyed on the box alone goes silent about most of a
+        conic's perimeter.
+        """
+        for etype in ("diamond", "ellipse"):
+            with self.subTest(etype=etype):
+                node = port_node(etype)
+                foot, adj = PORT_SPECIMENS["top"]
+                port, off, at = canvas.endpoint_port(node, adj, foot)
+                self.assertEqual((port, off, at), ("top", 0.0, True))
+        # a point on the rhombus's upper-left facet, off the box entirely
+        facet = (125.0, 130.0)
+        port, off, at = canvas.endpoint_port(
+            port_node("diamond"), (facet[0] - 60, facet[1]), facet)
+        self.assertEqual(port, "left")
+        self.assertEqual(off, -10.0)
+        self.assertFalse(at)
+
+    def test_a_degenerate_leg_is_never_named(self):
+        """No leg, no direction, no face — however perfect the foot."""
+        foot, _adj = PORT_SPECIMENS["left"]
+        self.assertEqual(canvas.endpoint_port(port_node(), foot, foot),
+                         ("off-approach", 0.0, False))
+        self.assertEqual(canvas.endpoint_port(port_node(), None, foot),
+                         ("off-approach", 0.0, False))
+
+    def test_the_reading_does_not_depend_on_stored_focus(self):
+        """The version-independence claim, pinned.
+
+        The classifier's inputs are points and boxes; `focus` is not
+        among them, so nothing it says can move when the focus work
+        rewrites focus values. Measured over the corpus at three arms
+        (zeroed, sign-flipped, randomised): 0 of 346 endpoints changed
+        their reading. This drives the same claim through a live scene,
+        so a future edit that reached for a stored focus fails here.
+        """
+        node = port_node()
+        arrow = {"id": "a", "type": "arrow", "x": 40, "y": 140,
+                 "points": [[0, 0], [60, 0]],
+                 "endBinding": {"elementId": "n", "focus": 0.0, "gap": 0}}
+        want = canvas.port_approach(node, arrow, True)
+        self.assertEqual(want, ("left", 0.0, True))
+        for focus in (0.0, 0.9, -0.9, 0.333, -0.333):
+            with self.subTest(focus=focus):
+                arrow["endBinding"]["focus"] = focus
+                self.assertEqual(canvas.port_approach(node, arrow, True), want)
+
+    def test_port_approach_reads_the_drawn_leg_of_a_curved_arrow(self):
+        """Ink, not the stored chord — and the two disagree here.
+
+        A curved final leg leaves its stored chord by up to 56.8 degrees,
+        which is enough to flip the axis and name the wrong face. This
+        specimen's chord leans 29.7 degrees off the inward normal, so a
+        chord reader REFUSES an arrival the drawing makes square — the
+        two readings differ in verdict, not merely in decimals.
+        """
+        node = port_node(x=300)      # left face at x=300, midpoint y=140
+        arrow = {"id": "a", "type": "arrow", "x": 100, "y": 400,
+                 "points": [[0, 0], [60, -180], [200, -260]],
+                 "roundness": {"type": 2},
+                 "endBinding": {"elementId": "n", "focus": 0, "gap": 0}}
+        self.assertEqual(canvas.port_approach(node, arrow, True),
+                         ("left", 0.0, True))
+        seq, _prev = canvas._arrival_path(arrow, True)
+        chord_prev = (arrow["x"] + arrow["points"][-2][0],
+                      arrow["y"] + arrow["points"][-2][1])
+        self.assertEqual(canvas.endpoint_port(node, chord_prev, seq[0]),
+                         ("off-approach", 0.0, False))
+
+    def test_an_arrow_with_no_segment_is_never_named(self):
+        """A pointless arrow has no arrival to call square."""
+        node = port_node()
+        self.assertEqual(
+            canvas.port_approach(node, {"id": "a", "type": "arrow",
+                                        "x": 0, "y": 0, "points": []}, True),
+            ("off-approach", 0.0, False))
+
+
+class TestPortEcho(Base):
+    """The echo speaks the port vocabulary — and knows when not to.
+
+    Driven through `check_batch`, which is the `apply --check` surface
+    and the same reading an applied batch answers with: what the agent
+    receives is the fact, not what a helper computes.
+    """
+
+    def setUp(self):
+        """Seed the checkout flow, whose arrows all land on ports."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_the_echo_names_both_ports_of_a_bound_arrow(self):
+        """The FIRING pole for the silence below.
+
+        `intent_echo` named the nodes and said nothing about where on
+        them an arrow landed, so an agent reading its own drawing back
+        could not tell a connector crossing a node's face from one
+        meeting it squarely. The port clause is APPENDED, so `binds A →
+        B` stays the head of the sentence.
+        """
+        out = self.store.check_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "t1", "attrs": {"strokeWidth": 2}}]})
+        self.assertTrue(out["ok"], out["errors"])
+        ln = out["intent_echo"][0]
+        self.assertIn("t1 binds cart → checkout", ln)
+        self.assertIn("leaves the right of cart", ln)
+        self.assertIn("arrives at the left of checkout", ln)
+
+    def test_the_echo_is_silent_about_an_end_the_approach_forbids(self):
+        """The SILENCE pole, beside the firing above.
+
+        The tail is dragged down the cart's right face so the arrow now
+        leaves ALONG that face instead of across it. A foot-only reading
+        would still call it the right port — it is one, to the pixel —
+        and narrate a face the drawing does not show the arrow crossing.
+        The refusal is silence, not a hedge: doctrine tells the agent to
+        describe the path there rather than guess a face, and a hedged
+        side name is the thing it cannot un-read.
+        """
+        out = self.store.check_batch({
+            "base_revn": 1, "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "t1",
+                     "attrs": {"x": 180, "y": 178,
+                               "points": [[0, 0], [0, -28], [80, -28]]}}]})
+        self.assertTrue(out["ok"], out["errors"])
+        ln = out["intent_echo"][0]
+        # the binding sentence is untouched — both nodes still named
+        self.assertIn("t1 binds cart → checkout", ln)
+        self.assertNotIn("cart's", ln)
+        self.assertNotIn("leaves", ln)
+        # and the far end, which nothing moved, still speaks
+        self.assertIn("arrives at the left of checkout", ln)
+
+
 class TestLintTiers(Base):
     def test_detached_endpoint_is_error(self):
         self.store.apply_batch(seed_flow_batch())

@@ -78,6 +78,13 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
 4. **Ports follow travel direction** (seeder). Use top/bottom ports when
    travel is mainly vertical, side ports only when mainly horizontal. Never
    puncture a side face to reach something above or below.
+   **Reading one back** (v0.9): the `ECHO=` line says which face each end
+   landed on — "leaves the bottom of Validate, arrives at Enrich's left
+   edge, off centre". It is read off the DRAWN path, not the stored chord,
+   and it refuses to name a face when the arrival slides along it or comes
+   in more than 25° off square. A silent end is not a missing port; it is
+   the check telling you the picture does not show the arrow crossing that
+   face. Two thirds of a typical flow's endpoints get named.
 5. **Never cross a foreign box** (lint WARNING). A connector passing through
    a node that is neither its source nor destination is flagged. Prefer
    re-routing; where two arrows must cross, bridge the less important one

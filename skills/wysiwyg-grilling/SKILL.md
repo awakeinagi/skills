@@ -214,6 +214,16 @@ the sentence failing to complete IS the test that the reading isn't ready.
   Q9/Q11/Q25/Q12…) are QUESTIONS a criterion asks later, never verdicts —
   never say a wireframe "fails WCAG"; settle one, then record the answer
   as a registry `waive` (reason required) so it goes quiet.
+- **Ports** (v0.9): the `ECHO=` line names where on a node each end of an
+  arrow lands — "leaves the bottom of Validate, arrives at Enrich's left
+  edge, off centre". That is the drawing read back to you, so use it: an
+  arrow you meant to enter from above and that reports leaving a side face
+  is a routing bug you can see without a screenshot. **When the echo is
+  silent about an end, describe the PATH and never guess a side** — the
+  silence means the arrival slides along the face or comes in obliquely,
+  which is exactly the case where a named side would be a sentence the
+  user cannot find in the picture. "Off centre" is deliberately as far as
+  it goes; it never says which way off.
 - **Hypotheses**: deliberate internally over ≥2 candidate readings (score
   against registry, glossary, conversation, `selection_at_save`), then
   **commit externally to one reading stated as a position**, with the point
