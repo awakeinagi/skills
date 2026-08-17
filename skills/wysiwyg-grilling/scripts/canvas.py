@@ -180,6 +180,24 @@ DEFAULT_SIGNIFICANT_ATTRS = [
     # guard — all four must replay or catch_up mints phantom records.
     "autoResize", "name", "link", "locked",
 ]
+# Attributes whose significance depends on WHO OWNS THE ELEMENT, so the
+# attribute name alone cannot decide it. `roundness` is the whole set: on
+# a rectangle it is the documented way to round corners and nothing
+# derives it, while on a server-routed arrow `derived_roundness` computes
+# it from the point count on every save and again at load.
+#
+# This exists because the flat answer is wrong in both directions. Listing
+# `roundness` in `DEFAULT_SIGNIFICANT_ATTRS` is what v0.8 WP2 UNDID: every
+# project holding a re-routed arrow then minted a phantom out-of-session
+# reconciliation at load, because the router's own re-derivation read as
+# somebody's edit. Leaving it out is what made a `mod roundness` naming
+# only that attribute on an AUTHORED rounded rectangle record no change,
+# commit nothing and vanish — an op that did neither what was asked nor
+# said why, with whether it stuck decided by what else rode in the batch.
+# The owner is the distinction `apply_ops` already draws one attribute
+# earlier, through `server_owns_geometry`; this is the same line drawn in
+# the differ.
+OWNER_AWARE_ATTRS = ("roundness",)
 STYLE_ATTRS = {
     "strokeColor", "backgroundColor", "fillStyle", "strokeWidth",
     "strokeStyle", "roughness", "opacity", "fontSize", "fontFamily",
@@ -5604,6 +5622,21 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
                 # soft re-wrap (whitespace-only change) — not a rename
                 entry["derived"] = True
             attrs.append(entry)
+        # OWNER-AWARE significance, after the flat pass and never inside
+        # it: these attributes are one element's authored intent and the
+        # router's derived output on the next, so the question is not
+        # "is this attribute significant?" but "whose is it?". Asked only
+        # when the value actually MOVED, which keeps `server_owns_geometry`
+        # (and the route signature it recomputes) off the common path.
+        # A config that lists one of these in `significant_attrs` has
+        # made its own ruling and is left alone above.
+        for attr in OWNER_AWARE_ATTRS:
+            if attr in sig:
+                continue
+            ov, nv = old.get(attr), new.get(attr)
+            if ov == nv or _router_owns(new) or _router_owns(old):
+                continue
+            attrs.append({"attr": attr, "from": ov, "to": nv})
         if geo_ok and not binding_changed and \
                 not _geometry_derived(new) and not _geometry_derived(old) and \
                 (old.get("x") != new.get("x") or
@@ -5687,6 +5720,25 @@ def _text_metric_derived(attr, old, new):
             and old.get("autoResize", True) and new.get("autoResize", True):
         return True
     return False
+
+
+def _router_owns(el):
+    """Is this element's shape the routing pass's work, or somebody's drawing?
+
+    The gate on `OWNER_AWARE_ATTRS`. Only arrows and lines can be
+    server-routed at all, so anything else — a rectangle above all — is
+    authored by construction and never reaches `server_owns_geometry`,
+    whose answer for a non-arrow would be meaningless rather than merely
+    false.
+
+    Args:
+        el: The element being judged.
+
+    Returns:
+        True when the router derives this element's geometry, so a change
+        to a derived attribute on it is the router's own churn.
+    """
+    return el.get("type") in ("arrow", "line") and server_owns_geometry(el)
 
 
 def _geometry_derived(el):

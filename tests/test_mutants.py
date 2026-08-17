@@ -7982,10 +7982,19 @@ class TestBatchPathIntegrity(unittest.TestCase):
         disk = {e["id"]: e for e in again.scenes["flow"]}
         return live["n1"].get("roundness"), disk["n1"].get("roundness")
 
-    @unittest.expectedFailure
     def test_red_a_roundness_only_mod_is_discarded_without_a_word(
             self) -> None:
         """Whether the op sticks depends on what else was in the batch.
+
+        FLIPPED by TASK-POLISH, in the shape the task-30 review ruled:
+        significance became OWNER-AWARE. `roundness` is the author's on
+        a rectangle and the router's on a server-routed arrow, and that
+        line is the one `apply_ops` already draws one attribute earlier
+        through `server_owns_geometry` — so `OWNER_AWARE_ATTRS` asks
+        WHOSE the attribute is instead of whether the attribute counts.
+        Deliberately NOT a bare addition to `DEFAULT_SIGNIFICANT_ATTRS`:
+        that is the change v0.8 WP2 undid, and the pole below re-proves
+        the phantom reconciliations stayed dead.
 
         `roundness` is in `MOD_ATTRS`, so the op validates; it is NOT in
         `DEFAULT_SIGNIFICANT_ATTRS`, so a batch naming it and nothing
@@ -8035,6 +8044,108 @@ class TestBatchPathIntegrity(unittest.TestCase):
         live, on_disk = self._roundness_after(alone=False)
         self.assertEqual(live, {"type": 3})
         self.assertEqual(on_disk, {"type": 3})
+
+    def test_a_routed_arrows_roundness_is_still_the_routers_business(
+            self) -> None:
+        """The OWNER half: the same attribute, the other owner, silent.
+
+        `derived_roundness` computes this value from the point count on
+        every save and again at load, so a difference in it between two
+        states of a server-routed arrow is the router's own arithmetic
+        and not an edit anybody made. The differ is asked directly
+        because the op path cannot reach here — `mod roundness` on a
+        routed arrow is REFUSED by name (task 30), which is the same
+        ruling one layer up.
+
+        Without this half the flip above is satisfied by putting
+        `roundness` in `DEFAULT_SIGNIFICANT_ATTRS`, which is the exact
+        change v0.8 WP2 reverted.
+        """
+        def routed(rnd: Any) -> list[dict]:
+            arr = el(id="e1", type="arrow", x=0, y=0, width=100, height=0,
+                     points=[[0, 0], [100, 0]], roundness=rnd,
+                     startBinding={"elementId": "a", "focus": 0, "gap": 1},
+                     endBinding={"elementId": "b", "focus": 0, "gap": 1},
+                     customData={"role": "edge"})
+            self.assertTrue(canvas.server_owns_geometry(arr),
+                            "the fixture stopped being server-routed, so "
+                            "this measures the authored case twice")
+            return [arr]
+
+        out = canvas.diff_scenes(routed(None), routed({"type": 2}))
+        self.assertEqual(
+            out["changes"], [],
+            "the router's own re-derivation was recorded as somebody's "
+            "edit — this is the shape that minted a phantom "
+            "reconciliation on every load of every project holding a "
+            "re-routed arrow (v0.8 WP2): %r" % (out["changes"],))
+
+    def test_no_phantom_reconciliation_returns_to_a_routed_fixture(
+            self) -> None:
+        """The regression v0.8 WP2 paid for, and WHAT actually holds it.
+
+        A standing regression guard, and honest about being only that:
+        it is NOT what discriminates this fix, and the measurement says
+        so rather than leaving a reader to assume otherwise. Stubbed
+        three ways during TASK-POLISH — the forbidden bare addition of
+        `roundness` to `DEFAULT_SIGNIFICANT_ATTRS`, that plus dropping
+        the `content_fingerprint` skip, and that plus disabling the
+        load-time re-derivation — this test passed every time, including
+        against a hand-built project whose on-disk roundness was flipped
+        to the wrong value. What discriminates the forbidden fix is
+        `test_a_routed_arrows_roundness_is_still_the_routers_business`
+        above; a passing assertion here would have been a coincidence
+        wearing a ruling's name.
+
+        WHY it cannot fail through this attribute, which is the part
+        worth knowing: `catch_up` compares the loaded scenes against
+        `state_at(head)`, and BOTH sides run through
+        `rebuild_bound_elements` (canvas.py — the load applies it, and
+        `state_at` returns it). A routed arrow's roundness is re-derived
+        by the same rule on both sides, so the two can never disagree
+        about it whatever the differ thinks is significant. The
+        `content_fingerprint` skip is a further layer on top of that.
+        The v0.8 defect is dead at a level this change cannot reach, and
+        the way to reopen it is to make the two sides normalize
+        differently — which is what this test would then catch.
+
+        Reading the fixture's own arrows first, so a fixture that loses
+        its routed arrows fails loudly instead of passing by measuring a
+        project that could not have shown the defect.
+        """
+        src = Path(__file__).resolve().parent / "fixtures" / "argus-r5"
+        root = Path(tempfile.mkdtemp(prefix="mutants-roundness-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        shutil.copytree(src, root / "project_knowledge")
+        first = canvas.Store(canvas.Project(root))
+        routed = [e for els in first.scenes.values() for e in els
+                  if e.get("type") in ("arrow", "line")
+                  and canvas.server_owns_geometry(e)]
+        self.assertTrue(
+            routed,
+            "the fixture holds no server-routed arrow, so a silent "
+            "catch_up below would prove nothing about roundness churn")
+        for load, store in enumerate((first,
+                                      canvas.Store(canvas.Project(root))), 1):
+            self.assertIsNone(
+                store.catch_up(),
+                "load %d minted a reconciliation over %d routed arrow(s)"
+                % (load, len(routed)))
+        # the invariant the paragraph above names, asserted rather than
+        # described: disk and replayed history agree about every routed
+        # arrow's roundness, which is why no significance rule can put a
+        # phantom back.
+        replayed = {e["id"]: e for p in first.state_at(first.head_revn())
+                    .values() for e in p["elements"]}
+        disagree = [e["id"] for e in routed
+                    if e["id"] in replayed
+                    and replayed[e["id"]].get("roundness") != e.get("roundness")]
+        self.assertEqual(
+            disagree, [],
+            "disk and replay disagree about roundness on %d of %d routed "
+            "arrows — the two sides have stopped normalizing by one rule, "
+            "which is the condition that minted the v0.8 phantoms"
+            % (len(disagree), len(routed)))
 
     @unittest.expectedFailure
     def test_red_the_gate_guards_apply_batch_only_not_the_save_path(
@@ -17282,7 +17393,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
-    "TestBatchPathIntegrity": 2,
+    "TestBatchPathIntegrity": 1,
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
