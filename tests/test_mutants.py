@@ -4128,34 +4128,43 @@ class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
         height — `lint_layout`'s composed-content check and
         `shape_clip`'s label measurement. Re-enumerated by the
         TASK-24-FOLLOW-UP review and re-confirmed at 32630e9 by curator
-        batch 26, there are FIVE: those two, plus three that hold an
+        batch 26, there were FIVE: those two, plus three that hold an
         element and WRITE ITS HEIGHT from `text_dims` at the default —
-        `route_ctx`'s label sizing (canvas.py:4429), `_set_label`
-        (canvas.py:7220 and 7232) and `cmd_x_as_user` (canvas.py:16890).
-        The first two of the five only MEASURE; the last three STORE,
-        which is the worse half, because every later reader inherits the
-        number.
+        `route_ctx`'s label sizing, `_set_label` (twice) and
+        `cmd_x_as_user`. The first two only MEASURE; the last three
+        STORE, which is the worse half, because every later reader
+        inherits the number.
 
         MEASURED, and stated as the arithmetic rather than as one
         number, because the magnitude scales: a text stored through any
-        of the three keeps `lines * fontSize * 1.25` while the paint
+        of the three kept `lines * fontSize * 1.25` while the paint
         draws `lines * fontSize * lineHeight`, so a three-line label the
-        client set to `lineHeight: 2.0` is under-measured by 36px at
+        client set to `lineHeight: 2.0` was under-measured by 36px at
         fontSize 16 and 45px at 20. The review quotes 45; both are the
         same defect at two sizes, and quoting either alone is how the
         next reader concludes the other is a discrepancy.
 
-        NOTED AND NOT PINNED, and the reason is the same one that keeps
-        this test green. It is PRE-EXISTING and unchanged by the task
-        that found it, and the EXPORT is protected regardless —
-        `ink_extent` takes `max(stored, estimate-at-the-element's-own-
-        lineHeight)`, so no drawing is currently wrong because of it.
-        What is wrong is the stored geometry other lints read, and a red
-        asserting that would be asserting a miss nobody has demonstrated
-        on a real scene, which is exactly the trap the paragraph above
-        declines. If the line-height work later demonstrates a lint
-        going quiet on it, the five call sites are enumerated here and
-        this is the pin to grow.
+        THE STORING HALF IS FIXED (TASK-POLISH): all three now pass the
+        element's own `lineHeight`, and so does a fourth site the
+        enumeration had not reached — `validate_scene`'s text-in-text
+        repair, which merges a label into its container and re-measured
+        the merged content at the default. It stores through the same
+        `text_dims` on an element that carries its own value, so it is
+        the same defect on a load-repair path rather than an op path.
+        The arithmetic is pinned where it can be demonstrated, on what
+        the STORE holds after a relabel:
+        `TestStoredHeightMatchesThePaintedLineHeight` in test_backend.py
+        asserts 96px stored against the default's 60 at fontSize 16.
+
+        THE MEASURING HALF IS STILL OPEN and still not pinned, for the
+        reason that keeps this test green: `lint_layout`'s composed
+        check and `shape_clip` read at the default, the EXPORT is
+        protected regardless (`ink_extent` takes `max(stored,
+        estimate-at-the-element's-own-lineHeight)`), and a red there
+        would assert a miss nobody has demonstrated on a real scene —
+        exactly the trap the paragraph above declines. If the
+        line-height work later demonstrates a lint going quiet on it,
+        those two call sites are named here and this is the pin to grow.
         """
         boxed = el(id="t1", type="text", x=0, y=0, width=200, height=20,
                    text="yes\nno maybe", fontSize=16, autoResize=False,

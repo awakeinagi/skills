@@ -653,7 +653,8 @@ def validate_scene(doc, artifact_id):
                 cont["text"] = content
                 cont["originalText"] = content
                 cont["width"], cont["height"] = text_dims(
-                    content, cont.get("fontSize", 16))
+                    content, cont.get("fontSize", 16),
+                    cont.get("lineHeight") or 1.25)
             cont["boundElements"] = [
                 b for b in (cont.get("boundElements") or [])
                 if b.get("id") != el["id"]]
@@ -4943,8 +4944,9 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                 elif attr == "text" and el.get("type") == "text":
                     el["text"] = value
                     el["originalText"] = value
-                    el["width"], el["height"] = text_dims(value,
-                                                          el.get("fontSize", 16))
+                    el["width"], el["height"] = text_dims(
+                        value, el.get("fontSize", 16),
+                        el.get("lineHeight") or 1.25)
                 elif attr == "attributes":
                     # a domain entity's attribute rows. Accepted on `add`
                     # and nowhere else until v0.7, so the only way to
@@ -5851,8 +5853,16 @@ def replay_changes(elements: Sequence[dict[str, Any]],
     """
     els = [dict(e) for e in elements]
     ordered = [c for c in changes if c["op"] == "del"]
+    # `or 0` would read an index of 0 as "no index" — harmless only
+    # because the `is None` term already sorted those to the back. Ask
+    # once and say what the fallback is FOR: an indexless add keeps its
+    # relative position among the other indexless ones.
+    def _add_order(c: dict[str, Any]) -> tuple[bool, int]:
+        ix = _add_index(c)
+        return (ix is None, 0 if ix is None else ix)
+
     ordered += sorted([c for c in changes if c["op"] == "add"],
-                      key=lambda c: (_add_index(c) is None, _add_index(c) or 0))
+                      key=_add_order)
     ordered += [c for c in changes if c["op"] not in ("add", "del")]
     for ch in ordered:
         op = ch["op"]
@@ -5940,7 +5950,15 @@ def align_baseline_order(old_els: list[dict[str, Any]],
     """
     if not cached_els or not old_els:
         return old_els
-    by_id = {e["id"]: e for e in old_els}
+    # BOTH sides read the id tolerantly. They used to disagree — the
+    # baseline subscripted `e["id"]` while the cache used `.get`, so an
+    # id-less element raised `KeyError` out of a re-ordering pass on one
+    # side and returned `old_els` harmlessly on the other. Neither input
+    # is guaranteed well-formed (a hand-edited artifact file is the
+    # whole reason this function exists), and the tolerant answer is the
+    # right one for both: a `None` fails the set comparison below and
+    # the caller keeps the replay order.
+    by_id = {e.get("id"): e for e in old_els}
     order = [e.get("id") for e in cached_els]
     if len(by_id) != len(old_els) or len(set(order)) != len(order) \
             or set(order) != set(by_id):
@@ -7820,7 +7838,8 @@ def _set_label(els, index, existing, el, value):
         el["text"] = value or ""
         el["originalText"] = el["text"]
         el["width"], el["height"] = text_dims(el["text"],
-                                              el.get("fontSize", 16))
+                                              el.get("fontSize", 16),
+                                              el.get("lineHeight") or 1.25)
         return
     label_el = None
     for e in els:
@@ -7832,7 +7851,8 @@ def _set_label(els, index, existing, el, value):
             label_el["text"] = value
             label_el["originalText"] = value
             label_el["width"], label_el["height"] = text_dims(
-                value, label_el.get("fontSize", 16))
+                value, label_el.get("fontSize", 16),
+                label_el.get("lineHeight") or 1.25)
             fit_label_in(el, label_el)
             label_el["x"] = el["x"] + max(
                 (el.get("width", 0) - label_el["width"]) / 2, 4)
@@ -15663,7 +15683,25 @@ class Store:
             return record
 
     def revert_to(self, revn):
-        """Append-only 'undo': replay inverses of head..revn as a NEW commit."""
+        """Append-only 'undo': re-commit revn's state as a NEW commit.
+
+        FORWARD, not inverse, and the difference is not pedantry: this
+        said "replay inverses of head..revn" while the body computes
+        `state_at(revn)` and commits it. The persisted inverse lists are
+        written and read by NOTHING — not here, not elsewhere in
+        canvas.py, not by the frontend — so a reader who believed the
+        old sentence would go looking for a mechanism that does not run
+        (v0.9 Task 52 review, confirmed by curator batch 26). The
+        forward replay is also the better behaviour: reverting a
+        mis-stacked artifact returns the stacking its base actually had,
+        which an inverse walk would not.
+
+        Args:
+            revn: The revision whose state to restore.
+
+        Returns:
+            The save record for the new commit.
+        """
         with self.lock:
             head = self.head_revn()
             target = self.state_at(revn)
@@ -19445,7 +19483,8 @@ def cmd_x_as_user(args):
         lbl["text"] = lbl["originalText"] = args.text
         if lbl.get("autoResize", True):
             lbl["width"], lbl["height"] = text_dims(
-                args.text, lbl.get("fontSize", 16))
+                args.text, lbl.get("fontSize", 16),
+                lbl.get("lineHeight") or 1.25)
         if host is not None and host.get("type") in (
                 "rectangle", "diamond", "ellipse", "frame"):
             fit_label_in(host, lbl)

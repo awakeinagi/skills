@@ -8789,6 +8789,73 @@ class TestLintHygiene(Base):
         self.assertTrue(any("off the 4px grid" in n for n in notes2))
 
 
+class TestStoredHeightMatchesThePaintedLineHeight(Base):
+    """The op paths reserve height at the element's own `lineHeight`.
+
+    `text_dims` has taken a `line_height` parameter since the Task 24
+    follow-up, and three op paths that hold an element and WRITE its
+    height went on calling it at the 1.25 default: `route_ctx`'s label
+    sizing, `_set_label` (twice) and `cmd_x_as_user`. So a label the
+    client had set to double spacing was stored at
+    `lines * fontSize * 1.25` while the paint drew
+    `lines * fontSize * lineHeight` — under by the last line, downward,
+    off the bottom.
+
+    Curator batch 26 annotated this and deliberately did not pin it,
+    because the export is protected by `ink_extent`'s `max()` and a red
+    would have asserted a miss nobody had demonstrated. TASK-POLISH
+    fixed the call sites, which makes the ARITHMETIC demonstrable
+    without having to demonstrate a lint going quiet — so it is pinned
+    here as what the store holds, which is the thing later readers
+    inherit.
+    """
+
+    def test_a_relabel_reserves_the_height_the_client_will_paint(self):
+        """Three lines at double spacing: 96px stored, not 60.
+
+        Driven through a real `mod label` rather than by calling
+        `_set_label`, because the claim is about the op path a client
+        reaches. The label's `lineHeight` is set the way the client sets
+        it — on the element, committed — and the relabel then has to
+        read it back.
+
+        The numbers are the batch-26 measurement at fontSize 16: 3 lines
+        at 2.0 is 96px, at the 1.25 default 60px, and the 36px gap is
+        exactly the under-measure that was filed. Both are asserted, so
+        a `text_dims` that stopped varying with `line_height` fails here
+        rather than passing because the two agree.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "F", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "one", "x": 0,
+                "y": 0, "width": 400, "height": 300, "role": "node"}}]})
+        for e in self.store.scenes["flow"]:
+            if e["id"] == "n1-label":
+                e["lineHeight"] = 2.0
+        self.store.commit(author="user", base_revn=self.store.head_revn(),
+                          new_scenes={"flow": self.store.scenes["flow"]})
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "mod", "id": "n1",
+                     "attrs": {"label": "aaa\nbbb\nccc"}}]})
+        lbl = next(e for e in self.store.scenes["flow"]
+                   if e["id"] == "n1-label")
+        fs = lbl.get("fontSize", 16)
+        self.assertEqual(lbl["lineHeight"], 2.0,
+                         "the relabel overwrote the client's line height, "
+                         "so this measures the default twice")
+        self.assertEqual(
+            lbl["height"], canvas.text_dims("aaa\nbbb\nccc", fs, 2.0)[1],
+            "the relabel stored a height the paint contradicts")
+        self.assertEqual(
+            (lbl["height"], canvas.text_dims("aaa\nbbb\nccc", fs)[1]),
+            (96, 60),
+            "the 36px under-measure batch 26 filed at fontSize 16 has "
+            "moved; re-derive it before editing this number")
+
+
 class TestTextFit(Base):
     """Text that does not fit the box it is drawn in (v0.5).
 
@@ -14091,12 +14158,19 @@ class TestInteriorRunGateFloor(Base):
            the 32px magnitude, and the WARNING tier it keeps even when
            the server owns the path, because the endpoint is legally
            attached and the complaint is legibility.
-        4. The fanned attach point (r4-1). This is the one the floor
-           newly ADMITS to the walk: a perpendicular approach stopping
-           short of the border was gated off before and is walked now,
-           so if the floor were an open door rather than a floor, every
-           slightly-gapped attachment in the corpus would become a
-           crossing error. It must still score zero on both measures.
+        4. The fanned attach point (r4-1), and it guards a STANDING
+           SILENCE rather than the floor's height. This is the case the
+           floor newly ADMITS to the walk — a perpendicular approach
+           stopping short of the border was gated off before and is
+           walked now — so what it holds is that the r4-1 class stays
+           quiet across the whole gap band once it is being measured at
+           all. It does NOT discriminate a floor opened into a door,
+           which is the reading the first draft of this paragraph
+           implied: the Task 54 review replayed the corpus under that
+           mutation and got 0/50/20/10 findings, byte-identical, so no
+           corpus attachment changes verdict either way. Part 4 speaks
+           for the class it names and for nothing else; parts 1-3 are
+           where the floor's height is actually pinned.
         """
         # 1. a real detachment keeps its own finding, not the walk's
         lint = self._lint(self._crossing(30))
