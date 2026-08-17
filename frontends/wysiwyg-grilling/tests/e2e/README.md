@@ -17,8 +17,18 @@ with the pinned `@playwright/test`; regenerate with
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
   reconciliation, composed-part invariants, metrics, mermaid mapping.
-  416 tests at run-5 close; the `v0.9_mutation_harness` branch adds the
-  mutation harness (515 default + 7 gated render tests, 8 red by intent).
+  <!-- live:unittest_suite_cases -->1227<!-- /live:unittest_suite_cases -->
+  tests, mutation harness and render tier included — a **live value**
+  computed by `tests/livedoc.py` and held current by its pre-commit hook,
+  because this exact number needed a commit of its own (`cb533ab`) to move
+  it by ten and had drifted by nearly eight hundred by v0.9. It was 416 at
+  run-5 close; that one is history, so it stays a literal.
+  Red-by-intent counts are deliberately **not** live here. They belong to
+  the census, are stated once in `SESSION-HANDOVER.md`'s guarded
+  durable-count sentence, and are checked by
+  `test_the_handover_transcribes_the_durable_red_counts` — a guard whose
+  whole value is failing loudly when a red moves, which an auto-repair
+  would disarm.
 - **e2e-dom** — React chrome: rail, cards, modals, banners, overlays.
 - **e2e-flow** — round-trips that cross the browser AND the server.
 - **e2e-visual** — canvas-rendered pixels (`toHaveScreenshot`).

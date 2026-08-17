@@ -57,6 +57,23 @@ repos:
         files: ^skills/wysiwyg-grilling/scripts/canvas\.py$
         args: [skills/wysiwyg-grilling/scripts/canvas.py]
 
+  # -------------------------------------------------------------- live values
+  # The `<!-- live:NAME -->` values in tracked markdown, recomputed from
+  # their sources. Deliberately unscoped by `files:`: a value derives from
+  # code, not from the document holding it, so any pattern narrow enough to
+  # be worth writing would itself go stale — which is the defect this hook
+  # exists for. It costs ~0.5s and reads only what `git ls-files` lists, so
+  # the gitignored docs/ tree is out of reach by construction.
+  # When it fails: `python3 tests/livedoc.py refresh`.
+  - repo: local
+    hooks:
+      - id: livedoc
+        name: livedoc check (live values in tracked prose)
+        entry: python3 tests/livedoc.py check
+        language: system
+        pass_filenames: false
+        require_serial: true
+
   # ------------------------------------------------------------------- tests
   - repo: local
     hooks:

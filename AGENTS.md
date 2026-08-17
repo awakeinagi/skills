@@ -7,13 +7,27 @@ file; `CLAUDE.md` points here. Read it before writing code.
 
 | Path | What | Language |
 | --- | --- | --- |
-| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. ~5.4k lines. | Python 3.9+ |
+| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~18.2k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
-| `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. ~1.6k lines. | TypeScript / React 18 |
-| `tests/test_backend.py` | `unittest` suite against `canvas.py` (~120 tests, ~2s). | Python |
+| `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~4.0k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->628<!-- /live:test_backend_cases --> tests — the largest module in a `tests/` tree that also holds the mutation harness and the render tier. | Python |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
 released skill is self-contained.
+
+Three numbers in that table are **live values**, not literals: an
+`<!-- live:NAME -->` / `<!-- /live:NAME -->` comment pair wraps a value that
+`tests/livedoc.py` computes, and `python3 tests/livedoc.py check` runs as a
+pre-commit hook so they cannot go stale. Every one of them had — this table
+said "~5.4k lines" at 18k and "~120 tests" at 628. When a hook tells you a
+live value drifted, the repair is `python3 tests/livedoc.py refresh`, not an
+edit. Two things worth knowing before you add one: marker names are
+lowercase, which is what lets this paragraph spell the syntax with an
+uppercase `NAME` without creating a marker; and the suite's *runtime* is
+deliberately still a literal, because a value that moves on its own would
+make `refresh` rewrite the file forever. That module's docstring has the
+rest, including why the census counts in `SESSION-HANDOVER.md` are
+deliberately **not** live values.
 
 ## Hard constraints — do not violate
 
@@ -151,8 +165,12 @@ def diff_scenes(
 ## Commands
 
 ```bash
-# Tests (~2s)
+# Tests (~80s — the mutation harness and render tier are in here now)
 python3 -m unittest discover -s tests -q
+
+# Live values in tracked prose: report drift / write the current answers
+python3 tests/livedoc.py check
+python3 tests/livedoc.py refresh
 
 # Lint + docstrings + annotations
 uvx ruff check .
