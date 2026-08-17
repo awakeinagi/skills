@@ -15,17 +15,27 @@ that starts passing must fail the run.** If it merely skips, or reports
 a note nobody reads, a pin becomes a to-do item that never checks itself
 off — which is the exact thing you were trying to escape.
 
-Test it before you trust it, in ten lines:
+Test it before you trust it, in ten lines. Two of the confirmed runners
+below, since the marker is never the same twice:
 
 ```python
+# pytest -- strict is the whole point; bare xfail exits 0 on a pass
 @pytest.mark.xfail(strict=True)
 def test_flip_alarm_works():
     assert True          # passes on purpose
+
+# stdlib unittest -- no strictness knob; expectedFailure is already strict
+class Pins(unittest.TestCase):
+    @unittest.expectedFailure
+    def test_flip_alarm_works(self):
+        self.assertTrue(True)
 ```
 
-Run it. If the suite goes red, you have a flip alarm. If it goes green
-with a note, you do not, and the note will be invisible inside a
-thousand-line CI log.
+Run it. If the suite goes red, you have a flip alarm — pytest prints
+`[XPASS(strict)]`, unittest prints `FAILED (unexpected successes=1)`,
+both exit nonzero. If it goes green with a note (`1 xpassed`, exit 0),
+you do not, and the note will be invisible inside a thousand-line CI
+log.
 
 **If your runner has no native mechanism** (Go's `testing` and JUnit
 among them), build the smallest one that fails the run. Three parts:

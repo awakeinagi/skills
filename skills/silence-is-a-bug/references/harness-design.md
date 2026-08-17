@@ -92,11 +92,23 @@ artifact, and reads as a passing test.
 
 ```python
 def seed(op, artifact, **args):
-    out = OPERATORS[op](copy(artifact), **args)
+    out = OPERATORS[op](deepcopy(artifact), **args)   # deep, not shallow
     if digest(out) == digest(artifact):
         raise ValueError(f"{op} produced no change: nothing was seeded")
     return out
 ```
+
+**The copy must be deep, and getting that wrong fails in both
+directions at once.** Run with a shallow copy over a list of records, the
+operator mutates the originals through the shared references, so
+`digest(out) == digest(artifact)` compares the mutated artifact to
+itself: every legitimate seed raises "produced no change" while the
+known-good base is silently corrupted for every pin and neighbour built
+on it afterwards. Measured — a one-field seed on a two-record artifact
+raised the no-op error *and* left the base holding the defect
+(`../evals/EVALS.md`, E6). If your artifacts are large enough that deep
+copies hurt, build each one fresh from its builder instead; do not
+reach for the shallow copy.
 
 ## The harness's own guards
 
@@ -271,7 +283,8 @@ survives because some other test noticed, and that ninth test is
 decoration. Expect a check-level table that is spotlessly clean to sit
 on top of a substantial pile of vacuous pins.
 
-Three different questions, three different instruments:
+Different questions, different instruments — and no one of them answers
+another's:
 
 | Question | Instrument |
 | --- | --- |

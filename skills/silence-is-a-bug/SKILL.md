@@ -123,10 +123,13 @@ tests gives you a to-do list that never checks itself off.
 | Jest | `it.failing` | Yes |
 | Go, JUnit, others | no native equivalent | Build it: see `references/from-zero.md` |
 
-The pytest and unittest rows were run and confirmed; treat the rest as
-leads and settle yours with the ten-line probe in
-`references/from-zero.md` step 0. It takes a minute, and this is the one
-property everything else in this skill rests on.
+The pytest, unittest, Vitest and Jest rows were run and confirmed
+(`evals/EVALS.md`, E1); RSpec and Go are still leads. Settle yours with
+the ten-line probe in `references/from-zero.md` step 0. It takes a
+minute, and this is the one property everything else in this skill rests
+on. Non-strict markers are the trap the probe catches: pytest's bare
+`xfail` reports `1 xpassed` and exits **0**, so a run that looks like it
+has a flip alarm has none.
 
 Two absolute rules, both cheap to break and expensive to have broken:
 
@@ -198,11 +201,25 @@ be pinned precisely, so it will never be provably right.
 on the defect" ships with "and it stays quiet on the legitimate
 look-alike" — or the reverse, when the defect is an over-fire. The pin
 itself is usually expected-to-fail and therefore masked; the neighbour
-runs ungated in every commit, which is what stops a crashed or dead
-check from hiding inside that mask. Pair by the check's poles, not by a
-fixed rule: an over-fire pin gets a neighbour proving the check still
-fires legitimately; a wrong-answer pin gets a neighbour proving silence
-on the healthy case.
+runs ungated in every commit, which is what stops a check from hiding
+inside that mask. Pair by the check's poles, not by a fixed rule: an
+over-fire pin gets a neighbour proving the check still fires
+legitimately; a wrong-answer pin gets a neighbour proving silence on the
+healthy case.
+
+**Know which of the two holes your neighbour actually closes**, because
+the silence-shaped neighbour closes only one of them. A *crashed* check
+it always catches, provided your `Silence` is strict. A *dead* one it
+does not: a check that returns nothing satisfies a silence neighbour
+exactly as a healthy check does, and the pin beside it is masked, so
+blinding that check costs the suite nothing and the pair reports green.
+Measured on a two-check toy project: with the check blinded, the masked
+pin stayed masked, its silence neighbour passed, and the run exited 0
+with zero witnesses (`evals/EVALS.md`, E3). Only a *firing-shaped*
+ungated companion closes the dead-check hole — which is why the
+catalogue owes a standing guard requiring every silence to have a firing
+somewhere beside it (`references/harness-design.md`), and not merely a
+neighbour on each pin.
 
 Two failure modes worth pre-empting:
 
@@ -479,7 +496,10 @@ each step buys and the smallest thing that counts as done, is in
 4. Start the ledger with those two rows, and the gate test that fails on
    any finding that is neither proven nor unproven-with-a-reason.
 5. Add the registry gate, so the ledger cannot silently fall behind.
-6. Only then: discovery sweeps, then mortality.
+6. Run the first stub sweep: blind each check, and every test claiming to
+   guard it must fail. Expect bad news; this is where the vacuous pins
+   are.
+7. Only then: discovery sweeps, then mortality.
 
 Steps 1 and 3 are worth doing on their own; a project can live there for
 a year and still be much better off. Steps 4 onward only pay once your
@@ -570,7 +590,16 @@ here, the reference wins on detail and this file wins on framing.
 | `references/roles-and-flow.md` | You are routing defects between people or agents: who pins, who fixes, when fixes are taken up. Its last section is only for teams sharing one working tree with concurrent writers. |
 | `references/evidence-norms.md` | You are writing a report, review, or claim — or reading one. Short, and where most wrong conclusions get caught. |
 
+`evals/EVALS.md` is the other kind of file: exercises that put this
+skill's own claims through a throwaway toy project and record what the
+runner printed. Read it when you doubt a claim here, when you want the
+smallest concrete instance of one, or before editing this skill — several
+of the paragraphs above exist in their current form because an eval
+falsified the previous one.
+
 There are no bundled scripts, deliberately. The harness runs in the
 project's own language against the project's own checks, so anything
 shipped here would be a claim of portability it could not keep. The
-snippets in the references are illustrations of shape, not code to copy.
+snippets in the references are illustrations of shape, not code to copy —
+though the evals run the ones that are runnable as written, so those at
+least are illustrations that work.

@@ -66,7 +66,7 @@ A pin can assert **what** goes wrong or **how**:
 
 ```
 outcome  : opening the saved file fails somehow -- the user loses their work
-mechanism: a null dereference in migration_list, line 696
+mechanism: a null dereference in migration_list
 
 outcome  : a request with an expired token is not served
 mechanism: the response is 401 with body {"code": "token_expired"}
