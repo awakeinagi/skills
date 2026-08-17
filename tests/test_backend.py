@@ -6617,17 +6617,16 @@ class TestFocusRoundTrip(unittest.TestCase):
         self.assertLess(abs(drawn0[0] - 500.0), 0.5)
 
     def test_the_guard_does_not_fire_on_a_foot_a_focus_can_reach(self):
-        """The other direction — including at the boundary.
+        """The other direction — including at the clamp.
 
-        A ceiling that rejects everything would pass the test above and
-        be a total regression, so this pins what must still come back
-        NON-zero. The last row is the one that matters: a foot 5px from
-        the corner approached SQUARE needs |focus| past the ±0.9 the
-        wire format allows, so it is legitimately clamped and still
-        lands within 4px — the guard must accept a clamp it can honour
-        while rejecting one it cannot. That row sits at residual 3.89px
-        against a 4.0px ceiling, so tightening `FOCUS_AIM_TOL` without
-        thinking breaks here rather than silently degrading a drawing.
+        A rejection rule that rejects everything would pass the test
+        above and be a total regression, so this pins what must still
+        come back NON-zero. The last row is the one that matters: a foot
+        5px from the corner approached SQUARE needs |focus| past the
+        ±0.9 the wire format allows, so it is legitimately clamped and
+        still draws within 4px. Refusing a clamp you can honour is the
+        failure mode that cost 76 good answers when this was judged on
+        the aim's ANGLE instead of on where the aim LANDS.
         """
         hub = {"type": "rectangle", "x": 400.0, "y": 400.0,
                "width": 200.0, "height": 64.0}
@@ -6652,6 +6651,89 @@ class TestFocusRoundTrip(unittest.TestCase):
         mid = focus_probe.client_draws(hub, 0, 6, (500.0, 704.0),
                                        (500.0, 464.0))
         self.assertAlmostEqual(mid[0], 500.0, places=6)
+
+    def test_a_corner_foot_is_solved_on_the_side_it_is_approached_through(
+            self) -> None:
+        """A foot in a corner stands on two sides. Solve for both.
+
+        `_edge_side` has to pick ONE, and its bbox tests run in a fixed
+        order, so a foot 2.4px in from the corner of a 48×48 node —
+        sitting exactly ON the top edge — comes back `"left"`. Solving
+        for a left side that an arrow arriving from directly above never
+        enters through cannot produce a right answer, and the answer it
+        did produce was then thrown away for being bad: 76 good answers
+        lost across an 18,720-foot sweep, this one among them
+        (v0.9 TASK-FOCUS re-review, NEW-2).
+
+        The specimen is PERPENDICULAR, which is what makes it matter —
+        that is the geometry `route_arrow` actually emits, not a corner
+        case in the informal sense.
+        """
+        node = {"type": "rectangle", "x": 400.0, "y": 400.0,
+                "width": 48.0, "height": 48.0}
+        foot = (402.4, 400.0)
+        # the mechanism: one side named, two sides available
+        self.assertEqual(canvas._edge_side(node, *foot), "left")
+        self.assertEqual(canvas._edge_sides(node, *foot), ["left", "top"])
+        # the side the arrow cannot enter through scores INFINITE and so
+        # loses to focus 0; the side it does enter through scores 0
+        self.assertEqual(
+            canvas._solve_focus_on(node, "left", 402.4, 160.0, *foot,
+                                   gap=6)[1], float("inf"))
+        self.assertLess(
+            canvas._solve_focus_on(node, "top", 402.4, 160.0, *foot,
+                                   gap=6)[1], 0.5)
+        for adj, why in (((402.4, 160.0), "perpendicular"),
+                         ((492.4, 160.0), "leaning 90px"),
+                         ((312.4, 160.0), "leaning -90px")):
+            f = canvas.solve_focus(node, adj[0], adj[1], foot[0], foot[1], 6)
+            self.assertNotEqual(f, 0, "%s: a reachable corner foot" % why)
+            drawn = focus_probe.client_draws(node, f, 6, adj, foot)
+            self.assertLess(abs(drawn[0] - foot[0]), 4.0,
+                            "%s: focus %r draws %.3fpx out"
+                            % (why, f, abs(drawn[0] - foot[0])))
+        # and the number that says why this was worth fixing: the same
+        # foot, approached square, is drawn 19.145px away by focus 0
+        zero = focus_probe.client_draws(node, 0, 6, (402.4, 160.0), foot)
+        self.assertAlmostEqual(abs(zero[0] - foot[0]), 19.145, places=3)
+
+    def test_an_unreachable_side_is_refused_by_arithmetic_not_by_a_constant(
+            self) -> None:
+        """WHICH mechanism refuses an impossible foot — pinned on purpose.
+
+        `FOCUS_LAND_TOL` looks like the thing rejecting the `along` and
+        corner-lean classes and it is not. `_drawn_offset` scores a side
+        the aim cannot reach as INFINITE — parallel to it, aimed away
+        from it, or crossing its line past its end — and focus 0 is the
+        search's own baseline, so an unreachable geometry loses on the
+        arithmetic before any ceiling is consulted.
+
+        That distinction is worth a test because the constant's comment
+        was WRONG ONCE ALREADY: it claimed a provenance (the endpoint
+        lint's 14px) it never had, and a reader who acted on that claim
+        would have raised the ceiling. So the property is asserted at
+        the endpoint lint's own number — the rejections must survive it,
+        because they were never the ceiling's doing.
+        """
+        hub = {"type": "rectangle", "x": 400.0, "y": 400.0,
+               "width": 200.0, "height": 64.0}
+        cases = (((500.0, 464.0), (300.0, 464.0), "along, adjacent outside"),
+                 ((500.0, 464.0), (450.0, 464.0), "along, adjacent inside"),
+                 ((595.0, 464.0), (195.0, 524.0), "corner foot, 400px lean"))
+        for foot, adj, why in cases:
+            best = min(canvas._solve_focus_on(hub, side, adj[0], adj[1],
+                                              foot[0], foot[1], 6)[1]
+                       for side in canvas._edge_sides(hub, *foot))
+            self.assertEqual(best, float("inf"),
+                             "%s: should be unreachable on every side" % why)
+        # raised to the endpoint lint's tolerance — the number the false
+        # comment invited — and every one of them still comes back 0
+        with mock.patch.object(canvas, "FOCUS_LAND_TOL", 14.0):
+            for foot, adj, why in cases:
+                self.assertEqual(
+                    canvas.solve_focus(hub, adj[0], adj[1], foot[0],
+                                       foot[1], 6), 0,
+                    "%s: rejection must not depend on the constant" % why)
 
 
 class TestPairKindAndTheSentencesItProduces(unittest.TestCase):

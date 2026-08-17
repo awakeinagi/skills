@@ -3231,51 +3231,112 @@ def _focus_point(node: dict[str, Any], focus: float, ax: float,
     return c[0] if pos else c[3]
 
 
-FOCUS_AIM_TOL = 4.0
-# How far `solve_focus`'s answer may leave the client's aim off the line
-# the foot stands on, before the solve gives up and says 0. In px at the
-# foot's own range, and 4.0 because that is the tolerance the endpoint
-# checks already call acceptable — a solve that cannot beat the number
-# the rest of the repo grades endpoints by has not produced an answer.
+FOCUS_LAND_TOL = 50.0
+# An ABSURDITY BACKSTOP, and deliberately not a working filter. It caps
+# how far along its own side the client may land a foot from where it was
+# stored before `solve_focus` gives up and says 0.
 #
-# WHY A CEILING AND NOT JUST A MINIMUM. The search returns the best of
-# its candidates however bad the best is, and "best" is measured on the
-# aim, which stops predicting the drawing once the aim is far out: at a
-# residual near 10px the client is already selecting a different corner
-# and drawing the foot 60-90px away. Measured on the two review probes —
-# healthy solves residual 0.00-0.09, one legitimately clamped near-corner
-# solve 3.89, and every pathological case 7.14-10.19. Nothing observed
-# lands between 3.89 and 7.14, so the line is drawn in open water.
+# WHAT ACTUALLY REJECTS AN UNREACHABLE FOOT IS THE SEARCH, NOT THIS.
+# `_drawn_offset` scores a side the aim cannot reach as INFINITE — the
+# ray runs parallel to it, or aims away from it, or crosses its line past
+# its end — and focus 0 is the search's own baseline, so an unreachable
+# geometry loses to 0 on the arithmetic and never gets here. Measured:
+# every one of the review's five specimens (three `along`, two
+# corner-lean) scores infinity and returns 0 with this constant lifted
+# entirely. That is a stronger mechanism than a threshold and it is where
+# the correctness lives.
+#
+# 50.0 IS WHERE THE EVIDENCE PUT IT, and the previous value was measured
+# WRONG. Sweeping 18,720 feet over eight box shapes, four sides, three
+# standoffs and five leans, at every candidate ceiling:
+#
+#     ceiling   rejections   of which the answer drew WORSE than focus 0
+#       4.0        1111          0
+#       8.0         519          0
+#      14.0         148          0
+#      20.0          43          0
+#      50.0           0          0
+#
+# A ceiling of 4.0 threw away 1,111 answers that were all drawing BETTER
+# than the 0 it replaced them with, and caught nothing: mean drawn slip
+# 3.563px against 0.688px with no ceiling at all. The 20 answers that DO
+# draw worse than focus 0 have landings of 0.0-0.01px, so no threshold
+# anywhere can see them — they are model error, not confidence error, and
+# a ceiling was never the instrument for them.
+#
+# So this fires on nothing the straight-side model covers, by
+# construction, and exists for the shapes it does NOT cover: a rounded
+# corner's per-corner diagonal offset and a conic's curved outline are
+# not this model, and an answer landing half a node away on one of those
+# should still be refused rather than stored with confidence.
+#
+# NOT the endpoint lint's tolerance, and the earlier comment here saying
+# so was false and hazardous — it invited unification with
+# `endpoint_tol(el, 14)` = `max(14, 0.10 * short_side)`. That would now
+# be harmless (see the table: 14.0 rejects nothing that was drawing
+# correctly either), but the claim was never true and is not the reason
+# for this number.
 
 
-def _aim_residual(vx: float, vy: float, lx: float, ly: float) -> float:
-    """How far the client's aim misses the line the foot stands on, in px.
+def _drawn_offset(ax: float, ay: float, vx: float, vy: float, tx: float,
+                  ty: float, sx: float, sy: float, lo: float = -1e18,
+                  hi: float = 1e18) -> float:
+    """How far along the side the client's aim LANDS from the target, in px.
 
-    The client draws where the ray `adjacent -> focus point` first meets
-    the gap-expanded outline, so a focus point ANYWHERE on the ray
-    `adjacent -> foot + gap*normal` draws the foot exactly. What matters
-    is therefore the angle between the two rays, and the honest way to
-    report it is the lateral miss it produces at the foot's own range:
-    `|v x l| / |v|`.
+    The client shoots a ray from the adjacent point through the focus
+    point and takes its first meeting with the gap-expanded outline. For
+    a foot on a straight side that meeting is where the ray crosses the
+    side's own offset line, so solving `A + k*v = T + r*s` for `r` gives
+    the drawn displacement along the side directly:
+    `r = ((A - T) x v) / (s x v)`.
 
-    The raw cross product `|v x l|` is what this replaced and it is not
-    comparable between candidates — it scales with how far out the focus
-    point happens to sit, so a distant candidate is penalised for its
-    distance rather than for its aim, and no threshold on it has a unit.
+    THIS REPLACED AN ANGULAR PROXY AND THE DIFFERENCE IS NOT COSMETIC.
+    The proxy measured how far off-line the aim POINTED (`|v x l| / |v|`)
+    and the two diverge exactly where the ideal focus lies past the +-0.9
+    the wire format allows: the clamped aim points visibly off-angle
+    while still crossing the side within a pixel or two of the foot. On
+    an 18,720-foot sweep the proxy threw away 76 answers that were
+    already drawing correctly — 1.3-3.0px, redrawn at 29-37px once
+    zeroed — every one of them at |focus| in {0.899, 0.9}, and the worst
+    were PERPENDICULAR approaches, which is the geometry `route_arrow`
+    actually emits. Measuring where the ray lands has no such blind spot,
+    because landing is the thing being asked about.
 
     Args:
-        vx: x of the vector from the adjacent point to the focus point.
-        vy: y of that vector.
-        lx: x of the vector from the adjacent point to the target point.
-        ly: y of that vector.
+        ax: The adjacent point's x — where the client aims FROM.
+        ay: The adjacent point's y.
+        vx: x of the aim vector, adjacent -> focus point.
+        vy: y of the aim vector.
+        tx: The target point's x — `foot + gap * outward normal`.
+        ty: The target point's y.
+        sx: x of the side's unit tangent.
+        sy: y of the side's unit tangent.
+        lo: Low end of the side's own extent, as a signed displacement
+            from the target along the tangent.
+        hi: High end of the same extent.
 
     Returns:
-        The lateral miss in px, or infinity for a degenerate aim.
+        The absolute displacement along the side in px, or infinity when
+        the aim never lands on this side at all — parallel to it, aimed
+        away from it, or crossing its line PAST ITS END, which is the
+        case that matters for a foot in a corner: the ray leaves through
+        the neighbouring side and this side is simply the wrong
+        hypothesis. Without the extent test that wrong hypothesis scores
+        well and wins, and the client then draws somewhere else entirely
+        (measured: 20 feet in an 18,720-foot sweep, 8.40px where focus 0
+        draws 0.84px).
     """
-    m = (vx * vx + vy * vy) ** 0.5
-    if m < 1e-12:
+    den = sx * vy - sy * vx
+    if abs(den) < 1e-12:
         return float("inf")
-    return abs(vx * ly - vy * lx) / m
+    r = ((ax - tx) * vy - (ay - ty) * vx) / den
+    # the landing must be in FRONT of the adjacent point; a ray aimed
+    # away crosses the side's infinite line behind the archer
+    if (tx + r * sx - ax) * vx + (ty + r * sy - ay) * vy <= 0:
+        return float("inf")
+    if r < lo or r > hi:
+        return float("inf")
+    return abs(r)
 
 
 def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
@@ -3313,7 +3374,7 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
     clamped ±0.9 that drew the foot up to 90px away where 0 would have
     drawn it exactly (v0.9 TASK-FOCUS review, IMPORTANT-1 and -2). The
     search minimises the aim residual and will always return something;
-    `FOCUS_AIM_TOL` is what decides whether that something is an answer.
+    `FOCUS_LAND_TOL` is what decides whether that something is an answer.
 
     Args:
         node: The bound node element.
@@ -3333,7 +3394,7 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
     Returns:
         The focus, rounded to 3dp and clamped to ±0.9 as the wire format
         has always been. Returns 0 when the endpoint is on no side, and
-        when no focus expresses the geometry within `FOCUS_AIM_TOL` —
+        when no focus expresses the geometry within `FOCUS_LAND_TOL` —
         which covers the `along` class (a final leg running edge-on to
         the side it lands on: no ray from the adjacent point can enter
         through that side at any focus) and a corner foot approached at a
@@ -3342,26 +3403,116 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
         documented and survivable, where a confident ±0.9 is none of
         those.
     """
-    side = _edge_side(node, px, py)
-    if side is None:
+    # A FOOT IN A CORNER STANDS ON TWO SIDES and `_edge_side` may only
+    # name one. Its bbox tests run in a fixed order (left, right, top,
+    # bottom) and the first hit wins, so a foot 2.4px in from the corner
+    # of a 48x48 node, sitting exactly ON the top edge, comes back
+    # "left" — and solving for the left side an arrow arriving from
+    # above never enters through produces an answer that cannot be
+    # right. Every side within `eps` is therefore solved and the best
+    # LANDING wins, which is a comparison only `_drawn_offset` makes
+    # possible: the angular proxy this replaced had no common scale
+    # between two different side hypotheses.
+    #
+    # Away from a corner this is exactly one side and the behaviour is
+    # bit-for-bit what it was.
+    best, best_off = 0.0, float("inf")
+    for side in _edge_sides(node, px, py):
+        f, off = _solve_focus_on(node, side, ax, ay, px, py, gap)
+        if off < best_off:
+            best, best_off = f, off
+    # THE ACCEPTANCE CHECK — a backstop, and `FOCUS_LAND_TOL` says why it
+    # is not the thing doing the work. An unreachable side already scores
+    # an infinite landing above and so loses to focus 0's baseline; this
+    # catches only a finite-but-absurd landing on a shape the
+    # straight-side model does not describe.
+    if best_off > FOCUS_LAND_TOL:
         return 0
+    return best
+
+
+def _edge_sides(el: dict[str, Any], px: float, py: float,
+                eps: float = 2.5) -> list[str]:
+    """Every side this point could be standing on, not just the first.
+
+    `_edge_side` answers "which side" and has to pick one, because its
+    callers key ledgers off the answer. A foot in a corner is genuinely
+    on two, and for choosing a focus that difference decides whether the
+    solve is even asked the right question.
+
+    Args:
+        el: The node element.
+        px: Point x, in scene coordinates.
+        py: Point y.
+        eps: How far off a side still counts as standing on it.
+
+    Returns:
+        The sides, `_edge_side`'s own answer first so a single-side foot
+        behaves exactly as it always did. Empty when the point is on no
+        side at all.
+    """
+    named = _edge_side(el, px, py, eps)
+    if named is None:
+        return []
+    w, h = el.get("width", 0), el.get("height", 0)
+    out = [named]
+    for side, dist in (("left", abs(px - el["x"])),
+                       ("right", abs(px - (el["x"] + w))),
+                       ("top", abs(py - el["y"])),
+                       ("bottom", abs(py - (el["y"] + h)))):
+        if dist <= eps and side not in out:
+            out.append(side)
+    return out
+
+
+def _solve_focus_on(node: dict[str, Any], side: str, ax: float, ay: float,
+                    px: float, py: float, gap: float) -> tuple[float, float]:
+    """Solve the focus for ONE named side, and say how well it lands.
+
+    The body of `solve_focus`, per side, so that a corner foot can have
+    each of its sides tried and scored on one scale.
+
+    Args:
+        node: The bound node element.
+        side: Which side to treat the foot as standing on.
+        ax: The adjacent path point's x.
+        ay: The adjacent path point's y.
+        px: The stored endpoint's x.
+        py: The stored endpoint's y.
+        gap: The binding gap the client will honour, in px.
+
+    Returns:
+        `(focus, landing)` — the best focus for this side and how far
+        along the side the client would land it from the stored foot.
+    """
     w, h = node.get("width", 0), node.get("height", 0)
     cx, cy = node["x"] + w / 2.0, node["y"] + h / 2.0
     nx, ny = {"left": (-1.0, 0.0), "right": (1.0, 0.0),
               "top": (0.0, -1.0), "bottom": (0.0, 1.0)}[side]
     lx, ly = (px + nx * gap) - ax, (py + ny * gap) - ay
     if abs(lx) < 1e-12 and abs(ly) < 1e-12:
-        return 0
+        return 0.0, float("inf")
     if node.get("type") == "diamond":
         rays = [(-w / 2.0, 0.0), (0.0, -h / 2.0),
                 (w / 2.0, 0.0), (0.0, h / 2.0)]
     else:
         rays = [(-w / 2.0, -h / 2.0), (w / 2.0, -h / 2.0),
                 (w / 2.0, h / 2.0), (-w / 2.0, h / 2.0)]
+    # the side's unit tangent — the direction a slip actually moves in
+    sx, sy = -ny, nx
+    tgx, tgy = px + nx * gap, py + ny * gap
+    # How far along this side the client can land AT ALL: the outline is
+    # the box grown by `gap`, so the side runs from one gap-expanded
+    # corner to the other. A crossing past either end means the ray left
+    # through the neighbouring side and this side was the wrong guess.
+    half = (w if sx else h) / 2.0 + gap
+    mid = (cx if sx else cy) - (tgx if sx else tgy)
+    lo, hi = mid - half, mid + half
     # focus 0 aims at the centre, and that is the answer to beat: it is
     # exact whenever the target line passes through the centre, which is
     # every perpendicular approach through a side midpoint.
-    best, best_off = 0.0, _aim_residual(cx - ax, cy - ay, lx, ly)
+    best, best_off = 0.0, _drawn_offset(ax, ay, cx - ax, cy - ay,
+                                        tgx, tgy, sx, sy, lo, hi)
     for rx, ry in rays:
         den = rx * ly - ry * lx
         if abs(den) < 1e-12:
@@ -3389,19 +3540,11 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
             # aiming away from the foot leaves through the far side
             if (fx - ax) * lx + (fy - ay) * ly <= 0:
                 continue
-            off = _aim_residual(fx - ax, fy - ay, lx, ly)
+            off = _drawn_offset(ax, ay, fx - ax, fy - ay, tgx, tgy, sx, sy,
+                                lo, hi)
             if off < best_off:
                 best, best_off = f, off
-    # THE RESIDUAL ACCEPTANCE CHECK. Everything above is a minimiser, and
-    # a minimiser hands back its winner however far out that winner is;
-    # without this line the `along` class and a steeply-leaned corner
-    # foot both come back as a confident ±0.9 that draws the endpoint
-    # 60-90px from where it is stored. A wrong answer stated with
-    # confidence is worse than the conservative one, because focus 0 is
-    # the value every reader of this format already understands.
-    if best_off > FOCUS_AIM_TOL:
-        return 0
-    return best
+    return best, best_off
 
 
 def _edge_side(el, px, py, eps=2.5):
