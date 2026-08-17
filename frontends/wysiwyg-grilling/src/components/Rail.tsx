@@ -191,11 +191,28 @@ export function Rail({
               return (
                 <>
                   {live.map((m: any, i: number) => {
-                    const hasTrip = tripwires.some((t: any) => t.mapping?.startsWith(`${m.concept}:`));
+                    // WHOLE key, not the concept prefix (r5b-10). A
+                    // tripwire's `mapping` is `_mapping_key` — concept,
+                    // colon, elements joined by `+` — so matching on
+                    // `${concept}:` flagged every mapping the concept
+                    // had the moment any one of them diverged: fifteen
+                    // identical warning rows about fourteen untouched
+                    // pairs, burying the concept list under a claim that
+                    // was false of all but one of them. `elements` is
+                    // immutable after `add_mapping` (only `note` and
+                    // `kinds` can be annotated), so the key is stable to
+                    // match on.
+                    const key = `${m.concept}:${(m.elements || []).join("+")}`;
+                    const hasTrip = tripwires.some((t: any) => t.mapping === key);
                     return (
                       <div key={i} className="map-status">
                         {hasTrip ? (
-                          <span>⚠ mapped — <span className="div">divergence flagged below</span></span>
+                          // says WHICH pair, like its quiet neighbours:
+                          // a warning that names nothing sends the
+                          // reader to the tripwire panel to match ids by
+                          // hand, and reads the same as every other
+                          // warning on the way
+                          <span>⚠ mapped — {mappingWords(m)} — <span className="div">divergence flagged below</span></span>
                         ) : (
                           <span><span className="ok">✓</span> mapped — {mappingWords(m)}</span>
                         )}
