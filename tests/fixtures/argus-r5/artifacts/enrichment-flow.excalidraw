@@ -11,7 +11,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "7b91c13511"
+    "routed": "14d6e20e23"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -23,7 +23,7 @@
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 240,
+   "height": 208,
    "id": "f-market-technical",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -37,7 +37,11 @@
     ],
     [
      0,
-     240
+     208
+    ],
+    [
+     -53,
+     208
     ]
    ],
    "roughness": 1,
@@ -46,7 +50,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "market-feed",
-    "focus": 0.0,
+    "focus": 0.337,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -56,9 +60,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 0,
-   "x": 160,
-   "y": 32
+   "width": 53,
+   "x": 213,
+   "y": 64
   },
   {
    "angle": 0,
@@ -67,7 +71,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "214edee6e1"
+    "routed": "06062c8317"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -79,7 +83,7 @@
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 240,
+   "height": 208,
    "id": "f-market-ratios",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -93,7 +97,11 @@
     ],
     [
      0,
-     240
+     208
+    ],
+    [
+     53,
+     208
     ]
    ],
    "roughness": 1,
@@ -102,7 +110,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "market-feed",
-    "focus": 0.0,
+    "focus": -0.337,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -112,9 +120,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 0,
-   "x": 320,
-   "y": 32
+   "width": 53,
+   "x": 267,
+   "y": 64
   },
   {
    "angle": 0,
@@ -134,7 +142,7 @@
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "sentiment-scorer",
-    "focus": -0.075,
+    "focus": 0.006,
     "gap": 6
    },
    "fillStyle": "solid",
@@ -163,7 +171,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "news-stream",
-    "focus": 0.062,
+    "focus": 0.017,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -189,7 +197,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "3f04bba94c"
+    "routed": "befa8ba7af"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -214,11 +222,11 @@
      0
     ],
     [
-     -60,
+     -24,
      0
     ],
     [
-     -60,
+     -24,
      240
     ],
     [
@@ -227,9 +235,7 @@
     ]
    ],
    "roughness": 1,
-   "roundness": {
-    "type": 2
-   },
+   "roundness": null,
    "seed": 509781363,
    "startArrowhead": null,
    "startBinding": {
@@ -266,7 +272,7 @@
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "insider-detector",
-    "focus": -0.06,
+    "focus": 0.005,
     "gap": 6
    },
    "fillStyle": "solid",
@@ -295,7 +301,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "sec-edgar",
-    "focus": 0.062,
+    "focus": 0.017,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -316,19 +322,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "b37a43462f"
+    "routed": "d2d39714b3"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "aggregator",
-    "focus": 0.333,
+    "focus": 0.344,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 219,
+   "height": 197,
    "id": "f-technical-agg",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -342,11 +348,11 @@
     ],
     [
      0,
-     219
+     197
     ],
     [
      400,
-     219
+     197
     ]
    ],
    "roughness": 1,
@@ -378,19 +384,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "dac997ce26"
+    "routed": "dd29d080a1"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "aggregator",
-    "focus": -0.333,
+    "focus": -0.344,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 229,
+   "height": 219,
    "id": "f-ratios-agg",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -404,7 +410,11 @@
     ],
     [
      0,
-     229
+     219
+    ],
+    [
+     80,
+     219
     ]
    ],
    "roughness": 1,
@@ -423,9 +433,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 0,
-   "x": 480,
-   "y": 272
+   "width": 80,
+   "x": 400,
+   "y": 304
   },
   {
    "angle": 0,
@@ -434,19 +444,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "c89130d398"
+    "routed": "3c458db0b4"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "aggregator",
-    "focus": -0.333,
+    "focus": -0.344,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 229,
+   "height": 197,
    "id": "f-sentiment-agg",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -460,7 +470,11 @@
     ],
     [
      0,
-     229
+     197
+    ],
+    [
+     -80,
+     197
     ]
    ],
    "roughness": 1,
@@ -479,9 +493,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 0,
-   "x": 640,
-   "y": 272
+   "width": 80,
+   "x": 720,
+   "y": 304
   },
   {
    "angle": 0,
@@ -496,7 +510,7 @@
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "aggregator",
-    "focus": 0.333,
+    "focus": 0.344,
     "gap": 6
    },
    "fillStyle": "solid",
@@ -1461,8 +1475,8 @@
    "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 75,
-   "x": 822,
-   "y": 142
+   "x": 863,
+   "y": 146
   },
   {
    "angle": 0,

@@ -1,0 +1,1402 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "startBinding",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "f-edgar-insider",
+     "kind": "arrow",
+     "label": "Form 4s",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-edgar-insider"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "f-edgar-sentiment",
+     "kind": "arrow",
+     "label": "filing tone",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-edgar-sentiment"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "f-insider-agg",
+     "kind": "arrow",
+     "label": "f-insider-agg",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-insider-agg"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "f-market-ratios",
+     "kind": "arrow",
+     "label": "f-market-ratios",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-market-ratios"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "f-market-technical",
+     "kind": "arrow",
+     "label": "f-market-technical",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-market-technical"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "startBinding",
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "f-news-sentiment",
+     "kind": "arrow",
+     "label": "headlines",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-news-sentiment"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "f-ratios-agg",
+     "kind": "arrow",
+     "label": "f-ratios-agg",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-ratios-agg"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "f-sentiment-agg",
+     "kind": "arrow",
+     "label": "f-sentiment-agg",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-sentiment-agg"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "height",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "f-technical-agg",
+     "kind": "arrow",
+     "label": "f-technical-agg",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "f-technical-agg"
+      }
+     },
+     "verb": "rerouted"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 160,
+       "to": 213
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 32,
+       "to": 64
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 0,
+       "to": 53
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 240,
+       "to": 208
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         208
+        ],
+        [
+         -53,
+         208
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "market-feed",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "market-feed",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7b91c13511"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "14d6e20e23"
+       }
+      }
+     ],
+     "id": "f-market-technical",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 320,
+       "to": 267
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 32,
+       "to": 64
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 0,
+       "to": 53
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 240,
+       "to": 208
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         208
+        ],
+        [
+         53,
+         208
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "market-feed",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "market-feed",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "214edee6e1"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "06062c8317"
+       }
+      }
+     ],
+     "id": "f-market-ratios",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.062,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.017,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "sentiment-scorer",
+        "focus": -0.075,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sentiment-scorer",
+        "focus": 0.006,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "f-news-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -60,
+         0
+        ],
+        [
+         -60,
+         240
+        ],
+        [
+         -120,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -24,
+         0
+        ],
+        [
+         -24,
+         240
+        ],
+        [
+         -120,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3f04bba94c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "befa8ba7af"
+       }
+      }
+     ],
+     "id": "f-edgar-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.062,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.017,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "insider-detector",
+        "focus": -0.06,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "insider-detector",
+        "focus": 0.005,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "f-edgar-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 219,
+       "to": 197
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         219
+        ],
+        [
+         400,
+         219
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         197
+        ],
+        [
+         400,
+         197
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "aggregator",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": 0.344,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "b37a43462f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d2d39714b3"
+       }
+      }
+     ],
+     "id": "f-technical-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 480,
+       "to": 400
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 304
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 0,
+       "to": 80
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 229,
+       "to": 219
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         229
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         219
+        ],
+        [
+         80,
+         219
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "aggregator",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": -0.344,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "dac997ce26"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "dd29d080a1"
+       }
+      }
+     ],
+     "id": "f-ratios-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 640,
+       "to": 720
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 304
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 0,
+       "to": 80
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 229,
+       "to": 197
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         229
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         197
+        ],
+        [
+         -80,
+         197
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "aggregator",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": -0.344,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "c89130d398"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3c458db0b4"
+       }
+      }
+     ],
+     "id": "f-sentiment-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "aggregator",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": 0.344,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "f-insider-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 822,
+       "to": 863
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 142,
+       "to": 146
+      }
+     ],
+     "id": "f-edgar-sentiment-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "arrow": "f-edgar-insider",
+     "element": "f-edgar-insider",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-edgar-sentiment",
+     "element": "f-edgar-sentiment",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-insider-agg",
+     "element": "f-insider-agg",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-market-ratios",
+     "element": "f-market-ratios",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-market-technical",
+     "element": "f-market-technical",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-news-sentiment",
+     "element": "f-news-sentiment",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-ratios-agg",
+     "element": "f-ratios-agg",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-sentiment-agg",
+     "element": "f-sentiment-agg",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "f-technical-agg",
+     "element": "f-technical-agg",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 863,
+       "to": 822
+      },
+      {
+       "attr": "y",
+       "from": 146,
+       "to": 142
+      }
+     ],
+     "id": "f-edgar-sentiment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "aggregator",
+        "focus": 0.344,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": 0.333,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "f-insider-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 720,
+       "to": 640
+      },
+      {
+       "attr": "y",
+       "from": 304,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 80,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "from": 197,
+       "to": 229
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         197
+        ],
+        [
+         -80,
+         197
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         229
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "aggregator",
+        "focus": -0.344,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3c458db0b4"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "c89130d398"
+       }
+      }
+     ],
+     "id": "f-sentiment-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 400,
+       "to": 480
+      },
+      {
+       "attr": "y",
+       "from": 304,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 80,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "from": 219,
+       "to": 229
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         219
+        ],
+        [
+         80,
+         219
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         229
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "aggregator",
+        "focus": -0.344,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "dd29d080a1"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "dac997ce26"
+       }
+      }
+     ],
+     "id": "f-ratios-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 197,
+       "to": 219
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         197
+        ],
+        [
+         400,
+         197
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         219
+        ],
+        [
+         400,
+         219
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "aggregator",
+        "focus": 0.344,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "aggregator",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d2d39714b3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "b37a43462f"
+       }
+      }
+     ],
+     "id": "f-technical-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.017,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.062,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "insider-detector",
+        "focus": 0.005,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "insider-detector",
+        "focus": -0.06,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "f-edgar-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -24,
+         0
+        ],
+        [
+         -24,
+         240
+        ],
+        [
+         -120,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -60,
+         0
+        ],
+        [
+         -60,
+         240
+        ],
+        [
+         -120,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "befa8ba7af"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3f04bba94c"
+       }
+      }
+     ],
+     "id": "f-edgar-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.017,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.062,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "sentiment-scorer",
+        "focus": 0.006,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sentiment-scorer",
+        "focus": -0.075,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "f-news-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 267,
+       "to": 320
+      },
+      {
+       "attr": "y",
+       "from": 64,
+       "to": 32
+      },
+      {
+       "attr": "width",
+       "from": 53,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "from": 208,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         208
+        ],
+        [
+         53,
+         208
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "market-feed",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "market-feed",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "06062c8317"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "214edee6e1"
+       }
+      }
+     ],
+     "id": "f-market-ratios",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 213,
+       "to": 160
+      },
+      {
+       "attr": "y",
+       "from": 64,
+       "to": 32
+      },
+      {
+       "attr": "width",
+       "from": 53,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "from": 208,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         208
+        ],
+        [
+         -53,
+         208
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "market-feed",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "market-feed",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "14d6e20e23"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "7b91c13511"
+       }
+      }
+     ],
+     "id": "f-market-technical",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Enrichment — how a signal is formed"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 23,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1934366
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 24,
+ "round": 6,
+ "saved_at": "2026-08-17T21:27:10Z",
+ "selection_at_save": [],
+ "short_id": "bd13d62",
+ "summary": {
+  "headline": "rerouted f-edgar-insider (+8 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "rerouted": 9
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "re-routed 9 legacy arrow(s): f-edgar-insider: path unchanged; start/end re-aimed; f-edgar-sentiment: path moves up to 36px; f-insider-agg: path unchanged; end re-aimed; f-market-ratios: 2-point path becomes 3-point; start re-aimed; f-market-technical: 2-point path becomes 3-point; start re-aimed; f-news-sentiment: path unchanged; start/end re-aimed; f-ratios-agg: 2-point path becomes 3-point; end re-aimed; f-sentiment-agg: 2-point path becomes 3-point; end re-aimed; f-technical-agg: path moves up to 22px; end re-aimed — revert this save to put the old geometry back"
+}

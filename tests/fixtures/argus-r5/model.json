@@ -2,7 +2,7 @@
  "branches": [
   {
    "archived": false,
-   "head": 23,
+   "head": 24,
    "name": "main",
    "scope": {
     "budgets": {
@@ -1482,7 +1482,7 @@
    "status": "open"
   }
  ],
- "revn": 23,
+ "revn": 24,
  "round": 6,
  "tripwires": [],
  "waives": {
