@@ -3687,7 +3687,7 @@ def _solve_focus_on(node: dict[str, Any], side: str, ax: float, ay: float,
             return 0.0, float("inf")
         ux, uy = ux / m, uy / m
         span = shape_clip(node, cx, cy, ux, uy, inset=-gap)
-        if span is None:
+        if span is None or span[1] <= 0:
             return 0.0, float("inf")
         nx, ny = ux, uy
         tgx, tgy = cx + ux * span[1], cy + uy * span[1]
