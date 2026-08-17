@@ -9752,19 +9752,24 @@ class TestTheAnnotationBudgetCountsWhatTheClientDraws(unittest.TestCase):
         return [ln for ln in lint["errors"] + lint["warnings"] + lint["notes"]
                 if "annotation callouts" in ln]
 
-    @unittest.expectedFailure
     def test_red_three_client_stickies_pass_the_two_note_budget(self) -> None:
         """Three sticky notes on one artifact, and the budget is silent.
+
+        FLIPPED by TASK-POLISH: the count reads the ROLE and lets the
+        shape follow — the same repair the orphan-note family keeps
+        asking for, one check over. The ruling that came with it decides
+        what a callout IS: the HOST is the callout, because "2 callouts"
+        means two sticky objects, so a bound label is the sticky's
+        furniture and never a second one. That is the `containerId`
+        clause, and `test_a_stickys_own_label_is_not_a_second_callout`
+        below is the half that holds it.
 
         WHAT THE PICTURE WRONGLY SAYS: nothing is over budget. The
         artifact carries three callouts where the convention allows two
         (references/layout.md), and the agent reading the lint is told
         the drawing is within its annotation budget.
 
-        WHAT THE CHECKS REPORTED: nothing at all on this scene. Flips
-        when the count reads the ROLE and lets the shape follow — which
-        is the same repair the orphan-note family keeps asking for, one
-        check over.
+        WHAT THE CHECKS REPORTED: nothing at all on this scene.
         """
         els = [e for i in range(3) for e in self._sticky(i)]
         notes = self._budget_notes(els)
@@ -9785,6 +9790,53 @@ class TestTheAnnotationBudgetCountsWhatTheClientDraws(unittest.TestCase):
         rather than about the budget being unset or the threshold wrong.
         """
         els = [e for i in range(3) for e in self._free_text(i)]
+        notes = self._budget_notes(els)
+        self.assertEqual(len(notes), 1, "the budget went silent entirely")
+        self.assertIn("3 annotation callouts", notes[0])
+
+    def test_a_stickys_own_label_is_not_a_second_callout(self) -> None:
+        """The RULING's other half: two stickies are two, not four.
+
+        A count widened from `type == "text"` to "roled annotation" has
+        an obvious way to go wrong in the other direction, and the
+        client's own shape is the case that triggers it: every sticky is
+        TWO elements. Here both bound labels carry the annotation role
+        themselves — the worst case, since a role-only count would then
+        see four callouts on a drawing holding two notes and fire a note
+        about a budget nobody exceeded.
+
+        TWO STICKIES AND NOT THREE, deliberately: at three the check
+        fires either way and the number in the message would be the only
+        difference. At two, the correct count is silent and the
+        double-count is one over budget, so the two readings differ in
+        whether the check speaks at all.
+        """
+        els = []
+        for i in range(2):
+            host, label = self._sticky(i)
+            label["customData"] = {"role": "annotation"}
+            els += [host, label]
+        notes = self._budget_notes(els)
+        self.assertEqual(
+            notes, [],
+            "two stickies counted as more than two callouts — the host is "
+            "the callout and its bound label is furniture, so a scene "
+            "inside the budget was reported over it: %r" % (notes,))
+
+    def test_a_third_sticky_still_speaks_with_labels_roled_annotation(
+            self) -> None:
+        """And the budget did not go silent buying that.
+
+        The pole the test above needs to be worth anything: the same
+        shape one sticky further on, where the check must speak and must
+        say THREE. Without this, excluding contained elements is
+        satisfied by a count that has stopped counting.
+        """
+        els = []
+        for i in range(3):
+            host, label = self._sticky(i)
+            label["customData"] = {"role": "annotation"}
+            els += [host, label]
         notes = self._budget_notes(els)
         self.assertEqual(len(notes), 1, "the budget went silent entirely")
         self.assertIn("3 annotation callouts", notes[0])
@@ -17397,8 +17449,7 @@ HAND_AUTHORED_RED_CLASSES = {
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
-    "TestStoredBindingsDescribeTheFinalInk": 1,
-    "TestTheAnnotationBudgetCountsWhatTheClientDraws": 1}
+    "TestStoredBindingsDescribeTheFinalInk": 1}
 # TWO MORE JOINED on 2026-08-17 (curator batch 27), and the split holds:
 # `TestStoredBindingsDescribeTheFinalInk` compares a STORED value against
 # the geometry beside it, which is not a reading of a picture at all, and

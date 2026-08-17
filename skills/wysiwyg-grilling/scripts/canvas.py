@@ -11039,8 +11039,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                        CLEARANCE_FLOOR, b["id"], key))
     # annotations were excluded from the v0 overlap loop entirely — the
     # demo shipped a note lying across a node for five rounds
-    annos = [e for e in els if e.get("type") == "text"
-             and role_of(e) == "annotation"]
+    #
+    # COUNTED BY ROLE, NOT BY TYPE, and the difference was the whole
+    # check: this filtered `type == "text"` while the client's sticky —
+    # `addStickyNote` in App.tsx, the only annotation a USER can make —
+    # is a `rectangle` roled `annotation` carrying a bound label. The two
+    # shapes never intersected, so no sticky anybody has ever drawn was
+    # counted against the budget this message names. The fixture corpus
+    # agreed and hid it: all 21 annotation-roled elements in it are
+    # `text`, because the fixtures are agent-seeded and the blind spot is
+    # user-shaped.
+    #
+    # THE HOST IS THE CALLOUT. "2 callouts" means two sticky OBJECTS, so
+    # a bound label is the sticky's furniture and must not be a second
+    # one — hence `containerId`, which excludes anything drawn inside a
+    # host whatever role it carries. A free text roled `annotation` has
+    # no container and is still one callout, which is what keeps this a
+    # widening rather than a swap.
+    annos = [e for e in els if role_of(e) == "annotation"
+             and not e.get("containerId")]
     if len(annos) > 2:
         notes.append(
             "%d annotation callouts (budget: 2 per artifact) — fold the "

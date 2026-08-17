@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**11 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-derived 2026-08-17 during TASK-POLISH, which is
 draining what curator batch 27 filed that morning — the activation-bar
 orphan flipped first, taking `test_mutants.py` 13 -> 12 and emptying
@@ -387,7 +387,10 @@ days — that file drains to zero, gains one, and drains again, which is
 why nobody may carry this figure forward; then owner-aware significance,
 taking `test_mutants.py` 12 -> 11 and `TestBatchPathIntegrity` 2 -> 1,
 which is the SECOND time in two days that one class has gone 2 -> 1 on a
-roundness ruling and the two rulings are different ones. Batch 27's own
+roundness ruling and the two rulings are different ones; then the
+annotation budget, taking `test_mutants.py` 11 -> 10 and emptying
+`TestTheAnnotationBudgetCountsWhatTheClientDraws`, the second class to
+leave `HAND_AUTHORED_RED_CLASSES` in this one task. Batch 27's own
 re-derivation, still true of everything it describes, follows: taken at
 that batch, folding onto
 v0.9 WP8 task 30 of the same afternoon. THREE CHANGES MOVED THIS NUMBER
