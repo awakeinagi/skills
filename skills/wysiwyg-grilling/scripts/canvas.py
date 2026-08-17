@@ -11570,6 +11570,34 @@ class Store:
                     % p["id"], "Its question/answer text is preserved in "
                     "the registry entry.", True).to_dict())
                 self.log("repair: PIN-001 orphaned pin %s pruned" % p["id"])
+        # A quarantined queue file, re-found. PND-001 is filed by
+        # `ServerApp.load_pending`, which only a running server calls, and
+        # the file is renamed `.bad` as it is quarantined — so the notice
+        # lived in exactly one process's memory, and an agent who never
+        # ran `status` before that server stopped lost it permanently. The
+        # NEXT load found nothing to report, because there was nothing
+        # left to fail on: the evidence had been preserved and the finding
+        # about it thrown away.
+        #
+        # Reading the set-aside file here is what makes the finding
+        # durable rather than one-shot, and it puts PND-001 on `lint` —
+        # the only server-free surface — which `load_pending` can never
+        # do, since `cmd_lint` builds a bare Store and never a ServerApp.
+        # Filed as unrepaired, because nothing was repaired: the revision
+        # is still lost and the file is still unreadable.
+        try:
+            bad = sorted(self.p.pending_dir.glob("*.json.bad"))
+        except OSError:
+            bad = []
+        for f in bad:
+            self.issues.append(Issue(
+                "PND-001",
+                "unreadable queued revision %s — skipped"
+                % f.name[:-len(".bad")],
+                "That revision is lost; ask the agent to redraw it. The "
+                "file is kept as %s. Delete it once you have read it — "
+                "this notice stands until you do." % f.name).to_dict())
+            self.log("quarantine: PND-001 %s (set aside earlier)" % f.name)
 
     # -- basic accessors --------------------------------------------------
     def head_branch(self):
@@ -14260,7 +14288,28 @@ class Store:
                 "saves": saves,
                 "checkout_revn": self.checkout_revn,
                 "rollback": self.rollback,
-                "issues": self.issues[-20:],
+                # A QUARANTINE IS NEVER EVICTED. The cap exists to stop a
+                # busy load flooding the resume surface with repairs, and
+                # `[-20:]` served the twenty MOST RECENT — but a
+                # quarantine is filed at the artifact that failed to
+                # load, before any later artifact's refits, so it was
+                # first out. Measured: one dropped artifact and twenty
+                # label repairs served twenty ART-011s and zero
+                # quarantines, while `lint`, which reads `issues`
+                # directly, still named the dropped file. The cap
+                # defeated the fix on exactly the projects most likely to
+                # carry load damage — the busy, long-lived ones.
+                #
+                # The two classes are not interchangeable and that is the
+                # whole argument: a repair is informational, and the
+                # twentieth-newest one going unseen costs nothing. A
+                # quarantine is a FILE THAT LEFT THE PROJECT. So repairs
+                # keep the cap and quarantines are exempt from it, rather
+                # than the limit simply being raised — a raised limit is
+                # the same defect at a larger project size.
+                "issues": ([i for i in self.issues if not i.get("repaired")]
+                           + [i for i in self.issues
+                              if i.get("repaired")][-20:]),
             }
 
 
@@ -15510,6 +15559,28 @@ def cmd_start(args):
              catchup_revn=state.get("catchup_revn"),
              rollback=state.get("rollback"),
              stamp_warning=warning)
+    # What the load found, on the surface an agent runs FIRST. `start`
+    # printed its URL block and stopped, so a quarantined artifact was
+    # reachable only from a later `status` — which an agent that just got
+    # a working URL has no reason to run. Symmetric on purpose: repairs
+    # were equally absent, so this is a load-findings block rather than a
+    # quarantine special case, and the two headings are the ones `lint`
+    # and `status` already use.
+    #
+    # Off a bare Store rather than out of the running server, matching
+    # `cmd_lint`: on the spawn path the findings are already on disk, and
+    # on the reuse path an HTTP round-trip would make the first thing an
+    # agent runs depend on a second request succeeding.
+    try:
+        for i in Store(project).issues:
+            print("%s=%s: %s"
+                  % ("REPAIR" if i.get("repaired") else "QUARANTINE",
+                     i.get("code"), i.get("msg")))
+    except (OSError, ValueError) as e:
+        # a project too broken to open is not a reason to withhold the URL
+        # that was just printed — the canvas is up and the session can run
+        print("NOTE=could not read load findings (%s); `canvas.py lint` "
+              "once the project opens" % e)
     return 0
 
 

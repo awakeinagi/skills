@@ -6049,7 +6049,6 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
             "read it, and quarantines belong under a key of their own: %r"
             % (out,))
 
-    @unittest.expectedFailure
     def test_red_a_quarantine_falls_off_the_served_state(self) -> None:
         """Twenty repairs push the dropped file off the resume surface.
 
@@ -6087,7 +6086,6 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
             "repairs (%d of them) — status prints no QUARANTINE= line at "
             "all" % (len(served),))
 
-    @unittest.expectedFailure
     def test_red_start_names_no_load_finding(self) -> None:
         """The first surface an agent runs on resume says nothing happened.
 
@@ -6160,7 +6158,6 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
             "REPAIR= silences in this class are asserted against a "
             "channel that has never spoken: %r" % (repaired,))
 
-    @unittest.expectedFailure
     def test_red_a_pending_quarantine_reaches_no_durable_surface(
             self) -> None:
         """The one quarantine `lint` cannot see, and it is unrecoverable.
@@ -6290,16 +6287,32 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
 
     def test_the_pending_quarantine_is_filed_once_and_never_again(
             self) -> None:
-        """The PND-001 red's premise, and the half that makes it permanent.
+        """The PND-001 red's premise, and the half that WAS permanent.
 
         Its error-red guard, and the compounding claim in one test
         because they are one mechanism. First: the producer really does
         fire, so the red measures REACH rather than a fixture that
-        stopped being corrupt. Second: the same project served a second
-        time files nothing, because the first server renamed the file to
-        `.bad` — which is what makes the missing lint surface a permanent
-        loss rather than a delay. Asserted on a second `ServerApp` over
-        the same root, since that is exactly the next session.
+        stopped being corrupt. Second: what a SECOND server over the same
+        root finds, which is what decides whether the reach gap was a
+        permanent loss or a delay.
+
+        That second assertion has changed sides, and the method name is
+        left alone deliberately so the change is legible: it read `== []`
+        with the message "the notice lived only in the first server's
+        memory — the queue file is renamed .bad, so no later load can
+        rediscover it". That was true and it was the reason the red next
+        door mattered more than an ordinary missing surface. v0.9 WP7
+        (task 28) fixed it in the loader rather than on any of the three
+        surfaces the siblings name, exactly where that red's docstring
+        predicted the repair might sit: `Store.load` now sweeps
+        `.pending/*.json.bad` and files PND-001 itself, so the finding
+        outlives the process that made it and reaches `lint`, which
+        builds a bare Store and never a `ServerApp`.
+
+        The rename is unchanged and still does its two jobs — it keeps
+        the evidence and it stops `pending_seq` overwriting it. What
+        changed is that setting the evidence aside no longer throws the
+        finding about it away.
         """
         root = _scratch_project(self, {"a": _GOOD_ARTIFACT},
                                 {"0001-x": _GOOD_SAVE},
@@ -6311,10 +6324,17 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
                                   first.store.public_state()["issues"]],
                       "status is the one surface that sees it; if even "
                       "that goes quiet the red measures nothing")
-        self.assertEqual([i["code"] for i in self._serve(root).store.issues],
-                         [], "the notice lived only in the first server's "
-                         "memory — the queue file is renamed .bad, so no "
-                         "later load can rediscover it")
+        again = list(self._serve(root).store.issues)
+        self.assertEqual([i["code"] for i in again], ["PND-001"],
+                         "the next session must rediscover the notice "
+                         "from the set-aside file, or losing it is still "
+                         "one unrun `status` away")
+        self.assertEqual([i["code"] for i in again if i.get("repaired")], [],
+                         "nothing was repaired — the revision is still "
+                         "lost and the file is still unreadable")
+        self.assertIn("7.json", again[0]["msg"],
+                      "the notice must name the revision that went, not "
+                      "just that one did")
 
 
 # ---------------------------------------------------------------------------
@@ -15125,8 +15145,29 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2,
-                             "TestLoadFindingsReachTheAgent": 3}
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2}
+# `TestLoadFindingsReachTheAgent` LEFT this list on 2026-08-16 (v0.9 WP7,
+# task 28), draining 4 -> 0 in one task, and it is the largest single
+# departure this dict has recorded. Worth reading for WHY the four went
+# together: they were not four defects, they were one fix's four
+# unreached surfaces, filed as a group by the Task 33 review because that
+# fix had made the QUARANTINE= line real and nobody had checked where it
+# arrived. The summary that counted them nowhere, the served-state cap
+# that evicted them, the surface an agent runs FIRST, and the one
+# producer `lint` could not see. A class that enters with a group like
+# that leaves as one, or it does not leave.
+#
+# The fourth's repair is the one to remember: `Store.load` sweeping
+# `.pending/*.json.bad`, which is not a surface change at all. That red's
+# own docstring predicted it — "this one is the only member whose fix may
+# not be a surface change; the `.bad` rename is what destroys the
+# finding, so the repair may sit in the loader". A red that names where
+# its fix probably is not is worth more than one that only names what is
+# broken.
+#
+# The class stays in the file and keeps its quadruples by hand; only its
+# reds are gone. `TestBatchPathIntegrity` is now the sole entry.
+#
 # `TestBatchPathIntegrity` went 1 -> 2 on 2026-08-16 (curator batch 26),
 # which is this dict's first arrival that is not a NEW defect: the
 # `commit`-callers red pins the residue of a fix that already landed.
