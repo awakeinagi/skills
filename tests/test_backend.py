@@ -4075,11 +4075,16 @@ FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "tearsheet-demo"
 def canon_numbers(value):
     """Fold integral floats to ints, recursively, for hashing.
 
-    `content_fingerprint`'s own `canon` in canvas.py, lifted for tests
-    that need `scene_hash`'s order-sensitivity but not its sensitivity
-    to int-vs-float representation. See
+    A HAND COPY of `content_fingerprint`'s inner `canon` (canvas.py
+    :772), for tests that need `scene_hash`'s order-sensitivity but not
+    its sensitivity to int-vs-float representation. See
     `TestTearsheetFixture.test_replay_reconverges_via_catchup` for the
     divergence that made this necessary.
+
+    KEPT AS A COPY DELIBERATELY, with
+    `TestCanonNumbersAgreesWithTheShippedFold` holding it to the
+    original — see that class for why merging the two would be worse
+    than duplicating them.
 
     Args:
         value: Any JSON-shaped value.
@@ -4096,6 +4101,120 @@ def canon_numbers(value):
     if isinstance(value, list):
         return [canon_numbers(v) for v in value]
     return value
+
+
+class TestCanonNumbersAgreesWithTheShippedFold(unittest.TestCase):
+    """`canon_numbers` is a hand copy, so something has to hold it.
+
+    WHY A COPY AND NOT A SHARED FUNCTION (review micro-round 5 asked for
+    the call and the reason). Lifting `canon` out of
+    `content_fingerprint` to module scope in canvas.py would remove the
+    duplication outright, and that is the tempting answer. It is the
+    wrong one here, because the two folds serve OPPOSITE masters:
+
+    - `content_fingerprint`'s fold is a CORRECTNESS rule. Drift
+      detection must treat 150 and 150.0 as the same scene or every
+      re-routed project phantoms a reconciliation.
+    - `canon_numbers`' fold is a documented CONCESSION to a defect —
+      the retyped-focus divergence in `TestTearsheetFixture` and in
+      TASK-FOCUS-FOLLOWUP-B §6.1. It exists to be DELETED when that
+      defect is fixed.
+
+    Share one function and those lifetimes get welded together: a future
+    tightening of drift detection would silently retune a test's
+    tolerance, and — worse — the day §6.1 is fixed, the test would keep
+    passing on a fold it no longer needs, so nothing would ever tell us
+    the concession had become dead weight.
+
+    Two implementations plus this class records the coupling without
+    creating it. When the fold stops being necessary, deleting
+    `canon_numbers` fails HERE, by name, instead of quietly surviving.
+
+    The agreement is checked through `content_fingerprint`'s PUBLIC
+    surface rather than against a re-typed-out copy of its body, because
+    a second transcription of the thing under test proves nothing.
+    """
+
+    def scene(self, focus):
+        """A one-arrow scene whose binding focus takes the given value.
+
+        Args:
+            focus: The focus value to store, int or float.
+
+        Returns:
+            A minimal element list.
+        """
+        return [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 100, "height": 50, "isDeleted": False},
+                {"id": "a1", "type": "arrow", "x": 0, "y": 0,
+                 "width": 40, "height": 0, "points": [[0, 0], [40, 0]],
+                 "isDeleted": False,
+                 "endBinding": {"elementId": "n1", "focus": focus,
+                                "gap": 6}}]
+
+    def test_it_folds_exactly_what_the_shipped_fingerprint_folds(self):
+        """The two agree on the case the concession exists for.
+
+        `content_fingerprint` calls the int and float scenes the same —
+        that is the shipped behaviour §6.1 relies on — and
+        `canon_numbers` must make `scene_hash` call them the same too.
+        Both directions are asserted: agreeing by both being blind to
+        everything would satisfy neither line below.
+        """
+        i, f = self.scene(0), self.scene(0.0)
+        self.assertEqual(canvas.content_fingerprint(i),
+                         canvas.content_fingerprint(f),
+                         "the shipped fold stopped folding int/float — "
+                         "canon_numbers' whole premise has moved")
+        self.assertEqual(canvas.scene_hash(canon_numbers(i)),
+                         canvas.scene_hash(canon_numbers(f)),
+                         "canon_numbers has drifted from the shipped fold")
+        # and neither is simply blind: a REAL difference still parts them
+        moved = self.scene(0)
+        moved[1]["endBinding"]["focus"] = 0.5
+        self.assertNotEqual(canvas.content_fingerprint(i),
+                            canvas.content_fingerprint(moved))
+        self.assertNotEqual(canvas.scene_hash(canon_numbers(i)),
+                            canvas.scene_hash(canon_numbers(moved)))
+
+    def test_it_folds_the_same_values_the_shipped_fold_does(self):
+        """Value-level agreement over the shapes `canon` distinguishes.
+
+        WHAT THIS CATCHES, established by mutating `canon_numbers` and
+        watching, not by assertion-counting: a fold that stops folding,
+        one that truncates (2.5 -> 2), one that loses a sign (-3.0 -> 3)
+        and one that stops recursing are all CAUGHT.
+
+        WHAT IT DOES NOT CATCH, disclosed because the first draft of
+        this docstring claimed the opposite: dropping the `isinstance(v,
+        bool)` guard SURVIVES. The claim was that the guard stops True
+        becoming 1 — that is wrong. The fold tests `isinstance(v,
+        float)`, and `isinstance(True, float)` is False, so a bool never
+        reaches `int(v)` whether the guard is there or not. The guard is
+        DEFENSIVE (it would matter against an `isinstance(v, int)`
+        spelling), not load-bearing, in both copies. The two `assertIs`
+        lines below pin the behaviour rather than the guard, which is
+        the honest thing they can do.
+        """
+        samples = [0, 0.0, 1, 1.0, -3.0, 2.5, -0.0, True, False, None,
+                   "0.0", [1.0, [2.0, {"a": 3.0}]],
+                   {"x": 4.0, "y": [True, 5.0], "z": {"w": 6.5}}]
+        for value in samples:
+            folded = canon_numbers(value)
+            # the shipped fold is reachable only through a scene, so put
+            # the sample where an element attribute lives and compare the
+            # fingerprints of the folded and unfolded scenes
+            raw = [{"id": "e", "type": "rectangle", "isDeleted": False,
+                    "probe": value}]
+            pre = [{"id": "e", "type": "rectangle", "isDeleted": False,
+                    "probe": folded}]
+            self.assertEqual(
+                canvas.content_fingerprint(raw),
+                canvas.content_fingerprint(pre),
+                "canon_numbers(%r) -> %r is not what the shipped fold "
+                "does with it" % (value, folded))
+        self.assertIs(canon_numbers(True), True)
+        self.assertIs(canon_numbers(False), False)
 
 
 class TestTearsheetFixture(unittest.TestCase):
@@ -12062,7 +12181,11 @@ class TestRerouteReachesTheFossilsOnTheFrozenCorpus(unittest.TestCase):
       tearsheet-pipeline` (26) — which are kept fossilised so the
       legacy-routing NOTE and `catch_up`'s geometry-drift path keep a
       scene to fire on. The corpus is not 32-deep in defects; it is
-      2-deep plus two museum pieces.
+      2-deep plus two museum pieces. SO THE `before` NUMBER HERE IS
+      SPECIMEN-DOMINATED: straightening either specimen drops it by 4
+      or by 26 at a stroke, and this test — which is not about
+      specimens — is where that lands first. The failure message names
+      them for exactly that reason.
     - **4, not 2**, and this is the non-convergence showing its teeth.
       All four sit on `tearsheet-domain`, which orbits with period 2:
       the rebase already gave it its good pass, so the further pass this
@@ -12140,8 +12263,14 @@ class TestRerouteReachesTheFossilsOnTheFrozenCorpus(unittest.TestCase):
         self.assertGreater(owned, 100, "the corpus lost its arrows — this "
                                        "measures nothing")
         self.assertLessEqual(after, before)
-        self.assertLessEqual(after, 4, "a re-route left %d oblique arrivals "
-                                       "(was %d)" % (after, before))
+        self.assertLessEqual(
+            after, 4,
+            "a re-route left %d oblique arrivals (was %d). Before you "
+            "retune this: 30 of the `before` are the two deliberately "
+            "preserved fossils (tuesday-triage 4, tearsheet-pipeline 26 "
+            "— see TestTheCorpusKeepsItsTwoDeliberateFossils), so if you "
+            "just rebased one of them, THAT is what moved this, and the "
+            "bound is not the thing to change." % (after, before))
 
 
 class TestObliqueArrivals(Base):
