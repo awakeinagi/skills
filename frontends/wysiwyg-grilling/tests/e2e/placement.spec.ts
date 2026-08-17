@@ -47,6 +47,28 @@ const boxes = (page: import("@playwright/test").Page): Promise<Box[]> =>
                      w: (e.width as number) || 0,
                      h: (e.height as number) || 0 })));
 
+/**
+ * The live camera, read from the app's own appState.
+ *
+ * The same four numbers the placement is computed from, so a test can
+ * derive where a drop SHOULD have gone instead of bounding it loosely —
+ * and can watch whether the insert moved the view.
+ * @param page The page under test.
+ * @returns Scroll offsets, zoom, and the canvas size in css px.
+ */
+const camera = (page: import("@playwright/test").Page):
+  Promise<{ scrollX: number; scrollY: number; zoom: number;
+            width: number; height: number }> =>
+  page.evaluate(() => {
+    const a = (window as unknown as { excalidrawAPI: {
+      getAppState: () => { scrollX: number; scrollY: number;
+                           zoom: { value: number };
+                           width: number; height: number } } })
+      .excalidrawAPI.getAppState();
+    return { scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom.value,
+             width: a.width, height: a.height };
+  });
+
 /** Click 🗒 and answer its prompt, returning the elements it added.
  *
  * `window.prompt` is auto-dismissed by Playwright unless a handler
@@ -144,13 +166,53 @@ test("a sticky note dropped on clear canvas stays where the user looks",
         .__sceneToScreen?.(3000, 3000)?.x ?? -1),
       { timeout: 10_000 }).toBeLessThan(900);
     const before = await boxes(page);
+    const cam = await camera(page);
     const fresh = await addNote(page, "room to think", before);
     const note = fresh.find((e) => e.type === "rectangle") as Box;
     expect(note, "no note rectangle was inserted").toBeTruthy();
     expect(covered(note, before)).toEqual([]);
-    // and it went where the user was looking, not off to the side
-    expect(note.x).toBeGreaterThan(3000);
-    expect(note.y).toBeGreaterThan(3000);
+    // and it went where the user was looking — the EXACT centre of the
+    // view, derived from the same appState the app placed it from, not
+    // merely somewhere off in the right half of the canvas. A nudge of a
+    // note-width is a regression and has to read as one.
+    expect(note.x).toBeCloseTo(
+      cam.width / 2 / cam.zoom - cam.scrollX - note.w / 2, 3);
+    expect(note.y).toBeCloseTo(
+      cam.height / 2 / cam.zoom - cam.scrollY - note.h / 2, 3);
+    // ...and the camera did not move to show it.
+    const after = await camera(page);
+    expect(after.scrollX).toBe(cam.scrollX);
+    expect(after.scrollY).toBe(cam.scrollY);
+    expect(after.zoom).toBe(cam.zoom);
+
+    // A SECOND note is where the camera's restraint can actually be
+    // caught. The assertion above cannot fail on its own: a centred drop
+    // sits on the view centre, so "recentre on the insert" is the
+    // identity and a `revealInsert` that always scrolled would pass it.
+    // The centre is now taken, so this note steps aside — and at this
+    // zoom the clear air it steps into is still in view, which is
+    // precisely when the view must hold still. Without the in-view early
+    // return the camera walks after every insert, one note at a time.
+    const known = await boxes(page);
+    const second = await addNote(page, "and another", known);
+    const note2 = second.find((e) => e.type === "rectangle") as Box;
+    expect(note2, "no second note was inserted").toBeTruthy();
+    expect(covered(note2, known)).toEqual([]);
+    expect(note2.y, "the second note did not step aside")
+      .not.toBeCloseTo(note.y, 3);
+    const held = await camera(page);
+    expect(held.scrollX).toBe(cam.scrollX);
+    expect(held.scrollY).toBe(cam.scrollY);
+    expect(held.zoom).toBe(cam.zoom);
+    // it stepped into air the user could already see — the reason the
+    // view had nothing to follow
+    const seen = await page.evaluate(([x, y]) => {
+      const p = (window as unknown as { __sceneToScreen?:
+        (a: number, b: number) => { x: number; y: number } | null })
+        .__sceneToScreen?.(x, y);
+      return p && p.x > 0 && p.x < 1440 && p.y > 0 && p.y < 900;
+    }, [note2.x + note2.w / 2, note2.y + note2.h / 2]);
+    expect(seen, "the second note landed off screen").toBe(true);
   });
 
 test("an archetype template clears the tile too, not just the note",
