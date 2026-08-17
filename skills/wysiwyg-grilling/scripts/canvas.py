@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import bisect
+import colorsys  # `nearest_compliant` only — see its docstring
 import contextlib
 import copy
 import hashlib
@@ -62,6 +63,20 @@ PAPER_GROUND = "#faf8f2"
 # render_svg's canvas ground; also the backing painted under arrow
 # labels, at their stored position (see arrow_label_slot)
 SVG_GROUND = "#fdfcf8"
+# The grey this file mints composed furniture in — slider tracks, body
+# waves, image-placeholder X strokes, and `render_svg`'s own placeholder
+# box. ONE NAME rather than five string literals, because the user's
+# 2026-08-17 contrast ruling had to move all five together and found them
+# by grep: the next person to move it should not have to.
+#
+# It was #b8b2a5, which reads 2.06:1 on `SVG_GROUND` where 1.4.11 asks
+# 3:1, and it went unreported because `lint_layout` exempted composed
+# furniture outright. The ruling dropped that exemption and darkened this
+# instead: #8d877a measures 3.48:1 with this file's own `contrast_ratio`,
+# same hue (HSL 0.114, unchanged), so furniture is quiet by being
+# COMPLIANT rather than by being skipped. See the block comment above the
+# legibility checks in `lint_layout`.
+FURNITURE_INK = "#8d877a"
 # The largest raster this skill will ever produce, in device pixels. ONE
 # ceiling, shared by the two places that used to hold their own:
 # `render_svg` scales a drawing down uniformly to fit it, and
@@ -1504,32 +1519,38 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # agent notes read green, user sticky notes read yellow (the demo's
         # authorship color language, v0.3) — explicit strokeColor wins
         #
-        # THIS DEFAULT TRIPS `contrast_text`, MEASURED (v0.9 WP7 task 29):
-        # #5c8a5f reads 3.89:1 on the #fdfcf8 ground where 1.4.3 asks
-        # 4.5:1, so every annotation drawn without an explicit colour
-        # draws a legibility question about a colour the agent did not
-        # choose. It is the whole of that lint's over-fire on the 24
-        # frozen artifacts — 3 findings, all of them this line.
+        # RULED BY THE USER 2026-08-17: DARKEN. This default used to be
+        # #5c8a5f, which reads 3.89:1 on the #fdfcf8 ground where 1.4.3
+        # asks 4.5:1 — so every annotation drawn without an explicit
+        # colour tripped `contrast_text` about a colour the AGENT did not
+        # choose (v0.9 WP7 task 29 measured it as that lint's whole
+        # over-fire on the 24 frozen artifacts: 3 findings, all this
+        # line). The ruling took the darken option over the alternative
+        # of an `ink:<aid>:<id>` waive per artifact; relaxing the 4.5
+        # floor to fit the palette was ruled out from the start as the
+        # threshold fudge the harness contract forbids.
         #
-        # NOT a bug in the lint (3.89 is under 4.5) and NOT RESOLVED. The
-        # options are: darken this until it clears 4.5 on #fdfcf8, or let
-        # each artifact record an `ink:<aid>:<id>` waive. Relaxing the 4.5
-        # floor to fit the palette is the one option ruled out — that is
-        # the threshold fudge the harness contract forbids. Darkening does
-        # NOT reduce the corpus count: the fixtures are frozen and keep
-        # this ink either way. Measured blast radius of a change: this
-        # line, plus one assertion at tests/test_backend.py:5937.
+        # #47704b measures 5.55:1 on the ground with this file's own
+        # `contrast_ratio` — comfortably over 4.5 rather than a hair over
+        # it, so the margin survives a future ground change. It is the
+        # SAME GREEN, darker: HSL hue 0.350 against the old 0.344, with
+        # the move carried by lightness (0.359 against 0.451). The
+        # authorship language the v0.3 decision established survives,
+        # which is what made this a visual-identity call rather than a
+        # lint-tuning one.
         #
-        # THE RULING IS PENDING WITH THE USER — it is a visual-identity
-        # decision (the v0.3 authorship colour language above), not a
-        # lint-tuning one. Do not pick one quietly. Stated in full here
-        # rather than only by reference because `docs/` is gitignored by
-        # §4 of SESSION-HANDOVER.md, so a fresh clone cannot read the
-        # design doc; where that doc IS present it is
-        # docs/todo/contrast-and-min-font-lints.md § "The annotation
-        # default trips this lint", and the handover's §4 carries the
-        # open ruling.
-        el["strokeColor"] = "#5c8a5f"
+        # WHAT IT DOES NOT DO is drop the corpus count. The fixtures are
+        # frozen records of sessions that happened and keep the old ink,
+        # so those 3 findings STAND — true statements about old drawings
+        # — until TASK-FOCUS-FOLLOWUP rebases the fixtures.
+        #
+        # Stated in full here rather than only by reference because
+        # `docs/` is gitignored by §4 of SESSION-HANDOVER.md, so a fresh
+        # clone cannot read the design doc; where that doc IS present it
+        # is docs/todo/contrast-and-min-font-lints.md § "The annotation
+        # default trips this lint", and §4 decision 5 of the handover
+        # carries the ruling in full (all three parts).
+        el["strokeColor"] = "#47704b"
     if etype == "text":
         fs = spec.get("fontSize", 16)
         el["text"] = spec.get("text", "")
@@ -1651,7 +1672,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
                 "points": pts, "lastCommittedPoint": None,
                 "startBinding": None, "endBinding": None,
                 "startArrowhead": None, "endArrowhead": None,
-                "elbowed": False, "strokeColor": "#b8b2a5",
+                "elbowed": False, "strokeColor": FURNITURE_INK,
                 "groupIds": [gid],
                 "customData": {"role": "decoration", "x_of": el_id,
                                "author": "agent"},
@@ -1798,7 +1819,7 @@ def _compose_body_lines(el, existing_ids):
             width=lw, height=3, points=pts, lastCommittedPoint=None,
             startBinding=None, endBinding=None, startArrowhead=None,
             endArrowhead=None, elbowed=False,
-            strokeColor="#b8b2a5", strokeWidth=1))
+            strokeColor=FURNITURE_INK, strokeWidth=1))
     return out
 
 
@@ -2029,7 +2050,7 @@ def _compose_slider_glyph(el, value, existing_ids):
         points=[[0, 0], [w - 20, 0]], lastCommittedPoint=None,
         startBinding=None, endBinding=None,
         startArrowhead=None, endArrowhead=None, elbowed=False,
-        strokeColor="#b8b2a5", strokeWidth=2)
+        strokeColor=FURNITURE_INK, strokeWidth=2)
     thumb = _deco(
         el["id"] + "-thumb", "thumb_of", el["id"], gid, existing_ids,
         type="rectangle", x=_slider_thumb_x(el, value), y=ty - 6,
@@ -8423,13 +8444,13 @@ def render_svg(els, title="", footnotes=False, glossary=None):
             # image carries `strokeColor: "transparent"`, so honouring it
             # would paint the placeholder invisible.
             out.append("<rect x='%f' y='%f' width='%f' height='%f' "
-                       "fill='none' stroke='#b8b2a5' stroke-width='1.5'/>"
-                       % (x, y, ew, eh))
+                       "fill='none' stroke='%s' stroke-width='1.5'/>"
+                       % (x, y, ew, eh, FURNITURE_INK))
             for ax, ay, bx, by in ((x, y, x + ew, y + eh),
                                    (x, y + eh, x + ew, y)):
                 out.append("<polyline points='%f,%f %f,%f' fill='none' "
-                           "stroke='#b8b2a5' stroke-width='1.5'/>"
-                           % (ax, ay, bx, by))
+                           "stroke='%s' stroke-width='1.5'/>"
+                           % (ax, ay, bx, by, FURNITURE_INK))
 
     # Z-MODEL: the element array IS the paint order — one walk, no
     # buckets. This used to be four type-filtered passes (frames, then
@@ -9458,6 +9479,75 @@ def composite_over(fg, bg, opacity):
     return tuple(fg[i] * alpha + bg[i] * (1 - alpha) for i in range(3))
 
 
+def nearest_compliant(rgb, bg, floor, opacity=100):
+    """The nearest shade of the same hue that clears `floor` against `bg`.
+
+    The computed half of the three-part contrast ruling (user, 2026-08-17):
+    a finding that says "reads 2.06:1 where 3:1 is asked" hands the agent a
+    number and a search problem. This hands it the answer.
+
+    WHY `colorsys`, in a file whose convention is import-frugal (see the
+    note by `_LUMINANCE_MEMO` declining `functools.lru_cache`): frugal is
+    not import-free, and the alternative here is twenty lines of
+    hand-rolled RGB<->HSL. Hue-preserving colour arithmetic written by
+    hand is exactly the kind that goes subtly wrong and then suggests a
+    shade of a DIFFERENT hue, which is the one thing this function must
+    not do — the ruling it implements is about keeping the palette
+    recognisable.
+
+    WHY A WALK RATHER THAN A TABLE. The suggestion has to be right for any
+    colour on any background — an agent's own #8fa can sit on a filled
+    container — so per-colour constants would be wrong the first time
+    somebody drew on a tinted card. Hue and saturation are held and only
+    HSL lightness moves, one 8-bit step at a time, so the suggestion is
+    recognisably the SAME colour: the authorship language (agent green,
+    user yellow) survives a repair that follows this advice.
+
+    BOTH DIRECTIONS, NEAREST WINS. Contrast against a fixed ground is
+    monotonic on each side of that ground's own luminance, so the reachable
+    fix is "darker" for ink on paper and "lighter" for pale ink on a dark
+    card — and which one applies is a fact about the scene, not something
+    this function should assume. Whichever direction reaches the floor in
+    fewer steps is returned; a tie goes to the darker one, since it is
+    tried first.
+
+    THE FOLD IS INSIDE THE LOOP, which is what makes the answer followable
+    on a faded element. At 60% opacity the agent cannot fix #1e1e1e by
+    darkening — there is nothing darker — and the honest answer is None,
+    which leaves the message saying "raise its opacity" and nothing it
+    cannot do. Every candidate is verified with `contrast_ratio` AFTER
+    quantizing to 8 bits, so the returned triple is the one a renderer will
+    actually paint rather than a float that rounds back under the floor.
+
+    Args:
+        rgb: The declared (r, g, b) triple to move.
+        bg: The (r, g, b) triple it is drawn on.
+        floor: The ratio to reach (`CONTRAST_TEXT`, `CONTRAST_OBJECT`...).
+        opacity: Excalidraw's 0-100 opacity, folded into each candidate the
+            same way the finding folded the original.
+
+    Returns:
+        The nearest compliant (r, g, b) triple of ints, or None when no
+        shade of this hue reaches the floor at this opacity.
+    """
+    h, lightness, s = colorsys.rgb_to_hls(*(c / 255.0 for c in rgb))
+    best = None
+    for sign in (-1, 1):
+        step = 1
+        while True:
+            level = lightness + sign * step / 255.0
+            if level < 0.0 or level > 1.0:
+                break
+            cand = tuple(int(round(c * 255))
+                         for c in colorsys.hls_to_rgb(h, level, s))
+            if contrast_ratio(composite_over(cand, bg, opacity), bg) >= floor:
+                if best is None or step < best[0]:
+                    best = (step, cand)
+                break
+            step += 1
+    return best[1] if best else None
+
+
 def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 aid=None):
     """Layout lint for headless agents (who can't see their own drawing),
@@ -9635,42 +9725,37 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # design doc requires for deliberate de-emphasis (`role: decoration`,
     # muted annotations): a recorded decision, never a hardcoded skip.
     #
-    # THE ONE EXEMPTION, and why it is not that hardcoded skip. Composed
-    # PARTS — a slider's track, an image placeholder's X strokes, a KPI
-    # tile's value row: `role: decoration` carrying one of
-    # `COMPOSED_PART_KEYS` — are minted by this file from its own palette
-    # in response to a `kind:` composite the agent asked for. The agent
-    # never wrote #b8b2a5; `_deco`, `_compose_slider_glyph` and
-    # `_compose_body_lines` did. There is no agent decision to question
-    # here, and the recorded answer would be the same waive on every
-    # drawing that ever contains a slider, which is the waive channel used
-    # as a mute button. The doc's rule survives intact for the case the
-    # sentence is actually about: a decoration or annotation the AGENT
-    # styled is asked, and answered by a waive.
+    # NO FURNITURE EXEMPTION — RULED BY THE USER 2026-08-17, and the
+    # carve-out that used to live in this paragraph is GONE. Composed parts
+    # (a slider's track, an image placeholder's X strokes, a KPI tile's
+    # value row: `role: decoration` carrying one of `COMPOSED_PART_KEYS`)
+    # were skipped here on the argument that the agent never chose their
+    # colour, so there was no decision to question.
     #
-    # This is the same distinction `normalize_z_order` already turns on
-    # (tagged composed part vs untagged standalone backdrop), so the set
-    # is maintained in one place rather than invented here. Measured
-    # consequence, 2026-08-16: the exemption covers 16 findings across 3
-    # of the 24 frozen artifacts, every one of them a slider track or a
-    # chart placeholder X at #b8b2a5 (2.06:1), and NOTHING else in the
-    # corpus. Those are a real palette defect — recorded in the task
-    # report for whoever owns the palette — but they are not the agent's
-    # to answer, and the frozen fixtures cannot record a waive.
+    # The blind spot in that argument is what the ruling names: it keyed on
+    # WHAT THE ELEMENT IS, not on who chose the colour. A regressed default
+    # in this file, and a user's own recolour of a slider track, are both
+    # "furniture" and both went unreported — the exemption's own measured
+    # consequence was 16 unreported findings across 4 of the 24 frozen
+    # artifacts (re-measured 2026-08-17; the pre-ruling comment here said
+    # 3, counting fixture PROJECTS rather than artifacts), every one of
+    # them a #b8b2a5 slider track or chart placeholder X, a real palette
+    # defect no tier reported.
+    #
+    # So furniture is checked like everything else. The ruling's other two
+    # parts are what make that quiet rather than noisy: the defaults were
+    # darkened to compliant shades in the same colour families (#5c8a5f ->
+    # #47704b at 5.55:1, #b8b2a5 -> #8d877a at 3.48:1), so COMPLIANT
+    # FURNITURE STAYS SILENT BY BEING COMPLIANT rather than by being
+    # exempt, and every finding now carries a computed nearest-compliant
+    # shade so the answer travels with the question. What fires from here
+    # is a regressed default or somebody's own bad recolour, which is
+    # exactly the pair the exemption was hiding.
+    #
+    # The frozen fixtures keep the old ink — they are a record of sessions
+    # that happened — so those 16 stand as true findings about old
+    # drawings until TASK-FOCUS-FOLLOWUP rebases them.
     ground = parse_hex_color(SVG_GROUND)
-
-    def server_composed(e):
-        """Whether this element's style was minted by the server.
-
-        Args:
-            e: The element.
-
-        Returns:
-            True for a tagged composed part (see the block comment).
-        """
-        cd = e.get("customData") or {}
-        return cd.get("role") == "decoration" and \
-            any(cd.get(k) for k in COMPOSED_PART_KEYS)
 
     def drawn_on(e):
         """The colour `e` is painted over, per the settled resolution order.
@@ -9714,9 +9799,26 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         return "#%02x%02x%02x" % tuple(
             max(0, min(255, int(round(c)))) for c in rgb)
 
+    def suggestion(col, bg, floor, opac):
+        """The nearest-compliant clause for a finding's message.
+
+        Args:
+            col: The declared (r, g, b) triple the message names.
+            bg: The (r, g, b) triple it is drawn on.
+            floor: The ratio the criterion asks.
+            opac: The element's opacity, folded into each candidate.
+
+        Returns:
+            A clause naming the shade, or "" when no shade of this hue
+            reaches the floor at this opacity (a faded element, where the
+            followable advice is the opacity and not the colour).
+        """
+        fixed = nearest_compliant(col, bg, floor, opac)
+        return ("" if fixed is None else
+                " — nearest compliant shade of the same hue: %s"
+                % hexof(fixed))
+
     for e in els:
-        if server_composed(e):
-            continue
         etype = e.get("type")
         eid = e["id"]
         opac = e.get("opacity", 100)
@@ -9777,11 +9879,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     warnings.append(
                         "text %s (%r) is drawn %s on %s and reads "
                         "%.2f:1 — 1.4.3 asks %.1f:1 of text this size. "
-                        "Muted on purpose? %s, or record the "
+                        "Muted on purpose? %s%s, or record the "
                         "decision with waive {action: waive, key: %r, "
                         "reason: ...}"
                         % (eid, quoted, drawn, hexof(bg), got, floor,
-                           fix, key))
+                           fix, suggestion(ink, bg, floor, opac), key))
             # The font floor. Separate from the ratio above and not a
             # politeness rule beside it: this is the only tier-1 handle
             # on a contrast failure that RASTERIZATION creates, which a
@@ -9838,11 +9940,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 warnings.append(
                     "%s %s is drawn %s on %s and reads %.2f:1 — 1.4.11 "
                     "asks %.1f:1 of an object the reader has to pick "
-                    "out. Muted on purpose? %s, or record the "
+                    "out. Muted on purpose? %s%s, or record the "
                     "decision with waive {action: waive, key: %r, "
                     "reason: ...}"
                     % (noun, name(eid), drawn, hexof(bg), best,
-                       CONTRAST_OBJECT, fix, key))
+                       CONTRAST_OBJECT, fix,
+                       suggestion(col, bg, CONTRAST_OBJECT, opac), key))
 
     # ---- WARNING: degenerate arrow geometry (WP4b e15) ----------------
     # This runs FIRST of the arrow checks because every one of them

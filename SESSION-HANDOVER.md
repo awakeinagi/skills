@@ -692,7 +692,7 @@ when WP4 lands, not deleted. Its body says so. Note its polarity is the
 is **green now and goes red when the fix lands**, whereas a mutant asserts the
 right behavior and is red now. Its state is unchanged by the harness work.
 
-## 4. Decisions — four RULED 2026-08-12; one OPEN from v0.9 WP7
+## 4. Decisions — four RULED 2026-08-12; the fifth RULED 2026-08-17
 
 1. **The commit — RESOLVED: split commits on `v0.8_correctness`, R4 archived
    out.** Commit 1: the fixture set (argus-r5 + test_backend + e2e README —
@@ -718,32 +718,47 @@ right behavior and is red now. Its state is unchanged by the harness work.
    clone cannot read; the harness's FIX-SOON backlog
    (`docs/superpowers/reviews/2026-08-11-mutation-harness/`) exists only on
    this machine.
-5. **The annotation ink vs its own new contrast lint — OPEN, needs a user
-   ruling.** v0.9 WP7 task 29 shipped `contrast_text` (WCAG 1.4.3, 4.5:1) and
-   the first thing it found was this skill's own palette. `canvas.py` mints
-   annotation ink at **`#5c8a5f`**, which reads **3.89:1** on the `#fdfcf8`
-   ground — so **every annotation the skill draws from here on trips the
-   check**, and those are the only 3 findings the new lint produces across
-   all 24 frozen artifacts. The lint is right; the palette is what disagrees
-   with it. Two live options — darken the default until it clears 4.5:1, or
-   let each artifact record an `ink:<aid>:<id>` waive. One option is ruled
-   OUT already: moving the 4.5 floor to fit the palette is the threshold
-   fudge the harness contract forbids. Note darkening does not reduce the
-   corpus count (the fixtures are frozen and keep the old ink); measured
-   blast radius is the mint site plus one assertion at
-   `tests/test_backend.py:5937`. Task 29 deliberately did not pick — it is a
-   visual-identity call (decision 4's authorship colour language: agent notes
-   green, user stickies yellow), not a lint-tuning one. **The full statement
-   lives at the mint site in `canvas.py`**, on purpose: this entry and that
-   comment are the only two copies a fresh clone can read, because decision 4
-   above keeps `docs/` local and the design doc with it.
+5. **The skill's own palette vs its own contrast lints — RULED 2026-08-17,
+   in three parts.** v0.9 WP7 task 29 shipped `contrast_text` (WCAG 1.4.3,
+   4.5:1) and `contrast_object` (1.4.11, 3:1), and the first thing they found
+   was this skill's own palette: annotation ink `#5c8a5f` at **3.89:1** (3
+   findings, the whole of `contrast_text`'s output on the 24 frozen
+   artifacts), and composed-furniture grey `#b8b2a5` at **2.06:1** (16
+   elements on 4 artifacts across 3 fixtures — reported by nothing, because
+   `lint_layout` exempted server-composed parts outright). Moving either
+   floor to fit the palette was ruled out from the start as the threshold
+   fudge the harness contract forbids. The ruling instead:
 
-   *Related, and a gap rather than a pending decision:* the composed-furniture
-   ink `#b8b2a5` (slider tracks, image-placeholder X strokes, `render_svg`'s
-   own placeholder) reads **2.06:1** against 1.4.11's 3:1 floor — 16 elements
-   across 3 artifacts. `lint_layout` exempts server-composed parts, since the
-   agent did not choose those colours and the frozen fixtures cannot record a
-   waive, so this is a real defect **no tier now reports**. Same owner.
+   1. **Darken both, keep the families.** Annotation ink is now **`#47704b`
+      (5.55:1)** and furniture grey **`#8d877a` (3.48:1)** — same green, same
+      warm grey, both verified with `canvas.py`'s own `contrast_ratio`. The
+      v0.3 authorship colour language (agent notes green, user stickies
+      yellow) survives, which is what made this a visual-identity call rather
+      than a lint-tuning one. The furniture grey is now the named constant
+      `FURNITURE_INK` instead of five string literals.
+   2. **The composed-furniture exemption is gone.** It keyed on *what the
+      element is*, not on who chose the colour, so a regressed default and a
+      user's own bad recolour were both silently unreported — that is the
+      blind spot it cost 16 findings to find. Furniture is checked like
+      everything else now; compliant furniture is quiet by being compliant.
+   3. **Every contrast finding carries a computed fix.** The message names
+      the nearest shade of the same hue that clears the floor, walked in HSL
+      lightness against the background that element is actually drawn on and
+      through its own opacity — general to both checks, not a per-colour
+      table. Where opacity rather than colour is the cause, no shade is
+      offered and "raise its opacity" stands alone.
+
+   **What this does NOT do is drop the corpus count.** The fixtures are
+   frozen records of real sessions and keep the old ink, so the 3 annotation
+   findings STAND and the 16 furniture ones now SHOW — 19 true statements
+   about old drawings, itemized in `TestArgusR4Arm3Fixture.
+   test_standing_lint_is_the_arms_deliberate_record` and expected by shape.
+   **TASK-FOCUS-FOLLOWUP's fixture rebase is what clears them.**
+
+   **The full statement lives at the mint site in `canvas.py`**, on purpose:
+   this entry and that comment are the only two copies a fresh clone can
+   read, because decision 4 above keeps `docs/` local and the design doc
+   with it.
 
 ## 5. The mermaid spike — read this before touching WP5
 

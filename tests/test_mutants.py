@@ -15402,6 +15402,79 @@ class TestMutantCatalogue(unittest.TestCase):
             "and this reads 3.36:1 — the large-text arm is missing, or "
             "its boundary excludes the size that defines it")
 
+    def test_the_suggested_shade_is_computed_and_actually_compliant(
+            self) -> None:
+        """Part three of the 2026-08-17 ruling, measured not matched.
+
+        A finding that says "reads 1.50:1 where 4.5:1 is asked" hands the
+        agent a number and a search problem; the ruling made it carry the
+        answer. So the shade is parsed back out of the real message and
+        RE-MEASURED with canvas's own arithmetic — a suggestion that is
+        itself under the floor satisfies every substring assertion anyone
+        would think to write and sends the agent round the loop twice.
+
+        BOTH CHECKS, because the ruling is about contrast findings
+        generally and not about the furniture case that prompted it: the
+        text arm at 4.5 and the object arm at 3.0, each verified against
+        the floor IT quoted rather than a shared constant.
+
+        THE FOLD IS INSIDE THE WALK, which the faded scenes pin from both
+        sides. At 60% opacity #1e1e1e reads 4.38:1 and a darker declared
+        ink still fixes it — #1a1a1a folds to 4.53 — so the suggestion is
+        offered AND verified through the same fold, not against the
+        declared colour it would be wrong about. At 40% nothing does:
+        even black folds to 2.84, so the message must offer NO shade and
+        leave "raise its opacity" standing. A `nearest_compliant` that
+        ignored opacity would suggest a colour at both, and the one it
+        suggested at 40% would not fix the finding — the failure mode a
+        presence-only assertion cannot see.
+        """
+        ground = canvas.parse_hex_color(canvas.SVG_GROUND)
+        for scene, check, floor in (
+                (_styled_scene(text_color="#d0d0d0"), "contrast_text",
+                 canvas.CONTRAST_TEXT),
+                (_styled_scene(stroke="#b0b0b0"), "contrast_object",
+                 canvas.CONTRAST_OBJECT)):
+            raw = [f["raw"] for f in collect_findings(scene)
+                   if f["check"] == check]
+            self.assertEqual(len(raw), 1, raw)
+            got = re.search(r"nearest compliant shade of the same hue: "
+                            r"(#[0-9a-f]{6})", raw[0])
+            self.assertIsNotNone(
+                got, "%s carries no computed fix: %r" % (check, raw[0]))
+            ratio = canvas.contrast_ratio(
+                canvas.parse_hex_color(got.group(1)), ground)
+            self.assertGreaterEqual(
+                ratio, floor,
+                "%s suggested %s, which reads %.2f:1 — under the %.1f:1 "
+                "the same sentence asks for"
+                % (check, got.group(1), ratio, floor))
+        faded = [f["raw"] for f in collect_findings(_styled_scene(opacity=60))
+                 if f["check"] == "contrast_text"]
+        self.assertEqual(len(faded), 1, faded)
+        self.assertIn("raise its opacity", faded[0])
+        got = re.search(r"nearest compliant shade of the same hue: "
+                        r"(#[0-9a-f]{6})", faded[0])
+        self.assertIsNotNone(got, faded[0])
+        self.assertGreaterEqual(
+            canvas.contrast_ratio(
+                canvas.composite_over(canvas.parse_hex_color(got.group(1)),
+                                      ground, 60), ground),
+            canvas.CONTRAST_TEXT,
+            "the shade suggested for a 60%%-opacity element is compliant "
+            "only at full strength — %s does not clear the floor once the "
+            "element's own fade is applied" % got.group(1))
+        gone = [f["raw"] for f in collect_findings(_styled_scene(opacity=40))
+                if f["check"] == "contrast_text"]
+        self.assertEqual(len(gone), 1, gone)
+        self.assertNotIn("nearest compliant", gone[0])
+        self.assertIn("raise its opacity", gone[0])
+        self.assertIsNone(
+            canvas.nearest_compliant((0, 0, 0), ground,
+                                     canvas.CONTRAST_TEXT, 40),
+            "a shade was offered where even black folds to 2.84:1 — "
+            "following it would not fix the finding")
+
     def test_the_colour_math_reproduces_published_wcag_values(self) -> None:
         """The three pure functions, against numbers from outside this repo.
 
@@ -15434,27 +15507,39 @@ class TestMutantCatalogue(unittest.TestCase):
             canvas.composite_over(black, white, 50), (127.5, 127.5, 127.5))
         self.assertIsNone(canvas.parse_hex_color("transparent"))
 
-    def test_the_composed_part_exemption_turns_on_the_tag_not_the_colour(
+    def test_composed_furniture_is_checked_like_everything_else(
             self) -> None:
-        """A slider track is exempt; the same line, agent-styled, is not.
+        """The dropped exemption, pinned from both sides. RULED 2026-08-17.
 
-        The one carve-out these checks carry, pinned as a GATE from both
-        sides because the failure it protects against is silent. Composed
-        parts — `role: decoration` carrying a `COMPOSED_PART_KEYS` tag —
-        are minted by canvas.py from its own palette, so there is no
-        agent decision to question; #b8b2a5 at 2.06:1 is 16 findings
-        across 3 of the 24 frozen artifacts and not one of them is
-        answerable by the agent that would be told.
+        This test used to assert the opposite: a `COMPOSED_PART_KEYS`-
+        tagged slider track was EXEMPT from `contrast_object` on the
+        argument that canvas.py chose that colour, not the agent, so
+        there was no decision to question.
 
-        THE TWO SCENES DIFFER IN ONE KEY. Same type, same colour, same
-        geometry, same `role: decoration`; only `track_of` moves. So an
-        implementation that exempted `role: decoration` wholesale — the
-        obvious shortcut, and the one the design doc explicitly forbids
-        ("route exemptions through the waiver, not a hardcoded skip") —
-        passes the exempt pole and fails the firing one. So does one that
-        exempted by colour, or by element type.
+        THE BLIND SPOT THE USER NAMED is that the carve-out keyed on WHAT
+        THE ELEMENT IS rather than on who chose the colour. A regressed
+        default in canvas.py and a user's own recolour of a track are
+        both "furniture" and both went unreported — measured cost, 16
+        unreported findings across 4 of the 24 frozen artifacts (3
+        fixture projects; the pre-ruling comment counted projects and
+        said 3 artifacts), a real palette defect no tier named for a
+        whole version.
+
+        SO THE TAG IS NO LONGER A KEY, and both scenes here fire: same
+        type, same faint colour, same geometry, `track_of` present in one
+        and absent in the other. An implementation that kept ANY
+        element-shaped exemption — by tag, by `role: decoration`, by
+        type, by colour — fails the first assertion.
+
+        THE SECOND HALF IS WHAT KEEPS THAT HONEST. Furniture at the
+        shipped `FURNITURE_INK` must be SILENT, because the ruling's
+        other part was to darken it to 3.48:1: quiet furniture now means
+        COMPLIANT furniture, and a check that fired on everything tagged
+        would pass the pole above and fail here. Together they are the
+        property the ruling asked for — furniture checked like everything
+        else, and naturally quiet when it is fine.
         """
-        def track(composed: bool) -> list[dict]:
+        def track(composed: bool, color: str) -> list[dict]:
             cd = {"role": "decoration", "author": "agent"}
             if composed:
                 cd["track_of"] = "sl-1"
@@ -15463,23 +15548,26 @@ class TestMutantCatalogue(unittest.TestCase):
                                               "kind": "slider"}),
                     el(id="trk", type="line", x=10, y=30, width=140,
                        height=0, points=[[0, 0], [140, 0]],
-                       strokeColor="#b8b2a5", customData=cd)]
+                       strokeColor=color, customData=cd)]
 
-        exempt = [f for f in collect_findings(track(True))
-                  if f["check"] == "contrast_object" and f["element"] == "trk"]
+        def asked_about(scene: list[dict]) -> list[dict]:
+            return [f for f in collect_findings(scene)
+                    if f["check"] == "contrast_object"
+                    and f["element"] == "trk"]
+
+        for composed in (True, False):
+            self.assertTrue(
+                asked_about(track(composed, "#b8b2a5")),
+                "a faint slider track went unasked with track_of=%s — an "
+                "exemption keyed on the element rather than on the colour "
+                "is back, and with it the blind spot that hid 16 findings"
+                % composed)
         self.assertEqual(
-            exempt, [],
-            "a server-composed slider track was asked to justify a "
-            "colour canvas.py chose for it — the agent cannot answer, "
-            "and the frozen fixtures cannot record a waive")
-        asked = [f for f in collect_findings(track(False))
-                 if f["check"] == "contrast_object" and f["element"] == "trk"]
-        self.assertTrue(
-            asked,
-            "the same line WITHOUT the composed tag went unasked, so the "
-            "exemption is reading the role (or the colour) rather than "
-            "the tag — which silences every decoration an agent styles "
-            "itself, the case the design doc routes through the waiver")
+            asked_about(track(True, canvas.FURNITURE_INK)), [],
+            "the shipped furniture ink was asked to justify itself, so "
+            "either the palette regressed under 3:1 or this check now "
+            "fires on furniture regardless of colour — the fire above "
+            "would be vacuous either way")
 
     def test_a_hidden_element_is_not_asked_a_legibility_question(self) -> None:
         """Opacity 0 draws no contrast finding, and the fold still works.

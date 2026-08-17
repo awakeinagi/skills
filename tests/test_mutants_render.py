@@ -4208,10 +4208,17 @@ class TestComposedContentVisibility(AblationLiveness, unittest.TestCase):
 # rather than oversight — task-44-report §5.1 lists all five composites as
 # buried on the strength of the OPAQUE pole alone, and the other pole says
 # only three of them are. Body waves and X-box diagonals are stroked
-# `#b8b2a5` at width 1: the diagonals rasterize above `tolerant_diff`'s
+# `FURNITURE_INK` at width 1: the diagonals rasterize above `tolerant_diff`'s
 # ink threshold of 192 (`f1-x1`: 0px of residual even at `min_blob=1`) and
 # the waves survive only as speckle under the `MIN_BLOB` floor (`f1-body1`:
-# 42px at `min_blob=1`, 0px at 12). Both therefore read as ABSENT with a
+# 42px at `min_blob=1`, 0px at 12). (Named by CONSTANT, not by hex: the
+# 2026-08-17 contrast ruling took that ink from #b8b2a5 to #8d877a, one step
+# of lightness, and the whole render tier re-measured green on it — the
+# opaque-owner reading of `f1-x1` below came back at 208px, the same figure
+# it was pinned at. The numbers in this paragraph date from the #b8b2a5
+# measurement and were NOT individually re-derived; what was checked is that
+# every assertion resting on them still holds.) Both therefore read as
+# ABSENT with a
 # transparent owner too, so `ablation_existence` firing on them says
 # nothing about burial. That is why the sweep below measures both poles for
 # every row rather than trusting the opaque one — the same vacuity trap the
@@ -4327,7 +4334,7 @@ class TestComposedFurnitureVisibility(AblationLiveness, unittest.TestCase):
 
         Second, the BOTH-POLES FLOOR, which is not hypothetical here:
         `body` and `image` furniture reads as ABSENT at both poles (faint
-        `#b8b2a5` at width 1, under `tolerant_diff`'s ink threshold and
+        `FURNITURE_INK` at width 1, under `tolerant_diff`'s ink threshold and
         the speckle floor), which is why they are outside
         `STATE_CONTROLS` — an assertion that only said "0px opaque" would
         have been satisfied by a renderer that drew no glyphs at all.
@@ -4466,7 +4473,7 @@ class TestComposedFurnitureVisibility(AblationLiveness, unittest.TestCase):
 
         The two composites `STATE_CONTROLS` had to leave out. Batch 17
         excluded `body` and `image` furniture because their strokes read
-        as ABSENT at both poles — faint `#b8b2a5` at width 1 — so the
+        as ABSENT at both poles — faint `FURNITURE_INK` at width 1 — so the
         both-pole "an opaque owner costs this part nothing" shape cannot
         be built for them, and task 45 §7.2 generalized that into "the
         render tier cannot demonstrate the improvement" and deferred the

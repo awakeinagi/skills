@@ -284,18 +284,27 @@ Three things worth knowing before you argue with a finding:
   why the floor is a separate check rather than a style note.
 
 Composed parts — a slider's track, an X-box's strokes, a tile's value
-row — are not asked about. The server minted those colours from its own
-palette in response to your `kind:` composite; there is no decision of
-yours to question. A decoration or annotation **you** styled is asked,
-and answered with a waive.
+row — are checked like everything else. They used to be exempt, on the
+argument that the server minted those colours and there was no decision
+of yours to question; the exemption keyed on *what the element is*
+rather than on who chose the colour, so a regressed default and your own
+recolour of a track were both silently unreported. The defaults are
+compliant, so composed parts are quiet by being fine. When one does
+speak, it is telling you something changed.
 
-**Known: annotations trip `contrast_text` on the default ink.** An
-annotation you give no `strokeColor` is minted at `#5c8a5f`, which reads
-3.89:1 — under the 4.5 floor. The finding is correct and the palette is
-what disagrees with it; the fix is a pending product decision, not
-something to work around. Until it is settled, pass a darker explicit
-`strokeColor` on annotations you care about, or waive with
-`ink:<aid>:<id>` and a reason. Do not read the finding as noise.
+**Every contrast finding carries the fix.** The message names the
+nearest shade of the same hue that clears the floor — computed against
+the background that element is actually drawn on, and through its own
+opacity — so "reads 2.06:1 where 3:1 is asked" arrives with
+`nearest compliant shade of the same hue: #9b9280` beside it. On an
+element that opacity rather than colour has faded, no shade is offered,
+because none would fix it: raise the opacity. And a waive with a reason
+is always the other answer.
+
+The default annotation ink is `#47704b` (5.55:1), the agent-green half
+of the authorship language. It reads compliant; you can still pass an
+explicit `strokeColor`, and if yours is faint you will be asked about
+it.
 
 ## Annotations (seeder + lint WARNING)
 

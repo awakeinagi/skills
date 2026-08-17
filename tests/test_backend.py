@@ -4357,11 +4357,34 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
         # Arm 3 left the admin-console reading-order warnings standing on
         # purpose ("the answer is in the lint") — they must survive replay
         # exactly, and nothing may fire an ERROR anywhere.
+        #
+        # ITEMIZED 2026-08-17 (the contrast ruling). The counts moved,
+        # admin-console 5 -> 7 and dashboard 2 -> 8, and the movement is
+        # entirely the dropped composed-furniture exemption: 2 slider
+        # tracks here and 6 chart-placeholder X strokes there, all of
+        # them #b8b2a5 at 2.06:1 against 1.4.11's 3:1. They are TRUE
+        # findings about a frozen drawing — this arm really did ship
+        # furniture a reader cannot pick out, and no tier reported it
+        # until the exemption went — so they are expected by SHAPE here
+        # rather than absorbed into a bigger number. The fixtures keep
+        # the pre-ruling ink by design (they are a record of sessions
+        # that happened); TASK-FOCUS-FOLLOWUP's rebase is what clears
+        # them, and when it does these two clauses go to zero and the
+        # counts return to 5 and 2.
         lint = self.lint_all()
-        self.assertEqual(len(lint["admin-console"]["warnings"]), 5)
+        furniture = {}
+        for aid in ("admin-console", "dashboard"):
+            furniture[aid] = [w for w in lint[aid]["warnings"]
+                              if "1.4.11" in w and "#b8b2a5" in w]
+        self.assertEqual(len(furniture["admin-console"]), 2,
+                         furniture["admin-console"])
+        self.assertEqual(len(furniture["dashboard"]), 6,
+                         furniture["dashboard"])
+        self.assertEqual(len(lint["admin-console"]["warnings"]), 7)
         self.assertTrue(all("reading order" in w or "precedes" in w
-                            for w in lint["admin-console"]["warnings"]))
-        self.assertEqual(len(lint["dashboard"]["warnings"]), 2)
+                            for w in lint["admin-console"]["warnings"]
+                            if w not in furniture["admin-console"]))
+        self.assertEqual(len(lint["dashboard"]["warnings"]), 8)
         for aid, r in lint.items():
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
@@ -6290,13 +6313,91 @@ class TestComposedKindsAndTooltips(Base):
         ix = self.by_id()
         self.assertEqual(ix["kpi-alpha"]["customData"]["author"], "agent")
         self.assertEqual(ix["note-1"]["customData"]["author"], "agent")
-        self.assertEqual(ix["note-1"]["strokeColor"], "#5c8a5f")
+        # DARKENED by the user's 2026-08-17 contrast ruling (was #5c8a5f
+        # at 3.89:1, under 1.4.3's 4.5). Still the agent-green half of
+        # the v0.3 authorship language — the ruling required the colour
+        # family to survive, which is why this pin reads a green and not
+        # merely "something compliant".
+        self.assertEqual(ix["note-1"]["strokeColor"], "#47704b")
         rec = self.store.records[1]
         anno = next(f for f in
                     rec["artifacts"]["admin-wireframe"]["facts"]
                     if f["fact"] == "annotated")
         self.assertEqual(anno["author"], "agent")
         self.assertIn("my note", canvas.headline_for(anno))
+
+    def test_the_palette_it_mints_is_quiet_in_its_own_contrast_lint(self):
+        """Both poles of the user's 2026-08-17 contrast ruling, minted.
+
+        The ruling has three parts and they only work together, so they
+        are pinned together on ONE scene that goes through the real
+        paths: ops mint the elements, `project_lint` reads them.
+
+        QUIET POLE. The exemption that used to hide composed furniture
+        from `contrast_object` is gone, so a slider's track, a KPI value
+        row and an agent annotation are now checked like anything else —
+        and the whole scene must still be silent. That silence is now
+        earned by the palette (#47704b at 5.55:1, `FURNITURE_INK`
+        #8d877a at 3.48:1) instead of by a carve-out, which is the
+        ruling's actual content: a REGRESSED DEFAULT would fire here,
+        where under the exemption it could not.
+
+        FIRING POLE, on the same furniture. The old grey is kept as a
+        test scene and put back on the minted track — the "user's own
+        bad recolour" case the ruling names — and it must be asked
+        about. Without it the silence above is satisfied by a check that
+        has stopped answering, which is exactly how the exemption's
+        16-finding blind spot survived a full version.
+
+        THE SUGGESTION IS VERIFIED, not just matched. The message's
+        computed shade is parsed back out and its ratio measured with
+        canvas's own arithmetic: advice that names a colour still under
+        the floor would pass a substring assertion and send the agent
+        round the loop twice.
+        """
+        self.seed_dashboard(extra_ops=[
+            {"op": "add", "element": {"type": "text", "id": "note-1",
+                                      "text": "minted at the default ink",
+                                      "x": 400, "y": 400, "width": 200,
+                                      "role": "annotation"}}])
+        els = self.store.scenes["admin-wireframe"]
+        ix = {e["id"]: e for e in els}
+        track = ix["sl-risk-track"]
+        self.assertEqual(track["customData"]["track_of"], "sl-risk")
+        self.assertEqual(track["strokeColor"], canvas.FURNITURE_INK)
+
+        def contrast_lines(scene):
+            out = canvas.project_lint(self.project, scene,
+                                      registry=self.store.registry,
+                                      artifact_type="wireframe",
+                                      aid="admin-wireframe")
+            return [w for w in out["warnings"]
+                    if "1.4.3 asks" in w or "1.4.11" in w]
+
+        self.assertEqual(contrast_lines(els), [],
+                         "the palette canvas.py mints is not quiet in its "
+                         "own contrast lint")
+        faint = [dict(e) for e in els]
+        for e in faint:
+            if e["id"] == "sl-risk-track":
+                e["strokeColor"] = "#b8b2a5"     # the pre-ruling grey
+        asked = [w for w in contrast_lines(faint) if "sl-risk-track" in w]
+        self.assertEqual(len(asked), 1,
+                         "faint furniture went unasked, so the silence "
+                         "above is about a check that stopped answering "
+                         "rather than about the palette: %r"
+                         % contrast_lines(faint))
+        self.assertIn("reads 2.06:1", asked[0])
+        shade = re.search(r"nearest compliant shade of the same hue: "
+                          r"(#[0-9a-f]{6})", asked[0])
+        self.assertIsNotNone(shade, "no computed fix in %r" % asked[0])
+        ratio = canvas.contrast_ratio(
+            canvas.parse_hex_color(shade.group(1)),
+            canvas.parse_hex_color(canvas.SVG_GROUND))
+        self.assertGreaterEqual(
+            ratio, canvas.CONTRAST_OBJECT,
+            "the suggested shade %s reads %.2f:1, still under the floor "
+            "the finding quoted" % (shade.group(1), ratio))
 
 
 class TestDerivedRoundness(unittest.TestCase):
