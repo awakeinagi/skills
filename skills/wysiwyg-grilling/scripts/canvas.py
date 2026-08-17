@@ -3110,17 +3110,32 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
     arrow["height"] = max(abs(p[1]) for p in pts)
     arrow["points"] = pts
     arrow["roundness"] = derived_roundness(arrow)   # derived, never authored
+    # SNAP FIRST, THEN SOLVE, and the order is the whole point. `_snap_geom`
+    # rounds `x`, `y` and every point to whole pixels, so a focus solved
+    # from `path` describes a foot that no longer exists by the time the
+    # element is written — the client aims at the ray the stored value
+    # names and the ink stands where the rounding put it. Sub-pixel and
+    # therefore invisible, which is why it survived: 28 of 306 corpus
+    # endpoints stale, worst 0.35px of drawn slip, under every tolerance
+    # in the repo (curator batch 27, from TASK-FOCUS fix round 1's
+    # filed-not-fixed note). `_route_sig` hashes only `x`/`y`/`points`, so
+    # stamping ahead of the bindings changes no signature.
+    _stamp_route(arrow)
+    spts = arrow["points"]
+    ax0, ay0 = arrow["x"], arrow["y"]
     # SOLVED, not derived — the focus is a property of the approach ray,
-    # and `path[1]` / `path[-2]` are the points the client will aim from.
+    # and `spts[1]` / `spts[-2]` are the points the client will aim from.
     arrow["startBinding"] = {"elementId": src["id"],
-                             "focus": solve_focus(src, path[1][0], path[1][1],
-                                                  x1, y1, gap),
+                             "focus": solve_focus(src, ax0 + spts[1][0],
+                                                  ay0 + spts[1][1],
+                                                  ax0, ay0, gap),
                              "gap": gap}
     arrow["endBinding"] = {"elementId": dst["id"],
-                           "focus": solve_focus(dst, path[-2][0], path[-2][1],
-                                                path[-1][0], path[-1][1], gap),
+                           "focus": solve_focus(dst, ax0 + spts[-2][0],
+                                                ay0 + spts[-2][1],
+                                                ax0 + spts[-1][0],
+                                                ay0 + spts[-1][1], gap),
                            "gap": gap}
-    _stamp_route(arrow)
     for node in (src, dst):
         bl = [b for b in (node.get("boundElements") or [])
               if not (b.get("id") == arrow["id"] and b.get("type") == "arrow")]
@@ -4047,6 +4062,13 @@ def fan_attach_points(els):
         a["points"] = pts
         a["width"] = max(abs(p[0]) for p in pts)
         a["height"] = max(abs(p[1]) for p in pts)
+        # SNAP FIRST, THEN SOLVE — the same ordering `route_arrow` states
+        # its reasons for. A fan slot is `L*k/(N+1)` and is fractional far
+        # more often than a route is, so this is the call site that
+        # produced most of the 28 stale corpus values.
+        _stamp_route(a)
+        spts = a["points"]
+        ax0, ay0 = a["x"], a["y"]
         # focus follows the fanned point — focus 0 aims at the CENTER, so
         # the client's first re-render used to snap every fanned endpoint
         # straight back onto the shared anchor (v0.3). REPLACE the binding
@@ -4056,13 +4078,13 @@ def fan_attach_points(els):
             b = a.get(key)
             node = ix.get((b or {}).get("elementId"))
             if b and node is not None:
-                px, py = (sx, sy) if which == "start" else (exx, exy)
-                adj = pts[1] if which == "start" else pts[-2]
+                px, py = ((ax0, ay0) if which == "start" else
+                          (ax0 + spts[-1][0], ay0 + spts[-1][1]))
+                adj = spts[1] if which == "start" else spts[-2]
                 nb = dict(b)
-                nb["focus"] = solve_focus(node, sx + adj[0], sy + adj[1],
+                nb["focus"] = solve_focus(node, ax0 + adj[0], ay0 + adj[1],
                                           px, py, b.get("gap") or 0)
                 a[key] = nb
-        _stamp_route(a)
         recenter_label(els, a)
 
 

@@ -376,8 +376,20 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at TASK-REROUTE's fold, which
+**9 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at TASK-FOCUS-FOLLOWUP-A's fold,
+which FLIPPED the `_stamp_route` ordering red and added none, taking
+`test_mutants.py` 10 -> 9 and emptying
+`TestStoredBindingsDescribeTheFinalInk` — the THIRD class to make the
+join-and-leave round trip inside one batch cycle, and the second batch-27
+arrival to drain the day after it was filed. That class keeps every green
+pole it had and gained one, a fan-side arm covering the second call site,
+so the flip cost the dict a LINE and not a number. This figure was
+derived at the rebased head and not carried across the rebase; the
+paragraph it sits in has now been re-derived four times in two days by
+four different tasks, which is the whole argument for the grep. The
+previous re-derivation, still true of everything below it, follows:
+taken at TASK-REROUTE's fold, which
 FLIPPED the no-op-rewire red and added none, taking `test_mutants.py`
 11 -> 10 — the arrival batch 28 predicted by name and by number when it
 filed the red, so this movement is the expected arithmetic and not a

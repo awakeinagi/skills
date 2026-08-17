@@ -9478,6 +9478,12 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
 # after stamping) at both call sites; a curator writing that line would be
 # writing the acceptance test for their own patch.
 #
+# FLIPPED by v0.9 TASK-FOCUS-FOLLOWUP-A, which took the first branch: both
+# call sites now call `_stamp_route` BEFORE they write a binding and solve
+# from the snapped `x`/`y`/`points`. `_route_sig` hashes only geometry, so
+# no signature moved. The red keeps its name and its arithmetic and gains
+# the half a passing assertion cannot carry on its own — see the docstring.
+#
 # THE FIXTURE HALF OF THIS CLASS IS DELIBERATELY NOT THE SCENE, and the
 # reason arrived while this was being written. TASK-NARRATION's fix round
 # reproduced, with a second and independent instrument, three at-port feet
@@ -9542,35 +9548,57 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
         drawn = focus_probe.client_draws(node, focus, gap, adj, foot)
         return abs(drawn[1] - foot[1])
 
-    @unittest.expectedFailure
+    @staticmethod
+    def _unsnapped(w: float, h: float) -> tuple[dict, dict]:
+        """The same route with `_round_geom` turned into the identity.
+
+        The ONLY way to see the pre-snap geometry without re-deriving
+        the router, and it goes through the shipped `route_arrow` rather
+        than around it, so it stays true when the router changes.
+
+        Args:
+            w: Both nodes' width.
+            h: Both nodes' height.
+
+        Returns:
+            `(src, arrow)` as they stood before `_snap_geom` rounded them.
+        """
+        with mock.patch.object(canvas, "_round_geom", lambda v: v):
+            return TestStoredBindingsDescribeTheFinalInk._routed(w, h)
+
     def test_red_the_stored_focus_predates_the_snap_that_moved_it(
             self) -> None:
         """101x61 nodes: the stored focus aims 0.39px off the drawn foot.
 
-        `route_arrow` computes both `focus` values from `path`, then
-        `_stamp_route` rounds the geometry underneath them. On an odd
-        width the centre line sits on a half pixel, so the snap moves the
-        foot and the stored focus is left describing where it used to be.
+        FLIPPED by v0.9 TASK-FOCUS-FOLLOWUP-A. `route_arrow` used to
+        compute both `focus` values from `path` and only then let
+        `_stamp_route` round the geometry underneath them; on an odd
+        width the centre line sits on a half pixel, so the snap moved the
+        foot and the stored focus was left describing where it used to
+        be. Both call sites now stamp first and solve from the snapped
+        points.
 
-        WHAT THE PICTURE WRONGLY SAYS: nothing a reader would name —
-        this is a sub-pixel lie, and that is exactly why it needs a pin.
-        It is invisible until it is not: the slip is measured along the
-        side, which is the axis fan lanes and port assignments are
+        WHAT THE PICTURE WRONGLY SAID: nothing a reader would name —
+        this was a sub-pixel lie, and that is exactly why it needed a
+        pin. It is invisible until it is not: the slip is measured along
+        the side, which is the axis fan lanes and port assignments are
         decided on, and `FAN_LANE_PITCH` is 18px of a budget nothing else
         is spending.
 
         WHAT THE CHECKS REPORTED: nothing, correctly. No lint reads a
         stored binding against the geometry stored beside it.
 
-        ONE ASSERTION, AND IT IS THE INVARIANT: the slip the stored
-        focus draws against the slip the re-solved focus draws. A second
-        assertion pinning 0.3916 as a literal would be the wrong shape
-        here and was written and removed — it holds TODAY and would go
-        on holding after a fix moved the first number to match the
-        second, so the test could never flip. The measurement is in the
-        failure message instead, where a reader gets both numbers and
-        the flip contract still works: 0.3916px stored against 0.0094px
-        re-solved, at this head.
+        THE FLIP NEEDED A THIRD ASSERTION AND HERE IS WHY. As a red the
+        invariant was "the stored focus draws where the re-solved one
+        draws", and a passing version of that alone is satisfiable by a
+        specimen the snap never moves — the green pole below is exactly
+        such a specimen, so the two tests would have become the same
+        test. So the pre-snap route is reconstructed here through the
+        shipped router (`_round_geom` stubbed to the identity) and the
+        OLD ORDERING IS RE-RUN: the focus it would have stored still
+        draws this foot 0.39px away, against 0.01px for the value that is
+        stored now. Revert the ordering at either call site and the third
+        assertion fails, because `stored` becomes the pre-snap answer.
         """
         node, arrow = self._routed(101.0, 61.0)
         stored = arrow["startBinding"]["focus"]
@@ -9583,12 +9611,33 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
             slip, self._slip(node, arrow, resolved), places=2,
             msg="the stored focus %.4f draws the foot %.4fpx along the "
                 "side; re-solved on the SNAPPED geometry it is %.4f and "
-                "draws %.4fpx. `_stamp_route` runs after the solve at "
-                "both call sites (canvas.py route_arrow, "
-                "fan_attach_points), so every fractional route persists "
+                "draws %.4fpx. `_stamp_route` must run BEFORE the solve "
+                "at both call sites (canvas.py route_arrow, "
+                "fan_attach_points), or every fractional route persists "
                 "a binding for a foot the snap has already moved"
                 % (stored, slip, resolved, self._slip(node, arrow,
                                                       resolved)))
+        self.assertLess(slip, 0.05,
+                        "the stored focus should draw its own foot, not "
+                        "merely agree with a re-solve that is equally "
+                        "wrong — %.4fpx" % slip)
+        # THE SPECIMEN IS STILL A FRACTIONAL ROUTE, and the old ordering
+        # still costs what it cost. Without this the test above passes on
+        # a scene the snap never touches.
+        raw_node, raw = self._unsnapped(101.0, 61.0)
+        self.assertNotEqual((raw["x"], raw["y"]), (arrow["x"], arrow["y"]),
+                            "the snap moves nothing here any more, so this "
+                            "specimen no longer measures the ordering")
+        was = canvas.solve_focus(
+            raw_node, raw["x"] + raw["points"][1][0],
+            raw["y"] + raw["points"][1][1], raw["x"], raw["y"],
+            raw["startBinding"]["gap"])
+        self.assertGreater(
+            self._slip(node, arrow, was), 0.3,
+            "solving before the snap used to store %.4f, which draws this "
+            "foot %.4fpx along the side; if that is now cheap the specimen "
+            "has drifted and the class needs a new one"
+            % (was, self._slip(node, arrow, was)))
 
     def test_a_whole_pixel_route_stores_a_binding_that_is_exact(
             self) -> None:
@@ -9612,6 +9661,100 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
         self.assertAlmostEqual(
             self._slip(node, arrow, stored), 0.0, places=3,
             msg="a whole-pixel route's stored binding draws its own foot")
+
+    def test_the_fan_solves_its_focus_after_it_snaps_the_slot_too(
+            self) -> None:
+        """THE SECOND CALL SITE, and the one that produced most of them.
+
+        The red above reaches `route_arrow` only, and this class's
+        statement was always "one line's ordering, in TWO places". A fan
+        slot is `L * k / (N + 1)`, so it is fractional far more often
+        than a route is: three arrows onto one 101px side land on 33.67
+        and 67.33 before the snap and on whole pixels after it.
+
+        Same construction as the red — the pre-snap focus values are
+        re-derived through the shipped `fan_attach_points` with
+        `_round_geom` stubbed to the identity, then scored against the
+        ink that was actually written. The old ordering stored 0.5 /
+        -0.001 / -0.499 for the three lanes, which draw 0.22 / 0.51 /
+        0.27px along the side; the values stored now draw 0.002 / 0.005 /
+        0.002px.
+        """
+        hub, arrows = self._fanned(101.0, 61.0)
+        was_hub, was = self._fanned(101.0, 61.0, snap=False)
+        self.assertEqual(len(arrows), 3)
+        self.assertNotEqual(
+            [a["points"][-1] for a in arrows],
+            [a["points"][-1] for a in was],
+            "the fan slot is on whole pixels before the snap here, so "
+            "this specimen no longer measures the ordering")
+        del was_hub
+        for now, before in zip(arrows, was):
+            fresh = self._end_slip(hub, now, now["endBinding"]["focus"])
+            stale = self._end_slip(hub, now, before["endBinding"]["focus"])
+            self.assertLess(
+                fresh, 0.05,
+                "the fan stored %r for a foot its own snap then moved — "
+                "%.4fpx along the side"
+                % (now["endBinding"]["focus"], fresh))
+            self.assertGreater(
+                stale, fresh,
+                "solving before the snap stored %r here, which should be "
+                "the WORSE of the two on the ink that was written "
+                "(%.4fpx against %.4fpx); if it is not, this specimen has "
+                "drifted" % (before["endBinding"]["focus"], stale, fresh))
+
+    @staticmethod
+    def _fanned(w: float, h: float,
+                snap: bool = True) -> tuple[dict, list[dict]]:
+        """Three arrows fanned onto one `w` x `h` hub's top side.
+
+        Args:
+            w: Every node's width.
+            h: Every node's height.
+            snap: False to stub `_round_geom` to the identity, which is
+                the only way to see the geometry the fan solved from
+                before it rounded it.
+
+        Returns:
+            `(hub, arrows)` after `fan_attach_points` has run.
+        """
+        hub = el(id="hub", type="rectangle", x=400.0, y=400.0, width=w,
+                 height=h, customData={"role": "node"})
+        els: list[dict] = [hub]
+        arrows = []
+        for i, dx in enumerate((-500.0, 0.0, 500.0)):
+            src = el(id="n%d" % i, type="rectangle", x=400.0 + dx, y=900.0,
+                     width=w, height=h, customData={"role": "node"})
+            a = el(id="a%d" % i, type="arrow", points=[[0, 0], [1, 1]])
+            canvas.route_arrow(a, src, hub)
+            els.extend((src, a))
+            arrows.append(a)
+        if snap:
+            canvas.fan_attach_points(els)
+        else:
+            with mock.patch.object(canvas, "_round_geom", lambda v: v):
+                canvas.fan_attach_points(els)
+        return hub, arrows
+
+    @classmethod
+    def _end_slip(cls, node: dict, arrow: dict, focus: float) -> float:
+        """`_slip` for the END foot, which is the one the fan moved.
+
+        Args:
+            node: The node the end foot stands on.
+            arrow: The routed, fanned, stamped arrow.
+            focus: The focus value to aim with.
+
+        Returns:
+            The tangential (along-side) displacement in px.
+        """
+        pts = arrow["points"]
+        foot = (arrow["x"] + pts[-1][0], arrow["y"] + pts[-1][1])
+        adj = (arrow["x"] + pts[-2][0], arrow["y"] + pts[-2][1])
+        drawn = focus_probe.client_draws(node, focus,
+                                         arrow["endBinding"]["gap"], adj, foot)
+        return abs(drawn[0] - foot[0])
 
 
 # ---------------------------------------------------------------------------
@@ -17929,8 +18072,14 @@ HAND_AUTHORED_RED_CLASSES = {
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
-    "TestStoredBindingsDescribeTheFinalInk": 1,
     "TestTheObstacleSetsAgreeAboutASticky": 1}
+# ALSO LEFT on 2026-08-17, hours apart at a different fold:
+# `TestStoredBindingsDescribeTheFinalInk`, emptied by
+# TASK-FOCUS-FOLLOWUP-A's solve-ordering fix — the batch-27 paragraph
+# below carries it. Three classes have now made the join-and-leave round
+# trip inside one batch cycle, which is a curator batch draining promptly
+# rather than churn.
+#
 # ONE LEFT on 2026-08-17 at TASK-REROUTE's fold, one day after joining:
 # `TestANoOpRebindMintsNoFact`'s single red flipped when the domain arm
 # got the binding comparison its two siblings already had, and a class
@@ -17966,12 +18115,16 @@ HAND_AUTHORED_RED_CLASSES = {
 # report and so no `FindingSpec` to write. Both carried their firing pole in
 # the same class, which is the rule-8 obligation an entry outside
 # `CATALOGUE` still owes even though the gate cannot see it.
-# `TestFurnitureIsNotAnUnconnectedNode` LEFT the list the next day
-# (TASK-POLISH), one batch after joining it — the activation-bar exemption
-# landed and the class kept both of its green poles, so it is a class with
-# no reds and therefore not a member. It is the shortest stay recorded
-# here, and it is the rule working: the dict lost a line rather than a
-# number, because a class does not become "0" when its last red flips.
+# BOTH LEFT AGAIN WITHIN A DAY, and the pair is worth reading together
+# because it is the same rule twice: `TestFurnitureIsNotAnUnconnectedNode`
+# on 2026-08-17 (TASK-POLISH, the activation-bar exemption) and
+# `TestStoredBindingsDescribeTheFinalInk` the same day
+# (TASK-FOCUS-FOLLOWUP-A, which moved `_stamp_route` ahead of the solve at
+# both call sites). Each kept every green pole it had and gained one — the
+# ordering class picked up a fan-side arm covering the second call site —
+# so each is a class with no reds and therefore not a member. The dict
+# lost a LINE rather than a number, because a class does not become "0"
+# when its last red flips. Joined and left inside one batch cycle, twice.
 #
 # TWO CLASSES JOINED on 2026-08-16 (the spike-program curator batch), and
 # they are here rather than in `CATALOGUE` for one reason each, both of
