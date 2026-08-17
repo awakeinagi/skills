@@ -12316,6 +12316,99 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
                       self.store.reroute("edgar-late")["summary"]["headline"])
 
 
+class TestTheCorpusKeepsItsTwoDeliberateFossils(unittest.TestCase):
+    """The rebase left two artifacts fossilised, and this says why.
+
+    v0.9 TASK-FOCUS-FOLLOWUP-B re-routed the frozen corpus through
+    `Store.reroute` and took every offer the gate made BUT TWO. Both
+    exclusions are load-bearing, and both are already enforced
+    elsewhere — `TestTheRerouteOfferWithdrawsItself` fails if
+    `tuesday-triage` is rebased, `TestTearsheetFixture` fails if
+    `tearsheet-pipeline` is. What neither of those says is WHY, and a
+    future rebase reading only its own failure would see two arbitrary
+    numbers moving. So the invariant is stated once, here, in the terms
+    that make it a decision rather than an accident.
+
+    `argus-r5/tuesday-triage` — THE LEGACY-ROUTING SPECIMEN. The
+    load-time `LEGACY_ROUTING=` NOTE, `Store.legacy_routing` and
+    `legacy_routing_notes` fire ONLY on an artifact the gate offers, so
+    once every offer is taken that whole surface has no real scene left
+    to fire on. The specimen therefore has to be a gate-OFFERING
+    artifact; a declined one preserves nothing, never having been in
+    `legacy_routing` to begin with.
+
+    `tearsheet-demo/tearsheet-pipeline` — THE DRIFT SPECIMEN. Its three
+    arrows diverge on disk from the replayed head, and it is the only
+    real-project scene where `catch_up` reconciles a GEOMETRY drift.
+    `Store.reroute` commits the disk state, so re-routing it collapses
+    the divergence and the reconciliation stops being minted at all.
+    `FixtureReplayBase.test_catchup_can_still_speak_about_this_fixture`
+    covers the RENAME path on a synthetic edit; nothing else covers the
+    geometry path on real drifted data.
+
+    Straightening either one is allowed — but only together with a
+    replacement pole, which is what this test exists to force the next
+    person to think about.
+    """
+
+    SPECIMENS = ("argus-r5/tuesday-triage",
+                 "tearsheet-demo/tearsheet-pipeline")
+
+    def open(self, project):
+        """Load one frozen fixture from a temp copy.
+
+        Args:
+            project: Fixture directory name.
+
+        Returns:
+            `(store, canvas.Project, tmpdir)`.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-fossil-"))
+        src = Path(__file__).resolve().parent / "fixtures" / project
+        shutil.copytree(src, tmp / "project_knowledge")
+        p = canvas.Project(tmp)
+        return canvas.Store(p), p, tmp
+
+    def test_exactly_these_two_artifacts_still_carry_legacy_routing(self):
+        """The offer set across the whole corpus is the two specimens.
+
+        Asserted as the full set, not as two memberships: an artifact
+        that REGRESSED into carrying legacy routing is as much a
+        finding as a specimen that lost it, and only an equality catches
+        the first.
+        """
+        offering = []
+        root = Path(__file__).resolve().parent / "fixtures"
+        for project in sorted(d.name for d in root.iterdir() if d.is_dir()):
+            if not (root / project / "artifacts").is_dir():
+                continue
+            store, p, tmp = self.open(project)
+            try:
+                offering += ["%s/%s" % (project, aid)
+                             for aid in sorted(store.legacy_routing())]
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+                for f in (p.state_path, p.events_path, p.log_path):
+                    if f.exists():
+                        f.unlink()
+        self.assertEqual(sorted(offering), sorted(self.SPECIMENS))
+
+    def test_the_legacy_specimen_still_speaks_the_load_time_note(self):
+        # the NOTE is the surface an agent actually reads on resume, so
+        # a specimen that offered but printed nothing would be useless
+        store, p, tmp = self.open("argus-r5")
+        try:
+            notes = store.legacy_routing_notes()
+            self.assertEqual(len(notes), 1, notes)
+            self.assertIn("tuesday-triage", notes[0])
+            self.assertIn("arrive crooked", notes[0])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+            for f in (p.state_path, p.events_path, p.log_path):
+                if f.exists():
+                    f.unlink()
+
+
 class TestTheOscillatorIsTheRouter(unittest.TestCase):
     """Which component actually fails to converge — held to the ablation.
 
