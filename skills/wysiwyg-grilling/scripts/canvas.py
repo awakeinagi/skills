@@ -3247,8 +3247,9 @@ FOCUS_LAND_TOL = 50.0
 # the correctness lives.
 #
 # 50.0 IS WHERE THE EVIDENCE PUT IT, and the previous value was measured
-# WRONG. Sweeping 18,720 feet over eight box shapes, four sides, three
-# standoffs and five leans, at every candidate ceiling:
+# WRONG. Sweeping 18,720 RECTANGLE feet — eight box shapes, four sides,
+# three standoffs, five leans, evenly spaced along each side — at every
+# candidate ceiling:
 #
 #     ceiling   rejections   of which the answer drew WORSE than focus 0
 #       4.0        1111          0
@@ -3264,11 +3265,23 @@ FOCUS_LAND_TOL = 50.0
 # anywhere can see them — they are model error, not confidence error, and
 # a ceiling was never the instrument for them.
 #
-# So this fires on nothing the straight-side model covers, by
-# construction, and exists for the shapes it does NOT cover: a rounded
-# corner's per-corner diagonal offset and a conic's curved outline are
-# not this model, and an answer landing half a node away on one of those
-# should still be refused rather than stored with confidence.
+# READ THAT LAST ROW'S SCOPE, because a first draft of this comment did
+# not and claimed this "fires on nothing by construction". It is false.
+# That sweep was rectangles only and evenly spaced, and both choices hide
+# this: re-swept corner-weighted over rectangles, diamonds and ellipses
+# (21,420 feet), the backstop fires on 440 of them — 2.05%, 89%
+# non-rectangular, and 434 of the 440 are answers that were drawing
+# BETTER than the 0 they were replaced with, the smallest thrown away at
+# 9.227px. Sweep mean 14.301px with the backstop against 13.550px
+# without. An independent re-review sweep measured the same shape (366
+# fires, 42 rectangles, smallest 6.877px).
+#
+# So the honest statement is: this costs a little and it is not free. It
+# is kept because a conic's curved outline and a rounded corner's
+# per-corner diagonal offset are NOT the straight-side model
+# `_drawn_offset` uses, so on those shapes a large finite landing is a
+# number the model has not earned the right to trust — and 0.75px of
+# sweep-mean slip is the price of not storing one with confidence.
 #
 # NOT the endpoint lint's tolerance, and the earlier comment here saying
 # so was false and hazardous — it invited unification with
@@ -3365,16 +3378,22 @@ def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
     midpoint (spike-ports §2's exact pole), because there the target line
     passes through the centre and no candidate can beat it.
 
-    AND 0 IS ALSO WHAT AN UNSOLVABLE GEOMETRY GETS, by an explicit
-    residual check rather than by hope. An earlier draft of this
-    docstring claimed the `along` class already fell out through the
-    `side is None` guard; it does not, because `_edge_side` names a real
-    side for a foot standing on one however the leg arrived at it, so
-    the search ran anyway and handed back its least-bad candidate — a
-    clamped ±0.9 that drew the foot up to 90px away where 0 would have
-    drawn it exactly (v0.9 TASK-FOCUS review, IMPORTANT-1 and -2). The
-    search minimises the aim residual and will always return something;
-    `FOCUS_LAND_TOL` is what decides whether that something is an answer.
+    AND 0 IS ALSO WHAT AN UNSOLVABLE GEOMETRY GETS, by arithmetic rather
+    than by hope. An earlier draft of this docstring claimed the `along`
+    class fell out through the `side is None` guard; it does not,
+    because `_edge_side` names a real side for a foot standing on one
+    however the leg arrived at it, so the search ran anyway and handed
+    back its least-bad candidate — a clamped ±0.9 that drew the foot up
+    to 90px away where 0 would have drawn it exactly (v0.9 TASK-FOCUS
+    review, IMPORTANT-1 and -2).
+
+    What settles it now is that the search minimises WHERE THE CLIENT
+    LANDS THE FOOT (`_drawn_offset`) rather than how far off-angle the
+    aim points, and scores a side the aim cannot reach as infinite. Focus
+    0 is the search's own opening bid, so an unreachable geometry loses
+    to it on the arithmetic. `FOCUS_LAND_TOL` sits behind that as a
+    backstop for shapes the straight-side model does not describe; it is
+    not what rejects the classes above.
 
     Args:
         node: The bound node element.
