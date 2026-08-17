@@ -11566,6 +11566,463 @@ class TestPinIdentityIntegrity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# A REBIND THAT REBINDS NOTHING (curator batch 28, 2026-08-17, seeded by
+# TASK-REROUTE, which fixed the domain arm of the same class).
+#
+# Excalidraw rewrites the binding OBJECT — focus, gap — whenever an endpoint
+# is dragged and dropped back on the node it came from, so `startBinding`
+# shows up in the diff while the arrow still runs between the same two
+# elements. Three arms of `semantic_facts` build a fact out of that diff
+# entry, and only two of them ask whether anything moved:
+#
+#   flow      `rewired`             guarded, `(os_, oe_) == (ns_, ne_)`
+#   sequence  `actor_reassigned`    guarded per END, `if o != n`
+#   domain    `relationship_rewired`  UNGUARDED at this head
+#
+# So a domain save mints "rewired order→customer to order→customer" — a
+# claim about the model, made when the model did not move, and at rank 2 of
+# `SALIENCE` it becomes the save's HEADLINE. It is reachable from a plain
+# user save (measured through `Store.commit`) and from anything that
+# re-solves a binding focus, which the router does on every pass.
+#
+# THE CLASS, not the arm: a binding change that changes nothing the fact
+# vocabulary can SAY must not mint a fact. This pins it across all three
+# arms on one three-element scene, so the arm that is fixed and the two arms
+# that were already right are held by the same sentence.
+#
+# BASE: two entities, one arrow bound to both. MUTATION: one binding's
+# `focus` 0.0 → 0.25, `elementId` untouched. MAGNITUDE: one fact where zero
+# belong; DIRECTION: its `from` equals its `to`. NEIGHBOUR: the same three
+# arms over a real re-point onto a third entity, where all three must speak
+# with `from` != `to` — the live half, ungated, so a fact vocabulary that
+# went silent could not read as green here.
+# ---------------------------------------------------------------------------
+
+_REWIRE_ENDS = {"rewired": ("from", "to"),
+                "relationship_rewired": ("from", "to"),
+                "actor_reassigned": ("from_actor", "to_actor")}
+# The rewire-class vocabulary and where each arm keeps its two endpoints.
+# Read by key rather than by `headline_for`, because the sequence arm has
+# no headline template of its own and its endpoints are ACTORS, not the
+# `a→b` pairs the other two format.
+
+
+def _bound_pair() -> list[dict]:
+    """Two entities and one arrow bound to both, at round coordinates.
+
+    Three elements is the whole mechanism — a rewire fact needs an arrow
+    and the two things it names — and the ids double as display labels
+    (nothing carries a bound text), so the sentence the defect mints
+    reads back as `order→customer` without four more elements to say it.
+
+    Returns:
+        The base scene: `order`, `customer`, and the arrow `rel`.
+    """
+    return [
+        el(id="order", type="rectangle", x=0, y=0, width=120, height=60,
+           customData={"role": "node"}),
+        el(id="customer", type="rectangle", x=300, y=0, width=120,
+           height=60, customData={"role": "node"}),
+        el(id="rel", type="arrow", x=120, y=30, width=180, height=0,
+           points=[[0, 0], [180, 0]],
+           startBinding={"elementId": "order", "focus": 0.0, "gap": 4},
+           endBinding={"elementId": "customer", "focus": 0.0, "gap": 4}),
+    ]
+
+
+def _bound_trio() -> list[dict]:
+    """`_bound_pair` plus the third entity a real re-point can land on.
+
+    The neighbour's scene, built as-is: the fourth element exists only so
+    the opposite pole is expressible, since an endpoint cannot move to
+    somewhere that is not drawn.
+
+    Returns:
+        The base scene with `supplier` added below `customer`.
+    """
+    scene = _bound_pair()
+    scene.insert(2, el(id="supplier", type="rectangle", x=300, y=200,
+                       width=120, height=60, customData={"role": "node"}))
+    return scene
+
+
+def _refocused(scene: list[dict]) -> list[dict]:
+    """Re-aim `rel`'s start binding without re-pointing it — THE mutation.
+
+    One attribute of one element: `focus` moves, `elementId` does not.
+    That is exactly what the client writes when a user picks an endpoint
+    up and drops it back where it was, and it is the smallest edit that
+    still puts `startBinding` in the diff.
+
+    Args:
+        scene: A scene holding `rel`; not mutated.
+
+    Returns:
+        A copy whose `rel` is aimed at the same entity from a new focus.
+    """
+    out = copy.deepcopy(scene)
+    for e in out:
+        if e["id"] == "rel":
+            e["startBinding"] = {"elementId": "order", "focus": 0.25,
+                                 "gap": 4}
+    return out
+
+
+def _repointed(scene: list[dict]) -> list[dict]:
+    """Move `rel`'s far end onto `supplier` — the neighbour's real rewire.
+
+    Args:
+        scene: A scene holding `rel` and `supplier`; not mutated.
+
+    Returns:
+        A copy whose `rel` ends on a different entity than it started on.
+    """
+    out = copy.deepcopy(scene)
+    for e in out:
+        if e["id"] == "rel":
+            e["endBinding"] = {"elementId": "supplier", "focus": 0.0,
+                               "gap": 4}
+    return out
+
+
+def _rewire_facts(atype: str, old: list[dict],
+                  new: list[dict]) -> list[tuple[str, str, str]]:
+    """Every rewire-class fact a save of `new` over `old` would mint.
+
+    The subject here is a TRANSITION, not a scene, so both poles are
+    scene pairs and both run through the same two calls the save path
+    makes — `diff_scenes` then `semantic_facts` — rather than through a
+    detector over one element list.
+
+    Args:
+        atype: Artifact type, which selects the arm of `semantic_facts`.
+        old: The scene as last saved.
+        new: The scene the client posted.
+
+    Returns:
+        `(fact, from, to)` per rewire-class fact, in emission order.
+    """
+    diff = canvas.diff_scenes(old, new)
+    facts = canvas.semantic_facts(old, new, diff, atype, "first-class", [])
+    out = []
+    for f in facts:
+        ends = _REWIRE_ENDS.get(f.get("fact"))
+        if ends is not None:
+            out.append((f["fact"], f.get(ends[0]), f.get(ends[1])))
+    return out
+
+
+class TestANoOpRebindMintsNoFact(unittest.TestCase):
+    """A binding edit that moves nothing must say nothing, on every arm."""
+
+    ARMS: ClassVar[tuple[str, ...]] = ("flow", "domain", "sequence")
+
+    @unittest.expectedFailure
+    def test_red_a_focus_only_rebind_still_rewires_the_domain(self) -> None:
+        """The domain arm narrates a relationship change that never happened.
+
+        `_domain_facts` builds `relationship_rewired` from the PRESENCE of
+        a `startBinding`/`endBinding` entry in the diff, and the diff
+        carries one for a focus nudge by design (it is `derived: True`
+        there, because replay must be lossless). Nothing then compares the
+        normalized bindings, so the fact is minted with `from` and `to`
+        both reading `order→customer`, and `SALIENCE` promotes it past
+        every other verb to the save's headline: measured through
+        `Store.commit` on a domain artifact, a user who dropped an
+        arrowhead back where they found it is told "rewired
+        Order→Customer to Order→Customer".
+
+        MEASURED, and the pair is the finding: the identical edit on the
+        identical scene is silent on the flow and sequence arms, which
+        guard the same comparison (the test below). One class, three
+        implementations, one of them missing its guard.
+
+        FLIP HANDOFF: TASK-REROUTE has the fix — a `continue` when the
+        normalized bindings are unchanged, mirroring the flow arm's guard
+        — on branch `worktree-agent-add560f3b43622dd4` (commit 2601aa2),
+        unfolded at this head. This red flips GREEN the moment that lands,
+        and whoever folds it drops this decorator in the same change. It
+        is written here rather than there because a fix and its regression
+        pin from one pair of hands is the run-5 hazard shape; the two
+        green poles below are what make this red mean something either
+        way. OWNER of the ruling and the fix: TASK-REROUTE.
+        """
+        minted = _rewire_facts("domain", _bound_pair(),
+                               _refocused(_bound_pair()))
+        self.assertEqual(
+            minted, [],
+            "a focus-only rebind minted %d relationship fact(s) whose "
+            "from equals their to: %r — narrated to the user as %r"
+            % (len(minted), minted,
+               [canvas.headline_for({"fact": f, "from": a, "to": b})
+                for f, a, b in minted]))
+
+    def test_the_flow_and_sequence_arms_are_silent_on_that_same_edit(
+            self) -> None:
+        """The guarded poles, and the reason the red is a CLASS not a bug.
+
+        The same scene and the same one-attribute edit, read as a flow and
+        as a sequence: both arms compare the normalized bindings before
+        they speak, so both mint nothing. Ungated and asserted in every
+        commit for two reasons. It is what makes the red's claim
+        falsifiable — "the vocabulary cannot say this" is only interesting
+        if two of its three arms already refuse to. And it is the standing
+        guard on the sequence arm, which reaches the same answer by a
+        different route: `actor_reassigned` tests each END separately
+        (`if o != n and n`), so it stays correct here only as long as that
+        per-end comparison survives. A future rewrite that lifts the test
+        to "did either binding attribute change" would break this half
+        while every other sequence test stayed green.
+        """
+        for atype in ("flow", "sequence"):
+            with self.subTest(arm=atype):
+                minted = _rewire_facts(atype, _bound_pair(),
+                                       _refocused(_bound_pair()))
+                self.assertEqual(
+                    minted, [],
+                    "the %s arm narrated a rebind that re-pointed "
+                    "nothing: %r" % (atype, minted))
+
+    def test_all_three_arms_speak_when_the_endpoint_really_moves(
+            self) -> None:
+        """The live half: a real re-point, and every arm names both ends.
+
+        Built as-is on its own scene — the mutation above is never applied
+        here — and it is the neighbour the doctrine requires, because
+        every other assertion in this class is a negative. A fact
+        generator that had gone mute, or an arm that stopped reading
+        bindings at all, would satisfy all of them while measuring
+        nothing. This is the pole that fails in that world.
+
+        Each arm reports the move in its own vocabulary, and the shape
+        that matters is the same in all three: `from` differs from `to`.
+        """
+        want = {"flow": ("rewired", "order→customer", "order→supplier"),
+                "domain": ("relationship_rewired", "order→customer",
+                           "order→supplier"),
+                "sequence": ("actor_reassigned", "customer", "supplier")}
+        for atype in self.ARMS:
+            with self.subTest(arm=atype):
+                minted = _rewire_facts(atype, _bound_trio(),
+                                       _repointed(_bound_trio()))
+                self.assertEqual(minted, [want[atype]])
+                self.assertNotEqual(minted[0][1], minted[0][2],
+                                    "a rewire fact whose from equals its "
+                                    "to describes no change")
+
+
+# ---------------------------------------------------------------------------
+# THE STICKY THAT IS SOLID ON ONE PATH AND AIR ON THE OTHER (curator batch
+# 28, 2026-08-17, seeded by review of the obstacle-set builders).
+#
+# `apply_ops.obstacles()` excludes `label`, `pin`, `decoration`. Every other
+# builder of the same set excludes `annotation` as well — `fan_obstacles`,
+# `Store._tidy_pass`, `reroute_and_confess`, and `lint_layout`'s `shapes`.
+# The client's sticky note (`addStickyNote`) is a `rectangle` roled
+# `annotation`, so it is a HARD obstacle on the op path and invisible
+# everywhere else. TASK-REROUTE's unfolded `reroute_scene` will be the
+# fifth site and follows the majority, with a comment that names this
+# divergence and leaves it — so the count moves, the asymmetry does not,
+# and this red survives that fold (measured against its canvas.py).
+#
+# VERIFY-FIRST ON THE HISTORY, because a divergence can be a decision: both
+# lists were written in the SAME commit (1ce9c22, v0.2) — as was the
+# rectangle sticky — with a comment on neither, no test on either, and no
+# reference-doc rule that annotations are opaque to a router. What the code
+# does say points the other way: `soft_obstacles` in that same function
+# calls annotations "legal to cross, ugly to cross", and only ever collects
+# `type == "text"`, so a rectangle-shaped sticky is never soft anywhere. So
+# this is an accident with two poles, neither of which is the documented
+# design. The ruling is not the curator's; the divergence is.
+#
+# WHY NOBODY SAW IT: all 21 annotation-roled elements in the fixture corpus
+# are `text`. The fixtures are agent-seeded and the shape is user-made —
+# the same blind spot curator batch 27 found under the annotation budget.
+#
+# BASE: two nodes off-axis, one server-routed arrow, one sticky sitting on
+# the elbow the router prefers. MUTATION: none — the scene is walked down
+# two ENTRY PATHS, a node move and a Tidy press, both things a user does.
+# MAGNITUDE: 0px of arrow drawn inside the sticky after the move, 180px
+# (its full width) after the Tidy. DIRECTION: the op path avoids, the tidy
+# path draws through. NEIGHBOUR: the identical geometry with the box roled
+# `node` instead, where the two paths agree — one `role` string apart.
+# ---------------------------------------------------------------------------
+
+
+class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
+    """One scene may not have two routes depending on how you got there."""
+
+    def _project(self, role: str) -> canvas.Store:
+        """A flow whose preferred elbow runs through one 180x90 box.
+
+        `a` and `b` are off-axis (`_route_candidates` only offers
+        detours when both deltas exceed 4px), and the box straddles the
+        horizontal leg of the elbow the router picks when nothing is in
+        the way. The arrow carries no `routed` mark, which makes a
+        straight two-point bound arrow server-owned — the state a real
+        artifact is in before anything re-routes it.
+
+        Args:
+            role: `customData.role` for the box in the middle. The whole
+                experiment is this one string.
+
+        Returns:
+            The loaded store, at its own head, ready to be edited.
+        """
+        els = [
+            el(id="a", type="rectangle", x=0, y=0, width=120, height=80,
+               customData={"role": "node"}),
+            el(id="b", type="rectangle", x=600, y=200, width=120,
+               height=80, customData={"role": "node"}),
+            el(id="note", type="rectangle", x=300, y=0, width=180,
+               height=90, customData={"role": role, "author": "user"}),
+            el(id="r", type="arrow", x=120, y=40, width=480, height=200,
+               points=[[0, 0], [480, 200]],
+               startBinding={"elementId": "a", "focus": 0, "gap": 6},
+               endBinding={"elementId": "b", "focus": 0, "gap": 6}),
+        ]
+        root = _scratch_project(
+            self,
+            {"f": json.dumps({"type": "excalidraw", "version": 2,
+                              "elements": els,
+                              "wysiwyg": {"artifact_type": "flow",
+                                          "name": "f"}})},
+            {"0001-f": json.dumps(
+                {"revn": 1, "base_revn": 0, "author": "agent",
+                 "branch": "main",
+                 "artifacts": {"f": {"changes": [{"op": "add",
+                                                  "element": e}
+                                                 for e in els]}}})})
+        return canvas.Store(canvas.Project(root))
+
+    @staticmethod
+    def _ink_inside_the_note(els: list[dict]) -> float:
+        """How many pixels of the arrow are drawn inside the middle box.
+
+        A count of crossings would read 1 for a graze and 1 for a stroke
+        straight down the middle; the SPAN is what a reader sees, and it
+        is the number that separates "the router avoided it" from "the
+        router ignored it".
+
+        Args:
+            els: A scene holding `r` and `note`.
+
+        Returns:
+            Total length of `r` lying within `note`'s box. The routed
+            paths here are orthogonal, so this measures the axis-aligned
+            legs and no others.
+        """
+        ix = {e["id"]: e for e in els}
+        note, arrow = ix["note"], ix["r"]
+        nx1, ny1 = note["x"], note["y"]
+        nx2, ny2 = nx1 + note["width"], ny1 + note["height"]
+        path = [(arrow["x"] + px, arrow["y"] + py)
+                for px, py in arrow["points"]]
+        total = 0.0
+        for (x1, y1), (x2, y2) in zip(path, path[1:]):
+            if y1 == y2 and ny1 <= y1 <= ny2:
+                lo, hi = sorted((x1, x2))
+                total += max(0.0, min(hi, nx2) - max(lo, nx1))
+            elif x1 == x2 and nx1 <= x1 <= nx2:
+                lo, hi = sorted((y1, y2))
+                total += max(0.0, min(hi, ny2) - max(lo, ny1))
+        return total
+
+    def _both_entry_paths(self, role: str) -> tuple[float, float]:
+        """Move a node, then press Tidy, measuring the arrow after each.
+
+        The two entry paths are run over ONE store in sequence rather
+        than over two copies, so the Tidy reads exactly the scene the
+        move left behind: same node boxes, same arrow, same box in the
+        middle. Any difference between the two numbers is a difference
+        of obstacle set and of nothing else.
+
+        Args:
+            role: Passed to `_project` — the box's role.
+
+        Returns:
+            `(after the move, after the tidy)` in pixels of arrow drawn
+            inside the middle box.
+        """
+        store = self._project(role)
+        store.apply_batch({"base_revn": store.head_revn(), "artifact": "f",
+                           "ops": [{"op": "mod", "id": "a",
+                                    "attrs": {"y": 20}}]})
+        moved = self._ink_inside_the_note(store.scenes["f"])
+        store.tidy("f")
+        return moved, self._ink_inside_the_note(store.scenes["f"])
+
+    @unittest.expectedFailure
+    def test_red_a_sticky_is_solid_to_a_move_and_air_to_a_tidy(self) -> None:
+        """Same scene, same arrow, two entry paths, two drawings.
+
+        The user drags a node: `apply_ops` re-routes, its `obstacles()`
+        counts the sticky, and the arrow bends down and around it — 0px
+        of it inside the note. The user then presses Tidy, which does not
+        move a single node here: `_tidy_pass` re-routes with a set that
+        drops annotations, so the same arrow between the same two boxes
+        snaps back onto the elbow and lies 180px — the note's whole width
+        — straight through the user's own note.
+
+        WHAT THE PICTURE WRONGLY SAYS: an arrow drawn through a note the
+        user wrote reads as "this note is about this connector" (or as
+        nothing at all, once the stroke cuts the text). And it is
+        unstable: which drawing you get depends on which button you
+        pressed last, so the same scene has no canonical geometry.
+
+        THE ASSERTION IS EQUALITY, NOT ZERO, deliberately. Three rulings
+        are available — annotations hard everywhere, soft everywhere
+        (which is what `apply_ops`' own comment says they are, and its
+        `soft_obstacles` only ever collects `text`), or transparent
+        everywhere — and two of them land on 0/0 while the third lands on
+        180/180. All three make one scene draw one way, which is the
+        whole claim; picking among them belongs to the WP that owns the
+        router, not here. OWNER: unassigned at filing; the four builders
+        are `apply_ops.obstacles`, `fan_attach_points`' `fan_obstacles`,
+        `Store._tidy_pass`, and `reroute_and_confess`.
+        """
+        moved, tidied = self._both_entry_paths("annotation")
+        self.assertEqual(
+            moved, tidied,
+            "one scene, two geometries: a node move left %.0fpx of the "
+            "arrow inside the sticky and a Tidy press left %.0fpx — the "
+            "op path counts an annotation-roled box as an obstacle and "
+            "the tidy path does not" % (moved, tidied))
+
+    def test_the_same_box_roled_node_gets_one_answer_from_both_paths(
+            self) -> None:
+        """The live half: identical geometry, one `role` string apart.
+
+        Every builder counts a `node`, so both entry paths avoid this box
+        and agree — and Tidy reports `noop` on a scene it has nothing to
+        repair, which is the same statement read from the other side.
+        That pins the divergence to the ROLE rather than to the two code
+        paths differing in general, which is the alternative explanation
+        the red has to rule out.
+
+        Ungated, and it is also what proves the probe can see anything at
+        all: it asserts the arrow really is routed (a detour has a leg,
+        so its measured span inside the box is 0 for a reason) and that
+        `_both_entry_paths` reaches a Tidy at all. A store that refused
+        the batch, or an arrow the router declined to own, would show 0/0
+        here for the wrong reason — so the routed path is checked to be
+        the bent one, not merely a clear one.
+        """
+        store = self._project("node")
+        store.apply_batch({"base_revn": store.head_revn(), "artifact": "f",
+                           "ops": [{"op": "mod", "id": "a",
+                                    "attrs": {"y": 20}}]})
+        routed = {e["id"]: e for e in store.scenes["f"]}["r"]
+        self.assertGreaterEqual(
+            len(routed["points"]), 3,
+            "the router never re-routed this arrow, so the two entry "
+            "paths were never compared: %r" % (routed["points"],))
+        moved, tidied = self._both_entry_paths("node")
+        self.assertEqual((moved, tidied), (0.0, 0.0),
+                         "both entry paths must keep a node's box clear")
+
+
+# ---------------------------------------------------------------------------
 # Scene builders. Every coordinate here was measured against live canvas.py
 # and instruments.py output, so the numbers are frozen: move a point and you
 # move the finding the catalogue asserts. The diamond is 200x100 at
@@ -17468,10 +17925,27 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
+    "TestANoOpRebindMintsNoFact": 1,
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
-    "TestStoredBindingsDescribeTheFinalInk": 1}
+    "TestStoredBindingsDescribeTheFinalInk": 1,
+    "TestTheObstacleSetsAgreeAboutASticky": 1}
+# TWO MORE JOINED on 2026-08-17 (curator batch 28), and both for the reason
+# `TestRouterPassesDoNotWorsenTheDrawing` set: their subject is not one
+# scene, so `collect_findings` has nothing to be asked.
+# `TestANoOpRebindMintsNoFact` is about a TRANSITION — what the fact
+# vocabulary says about a pair of scenes — and a `FindingSpec` takes an
+# element list and a check name; there is no check to name, because the
+# producer here is `semantic_facts` and no detector reads it.
+# `TestTheObstacleSetsAgreeAboutASticky` is a BEFORE/AFTER over two
+# PRODUCERS, the same shape as the router pair: it asserts that two entry
+# paths agree, which is a claim no single-scene reader can hold. Both
+# carry their opposite pole in the same class, which is the rule-8
+# obligation that binds an entry outside `CATALOGUE` even where the gate
+# cannot see it — the guarded arms for the first, the node-roled box for
+# the second.
+#
 # TWO MORE JOINED on 2026-08-17 (curator batch 27), and the split holds:
 # `TestStoredBindingsDescribeTheFinalInk` compares a STORED value against
 # the geometry beside it, which is not a reading of a picture at all, and
