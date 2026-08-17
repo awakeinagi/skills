@@ -9493,13 +9493,79 @@ class TestAssessorUserEdits(Base):
         return self.store.commit(author="user", new_scenes={"f": els},
                                  base_revn=self.store.head_revn())
 
-    def test_a_user_note_lands_as_a_note(self):
+    @staticmethod
+    def client_sticky_custom_data():
+        """The `customData` the 🗒 note button posts, read off App.tsx.
+
+        Parsed rather than restated: an expectation copied by hand into
+        this file agrees with the client exactly once — the day it is
+        written — and then drifts in silence, which is the failure r5-7
+        IS. The slice is `addStickyNote`'s body alone, so a `role:`
+        belonging to any neighbouring builder cannot wander in.
+
+        Returns:
+            One dict per element the button inserts, in insert order.
+        """
+        src = (Path(__file__).resolve().parents[1] / "frontends" /
+               "wysiwyg-grilling" / "src" / "App.tsx").read_text(
+                   encoding="utf-8")
+        body = src.split("const addStickyNote", 1)[1].split(
+            "const askUserPin", 1)[0]
+        return [dict(re.findall(r'(\w+):\s*"([^"]*)"', m))
+                for m in re.findall(r"customData:\s*\{([^}]*)\}", body)]
+
+    def test_the_adapter_stamps_the_notes_the_client_stamps(self):
+        """r5-7: `x-as-user note` posts the client's roles, not its own.
+
+        The adapter stamped `note`/`note-text`; the client stamps
+        `annotation`/`label`. Ten branches in canvas.py consult
+        `annotation` and none consult `note`, so every note four
+        assessment runs ever posted was a user's sticky in the picture
+        and invisible to the annotation path in the code — the drift
+        this driver exists to prevent, in the driver itself. Latent when
+        filed (verified identical through `lint_layout`) and asymmetric
+        by construction: any check added on the annotation path skips
+        the whole harness silently.
+
+        The whole `customData` is compared, not just `role`. The stamp
+        that mattered was the one nobody was asserting about.
+        """
+        client = self.client_sticky_custom_data()
+        self.assertEqual(len(client), 2,
+                         "addStickyNote now inserts %d stamped element(s), "
+                         "not the 2 (rect + bound label) this parity test "
+                         "was written against: %s" % (len(client), client))
+        ours = [e.get("customData")
+                for e in canvas._x_user_note("crowded trades", 40, 400)]
+        self.assertEqual(
+            ours, client,
+            "`x-as-user note` posts %s where the 🗒 button posts %s — a "
+            "user edit the product itself never writes, driving findings "
+            "that carry the authority of real ones" % (ours, client))
+
+    def test_a_user_note_lands_as_an_annotation(self):
+        # the role change is only worth having if the pipeline BEHIND it
+        # sees the note: role `note` fell through to the generic `added`
+        # verb, `annotation` reaches the arm that carries the text and
+        # the author to the agent (r5-7)
         rec = self.commit(canvas._x_user_note("crowded trades", 40, 400))
         verbs = rec["summary"]["verb_counts"]
-        self.assertIn("added", verbs)
+        self.assertIn("annotated", verbs)
         note = next(e for e in self.store.scenes["f"]
-                    if (e.get("customData") or {}).get("role") == "note")
+                    if (e.get("customData") or {}).get("role") == "annotation")
         self.assertEqual(note["customData"]["author"], "user")
+        self.assertEqual(rec["summary"]["headline"],
+                         "your note: 'crowded trades'")
+        fact = next(f for f in rec["artifacts"]["f"]["facts"]
+                    if f["fact"] == "annotated")
+        self.assertEqual(fact["text"], "crowded trades")
+        self.assertEqual(fact["author"], "user")
+        # r4b-9 called the note anchor UNTESTABLE because neither the
+        # button nor this verb sets `annotates`. On the annotation arm
+        # the fact carries a nearest target regardless, so the anchor
+        # exists — it is inferred rather than declared, and it is now
+        # reachable at all
+        self.assertEqual(fact["target"], "a")
 
     def test_a_user_pin_registers_as_a_question(self):
         rec = self.commit([canvas._x_user_pin("a", "does this see the "
@@ -9510,11 +9576,21 @@ class TestAssessorUserEdits(Base):
 
     def test_user_elements_carry_the_author_stamp(self):
         # the off-grid lint skips user elements on this stamp alone, so a
-        # missing one turns every simulated user edit into agent sloppiness
-        for el in [*canvas._x_user_note("x", 7, 9),
-                   canvas._x_user_pin("a", "q?", 3, 5)]:
+        # missing one turns every simulated user edit into agent
+        # sloppiness. Scoped to the elements the CLIENT stamps: it puts
+        # no `author` on a sticky's bound label, and that costs nothing
+        # here, because the exemption is read off `shapes` — rectangles,
+        # diamonds, ellipses — which no bound text has ever been in.
+        stamped = [canvas._x_user_note("x", 7, 9)[0],
+                   canvas._x_user_pin("a", "q?", 3, 5)]
+        for el in stamped:
             self.assertEqual((el.get("customData") or {}).get("author"),
                              "user", el["id"])
+        offgrid = canvas.lint_layout(
+            [*stamped, *canvas._x_user_note("x", 7, 9)[1:]])["notes"]
+        self.assertFalse([n for n in offgrid if "off the 4px grid" in n],
+                         "a user's own placement is being nagged about: %s"
+                         % offgrid)
 
 
 class TestGlossaryAlias(Base):
@@ -11810,6 +11886,63 @@ class TestXAsUserFidelity(unittest.TestCase):
             (self.tmp / "project_knowledge" / "artifacts" /
              "w.excalidraw").read_text(encoding="utf-8"))
         return doc["elements"]
+
+    def url(self):
+        """The running server's base URL.
+
+        Returns:
+            The `http://…/` prefix `x-as-user` posts against.
+        """
+        return self.project.read_state()["url"]
+
+    def x_fails(self, *argv):
+        """Run an x-as-user verb expected to be refused.
+
+        Args:
+            argv: CLI arguments after `x-as-user`.
+
+        Returns:
+            The completed process, asserted to have failed.
+        """
+        out = subprocess.run(
+            [sys.executable, self.CANVAS, "--project", str(self.tmp),
+             "x-as-user", *argv],
+            capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(out.returncode, 0,
+                            "expected a refusal, got rc 0: %s" % out.stdout)
+        return out
+
+    def test_checkout_says_what_it_wants_instead_of_crashing(self):
+        """r5-12: a missing `--target` is refused, not raised.
+
+        v0.8's promise is that every failure prints an `ERROR=` line, and
+        three sibling verbs in this one function keep it. `checkout` fed
+        its default empty `--target` straight to `int()`, so the one verb
+        an assessor reaches for while lost in history answered with a
+        `ValueError` traceback — which the skill's own troubleshooting
+        page teaches the reader to read as "the tool is broken".
+
+        A non-number is checked beside the absent one because they are
+        one fault to the caller and were one crash in the code, and the
+        happy pole is checked because a guard that refuses everything
+        keeps the promise by deleting the verb.
+        """
+        for argv in (["checkout"], ["checkout", "--target", "live"]):
+            with self.subTest(argv=argv):
+                out = self.x_fails(*argv)
+                said = out.stdout + out.stderr
+                self.assertIn("ERROR=", said)
+                self.assertIn("--target", said)
+                self.assertNotIn("Traceback", said)
+        # the live pole: a real save number detaches, and the state the
+        # rail reads says so. Restored afterwards because a detached
+        # server forks the next save, and the sibling tests here save.
+        self.addCleanup(canvas.http_json, self.url() + "api/checkout",
+                        payload={"revn": None})
+        self.assertIn("CHECKED_OUT=1",
+                      self.x("checkout", "--target", "1").stdout)
+        self.assertEqual(
+            canvas.http_json(self.url() + "api/state")["checkout_revn"], 1)
 
     def test_verbs_write_what_the_client_writes(self):
         # rename re-measures like the client does

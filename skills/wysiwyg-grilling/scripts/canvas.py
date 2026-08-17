@@ -18701,7 +18701,8 @@ def _x_user_note(text, x, y, w=230, h=90, existing=None):
             v0.8 beats, E1).
 
     Returns:
-        `[rectangle, bound text]`, both stamped `author: "user"`.
+        `[rectangle, bound text]`, stamped exactly as `addStickyNote`
+        stamps them — `annotation` + `author`, then a bare `label`.
     """
     nid = "usernote-" + hashlib.sha1(
         text.encode("utf-8")).hexdigest()[:8]
@@ -18716,7 +18717,17 @@ def _x_user_note(text, x, y, w=230, h=90, existing=None):
         "height": h, "strokeColor": "#b8860b",
         "backgroundColor": "#fff8dc", "fillStyle": "solid",
         "boundElements": [{"id": nid + "-t", "type": "text"}],
-        "customData": {"role": "note", "author": "user"}})
+        # `annotation`/`label`, because that is what the 🗒 button posts
+        # (App.tsx `addStickyNote`) — NOT `note`/`note-text`, which this
+        # driver invented and which nothing in this file reads. Ten
+        # branches consult `annotation`; the count is the point, since a
+        # role no branch consults makes the harness's notes invisible to
+        # every check on that path while looking right in the picture
+        # (r5-7). The label carries no `author` for the same reason: the
+        # client does not stamp one, and the off-grid exemption that
+        # `author` buys applies to `shapes` — rectangles, diamonds and
+        # ellipses — which a bound text was never in.
+        "customData": {"role": "annotation", "author": "user"}})
     lbl = dict(BASE_DEFAULTS)
     lbl.update({
         "id": nid + "-t", "type": "text", "x": x + 8, "y": y + 8,
@@ -18724,7 +18735,7 @@ def _x_user_note(text, x, y, w=230, h=90, existing=None):
         "originalText": text, "fontSize": 14, "fontFamily": FONT_LEGIBLE,
         "textAlign": "left", "verticalAlign": "top", "lineHeight": 1.25,
         "containerId": nid, "autoResize": False,
-        "customData": {"role": "note-text", "author": "user"}})
+        "customData": {"role": "label"}})
     return [rect, lbl]
 
 
@@ -18789,8 +18800,20 @@ def cmd_x_as_user(args):
         print_kv(config=key, value=val)
         return 0
     if verb == "checkout":
-        http_json(url + "api/checkout", payload={"revn": int(args.target)})
-        print_kv(checked_out=args.target)
+        # Guarded like its three siblings above, and for the same reason:
+        # `--target` defaults to "", so the bare verb fed `int("")` and
+        # answered a `ValueError` traceback — against v0.8's own promise
+        # that every failure prints `ERROR=` (r5-12). An assessor reaches
+        # for this verb precisely when it is lost in the history, which
+        # is the worst moment to be handed the one output shape the
+        # troubleshooting page teaches means the tool is broken.
+        try:
+            revn = int(args.target)
+        except (TypeError, ValueError):
+            die("ERROR=checkout wants --target <revn> — a save number "
+                "from `canvas.py status` (got %r)" % (args.target,), 2)
+        http_json(url + "api/checkout", payload={"revn": revn})
+        print_kv(checked_out=revn)
         return 0
     aid = args.artifact
     if not aid:
