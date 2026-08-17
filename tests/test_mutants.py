@@ -9343,47 +9343,95 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
                 worst = max(worst, min(hi, x2) - max(lo, x1))
         return max(worst, 0.0)
 
-    @unittest.expectedFailure
-    def test_red_route_candidates_emits_what_its_guards_reject(self) -> None:
-        """`routed or out` hands back a path `clean()` had refused.
+    def test_route_candidates_emits_only_what_its_guards_accept(self
+                                                                ) -> None:
+        """Touching boxes get a route around, not a stroke down the seam.
 
-        Two 120x60 nodes stacked flush — `s` on top of `d`, sharing the
-        line y = 60, which is an ordinary vertical flow with no gap. The
-        straight candidate's two edge anchors resolve to the same point,
-        the zero-length cleanup empties the list, and the r4-11 stub is
-        all that is left. That stub is a 24px horizontal segment lying
-        ON the seam, which `flat_on_border` refuses at anything over
-        8px — and `return routed or out` returns it regardless.
+        FLIPPED 2026-08-17 (v0.9 TASK-ATTACH). Two 120x60 nodes stacked
+        flush — `s` on top of `d`, sharing the line y = 60, which is an
+        ordinary vertical flow with no gap. The straight candidate's two
+        edge anchors resolved to the same point, the zero-length cleanup
+        emptied the list, and the r4-11 stub was all that was left: a
+        24px horizontal segment lying ON the seam, which
+        `flat_on_border` refuses at anything over `BORDER_RUN_TOL` — and
+        `return routed or out` returned it regardless.
 
-        WHAT THE PICTURE WRONGLY SAYS: two boxes touching and no
-        connector. The stroke that is supposed to carry `s -> d` is
+        WHAT THE PICTURE WRONGLY SAID: two boxes touching and no
+        connector. The stroke that was supposed to carry `s -> d` was
         drawn along the line where their outlines already meet, pointing
         sideways.
 
-        WHAT THE CHECKS REPORTED: nothing — see the catalogue entry
-        `flush_stack_border_run_under_the_band`, which pins the reader's
-        half of this. The two are one defect seen from its two ends and
-        must both flip, from different directions: this one when the
-        totality escape stops bypassing the guards, that one when the
-        lint's band closes onto the producer's own threshold.
+        THE FIX IS A CONSTRUCTION, NOT A PREFERENCE, which is the part
+        worth keeping. Between two touching boxes every path is along a
+        border, through an interior, or around the outside — those three
+        are the whole space — so the honest route is forced: leave the
+        face perpendicular to the seam, step clear of both boxes, come
+        back in. The escape is still there and still total; what changed
+        is that the degenerate branch stopped handing it a path its own
+        guards reject. Concentric boxes still fall through to the
+        sideways stub, where "these two look wrong" really is the honest
+        rendering.
+
+        Its other half is the catalogue entry
+        `flush_stack_border_run_under_the_band`, the reader's side; the
+        two were one defect seen from its two ends and flipped together,
+        from the two directions the filing named.
 
         The assertion is over EVERY returned candidate rather than the
         one `route_arrow` picks, because the claim under test is about
         what the function may HAND BACK. A fix that merely re-scored the
         list would leave the guard advisory.
+
+        STRENGTHENED AT THE FLIP in three ways, each closing a way the
+        old assertion could have been satisfied by a worse drawing. The
+        run bound now reads `canvas.BORDER_RUN_TOL` instead of a literal
+        8.0, so it cannot drift from the guard it quotes. The interior
+        of both boxes is checked as well as their borders, because
+        "around the outside" and "straight down through the box" are
+        both free of border runs and only one of them is a drawing.
+        And the pair is required to be CONNECTED — at least one
+        candidate, first point on `s`'s outline and last on `d`'s —
+        since an empty list and a path between two unrelated points
+        each pass every other assertion here.
         """
         src, dst = self._node("s", 0, 0), self._node("d", 0, 60)
-        for i, path in enumerate(canvas._route_candidates(src, dst)):
+        cands = canvas._route_candidates(src, dst)
+        self.assertTrue(cands, "the router returned no candidate at all")
+        for i, path in enumerate(cands):
             for box in (src, dst):
                 run = self._runs_flat_on(path, box)
                 with self.subTest(candidate=i, box=box["id"]):
                     self.assertLessEqual(
-                        run, 8.0,
+                        run, canvas.BORDER_RUN_TOL,
                         "candidate %d runs %.0fpx along %s's own border, "
-                        "which `flat_on_border` refuses over 8px — "
+                        "which `flat_on_border` refuses over %.0fpx — "
                         "`return routed or out` handed back a path the "
                         "function's own guards rejected: %r"
-                        % (i, run, box["id"], path))
+                        % (i, run, box["id"], canvas.BORDER_RUN_TOL,
+                           path))
+                    inside = [p for p in path[1:-1]
+                              if box["x"] + 1 < p[0] <
+                              box["x"] + box["width"] - 1
+                              and box["y"] + 1 < p[1] <
+                              box["y"] + box["height"] - 1]
+                    self.assertEqual(
+                        inside, [],
+                        "candidate %d turns a corner inside %s, which "
+                        "draws its approach through the box — the other "
+                        "shape `clean()` refuses: %r"
+                        % (i, box["id"], path))
+        # `_edge_side` and not `shape_clearance`, because the clearance
+        # of a point ON the outline is -0.0 and `-0.0 or default` takes
+        # the default — the first draft of this arm read every candidate
+        # as disconnected for that reason and would have passed the day
+        # the router genuinely broke.
+        connected = [p for p in cands
+                     if canvas._edge_side(src, *p[0])
+                     and canvas._edge_side(dst, *p[-1])]
+        self.assertTrue(
+            connected,
+            "no candidate actually connects s to d — every one is "
+            "clean because none of them is the arrow: %r" % (cands,))
 
     def test_a_routed_pair_is_handed_back_only_clean_candidates(self) -> None:
         """The green pole: an ordinary gapped pair keeps its guards.
@@ -17793,11 +17841,15 @@ class TestMutantCatalogue(unittest.TestCase):
         """
         self._run_neighbour("tiny_font_text")
 
-    @unittest.expectedFailure
     def test_mutant_flush_stack_border_run_under_the_band(self) -> None:
-        """24px of arrow drawn on a shared border, and nobody speaks."""
-        # The gate is `run + on_border > 2 * endpoint_tol`, which is 28px
-        # here; flips when the band closes onto the producer's own 8px.
+        """24px of arrow drawn on a shared border, and the lint speaks."""
+        # FLIPPED 2026-08-17 (v0.9 TASK-ATTACH). The gate was
+        # `run + on_border > 2 * endpoint_tol`, 28px here; the on-border
+        # arm now judges at `canvas.BORDER_RUN_TOL`, which is the
+        # PRODUCER's own refusal threshold and the same constant
+        # `_route_candidates.flat_on_border` reads. The interior arm
+        # keeps `tol * 2` — that reading scales with the node and this
+        # one does not.
         self._run("flush_stack_border_run_under_the_band")
 
     def test_neighbour_flush_stack_border_run_under_the_band(self) -> None:
@@ -18753,7 +18805,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
-    "TestRouterPassesDoNotWorsenTheDrawing": 2}
+    "TestRouterPassesDoNotWorsenTheDrawing": 1}
 # ONE LEFT on 2026-08-17 (v0.9 TASK-ATTACH):
 # `TestTheObstacleSetsAgreeAboutASticky`, whose single red flipped on the
 # controller's ruling that annotations are SOFT obstacles everywhere. The
@@ -19056,8 +19108,16 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS = {"corner_feet_outside_the_square",
-                     "flush_stack_border_run_under_the_band",
                      "grazing_arrival_reads_as_square"}
+# `flush_stack_border_run_under_the_band` left on 2026-08-17 (v0.9
+# TASK-ATTACH), together with the producer-side red it was one half of.
+# The two were filed as one defect seen from its two ends and they
+# flipped in one commit from the two directions the filing named: the
+# totality escape stopped bypassing its own guards, and the lint's band
+# closed onto the producer's threshold. Neither repair would have been
+# enough alone — a router that no longer draws the stroke leaves the
+# reader blind to the same stroke in a fixture, and a lint that reports
+# it leaves the router still emitting it.
 # `hyphen_in_the_role_blinds_the_object_reader` LEFT on 2026-08-17 (v0.9
 # TASK-MICROFIX-2), one day after arriving — the only id this set has
 # ever held whose fix landed in `tests/test_mutants.py` rather than in

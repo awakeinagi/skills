@@ -2882,6 +2882,27 @@ def _stamp_route(arrow):
     arrow["customData"] = cd
 
 
+BORDER_RUN_TOL = 8.0
+# How much arrow may lie flat along a node's own outline before the two
+# read as one line through the box. ONE NUMBER, TWO USERS, deliberately
+# coupled: `_route_candidates.flat_on_border` refuses to EMIT a path
+# over it, and `lint_layout`'s on-border arm REPORTS a path over it.
+#
+# They were 8 and `tol * 2` — 28px on an ordinary node — until
+# 2026-08-17, and the gap between them was a band in which the router
+# was forbidden to draw something and the lint was forbidden to mention
+# it. A 24px run down the seam of two flush-stacked boxes sat in that
+# band: emitted through `return routed or out`, reported by nothing
+# (`flush_stack_border_run_under_the_band`). A producer threshold and a
+# reader threshold that disagree do not merely leave a gap, they leave
+# the gap NOBODY IS LOOKING AT, which is where that stroke lived.
+#
+# The interior arm keeps `tol * 2` and does not move. An arrow INSIDE a
+# box is a different reading with a different tolerance story (it scales
+# with the node, via `endpoint_tol`); this one is about ink drawn on a
+# line, where the node's size has nothing to say.
+
+
 def _route_candidates(src, dst):
     """Candidate polylines (absolute coords) from src's edge to dst's
     edge: straight (when roughly axis-aligned), both L-elbow
@@ -2942,8 +2963,43 @@ def _route_candidates(src, dst):
         ax, ay = edge_anchor(src, dcx, dcy)
         bx, by = edge_anchor(dst, scx, scy)
         if abs(ax - bx) <= 0.5 and abs(ay - by) <= 0.5:
-            bx = ax + 24.0
-        out.append([(ax, ay), (bx, by)])
+            # TWO BOXES THAT TOUCH, which is not the concentric case this
+            # branch was written for and had been sharing its answer
+            # with. The anchors coincide because the outlines meet, and
+            # `bx = ax + 24` stepped SIDEWAYS from the meeting point —
+            # straight down the seam, so the stroke that is supposed to
+            # carry `s -> d` was drawn along the line where the two
+            # outlines already are. A reader sees two boxes touching and
+            # no connector at all, and `flat_on_border` refuses exactly
+            # that shape, which `return routed or out` then handed back
+            # anyway (`route_candidates_emits_what_its_guards_reject`).
+            #
+            # A path around the outside is the honest drawing and the
+            # geometry affords one: leave the face perpendicular to the
+            # seam, step `24` clear of both boxes, and come back in. It
+            # is the only route between touching boxes that is neither
+            # along a border nor through an interior — those three are
+            # the whole space, which is why this is a construction and
+            # not a preference. Concentric boxes fall through to the
+            # sideways stub below, where the honest rendering really is
+            # "these two look wrong".
+            sw, sh = src.get("width", 0), src.get("height", 0)
+            dw, dh = dst.get("width", 0), dst.get("height", 0)
+            stacked = abs(dcy - scy) >= abs(dcx - scx)
+            if stacked and abs(dcy - scy) > 0.5:
+                lane = max(sx2, dx2) + 24.0
+                out.append([(sx2, scy), (lane, scy), (lane, dcy),
+                            (dx2, dcy)] if sw and dw else
+                           [(ax, ay), (ax + 24.0, ay)])
+            elif not stacked and abs(dcx - scx) > 0.5:
+                lane = max(sy2, dy2) + 24.0
+                out.append([(scx, sy2), (scx, lane), (dcx, lane),
+                            (dcx, dy2)] if sh and dh else
+                           [(ax, ay), (ax + 24.0, ay)])
+            else:
+                out.append([(ax, ay), (ax + 24.0, ay)])
+        else:
+            out.append([(ax, ay), (bx, by)])
 
     # A candidate whose ELBOW lands strictly inside either endpoint box
     # draws its final approach through the box interior — the L_v shape
@@ -2980,11 +3036,11 @@ def _route_candidates(src, dst):
         if abs(p[0] - q[0]) <= 0.5 and min(abs(p[0] - x1),
                                            abs(p[0] - x2)) <= 0.5:
             lo, hi = sorted((p[1], q[1]))
-            return min(hi, y2) - max(lo, y1) > 8
+            return min(hi, y2) - max(lo, y1) > BORDER_RUN_TOL
         if abs(p[1] - q[1]) <= 0.5 and min(abs(p[1] - y1),
                                            abs(p[1] - y2)) <= 0.5:
             lo, hi = sorted((p[0], q[0]))
-            return min(hi, x2) - max(lo, x1) > 8
+            return min(hi, x2) - max(lo, x1) > BORDER_RUN_TOL
         return False
 
     def clean(path):
@@ -10990,7 +11046,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     far = shape_norm(tgt, p1x, p1y, inset=1)
                     if far is None or far > 1:
                         break   # the path has left the shape
-            if run + on_border > tol * 2 and inside <= tol:
+            # TWO BANDS, because there are two readings here and only one
+            # of them scales with the node. An arrow INSIDE a box is
+            # judged at `tol * 2`, which grows with the shape through
+            # `endpoint_tol` — the slack a big diamond earns. An arrow
+            # drawn ON a border is judged at `BORDER_RUN_TOL`, the
+            # PRODUCER's own refusal threshold, because the node's size
+            # has nothing to say about ink lying on a line.
+            #
+            # They were one band until 2026-08-17, and the on-border half
+            # inherited a number three times too loose: 24px of arrow
+            # down the seam of two flush-stacked boxes was under `tol * 2`
+            # and said nothing, while `_route_candidates` had refused to
+            # draw that very stroke since r5-5
+            # (`flush_stack_border_run_under_the_band`). The producer and
+            # the reader now share the constant, so the band cannot
+            # reopen by one of them being edited.
+            if inside <= tol and (run + on_border > tol * 2
+                                  or (not run
+                                      and on_border > BORDER_RUN_TOL)):
                 # crosses THROUGH: endpoint on or near the border, long
                 # interior approach — the r4-1 silent case and its
                 # multi-elbow sibling. ROUNDED, not truncated: a length
