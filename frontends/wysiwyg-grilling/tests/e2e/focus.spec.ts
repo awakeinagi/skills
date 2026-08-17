@@ -28,6 +28,18 @@ import { fileURLToPath } from "node:url";
  * sits exactly on its selection boundary; which side of a 91px cliff you
  * come down on is decided by the sign alone. A left-hand foot on its own
  * goes green under a fix that still draws the right-hand foot 91px away.
+ *
+ * AND EVERY NODE SHAPE IS ASSERTED, which is what this file gained in
+ * v0.9 TASK-FOCUS-FOLLOWUP-A. The first cut carried three square-cornered
+ * rectangles, because the Python transcription beside it could model
+ * nothing else — so 68 of the corpus's 346 bound endpoints (diamonds,
+ * ellipses, `roundness: {type: 3}` rectangles) were asserted by nothing
+ * anywhere. THE BROWSER NEVER HAD THAT LIMIT: it is the real client, and
+ * a rhombus costs it exactly what a rectangle costs it. Rows 4-6 are the
+ * conic and rounded specimens, and each one asserts a drawn point the
+ * old box-only model could not have produced — 76.97px, 18.43px and
+ * 4.47px away from what it would have said. That is what makes this
+ * referee the ORACLE for those shapes rather than a second opinion.
  */
 
 const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
@@ -38,8 +50,14 @@ const BUILD = path.join(REPO, "tests", "focus_probe.py");
 
 /** One specimen, as `tests/focus_probe.py` wrote it. */
 type Spec = { name: string; arrow: string; hub: string;
-              hub_box: number[]; foot: number[]; adjacent: number[];
-              gap: number; focus: number };
+              shape: string; roundness: { type: number } | null;
+              side: string; hub_box: number[]; foot: number[];
+              adjacent: number[]; gap: number; focus: number;
+              normal: number[]; tangent: number[]; predicted: number[] };
+
+/** Component of `drawn - stored` along a specimen's own axis. */
+const along = (f: Foot, s: Spec, axis: number[]): number =>
+  (f.ex - s.foot[0]) * axis[0] + (f.ey - s.foot[1]) * axis[1];
 /** One arrow's live endpoint, in scene coordinates. */
 type Foot = { id: string; ex: number; ey: number; focus: number | null };
 
@@ -114,24 +132,49 @@ test("the client redraws a stored foot where the server put it",
       const rows: string[] = [];
       for (const spec of specs) {
         const f = drawn.get(spec.arrow)!;
-        rows.push(`${spec.name.padEnd(6)} focus=${String(spec.focus)
-          .padEnd(7)} stored x=${spec.foot[0]} drawn x=${f.ex.toFixed(3)}` +
-          ` tangential=${Math.abs(f.ex - spec.foot[0]).toFixed(3)}` +
-          ` normal=${(f.ey - spec.foot[1]).toFixed(3)}`);
+        rows.push(`${spec.name.padEnd(8)} ${spec.shape.padEnd(10)}` +
+          `${spec.roundness ? "round " : "sharp "}` +
+          `focus=${String(spec.focus).padEnd(7)}` +
+          ` stored=(${spec.foot[0]}, ${spec.foot[1]})` +
+          ` drawn=(${f.ex.toFixed(3)}, ${f.ey.toFixed(3)})` +
+          ` model=(${spec.predicted[0].toFixed(3)}, ` +
+          `${spec.predicted[1].toFixed(3)})` +
+          ` tangential=${Math.abs(along(f, spec, spec.tangent)).toFixed(3)}` +
+          ` normal=${along(f, spec, spec.normal).toFixed(3)}`);
       }
       console.log("focus round-trip, after a net-zero nudge:\n" +
         rows.join("\n"));
       for (const spec of specs) {
         const f = drawn.get(spec.arrow)!;
+        // THE CALIBRATION, and it is the assertion that makes the Python
+        // transcription trustworthy for a shape it cannot be checked on
+        // anywhere else. `predicted` is what `focus_probe.client_draws`
+        // says the client will do; this is the client doing it.
+        expect(Math.hypot(f.ex - spec.predicted[0], f.ey - spec.predicted[1]),
+          `${spec.name} (${spec.shape}): the transcription predicted ` +
+          `(${spec.predicted[0].toFixed(3)}, ${spec.predicted[1].toFixed(3)})`)
+          .toBeLessThan(0.5);
         // ALONG the side is the slip that moves a fan lane or a port
         // assignment. ACROSS it is the binding `gap` and is by design,
-        // so it is reported above and asserted only as "still the gap".
-        expect(Math.abs(f.ex - spec.foot[0]),
+        // so it is reported above and asserted only as "still the gap"
+        // — and only where it IS the gap, which is a square-cornered
+        // rectangle and nothing else. A rounded box's straight sides sit
+        // `gap * cos` out (2.025px here, not 6) and a conic's expanded
+        // outline is a SCALED shape rather than an offset curve, so on
+        // rows 4-6 the normal is reported and not graded.
+        const sharpRect = spec.shape === "rectangle" && !spec.roundness;
+        expect(Math.abs(along(f, spec, spec.tangent)),
           `${spec.name}: tangential slip after re-derivation`)
-          .toBeLessThan(0.5);
-        expect(Math.abs((f.ey - spec.foot[1]) - spec.gap),
-          `${spec.name}: normal displacement should be exactly the gap`)
-          .toBeLessThan(0.5);
+          .toBeLessThan(sharpRect ? 0.5 : 4.0);
+        if (sharpRect)
+          expect(Math.abs(along(f, spec, spec.normal) - spec.gap),
+            `${spec.name}: normal displacement should be exactly the gap`)
+            .toBeLessThan(0.5);
+        else
+          expect(along(f, spec, spec.normal),
+            `${spec.name}: the client must still draw the foot OUTSIDE ` +
+            `the ink, by no more than the gap`)
+            .toBeGreaterThan(0);
       }
     } finally {
       spawnSync("python3", [CANVAS, "--project", dir, "stop"],

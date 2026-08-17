@@ -6897,13 +6897,48 @@ class TestFanAttachPoints(unittest.TestCase):
         undoes. `test_fanned_arrows_carry_nonzero_focus` asserts this
         for rectangles; a foot pulled onto an outline is on no bbox edge
         at all, which is the case that used to score 0.
+
+        AND WHERE THE VALUE ACTUALLY DRAWS THE FOOT, on both curved
+        shapes. "Some focus is nonzero" was for a long time the ONLY
+        thing any test said about a conic endpoint — a focus of 0.9 on
+        every lane would have satisfied it while collapsing the fan just
+        as thoroughly (v0.9 TASK-FOCUS §6 concern 1). The transcription
+        can re-derive these shapes now, so the fan's own output is
+        checked against the client's own arithmetic here rather than
+        against a sign test.
         """
-        els = self._converging("ellipse")
-        canvas.fan_attach_points(els)
-        focuses = [(e.get("endBinding") or {}).get("focus", 0)
-                   for e in els if e.get("type") == "arrow"]
-        self.assertEqual(len(focuses), 3)
-        self.assertTrue(any(abs(f) > 0.05 for f in focuses), focuses)
+        for shape in ("ellipse", "diamond"):
+            els = self._converging(shape)
+            canvas.fan_attach_points(els)
+            node = els[0]
+            arrows = [e for e in els if e.get("type") == "arrow"]
+            focuses = [(e.get("endBinding") or {}).get("focus", 0)
+                       for e in arrows]
+            self.assertEqual(len(focuses), 3)
+            self.assertTrue(any(abs(f) > 0.05 for f in focuses),
+                            "%s: %r" % (shape, focuses))
+            drawn = []
+            for a in arrows:
+                b = a["endBinding"]
+                pts = a["points"]
+                foot = (a["x"] + pts[-1][0], a["y"] + pts[-1][1])
+                adj = (a["x"] + pts[-2][0], a["y"] + pts[-2][1])
+                where = focus_probe.client_draws(node, b["focus"], b["gap"],
+                                                 adj, foot)
+                self.assertLess(
+                    TestFocusRoundTrip._along_outline(node, foot, where), 4.0,
+                    "%s: the fan stored %r for a foot the client then "
+                    "redraws elsewhere along the outline" % (shape,
+                                                             b["focus"]))
+                drawn.append(where)
+            # the point of a fan: three lanes, still three after the
+            # client has had its say
+            spread = [((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5
+                      for p, q in zip(drawn, drawn[1:])]
+            self.assertTrue(all(d > 8.0 for d in spread),
+                            "%s: the client redraws the fan onto lanes "
+                            "%r px apart" % (shape, [round(d, 2)
+                                                     for d in spread]))
 
 
 class TestFocusRoundTrip(unittest.TestCase):
@@ -6957,6 +6992,56 @@ class TestFocusRoundTrip(unittest.TestCase):
             self.assertAlmostEqual(got[0], drawn_x, places=3,
                                    msg="%s at focus %s" % (name, focus))
 
+    def test_the_transcription_agrees_with_the_browser_on_every_shape(self):
+        """The same calibration for the three shapes it could not model.
+
+        The first cut of `focus_probe` read every hub as a
+        square-cornered rectangle, so diamonds, ellipses and rounded
+        rectangles — 68 of the corpus's 346 bound endpoints — were
+        asserted by nothing here, and the only conic assertion anywhere
+        was `test_fanned_feet_on_a_curved_shape_keep_a_nonzero_focus`'s
+        "some focus is nonzero" (v0.9 TASK-FOCUS §6 concern 1, adjudicated
+        to follow-up). The outline half is now transcribed per shape —
+        `intersectDiamondWithLineSegment`, `intersectEllipseWithLineSegment`
+        and the rounded branch of `deconstructRectanguloidElement`, all
+        read off the pinned bundle — and these are the numbers the REAL
+        BROWSER drew for the three new specimens at the commit that added
+        them:
+
+            diamond  focus=-0.42   stored (2042, 451)  drawn (2042.000, 455.552)
+            ellipse  focus=-0.308  stored (2419, 413)  drawn (2410.401, 411.695)
+            round    focus=+0.417  stored (2971, 464)  drawn (2968.910, 466.025)
+
+        EACH IS RED-PROVABLE BY CONSTRUCTION and that was the point of
+        choosing them: the box model this replaced predicts (1966.401,
+        470.000), (2394.000, 403.283) and (2970.949, 470.000) — 76.97px,
+        18.43px and 4.47px away. Reverting either half of the shape
+        dispatch fires this test and the browser referee together.
+
+        THE FOCUS POINT AND THE OUTLINE DISAGREE ABOUT SHAPE INSIDE THE
+        CLIENT, which is the thing to know before touching either.
+        `determineFocusPoint` (:11756) tests `type === "diamond"` and
+        nothing else, so an ELLIPSE is aimed at with the scaled corners
+        of its bounding box — points no part of the ellipse is drawn
+        near — and the aim is then intersected against a real ellipse.
+        Both readings are transcribed where they belong.
+        """
+        for name, focus, drawn in (
+                ("diamond", -0.42, (2042.000, 455.552)),
+                ("ellipse", -0.308, (2410.401, 411.695)),
+                ("round", 0.417, (2968.910, 466.025))):
+            r = self.by_name[name]
+            self.assertEqual(r["focus"], focus,
+                             "%s: the specimen's stored focus moved, so the "
+                             "browser numbers below are about a different "
+                             "scene — re-read them" % name)
+            got = focus_probe.client_draws(focus_probe.hub_of(r), focus,
+                                           r["gap"], r["adjacent"], r["foot"])
+            for axis, want, is_ in zip("xy", drawn, got):
+                self.assertAlmostEqual(
+                    is_, want, places=3,
+                    msg="%s (%s): drawn %s" % (name, r["shape"], axis))
+
     def test_both_quarter_point_feet_redraw_where_they_were_stored(self):
         """The pin. Two feet, and the second one is the whole design.
 
@@ -6969,12 +7054,221 @@ class TestFocusRoundTrip(unittest.TestCase):
         single left-hand specimen goes green under a fix that still
         draws the right-hand one 91px away. Both quarter points, or this
         proves nothing (spike-anchor §6a).
+
+        Rows 1-3, the square-cornered rectangles, at 0.5px. The conic and
+        rounded rows are graded by
+        `test_every_node_shape_round_trips_through_the_shipped_call_site`,
+        which cannot honestly hold them to this number and says why.
         """
         for r in self.recs:
+            if r["shape"] != "rectangle" or r["roundness"] is not None:
+                continue
             self.assertLess(focus_probe.tangential_slip(r), 0.5,
                             "%s: stored focus %r redraws the foot %.2fpx "
                             "along the side" % (r["name"], r["focus"],
                                                 focus_probe.tangential_slip(r)))
+
+    def test_every_node_shape_round_trips_through_the_shipped_call_site(self):
+        """The conic/rounded half, end to end — and its honest ceiling.
+
+        `fan_attach_points` writes the focus for all six specimens (it
+        re-stamps every server-owned bound endpoint it can see, fanned or
+        not), and the shape-general transcription re-derives it. That is
+        the whole round trip, per shape, through the real producer —
+        replacing "some focus is nonzero" as the only thing asserted
+        about a foot on a curved outline.
+
+        THE CEILING IS 4px HERE AND 0.5px THERE, AND THE GAP IS A FINDING
+        RATHER THAN A TOLERANCE. `_solve_focus_on` models every side as
+        STRAIGHT: it targets `foot + gap * axis_normal` and scores where
+        the aim crosses that side's axis-aligned line. On a rhombus or an
+        ellipse neither is the outline the client will actually intersect,
+        so the answer is systematically a little off — measured over the
+        corpus re-routed at head, the server's own diamond feet are 30x
+        worse than its rectangle feet (worst 3.837px against 0.494px,
+        mean 1.016 against 0.038) while still clearing 4px on all 41
+        conic endpoints. Constructed geometry reaches 5.7px. Reported,
+        not fixed, by ruling; the owner of any fix is whoever next opens
+        `solve_focus`, and the thing to change is the target and the
+        scoring, not this number.
+
+        The rounded rectangle is a different story and belongs in the
+        same test because the contrast is the evidence: its along-side
+        error is 0.04px square-on and only grows under a LEAN (2.09px at
+        this row's 120px lean), because a side line that sits 2.025px out
+        instead of 6 is met sooner when it is met at an angle.
+        """
+        seen = set()
+        for r in self.recs:
+            slip = focus_probe.tangential_slip(r)
+            seen.add((r["shape"], r["roundness"] is not None))
+            self.assertLess(
+                slip, 4.0,
+                "%s (%s%s): the fan stored focus %r and the client redraws "
+                "the foot %.3fpx along the outline"
+                % (r["name"], r["shape"], ", rounded" if r["roundness"]
+                   else "", r["focus"], slip))
+            # focus 0 aims at the CENTRE, so a fan carrying it collapses on
+            # the client's first re-render (v0.3). The midpoint pole is the
+            # one row where 0 is the answer.
+            if r["name"] != "mid":
+                self.assertNotEqual(
+                    r["focus"], 0,
+                    "%s: a foot off a side midpoint needs a real focus" %
+                    r["name"])
+            # and the client must still put the foot OUTSIDE the ink
+            self.assertGreater(
+                focus_probe.normal_slip(r), 0,
+                "%s: redrawn inside its own node" % r["name"])
+        self.assertEqual(
+            seen, {("rectangle", False), ("rectangle", True),
+                   ("diamond", False), ("ellipse", False)},
+            "every node shape `shape_clip` knows about has to be in the "
+            "specimen scene, or this class is narrow again: %r" % (seen,))
+
+    def test_the_outline_the_client_intersects_is_not_the_one_we_draw(self):
+        """Three facts about the client's outline, each a surprise.
+
+        All three were read off the pinned bundle while widening the
+        transcription, and all three are things a reader would otherwise
+        re-derive — or, worse, assume away, which is how this file came
+        to model rectangles only.
+
+        1. A ROUNDED BOX'S STRAIGHT SIDES DO NOT MOVE OUT BY THE GAP.
+           `deconstructRectanguloidElement` (:7436) pushes each CORNER
+           along its own diagonal and then draws the sides between the
+           corner curves, so the top of a 200x64 node at gap 6 sits
+           2.025px above the ink, not 6. That is why the `round`
+           specimen's normal displacement is 2.025 and why the browser
+           referee grades the normal on square-cornered rectangles only.
+
+        2. THE CLIENT'S RHOMBUS IS NOT `canvas.py`'s RHOMBUS.
+           `getDiamondPoints` (:10173) returns `floor(width / 2) + 1` for
+           the top vertex's x and `floor(height / 2) + 1` for the right
+           vertex's y, so the drawn diamond is up to a pixel wider and
+           lower than the symmetric one `shape_clip` and `_fan_point`
+           use. Worth 0.47px of the corpus's worst diamond slip (3.37px
+           of the 3.84px measured is the straight-side model, not this),
+           so it is a real disagreement and a small one. `_focus_point`
+           uses the SYMMETRIC midpoints for the same element (:11757),
+           which means the client disagrees with itself too.
+
+        3. THE CORNER CURVES ARE LIVE CODE. A ray leaving through a
+           rounded corner meets a cubic Bezier and nothing else, and the
+           client finds it with a 3-start Newton solve that returns AT
+           MOST ONE point per corner. Asserted so the branch is not
+           silently dead, and with a hit that no straight side could
+           produce.
+        """
+        box = {"type": "rectangle", "x": 0.0, "y": 0.0, "width": 200.0,
+               "height": 64.0, "roundness": {"type": 3}}
+        sides, corners = focus_probe._deconstruct_rectanguloid(box, 6.0)
+        self.assertAlmostEqual(sides[0][0][1], -2.025, places=3,
+                               msg="the rounded top side's y")
+        self.assertEqual(len(corners), 4)
+        sharp, _none = focus_probe._deconstruct_rectanguloid(
+            dict(box, roundness=None), 6.0)
+        self.assertEqual(sharp[0][0][1], -6.0,
+                         "a SQUARE-cornered box does move out by the gap")
+
+        rhombus = {"type": "diamond", "x": 0.0, "y": 0.0, "width": 200.0,
+                   "height": 64.0, "roundness": None}
+        facets, _ = focus_probe._deconstruct_diamond(rhombus, 0.0)
+        self.assertEqual(facets[0][0], (101.0, 0.0),
+                         "the client's top vertex is floor(w/2) + 1")
+        self.assertEqual(facets[0][1], (200.0, 33.0),
+                         "and its right vertex is floor(h/2) + 1 down")
+        # what canvas.py puts there instead, for the same element
+        self.assertEqual(canvas._fan_point(rhombus, "top", 100.0), (100.0, 0.0))
+
+        # a ray aimed past the straight sides and through the top-right
+        # corner: one hit, and it is on no side's line
+        hits = focus_probe.client_outline_hits(box, 6.0,
+                                               ((320.0, -120.0), (120.0, 80.0)))
+        corner_hit = [p for p in hits if p[1] > -2.0 and p[0] > 190.0]
+        self.assertEqual(len(corner_hit), 1,
+                         "the rounded corner's Bezier produced no hit, so "
+                         "that whole branch is dead: %r" % (hits,))
+        self.assertAlmostEqual(corner_hit[0][0], 199.631, places=3)
+        self.assertAlmostEqual(corner_hit[0][1], 0.369, places=3)
+
+    def test_route_arrow_stores_a_redrawable_focus_on_every_shape(self):
+        """The OTHER producer, per shape — `route_arrow`, not the fan.
+
+        There are exactly two places a focus is ever written and the
+        specimen scene exercises one of them. This exercises the other
+        on all four node shapes, at five relative placements each, with
+        both ends scored: the arrow is routed, `_stamp_route` snaps it,
+        the binding is solved on the snapped points, and the
+        transcription re-derives where the client will put the foot.
+
+        The ceilings are the same two the class already argues for and
+        for the same reason — the straight-side model is exact on a
+        square-cornered rectangle and approximate on everything else.
+        Measured worst-case at the commit that added this: rectangle
+        0.03px, rounded rectangle 1.48px, diamond 2.54px, ellipse 2.46px.
+        """
+        for kind, rnd, tol in (("rectangle", None, 0.5),
+                               ("rectangle", {"type": 3}, 4.0),
+                               ("diamond", None, 4.0),
+                               ("ellipse", None, 4.0)):
+            for dx, dy in ((320.0, 0.0), (320.0, 180.0), (0.0, 260.0),
+                           (-320.0, 180.0), (280.0, 90.0)):
+                src = {"id": "s", "type": kind, "x": 100.0, "y": 300.0,
+                       "width": 180.0, "height": 90.0, "roundness": rnd,
+                       "customData": {"role": "node"}}
+                dst = dict(src, id="d", x=500.0 + dx, y=300.0 + dy)
+                arrow = {"id": "a", "type": "arrow",
+                         "points": [[0, 0], [1, 1]], "x": 0.0, "y": 0.0}
+                canvas.route_arrow(arrow, src, dst)
+                pts = arrow["points"]
+                for node, foot, adj, key in (
+                        (src, (arrow["x"], arrow["y"]),
+                         (arrow["x"] + pts[1][0], arrow["y"] + pts[1][1]),
+                         "startBinding"),
+                        (dst, (arrow["x"] + pts[-1][0],
+                               arrow["y"] + pts[-1][1]),
+                         (arrow["x"] + pts[-2][0], arrow["y"] + pts[-2][1]),
+                         "endBinding")):
+                    b = arrow[key]
+                    drawn = focus_probe.client_draws(node, b["focus"],
+                                                     b["gap"], adj, foot)
+                    tan = self._along_outline(node, foot, drawn)
+                    self.assertLess(
+                        tan, tol,
+                        "%s%s at %r, %s: stored focus %r redraws the foot "
+                        "%.3fpx along the outline"
+                        % (kind, " rounded" if rnd else "", (dx, dy), key,
+                           b["focus"], tan))
+
+    @staticmethod
+    def _along_outline(node: dict, foot: tuple, drawn: tuple) -> float:
+        """Displacement of `drawn` from `foot` ALONG the node's outline.
+
+        The tangent is the side's own on a box and the perpendicular to
+        the centre ray on a conic — which is the direction `_fan_point`
+        slid the foot in, and so the axis a lane or a port assignment is
+        decided on. Displacement ACROSS it is the binding gap and is by
+        design.
+
+        Args:
+            node: The bound node.
+            foot: The stored endpoint.
+            drawn: Where the client redraws it.
+
+        Returns:
+            The absolute along-outline displacement in px.
+        """
+        w, h = node.get("width", 0), node.get("height", 0)
+        cx, cy = node["x"] + w / 2.0, node["y"] + h / 2.0
+        if node.get("type") in ("diamond", "ellipse"):
+            dx, dy = foot[0] - cx, foot[1] - cy
+            m = (dx * dx + dy * dy) ** 0.5 or 1.0
+            tx, ty = -dy / m, dx / m
+        else:
+            side = canvas._edge_side(node, foot[0], foot[1])
+            tx, ty = (1.0, 0.0) if side in ("top", "bottom") else (0.0, 1.0)
+        return abs((drawn[0] - foot[0]) * tx + (drawn[1] - foot[1]) * ty)
 
     def test_the_midpoint_pole_stays_exactly_where_it_is(self):
         """Focus 0 through a side midpoint is exact today; keep it.
