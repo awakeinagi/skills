@@ -4459,7 +4459,7 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
     def test_this_arms_share_of_the_pre_ruling_palette_findings(self):
-        """Arm 4's 7 of the 19 standing contrast findings, by shape.
+        """Arm 4's 8 of the 19 standing contrast findings, by shape.
 
         The user's 2026-08-17 contrast ruling darkened both defaults and
         dropped the composed-furniture exemption; the frozen fixtures
@@ -4471,9 +4471,14 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
         WHY THIS TEST EXISTS AT ALL (review IMPORTANT-1): the first cut
         itemized only arm 3's 8, while the handover claimed all 19 were
         pinned. A fixture rebase that cleared 8 and left 11 would have
-        passed the whole suite under a handover saying otherwise. Arm 4
-        carries 7 — 6 chart-placeholder X strokes and 1 annotation — and
-        r5's 4 are pinned in its own class.
+        passed the whole suite under a handover saying otherwise.
+
+        THE EIGHT ASSERTED BELOW, and the count is the sum of the
+        assertions rather than a number carried in from anywhere: 6
+        chart-placeholder X strokes on `dashboard-wireframe`, plus the
+        pre-ruling annotation ink on `dashboard-wireframe` AND on
+        `enrichment-flow`, one each. Arm 3's 8 and run 5's 3 are pinned
+        in their own classes.
 
         BY SHAPE, NOT BY TOTAL, deliberately: no warning-count assertion
         is added here. Coupling these to this artifact's total would
@@ -4601,12 +4606,12 @@ class TestArgusR5Fixture(FixtureReplayBase):
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
     def test_this_runs_share_of_the_pre_ruling_palette_findings(self):
-        """Run 5's 4 of the 19 standing contrast findings, by shape.
+        """Run 5's 3 of the 19 standing contrast findings, by shape.
 
-        The third and last share (arm 3 has 8, arm 4 has 7 — see
+        The third and last share (arm 3 has 8, arm 4 has 8 — see
         `TestArgusR4Arm4Fixture` for why these are itemized per fixture
-        rather than claimed in prose). All four are on `admin-console`:
-        2 slider tracks at the pre-ruling `#b8b2a5`, and the sticky-era
+        rather than claimed in prose). All three are on `admin-console`:
+        2 slider tracks at the pre-ruling `#b8b2a5`, and 1 sticky-era
         annotation at `#5c8a5f`.
 
         These stand until TASK-FOCUS-FOLLOWUP rebases the fixtures, and

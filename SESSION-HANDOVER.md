@@ -751,20 +751,36 @@ right behavior and is red now. Its state is unchanged by the harness work.
    **What this does NOT do is drop the corpus count.** The fixtures are
    frozen records of real sessions and keep the old ink, so the 3 annotation
    findings STAND and the 16 furniture ones now SHOW — 19 true statements
-   about old drawings. All 19 are itemized BY SHAPE, split across the three
-   fixture classes that carry them: arm 3's 8 in
-   `TestArgusR4Arm3Fixture.test_standing_lint_is_the_arms_deliberate_record`,
-   arm 4's 7 in `TestArgusR4Arm4Fixture.
-   test_this_arms_share_of_the_pre_ruling_palette_findings`, and run 5's 4 in
-   `TestArgusR5Fixture.test_this_runs_share_of_the_pre_ruling_palette_
-   findings`. The split is load-bearing rather than incidental: a partial
-   rebase that cleared one fixture's share and left the rest fails the class
-   that owns the survivors, which a single arm-3 assertion could not see.
-   No warning TOTAL is pinned anywhere — the findings are matched by
-   criterion and pre-ruling hex, so an unrelated check waking up on one of
-   these artifacts does not fail a test about the palette.
+   about old drawings. All 19 are itemized BY SHAPE, in the three fixture
+   classes that carry them — and the shares are 8 / 8 / 3, which is worth
+   reading off the assertions rather than trusting, since a wrong partition
+   that still sums to 19 is exactly what the first draft of this paragraph
+   shipped:
+
+   - **arm 3 — 8**, in `TestArgusR4Arm3Fixture.
+     test_standing_lint_is_the_arms_deliberate_record`: 2 slider tracks on
+     `admin-console` and 6 chart-placeholder X strokes on `dashboard`, all
+     furniture, no annotation ink on this fixture.
+   - **arm 4 — 8**, in `TestArgusR4Arm4Fixture.
+     test_this_arms_share_of_the_pre_ruling_palette_findings`: 6 X strokes on
+     `dashboard-wireframe`, plus 1 annotation on `dashboard-wireframe` and 1
+     on `enrichment-flow`.
+   - **run 5 — 3**, in `TestArgusR5Fixture.
+     test_this_runs_share_of_the_pre_ruling_palette_findings`: 2 slider tracks
+     and 1 annotation, all on `admin-console`.
+
+   That accounts for the 16 furniture (2 + 6 + 6 + 2) and the 3 annotation
+   findings separately, which is the check a bare sum cannot do. The split is
+   load-bearing rather than incidental: a partial rebase that cleared one
+   fixture's share and left the rest fails the class that owns the survivors,
+   which a single arm-3 assertion could not see. **The two NEW classes pin no
+   warning total** — their findings are matched by criterion and pre-ruling
+   hex, so an unrelated check waking up on `dashboard-wireframe` or r5's
+   `admin-console` does not fail a test about the palette. Arm 3's older test
+   does still pin totals (7 and 8) beside its shape clauses; that predates the
+   ruling and is left alone.
    **TASK-FOCUS-FOLLOWUP's fixture rebase is what clears them**, and takes
-   all three counts to 0.
+   all three shares to 0.
 
    **The full statement lives at the mint site in `canvas.py`**, on purpose:
    this entry and that comment are the only two copies a fresh clone can

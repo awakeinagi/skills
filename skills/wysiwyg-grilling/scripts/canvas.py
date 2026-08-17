@@ -9499,12 +9499,15 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
     colour on any background — an agent's own #8fa can sit on a filled
     container — so per-colour constants would be wrong the first time
     somebody drew on a tinted card. Hue and saturation are held and only
-    HSL LIGHTNESS moves, in increments of 1/255 of that axis — which is
-    not an 8-bit channel step, it is the resolution the result is
-    quantized back to, chosen so the walk cannot step past a shade the
-    output could have expressed. So the suggestion is recognisably the
-    SAME colour: the authorship language (agent green, user yellow)
-    survives a repair that follows this advice.
+    HSL LIGHTNESS moves, in increments of 1/255 of that axis. So what
+    comes back is the nearest compliant shade ON THE 1/255 LIGHTNESS
+    GRID, and that grid is COARSER than the 8-bit output near mid
+    lightness — several expressible shades can sit between two steps of
+    it, so "nearest" is nearest-on-the-grid and not nearest-expressible.
+    That costs nothing the ruling asked for: every candidate is verified
+    compliant regardless (below), and the suggestion is recognisably the
+    SAME colour either way, which is what keeps the authorship language
+    (agent green, user yellow) alive through a repair that follows it.
 
     BOTH DIRECTIONS, NEAREST WINS. Contrast against a fixed ground is
     monotonic on each side of that ground's own luminance, so the reachable
@@ -9530,8 +9533,9 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
             same way the finding folded the original.
 
     Returns:
-        The nearest compliant (r, g, b) triple of ints, or None when no
-        shade of this hue reaches the floor at this opacity.
+        The nearest compliant (r, g, b) triple of ints — nearest on the
+        1/255 lightness grid, verified compliant — or None when no shade
+        of this hue reaches the floor at this opacity.
     """
     h, lightness, s = colorsys.rgb_to_hls(*(c / 255.0 for c in rgb))
     best = None
