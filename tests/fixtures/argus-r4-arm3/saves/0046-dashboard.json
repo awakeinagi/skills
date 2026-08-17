@@ -1,0 +1,1294 @@
+{
+ "artifacts": {
+  "dashboard": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "chart-equity-x1",
+     "kind": "line",
+     "label": "chart-equity-x1",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "chart-equity-x1"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "chart-equity-x2",
+     "kind": "line",
+     "label": "chart-equity-x2",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "chart-equity-x2"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "chart-sector-x1",
+     "kind": "line",
+     "label": "chart-sector-x1",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "chart-sector-x1"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "chart-sector-x2",
+     "kind": "line",
+     "label": "chart-sector-x2",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "chart-sector-x2"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "chart-drawdown-x1",
+     "kind": "line",
+     "label": "chart-drawdown-x1",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "chart-drawdown-x1"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "chart-drawdown-x2",
+     "kind": "line",
+     "label": "chart-drawdown-x2",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "chart-drawdown-x2"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-backdrop",
+     "kind": "rectangle",
+     "label": "reader-backdrop",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "reader-backdrop"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav",
+     "kind": "nav",
+     "label": "ARGUS",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "ARGUS"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-dashboard",
+     "kind": "nav",
+     "label": "Dashboard",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Dashboard"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-admin",
+     "kind": "nav",
+     "label": "Admin",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Admin"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "status-lastrun",
+     "kind": "block",
+     "label": "last run: 06:00 ✓",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "last run: 06:00 ✓"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-value",
+     "kind": "kpi",
+     "label": "Portfolio value",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Portfolio value"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Excess Return",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Excess Return"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-var",
+     "kind": "kpi",
+     "label": "VaR (95%, 1-day)",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "VaR (95%, 1-day)"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment",
+     "kind": "kpi",
+     "label": "Sentiment index",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Sentiment index"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "shelf",
+     "kind": "block",
+     "label": "Reports",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Reports"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-weekly",
+     "kind": "block",
+     "label": "Weekly Brief · Mon 4 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Weekly Brief · Mon 4 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-risk",
+     "kind": "block",
+     "label": "Risk Deep-Dive · 1 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Risk Deep-Dive · 1 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest",
+     "kind": "block",
+     "label": "Signals Digest · 8 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Signals Digest · 8 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav-r",
+     "kind": "nav",
+     "label": "ARGUS",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "ARGUS"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-panel",
+     "kind": "block",
+     "label": "Weekly Brief — week ending 8 Aug",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Weekly Brief — week ending 8 Aug"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-close",
+     "kind": "button",
+     "label": "✕",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "✕"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-meta",
+     "kind": "block",
+     "label": "06:00 run · 5 sources ok · no stale flag",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "06:00 run · 5 sources ok · no stale flag"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-synthesis",
+     "kind": "block",
+     "label": "Synthesis",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Synthesis"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-positions",
+     "kind": "block",
+     "label": "Positions & exposure",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Positions & exposure"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-signals",
+     "kind": "block",
+     "label": "Signals this week",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Signals this week"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "reader-download",
+     "kind": "button",
+     "label": "Download PDF",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Download PDF"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-6785c522",
+     "kind": "rectangle",
+     "label": "KPI row first — the number IS the product. Charts can shrink.",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "KPI row first — the number IS the product. Charts can shrink."
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity",
+     "kind": "image",
+     "label": "Equity curve vs benchmark",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Equity curve vs benchmark"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-sector",
+     "kind": "image",
+     "label": "Sector heat map",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Sector heat map"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown",
+     "kind": "image",
+     "label": "Drawdown",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Drawdown"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-value-value",
+     "kind": "text",
+     "label": "$4.82M",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "$4.82M"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha-value",
+     "kind": "text",
+     "label": "+3.1%",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "+3.1%"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-var-value",
+     "kind": "text",
+     "label": "2.4%",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "2.4%"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment-value",
+     "kind": "text",
+     "label": "62",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "62"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "chart-equity-x1",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "chart-equity-x2",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "chart-sector-x1",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "chart-sector-x2",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "screen-dashboard",
+      "screen-reader",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "reader-backdrop",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ],
+     "moved": [
+      "reader-backdrop",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "screen-reader",
+      "reader-backdrop",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "chart-equity-x1",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "chart-equity-x2",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "chart-sector-x1",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "chart-sector-x2",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "chart-drawdown-x1",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "chart-drawdown-x2",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "element": "reader-backdrop",
+     "fact": "reordered",
+     "label": "reader-backdrop"
+    },
+    {
+     "element": "nav",
+     "fact": "reordered",
+     "label": "ARGUS"
+    },
+    {
+     "element": "nav-dashboard",
+     "fact": "reordered",
+     "label": "Dashboard"
+    },
+    {
+     "element": "nav-admin",
+     "fact": "reordered",
+     "label": "Admin"
+    },
+    {
+     "element": "status-lastrun",
+     "fact": "reordered",
+     "label": "last run: 06:00 ✓"
+    },
+    {
+     "element": "kpi-value",
+     "fact": "reordered",
+     "label": "Portfolio value"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "reordered",
+     "label": "Excess Return"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "reordered",
+     "label": "VaR (95%, 1-day)"
+    },
+    {
+     "element": "kpi-sentiment",
+     "fact": "reordered",
+     "label": "Sentiment index"
+    },
+    {
+     "element": "shelf",
+     "fact": "reordered",
+     "label": "Reports"
+    },
+    {
+     "element": "card-weekly",
+     "fact": "reordered",
+     "label": "Weekly Brief · Mon 4 Aug"
+    },
+    {
+     "element": "card-risk",
+     "fact": "reordered",
+     "label": "Risk Deep-Dive · 1 Aug"
+    },
+    {
+     "element": "card-digest",
+     "fact": "reordered",
+     "label": "Signals Digest · 8 Aug"
+    },
+    {
+     "element": "nav-r",
+     "fact": "reordered",
+     "label": "ARGUS"
+    },
+    {
+     "element": "reader-panel",
+     "fact": "reordered",
+     "label": "Weekly Brief — week ending 8 Aug"
+    },
+    {
+     "element": "reader-close",
+     "fact": "reordered",
+     "label": "✕"
+    },
+    {
+     "element": "reader-meta",
+     "fact": "reordered",
+     "label": "06:00 run · 5 sources ok · no stale flag"
+    },
+    {
+     "element": "sec-synthesis",
+     "fact": "reordered",
+     "label": "Synthesis"
+    },
+    {
+     "element": "sec-positions",
+     "fact": "reordered",
+     "label": "Positions & exposure"
+    },
+    {
+     "element": "sec-signals",
+     "fact": "reordered",
+     "label": "Signals this week"
+    },
+    {
+     "element": "reader-download",
+     "fact": "reordered",
+     "label": "Download PDF"
+    },
+    {
+     "element": "usernote-6785c522",
+     "fact": "reordered",
+     "label": "KPI row first — the number IS the product. Charts can shrink."
+    },
+    {
+     "element": "chart-equity",
+     "fact": "reordered",
+     "label": "Equity curve vs benchmark"
+    },
+    {
+     "element": "chart-sector",
+     "fact": "reordered",
+     "label": "Sector heat map"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "reordered",
+     "label": "Drawdown"
+    },
+    {
+     "element": "kpi-value-value",
+     "fact": "reordered",
+     "label": "$4.82M"
+    },
+    {
+     "element": "kpi-alpha-value",
+     "fact": "reordered",
+     "label": "+3.1%"
+    },
+    {
+     "element": "kpi-var-value",
+     "fact": "reordered",
+     "label": "2.4%"
+    },
+    {
+     "element": "kpi-sentiment-value",
+     "fact": "reordered",
+     "label": "62"
+    },
+    {
+     "element": "chart-equity-x1",
+     "fact": "reordered",
+     "label": "chart-equity-x1"
+    },
+    {
+     "element": "chart-equity-x2",
+     "fact": "reordered",
+     "label": "chart-equity-x2"
+    },
+    {
+     "element": "chart-sector-x1",
+     "fact": "reordered",
+     "label": "chart-sector-x1"
+    },
+    {
+     "element": "chart-sector-x2",
+     "fact": "reordered",
+     "label": "chart-sector-x2"
+    },
+    {
+     "element": "chart-drawdown-x1",
+     "fact": "reordered",
+     "label": "chart-drawdown-x1"
+    },
+    {
+     "element": "chart-drawdown-x2",
+     "fact": "reordered",
+     "label": "chart-drawdown-x2"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "screen-dashboard",
+      "screen-reader",
+      "reader-backdrop",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ],
+     "moved": [
+      "reader-backdrop",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-dashboard",
+      "screen-reader",
+      "kpi-value-value",
+      "kpi-alpha-value",
+      "kpi-var-value",
+      "kpi-sentiment-value",
+      "reader-backdrop",
+      "chart-equity-x1",
+      "chart-equity-x2",
+      "chart-sector-x1",
+      "chart-sector-x2",
+      "chart-drawdown-x1",
+      "chart-drawdown-x2",
+      "nav",
+      "nav-dashboard",
+      "nav-admin",
+      "status-lastrun",
+      "kpi-value",
+      "kpi-alpha",
+      "kpi-var",
+      "kpi-sentiment",
+      "shelf",
+      "card-weekly",
+      "card-risk",
+      "card-digest",
+      "nav-r",
+      "reader-panel",
+      "reader-close",
+      "reader-meta",
+      "sec-synthesis",
+      "sec-positions",
+      "sec-signals",
+      "reader-download",
+      "usernote-6785c522",
+      "chart-equity",
+      "chart-sector",
+      "chart-drawdown",
+      "nav-label",
+      "nav-dashboard-label",
+      "nav-admin-label",
+      "status-lastrun-label",
+      "kpi-value-label",
+      "kpi-alpha-label",
+      "kpi-var-label",
+      "kpi-sentiment-label",
+      "shelf-label",
+      "card-weekly-label",
+      "card-risk-label",
+      "card-digest-label",
+      "nav-r-label",
+      "reader-panel-label",
+      "reader-close-label",
+      "reader-meta-label",
+      "sec-synthesis-label",
+      "sec-positions-label",
+      "sec-signals-label",
+      "reader-download-label",
+      "pin-reader-content",
+      "pin-lastrun-truth",
+      "usernote-6785c522-t",
+      "chart-equity-label",
+      "chart-sector-label",
+      "chart-drawdown-label"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "chart-drawdown-x2",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "chart-drawdown-x1",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "chart-sector-x2",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "chart-sector-x1",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "chart-equity-x2",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "chart-equity-x1",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard + Reader"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 45,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1944455
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 46,
+ "round": 7,
+ "saved_at": "2026-08-17T21:39:08Z",
+ "selection_at_save": [],
+ "short_id": "ee317e5",
+ "summary": {
+  "headline": "reordered reader-backdrop (+34 more)",
+  "suppressed": 6,
+  "verb_counts": {
+   "reordered": 35,
+   "restyled": 6
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

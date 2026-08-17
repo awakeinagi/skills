@@ -1,0 +1,808 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "sld-risk-track",
+     "kind": "line",
+     "label": "sld-risk-track",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "sld-risk-track"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "sld-confidence-track",
+     "kind": "line",
+     "label": "sld-confidence-track",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "sld-confidence-track"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "console-nav",
+     "kind": "nav",
+     "label": "Argus — Admin Console",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Argus — Admin Console"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-pipelines",
+     "kind": "block",
+     "label": "Pipelines",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Pipelines"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-market",
+     "kind": "toggle",
+     "label": "Market Feed",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Market Feed"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-edgar",
+     "kind": "toggle",
+     "label": "SEC EDGAR",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "SEC EDGAR"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-news",
+     "kind": "toggle",
+     "label": "News Sentiment",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "News Sentiment"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-market",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-edgar",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-news",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-thresholds",
+     "kind": "block",
+     "label": "Thresholds",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Thresholds"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-risk",
+     "kind": "slider",
+     "label": "Risk threshold",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Risk threshold"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-confidence",
+     "kind": "slider",
+     "label": "Confidence threshold",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Confidence threshold"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-apply",
+     "kind": "button",
+     "label": "Apply",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Apply"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "note-switch-timing",
+     "kind": "text",
+     "label": "Switches take effect on tomorrow's 06:00",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "Switches take effect on tomorrow's 06:00"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-market-box",
+     "kind": "rectangle",
+     "label": "tog-market-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "tog-market-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-market-thumb",
+     "kind": "ellipse",
+     "label": "tog-market-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "tog-market-thumb"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-edgar-box",
+     "kind": "rectangle",
+     "label": "tog-edgar-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "tog-edgar-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-edgar-thumb",
+     "kind": "ellipse",
+     "label": "tog-edgar-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "tog-edgar-thumb"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-news-box",
+     "kind": "rectangle",
+     "label": "tog-news-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "tog-news-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-news-thumb",
+     "kind": "ellipse",
+     "label": "tog-news-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "tog-news-thumb"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-risk-thumb",
+     "kind": "rectangle",
+     "label": "sld-risk-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "sld-risk-thumb"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-confidence-thumb",
+     "kind": "rectangle",
+     "label": "sld-confidence-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "sld-confidence-thumb"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#5c8a5f",
+       "to": "#47704b"
+      }
+     ],
+     "id": "note-switch-timing",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "sld-risk-track",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "sld-confidence-track",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "screen-console",
+      "tog-market-box",
+      "tog-market-thumb",
+      "tog-edgar-box",
+      "tog-edgar-thumb",
+      "tog-news-box",
+      "tog-news-thumb",
+      "sld-risk-track",
+      "sld-risk-thumb",
+      "sld-confidence-track",
+      "sld-confidence-thumb",
+      "console-nav",
+      "panel-pipelines",
+      "tog-market",
+      "tog-edgar",
+      "tog-news",
+      "btn-rerun-market",
+      "btn-rerun-edgar",
+      "btn-rerun-news",
+      "panel-thresholds",
+      "sld-risk",
+      "sld-confidence",
+      "btn-apply",
+      "note-switch-timing",
+      "console-nav-label",
+      "panel-pipelines-label",
+      "tog-market-label",
+      "tog-edgar-label",
+      "tog-news-label",
+      "btn-rerun-market-label",
+      "btn-rerun-edgar-label",
+      "btn-rerun-news-label",
+      "panel-thresholds-label",
+      "sld-risk-label",
+      "sld-confidence-label",
+      "btn-apply-label",
+      "pin-rerun-result",
+      "pin-switch-rerun-timing"
+     ],
+     "moved": [
+      "console-nav",
+      "panel-pipelines",
+      "tog-market",
+      "tog-edgar",
+      "tog-news",
+      "btn-rerun-market",
+      "btn-rerun-edgar",
+      "btn-rerun-news",
+      "panel-thresholds",
+      "sld-risk",
+      "sld-confidence",
+      "btn-apply",
+      "note-switch-timing",
+      "tog-market-box",
+      "tog-market-thumb",
+      "tog-edgar-box",
+      "tog-edgar-thumb",
+      "tog-news-box",
+      "tog-news-thumb",
+      "sld-risk-track",
+      "sld-risk-thumb",
+      "sld-confidence-track",
+      "sld-confidence-thumb"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-console",
+      "console-nav",
+      "panel-pipelines",
+      "tog-market",
+      "tog-edgar",
+      "tog-news",
+      "btn-rerun-market",
+      "btn-rerun-edgar",
+      "btn-rerun-news",
+      "panel-thresholds",
+      "sld-risk",
+      "sld-confidence",
+      "btn-apply",
+      "note-switch-timing",
+      "tog-market-box",
+      "tog-market-thumb",
+      "tog-edgar-box",
+      "tog-edgar-thumb",
+      "tog-news-box",
+      "tog-news-thumb",
+      "sld-risk-track",
+      "sld-risk-thumb",
+      "sld-confidence-track",
+      "sld-confidence-thumb",
+      "console-nav-label",
+      "panel-pipelines-label",
+      "tog-market-label",
+      "tog-edgar-label",
+      "tog-news-label",
+      "btn-rerun-market-label",
+      "btn-rerun-edgar-label",
+      "btn-rerun-news-label",
+      "panel-thresholds-label",
+      "sld-risk-label",
+      "sld-confidence-label",
+      "btn-apply-label",
+      "pin-rerun-result",
+      "pin-switch-rerun-timing"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "sld-risk-track",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "sld-confidence-track",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "element": "console-nav",
+     "fact": "reordered",
+     "label": "Argus — Admin Console"
+    },
+    {
+     "element": "panel-pipelines",
+     "fact": "reordered",
+     "label": "Pipelines"
+    },
+    {
+     "element": "tog-market",
+     "fact": "reordered",
+     "label": "Market Feed"
+    },
+    {
+     "element": "tog-edgar",
+     "fact": "reordered",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "tog-news",
+     "fact": "reordered",
+     "label": "News Sentiment"
+    },
+    {
+     "element": "btn-rerun-market",
+     "fact": "reordered",
+     "label": "Rerun"
+    },
+    {
+     "element": "btn-rerun-edgar",
+     "fact": "reordered",
+     "label": "Rerun"
+    },
+    {
+     "element": "btn-rerun-news",
+     "fact": "reordered",
+     "label": "Rerun"
+    },
+    {
+     "element": "panel-thresholds",
+     "fact": "reordered",
+     "label": "Thresholds"
+    },
+    {
+     "element": "sld-risk",
+     "fact": "reordered",
+     "label": "Risk threshold"
+    },
+    {
+     "element": "sld-confidence",
+     "fact": "reordered",
+     "label": "Confidence threshold"
+    },
+    {
+     "element": "btn-apply",
+     "fact": "reordered",
+     "label": "Apply"
+    },
+    {
+     "element": "note-switch-timing",
+     "fact": "reordered",
+     "label": "Switches take effect on tomorrow's 06:00"
+    },
+    {
+     "element": "tog-market-box",
+     "fact": "reordered",
+     "label": "tog-market-box"
+    },
+    {
+     "element": "tog-market-thumb",
+     "fact": "reordered",
+     "label": "tog-market-thumb"
+    },
+    {
+     "element": "tog-edgar-box",
+     "fact": "reordered",
+     "label": "tog-edgar-box"
+    },
+    {
+     "element": "tog-edgar-thumb",
+     "fact": "reordered",
+     "label": "tog-edgar-thumb"
+    },
+    {
+     "element": "tog-news-box",
+     "fact": "reordered",
+     "label": "tog-news-box"
+    },
+    {
+     "element": "tog-news-thumb",
+     "fact": "reordered",
+     "label": "tog-news-thumb"
+    },
+    {
+     "element": "sld-risk-track",
+     "fact": "reordered",
+     "label": "sld-risk-track"
+    },
+    {
+     "element": "sld-risk-thumb",
+     "fact": "reordered",
+     "label": "sld-risk-thumb"
+    },
+    {
+     "element": "sld-confidence-track",
+     "fact": "reordered",
+     "label": "sld-confidence-track"
+    },
+    {
+     "element": "sld-confidence-thumb",
+     "fact": "reordered",
+     "label": "sld-confidence-thumb"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "screen-console",
+      "console-nav",
+      "panel-pipelines",
+      "tog-market",
+      "tog-edgar",
+      "tog-news",
+      "btn-rerun-market",
+      "btn-rerun-edgar",
+      "btn-rerun-news",
+      "panel-thresholds",
+      "sld-risk",
+      "sld-confidence",
+      "btn-apply",
+      "note-switch-timing",
+      "tog-market-box",
+      "tog-market-thumb",
+      "tog-edgar-box",
+      "tog-edgar-thumb",
+      "tog-news-box",
+      "tog-news-thumb",
+      "sld-risk-track",
+      "sld-risk-thumb",
+      "sld-confidence-track",
+      "sld-confidence-thumb",
+      "console-nav-label",
+      "panel-pipelines-label",
+      "tog-market-label",
+      "tog-edgar-label",
+      "tog-news-label",
+      "btn-rerun-market-label",
+      "btn-rerun-edgar-label",
+      "btn-rerun-news-label",
+      "panel-thresholds-label",
+      "sld-risk-label",
+      "sld-confidence-label",
+      "btn-apply-label",
+      "pin-rerun-result",
+      "pin-switch-rerun-timing"
+     ],
+     "moved": [
+      "console-nav",
+      "panel-pipelines",
+      "tog-market",
+      "tog-edgar",
+      "tog-news",
+      "btn-rerun-market",
+      "btn-rerun-edgar",
+      "btn-rerun-news",
+      "panel-thresholds",
+      "sld-risk",
+      "sld-confidence",
+      "btn-apply",
+      "note-switch-timing",
+      "tog-market-box",
+      "tog-market-thumb",
+      "tog-edgar-box",
+      "tog-edgar-thumb",
+      "tog-news-box",
+      "tog-news-thumb",
+      "sld-risk-track",
+      "sld-risk-thumb",
+      "sld-confidence-track",
+      "sld-confidence-thumb"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-console",
+      "tog-market-box",
+      "tog-market-thumb",
+      "tog-edgar-box",
+      "tog-edgar-thumb",
+      "tog-news-box",
+      "tog-news-thumb",
+      "sld-risk-track",
+      "sld-risk-thumb",
+      "sld-confidence-track",
+      "sld-confidence-thumb",
+      "console-nav",
+      "panel-pipelines",
+      "tog-market",
+      "tog-edgar",
+      "tog-news",
+      "btn-rerun-market",
+      "btn-rerun-edgar",
+      "btn-rerun-news",
+      "panel-thresholds",
+      "sld-risk",
+      "sld-confidence",
+      "btn-apply",
+      "note-switch-timing",
+      "console-nav-label",
+      "panel-pipelines-label",
+      "tog-market-label",
+      "tog-edgar-label",
+      "tog-news-label",
+      "btn-rerun-market-label",
+      "btn-rerun-edgar-label",
+      "btn-rerun-news-label",
+      "panel-thresholds-label",
+      "sld-risk-label",
+      "sld-confidence-label",
+      "btn-apply-label",
+      "pin-rerun-result",
+      "pin-switch-rerun-timing"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "sld-confidence-track",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "sld-risk-track",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#47704b",
+       "to": "#5c8a5f"
+      }
+     ],
+     "id": "note-switch-timing",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 24,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1944455
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 25,
+ "round": 6,
+ "saved_at": "2026-08-17T21:39:09Z",
+ "selection_at_save": [],
+ "short_id": "5b1a1b9",
+ "summary": {
+  "headline": "reordered Argus — Admin Console (+22 more)",
+  "suppressed": 2,
+  "verb_counts": {
+   "reordered": 23,
+   "restyled": 2
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

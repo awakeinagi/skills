@@ -4393,7 +4393,14 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
     FIXTURE = "argus-r4-arm3"
 
     def test_replays_full_history(self):
-        self.assertEqual(self.store.head_revn(), 44)
+        # 44 -> 46 at v0.9 TASK-FOCUS-FOLLOWUP-B's palette rebase: saves
+        # 0045 and 0046 recolour this arm's 8 pre-ruling-ink elements
+        # (2 slider tracks on `admin-console`, 6 chart-placeholder X
+        # strokes on `dashboard`) through real `mod strokeColor` ops, so
+        # the recolour arrives as an agent-authored revision with a diff
+        # rather than as a file rewrite. No geometry moved here — this
+        # arm's routing was not offered by the re-route gate.
+        self.assertEqual(self.store.head_revn(), 46)
         self.assertEqual(sorted(self.store.scenes), [
             "admin-console", "aggregation-flow", "argus-domain",
             "argus-run-flow", "dashboard", "enrichment-pipeline",
@@ -4433,33 +4440,38 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
         # purpose ("the answer is in the lint") — they must survive replay
         # exactly, and nothing may fire an ERROR anywhere.
         #
-        # ITEMIZED 2026-08-17 (the contrast ruling). The counts moved,
-        # admin-console 5 -> 7 and dashboard 2 -> 8, and the movement is
-        # entirely the dropped composed-furniture exemption: 2 slider
-        # tracks here and 6 chart-placeholder X strokes there, all of
-        # them #b8b2a5 at 2.06:1 against 1.4.11's 3:1. They are TRUE
-        # findings about a frozen drawing — this arm really did ship
-        # furniture a reader cannot pick out, and no tier reported it
-        # until the exemption went — so they are expected by SHAPE here
-        # rather than absorbed into a bigger number. The fixtures keep
-        # the pre-ruling ink by design (they are a record of sessions
-        # that happened); TASK-FOCUS-FOLLOWUP's rebase is what clears
-        # them, and when it does these two clauses go to zero and the
-        # counts return to 5 and 2.
+        # ITEMIZED 2026-08-17 (the contrast ruling), CLEARED 2026-08-17
+        # (v0.9 TASK-FOCUS-FOLLOWUP-B's fixture rebase).
+        #
+        # The history, because the zeros below are only meaningful with
+        # it. The ruling darkened both defaults and dropped the
+        # composed-furniture exemption, which took admin-console 5 -> 7
+        # and dashboard 2 -> 8: 2 slider tracks here and 6
+        # chart-placeholder X strokes there, all #b8b2a5 at 2.06:1
+        # against 1.4.11's 3:1. Those were TRUE findings about a frozen
+        # drawing — this arm really did ship furniture a reader cannot
+        # pick out, and no tier reported it until the exemption went.
+        #
+        # The rebase then recoloured all 8 through real `mod
+        # strokeColor` ops, so the counts came back to 5 and 2 exactly
+        # as this comment predicted before the fact. The SHAPE clauses
+        # stay at zero rather than being deleted: they are what makes a
+        # regression to the old ink fail HERE, on the artifact, instead
+        # of somewhere downstream.
         lint = self.lint_all()
         furniture = {}
         for aid in ("admin-console", "dashboard"):
             furniture[aid] = [w for w in lint[aid]["warnings"]
                               if "1.4.11" in w and "#b8b2a5" in w]
-        self.assertEqual(len(furniture["admin-console"]), 2,
+        self.assertEqual(len(furniture["admin-console"]), 0,
                          furniture["admin-console"])
-        self.assertEqual(len(furniture["dashboard"]), 6,
+        self.assertEqual(len(furniture["dashboard"]), 0,
                          furniture["dashboard"])
-        self.assertEqual(len(lint["admin-console"]["warnings"]), 7)
+        self.assertEqual(len(lint["admin-console"]["warnings"]), 5)
         self.assertTrue(all("reading order" in w or "precedes" in w
                             for w in lint["admin-console"]["warnings"]
                             if w not in furniture["admin-console"]))
-        self.assertEqual(len(lint["dashboard"]["warnings"]), 8)
+        self.assertEqual(len(lint["dashboard"]["warnings"]), 2)
         for aid, r in lint.items():
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
@@ -4515,7 +4527,13 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
         # Reverting it restores the pre-rebase geometry byte for byte,
         # which is the whole point of routing the rebase through the
         # consent-gated verb instead of rewriting the files.
-        self.assertEqual(self.store.head_revn(), 29)
+        #
+        # 29 -> 31 at the same task's PALETTE rebase: saves 0030 and
+        # 0031 recolour this arm's 8 pre-ruling-ink elements (6 chart X
+        # strokes and the annotation on `dashboard-wireframe`, the
+        # annotation on `enrichment-flow`) through real `mod
+        # strokeColor` ops. Measured geometry-neutral before it was run.
+        self.assertEqual(self.store.head_revn(), 31)
         self.assertEqual(sorted(self.store.scenes), [
             "admin-console-wireframe", "daily-run-flow",
             "dashboard-wireframe", "enrichment-flow",
@@ -4541,43 +4559,46 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
     def test_this_arms_share_of_the_pre_ruling_palette_findings(self):
-        """Arm 4's 8 of the 19 standing contrast findings, by shape.
+        """Arm 4's 8 of the 19 contrast findings — CLEARED, still pinned.
 
         The user's 2026-08-17 contrast ruling darkened both defaults and
         dropped the composed-furniture exemption; the frozen fixtures
-        keep the PRE-RULING ink, because they are records of sessions
-        that happened. So 19 findings stand across the corpus — true
-        statements about old drawings — and they are executable here
-        rather than asserted in prose.
+        kept the PRE-RULING ink, because they are records of sessions
+        that happened, so 19 true findings about old drawings stood
+        across the corpus. v0.9 TASK-FOCUS-FOLLOWUP-B's fixture rebase
+        recoloured every one of them through real `mod strokeColor`
+        ops, and all three shares went to zero TOGETHER — this class,
+        `TestArgusR4Arm3Fixture` (8) and `TestArgusR5Fixture` (3).
+
+        THE ZEROS ARE THE POINT, and the clauses stay rather than being
+        deleted with the findings. Arm 4's share was 6 chart-placeholder
+        X strokes on `dashboard-wireframe` plus the pre-ruling
+        annotation ink on `dashboard-wireframe` AND on `enrichment-flow`,
+        one each; each of those three clauses now asserts the ink is
+        gone, so a fixture that regressed to #b8b2a5 or #5c8a5f fails
+        here, named, on the artifact that carries it.
 
         WHY THIS TEST EXISTS AT ALL (review IMPORTANT-1): the first cut
         itemized only arm 3's 8, while the handover claimed all 19 were
-        pinned. A fixture rebase that cleared 8 and left 11 would have
-        passed the whole suite under a handover saying otherwise.
-
-        THE EIGHT ASSERTED BELOW, and the count is the sum of the
-        assertions rather than a number carried in from anywhere: 6
-        chart-placeholder X strokes on `dashboard-wireframe`, plus the
-        pre-ruling annotation ink on `dashboard-wireframe` AND on
-        `enrichment-flow`, one each. Arm 3's 8 and run 5's 3 are pinned
-        in their own classes.
+        pinned. A rebase that cleared 8 and left 11 would have passed
+        the whole suite under a handover saying otherwise. The three
+        classes were built to fail on a PARTIAL rebase, and the full one
+        is what updates them deliberately.
 
         BY SHAPE, NOT BY TOTAL, deliberately: no warning-count assertion
         is added here. Coupling these to this artifact's total would
         make every unrelated check that ever fires on `dashboard-
-        wireframe` fail in a test about the palette. TASK-FOCUS-
-        FOLLOWUP's fixture rebase is what takes these to zero, and when
-        it does the counts below go to 0 in one edit.
+        wireframe` fail in a test about the palette.
         """
         lint = self.lint_all()
         furniture = [w for w in lint["dashboard-wireframe"]["warnings"]
                      if "1.4.11" in w and "#b8b2a5" in w]
-        self.assertEqual(len(furniture), 6, furniture)
+        self.assertEqual(len(furniture), 0, furniture)
         for aid in ("dashboard-wireframe", "enrichment-flow"):
             ink = [w for w in lint[aid]["warnings"]
                    if "1.4.3 asks" in w and "#5c8a5f" in w]
-            self.assertEqual(len(ink), 1,
-                             "%s's pre-ruling annotation ink: %r"
+            self.assertEqual(len(ink), 0,
+                             "%s's pre-ruling annotation ink came back: %r"
                              % (aid, ink))
 
     def test_the_canonical_lane_finding_survives_on_recorded_work(self):
@@ -4687,7 +4708,11 @@ class TestArgusR5Fixture(FixtureReplayBase):
         # project for a non-empty `legacy_routing()`. Re-route it and
         # that class, and the load-time `LEGACY_ROUTING=` NOTE, lose the
         # only real scene they have left to fire on.
-        self.assertEqual(self.store.head_revn(), 24)
+        #
+        # 24 -> 25 at the same task's PALETTE rebase: save 0025
+        # recolours this run's 3 pre-ruling-ink elements (2 slider
+        # tracks and the sticky-era annotation, all on `admin-console`).
+        self.assertEqual(self.store.head_revn(), 25)
         self.assertEqual(sorted(self.store.scenes), [
             "admin-console", "argus-domain", "daily-run", "edgar-late",
             "enrichment-flow", "tuesday-triage"])
@@ -4698,25 +4723,29 @@ class TestArgusR5Fixture(FixtureReplayBase):
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
     def test_this_runs_share_of_the_pre_ruling_palette_findings(self):
-        """Run 5's 3 of the 19 standing contrast findings, by shape.
+        """Run 5's 3 of the 19 contrast findings — CLEARED, still pinned.
 
-        The third and last share (arm 3 has 8, arm 4 has 8 — see
+        The third and last share (arm 3 had 8, arm 4 had 8 — see
         `TestArgusR4Arm4Fixture` for why these are itemized per fixture
-        rather than claimed in prose). All three are on `admin-console`:
+        rather than claimed in prose). All three were on `admin-console`:
         2 slider tracks at the pre-ruling `#b8b2a5`, and 1 sticky-era
         annotation at `#5c8a5f`.
 
-        These stand until TASK-FOCUS-FOLLOWUP rebases the fixtures, and
-        the two clauses go to 0 in one edit when it does. No total is
+        v0.9 TASK-FOCUS-FOLLOWUP-B's fixture rebase recoloured all three
+        through real `mod strokeColor` ops, and all three shares went to
+        zero TOGETHER — these classes were built to fail on a partial
+        rebase, so a full one is what updates them. The clauses stay at
+        zero rather than being deleted: they are what makes a regression
+        to the old ink fail on the artifact that carries it. No total is
         asserted, on purpose — see the arm 4 twin.
         """
         lint = self.lint_all()["admin-console"]
         furniture = [w for w in lint["warnings"]
                      if "1.4.11" in w and "#b8b2a5" in w]
-        self.assertEqual(len(furniture), 2, furniture)
+        self.assertEqual(len(furniture), 0, furniture)
         ink = [w for w in lint["warnings"]
                if "1.4.3 asks" in w and "#5c8a5f" in w]
-        self.assertEqual(len(ink), 1, ink)
+        self.assertEqual(len(ink), 0, ink)
 
     def test_forked_branch_survives_replay_archived(self):
         names = {b["name"]: b.get("archived")
