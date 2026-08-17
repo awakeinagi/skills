@@ -14,6 +14,8 @@ from __future__ import annotations
 import contextlib
 import io
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,6 +24,32 @@ from unittest import mock
 import livedoc
 
 REPO = Path(__file__).resolve().parents[1]
+
+# THE TWO TESTS IN `TestTheRepoItself` READ THE GIT INDEX, which is the one
+# thing a copied tree cannot carry. `mutants_mortality._copy_tree` reproduces
+# every TRACKED FILE faithfully — all the markdown is there — and no `.git`,
+# so `git ls-files` exits 128 and both tests ERROR instead of skipping. That
+# is what took the mortality sweep down at `71d5144`: `_control` runs the
+# whole model tier before instrumenting anything and refuses to measure a
+# tier that is not green, so two errors here cost all 27 rows and the phase
+# gate with them. `census_probes.py`'s scratch tree is the same condition.
+#
+# Presence of the checkout, mirroring the fixture gate on
+# `TestInstrumentSweep.test_instruments_run_over_the_r5_fixture`
+# (`skipUnless(<path>.is_dir(), "… not present")`). `.exists()` and not
+# `.is_dir()` because `.git` is a FILE in a worktree and a directory in a
+# clone, and this repo is worked in worktrees.
+#
+# DELIBERATELY NOT "does `git ls-files` succeed". A predicate that ran the
+# command it gates could never disagree with it, so a genuinely broken git
+# inside a real checkout would become a silent skip — the failure this repo
+# calls a guard that cannot fail. Presence is the conservative half: it is
+# false only when the tree provably has no index, and anything else still
+# fails loudly. `TestTheCheckoutGate` holds both halves of that.
+_CHECKOUT = (REPO / ".git").exists()
+
+_NO_CHECKOUT = ("not a git checkout — a copied tree (the mortality sweep, "
+                "census_probes) has the tracked FILES but no index")
 
 
 class LiveDocCase(unittest.TestCase):
@@ -290,6 +318,7 @@ class TestTheParserRefusesRatherThanSkips(LiveDocCase):
 class TestTheRepoItself(LiveDocCase):
     """The markers actually placed in this tree, and the census boundary."""
 
+    @unittest.skipUnless(_CHECKOUT, _NO_CHECKOUT)
     def test_the_markers_in_tracked_prose_are_well_formed(self) -> None:
         """Every marker in the repo parses and names a real calculator.
 
@@ -310,6 +339,7 @@ class TestTheRepoItself(LiveDocCase):
             self.assertIn(marker.name, livedoc.CALCULATORS,
                           "%s:%d" % (livedoc._rel(path), marker.line))
 
+    @unittest.skipUnless(_CHECKOUT, _NO_CHECKOUT)
     def test_every_registered_calculator_is_placed(self) -> None:
         """A calculator no marker reads has stopped being watched."""
         self.assertEqual(
@@ -346,6 +376,113 @@ class TestTheRepoItself(LiveDocCase):
                          "SESSION-HANDOVER.md"), [],
             "a live marker has appeared in the census's file; read this "
             "test's docstring before deciding it is fine")
+
+
+class TestTheCheckoutGate(LiveDocCase):
+    """`_CHECKOUT` itself, watched doing both of its jobs.
+
+    THE MISSING POLE, and it is missing in the direction that cost real
+    work. A `skipUnless` is invisible from inside a healthy checkout: the
+    two tests it guards run and pass there whether the predicate is right,
+    wrong, or attached to nothing at all. The condition it exists for lives
+    somewhere nobody runs the suite by hand — a tree copied out of the index
+    by `mutants_mortality._copy_tree` — so it has to be CONSTRUCTED here
+    rather than assumed. At `71d5144` it was assumed, the two tests errored
+    inside the sweep's pristine control, `_control` refused to measure a
+    tier that is not green before instrumentation, and all 27 mortality rows
+    died with it.
+
+    Both directions, because one of them alone proves the wrong thing.
+    Watching the tests skip proves only that SOMETHING skipped them, which a
+    predicate hard-wired to `False` would also do — and that predicate would
+    silently retire two live guards in the real repo forever. So the second
+    test puts a `.git` back and watches the same two tests FAIL, which is
+    what says the gate is reading the tree rather than switched off.
+    """
+
+    # Named rather than pattern-matched, so a rename shows up as `-k`
+    # selecting nothing — the anchor discipline `census_probes.py` uses.
+    GATED = ("test_every_registered_calculator_is_placed",
+             "test_the_markers_in_tracked_prose_are_well_formed")
+
+    def scratch(self, with_git: bool = False) -> Path:
+        """Build the copied-tree condition the mortality sweep produces.
+
+        Only the two modules are copied. The subprocess then imports nothing
+        else and the probe stays under a second, and what is being
+        reproduced is not the sweep's file list but its SHAPE: a `tests/`
+        directory whose parent holds no git index. That is
+        `_copy_tree`'s output exactly — it walks `git ls-files` and copies
+        every tracked file, `.git` not being one of them — and
+        `census_probes._scratch`'s too.
+
+        Args:
+            with_git: Put an (invalid) `.git` back, to flip `_CHECKOUT`
+                true in the subprocess without making the tree usable.
+
+        Returns:
+            The tree's root, ready to run `unittest discover -s tests` in.
+        """
+        tree = self.tmp / ("with-git" if with_git else "copied")
+        (tree / "tests").mkdir(parents=True)
+        for name in ("livedoc.py", "test_livedoc.py"):
+            shutil.copy2(Path(__file__).parent / name, tree / "tests" / name)
+        if with_git:
+            (tree / ".git").write_text("gitdir: /nonexistent\n",
+                                       encoding="utf-8")
+        return tree
+
+    def run_gated(self, tree: Path) -> str:
+        """Run only the two gated tests inside `tree`.
+
+        Args:
+            tree: A root built by `scratch`.
+
+        Returns:
+            Everything the run printed, verbosely, so the skip REASON is
+            readable and not just the count.
+        """
+        argv = [sys.executable, "-m", "unittest", "discover", "-s", "tests",
+                "-p", "test_livedoc.py", "-v"]
+        for name in self.GATED:
+            argv += ["-k", name]
+        done = subprocess.run(argv, cwd=str(tree), capture_output=True,
+                              text=True, timeout=300)
+        return done.stdout + done.stderr
+
+    def test_the_gated_tests_skip_in_a_copied_tree(self) -> None:
+        """The sweep's condition: both skip, neither errors.
+
+        `Ran 2 tests` is asserted before the verdict, and is the half that
+        keeps this honest over time. `-k` selecting one test, or none, would
+        leave the skip count "right" while the gate had drifted off a
+        renamed test — the vacuous green that `test_instruments_run_over_
+        the_r5_fixture` guards against by asserting its corpus non-empty.
+        """
+        said = self.run_gated(self.scratch())
+        self.assertIn("Ran 2 tests", said,
+                      "the gated tests have been renamed; re-point GATED")
+        self.assertIn("OK (skipped=2)", said, said[-2000:])
+        self.assertIn("no index", said,
+                      "they skipped for some reason other than the gate")
+
+    def test_the_gate_reads_the_tree_rather_than_being_switched_off(
+            self) -> None:
+        """With a `.git` present, the same two tests fail loudly again.
+
+        The tree is still unusable — the gitfile points nowhere — so `git
+        ls-files` exits non-zero and `tracked_prose_files` refuses. That is
+        the asymmetry `_CHECKOUT` is built for and the reason it is a
+        presence check rather than a trial run of the command it gates: a
+        broken git inside something that claims to be a checkout has to
+        fail, not skip. A predicate that asked "does `git ls-files` work"
+        would turn this exact case green.
+        """
+        said = self.run_gated(self.scratch(with_git=True))
+        self.assertIn("Ran 2 tests", said,
+                      "the gated tests have been renamed; re-point GATED")
+        self.assertIn("FAILED", said, said[-2000:])
+        self.assertIn("git could not list tracked markdown", said)
 
 
 class TestTheCommandLine(LiveDocCase):
