@@ -28,11 +28,23 @@ import { replayChanges } from "../../src/api";
  * suite's other specs exercise it in the tab.
  *
  * THE CASES ARE THE FAULT CLASSES `_add_index` ENUMERATES, not a sample:
- * a legal index, past the end, negative, absent, a string, a boolean and
- * a float. Six of the seven were unreachable through the UI and every
- * one of them is reachable from a hand-edited or partially-written
- * record, which is the population the server-side clamp was written
- * for.
+ * a legal index, the end, past the end, the front, negative, absent, a
+ * string, a boolean, and floats BOTH WAYS — fractional and integral.
+ * Every one is reachable from a hand-edited or partially-written record,
+ * which is the population the server-side clamp was written for, and
+ * only two are reachable through the UI.
+ *
+ * EACH CASE IS RAW JSON TEXT AND BOTH SIDES PARSE THE SAME BYTES. That
+ * is not fussiness, it is the only way this file can see its own
+ * subject: `JSON.stringify({index: 2.0})` emits `{"index":2}`, so a case
+ * built as a JavaScript object loses its float-ness before Python ever
+ * reads it, and the spec would test a record that cannot exist on disk.
+ * The first cut of this file did exactly that and reported parity over
+ * the one class where the two sides genuinely disagreed (review
+ * MAJOR-1). `2.0` is an integral float to Python and indistinguishable
+ * from `2` to JavaScript after `JSON.parse` — which is why the fix for
+ * that class had to be server-side, and why the two `*.0` cases below
+ * are the load-bearing ones.
  */
 
 const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
@@ -43,17 +55,26 @@ const CANVAS = path.join(REPO, "skills", "wysiwyg-grilling", "scripts",
 /** A scene of four bare elements, in paint order. */
 const scene = () => ["a", "b", "c", "d"].map((id) => ({ id, type: "rectangle" }));
 
-/** One `add` op carrying whatever a record might hold in `index`. */
-const addOp = (index: unknown) =>
-  ({ op: "add", index, element: { id: "new", type: "rectangle" } });
+/** A one-`add` record as RAW JSON TEXT, carrying `index` verbatim.
+ *
+ * `token` is spliced in unquoted, so a case can say `2.0` and mean it.
+ * `null` here means the field is absent entirely, which is a different
+ * record from one carrying JSON `null` — both land at the end, and both
+ * are cases below.
+ */
+const record = (token: string | null) =>
+  `[{"op": "add"${token === null ? "" : `, "index": ${token}`}, `
+  + `"element": {"id": "new", "type": "rectangle"}}]`;
 
 /** Replay a record through `canvas.py` and hand back the id order.
  *
  * Runs the real module rather than a transcription of it — the whole
  * point is that the two sides cannot drift, and a Python copy living in
- * this file would be a third implementation to keep honest.
+ * this file would be a third implementation to keep honest. The record
+ * arrives as text and `json.load` parses it, exactly as reading one off
+ * disk does.
  */
-function serverOrder(changes: unknown[]): string[] {
+function serverOrder(recordJson: string): string[] {
   const prog = [
     "import json, sys",
     `sys.path.insert(0, ${JSON.stringify(path.dirname(CANVAS))})`,
@@ -63,7 +84,7 @@ function serverOrder(changes: unknown[]): string[] {
       + "canvas.replay_changes(els, changes)]))",
   ].join("\n");
   const r = spawnSync("python3", ["-c", prog], {
-    input: JSON.stringify([scene(), changes]),
+    input: `[${JSON.stringify(scene())}, ${recordJson}]`,
     encoding: "utf-8", timeout: 60_000,
   });
   if (r.status !== 0)
@@ -71,31 +92,54 @@ function serverOrder(changes: unknown[]): string[] {
   return JSON.parse(r.stdout);
 }
 
-const CASES: Array<{ name: string; index: unknown; expect: string[] }> = [
-  { name: "a legal index", index: 2,
-    expect: ["a", "b", "new", "c", "d"] },
-  { name: "the end", index: 4, expect: ["a", "b", "c", "d", "new"] },
-  { name: "past the end", index: 99, expect: ["a", "b", "c", "d", "new"] },
-  { name: "the front", index: 0, expect: ["new", "a", "b", "c", "d"] },
-  // the one that made the two sides disagree: `splice(-1)` and
-  // `insert(-1)` both mean "second to last", and the server now refuses
-  // that reading. -5 is here because the old behaviour answered it
-  // DIFFERENTLY again (near the front), so one wrong rule produced two
-  // wrong answers depending on the magnitude of a number nobody wrote.
-  { name: "negative", index: -1, expect: ["new", "a", "b", "c", "d"] },
-  { name: "very negative", index: -5, expect: ["new", "a", "b", "c", "d"] },
-  { name: "absent", index: undefined,
-    expect: ["a", "b", "c", "d", "new"] },
-  { name: "a string", index: "2", expect: ["a", "b", "c", "d", "new"] },
-  { name: "a boolean", index: true, expect: ["a", "b", "c", "d", "new"] },
-  { name: "a float", index: 2.5, expect: ["a", "b", "c", "d", "new"] },
+const AT_2 = ["a", "b", "new", "c", "d"];
+const AT_END = ["a", "b", "c", "d", "new"];
+const AT_FRONT = ["new", "a", "b", "c", "d"];
+
+const CASES: Array<{ name: string; token: string | null; expect: string[] }> = [
+  { name: "a legal index", token: "2", expect: AT_2 },
+  { name: "the end", token: "4", expect: AT_END },
+  { name: "past the end", token: "99", expect: AT_END },
+  { name: "the front", token: "0", expect: AT_FRONT },
+  // THE CHARTERED NEGATIVE CLASS: `splice(-1)` and `insert(-1)` both
+  // mean "second to last", and both sides now refuse that reading and
+  // clamp to the front. This is the case that discriminates — it is the
+  // one that failed against the unfixed client.
+  { name: "negative", token: "-1", expect: AT_FRONT },
+  // -5 does NOT discriminate and is kept anyway, with the reason said
+  // out loud rather than implied: an out-of-range negative reaches the
+  // front under `splice` too, so this case passes against the unfixed
+  // client as readily as the fixed one. It documents that the old rule
+  // gave two different wrong answers by magnitude — which is why the
+  // clamp exists — and `negative` above is what actually pins it.
+  { name: "very negative", token: "-5", expect: AT_FRONT },
+  { name: "absent", token: null, expect: AT_END },
+  { name: "JSON null", token: "null", expect: AT_END },
+  { name: "a string", token: "\"2\"", expect: AT_END },
+  { name: "a boolean", token: "true", expect: AT_END },
+  // BOTH DIRECTIONS OF THE FLOAT CLASS (review MAJOR-1). A fractional
+  // float is not a position on either side and lands at the end. An
+  // INTEGRAL float is the one JavaScript cannot see: `2.0` parses to
+  // the same number as `2`, so the client places it at 2 and nothing on
+  // that side can know it was written with a decimal point. The server
+  // used to refuse the whole float type and append instead — a silent
+  // disagreement on an ordinary-looking record — so it now accepts
+  // integral floats and the two sides land together.
+  { name: "a fractional float", token: "2.5", expect: AT_END },
+  { name: "an INTEGRAL float", token: "2.0", expect: AT_2 },
+  // the chartered negative class re-entering as a float, which is what
+  // made this more than a curiosity: refused-as-float it appended,
+  // read-as--1 it clamped to the front, and the record looks innocuous
+  { name: "an integral NEGATIVE float", token: "-1.0", expect: AT_FRONT },
+  { name: "an integral float past the end", token: "99.0", expect: AT_END },
 ];
 
 test("both replays rebuild the same scene from the same record", () => {
   for (const c of CASES) {
-    const changes = [addOp(c.index)];
-    const client = replayChanges(scene(), changes).map((e) => e.id);
-    const server = serverOrder(changes);
+    const json = record(c.token);
+    // the client parses the same bytes the server does — see the header
+    const client = replayChanges(scene(), JSON.parse(json)).map((e) => e.id);
+    const server = serverOrder(json);
     expect(server, `${c.name}: the server's own answer moved`)
       .toEqual(c.expect);
     expect(client, `${c.name}: the tab rebuilds a different scene than the `
@@ -116,12 +160,14 @@ test("an add above a del lands where it was recorded, on both sides", () => {
   // the case is worth naming: it is what an ordinary edit produces, not
   // a corrupt record. The clamp cases above need a hand-edited file to
   // reach; this one needed a user deleting a box and drawing another.
-  const changes = [
+  // whole-number indices, so `stringify` is lossless here — the float
+  // cases above are the ones that have to be written as text
+  const json = JSON.stringify([
     { op: "add", index: 3, element: { id: "x", type: "rectangle" } },
     { op: "del", element: { id: "b" } },
-  ];
-  expect(serverOrder(changes)).toEqual(["a", "c", "d", "x"]);
-  expect(replayChanges(scene(), changes).map((e) => e.id),
+  ]);
+  expect(serverOrder(json)).toEqual(["a", "c", "d", "x"]);
+  expect(replayChanges(scene(), JSON.parse(json)).map((e) => e.id),
     "the tab replayed in record order and put the new element one slot "
     + "short — element order is paint order").toEqual(["a", "c", "d", "x"]);
 });
@@ -136,11 +182,11 @@ test("a RUN of adds keeps its recorded order on both sides", () => {
   // more for the INVERSE list than the forward one, since inverses are
   // built by reversing the change list and hand back re-insertions in
   // descending order, and the inverse list is the revert path.
-  const changes = [
+  const json = JSON.stringify([
     { op: "add", index: 3, element: { id: "x", type: "rectangle" } },
     { op: "add", index: 1, element: { id: "y", type: "rectangle" } },
-  ];
-  expect(serverOrder(changes)).toEqual(["a", "y", "b", "x", "c", "d"]);
-  expect(replayChanges(scene(), changes).map((e) => e.id))
-    .toEqual(serverOrder(changes));
+  ]);
+  expect(serverOrder(json)).toEqual(["a", "y", "b", "x", "c", "d"]);
+  expect(replayChanges(scene(), JSON.parse(json)).map((e) => e.id))
+    .toEqual(serverOrder(json));
 });

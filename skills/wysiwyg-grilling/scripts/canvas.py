@@ -5706,8 +5706,34 @@ def _add_index(ch: dict[str, Any]) -> int | None:
     # purpose (see its clamp). `bool` is refused with it for the same
     # reason `index_fault` refuses it — `min(True, 3)` is position 1, an
     # answer nobody wrote.
+    #
+    # AN INTEGRAL FLOAT IS A POSITION; a fractional one is not. This
+    # started as `isinstance(idx, int)`, which refused the whole float
+    # type, and that is the one reading the CLIENT cannot match: JSON has
+    # a single number type and so does JavaScript, so `2.0` and `2` are
+    # the same value after `JSON.parse` and `replayChanges` places both
+    # at 2, while `json.load` hands this side a float and the element
+    # went to the end instead. An ordinary-looking record, two different
+    # scenes, neither side able to say so — and `-1.0` walked the
+    # chartered negative class straight back in, appending where the
+    # client clamped to the front. The client provably cannot close it;
+    # this side can, so it does. Narrowed to GENUINELY FRACTIONAL floats,
+    # which both sides refuse alike (`Number.isInteger(2.5)` is false).
+    #
+    # Everything Task 36 made deliberate is intact: nothing raises, a
+    # value that is not a position still falls back to the end, `bool` is
+    # still refused, and negatives still belong to the caller's clamp.
+    # `index_fault` is deliberately NOT relaxed with it — that one
+    # validates ops an agent is SENDING and answers with an error the
+    # sender can act on, where refusing `2.0` loudly is right. This reads
+    # history already written, where the only useful question is what the
+    # other replay will do with the same bytes.
     idx = ch.get("index")
-    if not isinstance(idx, int) or isinstance(idx, bool):
+    if isinstance(idx, bool):
+        return None
+    if isinstance(idx, float):
+        return int(idx) if idx.is_integer() else None
+    if not isinstance(idx, int):
         return None
     return idx
 

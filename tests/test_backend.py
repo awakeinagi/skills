@@ -736,6 +736,62 @@ class TestPinLifecycle(Base):
 
 
 class TestZOrderReplay(Base):
+    def test_a_recorded_index_is_read_the_way_the_client_reads_it(self):
+        """Every `index` fault class, read off JSON TEXT (review MAJOR-1).
+
+        `replay_changes` and `replayChanges` (src/api.ts) have to answer
+        one record identically or the tab and the file are two different
+        drawings, and element order is paint order so the difference is
+        visible. The e2e spec drives both implementations; this is the
+        server's half, kept here so it holds when Playwright does not
+        run.
+
+        THE CASES ARE PARSED FROM TEXT, not written as Python literals.
+        That is the whole point of the float pair: `2.0` and `2` are one
+        value in JSON and one value in JavaScript, so a spec that writes
+        `2.0` as a Python float and calls it a day is testing something
+        the wire cannot carry. Reading it back through `json.loads` is
+        what makes `2.0` arrive here as a float and `2` as an int — the
+        asymmetry that made these two sides disagree.
+
+        `2.0` is a POSITION and now lands at 2, matching the client,
+        which provably cannot tell it from `2`. `2.5` is not a position
+        and still falls to the end on both sides. `bool` stays refused —
+        `min(True, 3)` is position 1 — and negatives still reach the
+        caller's clamp rather than being refused here.
+        """
+        els = [{"id": i, "type": "rectangle"} for i in ("a", "b", "c", "d")]
+        at_2 = ["a", "b", "new", "c", "d"]
+        at_end = ["a", "b", "c", "d", "new"]
+        at_front = ["new", "a", "b", "c", "d"]
+        for token, want, why in (
+                ("2", at_2, "a whole number is the position it names"),
+                ("2.0", at_2, "an integral float is a position, and the "
+                              "client cannot see the decimal point"),
+                ("2.5", at_end, "a fractional float is not a position"),
+                ("0", at_front, "the front"),
+                ("-1", at_front, "negatives clamp, never `insert(-1)`"),
+                ("-1.0", at_front, "the negative class re-entering as a "
+                                   "float must clamp the same way"),
+                ("99", at_end, "past the end clamps to the end"),
+                ("99.0", at_end, "and so does an integral float past it"),
+                ("true", at_end, "`bool` is not a position"),
+                ("\"2\"", at_end, "nor is a string that looks like one"),
+                ("null", at_end, "nor is null"),
+        ):
+            with self.subTest(index=token):
+                changes = json.loads(
+                    '[{"op": "add", "index": %s, "element": '
+                    '{"id": "new", "type": "rectangle"}}]' % token)
+                got = [e["id"] for e in canvas.replay_changes(els, changes)]
+                self.assertEqual(got, want, "index %s: %s" % (token, why))
+        # the absent field is a different record from a null one, and
+        # both mean "no position given"
+        changes = json.loads('[{"op": "add", "element": '
+                             '{"id": "new", "type": "rectangle"}}]')
+        self.assertEqual(
+            [e["id"] for e in canvas.replay_changes(els, changes)], at_end)
+
     def test_shuffled_zorder_reconstructs_exactly(self):
         """Per-element reorder replay was lossy — the whole-order op must
         reproduce disk state exactly (no phantom reconciliations)."""
@@ -11916,7 +11972,13 @@ class TestXAsUserFidelity(unittest.TestCase):
         """r5-12: a missing `--target` is refused, not raised.
 
         v0.8's promise is that every failure prints an `ERROR=` line, and
-        three sibling verbs in this one function keep it. `checkout` fed
+        three sibling guards in this one function keep it FOR THEIR
+        ARGUMENTS — `config`'s `key=value`, the shared `--artifact`
+        check, and `note`'s `--text`. That is the claim, and it is
+        narrower than "this function never leaks a traceback": the
+        state faults beside them (no such element, not a checkbox) die
+        cleanly too, but nothing here covers a failure arriving from
+        the server or the socket. `checkout` fed
         its default empty `--target` straight to `int()`, so the one verb
         an assessor reaches for while lost in history answered with a
         `ValueError` traceback — which the skill's own troubleshooting
