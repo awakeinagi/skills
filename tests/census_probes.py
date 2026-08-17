@@ -47,24 +47,33 @@ REPO = Path(__file__).resolve().parents[1]
 # ever broken. That is the same false-negative the guards themselves are
 # built against, one level up.
 PROBES: dict[str, dict[str, str]] = {
+    # RE-ANCHORED 2026-08-17 by v0.9 TASK-C4, which flipped the render row's
+    # last red and emptied the row. Both anchors below quoted that red's
+    # method name, so both would have stopped matching — and this file's own
+    # comment three entries down records what that costs: a probe whose
+    # anchor has been reworded away runs against an unmodified tree, watches
+    # the guard pass, and reports the guard silent when nothing was broken.
+    # The anchors now key on the row's SHAPE rather than on any name in it,
+    # which is what stops the next flip from dulling them again.
     "render-row-stale": {
         "test": "test_the_handover_transcribes_the_render_rows_reds",
         "file": "SESSION-HANDOVER.md",
-        "why": "a red flips and the row still lists it",
-        "old": "`test_red_clean_stripe_bands_report_a_perfectly_healthy_"
-               "drawing` (UNGATED",
-        "new": "`test_red_a_name_no_decorator_carries` (UNGATED",
+        "why": "the row lists a red the live decorators do not carry — the "
+               "shape a flip nobody transcribed leaves behind",
+        "old": "| render (`tests/test_mutants_render.py`) | *none*",
+        "new": "| render (`tests/test_mutants_render.py`) | "
+               "`test_red_a_name_no_decorator_carries`",
     },
     "render-row-duplicate": {
         "test": "test_the_handover_transcribes_the_render_rows_reds",
         "file": "SESSION-HANDOVER.md",
-        "why": "THE SILENT DIRECTION: a CORRECT copy above a STALE row. "
-               "A first-match-wins reader agrees with the copy and reports "
+        "why": "THE SILENT DIRECTION: a second copy of the row. A "
+               "first-match-wins reader agrees with the copy and reports "
                "the census healthy while the row a human reads is wrong",
         "old": "| render (`tests/test_mutants_render.py`) |",
         "new": "| render (`tests/test_mutants_render.py`) | "
-               "`test_red_clean_stripe_bands_report_a_perfectly_healthy_"
-               "drawing` |\n| render (`tests/test_mutants_render.py`) |",
+               "`test_red_a_stale_copy_of_this_row` |\n"
+               "| render (`tests/test_mutants_render.py`) |",
     },
     # TWO OF THE FIVE PROBES IN THIS FILE WERE DEAD ON ARRIVAL, found by
     # v0.9 WP7 task 29 when it ran the file end to end — which, it turns

@@ -60,6 +60,7 @@ import contextlib
 import functools
 import hashlib
 import importlib
+import inspect
 import io
 import json
 import math
@@ -1662,6 +1663,144 @@ def _client_shots(variants: dict[str, list[dict]]) -> dict[str, bytes]:
     return shots
 
 
+def _export_pad() -> int:
+    """The margin the client's export leaves around a scene, from `canvas`.
+
+    READ, never retyped. The 40 is already a literal in two places that
+    agree by convention rather than by shared code — `canvas.ink_extent`'s
+    default and `exportPadding: 40` in App.tsx's screenshot servicing —
+    and `ink_extent`'s own docstring names that as the hazard. The blank
+    ring below is derived from this number, so writing it out here would
+    make it a third copy and would rest the ring's whole justification on
+    a constant free to drift away from the export it claims to measure.
+
+    Returns:
+        The pad in scene px.
+    """
+    return int(inspect.signature(canvas.ink_extent).parameters["pad"].default)
+
+
+def _derived_frame(elements: list[dict]) -> tuple[int, int]:
+    """The raster size the client's export produces for one scene.
+
+    Derivable with no render at all, which is what makes it usable as a
+    control: `exportToBlob` frames the ANCHORED variant's own box plus
+    `_export_pad()` on every side, and the anchors are 8x8 rectangles the
+    client cannot re-measure the way `refreshTextDimensions` re-measures a
+    string. v0.9 TASK-FRAMING checked the derivation against all 13 real
+    client rasters this tier produced and it matched exactly, 13/13, with
+    no slack.
+
+    Args:
+        elements: The scene WITHOUT anchors; this adds them, because the
+            anchored variant is what the client actually frames.
+
+    Returns:
+        `(width, height)` in px.
+    """
+    _x, _y, w, h = canvas.ink_extent(_anchored(elements, _scene_bbox(elements)))
+    return round(w), round(h)
+
+
+# Half the export pad. The ring has to sit strictly INSIDE the margin the
+# export adds or a legitimately drawn edge falls inside it, and halving states
+# that relationship where a bare 20 would only assert it.
+#
+# CALIBRATION, measured 2026-08-17 by v0.9 TASK-C4 over every one of the 862
+# real client rasters in this machine's warm render cache — a sample two
+# orders of magnitude past the 10 TASK-FRAMING's recommendation rests on, and
+# spanning all five frame sizes the tier produces (568x228, 728x228, 528x268,
+# 488x788, 948x1048): ZERO ink in the ring on every single one. Against
+# 15,120 / 15,576 / 16,032 for the clean stripe bands the red below injects.
+# Zero against fifteen thousand is threshold-free in practice, which is why
+# this predicate needs no tolerance and takes none.
+_BLANK_RING = _export_pad() // 2
+
+
+def _ring_ink(data: bytes, ring: int) -> int:
+    """Ink pixels in the outer `ring`-px border of a raster.
+
+    `INK_THRESHOLD` is the ink test, the same constant every other pixel
+    reading in this file uses; it is defined further down beside the
+    legibility floor because that is where its provenance note belongs.
+
+    Args:
+        data: The PNG bytes.
+        ring: Border width in px. A raster with no interior left at that
+            width is counted whole — the reading that cannot
+            under-report, which is the direction a refusal must err in.
+
+    Returns:
+        The count of pixels darker than `INK_THRESHOLD` in that border.
+    """
+    w, h, pix = read_png_gray(data)
+    if w <= 2 * ring or h <= 2 * ring:
+        return sum(1 for p in pix if p < INK_THRESHOLD)
+    total = 0
+    for y in range(h):
+        row = pix[y * w:(y + 1) * w]
+        band = (row[:ring] + row[-ring:]) if ring <= y < h - ring else row
+        total += sum(1 for p in band if p < INK_THRESHOLD)
+    return total
+
+
+def _refuse_unmeasurable(shots: dict[str, bytes]) -> None:
+    """Refuse rasters that are not pictures of the scene that was asked for.
+
+    THE BLANK PADDING RING, and the reason this tier can finally say "I
+    cannot measure this" instead of answering anyway. Every export this
+    tier reads is framed on the scene's own box plus `_export_pad()` px on
+    each side, so the outer margin of an honest raster is blank BY
+    CONSTRUCTION — not by convention, not usually, but because there is
+    nothing in the scene that could paint there. Ink in that ring means
+    the bytes were framed on something else: a scrolled tab, a stolen
+    readback, banded garbage from a connected client that answered the
+    screenshot request first.
+
+    WHY NOT THE FRAME-SIZE CHECK, which is free, exact, and the first
+    instrument anyone reaches for: it proves PROVENANCE, not content, and
+    the two come apart exactly where it matters. Resized to the frame
+    this scene derives, the very same stripe bands still produce zero
+    findings at every period — right size, wrong picture, tier still
+    fooled. `TestClientTierReadsWhateverItIsHandedRegime.test_the_frame_
+    size_check_would_have_flipped_the_red_without_fixing_anything` runs
+    that arm and proves the pin fails under it, so the trap is executable
+    rather than remembered.
+
+    WHY NOT THE DENSITY FLOOR: rejected already, twice, and correctly —
+    `validate_png`'s `min_bpp` would refuse the legitimately sparse
+    mutant scenes this file measures at 0.028 bytes/px. Mechanism 3 in
+    this module's client-tier section comment carries the argument.
+
+    WHY NOT ANCHOR-INK PRESENCE, the other intuitive candidate: TASK-
+    FRAMING measured it and it is a bad content signal. Ink in the
+    anchor's 8x8 window read 28 on a real render against 32, 16 and 0 for
+    bands at periods 4, 6 and 8 — non-monotone, straddling the real
+    value, and MISSING outright at period 8.
+
+    Args:
+        shots: Variant name to PNG bytes, as `_client_shots` returns them.
+
+    Raises:
+        RuntimeError: When any variant's padding ring carries ink. Named
+            after `_client_shots`' own refusal, which is the vocabulary
+            this tier already had for "no answer came back" — the gap was
+            that it had none for "an answer came back and it is not of
+            this scene".
+    """
+    for name in sorted(shots):
+        ink = _ring_ink(shots[name], _BLANK_RING)
+        if ink:
+            raise RuntimeError(
+                "variant %r is not a picture of this scene: its outer %dpx "
+                "ring carries %d ink pixels. An export frames the scene's own "
+                "box plus %dpx of padding, so that ring is blank by "
+                "construction and ink in it means these bytes were framed on "
+                "something else. Refusing to measure rather than reporting a "
+                "drawing read out of them"
+                % (name, _BLANK_RING, ink, _export_pad()))
+
+
 def client_ablation_findings(elements: list[dict],
                              ids: Iterable[str]) -> list[dict]:
     """`ablation_findings`, asked of the client's own rendering.
@@ -1679,6 +1818,13 @@ def client_ablation_findings(elements: list[dict],
     is the only one of the two that can be asked about markup — and the
     mutants that tell them apart now have somewhere to live.
 
+    IT REFUSES BEFORE IT READS (v0.9 TASK-C4). `_refuse_unmeasurable` runs
+    over every variant first, and the reason it lives HERE rather than in
+    `_client_shots` is that the mutants demanding it mock `_client_shots`
+    wholesale on purpose — a check upstream of that mock is unreachable by
+    the pin that exists to hold it. This is the entry point under test, so
+    this is where the refusal has to be.
+
     Args:
         elements: The full scene, WITHOUT anchors; this adds them.
         ids: Ids to ablate, one at a time.
@@ -1686,7 +1832,9 @@ def client_ablation_findings(elements: list[dict],
     Returns:
         Findings shaped exactly like `ablation_findings`' output, with the
         same two checks and the same magnitudes. Propagates
-        `_client_shots`' `RuntimeError` when a render did not come back.
+        `_client_shots`' `RuntimeError` when a render did not come back,
+        and raises its own when one came back and is not a picture of this
+        scene — see `_refuse_unmeasurable`.
     """
     ids = list(ids)
     box = _scene_bbox(elements)
@@ -1695,6 +1843,7 @@ def client_ablation_findings(elements: list[dict],
         kept = [e for e in elements if e.get("id") != eid]
         variants["abl-%s" % eid] = _anchored(kept, box)
     shots = _client_shots(variants)
+    _refuse_unmeasurable(shots)
     full = shots["full"]
     w, h, _pix = read_png_gray(full)
     findings: list[dict] = []
@@ -2914,19 +3063,26 @@ def _flat_png(w: int, h: int, boxes: tuple[tuple[int, int, int, int], ...]
 
 
 # ---------------------------------------------------------------------------
-# The client tier cannot tell a drawing from noise (curator batch 25,
-# 2026-08-16; task-50-report.md §11's C4).
+# The client tier could not tell a drawing from noise (curator batch 25,
+# 2026-08-16; task-50-report.md §11's C4). FLIPPED by v0.9 TASK-C4,
+# 2026-08-17, on `_refuse_unmeasurable`'s blank padding ring. The class keeps
+# its name so the reports that route here still find it, and reads now as the
+# proven pole plus the trap that nearly took its place.
 #
 # The spike behind this tier started a server without `--no-browser`, a
 # connected tab STOLE every screenshot request, and what came back was
-# vertical stripe garbage at 0.033 bytes/px. Today that is prevented by
+# vertical stripe garbage at 0.033 bytes/px. That is prevented by
 # `--no-browser` and pinned by one argv test, which is a pin on the CAUSE.
-# Nothing pins the EFFECT: no instrument anywhere asks whether the bytes the
-# tier just measured are a picture of the scene.
+# What was missing for a year was any pin on the EFFECT: no instrument
+# anywhere asked whether the bytes the tier just measured are a picture of
+# the scene. Now one does, and it does it before reading a single delta.
 #
-# MEASURED HERE, AND THE ANSWER DEPENDS ON THE TEXTURE — which is a sharper
-# finding than the candidate was filed as, and it took three passes to get
-# right, so the negative result is recorded beside the positive one:
+# MEASURED HERE, AND THE ANSWER USED TO DEPEND ON THE TEXTURE — which is a
+# sharper finding than the candidate was filed as, and it took three passes
+# to get right, so the negative result stays recorded beside the positive one.
+# This is what the tier did BEFORE the refusal landed, and every row of it is
+# still reachable by stubbing `_refuse_unmeasurable` off, which is how the
+# tests below keep the measurement executable instead of remembered:
 #
 #   CLEAN vertical bands  -> ZERO findings. A clean bill of health for a
 #                            drawing the tier never saw. NOT CAUGHT.
@@ -2934,38 +3090,59 @@ def _flat_png(w: int, h: int, boxes: tuple[tuple[int, int, int, int], ...]
 #   dense per-pixel noise -> every delta erased by the tolerant diff, so
 #                            every element reads as missing. CAUGHT.
 #
-# So the tier is not uniformly blind to corruption, and a pin claiming it was
-# would be wrong. What it cannot see is the COHERENT case, and coherence is
-# not a proxy for severity — clean banding is exactly what a stolen readback
-# of a scrolled tab looks like.
+# So the tier was not uniformly blind to corruption, and a pin claiming it
+# was would have been wrong. What it could not see was the COHERENT case, and
+# coherence is not a proxy for severity — clean banding is exactly what a
+# stolen readback of a scrolled tab looks like.
 #
-# THE PRESCRIBED CONTROL PASSES ON THE CASE THAT MATTERS. Mechanism 3 in this
+# THE PRESCRIBED CONTROL PASSED ON THE CASE THAT MATTERED, and that is why a
+# structural control is not a render-validity check. Mechanism 3 in this
 # file's section comment above rules out `validate_png`'s density floor for a
 # good reason (valid renders here run 0.028-0.058 bpp and straddle it) and
 # puts a STRUCTURAL control in its place: ablate a known-visible element in
 # the same call and pin that its delta is not empty. Against clean bands
-# every delta is enormous, so that control is satisfied on every element and
-# reports nothing. It was built to catch the render that produced NOTHING,
-# and it does — that is the dense-noise row above. It cannot see the render
-# that produced a confident wrong picture, and nothing else looks.
+# every delta is enormous, so that control was satisfied on every element and
+# reported nothing. It was built to catch the render that produced NOTHING,
+# and it does — that is the dense-noise row above. It could not see the
+# render that produced a confident wrong picture. Nothing else looked, and
+# that is the hole `_refuse_unmeasurable` fills.
 #
-# WHY THIS IS NOT AN ARGUMENT FOR THE DENSITY FLOOR: these rasters run 0.007
-# to 0.010 bytes/px, far under `min_bpp`, so `validate_png` would have caught
-# them — and would also refuse the legitimately sparse mutant scenes the
-# section comment names, which is why it was rejected. The gap is real in
-# both directions and the fix is not obvious, which is exactly why it is
-# pinned rather than patched. The owner is this module's, not a curator's.
+# WHY THIS WAS NEVER AN ARGUMENT FOR THE DENSITY FLOOR: these rasters run
+# 0.007 to 0.010 bytes/px, far under `min_bpp`, so `validate_png` would have
+# caught them — and would also refuse the legitimately sparse mutant scenes
+# the section comment names, which is why it was rejected. Both directions
+# are real, which is why the fix took a designed predicate and not a patch.
+#
+# THE TRAP, and the reason this flip took a work package rather than an hour.
+# A FRAME-SIZE check is free, exact — TASK-FRAMING matched the derived size
+# against 13/13 real client rasters with no slack — and it catches this red's
+# original input. It would also have been a FALSE FLIP: it catches those
+# rasters on their SIZE, because the red injected 400x300 where this scene
+# derives 568x228. Resized to 568x228 the same bands produce zero findings at
+# every period, the tier is still fooled, and the mutant sits green in the
+# catalogue as a proven pole while proving nothing. The rasters below are now
+# built AT the derived frame, which removes "wrong size" as a live
+# explanation for any silence, and
+# `test_the_frame_size_check_would_have_flipped_the_red_without_fixing_
+# anything` runs that arm against the flipped pin's own assertion body and
+# proves it fails. The measured trap, made executable.
 #
 # UNGATED, AND THAT IS THE POINT: no browser is involved. `_client_shots` is
 # replaced wholesale, so what is under test is everything downstream of the
-# render — which is where the blindness lives.
+# render — which is where the blindness lived.
 # ---------------------------------------------------------------------------
 
 
 class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
-    """Garbage in, clean verdict out — with the structural control green."""
+    """Garbage in, a refusal out — and the cheap fix that would not have."""
 
-    W, H = 400, 300
+    # DERIVED, not chosen (v0.9 TASK-C4, TASK-FRAMING's recipe step 4). Every
+    # raster this class injects is built at the size the client's own export
+    # would produce for the scene under test, 568x228, so "the tier was fooled
+    # by a differently-sized picture" is not available as an explanation for
+    # any silence measured here. It was available before, it was never
+    # intended, and it is exactly the crack the frame-size trap crawls through.
+    W, H = _derived_frame(tm._diamond_stage())
 
     def _findings(self, shots: dict[str, bytes],
                   ids: list[str]) -> list[dict[str, Any]]:
@@ -2990,50 +3167,124 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
                                side_effect=lambda variants: shots):
             return client_ablation_findings(tm._diamond_stage(), ids)
 
-    @unittest.expectedFailure
-    def test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing(
+    def _band_shots(self, period: int) -> dict[str, bytes]:
+        """Three clean-band rasters at the derived frame, one per variant.
+
+        Each variant bands at a DIFFERENT period, so the readback is not
+        merely wrong but unstable between shots — which is what a tab
+        answering three separate screenshot requests produces.
+
+        Args:
+            period: The band half-cycle for `full`; the two ablated
+                variants take `period + 1` and `period + 2`.
+
+        Returns:
+            The `full`, `abl-s1` and `abl-s2` PNGs.
+        """
+        return {"full": _stripe_png(self.W, self.H, period),
+                "abl-s1": _stripe_png(self.W, self.H, period + 1),
+                "abl-s2": _stripe_png(self.W, self.H, period + 2)}
+
+    def _assert_the_tier_does_not_call_this_healthy(self, period: int) -> None:
+        """The pin's whole assertion, factored out so the trap can run it.
+
+        Not a convenience. The trap test below has to prove that the
+        cheap wrong fix fails THIS assertion, and the only way to say
+        that without a reader having to trust a paraphrase is for both
+        tests to execute the same lines. A restatement would drift the
+        first time either side was edited, and the drift would land on
+        the side that says the trap is still a trap.
+
+        Fails when the tier reports a clean drawing, and also when it
+        refuses in a way that does not say what it measured — a refusal
+        nobody can read is a silence with a traceback attached.
+
+        Args:
+            period: Passed to `_band_shots`.
+        """
+        shots = self._band_shots(period)
+        try:
+            finds = self._findings(shots, ["s1", "s2"])
+        except RuntimeError as exc:
+            self.assertTrue(
+                "ring" in str(exc) and any(v in str(exc) for v in shots),
+                "the tier refused to measure, which is the shape this pin "
+                "accepts — but the refusal names neither the variant nor "
+                "what was measured, and a refusal nobody can read is a "
+                "silence with a traceback attached: %s" % (exc,))
+            return
+        self.assertEqual(
+            sorted({f["element"] for f in finds}), ["s1", "s2"],
+            "the client tier read rasters of clean stripe banding at "
+            "%.4f bytes/px, framed at the size this very scene derives, "
+            "and did not account for every element it was asked about. "
+            "The structural control passes on these — every delta is "
+            "enormous — so if this tier is silent here, no assertion "
+            "anywhere in this file would notice: %r"
+            % (len(shots["full"]) / float(self.W * self.H),
+               sorted((f["check"], f["element"]) for f in finds)))
+
+    def test_clean_stripe_bands_are_refused_instead_of_read_as_a_drawing(
             self) -> None:
-        """Three band rasters in, zero findings out, nothing raised.
+        """Three band rasters in, a refusal out. FLIPPED 2026-08-17.
 
-        C4. Each variant is clean vertical banding at a different period,
-        so the readback is not merely wrong but UNSTABLE between shots —
-        which is what a tab answering three separate screenshot requests
-        produces. Three band widths are swept rather than one, because a
-        single width would leave "this particular pattern" as a live
-        explanation for the silence.
+        C4, and for a year the answer was zero findings and nothing
+        raised: a clean bill of health for a drawing the tier never saw.
+        Three band widths are swept rather than one, because a single
+        width would leave "this particular pattern" as a live
+        explanation for the verdict.
 
-        WHAT A CORRECT INSTRUMENT WOULD DO, either of which passes this
-        test, because the fix's shape is not this pin's to choose:
-        REFUSE to measure — raise, the way `_client_shots` already raises
-        when a render does not come back — or report every element
-        missing, since none of them is in these pixels. What it must not
-        do is answer that the drawing is fine. That is the assertion.
+        WHAT A CORRECT INSTRUMENT DOES, either of which passes this test,
+        because the fix's shape is still not this pin's to choose and
+        constraining it after the fact would convert a statement about
+        the tier into a statement about one implementation of it: REFUSE
+        to measure — raise, the way `_client_shots` already raises when a
+        render does not come back — or report every element missing,
+        since none of them is in these pixels. What it must not do is
+        answer that the drawing is fine.
 
-        MAGNITUDE AND DIRECTION are the count and its sign: zero findings
-        over a scene containing three elements, none of which appears in
-        any raster. The direction is the whole finding — the tier errs
-        toward SILENCE on corrupt input, which is the one direction a
+        WHICH ONE LANDED: the refusal. `_refuse_unmeasurable` reads the
+        outer `_BLANK_RING` px of every variant — half the export pad,
+        derived from `canvas` rather than typed — and raises when that
+        ring carries ink, because an export frames the scene's box plus
+        the pad and the ring is therefore blank by construction. Zero ink
+        on all 862 real client rasters in a warm cache against
+        15,120-16,032 for these bands, measured 2026-08-17.
+
+        THE STRENGTHENING that came with the flip, and it is not
+        cosmetic: these rasters are now built at `_derived_frame`, the
+        size the client's own export produces for this scene. Before,
+        they were 400x300 against a derived 568x228, so "the tier was
+        handed a differently-sized picture" was a live and unintended
+        explanation for the old silence — and it is precisely the crack
+        the frame-size trap crawls through. The assertion also moved from
+        `assertNotEqual(finds, [])` to naming WHICH elements must be
+        accounted for, so a fix that reported one of two would no longer
+        satisfy it.
+
+        MAGNITUDE AND DIRECTION were the count and its sign: zero
+        findings over a scene containing three elements, none of which
+        appears in any raster. The direction was the whole finding — the
+        tier erred toward SILENCE on corrupt input, the one direction a
         measurement instrument must never err in, because silence is
         indistinguishable from health (doctrine §1), and this is the tier
         that exists to see what tier 1 cannot.
 
         WHAT THIS DOES NOT CLAIM, and the sibling test below holds it
-        down: the tier is not blind to corruption in general. Dense
-        per-pixel noise IS caught — the tolerant diff erases it, every
-        delta comes back empty, and every element reads as missing, which
-        is the loud safe answer.
+        down: the tier was never blind to corruption in general. Dense
+        per-pixel noise WAS caught even before this — the tolerant diff
+        erases it, every delta comes back empty, and every element reads
+        as missing, which is the loud safe answer.
 
-        HOW WIDE THE BLINDNESS IS, re-measured 2026-08-16 by v0.9
+        HOW WIDE THE BLINDNESS WAS, re-measured 2026-08-16 by v0.9
         TASK-24-FOLLOW-UP and BROADER than this pin used to say. It read
         "specific to COHERENT garbage", on a sibling measurement that
-        found a sharp boundary at 4px of phase wobble. After
-        `_facing_end` that boundary is a scatter: banding is silent at
-        every wobble from 0 to 14px and sporadically reporting above it.
-        So the class this red pins is "banded garbage", coherent or
-        moderately wobbled, and the honest statement of its edge is that
-        there is no clean edge — read the sibling's re-measured sweep
-        rather than inferring one. The ASSERTION here has not moved and
-        neither has the defect; only the size of the class it stands for.
+        found a sharp boundary at 4px of phase wobble. After `_facing_end`
+        that boundary is a scatter: banding was silent at every wobble
+        from 0 to 14px and sporadically reporting above it. So the class
+        this pin stands for is "banded garbage", coherent or moderately
+        wobbled, and the honest statement of its edge is that there was
+        no clean edge.
 
         WHY NOT THE DENSITY FLOOR: these rasters run under 0.010
         bytes/px and `validate_png`'s `min_bpp=0.05` would refuse them —
@@ -3041,101 +3292,195 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
         legitimately measures at 0.028. Mechanism 3 in the section
         comment rejects it for that reason and the rejection stands;
         named here so it is not re-proposed as the obvious fix.
-
-        WHO FLIPS THIS: this module's owner. It needs an instrument that
-        does not exist yet — a way to ask whether a raster is a picture
-        of a given scene — and that is a design question, not a patch.
         """
         for period in (4, 6, 8):
-            shots = {"full": _stripe_png(self.W, self.H, period),
-                     "abl-s1": _stripe_png(self.W, self.H, period + 1),
-                     "abl-s2": _stripe_png(self.W, self.H, period + 2)}
             with self.subTest(period=period):
-                try:
-                    finds = self._findings(shots, ["s1", "s2"])
-                except RuntimeError:
-                    continue            # refusing to measure is a pass
-                self.assertNotEqual(
-                    finds, [],
-                    "the client tier read three rasters of clean stripe "
-                    "banding at %.4f bytes/px and reported a clean "
-                    "drawing: no element missing, no run severed, nothing "
-                    "raised. The structural control passes too — every "
-                    "delta is enormous — so no assertion anywhere in this "
-                    "file would notice"
-                    % (len(shots["full"]) / float(self.W * self.H)))
+                self._assert_the_tier_does_not_call_this_healthy(period)
 
-    def test_wobbling_the_bands_makes_the_tier_invent_a_finding_instead(
+    def test_the_frame_size_check_would_have_flipped_the_red_without_fixing_anything(
             self) -> None:
-        """The other failure mode: it speaks, and what it says is false.
+        """The trap, executable: the cheap fix goes green and sees nothing.
 
-        WHAT IT REPORTS IS THE POINT, and it is why this test is not
-        titled "caught". On the wobbled raster the tier says `s2`'s ink
-        comes apart in 2 separated pieces — a specific, confident,
-        entirely false statement ABOUT THE DRAWING, derived from a raster
-        that contains no drawing. It is not a complaint about the render.
+        THE FIRST INSTRUMENT ANYONE REACHES FOR when asked "is this
+        raster a picture of this scene" is the frame-size check, and it
+        is genuinely good: `exportToBlob` frames the anchored scene's box
+        plus the export pad, so the size is derivable with no render at
+        all, and TASK-FRAMING matched the derivation against 13/13 real
+        client rasters with no slack. It is free, it is exact, and it
+        would have turned this pin green.
 
-        So the two textures are two failure modes of one gap rather than
-        a caught case and a missed one: handed a picture of nothing, this
-        tier either says nothing or invents a finding, and it has no
-        vocabulary at all for "I cannot measure this". That is the
-        sentence its owner needs, and neither test alone says it.
+        IT WOULD ALSO HAVE FIXED NOTHING. It catches a stolen readback on
+        its SIZE, not on its emptiness, and the two come apart exactly
+        where this tier is blind. This test builds the arm — the same
+        refusal signature, deriving the expected frame instead of reading
+        the padding ring — patches it in place of the real predicate, and
+        runs the flipped pin's own assertion body under it. That body
+        FAILS: the bands are the right size, so nothing is refused, and
+        the tier reports a clean drawing exactly as it always did.
 
-        RE-MEASURED 2026-08-16 (v0.9 TASK-24-FOLLOW-UP), and the pin
-        caught the change rather than being adjusted to it — this test
-        went red on the continuity widening and is what sent anyone
-        looking. WHAT IT USED TO SAY, and no longer can: that the
-        boundary is SHARP and the red beside it is therefore about
-        COHERENCE — silent at 0, 1 and 2px of wobble, reporting from 4px,
-        both elements at 8px. After `_facing_end` the same sweep is a
-        SCATTER and not a threshold: silent at every wobble from 0 to 14,
-        one element at 16, silent at 18-21, one element at 22 and 24-26,
-        silent at 27-33, one at 34-38, silent at 40. So the constants
-        move to 25 — the middle of the widest measured plateau, 24-26 —
-        and the CLAIM narrows with them, to "wobbled banding CAN make
-        this tier invent a finding" from "wobble is what decides".
+        WHY THE ARM IS NOT DEAD CODE, which is the obvious objection: it
+        fires perfectly well, on the thing it actually measures. The
+        second half of this test hands it a 400x300 raster — what this
+        class injected before the flip — and it refuses. So the arm
+        works, the arm is cheap, and the arm is still the wrong answer to
+        this question. That is the whole finding, and it is the shape of
+        a vacuous flip this project has recorded once before.
 
-        THE CONSEQUENCE BELONGS TO THE RED'S OWNER and is not repaired
-        here: that red's own docstring cited this boundary for the
-        sentence "the blindness is specific to COHERENT garbage", and
-        that sentence is now false in the direction that makes the red
-        BROADER — clean banding and 8px-wobbled banding are both silent
-        now. The red is untouched and still red; what changed is the
-        scope of the class it pins, which is corrected in its prose.
-
-        Not a regression to mourn, on the reading this file already
-        takes: a false finding about a drawing that is not there is
-        exactly what the title calls it, so fewer of them is not the tier
-        getting worse. The gap the red names — no vocabulary for "I
-        cannot measure this" — is untouched either way.
-
-        Its second job is rule 8, and it is the SECONDARY holder of it:
-        findings coming back here prove the injection reaches the
-        instrument, and `test_both_client_checks_fire_through_the_
-        injected_renderer` below holds that same proof on honest rasters
-        where no texture measurement can move it.
+        The frame check remains worth having as a PROVENANCE control, on
+        its own terms and under its own pin. It is not a content check
+        and nothing here should be read as retiring it.
         """
-        shots = {"full": _stripe_png(self.W, self.H, 31, jitter=25),
-                 "abl-s1": _stripe_png(self.W, self.H, 29, jitter=25),
-                 "abl-s2": _stripe_png(self.W, self.H, 37, jitter=25)}
-        finds = self._findings(shots, ["s1", "s2"])
+        def _refuse_wrong_frame(shots: dict[str, bytes]) -> None:
+            """The trap arm: refuse rasters that are not the derived size.
+
+            Args:
+                shots: Variant name to PNG bytes.
+
+            Raises:
+                RuntimeError: When a variant is not `_derived_frame`.
+            """
+            for name in sorted(shots):
+                w, h, _pix = read_png_gray(shots[name])
+                if (w, h) != (self.W, self.H):
+                    raise RuntimeError(
+                        "variant %r is %dx%d, not the %dx%d this scene "
+                        "derives" % (name, w, h, self.W, self.H))
+
+        with mock.patch.object(sys.modules[__name__], "_refuse_unmeasurable",
+                               _refuse_wrong_frame):
+            for period in (4, 6, 8):
+                with self.subTest(period=period, arm="frame-size"):
+                    with self.assertRaises(AssertionError) as caught:
+                        self._assert_the_tier_does_not_call_this_healthy(
+                            period)
+                    self.assertIn(
+                        "did not account for every element", str(
+                            caught.exception),
+                        "the frame-size arm failed this pin for some reason "
+                        "other than the tier staying silent, so this test is "
+                        "no longer measuring the trap it was built for: %s"
+                        % (caught.exception,))
+            with self.subTest(arm="frame-size", proof="not dead"):
+                wrong = {"full": _stripe_png(400, 300, 4),
+                         "abl-s1": _stripe_png(400, 300, 5)}
+                with self.assertRaises(RuntimeError):
+                    self._findings(wrong, ["s1"])
+
+    def test_wobbling_the_bands_is_refused_by_the_same_predicate(self) -> None:
+        """The other failure mode, and it is closed by the same instrument.
+
+        WHAT IT USED TO REPORT WAS THE POINT, and it is why this test was
+        not titled "caught". On the wobbled raster the tier said `s1`'s
+        ink comes apart in 2 separated pieces — a specific, confident,
+        entirely false statement ABOUT THE DRAWING, derived from a raster
+        that contains no drawing. It was never a complaint about the
+        render, because the tier had no vocabulary for one.
+
+        So the two textures were two failure modes of ONE gap rather than
+        a caught case and a missed one: handed a picture of nothing, this
+        tier either said nothing or invented a finding, and it could not
+        say "I cannot measure this". TASK-FRAMING's assessment turned on
+        exactly that — any render-validity instrument that fires on the
+        clean-band pin necessarily also fires here, so this test's
+        contract had to be rewritten in the same change as the flip, and
+        was.
+
+        THE NEW CONTRACT, first half: wobbled banding is REFUSED. Phase
+        wobble does not empty the padding ring — it moves the bands
+        around inside it — so the ring reads 17,159-18,352 ink pixels
+        across the sweep and every one of them raises. One instrument,
+        both failure modes, which is the outcome that says the predicate
+        is about the render rather than about a texture.
+
+        SECOND HALF, and the reason this test still costs two runs: the
+        invention is preserved as an executable measurement rather than a
+        memory. With `_refuse_unmeasurable` stubbed off, the same rasters
+        still make the tier invent a continuity finding about `s1` — so
+        the historical claim stays checkable and the day the diff or the
+        stroke reader stops producing it, this notices.
+
+        RE-SWEPT 2026-08-17 at the derived frame, because moving the
+        rasters to 568x228 moved every constant in the old sweep and
+        adjusting one number would have been measuring nothing. It was
+        already a SCATTER and not a threshold after `_facing_end`
+        (2026-08-16, v0.9 TASK-24-FOLLOW-UP), and at the derived frame it
+        is scattered further: silent at every wobble from 0 to 14, then
+        firing at 15, 16, 17, 19, 22, 30, 33, 34, 36, 42 and 43 and
+        silent at all thirteen values in between. The ONLY plateau wider
+        than a single value is 16-17, both reporting `s1` at magnitude 2,
+        so the constant is 16 and the CLAIM stays narrow: wobbled banding
+        CAN make this tier invent a finding. Anyone retuning this must
+        sweep, not nudge — the old prose said so and the re-sweep is why.
+        """
+        wobble = {"full": _stripe_png(self.W, self.H, 31, jitter=16),
+                  "abl-s1": _stripe_png(self.W, self.H, 29, jitter=16),
+                  "abl-s2": _stripe_png(self.W, self.H, 37, jitter=16)}
+        with self.subTest(half="refused"):
+            with self.assertRaises(RuntimeError) as caught:
+                self._findings(wobble, ["s1", "s2"])
+            self.assertIn(
+                "ring", str(caught.exception),
+                "wobbled banding raised for some reason other than the "
+                "padding-ring predicate, so this half is measuring an "
+                "accident: %s" % (caught.exception,))
+        with self.subTest(half="the invention, with the predicate stubbed"):
+            with mock.patch.object(sys.modules[__name__],
+                                   "_refuse_unmeasurable",
+                                   lambda shots: None):
+                finds = self._findings(wobble, ["s1", "s2"])
+            self.assertEqual(
+                sorted((f["check"], f["element"]) for f in finds),
+                [("ablation_continuity", "s1")],
+                "wobbled banding no longer produces the invented continuity "
+                "finding this scene was measured on, so the flipped pin "
+                "beside it has lost the second failure mode it stands "
+                "against and both need re-measuring — SWEEP `jitter` before "
+                "choosing a new constant, because this is a scatter and not "
+                "a threshold: %r"
+                % ([(f["check"], f["element"], f["magnitude"])
+                    for f in finds],))
+            self.assertEqual(
+                sorted({f["check"] for f in finds}), ["ablation_continuity"],
+                "a check outside this tier's two drawing checks has appeared "
+                "on a garbage raster. Render-validity is a REFUSAL here, not "
+                "a finding — a finding would put it in the same list as "
+                "statements about the drawing, which is the confusion "
+                "`_refuse_unmeasurable` exists to avoid: %r"
+                % (sorted({f["check"] for f in finds}),))
+
+    def test_a_healthy_drawing_stays_quiet_through_the_same_entry_point(
+            self) -> None:
+        """The quiet pole: an honest raster pair, nothing refused, nothing said.
+
+        The half of the flip that is easy to forget and expensive to get
+        wrong. A predicate that refuses everything would satisfy the
+        clean-band pin above perfectly and would also destroy this tier,
+        and the two tests that fire (`..._checks_fire_through_the_
+        injected_renderer`) cannot see that failure because they are
+        built to produce findings.
+
+        So: a `full` raster carrying two boxes, an `abl-s1` carrying one
+        of them, both at the derived frame with all ink well inside the
+        padding ring. `s1`'s ink is present, contiguous and exactly one
+        piece, which is what a healthy element looks like. The tier must
+        pass the ring predicate AND report nothing at all — an empty
+        finding list, through the same entry point, with no exception.
+        """
+        full = _flat_png(self.W, self.H, ((40, 40, 90, 90),
+                                          (300, 120, 350, 180)))
+        ablated = _flat_png(self.W, self.H, ((40, 40, 90, 90),))
         self.assertEqual(
-            sorted((f["check"], f["element"]) for f in finds),
-            [("ablation_continuity", "s2")],
-            "wobbled banding no longer produces the invented continuity "
-            "finding this scene was measured on, so the red beside it has "
-            "stopped having a firing pole at all and both need "
-            "re-measuring — sweep `jitter` before choosing a new constant, "
-            "because this stopped being a threshold: %r"
-            % ([(f["check"], f["element"], f["magnitude"])
-                for f in finds],))
+            _ring_ink(full, _BLANK_RING), 0,
+            "this pole's own substrate has ink in the padding ring, so it "
+            "is not the honest raster it claims to be and the silence "
+            "below would prove nothing")
         self.assertEqual(
-            sorted({f["check"] for f in finds}), ["ablation_continuity"],
-            "a check outside this tier's two drawing checks has appeared "
-            "on a garbage raster — if that is a render-validity finding, "
-            "it is the instrument the red beside this one says does not "
-            "exist, and that red should be flipping: %r"
-            % (sorted({f["check"] for f in finds}),))
+            self._findings({"full": full, "abl-s1": ablated}, ["s1"]), [],
+            "an element that is present in the picture, in one piece, "
+            "inside a correctly framed raster drew a finding — the "
+            "refusal or the reader is now firing on healthy drawings, "
+            "which is the failure mode a render-validity check has to be "
+            "held against")
 
     def test_both_client_checks_fire_through_the_injected_renderer(self
                                                                    ) -> None:
@@ -3158,11 +3503,19 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
         rather than exactly 2 for the reason the tier's other continuity
         pins give — the piece count of real ink is a rendering fact and
         the claim here is only that the instrument is awake.
+
+        EVERY BOX SITS INSIDE THE PADDING RING (v0.9 TASK-C4). The second
+        one used to run to y=250, which the derived 568x228 frame does
+        not have; more to the point, ink in the outer `_BLANK_RING` px
+        would now be REFUSED, and this test would then be proving that
+        the refusal works rather than that the two checks fire. A
+        liveness control whose substrate trips the guard upstream of the
+        thing it measures has stopped being a liveness control.
         """
         blank = _flat_png(self.W, self.H, ())
         one = _flat_png(self.W, self.H, ((40, 40, 90, 90),))
         two = _flat_png(self.W, self.H, ((40, 40, 90, 90),
-                                         (300, 200, 350, 250)))
+                                         (300, 120, 350, 180)))
         with self.subTest(check="ablation_existence"):
             finds = self._findings({"full": one, "abl-s1": one}, ["s1"])
             missing = [f for f in finds
@@ -3201,13 +3554,24 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
         yesterday's figure — the calibration-literal discipline recorded
         in `tests/test_mutants.py` beside `CATALOGUE_RED_IDS`.
 
-        Both textures are checked, because the red and its boundary test
-        use different ones and a substrate control that covered only one
-        would leave the other unproven.
+        Both textures are checked, because the flipped pin and its
+        boundary test use different ones and a substrate control that
+        covered only one would leave the other unproven.
+
+        A THIRD CLAIM SINCE THE FLIP (v0.9 TASK-C4): every one of these
+        rasters must carry ink in the padding ring. That is what
+        `_refuse_unmeasurable` fires on, so a substrate that had somehow
+        acquired a blank margin would make the two refusal assertions
+        above pass for no reason at all — the guard would be firing on
+        nothing and reporting agreement. Asserted as a floor rather than
+        an exact count because the exact count is a property of the band
+        arithmetic and not of the claim; the claim is that there is ink
+        to see, and the measured values are five figures against a floor
+        of one.
         """
         floor = 0.05                    # `cmd_snapshot`'s `min_bpp`
         for period in (4, 6, 8, 29, 31, 37):
-            for jitter in (0, 4):
+            for jitter in (0, 16):
                 with self.subTest(period=period, jitter=jitter):
                     data = _stripe_png(self.W, self.H, period, jitter)
                     w, h, pix = read_png_gray(data)
@@ -3220,8 +3584,13 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
                                             want_h=self.H,
                                             min_bpp=floor)[0],
                         "the density floor now ADMITS this garbage, so "
-                        "the red's account of why that instrument was "
-                        "rejected needs re-reading")
+                        "the flipped pin's account of why that instrument "
+                        "was rejected needs re-reading")
+                    self.assertGreater(
+                        _ring_ink(data, _BLANK_RING), 0,
+                        "this garbage has a BLANK padding ring, so the "
+                        "refusals asserted above are passing without the "
+                        "predicate having anything to fire on")
 
 
 # ---------------------------------------------------------------------------

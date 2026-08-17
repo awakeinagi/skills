@@ -336,7 +336,7 @@ them from), so the warning still applies to that one:
 | tier | red mutants |
 |---|---|
 | model (default suite) | `corner_feet_outside_the_square`, `flush_stack_border_run_under_the_band`, `grazing_arrival_reads_as_square`, `hyphen_in_the_role_blinds_the_object_reader` |
-| render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
+| render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | `test_red_an_answered_glossary_challenge_is_asked_again` (refilled 2026-08-17 by curator batch 27, one day after it drained) |
 
 The unchecked row proved the warning above it the same day it was
@@ -376,15 +376,24 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at curator batch 29, which ADDED
-one model red — `TestARetypedValueReachesDiskButNotHistory`, the
-retyped-focus divergence FOLLOWUP-B surfaced — and flipped none, taking
-`test_mutants.py` 9 -> 10. The second upward movement since batch 25 and
-the same shape as the first: a batch that only ever filed, never fixed.
-The previous re-derivation, still true of everything below it, follows:
-taken at TASK-FOCUS-FOLLOWUP-A's fold,
-which FLIPPED the `_stamp_route` ordering red and added none, taking
+**10 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at TASK-C4's fold, RE-RUN AT THE
+REBASED HEAD and not carried across the rebase — the rebase conflicted
+here, and the resolution was the grep rather than either side, which is
+what the instruction below asks for. TASK-C4 FLIPPED the
+clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring and
+added none, taking `test_mutants_render.py` 1 -> 0 and emptying that file
+for the second time in its life. The first drain, at Task 50, lasted
+hours before batch 23 refilled it; this one is a flip of the LAST
+survivor of that refill. The 10 is NOT TASK-C4's: curator batch 29 landed
+under it during the work and ADDED one model red —
+`TestARetypedValueReachesDiskButNotHistory`, the retyped-focus divergence
+FOLLOWUP-B surfaced — taking `test_mutants.py` 9 -> 10. Two tasks moved
+two different files between two commits and neither number is what either
+task would have written alone, which is the entire case for deriving this
+sentence at the head that ships it. The previous re-derivation, taken at
+TASK-FOCUS-FOLLOWUP-A's fold, read 9 / 1 / 0: it FLIPPED the
+`_stamp_route` ordering red and added none, taking
 `test_mutants.py` 10 -> 9 and emptying
 `TestStoredBindingsDescribeTheFinalInk` — the THIRD class to make the
 join-and-leave round trip inside one batch cycle, and the second batch-27
@@ -392,8 +401,12 @@ arrival to drain the day after it was filed. That class keeps every green
 pole it had and gained one, a fan-side arm covering the second call site,
 so the flip cost the dict a LINE and not a number. This figure was
 derived at the rebased head and not carried across the rebase; the
-paragraph it sits in has now been re-derived four times in two days by
-four different tasks, which is the whole argument for the grep. The
+paragraph it sits in has now been re-derived five times in two days by
+five different tasks, which is the whole argument for the grep — and the
+instruction to whoever folds next is the same one every re-derivation
+above followed: on a conflict here, re-run the grep at your own head and
+write what it says, never pick a side. This sentence is a measurement,
+not an opinion two branches can hold. The
 previous re-derivation, still true of everything below it, follows:
 taken at TASK-REROUTE's fold, which
 FLIPPED the no-op-rewire red and added none, taking `test_mutants.py`
