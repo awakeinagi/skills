@@ -993,6 +993,21 @@ class TestModelTierMortality(_Mortal):
         """A caption left inked over a hidden host, unreported."""
         self.assertMortal("orphan_label")
 
+    def test_contrast_text_death_is_noticed(self) -> None:
+        """Ink a reader cannot make out on the paper, unreported."""
+        # `_LINT` derives from DETECTORS, so these three joined the sweep
+        # the moment they were registered; the rows are here so each has
+        # a NAMED witness assertion rather than only the derived kill.
+        self.assertMortal("contrast_text")
+
+    def test_contrast_object_death_is_noticed(self) -> None:
+        """A stroke a reader cannot pick out of the paper, unreported."""
+        self.assertMortal("contrast_object")
+
+    def test_min_font_death_is_noticed(self) -> None:
+        """Type below the measured legibility floor, unreported."""
+        self.assertMortal("min_font")
+
     def test_crossings_count_death_is_noticed(self) -> None:
         """`edge_crossings` answering "none", everywhere."""
         self.assertMortal("crossings_count")

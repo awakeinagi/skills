@@ -76,6 +76,43 @@ SVG_GROUND = "#fdfcf8"
 # ceiling can still be exceeded where chromium's 0.5 scale floor forces
 # a larger file — see the clamp inside `rasterize_svg`.)
 RASTER_MAX_W, RASTER_MAX_H = 4000, 3000
+# WCAG 2.2 legibility floors, for the three checks in `lint_layout` that
+# read COLOR rather than geometry (docs/todo/contrast-and-min-font-lints.md;
+# corroborated independently by the excalidraw-mcp mine's O4/M5). Ops let an
+# agent name any color it likes, so nothing but these stops light-gray ink
+# on the near-white ground.
+#
+# They are FLOORS A CRITERION ASKS ABOUT, not verdicts — SKILL.md's
+# narration contract forbids telling anyone a drawing "fails WCAG", and the
+# messages built on these constants ask a question and offer a waive.
+CONTRAST_TEXT = 4.5             # 1.4.3, body text
+CONTRAST_TEXT_LARGE = 3.0       # 1.4.3, large text
+CONTRAST_OBJECT = 3.0           # 1.4.11, strokes/borders/connectors
+# 18pt, the size at which 1.4.3 relaxes, expressed in the px Excalidraw
+# stores (96dpi: 18 * 96/72). Bold at 14pt is the criterion's other arm and
+# is deliberately absent — nothing in this skill's palette sets weight, so
+# an arm no scene can reach would be a branch no mutant could pin.
+CONTRAST_LARGE_PX = 24.0
+# The fontSize floor, MEASURED 2026-08-13 rather than chosen: the render
+# tier's sweep at deviceScaleFactor 1 (docs/todo/contrast-and-min-font-
+# lints.md, table + method) shows rendered stroke contrast holding to 12px,
+# decaying to 8.50:1 at 7px, then nearly halving in one step to 4.62:1 at
+# 6px — the sharpest transition anywhere in the sweep — while ink height
+# drops 5px to 3px and the letters stop separating at all.
+#
+# THE VALUE IS DUPLICATED ON PURPOSE. `MIN_FONT_FLOOR` in
+# tests/test_mutants_render.py is where it was measured and is where a
+# re-measurement lands; canvas.py cannot import a test module, so the
+# number is carried here and the two are pinned equal by
+# `TestCoverage.test_the_font_floor_matches_the_tier_that_measured_it`,
+# which reads the render module's source without importing it.
+#
+# Note what this makes the check: a DECLARED-color contrast lint cannot see
+# this defect at all. 6px in #1e1e1e scores 16.24:1 on declared colors and
+# 4.62:1 in the picture. The font floor is not a politeness rule beside the
+# contrast lints — it is the only tier-1 handle on a contrast failure that
+# rasterization creates.
+MIN_FONT_FLOOR = 7
 # Facts that can put two mapped views out of agreement about MEANING,
 # and so are worth asking "divergence, or should it propagate?" about.
 # Presentation-only verbs are deliberately absent: in the v0.5
@@ -8580,6 +8617,160 @@ def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
     return span is not None and span[0] <= 1 and span[1] >= 0
 
 
+# ---------------------------------------------------------------------------
+# WCAG color math — a dozen lines of stdlib, shared by the two contrast
+# checks in `lint_layout`. Kept as module-level functions rather than
+# closures inside the lint because they are pure, they are the part a
+# reviewer wants to test directly, and `gate_curvature` re-enters
+# `lint_layout` once per eligible arrow — 38 times on the shipped corpus —
+# so rebuilding them per call would be 38 closures for no gain.
+# ---------------------------------------------------------------------------
+# Same argument as `_LUMINANCE_MEMO` below, one step earlier: the parse
+# is string work repeated once per element per pass over a palette of
+# about twenty values, and `"transparent"` alone accounts for hundreds of
+# lookups on a wireframe. Misses are memoized as None too, which is why
+# the read below is `in` rather than `.get()`.
+_COLOR_MEMO: dict[str, tuple | None] = {}
+
+
+def parse_hex_color(spec):
+    """An Excalidraw color string as an (r, g, b) triple of 0-255 ints.
+
+    Args:
+        spec: A color string. `#rgb`, `#rrggbb` and `#rrggbbaa` are read
+            (the alpha byte is DROPPED — `opacity` is the channel this
+            skill actually uses, and folding two alpha sources would
+            double-count). Anything else — `transparent`, a CSS name, a
+            gradient, None — returns None.
+
+    Returns:
+        The (r, g, b) triple, or None if `spec` is not a hex color.
+    """
+    if not isinstance(spec, str):
+        return None
+    if spec in _COLOR_MEMO:
+        return _COLOR_MEMO[spec]
+    got = _parse_hex_color_uncached(spec)
+    _COLOR_MEMO[spec] = got
+    return got
+
+
+def _parse_hex_color_uncached(spec):
+    """`parse_hex_color`'s body, without the memo.
+
+    Args:
+        spec: The color string, already known to be a `str`.
+
+    Returns:
+        The (r, g, b) triple, or None.
+    """
+    h = spec.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) == 8:
+        h = h[:6]
+    if len(h) != 6:
+        return None
+    try:
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except ValueError:
+        return None
+
+
+# Memo for the line below. A drawing uses a handful of distinct colours
+# across hundreds of elements — 976 measured elements over the 24 frozen
+# artifacts resolve to about twenty triples — and each luminance costs
+# three `** 2.4` calls, which is the whole expense of these checks.
+# Keyed by the triple rather than the hex string so the opacity fold's
+# fractional results share the table. Unbounded is safe: the key space is
+# the palette, it is process-local, and `lint_layout` is not a server
+# loop. `functools.lru_cache` would do the same job and is deliberately
+# not used — this file is stdlib-only BUT ALSO import-frugal by
+# convention, and one dict is smaller than a new import.
+_LUMINANCE_MEMO: dict[tuple, float] = {}
+
+
+def relative_luminance(rgb):
+    """WCAG 2.2 relative luminance of an sRGB triple.
+
+    `L = 0.2126 R' + 0.7152 G' + 0.0722 B'` over channels linearized out
+    of the sRGB transfer curve.
+
+    Args:
+        rgb: An (r, g, b) triple of 0-255 values (floats allowed — the
+            opacity fold produces fractional channels).
+
+    Returns:
+        The luminance, 0.0 (black) to 1.0 (white).
+    """
+    key = tuple(rgb)
+    got = _LUMINANCE_MEMO.get(key)
+    if got is not None:
+        return got
+    out = []
+    for v in key:
+        c = v / 255.0
+        out.append(c / 12.92 if c <= 0.03928
+                   else ((c + 0.055) / 1.055) ** 2.4)
+    got = 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2]
+    _LUMINANCE_MEMO[key] = got
+    return got
+
+
+def contrast_ratio(a, b):
+    """WCAG contrast ratio between two sRGB triples, lighter over darker.
+
+    Args:
+        a: One (r, g, b) triple.
+        b: The other.
+
+    Returns:
+        `(L_lighter + 0.05) / (L_darker + 0.05)`, in [1.0, 21.0].
+    """
+    la, lb = relative_luminance(a), relative_luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def composite_over(fg, bg, opacity):
+    """Fold `opacity` into a color, against what it is drawn on.
+
+    SETTLED 2026-08-12 and not an open case: opacity folds into the
+    effective color BEFORE the ratio is taken. The measured argument is
+    the visualize-skill mine's §O7 — their documented palette clears WCAG
+    on every pair at full opacity, and their own "hub-to-branch at 60%
+    opacity" rule drops 3 of 6 branch colors below the 3:1 non-text
+    floor. A lint reading declared colors alone scores all six as
+    passing. Our own default ink says the same thing: #1e1e1e on the
+    ground is 16.24:1 at 100% and 4.38:1 at 60%.
+
+    This is also the only tier that CAN see it. Tier-1 render ignores
+    opacity too — the pinned expected failure
+    `test_mutant_opacity_ghost_is_invisible_to_tier_one` — so until
+    tier-2 ablation lands, an invisible-by-opacity element is this
+    check's to catch or nobody's.
+
+    Args:
+        fg: The declared (r, g, b) triple.
+        bg: The (r, g, b) triple it is painted over.
+        opacity: Excalidraw's 0-100 opacity.
+
+    Returns:
+        The (r, g, b) triple a reader actually sees.
+    """
+    try:
+        alpha = max(0.0, min(100.0, float(opacity))) / 100.0
+    except (TypeError, ValueError):
+        alpha = 1.0
+    if alpha >= 1.0:
+        # The overwhelmingly common case, and returning the triple
+        # UNCHANGED rather than a fresh one of equal floats is what lets
+        # the luminance memo above hit: `(30, 30, 30)` and
+        # `(30.0, 30.0, 30.0)` hash alike, but rebuilding a tuple per
+        # element per call is the allocation this avoids.
+        return tuple(fg)
+    return tuple(fg[i] * alpha + bg[i] * (1 - alpha) for i in range(3))
+
+
 def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 aid=None):
     """Layout lint for headless agents (who can't see their own drawing),
@@ -8736,6 +8927,235 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "the picture disagree; move it back inside the frame or drop "
             "the frameId"
             % (name(mem["id"]), fr.get("name") or fr["id"], where))
+
+    # ---- WARNING: legibility — colour and type size (v0.9 WP7) --------
+    # Three checks over one idea: an element can be perfectly correct in
+    # the model and unreadable in the picture. Ops allow free-form colour
+    # and free-form `fontSize`, so nothing before this stopped an agent
+    # writing #d0d0d0 on the #fdfcf8 ground (1.50:1) or setting a 6px
+    # label. Legibility was enforced NOWHERE — not in lint, not on the
+    # render tier (docs/todo/contrast-and-min-font-lints.md, user-directed
+    # 2026-08-12; corroborated by the excalidraw-mcp mine's O4/M5, whose
+    # field data shows agents shipping output legible in isolation and not
+    # at viewing scale, and whose repo has no contrast enforcement either).
+    #
+    # QUESTIONS, NOT VERDICTS. SKILL.md's narration contract is explicit
+    # that criterion-derived findings are questions a criterion asks later
+    # and that nobody is ever told a drawing "fails WCAG". So each message
+    # states what it MEASURED, states what the criterion asks, asks whether
+    # the muting was meant, and offers a waive key. A settled question is
+    # an answered one and goes quiet — which is also the mechanism the
+    # design doc requires for deliberate de-emphasis (`role: decoration`,
+    # muted annotations): a recorded decision, never a hardcoded skip.
+    #
+    # THE ONE EXEMPTION, and why it is not that hardcoded skip. Composed
+    # PARTS — a slider's track, an image placeholder's X strokes, a KPI
+    # tile's value row: `role: decoration` carrying one of
+    # `COMPOSED_PART_KEYS` — are minted by this file from its own palette
+    # in response to a `kind:` composite the agent asked for. The agent
+    # never wrote #b8b2a5; `_deco`, `_compose_slider_glyph` and
+    # `_compose_body_lines` did. There is no agent decision to question
+    # here, and the recorded answer would be the same waive on every
+    # drawing that ever contains a slider, which is the waive channel used
+    # as a mute button. The doc's rule survives intact for the case the
+    # sentence is actually about: a decoration or annotation the AGENT
+    # styled is asked, and answered by a waive.
+    #
+    # This is the same distinction `normalize_z_order` already turns on
+    # (tagged composed part vs untagged standalone backdrop), so the set
+    # is maintained in one place rather than invented here. Measured
+    # consequence, 2026-08-16: the exemption covers 16 findings across 3
+    # of the 24 frozen artifacts, every one of them a slider track or a
+    # chart placeholder X at #b8b2a5 (2.06:1), and NOTHING else in the
+    # corpus. Those are a real palette defect — recorded in the task
+    # report for whoever owns the palette — but they are not the agent's
+    # to answer, and the frozen fixtures cannot record a waive.
+    ground = parse_hex_color(SVG_GROUND)
+
+    def server_composed(e):
+        """Whether this element's style was minted by the server.
+
+        Args:
+            e: The element.
+
+        Returns:
+            True for a tagged composed part (see the block comment).
+        """
+        cd = e.get("customData") or {}
+        return cd.get("role") == "decoration" and \
+            any(cd.get(k) for k in COMPOSED_PART_KEYS)
+
+    def drawn_on(e):
+        """The colour `e` is painted over, per the settled resolution order.
+
+        Own solid `backgroundColor` (text only — for a shape that field
+        is the object's own fill, so reading it as the background would
+        be circular) -> the container's fill for a bound label -> the
+        `SVG_GROUND` paper. `transparent` inherits, which is what makes
+        the free-text-on-paper case exact.
+
+        ONE HOP, deliberately: a container inside a filled container is
+        not a shape this skill composes, and a resolver that walked would
+        need a cycle guard for a case no scene produces.
+
+        Args:
+            e: The element whose background is wanted.
+
+        Returns:
+            An (r, g, b) triple.
+        """
+        if e.get("type") == "text":
+            own = parse_hex_color(e.get("backgroundColor"))
+            if own is not None:
+                return composite_over(own, ground, e.get("opacity", 100))
+        host = ix.get(e.get("containerId") or "")
+        if host is not None:
+            hb = parse_hex_color(host.get("backgroundColor"))
+            if hb is not None:
+                return composite_over(hb, ground, host.get("opacity", 100))
+        return ground
+
+    def hexof(rgb):
+        """An (r, g, b) triple as `#rrggbb`, for the message.
+
+        Args:
+            rgb: The triple (channels may be fractional after a fold).
+
+        Returns:
+            The hex string.
+        """
+        return "#%02x%02x%02x" % tuple(
+            max(0, min(255, int(round(c)))) for c in rgb)
+
+    for e in els:
+        if server_composed(e):
+            continue
+        etype = e.get("type")
+        eid = e["id"]
+        opac = e.get("opacity", 100)
+        try:
+            hidden = float(opac) <= 0
+        except (TypeError, ValueError):
+            hidden = False
+        if hidden:
+            # An element at opacity 0 is not faint, it is NOT DRAWN, and
+            # a legibility question about it is a category error: the
+            # fold makes its effective colour exactly the ground, so
+            # every one of these checks would report 1.00:1 and advise
+            # darkening ink that paints nothing. Caught by
+            # `TestLabelledGhostKeepsItsCaption`'s repaired funnel, where
+            # a node and its caption are hidden TOGETHER on purpose and
+            # there is nothing to repair.
+            #
+            # The fact IS reported, twice, by checks that own it: the
+            # `opacity != 100` note (opacity is state, not style) and
+            # `orphan_label` when only one of a pair is hidden. Silence
+            # here is this check declining a question, not the drawing
+            # going unremarked.
+            continue
+        if etype == "text":
+            body = e.get("text") or ""
+            if not body.strip():
+                continue        # an empty slot has no ink to read
+            quoted = body[:30]
+            # 1.4.3 — the ink against what it is written on. `fontSize`
+            # decides which floor, and the LARGE arm is the criterion's
+            # own relaxation rather than a tolerance of ours.
+            ink = parse_hex_color(e.get("strokeColor"))
+            fs = e.get("fontSize") or 16
+            if ink is not None:
+                bg = drawn_on(e)
+                seen = composite_over(ink, bg, opac)
+                got = contrast_ratio(seen, bg)
+                floor = (CONTRAST_TEXT_LARGE if fs >= CONTRAST_LARGE_PX
+                         else CONTRAST_TEXT)
+                key = "ink:%s:%s" % (aid or "<artifact>", slugify(eid))
+                if got < floor and not (waives and key in waives):
+                    # The declared colour AND the folded one, when they
+                    # differ: an agent looking for #1e1e1e in its own op
+                    # and reading "4.38:1" needs to be told the opacity
+                    # is what moved it, or the message describes a colour
+                    # it cannot find anywhere in the drawing.
+                    drawn = ("%s at %d%% opacity, so %s"
+                             % (hexof(ink), int(opac), hexof(seen))
+                             if int(opac) != 100 else hexof(ink))
+                    # The repair names what actually moved the reading.
+                    # "Darken the ink" is unfollowable advice on a scene
+                    # whose ink is already #1e1e1e and whose opacity is
+                    # what thinned it — the lint's own advice being
+                    # unfollowable is a recorded v0.3 assessment finding
+                    # and a shipped one is not defensible twice.
+                    fix = ("raise its opacity or darken the ink"
+                           if int(opac) != 100 else "darken the ink")
+                    warnings.append(
+                        "text %s (%r) is drawn %s on %s and reads "
+                        "%.2f:1 — 1.4.3 asks %.1f:1 of text this size. "
+                        "Muted on purpose? %s, or record the "
+                        "decision with waive {action: waive, key: %r, "
+                        "reason: ...}"
+                        % (eid, quoted, drawn, hexof(bg), got, floor,
+                           fix, key))
+            # The font floor. Separate from the ratio above and not a
+            # politeness rule beside it: this is the only tier-1 handle
+            # on a contrast failure that RASTERIZATION creates, which a
+            # declared-colour check cannot see by construction (6px of
+            # #1e1e1e scores 16.24:1 declared and 4.62:1 in the picture).
+            key = "font:%s:%s" % (aid or "<artifact>", slugify(eid))
+            if fs < MIN_FONT_FLOOR and not (waives and key in waives):
+                warnings.append(
+                    "text %s (%r) is set at %gpx, under the %dpx floor "
+                    "measured against the fit-to-window snapshot the "
+                    "agent reads — at the floor the rendered word holds "
+                    "8.5:1 of stroke, one step below it halves to 4.6:1 "
+                    "and the letters stop separating. Size it up, or "
+                    "record the decision with waive {action: waive, "
+                    "key: %r, reason: ...}"
+                    % (eid, quoted, fs, MIN_FONT_FLOOR, key))
+        elif etype in ("rectangle", "diamond", "ellipse", "arrow", "line",
+                       "frame"):
+            # 1.4.11, the criterion people forget: non-text objects need
+            # 3:1, and a pale connector on cream paper is the case it
+            # exists for. The object is legible if EITHER its outline or
+            # its body carries the contrast — a pale stroke around a
+            # solid dark fill is a shape you can see perfectly well — so
+            # the reading is the BETTER of the two, and a finding means
+            # neither reaches the floor.
+            bg = drawn_on(e)
+            best, from_ = None, None
+            for src, raw in (("stroke", e.get("strokeColor")),
+                             ("fill", e.get("backgroundColor"))):
+                col = parse_hex_color(raw)
+                if col is None:
+                    continue        # `transparent` paints nothing
+                got = contrast_ratio(composite_over(col, bg, opac), bg)
+                if best is None or got > best:
+                    best, from_ = got, (col, src)
+            if best is None:
+                # Nothing declared to read — an Excalidraw `image` carries
+                # a transparent stroke and its picture is bytes this file
+                # is never handed. There is no colour to ask about; the
+                # render tier owns that question.
+                continue
+            key = "stroke:%s:%s" % (aid or "<artifact>", slugify(eid))
+            if best < CONTRAST_OBJECT and not (waives and key in waives):
+                col, src = from_
+                seen = composite_over(col, bg, opac)
+                drawn = ("%s at %d%% opacity, so %s"
+                         % (hexof(col), int(opac), hexof(seen))
+                         if int(opac) != 100 else hexof(col))
+                noun = ("connector" if etype in ("arrow", "line")
+                        else "frame" if etype == "frame"
+                        else role_of(e) or "shape")
+                fix = ("raise its opacity or darken the %s" % src
+                       if int(opac) != 100 else "darken the %s" % src)
+                warnings.append(
+                    "%s %s is drawn %s on %s and reads %.2f:1 — 1.4.11 "
+                    "asks %.1f:1 of an object the reader has to pick "
+                    "out. Muted on purpose? %s, or record the "
+                    "decision with waive {action: waive, key: %r, "
+                    "reason: ...}"
+                    % (noun, name(eid), drawn, hexof(bg), best,
+                       CONTRAST_OBJECT, fix, key))
 
     # ---- WARNING: degenerate arrow geometry (WP4b e15) ----------------
     # This runs FIRST of the arrow checks because every one of them

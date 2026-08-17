@@ -66,35 +66,72 @@ PROBES: dict[str, dict[str, str]] = {
                "`test_red_clean_stripe_bands_report_a_perfectly_healthy_"
                "drawing` |\n| render (`tests/test_mutants_render.py`) |",
     },
+    # TWO OF THE FIVE PROBES IN THIS FILE WERE DEAD ON ARRIVAL, found by
+    # v0.9 WP7 task 29 when it ran the file end to end — which, it turns
+    # out, nothing had done since batch 26 wrote it, because the runner
+    # raises on the FIRST bad anchor and never reaches the rest. This one
+    # was anchored on `**9 / 1 / 0**`, which task 28 took to 5 four
+    # commits earlier; `hand-authored-count-drift` below was anchored on
+    # a trailing comma TASK-MICROFIX deleted.
+    #
+    # THE SHAPE IS THE POINT AND IT IS THIS FILE'S OWN SUBJECT, one level
+    # up: these probes are a hand copy of facts that move, watching
+    # guards that watch hand copies of facts that move, and nothing was
+    # watching them. Each anchor is now chosen to be the most stable
+    # substring that still forces a REAL change — here the trailing
+    # `/ 0**`, the `test_backend.py` count, which is the digit of the
+    # three that moves least. Perturbing it to 7 makes the guard compare
+    # (2, 1, 7) against a derived (2, 1, 0).
+    #
+    # A cheaper-looking fix was tried and rejected: anchoring on the
+    # label alone and prefixing a `0` turned `/ 0**` into `/ 00**`, which
+    # the guard parses to the same number, so the probe ran, broke
+    # nothing, and reported the guard SILENT. A probe that perturbs a
+    # value into an equal value is worse than a dead one, because it
+    # accuses a healthy guard instead of raising.
     "durable-counts-drift": {
         "test": "test_the_handover_transcribes_the_durable_red_counts",
         "file": "SESSION-HANDOVER.md",
         "why": "the per-file red counts are hand-copied and have drifted "
                "seven recorded times",
-        "old": "**9 / 1 / 0** for `test_mutants.py`",
-        "new": "**8 / 1 / 0** for `test_mutants.py`",
+        "old": " / 0** for `test_mutants.py`",
+        "new": " / 7** for `test_mutants.py`",
     },
+    # BOTH OF THE NEXT TWO CHANGED DIRECTION on 2026-08-16 (task 29), and
+    # the reason is the interesting part: they used to REMOVE a declared
+    # red, and the catalogue now declares none, so there is nothing left
+    # to remove. They add a phantom instead — a row and a constant
+    # claiming a red the decorators do not carry. That is the stronger
+    # direction anyway: a census that under-reports is caught by the
+    # flip contract (unittest fails on a red that started passing),
+    # while a census that OVER-reports is caught by nothing else at all.
     "model-row-stale": {
         "test": "test_the_handover_transcribes_the_reds_it_declares",
         "file": "SESSION-HANDOVER.md",
-        "why": "the catalogue-reds row loses an id the catalogue still "
-               "declares red",
-        "old": "| model (default suite) | `gray_text_on_ground`, ",
-        "new": "| model (default suite) | ",
+        "why": "the catalogue-reds row claims a red the catalogue does "
+               "not declare",
+        "old": "| model (default suite) | *(none",
+        "new": "| model (default suite) | `a_red_nobody_flipped` *(none",
     },
     "hand-authored-count-drift": {
         "test": "test_the_hand_authored_red_classes_are_the_ones_that_exist",
         "file": "tests/test_mutants.py",
         "why": "a red is added to a declared class and the count is not",
-        "old": 'HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2,',
-        "new": 'HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,',
+        # The second dead anchor (see the note above): this ended in a
+        # comma when batch 26 wrote it, and TASK-MICROFIX drained the
+        # dict's other two classes the same day, leaving one entry and no
+        # comma. Anchored on the count itself now, which is the thing the
+        # probe has to move anyway.
+        "old": 'HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2}',
+        "new": 'HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1}',
     },
     "catalogue-reds-drift": {
         "test": "test_the_catalogue_reds_are_the_ones_declared",
         "file": "tests/test_mutants.py",
-        "why": "a catalogue red is added and CATALOGUE_RED_IDS is not",
-        "old": 'CATALOGUE_RED_IDS = {"gray_text_on_ground",',
-        "new": 'CATALOGUE_RED_IDS = {"a_red_nobody_declared",',
+        "why": "CATALOGUE_RED_IDS declares a red the decorators do not "
+               "carry",
+        "old": "CATALOGUE_RED_IDS: set[str] = set()",
+        "new": 'CATALOGUE_RED_IDS: set[str] = {"a_red_nobody_declared"}',
     },
 }
 

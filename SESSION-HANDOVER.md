@@ -234,16 +234,24 @@ the flip author:
   still why `mutants list --red` shows fewer reds than the suite carries —
   explained at the `CATALOGUE` definition. `TestExportCompleteness` and
   `TestPaintOrder` now carry no reds at all.
-- **All three remaining catalog reds are ASPIRATIONAL** (re-measured
-  2026-08-16 after WP5 task 25; the sentence read "four of the five"
-  after Task 54, and "four of the eight" from batch 22 before that):
-  they flip when their LINTS land, not when any
-  existing code changes, and each flip must give its mutant a real
-  other-pole neighbor.
-  One per aspirational check, exactly — `gray_text_on_ground`
-  (`contrast_text`), `pale_stroke_node` (`contrast_object`),
-  `tiny_font_text` (`min_font`) — and all three are WP7's contrast trio,
-  so this list now empties in one change or not at all.
+- **The catalog now carries NO reds at all** (v0.9 WP7 task 29,
+  2026-08-16), for the first time since it was built. The sentence here
+  read "all three remaining catalog reds are ASPIRATIONAL" after WP5 task
+  25, "four of the five" after Task 54, and "four of the eight" from
+  batch 22 before that. All three of those last reds were WP7's contrast
+  trio — `gray_text_on_ground` (`contrast_text`), `pale_stroke_node`
+  (`contrast_object`), `tiny_font_text` (`min_font`) — the previous
+  sentence predicted that "this list now empties in one change or not at
+  all", and one change is what emptied it: the three lints landed
+  together, each took a `DETECTORS` row, each mutant traded its borrowed
+  `Silence("endpoint_gap")` for its own check's quiet pole, and
+  `ASPIRATIONAL` and `RULE8_EXEMPT`'s three borrow rows went with them.
+  **Read the emptiness as an event, not as a state reached** — the same
+  instruction the render row below carries, which was empty for part of
+  2026-08-15 and refilled the same day. A catalog with no reds says every
+  defect anyone has thought to pin is caught; it says nothing about the
+  defects nobody has thought of yet. `CATALOGUE_RED_IDS` is the derived
+  constant and it is now the empty set.
   (`near_miss_clearance`/`min_clearance` and
   `unroled_text_over_node`/`text_overlaps_node` went when Task 23 landed
   both lints; `phantom_passthrough_shared_attach`/`phantom_passthrough`
@@ -327,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `gray_text_on_ground`, `pale_stroke_node`, `tiny_font_text` |
+| model (default suite) | *(none — drained 2026-08-16 by WP7 task 29)* |
 | render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
@@ -368,8 +376,11 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**5 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at v0.9 WP7 task 28, which
+**2 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at v0.9 WP7 task 29, which
+flipped the whole contrast trio and took `test_mutants.py` 5 -> 2,
+emptying the CATALOGUE half of that file's reds entirely — what remains
+there is hand-authored and outside the catalog; it read 5 / 1 / 0 at v0.9 WP7 task 28, which
 drained `TestLoadFindingsReachTheAgent` 4 -> 0 — the largest single
 departure the hand-authored census has recorded, and one task rather
 than four because the four reds were one fix's four unreached surfaces;
@@ -537,8 +548,8 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **25 detectors, 22 proven, 3 render-tier, 0
-  UNCOVERED** — CHECKED as of v0.9 WP7 task 28 by
+  a reason. Coverage totals: **28 detectors, 25 proven, 3 render-tier, 0
+  UNCOVERED** — CHECKED as of v0.9 WP7 task 29 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked
   because it had drifted: it read "18 detectors ... 15 proven" from a

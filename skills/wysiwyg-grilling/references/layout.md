@@ -240,6 +240,47 @@ label matching a domain term (Q12, waivable). One-time questions go quiet
 via the registry `waive` op (reason required) — a waived question is an
 answered one.
 
+## Legibility: colour and type size (lint WARNING)
+
+Ops let you name any colour and any `fontSize`, and until v0.9 nothing
+read either. Three checks now do. All three are **questions, never
+verdicts** — nobody is told a drawing "fails WCAG"; each says what it
+measured, says what the criterion asks for, and takes a `waive`.
+
+| Check | Asks | Floor | Waive key |
+|---|---|---|---|
+| `contrast_text` | 1.4.3 — can this ink be read? | 4.5:1, or 3:1 at `fontSize` ≥ 24 | `ink:<aid>:<id>` |
+| `contrast_object` | 1.4.11 — can this shape be picked out? | 3:1 | `stroke:<aid>:<id>` |
+| `min_font` | is this type big enough to survive the snapshot? | 7px | `font:<aid>:<id>` |
+
+The paper is `#fdfcf8`, not white, and that is not a detail: `#767676`
+is the web's best-known "lightest grey that passes on white" and it
+reads 4.42:1 here, just under. **A colour you validated against a white
+background may not clear the floor on this ground.**
+
+Three things worth knowing before you argue with a finding:
+
+- **Opacity counts.** The ratio is taken after opacity is folded into
+  the colour, because that is what a reader sees. The default ink
+  `#1e1e1e` is 16.24:1 at full strength and **4.38:1 at 60%** — under
+  the text floor while declaring nothing unusual anywhere. An element at
+  opacity 0 is exempt: it is not faint, it is not drawn, and the
+  `opacity ≠ 100` note already owns that.
+- **An object needs only one of its two colours.** A pale stroke around
+  a solid dark fill is a shape you can see, so the reading is the better
+  of stroke and fill; a finding means neither reaches 3:1.
+- **The font floor is not politeness.** It was MEASURED, not chosen: at
+  7px a rendered word holds 8.5:1 of stroke, at 6px that halves to
+  4.6:1 and the letters stop separating — while the DECLARED contrast
+  is 16.24:1 at both sizes. A colour check cannot see this, which is
+  why the floor is a separate check rather than a style note.
+
+Composed parts — a slider's track, an X-box's strokes, a tile's value
+row — are not asked about. The server minted those colours from its own
+palette in response to your `kind:` composite; there is no decision of
+yours to question. A decoration or annotation **you** styled is asked,
+and answered with a waive.
+
 ## Annotations (seeder + lint WARNING)
 
 A free `text` annotation declares its subject: `annotates: <element-id>` in

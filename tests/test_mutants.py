@@ -239,6 +239,40 @@ _LANE_SPAN_RE = re.compile(
     r"(?P<element>[\w-]+)(?: \(.+?\))? is drawn across lanes .+?, "
     r"reaching (?P<mag>\d+)px into the second")
 
+# v0.9 WP7 (task 29): the three legibility checks. MAGNITUDE is the
+# MEASURED WCAG ratio for the two contrast arms and the offending
+# `fontSize` for the floor — in every case what the check read off the
+# drawing, never a pass/fail and never the threshold. That convention is
+# what makes these pins bite: a check reporting a boolean, or the inverse
+# ratio, or its own floor back at itself, matches none of them.
+#
+# The thresholds are matched as bare `[\d.]+` and deliberately not
+# pinned, the same choice `_MIN_CLEARANCE_RE` records for its spacing
+# floor — these regexes read what the check MEASURED, and the day WCAG's
+# large-text arm is retuned the finding is still the same finding. What
+# IS pinned is the CRITERION NUMBER, because that is the check's
+# identity: 1.4.3 and 1.4.11 are different questions about different
+# things, and a lint that answered one while citing the other would be
+# wrong in the way an agent cannot see.
+#
+# `is drawn .+? on` rather than a colour literal: the message inserts
+# the opacity fold between the declared colour and the ground when the
+# two differ ("#1e1e1e at 60% opacity, so #a09f9c"), and the pinned
+# opacity mutant needs the same template to match.
+_CONTRAST_TEXT_RE = re.compile(
+    r"text (?P<element>[\w-]+) \(.+?\) is drawn .+? on \S+ and reads "
+    r"(?P<mag>[\d.]+):1 — 1\.4\.3 asks [\d.]+:1")
+# The noun is `^\w+` rather than an alternation over roles: this check
+# speaks about anything with an outline, and enumerating the nouns here
+# would make a new role silently unmatchable — a `Silence` that passes
+# vacuously, which is the failure `ASPIRATIONAL` exists to prevent.
+_CONTRAST_OBJECT_RE = re.compile(
+    r"^\w+ (?P<element>[\w-]+)(?: \(.+?\))? is drawn .+? on \S+ and "
+    r"reads (?P<mag>[\d.]+):1 — 1\.4\.11 asks")
+_MIN_FONT_RE = re.compile(
+    r"text (?P<element>[\w-]+) \(.+?\) is set at (?P<mag>[\d.]+)px, "
+    r"under the \d+px floor")
+
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
     """One finding whose magnitude is the scene's crossing count.
@@ -391,6 +425,20 @@ DETECTORS: dict[str, dict] = {
     # new check and a narrowed old one, on one picture, in one change.
     "activation_never_closes": {"lint_re": _ACTIVATION_OPEN_RE},
     "lane_spanning": {"lint_re": _LANE_SPAN_RE},
+    # v0.9 WP7 (task 29). The three rows that empty `ASPIRATIONAL`: every
+    # one of them names a check that was RED BY ABSENCE for four days,
+    # declared in that table with this doc as its reason
+    # (docs/todo/contrast-and-min-font-lints.md), and every one arrives
+    # here in the same change as the lint it names — which is what lets
+    # the three mutants below drop their `expectedFailure` and their
+    # borrowed neighbours together.
+    #
+    # No dirmaps. All three findings carry one measured scalar and no
+    # axis: a ratio is a ratio whichever way the two colours sit, and a
+    # font size has no direction at all.
+    "contrast_text": {"lint_re": _CONTRAST_TEXT_RE},
+    "contrast_object": {"lint_re": _CONTRAST_OBJECT_RE},
+    "min_font": {"lint_re": _MIN_FONT_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -10672,28 +10720,36 @@ def _crowded_pair_shaped(dx: int, dy: int,
 
 
 def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
-                  font_size: int = 16) -> list[dict]:
+                  font_size: int = 16, opacity: int = 100) -> list[dict]:
     """A node and a free text on the ground, styled to order.
 
-    One base for all three legibility mutants, since they differ only in
-    which declared style is wrong: the text's color, the node's stroke,
-    or the font size. Everything sits on `SVG_GROUND` (#fdfcf8) with no
-    fills, so the effective background is unambiguous and the WCAG ratio
-    is a pure function of the two declared colors.
+    One base for every legibility mutant, since they differ only in which
+    declared style is wrong: the text's color, the node's stroke, the
+    font size, or the opacity that thins all of them. Everything sits on
+    `SVG_GROUND` (#fdfcf8) with no fills, so the effective background is
+    unambiguous and the WCAG ratio is a pure function of the declared
+    style.
+
+    `opacity` rides on BOTH elements, so one knob drives the text arm and
+    the object arm of the fold. The two checks read different floors off
+    it (4.5 and 3.0), which is why 60% is a firing text pole and a silent
+    object one — see `faded_ink_reads_as_full_strength`.
 
     Args:
         text_color: The free text's `strokeColor` (its ink).
         stroke: The node's `strokeColor`.
         font_size: The free text's `fontSize`.
+        opacity: Excalidraw 0-100 opacity, on both elements.
 
     Returns:
         The two-element scene: node `n1`, then free text `t1`.
     """
     return [el(id="n1", type="rectangle", x=0, y=0, width=200, height=100,
                strokeColor=stroke, backgroundColor="transparent",
-               customData={"role": "node"}),
+               opacity=opacity, customData={"role": "node"}),
             el(id="t1", type="text", x=0, y=160, width=120, height=20,
-               text="status", fontSize=font_size, strokeColor=text_color)]
+               text="status", fontSize=font_size, opacity=opacity,
+               strokeColor=text_color)]
 
 
 def _composed_row(text: str) -> list[dict]:
@@ -12501,13 +12557,82 @@ _register(Mutant(
 # relative luminance over linearized sRGB, `(L1 + 0.05) / (L2 + 0.05)` —
 # against SVG_GROUND #fdfcf8. A check that reports a boolean, or the
 # inverse ratio, will not flip these.
+# FLIPPED 2026-08-16 (v0.9 WP7 task 29), with the other two below: the
+# three lints landed, took `DETECTORS` rows, and each borrowed
+# `Silence("endpoint_gap")` neighbour was replaced by this check's own
+# quiet pole in the same change — the debt the `ASPIRATIONAL` block says
+# a flip owes.
+#
+# The pole is NEAR-THRESHOLD ON PURPOSE and that is the whole of its
+# value. #747474 reads 4.55:1 where the floor is 4.5 — one step of gray
+# from the boundary, against a mutant at 1.50:1 that any broken check
+# fires on. A control at the default 16.24:1 ink would have been the easy
+# shape and would have proved only that the check has a quiet half; this
+# one fails the moment the arithmetic drifts by 1%.
 _register(Mutant(
     "gray_text_on_ground",
     build=lambda: _styled_scene(text_color="#d0d0d0"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_text", element="t1",
                        magnitude=(1.50, 0.05)),
-    neighbour=Neighbour(_styled_scene, Silence("endpoint_gap"))))
+    neighbour=Neighbour(lambda: _styled_scene(text_color="#747474"),
+                        Silence("contrast_text"))))
+
+# The BOUNDARY-HONEST case the design doc asks every legibility lint to
+# carry, doing a second job the doc did not ask for and this scene gets
+# for free.
+#
+# #767676 is the web's best-known "lightest gray that passes on white":
+# 4.54:1 against #ffffff, just over the 4.5 floor. Our paper is not
+# white. Against `SVG_GROUND` #fdfcf8 the same ink reads 4.42:1 — just
+# UNDER — so this mutant fires only if the check resolved the effective
+# background instead of assuming the usual white. A lint written from the
+# WCAG examples, which are all on white, passes every other pin in this
+# family and fails exactly here.
+#
+# It is 0.07 under the floor, so it is also the tightest firing pole in
+# the file: with the neighbour above at 4.55 the pair straddles 4.5 with
+# ONE STEP OF GRAY between them (0x74 / 0x76), and nothing about either
+# scene differs but that byte.
+_register(Mutant(
+    "text_that_would_pass_on_white_paper",
+    build=lambda: _styled_scene(text_color="#767676"),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_text", element="t1",
+                       magnitude=(4.42, 0.005)),
+    neighbour=Neighbour(lambda: _styled_scene(text_color="#747474"),
+                        Silence("contrast_text"))))
+
+# OPACITY, pinned because the decision to fold it was SETTLED rather than
+# obvious (docs/todo §edge cases, 2026-08-12) and a settled decision with
+# no pin is a comment. The measured argument was the visualize-skill
+# mine's §O7: a palette that clears WCAG on every pair at full opacity
+# drops 3 of its 6 branch colors below the non-text floor under that
+# skill's own 60% rule, and a declared-color lint scores all six as
+# passing.
+#
+# Reproduced here on our OWN default ink, which is the sharper statement:
+# #1e1e1e on the ground is 16.24:1 at 100% and 4.38:1 at 60%. So this
+# scene declares nothing wrong anywhere — the color a reviewer greps for
+# is the one every healthy drawing uses — and is still under the floor.
+# A check that skips the fold reads 16.24 and says nothing.
+#
+# TWO FLOORS, ONE SCENE. The node carries the same 60% and the same ink,
+# and `contrast_object` must stay SILENT on it: 4.38 clears the 3:1
+# non-text floor. So the pair of assertions on this one mutant proves the
+# two checks hold genuinely different numbers rather than sharing a
+# constant, which no other scene in the family can show.
+#
+# The neighbour is 61%. One percentage point, 4.52:1, silent — the
+# opacity crossing of the 4.5 floor to the resolution the field stores.
+_register(Mutant(
+    "faded_ink_reads_as_full_strength",
+    build=lambda: _styled_scene(opacity=60),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_text", element="t1",
+                       magnitude=(4.38, 0.005)),
+    neighbour=Neighbour(lambda: _styled_scene(opacity=61),
+                        Silence("contrast_text"))))
 
 # WCAG 1.4.11, the criterion people forget: non-text objects need 3:1, and
 # a pale stroke on cream paper is the case it exists for. #b0b0b0 scores
@@ -12518,7 +12643,25 @@ _register(Mutant(
     op="unchanged", args={},
     expect=FindingSpec("contrast_object", element="n1",
                        magnitude=(2.11, 0.05)),
-    neighbour=Neighbour(_styled_scene, Silence("endpoint_gap"))))
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#929292"),
+                        Silence("contrast_object"))))
+
+# 1.4.11's boundary, built the same way as the text one above and one
+# step of gray wide: #939393 reads 2.99:1 and #929292 reads 3.03:1
+# against the same paper. The pair is what stops the non-text floor being
+# quietly rounded, borrowed from the text arm, or applied with `<=`
+# instead of `<` — and 2.99 against 4.42 next door is what stops the two
+# checks sharing one constant, which is the cheapest wrong
+# implementation of this pair of criteria and the one WCAG's own summary
+# tables invite.
+_register(Mutant(
+    "stroke_one_step_under_the_object_floor",
+    build=lambda: _styled_scene(stroke="#939393"),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_object", element="n1",
+                       magnitude=(2.99, 0.005)),
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#929292"),
+                        Silence("contrast_object"))))
 
 # The font floor. 6px is legible in a zoomed editor and gone in a
 # fit-to-window snapshot — which is the only view the agent ever gets.
@@ -12537,12 +12680,20 @@ _register(Mutant(
 # sharpest step in the sweep) and drops from 5px to 3px of ink height, while
 # its DECLARED contrast stays 16.24:1 throughout — so a lint reading declared
 # colors alone waves through text the picture cannot deliver.
+#
+# The neighbour is the FLOOR ITSELF, 7px, and that is the strongest pole
+# available here rather than a convenient one: the calibration's whole
+# content is where the step falls, so a control one pixel above the
+# mutant is the assertion that the lint kept the measured number instead
+# of rounding it to something tidier. 8px and 16px are both silent under
+# any floor anyone would plausibly write; only 7 discriminates.
 _register(Mutant(
     "tiny_font_text",
     build=lambda: _styled_scene(font_size=6),
     op="unchanged", args={},
     expect=FindingSpec("min_font", element="t1", magnitude=(6, 0.01)),
-    neighbour=Neighbour(_styled_scene, Silence("endpoint_gap"))))
+    neighbour=Neighbour(lambda: _styled_scene(font_size=7),
+                        Silence("min_font"))))
 
 # ---------------------------------------------------------------------------
 # Shape-blindness, the ELLIPSE (found during the visualize-skill idea-mine,
@@ -14280,34 +14431,341 @@ class TestMutantCatalogue(unittest.TestCase):
         """
         self._run_neighbour("diagonal_ellipses_near_miss")
 
-    @unittest.expectedFailure
     def test_mutant_gray_text_on_ground(self) -> None:
-        """#d0d0d0 on #fdfcf8 is 1.50:1 where WCAG 1.4.3 wants 4.5:1."""
-        # Nothing checks contrast; flips when the todo's lint lands.
+        """#d0d0d0 on #fdfcf8 is 1.50:1 where 1.4.3 asks 4.5:1."""
+        # FLIPPED by WP7 (task 29): `contrast_text` is a real lint.
         self._run("gray_text_on_ground")
 
     def test_neighbour_gray_text_on_ground(self) -> None:
-        """The default ink scores 16.24:1 and has nothing to answer for."""
+        """#747474 clears the same floor by 0.05 and stays quiet.
+
+        The pole the borrowed `Silence("endpoint_gap")` could not reach.
+        Near-threshold on purpose: a check whose arithmetic drifts one
+        percent, or which compares against white paper, speaks here.
+        """
         self._run_neighbour("gray_text_on_ground")
 
-    @unittest.expectedFailure
+    def test_mutant_text_that_would_pass_on_white_paper(self) -> None:
+        """#767676 passes on #ffffff (4.54) and fails on our paper (4.42).
+
+        The boundary-honest case, and the pin on background resolution:
+        a lint written from WCAG's own examples — which are all on white
+        — is silent here and green everywhere else in this family.
+        """
+        self._run("text_that_would_pass_on_white_paper")
+
+    def test_neighbour_text_that_would_pass_on_white_paper(self) -> None:
+        """One step of gray lighter is one step over the floor."""
+        self._run_neighbour("text_that_would_pass_on_white_paper")
+
+    def test_mutant_faded_ink_reads_as_full_strength(self) -> None:
+        """The default ink at 60% is 4.38:1, and declares 16.24:1."""
+        self._run("faded_ink_reads_as_full_strength")
+
+    def test_the_faded_scene_is_silent_on_the_non_text_floor(self) -> None:
+        """The SAME 60% node clears 3:1, so the two floors are two numbers.
+
+        Riding on the mutant's own scene rather than a fourth builder:
+        the text arm fires at 4.38 and the object arm must not, which is
+        only true if `contrast_object` holds 3.0 and `contrast_text`
+        holds 4.5. An implementation that shared one constant satisfies
+        every other pin in this family and fails here — in whichever
+        direction it shared it, since 4.5 everywhere makes this speak and
+        3.0 everywhere makes the mutant above go quiet.
+        """
+        found = collect_findings(_styled_scene(opacity=60))
+        self.assertEqual(
+            [f for f in found if f["check"] == "contrast_object"], [],
+            "the non-text floor spoke about a 4.38:1 object, which "
+            "clears 3:1 — the two contrast floors have collapsed onto "
+            "one constant")
+        self.assertTrue(
+            any(f["check"] == "contrast_text" for f in found),
+            "the text arm went quiet on the same scene, so this test is "
+            "no longer discriminating anything")
+
+    def test_neighbour_faded_ink_reads_as_full_strength(self) -> None:
+        """61% is 4.52:1 — one point of opacity over the floor."""
+        self._run_neighbour("faded_ink_reads_as_full_strength")
+
+    def test_a_pale_stroke_is_forgiven_by_a_fill_you_can_see(self) -> None:
+        """The non-text reading is the better of stroke and fill.
+
+        `pale_stroke_node` fires on a #b0b0b0 outline over a TRANSPARENT
+        body, and that transparency is doing silent work in it: the same
+        outline around a solid #1e1e1e body is a shape any reader picks
+        out instantly, and telling the agent to darken its border would
+        be a finding about nothing. So the check takes the better of the
+        two colours and a finding means NEITHER reaches 3:1.
+
+        Found unpinned by a mutation probe (P19) — blanking the fill arm
+        left the whole suite green, because every object in the catalogue
+        and in all 24 fixtures happens to be either transparent or
+        high-contrast on both. The pair below is the first scene that
+        separates the two implementations.
+        """
+        filled = _styled_scene(stroke="#b0b0b0")
+        filled[0]["backgroundColor"] = "#1e1e1e"
+        self.assertEqual(
+            [f["raw"] for f in collect_findings(filled)
+             if f["check"] == "contrast_object"], [],
+            "a pale outline around a solid dark body was reported as "
+            "hard to pick out — the check is reading the stroke alone "
+            "and calling a perfectly visible node invisible")
+        # The same node with nothing behind the outline: this IS
+        # `pale_stroke_node`, restated here so the pair reads as a gate
+        # and a check that never fires cannot satisfy the assertion above.
+        self.assertTrue(
+            [f for f in collect_findings(_styled_scene(stroke="#b0b0b0"))
+             if f["check"] == "contrast_object"],
+            "the transparent-bodied pale node went unremarked, so the "
+            "assertion above proves silence rather than judgement")
+
+    def test_each_legibility_finding_is_silenced_by_the_key_it_offers(
+            self) -> None:
+        """All three waives work, and the key comes OUT of the message.
+
+        The design doc requires that deliberate de-emphasis be a RECORDED
+        DECISION rather than a hardcoded skip, so the waive channel is
+        not a convenience here — it is the whole mechanism by which
+        "muted on purpose" is expressible. A check that asked a question
+        no answer could settle would leave the agent with a standing
+        warning it cannot clear on a drawing that is right.
+
+        THE KEY IS PARSED FROM THE FINDING, not rebuilt from the format
+        string, which is the shape `TestOrphanLabelHonoursIntent` settled
+        on for the same reason: a check that advertises one key and
+        honours another passes any hand-written expectation and fails the
+        only user who ever tries it. This also caught the `aid` shadowing
+        bug once already (TASK-LINTPROMOTE fix round 1, M2) — the keys
+        are the only code that reads `lint_layout`'s `aid` after the
+        shared-attach block runs.
+
+        Each scene is re-linted with ONLY its own key recorded, so a
+        waive channel that swallowed everything (or that keyed on the
+        check name alone, silencing every element at once) fails on the
+        second assertion of each pair rather than passing quietly.
+        """
+        scenes = {
+            "contrast_text": _styled_scene(text_color="#d0d0d0"),
+            "contrast_object": _styled_scene(stroke="#b0b0b0"),
+            "min_font": _styled_scene(font_size=6),
+        }
+        for check, els in scenes.items():
+            with self.subTest(check=check):
+                lint = canvas.lint_layout(els, artifact_type="flow",
+                                          aid="art-1")
+                hits = [w for w in lint["warnings"]
+                        if DETECTORS[check]["lint_re"].search(w)]
+                self.assertEqual(
+                    len(hits), 1,
+                    "%s did not produce exactly one finding to waive: %s"
+                    % (check, hits))
+                found = re.search(r"key: '([^']+)'", hits[0])
+                self.assertIsNotNone(
+                    found, "%s's message offers no waive key, so the "
+                           "question it asks cannot be answered" % check)
+                key = found.group(1)
+                self.assertIn(
+                    "art-1", key,
+                    "%s's waive key %r does not name the artifact — a key "
+                    "built from something else stops matching the moment "
+                    "that something else changes" % (check, key))
+                after = canvas.lint_layout(els, artifact_type="flow",
+                                           aid="art-1", waives={key: "muted "
+                                                                "by design"})
+                self.assertEqual(
+                    [w for w in after["warnings"]
+                     if DETECTORS[check]["lint_re"].search(w)], [],
+                    "%s ignored the very key it told the agent to record "
+                    "(%r) — the waive channel is advertised and not "
+                    "honoured" % (check, key))
+                # ...and the OTHER two checks are untouched by it, so one
+                # recorded decision cannot mute the whole family.
+                others = canvas.lint_layout(
+                    _styled_scene(text_color="#d0d0d0", stroke="#b0b0b0",
+                                  font_size=6),
+                    artifact_type="flow", aid="art-1", waives={key: "x"})
+                still = {c for c in scenes
+                         if c != check and any(
+                             DETECTORS[c]["lint_re"].search(w)
+                             for w in others["warnings"])}
+                self.assertEqual(
+                    still, {c for c in scenes if c != check},
+                    "waiving %s silenced another check as well" % check)
+
+    def test_the_large_text_arm_relaxes_the_floor_and_only_for_size(
+            self) -> None:
+        """#8a8a8a is 3.36:1 — asked about at 16px, allowed at 24px.
+
+        1.4.3's own relaxation, pinned as a GATE because an unexercised
+        branch is a branch that can be replaced with anything. `#8a8a8a`
+        sits between the two floors, so the SAME colour on the SAME paper
+        answers differently at the two sizes and `fontSize` is the only
+        variable between the scenes.
+
+        Both poles are needed and neither is redundant: a lint that
+        dropped the large arm passes the firing pole and fails the quiet
+        one, and a lint that applied 3:1 to everything does the reverse.
+        24 is `CONTRAST_LARGE_PX` exactly — 18pt at 96dpi — so the pin
+        also catches the boundary being written as `>` instead of `>=`.
+        """
+        small = [f for f in collect_findings(
+            _styled_scene(text_color="#8a8a8a", font_size=16))
+            if f["check"] == "contrast_text"]
+        self.assertTrue(
+            small, "3.36:1 body text was not asked about, so the 4.5 "
+                   "floor is not being applied at ordinary sizes")
+        large = [f for f in collect_findings(
+            _styled_scene(text_color="#8a8a8a", font_size=24))
+            if f["check"] == "contrast_text"]
+        self.assertEqual(
+            [f["raw"] for f in large], [],
+            "the same ink was asked about at 24px, where 1.4.3 asks 3:1 "
+            "and this reads 3.36:1 — the large-text arm is missing, or "
+            "its boundary excludes the size that defines it")
+
+    def test_the_colour_math_reproduces_published_wcag_values(self) -> None:
+        """The three pure functions, against numbers from outside this repo.
+
+        Every other pin in this family reads the arithmetic through the
+        lint, so all of them would move together if the luminance
+        formula were wrong in a self-consistent way — the ratios in the
+        mutants were computed with this same code. These four are not:
+        they are WCAG's own published figures, and #767676 on white is
+        the single most-cited contrast value on the web.
+
+        The paper case is the one that matters to this skill: the same
+        ink is 4.54:1 on white and 4.42:1 on `SVG_GROUND`, which is the
+        0.12 that makes `text_that_would_pass_on_white_paper` fire.
+        """
+        white, black = (255, 255, 255), (0, 0, 0)
+        self.assertAlmostEqual(canvas.relative_luminance(white), 1.0, 6)
+        self.assertAlmostEqual(canvas.relative_luminance(black), 0.0, 6)
+        self.assertAlmostEqual(canvas.contrast_ratio(black, white), 21.0, 4)
+        grey = canvas.parse_hex_color("#767676")
+        self.assertEqual(grey, (118, 118, 118))
+        self.assertAlmostEqual(canvas.contrast_ratio(grey, white),
+                               4.542, delta=0.01)
+        self.assertAlmostEqual(
+            canvas.contrast_ratio(
+                grey, canvas.parse_hex_color(canvas.SVG_GROUND)),
+            4.425, delta=0.01)
+        # The fold is a plain source-over composite, so half-strength ink
+        # on white is the midpoint grey and not some eased approximation.
+        self.assertEqual(
+            canvas.composite_over(black, white, 50), (127.5, 127.5, 127.5))
+        self.assertIsNone(canvas.parse_hex_color("transparent"))
+
+    def test_the_composed_part_exemption_turns_on_the_tag_not_the_colour(
+            self) -> None:
+        """A slider track is exempt; the same line, agent-styled, is not.
+
+        The one carve-out these checks carry, pinned as a GATE from both
+        sides because the failure it protects against is silent. Composed
+        parts — `role: decoration` carrying a `COMPOSED_PART_KEYS` tag —
+        are minted by canvas.py from its own palette, so there is no
+        agent decision to question; #b8b2a5 at 2.06:1 is 16 findings
+        across 3 of the 24 frozen artifacts and not one of them is
+        answerable by the agent that would be told.
+
+        THE TWO SCENES DIFFER IN ONE KEY. Same type, same colour, same
+        geometry, same `role: decoration`; only `track_of` moves. So an
+        implementation that exempted `role: decoration` wholesale — the
+        obvious shortcut, and the one the design doc explicitly forbids
+        ("route exemptions through the waiver, not a hardcoded skip") —
+        passes the exempt pole and fails the firing one. So does one that
+        exempted by colour, or by element type.
+        """
+        def track(composed: bool) -> list[dict]:
+            cd = {"role": "decoration", "author": "agent"}
+            if composed:
+                cd["track_of"] = "sl-1"
+            return [el(id="sl-1", type="rectangle", x=0, y=0, width=160,
+                       height=44, customData={"role": "node",
+                                              "kind": "slider"}),
+                    el(id="trk", type="line", x=10, y=30, width=140,
+                       height=0, points=[[0, 0], [140, 0]],
+                       strokeColor="#b8b2a5", customData=cd)]
+
+        exempt = [f for f in collect_findings(track(True))
+                  if f["check"] == "contrast_object" and f["element"] == "trk"]
+        self.assertEqual(
+            exempt, [],
+            "a server-composed slider track was asked to justify a "
+            "colour canvas.py chose for it — the agent cannot answer, "
+            "and the frozen fixtures cannot record a waive")
+        asked = [f for f in collect_findings(track(False))
+                 if f["check"] == "contrast_object" and f["element"] == "trk"]
+        self.assertTrue(
+            asked,
+            "the same line WITHOUT the composed tag went unasked, so the "
+            "exemption is reading the role (or the colour) rather than "
+            "the tag — which silences every decoration an agent styles "
+            "itself, the case the design doc routes through the waiver")
+
+    def test_a_hidden_element_is_not_asked_a_legibility_question(self) -> None:
+        """Opacity 0 draws no contrast finding, and the fold still works.
+
+        A carve-out, so it is pinned rather than trusted. At opacity 0
+        the fold makes the effective colour exactly the ground, so all
+        three checks would report 1.00:1 and advise darkening ink that
+        paints nothing — an element at 0 is not faint, it is NOT DRAWN,
+        and that is a different fact with two checks of its own (the
+        `opacity != 100` note, and `orphan_label` when one of a bound
+        pair is hidden). Found by `TestLabelledGhostKeepsItsCaption`'s
+        repaired funnel, where a node and its caption are hidden together
+        on purpose and there is nothing to repair.
+
+        THE SECOND ASSERTION IS THE POINT. A carve-out written as
+        `opacity < 62` would satisfy the first one and silence the
+        graded fold this family exists to prove, so the 60% scene is
+        re-asserted here beside the hidden one: the gate is exactly
+        "not drawn", not "faint enough to be someone's decision".
+        """
+        hidden = collect_findings(_styled_scene(opacity=0, font_size=6))
+        self.assertEqual(
+            [f["raw"] for f in hidden
+             if f["check"] in ("contrast_text", "contrast_object",
+                               "min_font")], [],
+            "a legibility check spoke about an element drawn at 0% "
+            "opacity, whose effective colour IS the ground")
+        self.assertTrue(
+            any(f["check"] == "contrast_text"
+                for f in collect_findings(_styled_scene(opacity=60))),
+            "the carve-out has swallowed the graded fold: 60% ink reads "
+            "4.38:1 and must still be asked about")
+
     def test_mutant_pale_stroke_node(self) -> None:
-        """#b0b0b0 stroke is 2.11:1 where WCAG 1.4.11 wants 3:1."""
-        # Nothing checks non-text contrast; flips when the todo's lint lands.
+        """#b0b0b0 stroke is 2.11:1 where 1.4.11 asks 3:1."""
+        # FLIPPED by WP7 (task 29): `contrast_object` is a real lint.
         self._run("pale_stroke_node")
 
     def test_neighbour_pale_stroke_node(self) -> None:
-        """A default stroke on the ground is legible and stays unremarked."""
+        """#929292 clears the non-text floor by 0.03 and stays quiet."""
         self._run_neighbour("pale_stroke_node")
 
-    @unittest.expectedFailure
+    def test_mutant_stroke_one_step_under_the_object_floor(self) -> None:
+        """#939393 reads 2.99:1 against a floor of 3.0."""
+        self._run("stroke_one_step_under_the_object_floor")
+
+    def test_neighbour_stroke_one_step_under_the_object_floor(self) -> None:
+        """#929292 reads 3.03:1 — the other side of the same byte."""
+        self._run_neighbour("stroke_one_step_under_the_object_floor")
+
     def test_mutant_tiny_font_text(self) -> None:
         """A 6px label survives the model and not the snapshot."""
-        # No font floor exists; flips when the todo's lint lands.
+        # FLIPPED by WP7 (task 29): `min_font` is a real lint, at the
+        # floor MEASURED on 2026-08-13 rather than a chosen one.
         self._run("tiny_font_text")
 
     def test_neighbour_tiny_font_text(self) -> None:
-        """16px is the ordinary size and draws no finding."""
+        """7px is the measured floor itself, and draws no finding.
+
+        One pixel from the mutant: the calibration's content is where
+        the step falls, so this is the pole that notices a floor rounded
+        to a tidier number in either direction.
+        """
         self._run_neighbour("tiny_font_text")
 
     def test_mutant_diamond_facet_overfire(self) -> None:
@@ -14605,8 +15063,44 @@ class TestMutantCatalogue(unittest.TestCase):
         reds = [n for n in sorted(dir(cls))
                 if getattr(getattr(cls, n, None),
                           "__unittest_expecting_failure__", False)]
-        self.assertTrue(reds, "no expectedFailure methods found — the "
-                              "introspection hook moved")
+
+        # THE HOOK CHECK, DECOUPLED FROM THE POPULATION IT WATCHES. This
+        # was `assertTrue(reds, "the introspection hook moved")`, which
+        # conflated two different facts — "unittest still marks reds the
+        # way we read them" and "this catalogue still has reds" — and on
+        # 2026-08-16 (v0.9 WP7 task 29) the second went false: the
+        # contrast trio flipped and `CATALOGUE_RED_IDS` emptied for the
+        # first time in the catalogue's life. An empty catalogue must not
+        # read as a broken guard, and a broken guard must not hide behind
+        # an empty catalogue.
+        #
+        # So the attribute is probed against a function decorated right
+        # here, which is red by construction whatever the catalogue holds.
+        # If unittest ever renames `__unittest_expecting_failure__`, this
+        # fails on the canary while the loop below silently iterates
+        # nothing — which is the failure mode the original line was
+        # written for and could no longer detect.
+        # APPLIED AS A CALL AND NOT AS `@unittest.expectedFailure`, which
+        # is not a style choice: the durable red census in
+        # SESSION-HANDOVER.md is `grep -cE '^\\s*@unittest\\.expected
+        # Failure\\s*$'`, which matches at ANY indentation. A decorator
+        # line here would be counted as a fourth red in this file, so the
+        # canary for one census guard would silently falsify another.
+        # Found by that guard failing, the first time this was written.
+        def canary() -> None:
+            """A function that is red by construction, to probe the hook.
+
+            Raises:
+                AssertionError: Always — being red is the whole job.
+            """
+            raise AssertionError("canary")
+
+        marked = unittest.expectedFailure(canary)
+        self.assertTrue(
+            getattr(marked, "__unittest_expecting_failure__", False),
+            "the expectedFailure introspection hook moved: unittest no "
+            "longer sets __unittest_expecting_failure__, so this guard "
+            "would walk past every red in the class and report health")
         for name in reds:
             with self.subTest(method=name):
                 mid = name[len("test_mutant_"):]
@@ -14768,19 +15262,16 @@ ASPIRATIONAL: dict[str, str] = {
     # (`text_overlaps_node` and `min_clearance` left this table on
     # 2026-08-14, v0.9 WP4 Task 23: both checks landed, both took a
     # `DETECTORS` entry, and both mutants flipped in the same change.)
-    "contrast_text":
-        "docs/todo/contrast-and-min-font-lints.md — WCAG 1.4.3 text "
-        "contrast (4.5:1), not yet built. Opacity is SETTLED: fold it into "
-        "the effective color rather than ignoring it",
-    "contrast_object":
-        "docs/todo/contrast-and-min-font-lints.md — WCAG 1.4.11 non-text "
-        "contrast (3:1), not yet built; the criterion people forget, and "
-        "the one that catches a pale connector on cream paper",
-    "min_font":
-        "docs/todo/contrast-and-min-font-lints.md — fontSize floor, not "
-        "yet built. The floor itself is no longer open: MEASURED at 7px "
-        "on 2026-08-13 against the render tier at deviceScaleFactor 1, "
-        "evidence in test_mutants_render.TestLegibilityFloor",
+    # (`contrast_text`, `contrast_object` and `min_font` left this table
+    # on 2026-08-16, v0.9 WP7 task 29 — all three at once, which is what
+    # the note below predicted would have to happen: all three lints
+    # landed, all three took `DETECTORS` entries, all three mutants
+    # flipped in the same change, and each borrowed neighbour was
+    # replaced by its own check's quiet pole. THE TABLE IS NOW EMPTY for
+    # the first time since `phantom_passthrough` was added to it, and
+    # emptiness is an event rather than a state reached — the next
+    # red-by-absence pin is one curator batch away, and the machinery
+    # below is what makes it safe to add.
 }
 
 # FOR WHOEVER FLIPS THESE. No aspirational mutant has a neighbour asserting
@@ -15322,8 +15813,28 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS = {"gray_text_on_ground", "pale_stroke_node",
-                     "tiny_font_text"}
+CATALOGUE_RED_IDS: set[str] = set()
+# EMPTY as of 2026-08-16 (v0.9 WP7 task 29) — the first time since the
+# catalogue was built. The WP7 contrast trio was the whole of what was
+# left, all three of it red-by-absence, and all three lints landed in one
+# change, so the set that had drained one and two at a time for four days
+# emptied in a single edit. The comment above CATALOGUE_RED_IDS's
+# predecessor said this list "now empties in one change or not at all",
+# and that is what happened.
+#
+# READ THE EMPTINESS AS AN EVENT, not as a state reached — the same
+# instruction SESSION-HANDOVER.md carries about the render row, which was
+# empty for part of 2026-08-15 and refilled the same day. A catalogue
+# with no reds means every defect anyone has thought to pin is caught,
+# which is a statement about our imagination and not about the code. The
+# next curator batch that witnesses a miss puts an id back here, and the
+# machinery around this constant — `ASPIRATIONAL`, `RULE8_EXEMPT`, the
+# flip contract — exists precisely so that adding one is cheap and safe.
+# `gray_text_on_ground`, `pale_stroke_node` and `tiny_font_text` LEFT
+# this set on 2026-08-16 (v0.9 WP7 task 29), the seventh, eighth and
+# ninth catalogue entries to leave it by flipping and the last three
+# RED-BY-ABSENCE pins to go: `contrast_text`, `contrast_object` and
+# `min_font` became real lints and real `DETECTORS` rows in one change.
 # `framed_node_escapes_its_lane` LEFT this set on 2026-08-16 (v0.9 WP5
 # task 25), the sixth catalogue entry to leave it by flipping and the
 # THIRD red-by-absence to go: `frame_containment` became a real lint and
@@ -15808,15 +16319,14 @@ def red_bearing_classes() -> dict[str, int]:
 # do not exist, so `Silence` on them passes vacuously and the neighbour is
 # a placeholder holding the mutant's shape until one does.
 RULE8_EXEMPT: dict[str, str] = {
-    "gray_text_on_ground:neighbour":
-        "ASPIRATIONAL borrow — partner `contrast_text` is RED and has no "
-        "detector. Delete this row when the check lands",
-    "pale_stroke_node:neighbour":
-        "ASPIRATIONAL borrow — partner `contrast_object` is RED and has no "
-        "detector. Delete this row when the check lands",
-    "tiny_font_text:neighbour":
-        "ASPIRATIONAL borrow — partner `min_font` is RED and has no "
-        "detector. Delete this row when the check lands",
+    # The three WP7 contrast rows each said "Delete this row when the
+    # check lands", and on 2026-08-16 (task 29) all three did — deleted
+    # here in the same change that gave each check a pole of its own, so
+    # every one of those three `Silence`es is now paired with a
+    # `FindingSpec` on the same check in the same mutant's other slot and
+    # needs no exemption at all. That is the table working as designed:
+    # a borrow that was prose the next agent might not read became a row
+    # a flip had to delete, and the flip deleted it.
     "headless_chain_reads_through_node:neighbour":
         "the Silence IS this mutant's discriminator — `headless` is the "
         "only variable between the two scenes — so a FindingSpec here "
@@ -16428,15 +16938,67 @@ class TestCoverage(unittest.TestCase):
         CONTROL was noisy before either new check existed. A site that
         stops firing on correct drawings is invisible to an append-site
         census by construction — this pin counts channels, not truth.
+
+        58 -> 61 on 2026-08-16 (v0.9 WP7, task 29): the three legibility
+        warnings — `contrast_text` (1.4.3), `min_font` and
+        `contrast_object` (1.4.11). No `UNCOVERED` row for any of them,
+        the shape 51 -> 54, 55 -> 56 and 56 -> 58 set: all three arrived
+        with a `DETECTORS` entry and a proving pair in this change, and
+        the same change EMPTIED `ASPIRATIONAL` — these were the last
+        three red-by-absence checks in the file.
+
+        THREE SITES FOR THREE CHECKS and not for the arms they carry,
+        which is the same judgement 49 -> 50 recorded for the degenerate
+        arrow: each check speaks once per element however many ways it
+        could have got there. `contrast_text` folds opacity, resolves the
+        background through a container and switches floors on the large
+        arm, and all of that produces ONE sentence whose numbers differ —
+        four templates would be four ways to say the same repair.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 58,
+        self.assertEqual(sites, 61,
                          "canvas.py lint_layout append-site count changed "
-                         "(58 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(61 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
+
+    def test_the_font_floor_matches_the_tier_that_measured_it(self) -> None:
+        """`MIN_FONT_FLOOR` says 7 in both files, or neither is trusted.
+
+        The constant lives in two places on purpose and neither can
+        import the other: it was MEASURED by the render tier
+        (`tests/test_mutants_render.MIN_FONT_FLOOR`, the sweep at
+        deviceScaleFactor 1 whose table is in that section's header), and
+        it is ENFORCED by `canvas.lint_layout`, which is stdlib-only and
+        single-file and may not import a test module.
+
+        So the number is transcribed, and this is the fourth guard in
+        this file written for a transcription: read the measured value
+        out of the render module's SOURCE — without importing it, since
+        that module is browser-gated and `--coverage` never loads it —
+        and compare. A re-measurement that moves the floor and forgets
+        the lint would otherwise leave the two disagreeing silently, with
+        the tier that measured it right and the tier that enforces it
+        wrong, which is the worst of the two directions.
+        """
+        src = (Path(__file__).resolve().parent
+               / "test_mutants_render.py").read_text(encoding="utf-8")
+        found = re.findall(r"(?m)^MIN_FONT_FLOOR = (\d+)\s*$", src)
+        self.assertEqual(
+            len(found), 1,
+            "expected exactly one module-level MIN_FONT_FLOOR assignment "
+            "in tests/test_mutants_render.py, found %d — this guard reads "
+            "the source rather than importing it, so a moved or "
+            "duplicated constant makes it read the wrong one" % len(found))
+        self.assertEqual(
+            int(found[0]), canvas.MIN_FONT_FLOOR,
+            "the measured font floor (%s, tests/test_mutants_render.py) "
+            "and the enforced one (%s, canvas.MIN_FONT_FLOOR) have "
+            "parted. Re-measuring moves both, or the lint stops "
+            "enforcing what the render tier proved"
+            % (found[0], canvas.MIN_FONT_FLOOR))
 
     def test_silence_only_mutant_does_not_prove_its_check(self) -> None:
         """A check whose only catalogue mutant is a Silence stays UNCOVERED.
