@@ -438,7 +438,16 @@ it "agent asked a question" with no Apply action.
   `project_knowledge/saves/NNNN-*.json`).
 - `canvas.py lint [--artifact <id>]` → the standing findings in full.
   `status` gives you counts only ("dashboard 9N"); this gives you the
-  sentences, without applying a batch to find out what they say.
+  sentences, without applying a batch to find out what they say. Closes
+  on three disjoint summary keys: **`SCOPES=`** (how many things were
+  linted — artifacts PLUS the registry pseudo-scope, which carries
+  findings of its own and is why this is not called `ARTIFACTS`; that key
+  is `status`'s, and there it is a name list), **`FINDINGS=`** (layout
+  findings across those scopes) and **`QUARANTINED=`** (files the load
+  could not read at all and dropped, printed even at zero). A quarantine
+  is never counted under `FINDINGS` — the file is not in the project to
+  have findings about, and the arithmetic that closes is
+  `SCOPES + QUARANTINED = the files on disk`.
 - `canvas.py pending [--discard <id>]` → what is queued behind the user's
   banner, with each entry's artifact, note and op count.
 - `canvas.py export --artifact <id> --with-footnotes` → SVG carrying its

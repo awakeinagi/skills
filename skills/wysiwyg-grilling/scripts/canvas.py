@@ -15514,6 +15514,21 @@ def cmd_start(args):
 
 
 def cmd_status(args):
+    """Print the running server's standing state, or say it is down.
+
+    `ARTIFACTS=` here is a comma-separated NAME LIST, and that is the
+    documented meaning of the key: it answers "which artifacts exist".
+    `lint` used the same key for a COUNT that also included the registry
+    pseudo-scope, so one project read `ARTIFACTS=2` on one surface and
+    named one artifact on the other — the count key is `SCOPES=` there
+    now (r5-1).
+
+    Args:
+        args: Parsed CLI args — `project`.
+
+    Returns:
+        Process exit code: 0 when a server answered, 1 when none did.
+    """
     project = Project(args.project)
     state = project.read_state()
     if not server_alive(state):
@@ -15679,6 +15694,14 @@ def cmd_lint(args):
     response — which is a poor reason to draw something (v0.4 capability
     assessment).
 
+    Closes on three summary keys, all of them derived rather than
+    written: `SCOPES=` (how many things were linted — artifacts plus the
+    registry pseudo-scope, which carries findings of its own),
+    `FINDINGS=` (layout findings across those scopes) and `QUARANTINED=`
+    (files the load could not read and dropped). The three are disjoint
+    on purpose; see the block above the `print_kv` for what each refuses
+    to absorb.
+
     Args:
         args: Parsed CLI args — `project`, optional `artifact`.
 
@@ -15707,10 +15730,27 @@ def cmd_lint(args):
     # its own. `lint` is the only server-free surface for load findings,
     # so the `repaired`-only filter made a dropped artifact invisible
     # everywhere: `ARTIFACTS=1` and no reason to doubt it.
+    dropped = 0
     for i in store.issues:
-        print("%s=%s: %s" % ("REPAIR" if i.get("repaired") else "QUARANTINE",
+        repaired = bool(i.get("repaired"))
+        dropped += 0 if repaired else 1
+        print("%s=%s: %s" % ("REPAIR" if repaired else "QUARANTINE",
                              i.get("code"), i.get("msg")))
-    print_kv(artifacts=len(aids), findings=total)
+    # SCOPES, not ARTIFACTS (r5-1). This counts what was LINTED, and the
+    # registry is a scope with findings of its own and no artifact behind
+    # it — so a project with one artifact printed `ARTIFACTS=2` under the
+    # same key `status` uses for a comma-separated NAME LIST. Two
+    # surfaces, one key, two meanings, and neither documented. `status`
+    # keeps `ARTIFACTS=`; this one says what it actually counts.
+    #
+    # QUARANTINED is its own key by curator ruling, not folded into
+    # FINDINGS: the summary named two dropped files and then totalled
+    # them as zero, but widening FINDINGS= moves a number three
+    # neighbouring tests read, and the arithmetic that closes is
+    # `1 loaded + 1 dropped = the 2 files on disk`. Printed even at zero,
+    # like FINDINGS — a summary key that vanishes when the news is good
+    # cannot be read as "nothing was dropped", only as "nobody said".
+    print_kv(scopes=len(aids), findings=total, quarantined=dropped)
     return 0
 
 

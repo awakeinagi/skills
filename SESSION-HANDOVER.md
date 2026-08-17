@@ -368,10 +368,12 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**9 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at v0.9 WP5 task 25, which
+**8 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-16 at v0.9 WP7 task 28, which
+flipped the lint summary's quarantine count when `QUARANTINED=` became a
+key of its own; it read 9 / 1 / 0 at v0.9 WP5 task 25, which
 flipped `framed_node_escapes_its_lane` when `frame_containment` became a
-real lint; it read 10 / 1 / 0 at curator batch 26 — which ADDED a model
+real lint; 10 / 1 / 0 at curator batch 26 — which ADDED a model
 red rather than flipping one, the `commit`-callers pin, and the only
 upward movement of this sentence since batch 25 — 9 / 1 / 0 at
 TASK-24-FOLLOW-UP, 11 / 3 / 0 at

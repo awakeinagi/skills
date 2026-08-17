@@ -5861,16 +5861,24 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
 
         The other neighbour. Without it, a "fix" that printed a load
         finding unconditionally would satisfy the red while telling every
-        healthy project that something had gone wrong. `ARTIFACTS=2` is
+        healthy project that something had gone wrong. `SCOPES=2` is
         asserted alongside because it is the same count the red watches
         collapse to 1, so this fixes the surface's honest reading of a
         two-artifact project as the baseline that reading deviates from.
+
+        The key was `ARTIFACTS=` until v0.9 WP7 (task 28) and the COUNT
+        is unchanged — r5-1 renamed it because this surface counted the
+        registry pseudo-scope under the same key `status` uses for a name
+        list. `QUARANTINED=0` joins the assertion in the same change,
+        because it is the pole that makes the sibling red's `=2` readable
+        as a measurement rather than as the only value ever printed.
         """
         root = _scratch_project(self, {"a": _GOOD_ARTIFACT,
                                        "b": _GOOD_ARTIFACT},
                                 {"0001-x": _GOOD_SAVE})
         out = self._lint(root)
-        self.assertIn("ARTIFACTS=2", out)
+        self.assertIn("SCOPES=2", out)
+        self.assertIn("QUARANTINED=0", out)
         noise = [ln for ln in out
                  if ln.startswith("REPAIR=") or "ART-" in ln or "SAV-" in ln]
         self.assertEqual(noise, [],
@@ -5983,10 +5991,19 @@ class TestLoadFindingsReachTheAgent(unittest.TestCase):
         self.addCleanup(app.log_file.close)
         return app
 
-    @unittest.expectedFailure
     def test_red_the_lint_summary_counts_the_quarantines_nowhere(
             self) -> None:
         """The surface prints two dropped files, then totals them as zero.
+
+        FLIPPED by v0.9 WP7 (task 28), in the shape the curator ruled:
+        `QUARANTINED=` is its own summary key, derived from `issues`, and
+        `ARTIFACTS=`/`FINDINGS=` were not widened to absorb it. The lint
+        surface's count key did move in the same commit, but under r5-1
+        and in the other direction — `ARTIFACTS=` there was a COUNT that
+        included the registry pseudo-scope while `status` used the same
+        key for a name list, so it is `SCOPES=` now. That rename is why
+        this test's silent-pole neighbour changed a string; the number it
+        asserts is the same number.
 
         The half the flipped red above deliberately did not claim. `lint`
         now NAMES both quarantines and then closes with
@@ -15109,7 +15126,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2,
-                             "TestLoadFindingsReachTheAgent": 4}
+                             "TestLoadFindingsReachTheAgent": 3}
 # `TestBatchPathIntegrity` went 1 -> 2 on 2026-08-16 (curator batch 26),
 # which is this dict's first arrival that is not a NEW defect: the
 # `commit`-callers red pins the residue of a fix that already landed.
