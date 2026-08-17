@@ -83,9 +83,17 @@ RASTER_MAX_W, RASTER_MAX_H = 4000, 3000
 # agent's own tooltip and layout edits, and it eventually spent two
 # `kinds` annotations scoping mappings to `moved` just to stop the
 # recurrence. Moving a box 40px is not a disagreement (R2-6).
+# The naming subset, named once because three places need exactly it:
+# the two suppression arms that report a muted RENAME as armed silence,
+# and the name-identity divergence check, which asks its question about
+# the label an element used to carry (r5-4). It was a literal in the
+# first two and they had already been written apart once.
+NAMING_VERBS = frozenset({
+    "renamed", "label_renamed", "entity_renamed", "relationship_relabeled",
+})
 DIVERGENCE_VERBS = frozenset({
     # naming
-    "renamed", "label_renamed", "entity_renamed", "relationship_relabeled",
+    *NAMING_VERBS,
     # wiring
     "rewired", "relationship_rewired", "actor_reassigned",
     "cardinality_changed",
@@ -11724,6 +11732,11 @@ class Store:
             artifacts = {}
             all_tripwires = []
             changed_elements = {}
+            # `ref -> the label it used to carry`, for the name-identity
+            # divergence arm (r5-4). `changed_elements` keeps verbs only,
+            # and the glossary question cannot be asked from a verb: what
+            # decides it is whether the OLD name was a settled term.
+            renamed_from = {}
             new_norm_by_aid = {}
             sentinel_by_aid = {}
             sig = self.config.get("significant_attrs")
@@ -11790,6 +11803,10 @@ class Store:
                         changed_elements.setdefault(
                             "%s#%s" % (aid, f["element"]), set()
                         ).add(f["fact"])
+                        if f["fact"] in NAMING_VERBS and f.get("from"):
+                            renamed_from.setdefault(
+                                "%s#%s" % (aid, f["element"]),
+                                (f["from"], f.get("to")))
                 by_element = self._by_element(diff, facts, consequences,
                                               new_norm, old)
                 sentinel_by_aid[aid] = diff.get("sentinel_suppressed", 0)
@@ -11990,7 +12007,7 @@ class Store:
                 if t.get("id") in resolved_tw and t.get("mapping"):
                     new_map_keys.add(t["mapping"])
             tripwires = self._check_tripwires(changed_elements, revn,
-                                              new_map_keys)
+                                              new_map_keys, renamed_from)
             all_tripwires.extend(tripwires)
 
             # the round this save lands in — an agent move OPENS the
@@ -12303,7 +12320,100 @@ class Store:
             return None
         return sorted(set(kinds))
 
-    def _check_tripwires(self, changed_elements, revn, new_mapping_keys=()):
+    def _glossary_divergence(self, renamed_from, revn, out):
+        """Ask about a rename that walked a settled term off the drawing.
+
+        The r5-4 arm, and the second SCOPE divergence detection runs in.
+        The first is a declared `mapping`, which is what the assessment
+        found the whole detector limited to: zero of eight domain
+        entities were mapped to their identically-named concepts, so the
+        drawing could rename `Booking` to `Reservation` while CONTEXT.md
+        still defined `Booking`, and nothing anywhere asked about it. The
+        detector had no domain coverage at all.
+
+        NAME-IDENTITY rather than the auto-mapping the plan offered as
+        the alternative, for three reasons, recorded so the choice is not
+        re-made. A `mapping` joins `artifact#element` refs and a glossary
+        term is not an element, so auto-mapping has no well-typed member
+        to join to — the synthetic ref it would need leaks into every
+        mapping consumer, including the deletion walk that splits refs on
+        `#` and looks for a live artifact. Auto-mapping is also blind
+        backwards: it fires at creation, so the eight entities already on
+        the canvas stay uncovered until someone redraws them, while a
+        scope covers them the moment it ships. And a mapping tripwire
+        offers to PROPAGATE to the sibling, which assumes the sibling can
+        change in the same batch — CONTEXT.md is edited outside the op
+        path, so a glossary "sibling" could never converge and every
+        entity rename would leave a permanently-open tripwire.
+
+        Fired on the OLD label, which is what makes the control silent: a
+        genuinely new entity's old name is not a term, so renaming it
+        says nothing here. A rename TOWARD a term is convergence and is
+        equally quiet.
+
+        Args:
+            renamed_from: `artifact#element` -> `(old label, new label)`
+                for every naming fact in this batch.
+            revn: The revision being committed, for the tripwire's id.
+            out: The fired-tripwire list, appended to in place and used
+                to number ids continuously with the mapping arm's.
+        """
+        terms = {str(t).strip().lower(): t for t in self.glossary_terms()}
+        if not terms:
+            return
+        # one open question per TERM, not per element: two entities drawn
+        # from one term and renamed in one batch is one drift, and the
+        # mapping arm above learned the same lesson the expensive way
+        # (v0.6 r3-7, three tripwires for one cause)
+        seen = {t.get("mapping") for t in self.registry["tripwires"]
+                if t.get("status") == "open"}
+        for ref, (was, now) in sorted(renamed_from.items()):
+            term = terms.get(str(was or "").strip().lower())
+            key = "glossary:%s" % slugify(term) if term else None
+            if term is None or key in seen:
+                continue
+            seen.add(key)
+            entry = {"mapping": key, "changed": ref, "sibling": term,
+                     "changed_all": [ref], "siblings": [term],
+                     "kind": "glossary"}
+            out.append(entry)
+            reg_entry = dict(entry)
+            reg_entry.update({
+                "id": "tw-%d-%d" % (revn, len(out)),
+                "save": revn, "status": "open",
+                "question": "%s was renamed to %r, but CONTEXT.md still "
+                            "defines %r. Divergence, or should the "
+                            "glossary follow?" % (ref, now, term),
+                "choices": ["The glossary follows — settle the new term",
+                            "Intentional divergence — the drawing means "
+                            "something else"],
+                "detail": (
+                    "%r is a settled glossary term, and at save %d the "
+                    "drawing stopped using it: %s now reads %r. The two "
+                    "are the project's ubiquitous language and its "
+                    "picture of that language, so right now they "
+                    "disagree.\n\n"
+                    "• 'The glossary follows' asks the agent to carry "
+                    "the rename into CONTEXT.md — a term settling is a "
+                    "concept being minted, so the concept's `glossary` "
+                    "link moves with it.\n"
+                    "• 'Intentional divergence' records the difference "
+                    "as deliberate: %r stays in the glossary meaning "
+                    "what it meant, and this drawing is about something "
+                    "else.\n\n"
+                    "Free-text works too: the usual third option here is "
+                    "that the term was always wrong and both should "
+                    "change."
+                    % (term, revn, ref, now, term)),
+                "examples": [],
+                "answer": None,
+            })
+            self.registry["tripwires"].append(reg_entry)
+            entry["id"] = reg_entry["id"]
+            entry["question"] = reg_entry["question"]
+
+    def _check_tripwires(self, changed_elements, revn, new_mapping_keys=(),
+                         renamed_from=None):
         self._muted_renames = []
         out = []
         if not changed_elements:
@@ -12331,8 +12441,7 @@ class Store:
             fired = set()
             for e in hits:
                 fired |= set(changed_elements.get(e) or ())
-            naming = fired & {"renamed", "label_renamed", "entity_renamed",
-                              "relationship_relabeled"}
+            naming = fired & NAMING_VERBS
             if note.startswith("intentionally-divergent") and \
                     self._annotation_covers(m.get("kinds"), fired):
                 if naming:
@@ -12414,6 +12523,8 @@ class Store:
             self.registry["tripwires"].append(reg_entry)
             entry["id"] = reg_entry["id"]
             entry["question"] = reg_entry["question"]
+        # the second scope, run last so its ids continue the first's
+        self._glossary_divergence(renamed_from or {}, revn, out)
         return out
 
     def _policy_covers(self, m, verbs=()):
@@ -13727,6 +13838,27 @@ class Store:
                     cur[tier].extend(m for m in msgs if m not in said)
             return out
 
+    def glossary_terms(self):
+        """The settled terms CONTEXT.md defines, or none.
+
+        Read fresh rather than cached: CONTEXT.md is edited outside the
+        op path — by the user, in an editor, between saves — so a value
+        held from load would answer for a glossary that no longer exists.
+        A missing or unreadable file is not an error here; it means the
+        project has not settled any terms yet, which is the ordinary
+        state of a session's first round.
+
+        Returns:
+            The term names as written, or an empty list.
+        """
+        try:
+            ctx = self.p.pk / "CONTEXT.md"
+            if ctx.exists():
+                return parse_glossary_terms(ctx.read_text(encoding="utf-8"))
+        except OSError:
+            pass
+        return []
+
     def lint_debt(self):
         """Standing cross-artifact lint summary (live_test_2 B5 — apply
         reports only the touched artifact, so drift elsewhere stayed
@@ -13741,14 +13873,7 @@ class Store:
                 return cached[1]
             debt, lines = {}, {}
             types = {aid: self.artifact_type(aid) for aid in self.scenes}
-            terms = []
-            try:
-                ctx = self.p.pk / "CONTEXT.md"
-                if ctx.exists():
-                    terms = parse_glossary_terms(
-                        ctx.read_text(encoding="utf-8"))
-            except OSError:
-                pass
+            terms = self.glossary_terms()
             cross = cross_lint(self.scenes, types, self.registry, terms)
             ref = self.referential_now()
             for aid, els in sorted(self.scenes.items()):

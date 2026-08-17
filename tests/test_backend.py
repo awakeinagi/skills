@@ -9531,6 +9531,163 @@ class TestDivergenceVerbs(Base):
                      "state_toggled", "entity_deleted"):
             self.assertIn(verb, canvas.DIVERGENCE_VERBS, verb)
 
+    def test_the_naming_subset_is_a_subset(self):
+        """`NAMING_VERBS` was a literal in two arms and is now one name.
+
+        It is spelled once because three places need exactly it, and the
+        risk of the constant is the same as its parent's: a verb that
+        drifts out of `DIVERGENCE_VERBS` while staying here would arm a
+        glossary question for a fact no tripwire scope watches.
+        """
+        self.assertTrue(canvas.NAMING_VERBS)
+        self.assertLessEqual(canvas.NAMING_VERBS, canvas.DIVERGENCE_VERBS)
+
+
+class TestGlossaryDivergence(Base):
+    """Renaming a drawn element off a settled term (r5-4).
+
+    Divergence detection ran in exactly one scope — a declared `mapping`
+    — and the v0.5 assessment found ZERO of eight domain entities mapped
+    to their identically-named concepts, so the detector had no domain
+    coverage at all: the drawing could rename `Booking` to `Reservation`
+    while CONTEXT.md still defined `Booking` and nothing asked. Every
+    test here is half a pair; the silent poles are the ones that make
+    the firing pole worth having, since a check that questioned every
+    rename would be the same channel wrong in the other direction.
+    """
+
+    TERMS = ("# Context\n\n## Glossary\n\n"
+             "- **Booking**: a reserved slot\n"
+             "- **Vendor**: the supplier\n")
+
+    def seed(self, glossary=TERMS, labels=("Booking", "Trolley")):
+        """Create a two-entity domain artifact and settle a glossary.
+
+        Args:
+            glossary: CONTEXT.md's body, or None to write no file.
+            labels: The two entities' labels.
+
+        Returns:
+            The store's record for the seeding batch.
+        """
+        if glossary is not None:
+            (self.project.pk / "CONTEXT.md").write_text(glossary,
+                                                        encoding="utf-8")
+        ops = [{"op": "add", "element": {
+            "type": "rectangle", "id": "ent%d" % i, "label": lbl,
+            "x": 100 + i * 300, "y": 100, "width": 160, "height": 80,
+            "kind": "entity", "role": "node"}}
+            for i, lbl in enumerate(labels)]
+        rec, _ = self.store.apply_batch({
+            "base_revn": 0, "artifact": "dom",
+            "create": {"id": "dom", "name": "Shop", "type": "domain"},
+            "ops": ops})
+        return rec
+
+    def rename(self, eid, to, base_revn=1):
+        """Relabel one entity and return the batch's tripwires.
+
+        Args:
+            eid: The entity's id; its bound label is `<eid>-label`.
+            to: The new label text.
+            base_revn: The revision to apply against.
+
+        Returns:
+            The record's tripwire list.
+        """
+        rec, _ = self.store.apply_batch({
+            "base_revn": base_revn, "artifact": "dom",
+            "ops": [{"op": "mod", "id": eid + "-label",
+                     "attrs": {"text": to}}]})
+        return rec["tripwires"]
+
+    def test_renaming_a_glossary_term_fires_a_divergence_challenge(self):
+        """r5-4: the drawing walks off the term and is asked about it."""
+        self.seed()
+        tws = self.rename("ent0", "Reservation")
+        self.assertEqual(len(tws), 1, tws)
+        self.assertEqual(tws[0]["kind"], "glossary")
+        self.assertEqual(tws[0]["sibling"], "Booking")
+        self.assertIn("Booking", tws[0]["question"])
+        self.assertIn("Reservation", tws[0]["question"])
+
+    def test_renaming_a_genuinely_new_entity_is_silent(self):
+        """The control the plan names: `Trolley` is nobody's term.
+
+        Without this, questioning every rename would pass the test above
+        — and that is the failure this whole work package exists to stop,
+        a channel wrong in the other direction.
+        """
+        self.seed()
+        self.assertEqual(self.rename("ent1", "Basket"), [])
+
+    def test_renaming_toward_a_term_is_silent(self):
+        """Convergence is not divergence — the gate is the OLD label.
+
+        `Trolley` becoming `Vendor` moves the drawing INTO the glossary's
+        vocabulary. A check gated on the new name would fire here, which
+        would be scolding an agent for adopting the settled word.
+        """
+        self.seed()
+        self.assertEqual(self.rename("ent1", "Vendor"), [])
+
+    def test_one_question_for_two_entities_drawn_from_one_term(self):
+        """Two views of one term, renamed together, ask once.
+
+        The mapping arm learned this the expensive way: renaming one
+        member of a four-member mapping asked three questions, and the
+        agent that met it answered the cause and not the count (v0.6
+        r3-7). A term is the cause here, so BOTH entities carry the same
+        label — an earlier draft renamed one entity twice in a row, which
+        passes whether the dedupe exists or not, because after the first
+        rename its old label is no longer a term. Measured: deleting the
+        dedupe moved nothing against that version.
+        """
+        self.seed(labels=("Booking", "Booking"))
+        rec, _ = self.store.apply_batch({
+            "base_revn": 1, "artifact": "dom", "ops": [
+                {"op": "mod", "id": "ent0-label",
+                 "attrs": {"text": "Reservation"}},
+                {"op": "mod", "id": "ent1-label",
+                 "attrs": {"text": "Slot"}}]})
+        self.assertEqual(len(rec["tripwires"]), 1, rec["tripwires"])
+
+    def test_an_open_question_is_not_re_asked_next_revision(self):
+        """The same term drifting again while the first ask is open."""
+        self.seed(labels=("Booking", "Booking"))
+        self.assertEqual(len(self.rename("ent0", "Reservation")), 1)
+        self.assertEqual(self.rename("ent1", "Slot", base_revn=2), [])
+
+    def test_a_project_with_no_glossary_asks_nothing(self):
+        """No CONTEXT.md is the ordinary state of a first round.
+
+        A missing glossary must read as "no terms settled yet", never as
+        an error and never as a reason to go quiet about real mappings —
+        so this asserts the rename lands cleanly rather than that some
+        exception was swallowed.
+        """
+        rec = self.seed(glossary=None)
+        self.assertEqual(rec["revn"], 1)
+        self.assertEqual(self.rename("ent0", "Reservation"), [])
+
+    def test_the_challenge_is_answerable_where_it_fired(self):
+        """It carries the same affordances a mapping tripwire does.
+
+        A tripwire the agent cannot resolve is a permanent nag, and this
+        one has no mapping to annotate — so the id, the choices and the
+        open status are what make it closable at all.
+        """
+        self.seed()
+        self.rename("ent0", "Reservation")
+        open_tws = [t for t in self.store.registry["tripwires"]
+                    if t.get("status") == "open"]
+        self.assertEqual(len(open_tws), 1)
+        t = open_tws[0]
+        self.assertTrue(t["id"])
+        self.assertEqual(len(t["choices"]), 2)
+        self.assertIn("glossary follows", t["choices"][0])
+        self.assertIn("Booking", t["detail"])
+
 
 class TestStateVariantFrames(Base):
     """A rename landing on one frame of a screen and not its twin (v0.6).

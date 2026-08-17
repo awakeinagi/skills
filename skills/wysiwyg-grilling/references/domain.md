@@ -62,6 +62,17 @@ diagram now says *Provider*, the glossary says *Vendor* — which wins?" On
 agreement, update CONTEXT.md in your next move's doc flush (narrated,
 veto-able). Never let the two drift silently.
 
+**The backend now fires this challenge for you** (`kind: "glossary"`), so
+it is a tripwire you ANSWER rather than one you have to notice. It is
+armed by NAME IDENTITY, not by a declared mapping: renaming any element
+whose old label is a settled term raises it. That scope is the fix for
+r5-4 — divergence detection ran only over declared mappings, and zero of
+eight entities in the v0.5 assessment were mapped to their identically
+named concepts, so this challenge had no domain coverage at all despite
+being documented here since v0.4. The gate is the OLD label, so renaming
+*toward* a term is silent, and one term raises one open question however
+many entities are drawn from it.
+
 ## Mapping rules
 
 - domain↔flow (default pair): entity ↔ the steps that act on it — link
