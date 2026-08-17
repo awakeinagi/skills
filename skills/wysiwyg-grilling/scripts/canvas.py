@@ -5081,6 +5081,31 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                     errors.append("op %d (mod %s): `text` only applies to "
                                   "text elements — use `label`"
                                   % (i, op.get("id")))
+                elif attr == "roundness" and el.get("type") in (
+                        "arrow", "line") and server_owns_geometry(el):
+                    # Derived, never authored — and now SAID. `roundness`
+                    # is in MOD_ATTRS, so this landed in the catch-all
+                    # below, was echoed as a true sentence about the
+                    # arrow, and was re-derived away by the routing pass
+                    # in the same commit and again at load: the B1
+                    # MOD_ATTRS class (`el[attr] = value` accepting what
+                    # the pipeline discards) reached through a second
+                    # attribute. `derived_roundness` is the rule and
+                    # `gate_curvature` the verdict; neither takes an
+                    # opinion from an op, so the honest answer is to
+                    # refuse and name the way in — authoring `points`
+                    # marks the path the agent's, which is what stops
+                    # the router re-deriving it.
+                    errors.append(
+                        "op %d (mod %s): `roundness` on a server-routed "
+                        "arrow is derived from the route, not authored — "
+                        "the router re-derives it on this save and again "
+                        "at load, so setting it here would change "
+                        "nothing. Author the path with `points` to make "
+                        "the geometry yours, or drop the attribute "
+                        "(references/ops-reference.md documents "
+                        "`roundness` for rounded rectangles)"
+                        % (i, op.get("id")))
                 elif attr not in MOD_ATTRS:
                     errors.append(
                         "op %d (mod %s): unknown attribute %r — allowed: "

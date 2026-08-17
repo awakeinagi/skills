@@ -7144,10 +7144,8 @@ class TestBatchPathIntegrity(unittest.TestCase):
         self.assertEqual(out["errors"], [])
         self.assertIn("n9", "\n".join(out["intent_echo"]))
 
-    @unittest.expectedFailure
-    def test_red_an_accepted_mod_reports_success_and_changes_nothing(
-            self) -> None:
-        """`mod roundness` on a routed arrow lands nowhere and says nothing.
+    def test_a_mod_of_a_derived_attribute_is_refused_by_name(self) -> None:
+        """FLIPPED (v0.9 WP8): `mod roundness` on a routed arrow is refused.
 
         The B1 class `MOD_ATTRS`' own comment exists to name — "`el[attr]
         = value` catch-all was how `mod attrs.kind` no-oped with a
@@ -7189,16 +7187,26 @@ class TestBatchPathIntegrity(unittest.TestCase):
         ruling for this attribute — it just has to be SAID, and a refusal
         naming `roundness` would flip this as readily as making it stick.
 
-        WHO FLIPS THIS: the mod-discard task, which owns the B1 class —
-        an accepted op whose attribute the server then discards, of
-        which `roundness` on a routed arrow is the instance this pins.
-        Written in by curator batch 26 (2026-08-16) from the red-owner
-        map, which found this red's owner recorded at plan level and in
-        no file. NOT a curator's and not this file's: the ruling the fix
-        has to make ("derived, never authored" versus "authored, and the
-        route respects it") is a product decision about what `mod` means
-        on a derived attribute, and the paragraph above deliberately
-        accepts either answer.
+        WHO FLIPPED IT, and how: v0.9 WP8 took the first branch — the
+        ruling is "derived, never authored", and the op surface now says
+        so. `mod roundness` on an element `server_owns_geometry` claims
+        is a `BatchError` naming the attribute and the way in, beside
+        the `points`, `name` and `text` refusals in the same loop. The
+        rule is read off `server_owns_geometry` rather than restated,
+        because that predicate is what the routing pass and the load-
+        time re-derivation both consult; a second copy of it here is how
+        this attribute came to disagree with itself in the first place.
+
+        The assertion is STRICTER than the red it replaces. That red
+        accepted either honest answer — refused, or applied — because
+        the ruling was still open; the ruling is now made, so this pins
+        the answer that was chosen, names the attribute in the message,
+        and requires the arrow to be untouched. It also pins the two
+        edges a broad refusal would have eaten, which the red could not
+        have caught: a RECTANGLE's roundness is authored and still
+        lands, and so does an arrow whose path the agent authored with
+        `points`, since authoring is exactly what takes the geometry
+        away from the router.
         """
         store, _ = self._store()
         store.apply_batch({
@@ -7215,12 +7223,81 @@ class TestBatchPathIntegrity(unittest.TestCase):
                          "being tested")
         escaped = self._send_ops(store, [
             {"op": "mod", "id": "e1", "attrs": {"roundness": {"type": 2}}}])
+        self.assertIsInstance(
+            escaped, canvas.BatchError,
+            "a `mod` the router will undo has to be refused as a batch "
+            "error — that is the 422 the CLI prints as `ERROR=`; got %r"
+            % (escaped,))
+        said = "\n".join(escaped.errors)
+        for word in ("roundness", "derived", "points"):
+            with self.subTest(word=word):
+                self.assertIn(word, said,
+                              "the refusal must name the attribute and "
+                              "the way in, or it is the same silence "
+                              "wearing an error's clothes: %r" % (said,))
         arrow = next(e for e in store.scenes["flow"] if e["id"] == "e1")
-        self.assertTrue(
-            escaped is not None or arrow.get("roundness") == {"type": 2},
-            "the mod was accepted with no error and `roundness` is still "
-            "%r — the echo reports the arrow and never says the "
-            "attribute was discarded" % (arrow.get("roundness"),))
+        self.assertIsNone(arrow.get("roundness"),
+                          "the refused batch still wrote something")
+
+    def test_roundness_still_lands_where_nobody_derives_it(self) -> None:
+        """The refusal's live pole: the shapes it must not have eaten.
+
+        A guard that refused every `mod roundness` would satisfy the
+        claim above while deleting a documented capability —
+        `references/ops-reference.md` documents `roundness` for rounded
+        rectangles, and rectangles are the only type it documents it
+        for. So the refusal is scoped by OWNER, not by type: it asks
+        `server_owns_geometry`, the same predicate the routing pass and
+        the load-time re-derivation ask, and everything that predicate
+        disowns is still the author's to set. An arrow whose path came
+        from `mod points` is in that population, which is why the
+        refusal names `points` as the way in rather than a dead end.
+
+        A SECOND DEFECT OF THE SAME CLASS, found while building this
+        pole and deliberately not fixed here: `roundness` is absent from
+        `DEFAULT_SIGNIFICANT_ATTRS`, so a `mod` that names it AND
+        NOTHING ELSE on the artifact records no change, commits nothing,
+        and is discarded — on a rounded RECTANGLE too, where the
+        capability is documented. Measured: alone it reverts to None,
+        beside any other recorded change it persists to disk and
+        survives a reload. That is the same accepted-and-dropped class
+        this file's red pinned, one layer down in `diff_scenes` rather
+        than in the router, and it belongs to whoever owns the
+        significant-attribute list — putting `roundness` in it is what
+        v0.8 WP2 deliberately undid to stop re-routed arrows minting
+        phantom reconciliations, so it is a ruling, not a one-liner.
+        Both mods below therefore ride beside a second change, which is
+        the shape that works today; a fix upstream leaves this green.
+        """
+        store, _ = self._store()
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n2", "label": "N2", "x": 400,
+                "y": 0, "width": 100, "height": 60, "role": "node"}},
+                {"op": "add", "element": {"type": "arrow", "id": "e1",
+                                          "from": "n1", "to": "n2"}}]})
+        escaped = self._send_ops(store, [
+            {"op": "mod", "id": "n1",
+             "attrs": {"roundness": {"type": 3}, "strokeWidth": 2}},
+            {"op": "mod", "id": "e1",
+             "attrs": {"points": [[0, 0], [80, 40], [160, 0]]}}])
+        self.assertIsNone(escaped, "a legal batch was refused: %r"
+                          % (escaped,))
+        by_id = {e["id"]: e for e in store.scenes["flow"]}
+        self.assertEqual(by_id["n1"]["roundness"], {"type": 3},
+                         "a rounded rectangle is authored geometry and "
+                         "the refusal is scoped to what the router owns")
+        self.assertFalse(canvas.server_owns_geometry(by_id["e1"]),
+                         "`mod points` must hand the path to the author, "
+                         "or the refusal's advice leads nowhere")
+        escaped = self._send_ops(store, [
+            {"op": "mod", "id": "e1",
+             "attrs": {"roundness": {"type": 2}, "strokeWidth": 2}}])
+        self.assertIsNone(escaped, "roundness on an AUTHORED arrow was "
+                                   "refused: %r" % (escaped,))
+        arrow = next(e for e in store.scenes["flow"] if e["id"] == "e1")
+        self.assertEqual(arrow.get("roundness"), {"type": 2})
 
     def test_a_mod_of_an_authored_attribute_takes_effect(self) -> None:
         """The live pole: an attribute the server does not derive sticks.
@@ -16335,7 +16412,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2,
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
                              "TestMermaidEdgeLabelEscaping": 1,
                              "TestRouterPassesDoNotWorsenTheDrawing": 2}
 # TWO CLASSES JOINED on 2026-08-16 (the spike-program curator batch), and

@@ -105,33 +105,47 @@ PROBES: dict[str, dict[str, str]] = {
     # direction anyway: a census that under-reports is caught by the
     # flip contract (unittest fails on a red that started passing),
     # while a census that OVER-reports is caught by nothing else at all.
+    # RE-ANCHORED at v0.9 WP8 (task 30), which found this probe and the
+    # one at the bottom of this dict both dead on arrival — for the same
+    # reason, one commit apart from the reason above. Task 29 wrote both
+    # against an EMPTY catalogue ("*(none", `set()`), and the very next
+    # commit refilled it with the attach-side family, so each anchored on
+    # a string the file had stopped containing. Anchoring on emptiness is
+    # what keeps failing: a catalogue is empty for a commit and populated
+    # for months. Both now anchor on the row/constant's opening instead,
+    # which survives whatever the catalogue holds.
     "model-row-stale": {
         "test": "test_the_handover_transcribes_the_reds_it_declares",
         "file": "SESSION-HANDOVER.md",
         "why": "the catalogue-reds row claims a red the catalogue does "
                "not declare",
-        "old": "| model (default suite) | *(none",
-        "new": "| model (default suite) | `a_red_nobody_flipped` *(none",
+        "old": "| model (default suite) | `corner_feet",
+        "new": "| model (default suite) | `a_red_nobody_flipped`, `corner_feet",
     },
     "hand-authored-count-drift": {
         "test": "test_the_hand_authored_red_classes_are_the_ones_that_exist",
         "file": "tests/test_mutants.py",
         "why": "a red is added to a declared class and the count is not",
-        # The second dead anchor (see the note above): this ended in a
-        # comma when batch 26 wrote it, and TASK-MICROFIX drained the
-        # dict's other two classes the same day, leaving one entry and no
-        # comma. Anchored on the count itself now, which is the thing the
-        # probe has to move anyway.
-        "old": 'HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2}',
-        "new": 'HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1}',
+        # THE THIRD RE-ANCHOR, and the first two are why this one is
+        # written differently. Batch 26 anchored on a trailing comma
+        # TASK-MICROFIX deleted; task 29 re-anchored on a one-entry dict
+        # the spike-program batch then refilled to three, so the string
+        # below carried a `}` that no longer existed and the probe was
+        # dead again inside a day. Anchored on the ENTRY alone now —
+        # neither the dict's punctuation nor its other members can move
+        # it — and perturbed to a count no live class can hold, so the
+        # probe keeps working whatever this class's real number becomes.
+        # (v0.9 WP8 took it 2 -> 1 when the mod-roundness red flipped.)
+        "old": '{"TestBatchPathIntegrity": 1,',
+        "new": '{"TestBatchPathIntegrity": 99,',
     },
     "catalogue-reds-drift": {
         "test": "test_the_catalogue_reds_are_the_ones_declared",
         "file": "tests/test_mutants.py",
         "why": "CATALOGUE_RED_IDS declares a red the decorators do not "
                "carry",
-        "old": "CATALOGUE_RED_IDS: set[str] = set()",
-        "new": 'CATALOGUE_RED_IDS: set[str] = {"a_red_nobody_declared"}',
+        "old": "CATALOGUE_RED_IDS = {",
+        "new": 'CATALOGUE_RED_IDS = {"a_red_nobody_declared",',
     },
 }
 

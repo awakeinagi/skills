@@ -376,8 +376,13 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**8 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-17 at the spike-program curator
+**7 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at v0.9 WP8 task 30, which
+flipped the mod-roundness red — `mod roundness` on a server-routed arrow
+is now refused by name instead of accepted and re-derived away — taking
+`TestBatchPathIntegrity` 2 -> 1 and this file 8 -> 7. DERIVED from the
+grep, not decremented: the batch below had just moved it and the two
+changes are hours apart. It read 8 / 1 / 0 at the spike-program curator
 batch, which ADDED six model reds rather than flipping any — three
 `CATALOGUE` entries in the attach-side family and three hand-authored
 producer/emitter pins — the largest single upward movement this sentence
