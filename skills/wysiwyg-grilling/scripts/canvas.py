@@ -16689,7 +16689,12 @@ def _export_mermaid(args, store, aid, out):
                 if e.get("type") in ("rectangle", "diamond", "ellipse")
                 and (e.get("customData") or {}).get("role") == "node")
     # the attribute rows a domain seeder draws inside an entity are
-    # `decoration` text, and erDiagram is the one form that carries them
+    # `decoration` text, and erDiagram is the one form that carries them.
+    # `note`/`note-text` are LEGACY and stay: nothing writes them any more
+    # (v0.9 WP8 aligned `_x_user_note` to the client's `annotation`/`label`,
+    # r5-7), but four assessment runs' worth of stickies carry them on
+    # disk, and dropping them here would start exporting those notes into
+    # mermaid as if they were nodes.
     silent = ["pin", "annotation", "note", "note-text"]
     if args.format != "er":
         silent.append("decoration")
