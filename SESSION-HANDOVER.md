@@ -376,22 +376,27 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**10 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
+**12 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-derived 2026-08-17 at curator batch 27, folding onto
 v0.9 WP8 task 30 of the same afternoon. THREE CHANGES MOVED THIS NUMBER
 WITHIN HOURS AND THEY WENT BOTH WAYS, which is the whole reason it is
 derived: task 30 FLIPPED the mod-roundness red — `mod roundness` on a
 server-routed arrow is now refused by name instead of accepted and
 re-derived away — taking `TestBatchPathIntegrity` 2 -> 1 and
-`test_mutants.py` 8 -> 7; batch 27 then ADDED four reds, three here and
-one in `test_backend.py`, which had been drained to zero the day before.
-The four: `hyphen_in_the_role_blinds_the_object_reader`, the first entry
+`test_mutants.py` 8 -> 7; batch 27 then ADDED six reds, five here and one
+in `test_backend.py`, which had been drained to zero the day before.
+The six: `hyphen_in_the_role_blinds_the_object_reader`, the first entry
 in this file whose subject is the HARNESS's own reader rather than a
 product check; `TestStoredBindingsDescribeTheFinalInk`, a binding solved
 one line before the snap that moved its foot;
 `TestFurnitureIsNotAnUnconnectedNode`, an activation bar reported as an
-orphan on a correct sequence; and, in `test_backend.py`, the glossary
-challenge that is re-asked after it has been ruled on. Nobody may add or
+orphan on a correct sequence;
+`TestTheAnnotationBudgetCountsWhatTheClientDraws`, a budget that has
+never counted a sticky the client drew; task 30's OTHER filed defect, a
+roundness-only mod discarded in silence, which puts
+`TestBatchPathIntegrity` back at 2 the same day it reached 1; and, in
+`test_backend.py`, the glossary challenge that is re-asked after it has
+been ruled on. Nobody may add or
 subtract along that chain — run the grep. It read 8 / 1 / 0 at the
 spike-program curator
 batch, which ADDED six model reds rather than flipping any — three

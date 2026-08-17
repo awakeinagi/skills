@@ -7955,6 +7955,87 @@ class TestBatchPathIntegrity(unittest.TestCase):
             return exc
         return None
 
+    def _roundness_after(self, alone: bool) -> tuple[Any, Any]:
+        """Set `n1`'s roundness in one batch and report what survived.
+
+        The whole claim turns on WHAT ELSE rode along, so the two poles
+        are one helper with one flag and are otherwise byte-identical:
+        the same store, the same element, the same `{"type": 3}`.
+
+        Args:
+            alone: True to send `roundness` as the batch's only attr;
+                False to send it beside an ordinary `x` move.
+
+        Returns:
+            `(in-memory roundness, roundness after a fresh load)`.
+        """
+        store, tmp = self._store()
+        attrs: dict[str, Any] = {"roundness": {"type": 3}}
+        if not alone:
+            attrs["x"] = 40
+        store.apply_batch({"base_revn": store.head_revn(),
+                           "artifact": "flow",
+                           "ops": [{"op": "mod", "id": "n1",
+                                    "attrs": attrs}]})
+        live = {e["id"]: e for e in store.scenes["flow"]}
+        again = canvas.Store(canvas.Project(tmp))
+        disk = {e["id"]: e for e in again.scenes["flow"]}
+        return live["n1"].get("roundness"), disk["n1"].get("roundness")
+
+    @unittest.expectedFailure
+    def test_red_a_roundness_only_mod_is_discarded_without_a_word(
+            self) -> None:
+        """Whether the op sticks depends on what else was in the batch.
+
+        `roundness` is in `MOD_ATTRS`, so the op validates; it is NOT in
+        `DEFAULT_SIGNIFICANT_ATTRS`, so a batch naming it and nothing
+        else records no change, commits nothing, and the value is gone.
+        On a ROUNDED RECTANGLE, where rounding corners is a documented
+        capability and no routing pass owns the attribute, that is a
+        clean silent discard — not the server-routed-arrow case v0.9 WP8
+        closed by refusing the op with a reason.
+
+        MEASURED, and the pair is the whole finding: alone the value
+        reverts to `None` in memory and on disk; BESIDE an ordinary `x`
+        move the identical attribute reaches disk and survives a reload.
+        Same op, same element, same value, two outcomes decided by a
+        second attribute that has nothing to do with it.
+
+        WHAT THE PICTURE WRONGLY SAYS: the agent asked for rounded
+        corners, got a clean apply and a square box, and has no way to
+        find out. This is the B1 class exactly — an op that does neither
+        what was asked nor says why.
+
+        THE RULING IS NOT MINE AND NOT A ONE-LINER. Adding `roundness`
+        to the significance list is what v0.8 WP2 UNDID, to stop
+        re-routed arrows minting phantom reconciliations, so the fix is
+        the other branch: extend the honest refusal, or record the
+        change. OWNER: TASK-POLISH. Curator batch 27, 2026-08-17, from
+        v0.9 WP8 task 30's filed-not-fixed note.
+        """
+        alone, on_disk = self._roundness_after(alone=True)
+        self.assertEqual(
+            (alone, on_disk), ({"type": 3}, {"type": 3}),
+            "a roundness-only mod applied to nothing and said nothing: "
+            "in memory %r, on disk after reload %r — while the same "
+            "attribute beside an `x` move reaches disk intact"
+            % (alone, on_disk))
+
+    def test_a_roundness_mod_beside_another_change_persists(self) -> None:
+        """The green pole, and the reason the red is about SILENCE.
+
+        The identical attribute in the identical op, with `x` moved as
+        well: the change is recorded, applied and survives a reload. So
+        the op is neither unsupported nor refused — it works, when
+        something else in the batch happens to be significant. This half
+        is what makes the red a statement about the discard being
+        invisible rather than about roundness being unwritable, and it
+        stays green whichever branch the ruling takes.
+        """
+        live, on_disk = self._roundness_after(alone=False)
+        self.assertEqual(live, {"type": 3})
+        self.assertEqual(on_disk, {"type": 3})
+
     @unittest.expectedFailure
     def test_red_the_gate_guards_apply_batch_only_not_the_save_path(
             self) -> None:
@@ -9380,6 +9461,121 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
         self.assertAlmostEqual(
             self._slip(node, arrow, stored), 0.0, places=3,
             msg="a whole-pixel route's stored binding draws its own foot")
+
+
+# ---------------------------------------------------------------------------
+# THE BUDGET THAT HAS NEVER SEEN A STICKY (curator batch 27, 2026-08-17,
+# relayed from TASK-NARRATION/task 30's landing). r5-7 was a check reading
+# the wrong shape and firing; this is the mirror image — a check reading
+# the wrong shape and staying quiet — and it is the more expensive
+# direction, because a false positive gets argued with and a false
+# negative gets believed.
+#
+# `lint_layout` counts annotations as `type == "text" and role ==
+# "annotation"`. The client's sticky note, the only annotation a USER can
+# create, is built by `addStickyNote` in App.tsx as a `type: "rectangle"`
+# roled `annotation` with a bound `-label` text roled `label`. The two
+# shapes do not intersect. No sticky the client has ever drawn has been
+# counted against the two-per-artifact budget, before or after the role
+# alignment that task 30 landed.
+#
+# THE CORPUS AGREES AND DOES NOT SAVE IT: all 21 annotation-roled elements
+# in the fixture corpus are `text`, which is exactly why nothing noticed —
+# the fixtures are agent-seeded and the blind spot is user-shaped.
+#
+# BASE: three stickies in the client's own shape. MUTATION: none. MAGNITUDE:
+# 3 against a budget of 2, the number the note would print. NEIGHBOUR: the
+# same three as free texts, where the note fires with that number — same
+# scene, same count, same role, one `type` apart. OWNER: TASK-POLISH.
+# ---------------------------------------------------------------------------
+
+
+class TestTheAnnotationBudgetCountsWhatTheClientDraws(unittest.TestCase):
+    """A budget that cannot see the only notes a user can make."""
+
+    @staticmethod
+    def _sticky(i: int) -> list[dict]:
+        """One sticky in the client's shape: rectangle plus bound label.
+
+        Args:
+            i: Index, used for the id and to space them apart.
+
+        Returns:
+            The two elements `addStickyNote` inserts, minus the colours.
+        """
+        nid = "note%d" % i
+        return [el(id=nid, type="rectangle", x=i * 220, y=0, width=180,
+                   height=90, boundElements=[{"id": nid + "-label",
+                                              "type": "text"}],
+                   customData={"role": "annotation", "author": "user"}),
+                el(id=nid + "-label", type="text", x=i * 220 + 8, y=8,
+                   width=164, height=74, text="note %d" % i, fontSize=14,
+                   containerId=nid, customData={"role": "label"})]
+
+    @staticmethod
+    def _free_text(i: int) -> list[dict]:
+        """One free-text annotation — the shape the budget counts today.
+
+        Args:
+            i: Index, used for the id and to space them apart.
+
+        Returns:
+            A single `text` element roled `annotation`.
+        """
+        return [el(id="a%d" % i, type="text", x=i * 220, y=300, width=160,
+                   height=20, text="note %d" % i, fontSize=14,
+                   customData={"role": "annotation"})]
+
+    @staticmethod
+    def _budget_notes(els: list[dict]) -> list[str]:
+        """Every annotation-budget line lint emits over `els`.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The matching notes, in emission order.
+        """
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        return [ln for ln in lint["errors"] + lint["warnings"] + lint["notes"]
+                if "annotation callouts" in ln]
+
+    @unittest.expectedFailure
+    def test_red_three_client_stickies_pass_the_two_note_budget(self) -> None:
+        """Three sticky notes on one artifact, and the budget is silent.
+
+        WHAT THE PICTURE WRONGLY SAYS: nothing is over budget. The
+        artifact carries three callouts where the convention allows two
+        (references/layout.md), and the agent reading the lint is told
+        the drawing is within its annotation budget.
+
+        WHAT THE CHECKS REPORTED: nothing at all on this scene. Flips
+        when the count reads the ROLE and lets the shape follow — which
+        is the same repair the orphan-note family keeps asking for, one
+        check over.
+        """
+        els = [e for i in range(3) for e in self._sticky(i)]
+        notes = self._budget_notes(els)
+        self.assertEqual(
+            len(notes), 1,
+            "three annotation-roled stickies in the client's own shape "
+            "(rectangle + bound label, App.tsx addStickyNote) against a "
+            "budget of 2, and the count filters `type == \"text\"` — so "
+            "no sticky a USER has ever made has been counted: %r" % (notes,))
+        self.assertIn("3 annotation callouts", notes[0])
+
+    def test_three_free_texts_are_counted_and_named(self) -> None:
+        """The green pole: the same three, one `type` apart, are named.
+
+        Identical role, identical count, identical artifact — only
+        `type` differs, and the note fires with the right number. That
+        is what makes the red above a statement about the SHAPE filter
+        rather than about the budget being unset or the threshold wrong.
+        """
+        els = [e for i in range(3) for e in self._free_text(i)]
+        notes = self._budget_notes(els)
+        self.assertEqual(len(notes), 1, "the budget went silent entirely")
+        self.assertIn("3 annotation callouts", notes[0])
 
 
 # ---------------------------------------------------------------------------
@@ -16883,11 +17079,13 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 1,
-                             "TestFurnitureIsNotAnUnconnectedNode": 1,
-                             "TestMermaidEdgeLabelEscaping": 1,
-                             "TestRouterPassesDoNotWorsenTheDrawing": 2,
-                             "TestStoredBindingsDescribeTheFinalInk": 1}
+HAND_AUTHORED_RED_CLASSES = {
+    "TestBatchPathIntegrity": 2,
+    "TestFurnitureIsNotAnUnconnectedNode": 1,
+    "TestMermaidEdgeLabelEscaping": 1,
+    "TestRouterPassesDoNotWorsenTheDrawing": 2,
+    "TestStoredBindingsDescribeTheFinalInk": 1,
+    "TestTheAnnotationBudgetCountsWhatTheClientDraws": 1}
 # TWO MORE JOINED on 2026-08-17 (curator batch 27), and the split holds:
 # `TestStoredBindingsDescribeTheFinalInk` compares a STORED value against
 # the geometry beside it, which is not a reading of a picture at all, and
