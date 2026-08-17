@@ -11975,10 +11975,15 @@ class TestXAsUserFidelity(unittest.TestCase):
         three sibling guards in this one function keep it FOR THEIR
         ARGUMENTS — `config`'s `key=value`, the shared `--artifact`
         check, and `note`'s `--text`. That is the claim, and it is
-        narrower than "this function never leaks a traceback": the
-        state faults beside them (no such element, not a checkbox) die
-        cleanly too, but nothing here covers a failure arriving from
-        the server or the socket. `checkout` fed
+        narrower than "this function never leaks a traceback". What is
+        covered beyond arguments: the state faults (no such element, not
+        a checkbox), the artifact READ, which catches `OSError`,
+        `ValueError` and `URLError`, and the save POST, which catches
+        `HTTPError`. What is not: the save POST does not catch a
+        socket-level failure, and the three early-returning verbs —
+        `answer`, `config`, `checkout` — post with no `try` at all, so a
+        server or socket error in any of them still surfaces raw.
+        `checkout` fed
         its default empty `--target` straight to `int()`, so the one verb
         an assessor reaches for while lost in history answered with a
         `ValueError` traceback — which the skill's own troubleshooting

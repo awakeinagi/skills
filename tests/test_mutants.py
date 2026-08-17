@@ -5645,8 +5645,20 @@ class TestStoreIntegrity(unittest.TestCase):
         instead: `min(ch.get("index", len(els)), len(els))` compared
         whatever was there against an int, so a string gave `TypeError:
         '<' not supported between instances of 'int' and 'str'`. The add
-        branch now applies `index_fault`'s TYPE half — and only that half,
-        since the negative case beside it is answered by the clamp.
+        branch now reads through `_add_index`, which asks the same TYPE
+        question — and only that one, since the negative case beside it
+        is answered by the clamp.
+
+        IT IS NOT `index_fault` AND MUST NOT BE HARMONIZED WITH IT. The
+        two agree on everything this test sends and disagree on exactly
+        one class: `index_fault` refuses every float, `_add_index`
+        accepts an INTEGRAL one. That is deliberate (v0.9 WP8 fix round
+        1) and pinned by
+        `test_the_two_index_readers_disagree_about_floats_on_purpose`
+        below, because prose alone did not stop it being written the
+        other way once. `1.5` here is fractional, so this test's values
+        are the ones both readers refuse and it says nothing either way
+        about the split.
 
         Pre-existing, and confirmed as such rather than assumed — it
         reproduces identically at `fce0b30`, before the shared predicate
@@ -5718,6 +5730,45 @@ class TestStoreIntegrity(unittest.TestCase):
         # executed it. The claim is unchanged: the whole project comes
         # back, not a truncated one.
         self.assertEqual(len(rebuilt), len(store.scenes["flow"]))
+
+    def test_the_two_index_readers_disagree_about_floats_on_purpose(
+            self) -> None:
+        """`index_fault` refuses `2.0`; `_add_index` reads it as position 2.
+
+        The repo has two readers of an `index` field and they answer this
+        one class differently BY DESIGN, which is the kind of thing a
+        tidying pass deletes on sight. Both directions of that pass are
+        regressions and neither breaks anything else, so this is the only
+        thing standing in the way.
+
+        `index_fault` validates an index an AGENT IS SENDING and answers
+        with an error the sender can act on, so refusing an odd-looking
+        `2.0` loudly costs nothing and catches a confused caller.
+        `_add_index` reads a record ALREADY WRITTEN, where the only
+        useful question is what the OTHER replay will do with the same
+        bytes — and `replayChanges` (src/api.ts) cannot see the decimal
+        point at all, because JSON and JavaScript share one number type
+        and `JSON.parse("2.0")` is plainly 2. Refusing the float type
+        there put the element at the end while the tab put it at 2: one
+        record, two drawings, and element order is paint order (v0.9 WP8
+        fix round 1, review MAJOR-1). Tolerant when reading history,
+        strict when accepting new work.
+
+        A fractional float is refused by both, which is what makes this a
+        SPLIT rather than a contradiction, so that pole is asserted too.
+        """
+        self.assertIsNotNone(canvas.index_fault(2.0, 5),
+                             "`index_fault` must keep refusing a float: it "
+                             "answers a sender who can still fix the op")
+        self.assertEqual(
+            canvas._add_index({"op": "add", "index": 2.0}), 2,
+            "`_add_index` must keep accepting an INTEGRAL float, or the "
+            "server and `replayChanges` rebuild different scenes from one "
+            "record — the client cannot see the decimal point")
+        self.assertIsNone(
+            canvas._add_index({"op": "add", "index": 2.5}),
+            "a FRACTIONAL float is not a position on either side; if this "
+            "ever lands, the two replays have parted again")
 
 
 # ---------------------------------------------------------------------------
