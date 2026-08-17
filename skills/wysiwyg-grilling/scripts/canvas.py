@@ -4254,6 +4254,7 @@ def reroute_is_fossil(els):
     | route only | 9 / 24 — the same nine |
     | route only, no crossing term | 9 / 24 — the same nine |
     | route only, no obstacles | **0 / 24** |
+    | route + fan, no obstacles | 1 / 24 |
     | fan only | **0 / 24** |
 
     So the fan is exonerated — it neither adds an orbiter nor removes
@@ -4262,6 +4263,13 @@ def reroute_is_fossil(els):
     function of the two endpoints, which fixes on pass one. The
     oscillation is the obstacle-avoidance search re-deciding against a
     scene its own previous decision moved.
+
+    EXONERATED IS NOT THE SAME AS HELPFUL, which is why the last row is
+    in the table: the fan is NEUTRAL in the shipped configuration, and
+    in the one arm where it changes the count at all it makes things
+    worse, turning 0/24 into 1/24 (`argus-r5 / daily-run`). A reader
+    working from the first five rows alone could talk themselves into
+    "the fan stabilises this"; two of us did.
 
     Two answers were tried and discarded before this one. `tidy`'s —
     refuse what will not settle — is right for a repair button and

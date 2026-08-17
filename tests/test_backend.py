@@ -11731,8 +11731,19 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
     route+fan pass, dropping the crossing term changes nothing, and both
     `fan only` and `route with no obstacles` orbit ZERO of 24. Obstacle-
     free routing is a pure function of the two endpoints and fixes on
-    pass one; the fan is a net stabiliser. `TestTheOscillatorIsTheRouter`
-    below holds that attribution to the measurement.
+    pass one. `TestTheOscillatorIsTheRouter` below holds that
+    attribution to the measurement.
+
+    THE FAN IS NEUTRAL HERE, WHICH IS NOT THE SAME AS HELPFUL, and the
+    difference cost a correction: an earlier draft called it "a net
+    stabiliser", which the ablation does not support in either
+    direction. In the shipped configuration adding the fan to the router
+    leaves the orbiting set byte-identical — the same nine artifacts by
+    name, neither added to nor removed from. The one arm where it moves
+    the count at all is obstacle-free routing, and there it moves it the
+    WRONG way: 0/24 without the fan, 1/24 with it
+    (`argus-r5 / daily-run`). Exonerated as the cause, not credited as
+    the cure.
 
     Driven on the frozen corpus rather than on a synthetic pair, because
     the non-convergence is a property of real scenes: nine of the 24
