@@ -11967,18 +11967,26 @@ class TestANoOpRebindMintsNoFact(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# THE STICKY THAT IS SOLID ON ONE PATH AND AIR ON THE OTHER (curator batch
-# 28, 2026-08-17, seeded by review of the obstacle-set builders).
+# THE STICKY THAT IS SOLID ON ONE PATH AND AIR ON THE OTHER FOUR (curator
+# batch 28, 2026-08-17, seeded by review of the obstacle-set builders;
+# widened from two producers to five by curator batch 29 the same day,
+# which is batch 28's own concern 3 discharged).
 #
 # `apply_ops.obstacles()` excludes `label`, `pin`, `decoration`. Every other
 # builder of the same set excludes `annotation` as well — `fan_obstacles`,
-# `Store._tidy_pass`, `reroute_and_confess`, and `lint_layout`'s `shapes`.
-# The client's sticky note (`addStickyNote`) is a `rectangle` roled
-# `annotation`, so it is a HARD obstacle on the op path and invisible
-# everywhere else. TASK-REROUTE's unfolded `reroute_scene` will be the
-# fifth site and follows the majority, with a comment that names this
-# divergence and leaves it — so the count moves, the asymmetry does not,
-# and this red survives that fold (measured against its canvas.py).
+# `Store._tidy_pass`, `reroute_and_confess`, `reroute_scene`, and
+# `lint_layout`'s `shapes`. The client's sticky note (`addStickyNote`) is a
+# `rectangle` roled `annotation`, so it is a HARD obstacle on the op path
+# and invisible everywhere else.
+#
+# BATCH 28 PREDICTED THE FOLD AND THE PREDICTION HELD, which is why this
+# widening is a measurement rather than a rewrite. It said TASK-REROUTE's
+# unfolded `reroute_scene` would be the fifth site and would follow the
+# majority, "so the count moves, the asymmetry does not, and this red
+# survives that fold". At this head `reroute_scene` builds its set with
+# `role_of`, excludes `annotation`, and carries a comment naming this very
+# divergence and declining to settle it — and it draws the same 180px
+# through the note that `_tidy_pass` does.
 #
 # VERIFY-FIRST ON THE HISTORY, because a divergence can be a decision: both
 # lists were written in the SAME commit (1ce9c22, v0.2) — as was the
@@ -11994,27 +12002,51 @@ class TestANoOpRebindMintsNoFact(unittest.TestCase):
 # are `text`. The fixtures are agent-seeded and the shape is user-made —
 # the same blind spot curator batch 27 found under the annotation budget.
 #
-# BASE: two nodes off-axis, one server-routed arrow, one sticky sitting on
-# the elbow the router prefers. MUTATION: none — the scene is walked down
-# two ENTRY PATHS, a node move and a Tidy press, both things a user does.
-# MAGNITUDE: 0px of arrow drawn inside the sticky after the move, 180px
-# (its full width) after the Tidy. DIRECTION: the op path avoids, the tidy
-# path draws through. NEIGHBOUR: the identical geometry with the box roled
-# `node` instead, where the two paths agree — one `role` string apart.
+# BASE: three nodes and one sticky, with TWO server-routed arrows leaving
+# the same side of `a`. Two and not one because a fan only forms where a
+# side carries two feet, so a one-arrow scene cannot measure the fan's
+# obstacle set at all — batch 28's base was exactly that scene, which is
+# why it could pin two of the five builders and name the rest.
+#
+# MUTATION: none. ONE perturbation — `a` grows 20px taller — is walked down
+# every producer, and a resize rather than a move is what lets the LOAD
+# path in: `reroute_and_confess` is reached from `validate_scene` when a
+# repair changes a container's box, so a resize is the only perturbation
+# all four routing paths can be handed.
+#
+# MAGNITUDE: 0px of arrow drawn inside the sticky on the op path, 180px —
+# its full width — after a Tidy, after the load repair and after a legacy
+# re-route. The fan is measured in its OWN currency, because the ink
+# currency cannot see it: the fan does not route, it slides a foot along an
+# edge, so `_ink_inside_the_note` reads the same number whatever it decides
+# and a shared currency would have pinned nothing while looking like it
+# had. Its reading is `r2`'s foot at its ideal slot (y=67) beside an
+# annotation and 24px clear of it (y=43) beside a node.
+#
+# DIRECTION: the op path avoids, the other three draw through, and the fan
+# sides with the three. NEIGHBOUR: the identical geometry with the box
+# roled `node` instead, where all four routing paths agree at 0px — one
+# `role` string apart.
 # ---------------------------------------------------------------------------
 
 
 class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
-    """One scene may not have two routes depending on how you got there."""
+    """One scene may not have five drawings depending on how you got there."""
 
-    def _project(self, role: str) -> canvas.Store:
-        """A flow whose preferred elbow runs through one 180x90 box.
+    @staticmethod
+    def _scene(role: str) -> list[dict]:
+        """Two arrows off one node side, past one 180x90 box.
 
-        `a` and `b` are off-axis (`_route_candidates` only offers
-        detours when both deltas exceed 4px), and the box straddles the
-        horizontal leg of the elbow the router picks when nothing is in
-        the way. The arrow carries no `routed` mark, which makes a
-        straight two-point bound arrow server-owned — the state a real
+        `r1` and `r2` both leave `a`'s right side, which is what makes a
+        fan form at all: `fan_attach_points` skips any side carrying
+        fewer than two feet. The note straddles the horizontal leg of
+        the elbow the router picks for `r2` when nothing is in the way,
+        AND sits where the fan's ideal slot for `r2` would draw it — one
+        box, both mechanisms, so every reading below is about the same
+        drawing rather than about two scenes that happen to rhyme.
+
+        Neither arrow carries a `routed` mark, which is what makes a
+        straight two-point bound arrow server-owned: the state a real
         artifact is in before anything re-routes it.
 
         Args:
@@ -12022,20 +12054,42 @@ class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
                 experiment is this one string.
 
         Returns:
-            The loaded store, at its own head, ready to be edited.
+            A fresh element list. Every arm below mutates what it is
+            given, so no two of them may share one.
         """
-        els = [
+        return [
             el(id="a", type="rectangle", x=0, y=0, width=120, height=80,
                customData={"role": "node"}),
-            el(id="b", type="rectangle", x=600, y=200, width=120,
+            el(id="b", type="rectangle", x=600, y=0, width=120, height=80,
+               customData={"role": "node"}),
+            el(id="c", type="rectangle", x=600, y=300, width=120,
                height=80, customData={"role": "node"}),
-            el(id="note", type="rectangle", x=300, y=0, width=180,
+            el(id="note", type="rectangle", x=310, y=270, width=180,
                height=90, customData={"role": role, "author": "user"}),
-            el(id="r", type="arrow", x=120, y=40, width=480, height=200,
-               points=[[0, 0], [480, 200]],
+            el(id="r1", type="arrow", x=120, y=40, width=480, height=0,
+               points=[[0, 0], [480, 0]],
                startBinding={"elementId": "a", "focus": 0, "gap": 6},
                endBinding={"elementId": "b", "focus": 0, "gap": 6}),
+            el(id="r2", type="arrow", x=120, y=40, width=480, height=300,
+               points=[[0, 0], [480, 300]],
+               startBinding={"elementId": "a", "focus": 0, "gap": 6},
+               endBinding={"elementId": "c", "focus": 0, "gap": 6}),
         ]
+
+    def _project(self, role: str) -> canvas.Store:
+        """`_scene` on disk as a loadable one-artifact project.
+
+        Only the two store-driven arms need this; the other three call
+        their producer directly, which is why the scene builder and the
+        project builder are separate.
+
+        Args:
+            role: Passed to `_scene` — the middle box's role.
+
+        Returns:
+            The loaded store, at its own head, ready to be edited.
+        """
+        els = self._scene(role)
         root = _scratch_project(
             self,
             {"f": json.dumps({"type": "excalidraw", "version": 2,
@@ -12052,72 +12106,134 @@ class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
 
     @staticmethod
     def _ink_inside_the_note(els: list[dict]) -> float:
-        """How many pixels of the arrow are drawn inside the middle box.
+        """How many pixels of arrow are drawn inside the middle box.
 
         A count of crossings would read 1 for a graze and 1 for a stroke
         straight down the middle; the SPAN is what a reader sees, and it
         is the number that separates "the router avoided it" from "the
         router ignored it".
 
+        Clipped at ANY angle (Liang-Barsky) where batch 28 tested only
+        axis-aligned legs. Every routed path here is orthogonal, so the
+        numbers on those drawings are unchanged — but a diagonal left
+        unrouted straight through the box read 0px under the old test,
+        and a measure that goes quiet on the worse picture is the shape
+        this whole file exists to refuse.
+
         Args:
-            els: A scene holding `r` and `note`.
+            els: A scene holding `note`, `r1` and `r2`.
 
         Returns:
-            Total length of `r` lying within `note`'s box. The routed
-            paths here are orthogonal, so this measures the axis-aligned
-            legs and no others.
+            Total length of both arrows lying within `note`'s box, to
+            0.1px.
         """
         ix = {e["id"]: e for e in els}
-        note, arrow = ix["note"], ix["r"]
-        nx1, ny1 = note["x"], note["y"]
-        nx2, ny2 = nx1 + note["width"], ny1 + note["height"]
-        path = [(arrow["x"] + px, arrow["y"] + py)
-                for px, py in arrow["points"]]
+        note = ix["note"]
+        bx1, by1 = note["x"], note["y"]
+        bx2, by2 = bx1 + note["width"], by1 + note["height"]
         total = 0.0
-        for (x1, y1), (x2, y2) in zip(path, path[1:]):
-            if y1 == y2 and ny1 <= y1 <= ny2:
-                lo, hi = sorted((x1, x2))
-                total += max(0.0, min(hi, nx2) - max(lo, nx1))
-            elif x1 == x2 and nx1 <= x1 <= nx2:
-                lo, hi = sorted((y1, y2))
-                total += max(0.0, min(hi, ny2) - max(lo, ny1))
-        return total
+        for aid in ("r1", "r2"):
+            arrow = ix[aid]
+            path = [(arrow["x"] + px, arrow["y"] + py)
+                    for px, py in arrow["points"]]
+            for (x1, y1), (x2, y2) in zip(path, path[1:]):
+                dx, dy = x2 - x1, y2 - y1
+                t0, t1 = 0.0, 1.0
+                for p, q in ((-dx, x1 - bx1), (dx, bx2 - x1),
+                             (-dy, y1 - by1), (dy, by2 - y1)):
+                    if p == 0:
+                        if q < 0:
+                            t0, t1 = 1.0, 0.0
+                    elif p < 0:
+                        t0 = max(t0, q / p)
+                    else:
+                        t1 = min(t1, q / p)
+                if t1 > t0:
+                    total += (t1 - t0) * math.hypot(dx, dy)
+        return round(total, 1)
 
-    def _both_entry_paths(self, role: str) -> tuple[float, float]:
-        """Move a node, then press Tidy, measuring the arrow after each.
+    def _four_entry_paths(self, role: str) -> dict[str, tuple[float, int]]:
+        """Grow `a` 20px taller, four ways, measuring the ink each time.
 
-        The two entry paths are run over ONE store in sequence rather
-        than over two copies, so the Tidy reads exactly the scene the
-        move left behind: same node boxes, same arrow, same box in the
-        middle. Any difference between the two numbers is a difference
-        of obstacle set and of nothing else.
+        One perturbation, four producers, a fresh copy of the same scene
+        for each — so any difference between the numbers is a difference
+        of obstacle set and of nothing else. The Tidy runs over the
+        store the op path left behind rather than over a copy, because
+        that is the order a user presses the buttons in.
+
+        `load` calls `reroute_and_confess` with the box `a` had before,
+        which is what canvas.py:752 passes it. Reaching it through
+        `validate_scene` instead would need a label wider than its
+        container — incidental content this scene has no other use for,
+        and a second thing that could explain a difference.
 
         Args:
-            role: Passed to `_project` — the box's role.
+            role: Passed to `_scene` — the middle box's role.
 
         Returns:
-            `(after the move, after the tidy)` in pixels of arrow drawn
-            inside the middle box.
+            `{arm: (px of arrow inside the note, points in r2)}` for the
+            four arms `move`, `tidy`, `load`, `legacy`. The point count
+            rides along because a 0 is also what a router that never ran
+            produces, and the neighbour has to tell those apart.
         """
+        def reading(els: list[dict]) -> tuple[float, int]:
+            return (self._ink_inside_the_note(els),
+                    len({e["id"]: e for e in els}["r2"]["points"]))
+
         store = self._project(role)
         store.apply_batch({"base_revn": store.head_revn(), "artifact": "f",
                            "ops": [{"op": "mod", "id": "a",
-                                    "attrs": {"y": 20}}]})
-        moved = self._ink_inside_the_note(store.scenes["f"])
+                                    "attrs": {"height": 100}}]})
+        out = {"move": reading(store.scenes["f"])}
         store.tidy("f")
-        return moved, self._ink_inside_the_note(store.scenes["f"])
+        out["tidy"] = reading(store.scenes["f"])
+        els = self._scene(role)
+        grown = {e["id"]: e for e in els}["a"]
+        grown["height"] = 100
+        canvas.reroute_and_confess(els, grown, (120, 80), "f")
+        out["load"] = reading(els)
+        els = self._scene(role)
+        {e["id"]: e for e in els}["a"]["height"] = 100
+        out["legacy"] = reading(canvas.reroute_scene(els)[0])
+        return out
+
+    def _fan_feet(self, role: str) -> list[tuple[float, float]]:
+        """Where `fan_attach_points` leaves the two feet on `a`'s side.
+
+        The fifth builder, in the only currency that can see it. The fan
+        does not route — it spreads feet along an edge and reverts a
+        slide whose ideal slot would push a segment through a foreign
+        box — so the ink measure above reads the same number whatever
+        `fan_obstacles` decides, and reporting the fan in that currency
+        would have looked like coverage while pinning nothing.
+
+        Args:
+            role: Passed to `_scene` — the middle box's role.
+
+        Returns:
+            `[(x, y), (x, y)]` — the tails of `r1` and `r2` after the
+            pass, on the same grown `a` the four routing arms see.
+        """
+        els = self._scene(role)
+        {e["id"]: e for e in els}["a"]["height"] = 100
+        canvas.fan_attach_points(els)
+        ix = {e["id"]: e for e in els}
+        return [(ix[aid]["x"], ix[aid]["y"]) for aid in ("r1", "r2")]
 
     @unittest.expectedFailure
-    def test_red_a_sticky_is_solid_to_a_move_and_air_to_a_tidy(self) -> None:
-        """Same scene, same arrow, two entry paths, two drawings.
+    def test_red_a_sticky_is_solid_to_a_move_and_air_to_the_other_three(
+            self) -> None:
+        """Same scene, same arrows, four entry paths, two drawings.
 
         The user drags a node: `apply_ops` re-routes, its `obstacles()`
-        counts the sticky, and the arrow bends down and around it — 0px
-        of it inside the note. The user then presses Tidy, which does not
-        move a single node here: `_tidy_pass` re-routes with a set that
-        drops annotations, so the same arrow between the same two boxes
-        snaps back onto the elbow and lies 180px — the note's whole width
-        — straight through the user's own note.
+        counts the sticky, and `r2` bends around it — 0px of it inside
+        the note. The user then presses Tidy, which moves no node here:
+        `_tidy_pass` re-routes with a set that drops annotations, so the
+        same arrow between the same two boxes snaps back onto the elbow
+        and lies 180px — the note's whole width — straight through the
+        user's own note. The load-time repair and the legacy re-route
+        draw it the same way for the same reason, which is what turns
+        batch 28's one disagreement into a majority of three to one.
 
         WHAT THE PICTURE WRONGLY SAYS: an arrow drawn through a note the
         user wrote reads as "this note is about this connector" (or as
@@ -12129,52 +12245,262 @@ class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
         are available — annotations hard everywhere, soft everywhere
         (which is what `apply_ops`' own comment says they are, and its
         `soft_obstacles` only ever collects `text`), or transparent
-        everywhere — and two of them land on 0/0 while the third lands on
-        180/180. All three make one scene draw one way, which is the
-        whole claim; picking among them belongs to the WP that owns the
-        router, not here. OWNER: unassigned at filing; the four builders
-        are `apply_ops.obstacles`, `fan_attach_points`' `fan_obstacles`,
-        `Store._tidy_pass`, and `reroute_and_confess`.
+        everywhere — and two of them land every arm on 0 while the third
+        lands every arm on 180. All three make one scene draw one way,
+        which is the whole claim; picking among them belongs to the WP
+        that owns the router, not here. OWNER: unassigned at filing, and
+        still unassigned at this widening — the five builders are
+        `apply_ops.obstacles`, `Store._tidy_pass`, `reroute_and_confess`,
+        `reroute_scene`, and `fan_attach_points`' `fan_obstacles`.
         """
-        moved, tidied = self._both_entry_paths("annotation")
+        spans = {arm: v[0] for arm, v in
+                 self._four_entry_paths("annotation").items()}
         self.assertEqual(
-            moved, tidied,
-            "one scene, two geometries: a node move left %.0fpx of the "
-            "arrow inside the sticky and a Tidy press left %.0fpx — the "
-            "op path counts an annotation-roled box as an obstacle and "
-            "the tidy path does not" % (moved, tidied))
+            len(set(spans.values())), 1,
+            "one scene, two geometries: %s — the op path counts an "
+            "annotation-roled box as an obstacle and the other three do "
+            "not" % ", ".join("%s %.0fpx" % kv for kv in spans.items()))
 
-    def test_the_same_box_roled_node_gets_one_answer_from_both_paths(
+    def test_the_same_box_roled_node_gets_one_answer_from_every_path(
             self) -> None:
         """The live half: identical geometry, one `role` string apart.
 
-        Every builder counts a `node`, so both entry paths avoid this box
-        and agree — and Tidy reports `noop` on a scene it has nothing to
-        repair, which is the same statement read from the other side.
-        That pins the divergence to the ROLE rather than to the two code
-        paths differing in general, which is the alternative explanation
-        the red has to rule out.
+        Every builder counts a `node`, so all four entry paths avoid
+        this box and agree. That pins the divergence to the ROLE rather
+        than to four code paths differing in general, which is the
+        alternative explanation the red has to rule out.
 
-        Ungated, and it is also what proves the probe can see anything at
-        all: it asserts the arrow really is routed (a detour has a leg,
-        so its measured span inside the box is 0 for a reason) and that
-        `_both_entry_paths` reaches a Tidy at all. A store that refused
-        the batch, or an arrow the router declined to own, would show 0/0
-        here for the wrong reason — so the routed path is checked to be
-        the bent one, not merely a clear one.
+        Ungated, and it is also what proves the probe can see anything
+        at all. A 0 is exactly what a router that never ran produces, so
+        each arm is additionally required to have DETOURED: `r2` comes
+        back with four points on every one of them, where a plain elbow
+        through the box has three. Batch 28 checked that on one arm with
+        `>= 3`; four arms and a real detour is the same guard made
+        strict, because the whole class would otherwise be satisfied by
+        a dead router.
         """
-        store = self._project("node")
+        arms = self._four_entry_paths("node")
+        self.assertEqual({arm: v[0] for arm, v in arms.items()},
+                         {"move": 0.0, "tidy": 0.0, "load": 0.0,
+                          "legacy": 0.0},
+                         "every entry path must keep a node's box clear")
+        for arm, (_, corners) in arms.items():
+            with self.subTest(arm=arm):
+                self.assertGreaterEqual(
+                    corners, 4,
+                    "%s never detoured around the box, so its 0px is the "
+                    "0px of a router that did nothing: r2 came back with "
+                    "%d points and a plain elbow has 3" % (arm, corners))
+
+    def test_the_fan_sides_with_the_routers_about_an_annotation(
+            self) -> None:
+        """The fifth builder, pinned at both poles in its own currency.
+
+        `fan_obstacles` excludes `annotation` exactly as `_tidy_pass`,
+        `reroute_and_confess` and `reroute_scene` do, so beside an
+        annotation-roled box the fan leaves both feet on their ideal
+        `length * k / (N + 1)` slots, and beside a node-roled box in the
+        same place it slides `r2`'s foot 24px clear. Measured rather
+        than read off the source, which is the point: batch 28 could
+        name this builder and had no scene on which to measure it.
+
+        THE LITERALS ARE THE PIN AND THEY ARE MEANT TO MOVE. If the
+        ruling the red above waits for goes the other way — annotations
+        hard everywhere — this arm turns red, and that is the line that
+        says the fan was not forgotten while `apply_ops` was fixed. A
+        ruling that leaves four builders agreeing and one behind is the
+        same defect wearing a different role string.
+        """
+        self.assertEqual(
+            self._fan_feet("annotation"), [(120, 33), (120, 67)],
+            "an annotation-roled box is invisible to the fan, so both "
+            "feet must sit on their ideal slots")
+        self.assertEqual(
+            self._fan_feet("node"), [(120, 33), (120, 43)],
+            "a node-roled box in the same place must push r2's foot off "
+            "its slot")
+
+
+# ---------------------------------------------------------------------------
+# A SAVE THAT RETYPES A VALUE WRITES IT TO DISK BUT NOT TO HISTORY (curator
+# batch 29, 2026-08-17, seeded by TASK-FOCUS-FOLLOWUP-B's concern 6.1).
+#
+# `fan_attach_points` re-SOLVES the focus of every server-owned bound
+# endpoint on every apply, including arrows whose geometry did not move, and
+# `solve_focus` returns a float. An endpoint stored `focus: 0` comes back
+# `focus: 0.0`. The commit diff's significance test is `==`, and
+# `{"elementId": "a", "focus": 0, "gap": 6}` `==`
+# `{"elementId": "a", "focus": 0.0, "gap": 6}` is True — so the binding is
+# recorded in NO change entry at all, and the scene's two records part
+# company permanently: the artifact file holds 0.0 forever and replay
+# reconstructs 0 forever.
+#
+# NOT A FIXTURE ARTIFACT, which is the claim worth proving rather than
+# repeating. FOLLOWUP-B found it on save 0019 of a corpus it had just
+# rebased; this scene is built from nothing, and the batch that splits the
+# two records is an `add` of an UNRELATED node — the arrow is never named by
+# the ops. Any project a user re-routes acquires the same divergence.
+#
+# WHERE THE SILENCE IS. `content_fingerprint` folds integral floats
+# (`canon`, canvas.py:772), so drift detection is correctly quiet and
+# `catch_up` mints nothing: the system is self-consistent under its own
+# definition of converged. `scene_hash` is a raw `json.dumps` and does NOT
+# fold, so it is stricter than that definition — which means the fixture
+# assertion built on it had been passing on a coincidence of representation
+# rather than on agreement, and would have gone red for a reason that is not
+# the defect. Two readers of one scene, disagreeing about whether anything
+# happened; nothing tells the user either way.
+#
+# BASE: two aligned nodes and one straight bound arrow whose focus solves
+# back to exactly 0 — the stored value has to be one the solve REPRODUCES,
+# or the change is real and is recorded like any other. MUTATION: none; one
+# ordinary batch is applied. MAGNITUDE: zero, and that is the finding — 0
+# against 0.0 is a difference of TYPE across zero pixels, which is exactly
+# why every equality in the pipeline waves it through. DIRECTION: disk gains
+# the float and history keeps the int, never the reverse, because only the
+# write path runs the solve. NEIGHBOUR: the same store and the same arrow
+# under a batch that genuinely moves the focus (0 -> -0.016), which is
+# recorded normally and leaves the two records agreeing.
+#
+# OWNER FOR THE FIX: unassigned, and the two candidate surfaces are not
+# equivalent. The DIFF-SIGNIFICANCE surface (compare canonically, or
+# type-aware) reaches every attribute at once and is bound by the v0.8 WP2
+# phantom-reconciliation history — loosening significance is precisely how
+# that defect was made. The FAN'S STAMPING surface (leave a binding alone
+# when the solved focus equals the stored one) is narrower and cannot mint
+# phantom work by construction, but only closes this one producer. The
+# curator files the divergence; the ruling is not the curator's.
+# ---------------------------------------------------------------------------
+
+
+class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
+    """A save's two records may not disagree about what it wrote."""
+
+    def _project(self) -> tuple[canvas.Store, Path]:
+        """Two aligned nodes, one bound arrow, one revision already on disk.
+
+        THE PRIOR REVISION IS WHAT MAKES THIS MEASURABLE and is easy to
+        leave out: with no registry the store's head is 0, the first
+        batch records the whole scene as `add`s, and replay reproduces
+        disk by construction — the defect is invisible and the test
+        passes for no reason. Head at 1 makes the batch a DIFF against a
+        stored state, which is the only place a dropped attribute can
+        hide.
+
+        `focus` is written as an int deliberately: 0 is the value the
+        solve reproduces exactly on this geometry, so a retype is the
+        only thing that can happen to it.
+
+        Returns:
+            `(the loaded store, its project_knowledge directory)`.
+        """
+        els = [
+            el(id="a", type="rectangle", x=0, y=0, width=120, height=80,
+               customData={"role": "node"}),
+            el(id="b", type="rectangle", x=400, y=0, width=120, height=80,
+               customData={"role": "node"}),
+            el(id="r", type="arrow", x=120, y=40, width=280, height=0,
+               points=[[0, 0], [280, 0]],
+               startBinding={"elementId": "a", "focus": 0, "gap": 6},
+               endBinding={"elementId": "b", "focus": 0, "gap": 6}),
+        ]
+        root = _scratch_project(
+            self,
+            {"f": json.dumps({"type": "excalidraw", "version": 2,
+                              "elements": els,
+                              "wysiwyg": {"artifact_type": "flow",
+                                          "name": "f"}})},
+            {"0001-f": json.dumps(
+                {"revn": 1, "base_revn": 0, "author": "agent",
+                 "branch": "main",
+                 "artifacts": {"f": {"changes": [{"op": "add",
+                                                  "element": e}
+                                                 for e in els]}}})})
+        reg = json.loads(json.dumps(canvas.DEFAULT_REGISTRY))
+        reg["revn"] = 1
+        reg["branches"] = [{"name": "main", "head": 1, "archived": False}]
+        pk = root / "project_knowledge"
+        (pk / "model.json").write_text(json.dumps(reg), encoding="utf-8")
+        return canvas.Store(canvas.Project(root)), pk
+
+    def _focus_after(self, ops: list[dict]) -> tuple[Any, Any]:
+        """Apply one batch, then read `r`'s start focus from both records.
+
+        Args:
+            ops: The batch's ops, applied at the store's own head.
+
+        Returns:
+            `(what the artifact file holds, what replay reconstructs)`,
+            raw and unrounded — `repr` is what tells 0 from 0.0, and any
+            comparison that normalizes them first is the bug under test.
+        """
+        store, pk = self._project()
         store.apply_batch({"base_revn": store.head_revn(), "artifact": "f",
-                           "ops": [{"op": "mod", "id": "a",
-                                    "attrs": {"y": 20}}]})
-        routed = {e["id"]: e for e in store.scenes["f"]}["r"]
-        self.assertGreaterEqual(
-            len(routed["points"]), 3,
-            "the router never re-routed this arrow, so the two entry "
-            "paths were never compared: %r" % (routed["points"],))
-        moved, tidied = self._both_entry_paths("node")
-        self.assertEqual((moved, tidied), (0.0, 0.0),
-                         "both entry paths must keep a node's box clear")
+                           "ops": ops})
+        disk = json.loads((pk / "artifacts" / "f.excalidraw")
+                          .read_text(encoding="utf-8"))["elements"]
+        replay = store.state_at(store.head_revn())["f"]["elements"]
+        return ({e["id"]: e for e in disk}["r"]["startBinding"]["focus"],
+                {e["id"]: e for e in replay}["r"]["startBinding"]["focus"])
+
+    @unittest.expectedFailure
+    def test_red_a_retyped_focus_reaches_disk_but_not_history(self) -> None:
+        """One batch about another element splits the scene's two records.
+
+        The op adds `z`, a node nothing binds, 300px below everything.
+        `apply_ops` runs its fan post-pass over the whole applied scene
+        regardless, re-solves `r`'s two bindings, and writes floats — so
+        the artifact file changes and the change entry does not mention
+        the arrow.
+
+        WHAT THE PICTURE WRONGLY SAYS: nothing, and that is the point.
+        No pixel moves. What is wrong is that the project now has two
+        answers to "what is this scene", and the one the user's client
+        loads is not the one the history replays — so every later
+        question answered from history (a diff, a revert, a branch
+        switch) is answered about a scene that is not on disk.
+
+        THE ASSERTION IS ON `repr`, NOT ON THE VALUE, deliberately. `0
+        == 0.0` is True and is exactly what the commit diff already
+        believes; asserting equality here would pass against the defect
+        it is filed for. Whether the repair makes both sides int, both
+        float, or canonicalizes at the boundary is the owner's call —
+        all three make the two records agree, which is the whole claim.
+        """
+        disk, replay = self._focus_after([{"op": "add", "element": el(
+            id="z", type="rectangle", x=0, y=300, width=120, height=80,
+            customData={"role": "node"})}])
+        self.assertEqual(
+            repr(disk), repr(replay),
+            "the artifact file holds focus=%r and replay reconstructs "
+            "%r — equal numbers of different types, so the commit "
+            "diff's `==` recorded no change and the two records part "
+            "company for good" % (disk, replay))
+
+    def test_a_genuinely_changed_focus_is_recorded(self) -> None:
+        """The live half: a focus that really moves is written to both.
+
+        The same store and the same arrow under a batch that drops `b`
+        by 40px. The solve now returns -0.016 instead of 0, `==` sees a
+        difference, the binding rides into the change entry, and the two
+        records agree — which is what says the red above is about
+        RETYPING rather than about bindings never being recorded at all.
+
+        Ungated, and it carries its own liveness: the focus is asserted
+        to have LEFT zero. A dead solve, or a fan that stopped stamping,
+        would leave both sides holding the stored 0 and satisfy an
+        agreement assertion perfectly while measuring nothing.
+        """
+        disk, replay = self._focus_after(
+            [{"op": "mod", "id": "b", "attrs": {"y": 40}}])
+        self.assertNotEqual(
+            disk, 0, "the batch was supposed to move the focus off its "
+            "stored 0; it did not, so this pair proves nothing about "
+            "what gets recorded")
+        self.assertEqual(
+            repr(disk), repr(replay),
+            "a focus the solve genuinely changed must reach history as "
+            "well as disk: disk=%r replay=%r" % (disk, replay))
 
 
 # ---------------------------------------------------------------------------
@@ -18080,10 +18406,20 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
+    "TestARetypedValueReachesDiskButNotHistory": 1,
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
     "TestTheObstacleSetsAgreeAboutASticky": 1}
+# ONE JOINED on 2026-08-17 (curator batch 29), and it is here for the
+# reason the split below already states, arriving from a new direction:
+# `TestARetypedValueReachesDiskButNotHistory` compares two RECORDS of one
+# scene — the artifact file against forward replay — and `collect_findings`
+# takes an element list and asks the checks about it. There is one scene and
+# two stores of it, so there is nothing to hand a `FindingSpec`. Its live
+# half is firing-shaped (the focus is asserted to have LEFT zero) rather
+# than another agreement, which is the pairing the silence-is-a-bug eval's
+# D1 falsification says a Silence-shaped pole cannot supply on its own.
 # ALSO LEFT on 2026-08-17, hours apart at a different fold:
 # `TestStoredBindingsDescribeTheFinalInk`, emptied by
 # TASK-FOCUS-FOLLOWUP-A's solve-ordering fix — the batch-27 paragraph
@@ -18110,9 +18446,10 @@ HAND_AUTHORED_RED_CLASSES = {
 # and a `FindingSpec` takes an element list and a check name; there was
 # no check to name, because the producer is `semantic_facts` and no
 # detector reads it.
-# `TestTheObstacleSetsAgreeAboutASticky` is a BEFORE/AFTER over two
-# PRODUCERS, the same shape as the router pair: it asserts that two entry
-# paths agree, which is a claim no single-scene reader can hold. Both
+# `TestTheObstacleSetsAgreeAboutASticky` is a BEFORE/AFTER over FIVE
+# PRODUCERS (two when batch 28 filed it; batch 29 widened it), the same
+# shape as the router pair: it asserts that the entry paths agree, which is
+# a claim no single-scene reader can hold. Both
 # carried their opposite pole in the same class, which is the rule-8
 # obligation that binds an entry outside `CATALOGUE` even where the gate
 # cannot see it — the guarded arms for the first, the node-roled box for
@@ -19355,6 +19692,58 @@ class TestCoverage(unittest.TestCase):
         """No UNCOVERED entry has a blank or whitespace-only reason."""
         empty = [k for k, v in UNCOVERED.items() if not str(v).strip()]
         self.assertEqual(empty, [])
+
+    def test_every_silence_neighbour_has_a_firing_companion(self) -> None:
+        """A dead check satisfies a Silence, so a Silence cannot be alone.
+
+        THE DOCTRINE THIS ENFORCES WAS CORRECTED ON 2026-08-17 and this
+        guard is the correction made mechanical. The mutants skill said
+        an ungated neighbour closes the dead-detector hole; the
+        silence-is-a-bug eval built the prescribed pairing, KILLED the
+        check, and got a clean exit with zero witnesses — the gated red
+        stayed masked and the neighbour was satisfied by the corpse.
+        Only a FIRING-shaped ungated expectation can notice a detector
+        that has stopped speaking. (The other half of the old claim
+        stands: a strict `Silence` still refuses a run in which any
+        detector RAISED, so crashes were never the exposure.)
+
+        So for every entry whose neighbour expects `Silence`, some
+        UNGATED expectation somewhere in the catalogue must be a
+        `FindingSpec` on the SAME check — the sibling arrangement
+        doctrine 3 already describes for `diamond_facet_overfire`,
+        required here rather than trusted. Ungated means a green
+        mutant's own expectation or any neighbour's, since those run in
+        every commit; a red mutant's expectation is masked and cannot
+        witness anything.
+
+        Enumerated 2026-08-17 (curator batch 29): 35 entries have
+        Silence neighbours and all 35 already had a firing companion, so
+        this arrives green and stays a gate rather than a repair. The
+        one check with no ungated firing expectation anywhere is
+        `arrival_through_side`, which is red BY ABSENCE — no such check
+        is written — and its neighbour deliberately borrows a live
+        `crosses_through_bound` finding for exactly this reason, stated
+        in its own entry.
+        """
+        firing: dict[str, list[str]] = {}
+        for mid, mutant in CATALOGUE.items():
+            expects = [("neighbour", mutant.neighbour.expect)]
+            if mid not in CATALOGUE_RED_IDS:
+                expects.append(("mutant", mutant.expect))
+            for where, expect in expects:
+                if isinstance(expect, FindingSpec):
+                    firing.setdefault(expect.check, []).append(
+                        "%s(%s)" % (mid, where))
+        alone = sorted(
+            "%s -> %s" % (mid, mutant.neighbour.expect.check)
+            for mid, mutant in CATALOGUE.items()
+            if isinstance(mutant.neighbour.expect, Silence)
+            and mutant.neighbour.expect.check not in firing)
+        self.assertEqual(
+            alone, [],
+            "these entries pair a Silence neighbour with no ungated "
+            "firing expectation on the same check, so killing that "
+            "check outright would leave both poles green: %s" % (alone,))
 
     def test_lint_layout_append_count_is_pinned(self) -> None:
         """Spec §3 anti-rot, canvas.py half: the enumeration cannot drift.

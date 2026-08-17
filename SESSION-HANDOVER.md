@@ -376,8 +376,14 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**9 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at TASK-FOCUS-FOLLOWUP-A's fold,
+**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at curator batch 29, which ADDED
+one model red — `TestARetypedValueReachesDiskButNotHistory`, the
+retyped-focus divergence FOLLOWUP-B surfaced — and flipped none, taking
+`test_mutants.py` 9 -> 10. The second upward movement since batch 25 and
+the same shape as the first: a batch that only ever filed, never fixed.
+The previous re-derivation, still true of everything below it, follows:
+taken at TASK-FOCUS-FOLLOWUP-A's fold,
 which FLIPPED the `_stamp_route` ordering red and added none, taking
 `test_mutants.py` 10 -> 9 and emptying
 `TestStoredBindingsDescribeTheFinalInk` — the THIRD class to make the
