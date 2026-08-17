@@ -7353,6 +7353,437 @@ class TestHandoverExport(Base):
         self.assertEqual(pairs["Run"], "one execution of the pipeline.")
 
 
+class TestMermaidExport(Base):
+    """`export --format mermaid|er` — the drawing as portable text (v0.9).
+
+    The command exists for two uses and NOT for a third: a diffable text
+    form for a PR, and a seed for another tool. Handover stays the SVG's
+    job, because mermaid cannot carry a tooltip.
+
+    The measured bar these pin, re-run at this head over the 24-fixture
+    corpus through the real converter (server + headless chromium + m2e
+    2.2.2 + dagre): 132/132 nodes, 132/132 labels, 132/132 shapes
+    (including roundness) and 144/144 edges across the 14 flows; 27/27
+    entities and 29/29 relations across the 3 domains. The pre-fix shape
+    map scored 120/132 shapes and 104/132 with roundness on the same run,
+    which is the defect these tests hold shut.
+    """
+
+    def export_args(self, **kw):
+        """A Namespace for `cmd_export`, mermaid defaults filled in.
+
+        Args:
+            **kw: Overrides — `artifact`, `format`, `out`, `direction`,
+                `lanes`, `no_kinds`.
+
+        Returns:
+            The argparse Namespace `cmd_export` expects.
+        """
+        base = {"project": self.tmp, "artifact": None, "out": None,
+                "format": "mermaid", "direction": None, "lanes": False,
+                "no_kinds": False, "with_footnotes": False,
+                "no_glossary": False}
+        base.update(kw)
+        return argparse.Namespace(**base)
+
+    def run_export(self, **kw):
+        """Run `cmd_export` and capture what it printed.
+
+        Args:
+            **kw: Passed to `export_args`.
+
+        Returns:
+            ``(exit_code, output)`` — stdout and stderr together, because
+            a per-relation ER refusal prints to stdout while `die` writes
+            to stderr, and a caller reads one terminal.
+        """
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf), \
+                    contextlib.redirect_stderr(buf):
+                code = canvas.cmd_export(self.export_args(**kw))
+        except SystemExit as e:
+            return e.code, buf.getvalue()
+        return code, buf.getvalue()
+
+    def seed(self, atype="flow", ops=None, aid="fl"):
+        """Create one artifact of `atype` holding `ops`.
+
+        Args:
+            atype: Artifact type (flow/domain/wireframe/sequence).
+            ops: The op list; a two-node flow when omitted.
+            aid: The artifact id.
+        """
+        if ops is None:
+            ops = [{"op": "add", "element": {
+                "type": "rectangle", "id": "cart", "label": "Cart",
+                "x": 40, "y": 40, "width": 160, "height": 60,
+                "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "ellipse", "id": "done", "label": "Done",
+                    "x": 400, "y": 40, "width": 120, "height": 60,
+                    "role": "node"}}]
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": aid,
+            "create": {"id": aid, "name": aid.upper(), "type": atype,
+                       "concept": aid, "concept_name": aid.upper()},
+            "ops": ops})
+
+    def text_of(self, aid="fl"):
+        """The exported mermaid text for `aid`.
+
+        Args:
+            aid: The artifact id.
+
+        Returns:
+            The file's contents.
+        """
+        out = self.tmp / "x.mmd"
+        code, _ = self.run_export(artifact=aid, out=str(out))
+        self.assertEqual(code, 0)
+        return out.read_text(encoding="utf-8")
+
+    # -- the shape map, both poles ------------------------------------
+
+    def test_ellipse_exports_as_circle_never_stadium(self):
+        """`(["x"])` is the STADIUM, and the vendored converter sends
+        STADIUM and ROUND to one result — a rounded RECTANGLE. So the
+        stadium form silently turns every terminal into a box. Both
+        poles are asserted because the wrong one reads as correct."""
+        self.seed()
+        text = self.text_of()
+        self.assertIn('(("Done"))', text)
+        self.assertNotIn('(["Done"])', text)
+
+    def test_roundness_exports_round_never_square(self):
+        """A rounded rectangle (the `store` kind) exported as `["x"]`
+        comes back square — roundness was simply never consulted."""
+        self.seed(ops=[{"op": "add", "element": {
+            "type": "rectangle", "id": "db", "label": "Ledger",
+            "x": 40, "y": 40, "width": 160, "height": 60,
+            "role": "node", "roundness": {"type": 3}}}])
+        text = self.text_of()
+        self.assertIn('("Ledger")', text)
+        self.assertNotIn('["Ledger"]', text)
+
+    def test_the_shape_map_has_exactly_one_spelling(self):
+        """THE ANTI-DRIFT PIN. `_flow_to_mermaid` (the `--relayout`
+        gear) and the export both go through `mermaid_shape`; a second
+        map is what let the first one be wrong for as long as only the
+        re-layout path read it. Asserted structurally rather than by
+        comparing two outputs, because two wrong maps agree too."""
+        for el, want in (({"type": "ellipse"}, '(("%s"))'),
+                         ({"type": "diamond"}, '{"%s"}'),
+                         ({"type": "rectangle"}, '["%s"]'),
+                         ({"type": "rectangle",
+                           "roundness": {"type": 3}}, '("%s")')):
+            self.assertEqual(canvas.mermaid_shape(el), want)
+        els = [{"id": "done", "type": "ellipse", "x": 0, "y": 0,
+                "width": 100, "height": 60, "customData": {"role": "node"}},
+               {"id": "done-l", "type": "text", "containerId": "done",
+                "text": "Done"}]
+        # the internal gear now produces the same bracket as the export
+        self.assertIn('(("Done"))', canvas._flow_to_mermaid(els)[0])
+
+    def test_a_rounded_ellipse_states_its_lossiness(self):
+        """A rounded ELLIPSE and a rounded DIAMOND have no mermaid vertex
+        syntax at all, so roundness is dropped. That is an honest gap,
+        not a defect — and `mermaid_shape`'s docstring must keep saying
+        so, because a caller cannot see it from the output."""
+        self.assertEqual(
+            canvas.mermaid_shape({"type": "ellipse",
+                                  "roundness": {"type": 2}}), '(("%s"))')
+        doc = canvas.mermaid_shape.__doc__
+        self.assertIn("rounded ELLIPSE", doc)
+        self.assertIn("no mermaid vertex syntax", doc)
+
+    # -- identifiers ---------------------------------------------------
+
+    def test_end_is_underscore_guarded_not_hyphen_guarded(self):
+        """A HYPHEN IS A TOKEN BOUNDARY in the flowchart lexer, so the
+        intuitive guard is a no-op: `end-node["end"]` still lexes `end`
+        and dies with "got 'end'". `end_node` is one NODE_STRING."""
+        self.assertEqual(canvas.mermaid_ident("end", "e1"), "end_node")
+        self.assertNotEqual(canvas.mermaid_ident("end", "e1"), "end-node")
+        self.seed(ops=[{"op": "add", "element": {
+            "type": "rectangle", "id": "e1", "label": "end",
+            "x": 40, "y": 40, "width": 160, "height": 60, "role": "node"}}])
+        text = self.text_of()
+        self.assertIn("end_node", text)
+        self.assertNotIn("end-node", text)
+
+    def test_a_leading_digit_is_prefixed(self):
+        """`slugify("06:00 weekday")` is a legal element id and an
+        illegal mermaid node id."""
+        self.assertEqual(canvas.mermaid_ident("06:00 weekday", "x"),
+                         "n-06-00-weekday")
+
+    def test_export_ids_are_the_ids_mint_id_would_mint(self):
+        """There is no identity-versus-portability trade here: both
+        sides call `slugify`, so a node cited back in an op needs no
+        translation table."""
+        self.assertEqual(canvas.mermaid_ident("Pull Market Data", "x"),
+                         canvas.slugify("Pull Market Data"))
+
+    # -- label escaping ------------------------------------------------
+
+    def test_angle_brackets_are_escaped_or_they_disappear(self):
+        """Labels are rendered as HTML. Unescaped, `<ok>` is parsed as a
+        tag and VANISHES from the picture — the silent direction."""
+        body, md = canvas.mermaid_label("50% > 30% <ok>")
+        self.assertFalse(md)
+        self.assertIn("#lt;ok#gt;", body)
+        self.assertNotIn("<ok>", body)
+
+    def test_hash_is_escaped_before_everything_else(self):
+        """Mermaid substitutes HTML numeric entities, so escaping `#`
+        after anything else eats the entity just written."""
+        body, _ = canvas.mermaid_label('#1 "a" <b>')
+        self.assertTrue(body.startswith("#35;1"))
+        self.assertIn("#quot;", body)
+        self.assertNotIn("#35;quot;", body)
+        self.assertNotIn("#35;lt;", body)
+
+    def test_a_newline_uses_a_markdown_string_only_when_safe(self):
+        """Backticks are the ONLY form that carries a real newline, but
+        inside them `*x*` comes back `x` and `#lt;` is dropped — entity
+        substitution runs before the HTML parse."""
+        self.assertEqual(canvas.mermaid_label("two\nlines"),
+                         ("two\nlines", True))
+        body, md = canvas.mermaid_label("two\n*lines*")
+        self.assertFalse(md)
+        self.assertIn("<br/>", body)
+
+    def test_an_empty_label_becomes_one_space(self):
+        """`{""}` is a parse error in every bracket form."""
+        self.assertEqual(canvas.mermaid_vertex({"type": "diamond"}, ""),
+                         '{" "}')
+
+    def test_a_pipe_in_an_edge_label_is_escaped(self):
+        """The pipe is the edge-label delimiter."""
+        self.seed(ops=[
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "a", "label": "A", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node"}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "b", "label": "B", "x": 400,
+                "y": 40, "width": 160, "height": 60, "role": "node"}},
+            {"op": "add", "element": {
+                "type": "arrow", "id": "t", "label": "a|b"},
+             "from": "a", "to": "b"}])
+        text = self.text_of()
+        self.assertIn("#124;", text)
+        self.assertNotIn("|a|b|", text)
+
+    def test_a_dashed_edge_exports_dotted(self):
+        """`-.->` is the form that re-imports dashed."""
+        self.seed(ops=[
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "a", "label": "A", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node"}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "b", "label": "B", "x": 400,
+                "y": 40, "width": 160, "height": 60, "role": "node"}},
+            {"op": "add", "element": {
+                "type": "arrow", "id": "t", "strokeStyle": "dashed"},
+             "from": "a", "to": "b"}])
+        self.assertIn("-.->", self.text_of())
+
+    # -- refusals, each beside a firing ---------------------------------
+
+    def test_wireframe_refuses_by_name_and_points_at_the_svg(self):
+        """Mermaid has no diagram whose subject is a screen, and a
+        wireframe's meaning IS its layout."""
+        self.seed(atype="wireframe", aid="wf")
+        code, out = self.run_export(artifact="wf")
+        self.assertEqual(code, 2)
+        self.assertIn("wireframe", out)
+        self.assertIn("--with-footnotes", out)
+        self.assertFalse((self.tmp / "project_knowledge" / "wf.mmd").exists())
+
+    def test_sequence_refuses_as_deferred_and_says_why(self):
+        """DEFERRED, not impossible — the corpus carries zero sequence
+        artifacts, so the mapping has never been measured. The word
+        matters: a reader who thinks it is impossible stops asking."""
+        self.seed(atype="sequence", aid="sq")
+        code, out = self.run_export(artifact="sq")
+        self.assertEqual(code, 2)
+        self.assertIn("DEFERRED", out)
+        self.assertIn("sequenceDiagram", out)
+        self.assertIn("ZERO sequence", out)
+
+    def test_a_domain_exports_fine_beside_those_refusals(self):
+        """Refusals with no firing beside them prove nothing."""
+        self.seed(atype="domain", aid="dm")
+        code, out = self.run_export(artifact="dm")
+        self.assertEqual(code, 0)
+        self.assertIn("FORMAT=mermaid", out)
+        self.assertTrue((self.tmp / "project_knowledge" / "dm.mmd").exists())
+
+    def test_er_refuses_every_relation_with_no_cardinality(self):
+        """Mermaid's ER grammar takes a token on BOTH ends and cannot
+        spell "unknown", so exporting an unsettled relation would invent
+        the claim. Refused by name, and NO FILE is written."""
+        self.seed(atype="domain", aid="dm", ops=[
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "run", "label": "Run", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node",
+                "kind": "entity"}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "sig", "label": "Signal",
+                "x": 400, "y": 40, "width": 160, "height": 60,
+                "role": "node", "kind": "entity"}},
+            {"op": "add", "element": {
+                "type": "arrow", "id": "r1", "label": "holds"},
+             "from": "run", "to": "sig"}])
+        code, out = self.run_export(artifact="dm", format="er")
+        self.assertEqual(code, 2)
+        self.assertIn("no `cardinality:` tooltip", out)
+        self.assertIn("Run", out)
+        self.assertIn("Signal", out)
+        self.assertFalse((self.tmp / "project_knowledge" / "dm.mmd").exists())
+
+    def test_er_fires_when_the_cardinality_was_actually_settled(self):
+        """The same command on an erDiagram-seeded artifact: the
+        cardinality tooltip reparses into both end tokens."""
+        self.seed(atype="domain", aid="dm", ops=[
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "run", "label": "Run", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node",
+                "kind": "entity"}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "sig", "label": "Signal",
+                "x": 400, "y": 40, "width": 160, "height": 60,
+                "role": "node", "kind": "entity"}},
+            {"op": "add", "element": {
+                "type": "arrow", "id": "r1", "label": "holds 1..*",
+                "tooltip": "cardinality: Run 1 — 1..* Signal"},
+             "from": "run", "to": "sig"}])
+        out_p = self.tmp / "er.mmd"
+        code, out = self.run_export(artifact="dm", format="er",
+                                    out=str(out_p))
+        self.assertEqual(code, 0)
+        text = out_p.read_text(encoding="utf-8")
+        self.assertIn("erDiagram", text)
+        self.assertIn('Run ||--|{ Signal : "holds"', text)
+
+    def test_er_on_a_flow_refuses(self):
+        """`--format er` reads entities; a flow has none."""
+        self.seed()
+        code, out = self.run_export(artifact="fl", format="er")
+        self.assertEqual(code, 2)
+        self.assertIn("--format er", out)
+
+    # -- the staleness stance -------------------------------------------
+
+    def test_every_file_carries_the_snapshot_stamp(self):
+        """`%%` is skipped by mermaid and by `mermaid_kind`, so the
+        stance costs the reader nothing and survives a paste into a
+        wiki. Without it, "is this still what the drawing says?" is
+        answered only in someone's terminal scrollback."""
+        self.seed()
+        text = self.text_of()
+        self.assertTrue(text.startswith("%% wysiwyg-grilling: fl at revn"))
+        self.assertIn("SNAPSHOT", text)
+        self.assertIn("never read back", text)
+
+    def test_the_stamp_does_not_break_re_seeding(self):
+        """A `%%` line must not change what the text IS."""
+        self.seed()
+        self.assertEqual(canvas.mermaid_kind(self.text_of()), "flowchart")
+
+    def test_the_drop_report_counts_what_was_left_behind(self):
+        """An export that announces "I dropped your pins and your notes"
+        is a stronger defence against being mistaken for the artifact
+        than refusing to export at all."""
+        self.seed(ops=[
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "a", "label": "A", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node"}},
+            {"op": "add", "element": {
+                "type": "ellipse", "id": "p", "label": "why?", "x": 40,
+                "y": 300, "width": 40, "height": 40, "role": "pin"}}])
+        code, out = self.run_export(artifact="fl")
+        self.assertEqual(code, 0)
+        self.assertIn("DROPPED=1", out)
+        self.assertIn("the drawing is still the truth", out)
+
+    # -- lanes -----------------------------------------------------------
+
+    def test_lanes_are_off_by_default_and_the_drop_is_counted(self):
+        """`--lanes` produces a file this repo's own seeder refuses, so
+        it is opt-in — but silence about the drop is not the price."""
+        self.seed(ops=[
+            {"op": "add", "element": {
+                "type": "frame", "id": "lane", "label": "Ingest", "x": 0,
+                "y": 0, "width": 400, "height": 200}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "a", "label": "A", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node",
+                "frameId": "lane"}}])
+        code, out = self.run_export(artifact="fl")
+        self.assertEqual(code, 0)
+        self.assertNotIn("subgraph", self.text_of())
+        self.assertIn("DROPPED=1", out)
+
+    def test_lanes_on_emits_subgraphs_and_names_the_asymmetry(self):
+        """Valid mermaid that renders in a wiki and that this repo
+        cannot read back. Stated, not papered over."""
+        self.seed(ops=[
+            {"op": "add", "element": {
+                "type": "frame", "id": "lane", "label": "Ingest", "x": 0,
+                "y": 0, "width": 400, "height": 200}},
+            {"op": "add", "element": {
+                "type": "rectangle", "id": "a", "label": "A", "x": 40,
+                "y": 40, "width": 160, "height": 60, "role": "node",
+                "frameId": "lane"}}])
+        out_p = self.tmp / "l.mmd"
+        code, out = self.run_export(artifact="fl", lanes=True,
+                                    out=str(out_p))
+        self.assertEqual(code, 0)
+        self.assertIn("subgraph", out_p.read_text(encoding="utf-8"))
+        self.assertIn("refuses them", out)
+
+    # -- kinds ------------------------------------------------------------
+
+    def test_kinds_ride_as_classdefs_and_are_docs_side_only(self):
+        """The converter folds a class into container/label STYLES and
+        never passes the name on, so 0 of 123 corpus node kinds
+        round-trip. The lines are carried for the reader, and the
+        docstring says which."""
+        self.seed(ops=[{"op": "add", "element": {
+            "type": "rectangle", "id": "a", "label": "A", "x": 40,
+            "y": 40, "width": 160, "height": 60, "role": "node",
+            "kind": "source"}}])
+        self.assertIn("classDef source", self.text_of())
+        self.assertIn("DROPPED on re-import",
+                      canvas.flow_to_mermaid_export.__doc__)
+
+    def test_no_kinds_omits_them(self):
+        self.seed(ops=[{"op": "add", "element": {
+            "type": "rectangle", "id": "a", "label": "A", "x": 40,
+            "y": 40, "width": 160, "height": 60, "role": "node",
+            "kind": "source"}}])
+        out_p = self.tmp / "n.mmd"
+        self.run_export(artifact="fl", no_kinds=True, out=str(out_p))
+        self.assertNotIn("classDef", out_p.read_text(encoding="utf-8"))
+
+    # -- direction ---------------------------------------------------------
+
+    def test_direction_is_read_off_the_drawing_when_unset(self):
+        """flow.md's own recipe: wider than tall reads left-to-right."""
+        self.seed()
+        self.assertIn("flowchart LR", self.text_of())
+
+    def test_svg_is_still_the_default_format(self):
+        """The new flag must not move the old door."""
+        self.seed()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas.cmd_export(self.export_args(artifact="fl", format="svg"))
+        self.assertTrue((self.tmp / "project_knowledge" / "fl.svg").exists())
+
+
 class TestLintHygiene(Base):
     """Lint noise reduction (v0.5).
 
@@ -11300,6 +11731,9 @@ class TestMermaidSeeding(Base):
             {"id": "lone", "type": "ellipse", "x": 600, "y": 0,
              "width": 100, "height": 60,
              "customData": {"role": "node"}},
+            {"id": "store", "type": "rectangle", "x": 900, "y": 0,
+             "width": 160, "height": 60, "roundness": {"type": 3},
+             "customData": {"role": "node"}},
             {"id": "t1", "type": "arrow", "x": 0, "y": 0,
              "points": [[0, 0], [100, 0]],
              "startBinding": {"elementId": "gate"},
@@ -11308,12 +11742,24 @@ class TestMermaidSeeding(Base):
              "text": "yes"},
         ]
         text, n = canvas._flow_to_mermaid(els)
-        self.assertEqual(n, 3)
+        self.assertEqual(n, 4)
         # the mermaid keyword `end` is shielded by the n_ prefix
         self.assertIn('n_gate{"Ready?"} -->|yes| n_end["Wrap [it] up"]',
                       text)
-        # an unconnected node still gets declared (so dagre places it)
-        self.assertIn('n_lone(["lone"])', text)
+        # an unconnected node still gets declared (so dagre places it).
+        # FLIPPED: this asserted the STADIUM `(["lone"])` until v0.9,
+        # pinning a defect. The vendored converter sends STADIUM and
+        # ROUND to one result — a rounded RECTANGLE — so an ellipse
+        # exported that way came back a rectangle, live, for every
+        # `--relayout`. `((…))` is the only form that re-imports as an
+        # ellipse. Both poles are asserted because the wrong one reads
+        # as correct.
+        self.assertIn('n_lone(("lone"))', text)
+        self.assertNotIn('n_lone(["lone"])', text)
+        # and roundness is no longer dropped: a rounded rectangle (the
+        # `store` kind) exported as `["x"]` came back square
+        self.assertIn('n_store("store")', text)
+        self.assertNotIn('n_store["store"]', text)
 
     def _relayout(self, aid, skeletons):
         """Run `mermaid --relayout` over `aid` with the browser stubbed.

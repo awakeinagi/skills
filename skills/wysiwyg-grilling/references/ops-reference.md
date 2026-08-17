@@ -452,6 +452,29 @@ it "agent asked a question" with no Apply action.
   banner, with each entry's artifact, note and op count.
 - `canvas.py export --artifact <id> --with-footnotes` → SVG carrying its
   tooltips as numbered footnotes plus the glossary — for handover.
+- `canvas.py export --artifact <id> --format mermaid [--direction TD|LR]
+  [--lanes] [--no-kinds]` → flowchart text for a **flow** or **domain**,
+  written to `<id>.mmd`. For a diffable PR form and for seeding another
+  tool — **not** for handover, which is the SVG's job (mermaid carries no
+  tooltips). Node ids are the same `slugify` output `mint_id` mints, so a
+  node cites back into an op with no translation. Closes on `DROPPED=`,
+  the count with no mermaid form. `--lanes` emits `subgraph` blocks: valid
+  mermaid that renders in a wiki and that **this repo's own seeder
+  refuses**, which is why it is off by default.
+- `canvas.py export --artifact <id> --format er` → `erDiagram` for a
+  **domain**. Refuses relation by relation, naming each one, when no
+  `cardinality:` tooltip was ever settled — mermaid's ER grammar needs a
+  token on both ends and cannot spell "unknown", so exporting anyway would
+  invent the claim. Writes no file when it refuses. On an erDiagram-seeded
+  artifact it round-trips exactly (entities, attributes, both arrowheads).
+- **Wireframe and sequence refuse by name.** A wireframe's meaning IS its
+  layout and mermaid has no diagram whose subject is a screen; sequence is
+  *deferred*, not impossible — the mapping is designed but the fixture
+  corpus carries none to measure it on.
+- **Export is one-way, and it is the seed rule's mirror.** `mermaid` seeds
+  NEW artifacts only; an exported `.mmd` is never read back over a drawing
+  that exists. Each file carries a `%% wysiwyg-grilling: … SNAPSHOT` stamp
+  saying so, which mermaid skips and re-seeding tolerates.
 - `canvas.py wait --timeout 540` → prints new events as JSON lines; exit 3 on
   quiet timeout (that's your cue for queued work or a nudge — never a retry
   loop without doing something useful between).

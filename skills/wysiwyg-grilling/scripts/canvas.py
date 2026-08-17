@@ -15706,16 +15706,148 @@ def cmd_stop(args):
     return 0
 
 
+def _mermaid_refusal(aid, kind):
+    """The reason this artifact kind has no mermaid target, or None.
+
+    Each refusal names the KIND rather than saying "unsupported",
+    because "wireframe" and "sequence" are refused for opposite
+    reasons and a reader who cannot tell them apart will retry the
+    wrong one.
+
+    Args:
+        aid: The artifact id, for the message.
+        kind: Its artifact type.
+
+    Returns:
+        A refusal message, or None when the kind exports.
+    """
+    if kind in ("flow", "domain"):
+        return None
+    if kind == "wireframe":
+        # mermaid has no diagram whose subject is a screen; the nearest
+        # neighbour (`block-beta`) is an auto-flowed grid with no
+        # absolute positioning and no frame nesting, and the vendored
+        # converter cannot read it back either. A wireframe's subject
+        # IS its layout, so a form that discards layout says nothing.
+        return ("ERROR=%r is a wireframe, and mermaid has no diagram whose "
+                "subject is a screen — a wireframe's meaning IS its layout, "
+                "and every mermaid diagram is a graph of named things that "
+                "an auto-layout then places. Its kinds (nav, block, kpi, "
+                "input, button, checkbox, slider, toggle, image, fold) have "
+                "no mermaid spelling. Use `canvas.py export --with-footnotes` "
+                "— the SVG keeps the positions AND carries the tooltips as "
+                "numbered footnotes, which is strictly more than mermaid "
+                "could hold." % aid)
+    if kind == "sequence":
+        # DEFERRED, not impossible — and the difference is stated so
+        # nobody re-derives the design. `sequenceDiagram` is a good
+        # target for this vocabulary; what is missing is evidence.
+        return ("ERROR=%r is a sequence artifact, and mermaid export for "
+                "sequences is DEFERRED rather than impossible. "
+                "`sequenceDiagram` is a genuinely good target (actors → "
+                "participants, y-order → message order, the "
+                "solid/dashed/dotted stroke grammar → `->>`/`-->>`/`-)`), "
+                "but this repo's fixture corpus carries ZERO sequence "
+                "artifacts, so none of that mapping has ever been measured "
+                "— and a design validated on nothing is how silent "
+                "degradations ship. Use `canvas.py export --with-footnotes` "
+                "for now." % aid)
+    return ("ERROR=%r is a %s artifact — mermaid export covers flow and "
+            "domain only (wireframe and sequence are refused by name, with "
+            "reasons). Use `canvas.py export --with-footnotes`."
+            % (aid, kind))
+
+
+def _export_mermaid(args, store, aid, out):
+    """Write one artifact out as mermaid text.
+
+    Per artifact kind, and the scope is stated rather than guessed:
+    `flow` and `domain` export as a flowchart (the boxes and the
+    labelled arrows, which is all either drawing holds); `domain` also
+    accepts `--format er` and refuses relation by relation when the
+    cardinality was never settled. `wireframe` and `sequence` refuse by
+    name — see `_mermaid_refusal` for why each one does.
+
+    Args:
+        args: Parsed CLI args — reads `format`, `lanes`, `no_kinds`,
+            `direction`.
+        store: The open Store.
+        aid: The artifact id, already validated.
+        out: Destination path.
+
+    Returns:
+        Process exit code: 0 on success, 2 on a refusal.
+    """
+    els = store.scenes[aid]
+    kind = store.artifact_type(aid)
+    refusal = _mermaid_refusal(aid, kind)
+    if refusal:
+        die(refusal, 2)
+    if args.format == "er":
+        if kind != "domain":
+            die("ERROR=--format er reads entities and their cardinality; "
+                "%r is a %s artifact" % (aid, kind), 2)
+        text, refusals = domain_to_er_export(els)
+        for line in refusals:
+            print("ERROR=%s" % line)
+        if refusals:
+            return 2
+    else:
+        text = flow_to_mermaid_export(
+            els, direction=args.direction, kinds=not args.no_kinds,
+            lanes=args.lanes)
+        if args.lanes:
+            print("NOTE=subgraph blocks are valid mermaid and render in "
+                  "docs, but this skill's own seeder refuses them "
+                  "(converter 2.2.2 degrades a subgraph diagram to one "
+                  "picture) — the file is for reading, not re-seeding")
+    # THE STALENESS STANCE, IN THE FILE ITSELF. A `%%` line is skipped by
+    # mermaid and by `mermaid_kind`, so it costs the reader nothing and
+    # survives a paste into a wiki. Without it, the answer to "is this
+    # still what the drawing says?" lives only in the terminal output of
+    # whoever ran the export, which is the same as nowhere.
+    text = ("%%%% wysiwyg-grilling: %s at revn %d — a SNAPSHOT of the "
+            "drawing, never read back\n" % (aid, store.head_revn())) + text
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+    except OSError as e:
+        die("ERROR=could not write %s: %s" % (out, e), 2)
+    nodes = sum(1 for e in els
+                if e.get("type") in ("rectangle", "diamond", "ellipse")
+                and (e.get("customData") or {}).get("role") == "node")
+    # the attribute rows a domain seeder draws inside an entity are
+    # `decoration` text, and erDiagram is the one form that carries them
+    silent = ["pin", "annotation", "note", "note-text"]
+    if args.format != "er":
+        silent.append("decoration")
+    dropped = sum(1 for e in els
+                  if role_of(e) in silent
+                  or e.get("type") in ("frame", "line", "freedraw", "image"))
+    print_kv(artifact=aid, path=str(out), format=args.format, nodes=nodes,
+             lines=len(text.splitlines()), dropped=dropped)
+    print("NOTE=this file is a SNAPSHOT of the drawing at this revision "
+          "and is never read back — `canvas.py mermaid` seeds NEW "
+          "artifacts only. %d element(s) with no mermaid form (pins, "
+          "annotations, notes, decorations, frames, freehand) were left "
+          "behind; the drawing is still the truth." % dropped)
+    return 0
+
+
 def cmd_export(args):
-    """Write an artifact to SVG, optionally carrying its own detail.
+    """Write an artifact to SVG or mermaid text.
 
     The handover case: the drawings outlive the session and get read by
     someone who was not in it. Hover-only tooltips do not survive that,
     so `--with-footnotes` prints them under the diagram, numbered against
     markers on the elements they belong to, with the glossary appended.
+    `--format mermaid` answers a NARROWER question — a diffable text form
+    for a PR, and a seed for another tool. It is deliberately not the
+    handover answer: mermaid cannot carry a tooltip, so the SVG keeps
+    that job.
 
     Args:
-        args: Parsed CLI args — `project`, `artifact`, `out`,
+        args: Parsed CLI args — `project`, `artifact`, `out`, `format`,
             `with_footnotes`, `no_glossary`.
 
     Returns:
@@ -15732,6 +15864,10 @@ def cmd_export(args):
     if aid not in store.scenes:
         die("ERROR=unknown artifact %r (known: %s)"
             % (aid, ", ".join(sorted(store.scenes)) or "none"), 2)
+    if getattr(args, "format", "svg") != "svg":
+        out = Path(args.out) if args.out else (project.pk
+                                               / ("%s.mmd" % aid))
+        return _export_mermaid(args, store, aid, out)
     gloss = []
     if args.with_footnotes and not args.no_glossary:
         ctx = project.pk / "CONTEXT.md"
@@ -16597,12 +16733,60 @@ def _flow_seed_ops(skeletons):
     return ops, notes, errors
 
 
+def mermaid_shape(el):
+    """The vertex bracket whose IMPORT reproduces this element's shape.
+
+    ONE SPELLING, TWO CALLERS. `_flow_to_mermaid` (the `--relayout` gear)
+    and `flow_to_mermaid_export` (the user-facing snapshot) both come
+    here, because a second shape map is a second thing to be wrong: this
+    one WAS wrong, silently, for as long as only the re-layout path read
+    it. It is the vendored converter's own switch read backwards
+    (mermaid-to-excalidraw 2.2.2,
+    `dist/converter/types/flowchart.js:136`), and the two corrections
+    that entailed were measured live over the 24-artifact corpus:
+
+    - `(["x"])` is the STADIUM, and the converter sends `STADIUM` and
+      `ROUND` to the same result — a rounded RECTANGLE. So an ellipse
+      exported as `(["x"])` came back a rectangle; it must be `(("x"))`.
+    - A rounded rectangle exported as `["x"]` came back square, because
+      `roundness` was never consulted.
+
+    Together those cost 12 of 132 corpus node shapes and 28 of 132 once
+    roundness is counted.
+
+    LOSSY BY OMISSION, and named here because a caller cannot see it: a
+    rounded ELLIPSE and a rounded DIAMOND have no mermaid vertex syntax
+    at all, so their roundness is dropped and they re-import square-
+    cornered. `line`, `freedraw`, `image` and `frame` have no vertex
+    form of any kind and never reach this function.
+
+    Args:
+        el: The canvas element.
+
+    Returns:
+        A `%`-format template with one `%s` slot for the quoted label.
+    """
+    kind = el.get("type")
+    if kind == "diamond":
+        return '{"%s"}'
+    if kind == "ellipse":
+        return '(("%s"))'
+    if el.get("roundness"):
+        return '("%s")'
+    return '["%s"]'
+
+
 def _flow_to_mermaid(els):
     """Render an existing flow artifact as mermaid text for re-layout.
 
     Node ids are the element ids prefixed with ``n_`` (a bare slug like
     ``end`` is a mermaid keyword), so the returned skeletons carry the
     element identity and no label matching is ever needed.
+
+    Shapes come from `mermaid_shape`, shared with the export command.
+    Before that sharing this function had its own map and it was wrong
+    twice over (ellipse → stadium, roundness dropped); the re-layout
+    path reads x/y only, so nothing here ever noticed.
 
     Args:
         els: The artifact's element list.
@@ -16617,9 +16801,7 @@ def _flow_to_mermaid(els):
     def ref(eid):
         e = ix[eid]
         lbl = (labels.get(eid) or eid).replace('"', "'").replace("\n", " ")
-        shape = {"diamond": '{"%s"}', "ellipse": '(["%s"])'}.get(
-            e.get("type"), '["%s"]')
-        return "n_%s%s" % (eid, shape % lbl)
+        return "n_%s%s" % (eid, mermaid_shape(e) % lbl)
 
     nodes = [e for e in els
              if e.get("type") in ("rectangle", "diamond", "ellipse")
@@ -16648,6 +16830,319 @@ def _flow_to_mermaid(els):
         if e["id"] not in declared:
             lines.append("  %s" % ref(e["id"]))
     return "\n".join(lines) + "\n", len(nodes)
+
+
+# ---------------------------------------------------------------------
+# EXPORT TO MERMAID — a SNAPSHOT, never a source. `_flow_to_mermaid`
+# above is the internal gear for `--relayout` and keeps its own identity
+# naming (`n_<element id>`), because the round trip it feeds needs
+# IDENTITY and nothing else. What follows is the reader-facing form, and
+# it answers a different question — "give me this drawing as text I can
+# paste into a wiki". The one thing the two DO share is `mermaid_shape`,
+# because two shape maps is how the first one got to be wrong.
+#
+# THE STALENESS RULE IS THE SEED RULE'S MIRROR. Seeding is import-ONLY
+# because once a batch lands the drawing is the truth; export is
+# read-ONLY for the same reason. Nothing in this file re-applies an
+# exported file, and `canvas.py mermaid` refuses an artifact that
+# already exists, so the two rules meet: text can leave, text cannot
+# come back over a drawing that exists.
+# ---------------------------------------------------------------------
+
+# Words that cannot be a bare node id. `end` is the notorious one (it
+# closes a subgraph); the rest open statements, and `o`/`x` are edge-head
+# letters. Measured on the corpus: all 456 `role: node` element ids are
+# already legal bare tokens, because `mint_id` mints label slugs — so
+# the "identity versus portability" trade this file might have had does
+# not exist. The guard is for what `slugify` CAN emit, not for what it
+# has: a leading digit (`06-00-weekday`) and a label that slugs to a
+# keyword.
+MERMAID_RESERVED = frozenset((
+    "end", "graph", "flowchart", "subgraph", "click", "class", "classdef",
+    "style", "linkstyle", "direction", "default", "call", "href", "link",
+    "callback", "o", "x"))
+# `["`…`"]` markdown strings are the ONLY vertex form that carries a real
+# newline through the converter — measured — but they also eat markdown
+# emphasis (`*x*` comes back `x`) and drop `#lt;`/`#gt;`. So they are
+# used only when a label needs a newline and carries none of these.
+_MERMAID_MD_UNSAFE = frozenset("*_`<>")
+
+
+def mermaid_ident(text, fallback):
+    """Turn a label into a portable, mermaid-legal node id.
+
+    `slugify` does the work, so an export id is the SAME slug `mint_id`
+    would mint from the same label — including its NFKD pass, which is
+    why "Émissions" exports as `emissions` and not `missions`, and its
+    hash tail, which is why two CJK labels cannot collide on one id.
+
+    Args:
+        text: The element's label (may be empty).
+        fallback: The element id, used when the label slugs to nothing.
+
+    Returns:
+        A token matching ``[A-Za-z][A-Za-z0-9_-]*``.
+    """
+    s = slugify(text or "", fallback=slugify(fallback, fallback="n"))
+    if not s[0].isalpha():
+        # `slugify` may lead with a digit (`06:00 weekday` →
+        # `06-00-weekday`); mermaid node ids may not
+        s = "n-" + s
+    if s in MERMAID_RESERVED:
+        # A HYPHEN IS A TOKEN BOUNDARY in the flowchart lexer, so the
+        # obvious guard does not guard: `end-node["end"]` still lexes
+        # `end` and dies with "got 'end'". Underscore is inside
+        # NODE_STRING, so `end_node` is one token. Measured — the corpus
+        # could not have found this (no node is labelled "end"); the
+        # hostile-label battery did.
+        s += "_node"
+    return s[:48] or "n"
+
+
+def mermaid_label(text):
+    """Escape a label for a mermaid string, choosing the quote style.
+
+    Mermaid has no backslash escape inside ``"…"``; the supported form
+    is HTML numeric entities, which it substitutes back before render.
+    ``#`` goes first or it eats the entity, and ``<``/``>`` must go too:
+    labels are rendered as HTML, so an unescaped ``<ok>`` is parsed as a
+    tag and DISAPPEARS from the picture (measured, both directions).
+
+    Args:
+        text: Raw label text.
+
+    Returns:
+        ``(body, markdown)`` — wrap the body in backticks when
+        ``markdown`` is true.
+    """
+    raw = text or ""
+    if "\n" in raw and not (_MERMAID_MD_UNSAFE & set(raw)):
+        return raw.replace("#", "#35;").replace('"', "#quot;"), True
+    out = raw.replace("#", "#35;")
+    out = out.replace("<", "#lt;").replace(">", "#gt;")
+    out = out.replace('"', "#quot;").replace("\n", "<br/>")
+    return out, False
+
+
+def mermaid_vertex(el, text):
+    """The full vertex text for an element — shape plus escaped label.
+
+    An empty body is a parse error in every bracket form (``{""}`` →
+    "got DIAMOND_STOP"), so an unlabeled node exports as one space. The
+    shape itself comes from `mermaid_shape`, whose docstring names what
+    cannot round-trip.
+
+    Args:
+        el: The canvas element.
+        text: Its raw label text.
+
+    Returns:
+        The bracketed vertex text, id excluded.
+    """
+    body, md = mermaid_label(text)
+    q = "`%s`" % body if md else (body or " ")
+    return mermaid_shape(el) % q
+
+
+def flow_to_mermaid_export(els, direction=None, kinds=True, lanes=False):
+    """Render a flow (or domain) artifact as portable flowchart text.
+
+    Node ids are label slugs, not element ids with a prefix, because
+    the reader of the exported file is a human or another tool — but
+    they are the SAME slugs, since element ids are minted from labels
+    too, so citing a node back in an op needs no translation.
+
+    Args:
+        els: The artifact's element list.
+        direction: ``"TD"``/``"LR"``, or None to read the drawing's own
+            bounding box (wider than tall exports as ``LR``).
+        kinds: Emit ``classDef``/``class`` lines carrying node kinds.
+            They render as styling and are DROPPED on re-import — the
+            converter folds a class into its styles and never passes
+            the name on — so this is a docs-side carry only.
+        lanes: Emit ``subgraph`` blocks for lane frames. Portable, and
+            refused by this skill's own seeder (converter 2.2.2 degrades
+            a subgraph diagram to one picture), which is why it is off.
+
+    Returns:
+        The mermaid source text, newline-terminated.
+    """
+    labels = {e["containerId"]: (e.get("text") or "") for e in els
+              if e.get("type") == "text" and e.get("containerId")}
+    nodes = [e for e in els
+             if e.get("type") in ("rectangle", "diamond", "ellipse")
+             and (e.get("customData") or {}).get("role") == "node"]
+    node_ids = {e["id"] for e in nodes}
+    taken, nid = {}, {}
+    for e in nodes:
+        base = mermaid_ident(labels.get(e["id"], ""), e["id"])
+        seen = taken.get(base, 0)
+        taken[base] = seen + 1
+        nid[e["id"]] = base if not seen else "%s-%d" % (base, seen + 1)
+    if direction is None:
+        xs = [e.get("x", 0) for e in nodes] or [0]
+        ys = [e.get("y", 0) for e in nodes] or [0]
+        direction = "LR" if (max(xs) - min(xs)) >= (max(ys) - min(ys)) \
+            else "TD"
+    lines = ["flowchart %s" % direction]
+
+    def decl(e):
+        """One node declaration.
+
+        Args:
+            e: The node element.
+
+        Returns:
+            ``id[…]`` text.
+        """
+        return nid[e["id"]] + mermaid_vertex(
+            e, (labels.get(e["id"]) or "").strip())
+
+    placed = set()
+    for fr in (els if lanes else []):
+        if fr.get("type") != "frame":
+            continue
+        mems = [e for e in nodes if e.get("frameId") == fr["id"]]
+        if not mems:
+            continue
+        flab = (labels.get(fr["id"]) or fr.get("name") or "").strip()
+        body, _md = mermaid_label(flab)
+        lines.append('  subgraph %s["%s"]'
+                     % (mermaid_ident(flab, fr["id"]), body or " "))
+        for e in mems:
+            lines.append("    " + decl(e))
+            placed.add(e["id"])
+        lines.append("  end")
+    lines.extend("  " + decl(e) for e in nodes if e["id"] not in placed)
+    for a in els:
+        if a.get("type") != "arrow":
+            continue
+        src = (a.get("startBinding") or {}).get("elementId")
+        dst = (a.get("endBinding") or {}).get("elementId")
+        if src not in node_ids or dst not in node_ids:
+            continue
+        raw = (labels.get(a["id"]) or "").strip()
+        # the empty-body substitution above is a VERTEX rule; an edge
+        # label is simply omitted instead of becoming a space
+        body = mermaid_label(raw)[0].replace("|", "#124;") if raw else ""
+        dashed = a.get("strokeStyle") == "dashed"
+        if body:
+            link = '-. "%s" .->' % body if dashed else '-->|"%s"|' % body
+        else:
+            link = "-.->" if dashed else "-->"
+        lines.append("  %s %s %s" % (nid[src], link, nid[dst]))
+    if kinds:
+        by_kind = {}
+        for e in nodes:
+            k = (e.get("customData") or {}).get("kind")
+            if k:
+                by_kind.setdefault(k, []).append(nid[e["id"]])
+        for k in sorted(by_kind):
+            lines.append("  classDef %s stroke-width:2px" % k)
+            lines.append("  class %s %s" % (",".join(by_kind[k]), k))
+    return "\n".join(lines) + "\n"
+
+
+_ER_CARD_OUT_L = {"0..1": "|o", "1": "||", "0..*": "}o", "1..*": "}|"}
+_ER_CARD_OUT_R = {"0..1": "o|", "1": "||", "0..*": "o{", "1..*": "|{"}
+_ER_TIP_RE = re.compile(
+    r"^cardinality:\s*(?P<a>.+?)\s+(?P<lc>0\.\.1|1|0\.\.\*|1\.\.\*)\s+"
+    r"—\s+(?P<rc>0\.\.1|1|0\.\.\*|1\.\.\*)\s+(?P<b>.+)$")
+_ER_TIP_ATTR_RE = re.compile(
+    r"^-\s+(?P<type>\S+)\s+(?P<name>[\w-]+)"
+    r"(?P<keys>(?:\s+(?:PK|FK|UK))*)\s*"
+    r'(?:—\s+"(?P<comment>[^"]*)")?\s*$')
+
+
+def _er_token(label):
+    """An erDiagram entity token for a display name.
+
+    Args:
+        label: The entity's canvas label.
+
+    Returns:
+        A bare name, or the name in double quotes when it needs them.
+    """
+    return label if re.match(r"^[A-Za-z][\w-]*$", label or "") \
+        else '"%s"' % (label or "entity").replace('"', "'")
+
+
+def domain_to_er_export(els):
+    """Render a domain artifact as erDiagram text, or say why not.
+
+    THE REFUSAL IS THE POINT. mermaid's ER grammar takes a cardinality
+    token on BOTH ends of every relation and has no way to spell
+    "unknown" — read off its own generated parser, every
+    ``addRelationship`` production carries a relSpec. A domain drawing
+    that was not itself erDiagram-seeded does not hold that fact:
+    measured over the three corpus domains, 0 of 29 relations carry a
+    ``cardinality:`` tooltip and 12 state one only inside label prose
+    ("holds 1..*"). Guessing ``||--o{`` would put a claim on the page
+    that nobody made, so unknown relations are named and refused.
+
+    Args:
+        els: The artifact's element list.
+
+    Returns:
+        ``(text, refusals)`` — a non-empty refusal list means don't
+        write the file.
+    """
+    labels = {e["containerId"]: (e.get("text") or "").strip() for e in els
+              if e.get("type") == "text" and e.get("containerId")}
+    ents = {e["id"]: e for e in els
+            if (e.get("customData") or {}).get("kind") == "entity"}
+    lines, refusals = ["erDiagram"], []
+    for eid, e in ents.items():
+        name = _er_token(labels.get(eid, eid))
+        tip = (e.get("customData") or {}).get("tooltip") or ""
+        rows = []
+        if tip.startswith("attributes:"):
+            for raw in tip.splitlines()[1:]:
+                m = _ER_TIP_ATTR_RE.match(raw.strip())
+                if m:
+                    rows.append("%s %s%s%s" % (
+                        m.group("type"), m.group("name"),
+                        " " + " ".join(m.group("keys").split())
+                        if m.group("keys").strip() else "",
+                        ' "%s"' % m.group("comment")
+                        if m.group("comment") else ""))
+        if rows:
+            lines.append("  %s {" % name)
+            lines.extend("    " + r for r in rows)
+            lines.append("  }")
+        else:
+            lines.append("  %s" % name)
+    for a in els:
+        if a.get("type") != "arrow":
+            continue
+        src = (a.get("startBinding") or {}).get("elementId")
+        dst = (a.get("endBinding") or {}).get("elementId")
+        if src not in ents or dst not in ents:
+            continue
+        m = _ER_TIP_RE.match(((a.get("customData") or {}).get("tooltip")
+                              or "").strip())
+        if not m:
+            refusals.append(
+                "%s (%s → %s, %r) carries no `cardinality:` tooltip — "
+                "erDiagram needs a token on BOTH ends and cannot say "
+                "'unknown', so exporting it would invent the claim. "
+                "Export this artifact with --format mermaid (a "
+                "flowchart carries the boxes and the labelled arrows "
+                "exactly), or settle the cardinality on the canvas "
+                "first" % (a["id"], labels.get(src, src),
+                           labels.get(dst, dst), labels.get(a["id"], "")))
+            continue
+        # the seeder appends the many-side token to the label; strip it
+        # so the export does not state the cardinality twice
+        label = re.sub(r"\s+(0\.\.1|1\.\.\*|0\.\.\*)$",
+                       "", labels.get(a["id"], "")).strip() or "relates"
+        lines.append('  %s %s--%s %s : "%s"'
+                     % (_er_token(labels.get(src, src)),
+                        _ER_CARD_OUT_L[m.group("lc")],
+                        _ER_CARD_OUT_R[m.group("rc")],
+                        _er_token(labels.get(dst, dst)),
+                        label.replace('"', "'")))
+    return "\n".join(lines) + "\n", refusals
 
 
 def _mermaid_poll(state, mid, timeout):
@@ -17599,11 +18094,28 @@ def main(argv=None):
     p.add_argument("--types", default=None,
                    help="comma-separated exact event types (overrides "
                         "--for)")
-    p = sub.add_parser("export", help="write an artifact to SVG, optionally "
-                                      "carrying its tooltips as footnotes")
+    p = sub.add_parser("export", help="write an artifact to SVG or mermaid "
+                                      "text, optionally carrying its "
+                                      "tooltips as footnotes")
     p.add_argument("--artifact", default=None)
     p.add_argument("--out", default=None,
-                   help="output .svg path (default: project_knowledge/)")
+                   help="output path (default: project_knowledge/)")
+    p.add_argument("--format", choices=("svg", "mermaid", "er"),
+                   default="svg",
+                   help="svg (default), mermaid (flowchart — flow and "
+                        "domain artifacts) or er (erDiagram — domain "
+                        "artifacts whose cardinality is settled). A "
+                        "mermaid export is a SNAPSHOT and is never read "
+                        "back: seeding creates NEW artifacts only")
+    p.add_argument("--direction", choices=("TD", "LR"), default=None,
+                   help="mermaid flow direction (default: read off the "
+                        "drawing's own bounding box)")
+    p.add_argument("--lanes", action="store_true",
+                   help="mermaid: emit lane frames as subgraph blocks "
+                        "(valid mermaid, refused by this skill's seeder)")
+    p.add_argument("--no-kinds", action="store_true",
+                   help="mermaid: omit the classDef/class lines that "
+                        "carry node kinds")
     p.add_argument("--with-footnotes", action="store_true",
                    help="number tooltip-bearing elements and print their "
                         "text under the drawing, plus the glossary — for "

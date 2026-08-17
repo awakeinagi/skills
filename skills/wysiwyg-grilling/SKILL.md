@@ -581,6 +581,25 @@ hover-only tooltips and the `▶ walk` prototype mode. `canvas.py export
 underneath and the glossary appended, so the artifact carries its own
 detail. Name the glossary as the thing to read first.
 
+**If the drawings are going into a repo, a PR or another tool** — a
+different job, and a narrower one — `canvas.py export --artifact <id>
+--format mermaid` writes flowchart text for a **flow** or **domain**
+artifact. Use it for a diffable review form (a `.mmd` shows "you added a
+control node and rewired two edges" in three lines; the `.excalidraw`
+shows a coordinate storm) and for seeding another diagrammer. **Do not
+use it for handover** — mermaid cannot carry a tooltip, so the SVG above
+is strictly better at that. `--format er` writes an `erDiagram` from a
+domain whose cardinality was actually settled, and refuses relation by
+relation when it wasn't rather than inventing a claim nobody made.
+Wireframes and sequences refuse by name, each with its own reason.
+
+Every exported file is stamped `%% wysiwyg-grilling: <id> at revn N — a
+SNAPSHOT` and prints a `DROPPED=` count of what had no mermaid form
+(pins, annotations, notes, frames, freehand). Say that count out loud: an
+export is one-way. **Text can leave; text never comes back over a drawing
+that exists** — `canvas.py mermaid` seeds NEW artifacts only, and an
+exported file is never read back. The drawing stays the truth.
+
 Then `canvas.py stop` (an idle watchdog also reaps the
 server if the session dies abruptly; state on disk is always sufficient to
 resume — next session's catch-up reconstructs).
