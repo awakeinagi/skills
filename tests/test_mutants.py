@@ -9805,9 +9805,9 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
 # perfectly well. That is the family the render tier exists for, arriving
 # in a pure function this time and so provable without a browser.
 #
-# It draws `endArrowhead` and never consults `startArrowhead`. An ER
+# It drew `endArrowhead` and never consulted `startArrowhead`. An ER
 # relation with the many-side on the left — `ORDER }o--|| CARRIER`, which
-# the seeder emits — exports and renders as an UNDIRECTED LINE.
+# the seeder emits — exported and rendered as an UNDIRECTED LINE.
 #
 # BASE: two nodes and one arrow. MUTATION: none. MAGNITUDE: the count of
 # drawn marks, 1 where the same arrow reversed draws 2. DIRECTION: which
@@ -9815,14 +9815,49 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
 # instead, which draws both marks — same scene, same geometry, one field
 # renamed. OWNER: whoever next opens `render_svg`; it is a marker emission
 # beside one that already exists.
+#
+# FLIPPED 2026-08-17 (v0.9 TASK-MICROFIX-2), and the owner clause is what
+# it cost: the inline emission became `_svg_arrowhead`, which takes an
+# `at_end` the secant reader `_arrival_path` already accepted, and the
+# start end is now asked beside the end one. Filed the same morning it
+# drained. The MAGNITUDE this entry names turned out to be the weaker
+# half — a count is satisfied by drawing the END head twice — so the pin
+# gained the apexes at the flip; read that as the general warning about
+# a count standing in for a position.
 # ---------------------------------------------------------------------------
 
 
 class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
     """The fallback picture must not silently drop a direction."""
 
+    # The apex of a head is the FIRST vertex `_svg_arrowhead` writes, which
+    # is the one place the two ends cannot be confused: a second copy of
+    # the end head has the wrong apex however many marks it adds.
+    _APEX_RE = re.compile(r"<polygon points='(-?[\d.]+),(-?[\d.]+) ")
+
     @staticmethod
-    def _marks(start: str | None, end: str | None) -> int:
+    def _svg(start: str | None, end: str | None) -> str:
+        """The fallback picture of two nodes and one arrow between them.
+
+        Args:
+            start: The arrow's `startArrowhead`.
+            end: Its `endArrowhead`.
+
+        Returns:
+            The SVG markup. The arrow runs left to right from (100, 30)
+            to (300, 30), so the two ends are distinguishable by apex.
+        """
+        els = [el(id="n1", type="rectangle", x=0, y=0, width=100,
+                  height=60, customData={"role": "node"}),
+               el(id="n2", type="rectangle", x=300, y=0, width=100,
+                  height=60, customData={"role": "node"}),
+               el(id="e1", type="arrow", x=100, y=30, width=200, height=0,
+                  points=[[0, 0], [200, 0]], startArrowhead=start,
+                  endArrowhead=end)]
+        return canvas.render_svg(els)[0]
+
+    @classmethod
+    def _marks(cls, start: str | None, end: str | None) -> int:
         """Count the drawn marks in the SVG of one arrow.
 
         Args:
@@ -9833,32 +9868,51 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
             How many `polyline`/`polygon`/`path` elements the SVG holds —
             one for the stroke, one more per head actually drawn.
         """
-        els = [el(id="n1", type="rectangle", x=0, y=0, width=100,
-                  height=60, customData={"role": "node"}),
-               el(id="n2", type="rectangle", x=300, y=0, width=100,
-                  height=60, customData={"role": "node"}),
-               el(id="e1", type="arrow", x=100, y=30, width=200, height=0,
-                  points=[[0, 0], [200, 0]], startArrowhead=start,
-                  endArrowhead=end)]
-        svg = canvas.render_svg(els)[0]
-        return len(re.findall(r"<(?:polyline|polygon|path)\b", svg))
+        return len(re.findall(r"<(?:polyline|polygon|path)\b",
+                              cls._svg(start, end)))
 
-    @unittest.expectedFailure
+    @classmethod
+    def _apexes(cls, start: str | None, end: str | None) -> list[tuple]:
+        """Where every drawn head points, in reading order.
+
+        Args:
+            start: The arrow's `startArrowhead`.
+            end: Its `endArrowhead`.
+
+        Returns:
+            One `(x, y)` per `<polygon>`, each the head's own tip.
+        """
+        return [(float(m.group(1)), float(m.group(2)))
+                for m in cls._APEX_RE.finditer(cls._svg(start, end))]
+
     def test_red_a_start_arrowhead_is_never_drawn(self) -> None:
         """The same arrow reversed loses its head and says nothing.
 
-        WHAT THE PICTURE WRONGLY SAYS: the relation has no direction.
-        An agent reading the fallback snapshot of `ORDER }o--|| CARRIER`
-        sees a plain line between two entities and will narrate it as
-        one, while the user's Excalidraw draws the crow's foot.
+        FLIPPED 2026-08-17 by v0.9 TASK-MICROFIX-2, which lifted the
+        inline head emission into `_svg_arrowhead` and asked it at both
+        ends. Kept its red-era name, this file's usual convention.
 
-        WHAT THE CHECKS REPORTED: nothing — there is no check. The SVG
-        is well-formed, the geometry is right, and the only thing wrong
-        is a mark that is absent.
+        WHAT IT WAS. An agent reading the fallback snapshot of
+        `ORDER }o--|| CARRIER` saw a plain line between two entities and
+        would narrate it as one, while the user's Excalidraw drew the
+        crow's foot. No check reported it and none could: the SVG was
+        well-formed, the geometry was right, and the only thing wrong
+        was a mark that was absent.
 
         Counted rather than pattern-matched on the head's own shape, so
-        the pin does not prescribe HOW the head is drawn: any emission
-        at the start end flips it.
+        the pin does not prescribe HOW the head is drawn: any honest
+        emission at the start end flips it.
+
+        STRENGTHENED AT THE FLIP, because a COUNT is satisfied by a
+        second copy of the end head — an emission that adds a mark and
+        still says the relation runs left-to-right, which is the same
+        false statement the absence made. So the apexes are asserted
+        too: the start mark's tip must sit at the arrow's own start
+        point, the end mark's at its end, and the pair must arrive
+        together on an arrow carrying both. Position and not direction
+        because the tip is where the two ends cannot be confused,
+        and the axis is `_arrival_path`'s, which the curved-arrow pins
+        elsewhere in this file already hold.
         """
         self.assertEqual(
             self._marks("arrow", None), 2,
@@ -9867,6 +9921,16 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
             "`endArrowhead` only, so a reversed relation renders "
             "undirected in the picture the agent reads"
             % (self._marks("arrow", None), self._marks(None, "arrow")))
+        self.assertEqual(
+            self._apexes("arrow", None), [(100.0, 30.0)],
+            "the start head must point at the arrow's START (100, 30); a "
+            "mark at (300, 30) is the end head drawn twice, which adds a "
+            "mark and repeats the wrong direction")
+        self.assertEqual(self._apexes(None, "arrow"), [(300.0, 30.0)])
+        self.assertEqual(
+            sorted(self._apexes("arrow", "arrow")),
+            [(100.0, 30.0), (300.0, 30.0)],
+            "an arrow headed at both ends draws both marks, once each")
 
     def test_an_end_arrowhead_is_drawn(self) -> None:
         """The green pole: the ordinary direction is drawn, and once.
@@ -18434,9 +18498,19 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
     "TestARetypedValueReachesDiskButNotHistory": 1,
-    "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
     "TestTheObstacleSetsAgreeAboutASticky": 1}
+# TWO LEFT on 2026-08-17 (v0.9 TASK-MICROFIX-2), in consecutive commits,
+# and they are worth reading as the pair they are: both were batch-27
+# and spike-program filings whose OWNER clause named the change that
+# would drain them, and in both the fix was an emission put beside one
+# that already existed rather than a new rule.
+# `TestRenderSvgDrawsBothArrowheads` went when `render_svg` started
+# asking `_svg_arrowhead` at both ends; it keeps both poles and gained
+# an apex arm, because the count this dict was built on is satisfied by
+# the END head drawn twice.
+# `TestMermaidEdgeLabelEscaping`, the other, follows.
+#
 # ONE LEFT on 2026-08-17 (v0.9 TASK-MICROFIX-2):
 # `TestMermaidEdgeLabelEscaping`, whose single red flipped when the
 # re-layout path started calling `mermaid_label` — the second field of

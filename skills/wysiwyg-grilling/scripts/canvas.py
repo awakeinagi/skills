@@ -8826,6 +8826,52 @@ def exact_ink_extent(els, pad=40):
     return ink_extent([e for e in els if e.get("type") != "text"], pad=pad)
 
 
+def _svg_arrowhead(e: dict[str, Any], abs_pts: Sequence[tuple[float, float]],
+                   at_end: bool, stroke: str, brk: str) -> str:
+    """The filled mark at ONE end of an arrow, as SVG markup.
+
+    ONE SPELLING, TWO ENDS, and it is a function because for a long time
+    it was not: `render_svg` drew `endArrowhead` inline and never
+    consulted `startArrowhead`, so a relation with the many-side on the
+    left — `ORDER }o--|| CARRIER`, which the seeder emits — came out an
+    UNDIRECTED LINE. This is the picture an AGENT reads when it cannot
+    open a browser (the snapshot CLI's tier-3 fallback, and what the
+    substrate tier rasterizes), so a direction it cannot draw is a
+    direction the agent narrates away while the user, looking at
+    Excalidraw, sees the head perfectly well.
+
+    The axis is the DRAWN secant `_arrival_path` reports — the same
+    sample the client's `getArrowheadPoints` takes, which on a sharp
+    arrow is the terminal chord and on a curved one is nothing like it —
+    and that function already serves both ends, so the start mark needed
+    no second rule. All arrowhead KINDS draw as this one triangle: the
+    fallback picture is for reading direction, not for reproducing a
+    bar, a dot or a crow's foot.
+
+    Args:
+        e: The arrow element, for `_arrival_path`'s reading of it.
+        abs_pts: Its points in absolute coordinates, at least two.
+        at_end: True for the `endArrowhead` mark, False for the start.
+        stroke: The fill colour, which is the arrow's own stroke.
+        brk: The `mask=` attribute cutting a bound label's gap, or "".
+
+    Returns:
+        One `<polygon>` element.
+    """
+    tip = abs_pts[-1] if at_end else abs_pts[0]
+    _seq, from_pt = _arrival_path(e, at_end)
+    frm = from_pt if from_pt is not None else (
+        abs_pts[-2] if at_end else abs_pts[1])
+    dx, dy = tip[0] - frm[0], tip[1] - frm[1]
+    ln = (dx * dx + dy * dy) ** 0.5 or 1
+    ux, uy = dx / ln, dy / ln
+    px, py = -uy, ux
+    return ("<polygon points='%f,%f %f,%f %f,%f' fill='%s'%s/>"
+            % (tip[0], tip[1], tip[0] - 10 * ux + 4 * px,
+               tip[1] - 10 * uy + 4 * py, tip[0] - 10 * ux - 4 * px,
+               tip[1] - 10 * uy - 4 * py, stroke, brk))
+
+
 def render_svg(els, title="", footnotes=False, glossary=None):
     """Deterministic stdlib SVG of an element array — the snapshot CLI's
     tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
@@ -8999,23 +9045,15 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 out.append("<polyline points='%s' fill='none' stroke='%s' "
                            "stroke-width='%s'%s%s%s/>"
                            % (path, stroke, sw, caps, _svg_dash(e), brk))
-            if et == "arrow" and e.get("endArrowhead") and len(abs_pts) > 1:
-                # the head goes along the DRAWN secant the client uses
-                # (`_arrival_path`), which on a sharp arrow is the final
-                # chord and on a curved one is nothing like it
-                (x2, y2) = abs_pts[-1]
-                _aseq, from_pt = _arrival_path(e, True)
-                (x1, y1) = from_pt if from_pt is not None else abs_pts[-2]
-                dx, dy = x2 - x1, y2 - y1
-                ln = (dx * dx + dy * dy) ** 0.5 or 1
-                ux, uy = dx / ln, dy / ln
-                px, py = -uy, ux
-                out.append("<polygon points='%f,%f %f,%f %f,%f' "
-                           "fill='%s'%s/>"
-                           % (x2, y2, x2 - 10 * ux + 4 * px,
-                              y2 - 10 * uy + 4 * py,
-                              x2 - 10 * ux - 4 * px,
-                              y2 - 10 * uy - 4 * py, stroke, brk))
+            if et == "arrow" and len(abs_pts) > 1:
+                # BOTH ends are asked, in stored order so an ordinary
+                # end-headed arrow emits exactly the markup it always
+                # did; `_svg_arrowhead` carries why the start one is not
+                # optional
+                if e.get("endArrowhead"):
+                    out.append(_svg_arrowhead(e, abs_pts, True, stroke, brk))
+                if e.get("startArrowhead"):
+                    out.append(_svg_arrowhead(e, abs_pts, False, stroke, brk))
         elif et == "text":
             # the wrap moved to `painted_text_lines` in v0.9 task 46 so
             # that the bounds loop above could read the same rule; the
