@@ -3053,11 +3053,15 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
     arrow["height"] = max(abs(p[1]) for p in pts)
     arrow["points"] = pts
     arrow["roundness"] = derived_roundness(arrow)   # derived, never authored
+    # SOLVED, not derived — the focus is a property of the approach ray,
+    # and `path[1]` / `path[-2]` are the points the client will aim from.
     arrow["startBinding"] = {"elementId": src["id"],
-                             "focus": binding_focus(src, x1, y1),
+                             "focus": solve_focus(src, path[1][0], path[1][1],
+                                                  x1, y1, gap),
                              "gap": gap}
     arrow["endBinding"] = {"elementId": dst["id"],
-                           "focus": binding_focus(dst, *path[-1]),
+                           "focus": solve_focus(dst, path[-2][0], path[-2][1],
+                                                path[-1][0], path[-1][1], gap),
                            "gap": gap}
     _stamp_route(arrow)
     for node in (src, dst):
@@ -3154,24 +3158,172 @@ def reroute_and_confess(els, node, before, artifact_id):
         True)]
 
 
-def binding_focus(node, px, py):
-    """Excalidraw-style focus for an attach point: signed center-offset
-    ratio along the attached edge's cross axis, clamped to ±0.9. Focus 0
-    means "aim at the center" — which is why every fanned endpoint used
-    to snap back to one shared point on the first client re-render
-    (v0.3 assessment: the lint's own advice was unfollowable)."""
-    cx = node["x"] + node.get("width", 0) / 2.0
-    cy = node["y"] + node.get("height", 0) / 2.0
-    side = _edge_side(node, px, py)
-    if side in ("left", "right"):
-        half = max(node.get("height", 0) / 2.0, 1.0)
-        f = (py - cy) / half
-    elif side in ("top", "bottom"):
-        half = max(node.get("width", 0) / 2.0, 1.0)
-        f = (px - cx) / half
+# `binding_focus` STOOD HERE and is deleted rather than left beside its
+# replacement. It computed a signed centre-offset ratio along the
+# attached edge's CROSS axis — a side ratio where Excalidraw's focus is a
+# diagonal ratio — so the two agreed at exactly one value, 0, and nowhere
+# else. Read that as a warning about names: it was called `binding_focus`
+# and docstringed "Excalidraw-style focus", and four assessment rounds
+# read that sentence instead of the client's source. Keeping a wrong
+# function under a right-sounding name, with no caller, is how the next
+# reader gets it back.
+#
+# What it was right about is kept, because it is the reason any of this
+# matters: FOCUS 0 AIMS AT THE CENTRE, so a fan whose feet carry 0 is a
+# fan the client's first re-render collapses onto one shared point (v0.3
+# assessment — and the lint's own advice was then unfollowable). That is
+# still true, and `solve_focus` is what now makes the stored value the
+# one the client redraws to.
+
+
+def _focus_point(node: dict[str, Any], focus: float, ax: float,
+                 ay: float) -> tuple[float, float]:
+    """Where the CLIENT aims when it re-derives a bound endpoint.
+
+    A transcription of Excalidraw 0.18.1's `determineFocusPoint`
+    (`chunk-4FTI6OG3.js` :11748): a scaled box corner — a scaled side
+    midpoint, on a rhombus — chosen by which side of the shape the
+    arrow's adjacent point stands off. Unrotated only: every
+    server-authored node has `angle = 0`, and the two `pointRotateRads`
+    calls the client keeps would have to come back for a rotated one.
+
+    Args:
+        node: The bound node element.
+        focus: The stored focus value.
+        ax: The adjacent path point's x — where the arrow comes from.
+        ay: The adjacent path point's y.
+
+    Returns:
+        `(x, y)` the client aims its interceptor ray at.
+    """
+    w, h = node.get("width", 0), node.get("height", 0)
+    cx, cy = node["x"] + w / 2.0, node["y"] + h / 2.0
+    if focus == 0:
+        return (cx, cy)
+    x, y = node["x"], node["y"]
+    if node.get("type") == "diamond":
+        raw = [(x, y + h / 2.0), (x + w / 2.0, y),
+               (x + w, y + h / 2.0), (x + w / 2.0, y + h)]
     else:
+        raw = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    c = [(cx + (p[0] - cx) * abs(focus), cy + (p[1] - cy) * abs(focus))
+         for p in raw]
+
+    def turn(i: int, j: int) -> float:
+        """The client's `vectorCross(adj - c[i], c[j] - c[i])`.
+
+        Args:
+            i: Index of the corner the test is anchored at.
+            j: Index of the corner it looks toward.
+
+        Returns:
+            The cross product's scalar — its SIGN is what selects.
+        """
+        return ((ax - c[i][0]) * (c[j][1] - c[i][1]) -
+                (ay - c[i][1]) * (c[j][0] - c[i][0]))
+
+    pos = focus > 0
+    for k in range(4):
+        nxt, prv = (k + 1) % 4, (k + 3) % 4
+        if turn(k, nxt) > 0 and (turn(nxt, (k + 2) % 4) < 0 if pos
+                                 else turn(prv, k) < 0):
+            return c[nxt] if pos else c[k]
+    return c[0] if pos else c[3]
+
+
+def solve_focus(node: dict[str, Any], ax: float, ay: float, px: float,
+                py: float, gap: float = 0) -> float:
+    """The focus value that makes the client DRAW the foot where it is stored.
+
+    `binding_focus` and the client's own `determineFocusDistance` both
+    compute a focus FROM the geometry, and both are only right for a
+    perpendicular approach; this solves the inverse problem instead. The
+    client draws the endpoint where the ray `adjacent -> focus point`
+    first meets the gap-expanded outline, so the whole requirement is
+    that `_focus_point(focus)` land on the line from the adjacent point
+    through `foot + gap * outward normal`. The focus point rides a corner
+    ray out of the centre, so the answer is where that ray crosses that
+    line — two line intersections, no search, no iteration.
+
+    THE SIGNATURE CHANGE IS FORCED and is the interesting part.
+    Excalidraw's focus is a property of the whole approach RAY, not of
+    the foot, so `binding_focus(node, px, py)` could not be correct at
+    any precision: two arrows arriving at one point from different
+    directions need different focus values. Both call sites already hold
+    the adjacent point — `route_arrow` has `path[1]` / `path[-2]`,
+    `fan_attach_points` has `pts[1]` / `pts[-2]`.
+
+    Focus 0 stays the answer for a perpendicular approach through a side
+    midpoint (spike-ports §2's exact pole), because there the target line
+    passes through the centre and no candidate can beat it.
+
+    Args:
+        node: The bound node element.
+        ax: The adjacent path point's x — the point the client aims from.
+        ay: The adjacent path point's y.
+        px: The stored endpoint's x.
+        py: The stored endpoint's y.
+        gap: The binding gap the client will honour, in px.
+
+    Returns:
+        The focus, rounded to 3dp and clamped to ±0.9 as the wire format
+        has always been. Returns 0 when the endpoint is on no side, and
+        when no focus can express it — a final leg that runs ALONG the
+        side it lands on is edge-on to that side, so no ray from the
+        adjacent point can enter through it at any focus, and saying 0
+        there is the same answer the incumbent gives.
+    """
+    side = _edge_side(node, px, py)
+    if side is None:
         return 0
-    return max(-0.9, min(0.9, round(f, 3)))
+    w, h = node.get("width", 0), node.get("height", 0)
+    cx, cy = node["x"] + w / 2.0, node["y"] + h / 2.0
+    nx, ny = {"left": (-1.0, 0.0), "right": (1.0, 0.0),
+              "top": (0.0, -1.0), "bottom": (0.0, 1.0)}[side]
+    lx, ly = (px + nx * gap) - ax, (py + ny * gap) - ay
+    if abs(lx) < 1e-12 and abs(ly) < 1e-12:
+        return 0
+    if node.get("type") == "diamond":
+        rays = [(-w / 2.0, 0.0), (0.0, -h / 2.0),
+                (w / 2.0, 0.0), (0.0, h / 2.0)]
+    else:
+        rays = [(-w / 2.0, -h / 2.0), (w / 2.0, -h / 2.0),
+                (w / 2.0, h / 2.0), (-w / 2.0, h / 2.0)]
+    # focus 0 aims at the centre, and that is the answer to beat: it is
+    # exact whenever the target line passes through the centre, which is
+    # every perpendicular approach through a side midpoint.
+    best, best_off = 0.0, abs((cx - ax) * ly - (cy - ay) * lx)
+    for rx, ry in rays:
+        den = rx * ly - ry * lx
+        if abs(den) < 1e-12:
+            continue
+        t = ((ax - cx) * ly - (ay - cy) * lx) / den
+        if t < -1e-9:
+            continue
+        # THE ONE-ULP SELECTION CLIFF, and the reason this probes rather
+        # than returning `t`. `determineFocusPoint`'s corner tests are
+        # strict `> 0`, so a focus point exactly collinear with the
+        # adjacent point falls through to the WRONG corner and draws the
+        # foot somewhere else entirely — 91.4px away on a 200x64 node at
+        # its bottom quarter point, measured in the browser. For a
+        # perpendicular approach that collinearity is not an edge case
+        # but every case, because the exact answer |d| / (w/2) IS the
+        # scale that lands the corner ray on the adjacent point's own
+        # line. So probe one rounding step either side of the analytic
+        # answer and keep whichever candidate actually puts the client's
+        # aim on the target line.
+        for f in sorted({round(s * min(t, 0.9) + s * d, 3)
+                         for s in (1.0, -1.0) for d in (0.0, 1e-3, -1e-3)}):
+            if f == 0 or abs(f) > 0.9:
+                continue
+            fx, fy = _focus_point(node, f, ax, ay)
+            # aiming away from the foot leaves through the far side
+            if (fx - ax) * lx + (fy - ay) * ly <= 0:
+                continue
+            off = abs((fx - ax) * ly - (fy - ay) * lx)
+            if off < best_off:
+                best, best_off = f, off
+    return best
 
 
 def _edge_side(el, px, py, eps=2.5):
@@ -3183,7 +3335,7 @@ def _edge_side(el, px, py, eps=2.5):
     midpoints, so a foot standing on the INK — which is where
     `edge_anchor` and `_fan_point` both put one — is on no bbox edge at
     all and used to come back None. Two things read that None and both
-    are silent failures: `binding_focus` returns focus 0, which aims the
+    are silent failures: `solve_focus` returns focus 0, which aims the
     client's re-render at the node centre and collapses a fan back onto
     one point (v0.3), and `fan_attach_points` drops the endpoint from its
     per-side ledger, so a fan that has already run cannot be maintained.
@@ -3426,11 +3578,18 @@ def fan_attach_points(els):
 
     Every moved endpoint takes the same four steps, and the third is the
     one that looks optional and is not: the binding dict is REPLACED
-    with a recomputed `binding_focus`. Focus 0 aims the client's first
-    re-render at the node centre, so leaving it in place drags every
-    fanned endpoint straight back onto the shared anchor (v0.3), and
-    writing into the existing dict leaks into the caller's scene through
-    `apply_ops`' shallow copy even on a batch that is later rejected.
+    with a focus re-SOLVED for the fanned foot AND the leg that arrives
+    at it. Focus 0 aims the client's first re-render at the node centre,
+    so leaving it in place drags every fanned endpoint straight back onto
+    the shared anchor (v0.3), and writing into the existing dict leaks
+    into the caller's scene through `apply_ops`' shallow copy even on a
+    batch that is later rejected.
+
+    The approach point matters as much as the foot, which is why the
+    solve reads `pts[1]` / `pts[-2]` and not just the endpoint: sliding
+    one end of an L along its edge drags the corner sideways, so the fan
+    changes the direction the arrow arrives from, and a focus computed
+    from the foot alone would describe a leg that no longer exists.
 
     Args:
         els: The whole applied scene, mutated in place.
@@ -3601,8 +3760,10 @@ def fan_attach_points(els):
             node = ix.get((b or {}).get("elementId"))
             if b and node is not None:
                 px, py = (sx, sy) if which == "start" else (exx, exy)
+                adj = pts[1] if which == "start" else pts[-2]
                 nb = dict(b)
-                nb["focus"] = binding_focus(node, px, py)
+                nb["focus"] = solve_focus(node, sx + adj[0], sy + adj[1],
+                                          px, py, b.get("gap") or 0)
                 a[key] = nb
         _stamp_route(a)
         recenter_label(els, a)
@@ -10907,7 +11068,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # of them on a side too short for its feet: the boundary is
             # `room < (N-1) * FAN_LANE_PITCH`, which predicts 118 of the
             # 120 rows. "The lint's own advice was unfollowable" is a
-            # recorded v0.3 assessment finding (see `binding_focus`); one
+            # recorded v0.3 assessment finding (see `solve_focus`); one
             # sentence covering both regimes is cheaper than re-deriving
             # the fan's arithmetic here, and it is honest in both.
             warnings.append(

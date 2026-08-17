@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import canvas  # noqa: E402
+import focus_probe  # noqa: E402
 import instruments  # noqa: E402
 
 # The instruments are the drawing's own measure, and one test here needs
@@ -6383,6 +6384,188 @@ class TestFanAttachPoints(unittest.TestCase):
                    for e in els if e.get("type") == "arrow"]
         self.assertEqual(len(focuses), 3)
         self.assertTrue(any(abs(f) > 0.05 for f in focuses), focuses)
+
+
+class TestFocusRoundTrip(unittest.TestCase):
+    """Does the focus we STORE redraw the foot where we PUT it?
+
+    The fast neighbour of `frontends/wysiwyg-grilling/tests/e2e/
+    focus.spec.ts`, which is the authoritative oracle and needs a
+    browser. Both read the same specimen from `tests/focus_probe.py`;
+    this one re-derives it through a transcription of the client's own
+    `updateBoundPoint`, so the property is guarded on every backend run.
+
+    WHY THIS TIER WAS BLIND. Nothing here moves a stored point: the
+    defect lives entirely in what the CLIENT does with a stored value,
+    and it is latent until a node changes. spike-focus-verify measured a
+    fix that moved 75 focus values across 10 fixtures and changed what
+    the browser draws — and the whole 1149-test suite stayed
+    byte-identical. Re-derivation is the missing reading, and these are
+    the tests that have it.
+    """
+
+    def setUp(self):
+        self.recs = focus_probe.probe_manifest(focus_probe.probe_elements())
+        self.by_name = {r["name"]: r for r in self.recs}
+
+    def test_the_transcription_agrees_with_the_live_browser(self):
+        """The calibration, and it is what keeps the rest honest.
+
+        Every other assertion in this class asks a Python model where
+        the client would draw a foot. A model that quietly drifted
+        toward whatever `canvas.py` computes would agree with it
+        forever and pin nothing, so the model is nailed here to three
+        numbers READ OUT OF THE REAL BROWSER — pinned Excalidraw 0.18.1,
+        the real server, a net-zero nudge — at the commit that landed
+        this file:
+
+            left   focus=-0.5  stored x=450   drawn x=541.406
+            mid    focus=0     stored x=1000  drawn x=1000.000
+            right  focus=+0.5  stored x=1550  drawn x=1458.594
+
+        If this fires, distrust the transcription before the fix.
+        """
+        for name, focus, drawn_x in (("left", -0.5, 541.406),
+                                     ("mid", 0.0, 1000.000),
+                                     ("right", 0.5, 1458.594)):
+            r = self.by_name[name]
+            hx, hy, w, h = r["hub_box"]
+            hub = {"type": "rectangle", "x": hx, "y": hy,
+                   "width": w, "height": h}
+            got = focus_probe.client_draws(hub, focus, r["gap"],
+                                           r["adjacent"], r["foot"])
+            self.assertAlmostEqual(got[0], drawn_x, places=3,
+                                   msg="%s at focus %s" % (name, focus))
+
+    def test_both_quarter_point_feet_redraw_where_they_were_stored(self):
+        """The pin. Two feet, and the second one is the whole design.
+
+        `determineFocusPoint` selects its corner with strict `>` tests,
+        so a focus point exactly collinear with the adjacent point falls
+        through to the WRONG corner — and for a perpendicular approach
+        to a rectangle the correct magnitude `|d| / (w/2)` is exactly
+        the scale that puts it there. Which side of the resulting 91px
+        cliff the foot lands on is then decided by the SIGN alone, so a
+        single left-hand specimen goes green under a fix that still
+        draws the right-hand one 91px away. Both quarter points, or this
+        proves nothing (spike-anchor §6a).
+        """
+        for r in self.recs:
+            self.assertLess(focus_probe.tangential_slip(r), 0.5,
+                            "%s: stored focus %r redraws the foot %.2fpx "
+                            "along the side" % (r["name"], r["focus"],
+                                                focus_probe.tangential_slip(r)))
+
+    def test_the_midpoint_pole_stays_exactly_where_it_is(self):
+        """Focus 0 through a side midpoint is exact today; keep it.
+
+        A perpendicular approach through a side midpoint aims at the
+        centre, and the centre is on the target line, so 0 is not an
+        approximation there — it is the answer. Any inverse solve that
+        returns something else for this row has broken the one case the
+        wire format was designed for (spike-ports §2).
+        """
+        mid = self.by_name["mid"]
+        self.assertEqual(mid["focus"], 0)
+        self.assertAlmostEqual(focus_probe.tangential_slip(mid), 0.0,
+                               places=6)
+
+    def test_the_selection_cliff_is_real_and_one_foot_cannot_see_it(self):
+        """The neighbour that fires: the WRONG fix, on the same specimen.
+
+        `determineFocusDistance` — the client's own forward function,
+        and the obvious thing to reach for — returns exactly the value
+        sitting on `determineFocusPoint`'s selection boundary: +0.5 for
+        the left foot and -0.5 for the right. Asserted here as a
+        measurement rather than described, because it is the reason the
+        pin above carries two feet: on the left that value happens to
+        land right, on the right it is 91px out. A pin that only ever
+        asserts a success cannot tell a fix from a coincidence.
+        """
+        left, right = self.by_name["left"], self.by_name["right"]
+        for r, wrong in ((left, 0.5), (right, -0.5)):
+            hx, hy, w, h = r["hub_box"]
+            hub = {"type": "rectangle", "x": hx, "y": hy,
+                   "width": w, "height": h}
+            got = focus_probe.client_draws(hub, wrong, r["gap"],
+                                           r["adjacent"], r["foot"])
+            slip = abs(got[0] - r["foot"][0])
+            if r is left:
+                self.assertLess(slip, 0.5, "left foot, client_focus")
+            else:
+                self.assertGreater(slip, 50.0,
+                                   "the right-hand foot is the one that "
+                                   "separates an inverse solve from the "
+                                   "client's forward formula")
+
+    def test_solve_focus_expresses_a_perpendicular_foot_anywhere(self):
+        """The property, swept — not one specimen but a side's worth.
+
+        Four sides, five box shapes, thirteen offsets along each side,
+        approached square from 240px out. `solve_focus` has to hand back
+        a focus the client redraws within half a pixel of, at every one.
+        Rectangles only, and `roundness: null`: those are the shapes the
+        transcription models EXACTLY (`deconstructRectanguloidElement`
+        offsets a rounded corner diagonally, which this does not), so a
+        0.5px assertion is honest on them and would not be on a rounded
+        box or a conic. The browser referee carries no such caveat.
+        """
+        worst, worst_at = 0.0, None
+        for w, h in ((200.0, 64.0), (120.0, 120.0), (300.0, 40.0),
+                     (64.0, 200.0), (48.0, 48.0)):
+            hub = {"type": "rectangle", "x": 400.0, "y": 400.0,
+                   "width": w, "height": h}
+            for side in ("top", "right", "bottom", "left"):
+                horiz = side in ("top", "bottom")
+                span = w if horiz else h
+                for k in range(1, 14):
+                    off = span * k / 14.0
+                    if horiz:
+                        fx = 400.0 + off
+                        fy = 400.0 + (h if side == "bottom" else 0.0)
+                        ax, ay = fx, fy + (240.0 if side == "bottom"
+                                           else -240.0)
+                    else:
+                        fy = 400.0 + off
+                        fx = 400.0 + (w if side == "right" else 0.0)
+                        ax, ay = fx + (240.0 if side == "right"
+                                       else -240.0), fy
+                    f = canvas.solve_focus(hub, ax, ay, fx, fy, 6)
+                    got = focus_probe.client_draws(hub, f, 6, (ax, ay),
+                                                   (fx, fy))
+                    slip = abs(got[1] - fy) if horiz is False \
+                        else abs(got[0] - fx)
+                    if slip > worst:
+                        worst, worst_at = slip, (w, h, side, off, f)
+        self.assertLess(worst, 0.5,
+                        "worst tangential slip %.3fpx at %r" % (worst,
+                                                                worst_at))
+
+    def test_solve_focus_expresses_an_oblique_approach_too(self):
+        """The class `binding_focus` cannot see at all.
+
+        `binding_focus` reads the FOOT and nothing else, so every arrow
+        arriving at the same point gets the same focus however it got
+        there — but Excalidraw's focus is a property of the whole
+        approach ray. Swept over approach angles either side of square,
+        the inverse solve has to keep landing the foot; a foot-only
+        formula cannot, by construction.
+        """
+        hub = {"type": "rectangle", "x": 400.0, "y": 400.0,
+               "width": 200.0, "height": 64.0}
+        worst, worst_at = 0.0, None
+        for off in (40.0, 70.0, 100.0, 130.0, 160.0):
+            fx, fy = 400.0 + off, 464.0
+            for lean in (-160.0, -80.0, -20.0, 20.0, 80.0, 160.0):
+                ax, ay = fx + lean, fy + 240.0
+                f = canvas.solve_focus(hub, ax, ay, fx, fy, 6)
+                got = focus_probe.client_draws(hub, f, 6, (ax, ay), (fx, fy))
+                slip = abs(got[0] - fx)
+                if slip > worst:
+                    worst, worst_at = slip, (off, lean, f)
+        self.assertLess(worst, 0.5,
+                        "worst tangential slip %.3fpx at %r" % (worst,
+                                                                worst_at))
 
 
 class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
