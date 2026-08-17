@@ -376,16 +376,19 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**11 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at curator batch 28, which ADDED
-two model reds and flipped none, taking `test_mutants.py` 9 -> 11 — one
-for the no-op-rewire CLASS across the three binding-comparison arms, one
-for the obstacle-set asymmetry between the op path and the tidy path.
-BOTH ARE CLASS PINS RATHER THAN NEW DEFECTS, which is why they arrive
-together: the first has its fix already written and unfolded on
-TASK-REROUTE's branch, so it is a red with a KNOWN flip date, and the
-number will fall to 10 the day that folds — do not read the movement as
-two open bugs. Batch 27's re-derivation, still true of everything below
+**10 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at TASK-REROUTE's fold, which
+FLIPPED the no-op-rewire red and added none, taking `test_mutants.py`
+11 -> 10 — the arrival batch 28 predicted by name and by number when it
+filed the red, so this movement is the expected arithmetic and not a
+drain. The flipped assertion STAYS in the file as the third arm of the
+three-arm invariant it always pinned; only its decorator went. What
+remains of batch 28's pair is the obstacle-set asymmetry between the op
+path and the tidy path, still a CLASS PIN rather than a new defect —
+TASK-REROUTE's own report filed the same divergence as a curator seed
+from the other side. Batch 28's entry, for the record: it ADDED two model
+reds and flipped none, taking `test_mutants.py` 9 -> 11. Batch 27's
+re-derivation, still true of everything below
 it, follows: re-derived 2026-08-17 during TASK-POLISH, which is
 draining what curator batch 27 filed that morning — the activation-bar
 orphan flipped first, taking `test_mutants.py` 13 -> 12 and emptying

@@ -11717,35 +11717,36 @@ class TestANoOpRebindMintsNoFact(unittest.TestCase):
 
     ARMS: ClassVar[tuple[str, ...]] = ("flow", "domain", "sequence")
 
-    @unittest.expectedFailure
-    def test_red_a_focus_only_rebind_still_rewires_the_domain(self) -> None:
-        """The domain arm narrates a relationship change that never happened.
+    def test_a_focus_only_rebind_no_longer_rewires_the_domain(self) -> None:
+        """The domain arm no longer narrates a change that never happened.
 
-        `_domain_facts` builds `relationship_rewired` from the PRESENCE of
-        a `startBinding`/`endBinding` entry in the diff, and the diff
+        FLIPPED by TASK-REROUTE, which is the change that lands beside
+        this decorator's removal. `_domain_facts` used to build
+        `relationship_rewired` from the PRESENCE of a
+        `startBinding`/`endBinding` entry in the diff, and the diff
         carries one for a focus nudge by design (it is `derived: True`
-        there, because replay must be lossless). Nothing then compares the
-        normalized bindings, so the fact is minted with `from` and `to`
-        both reading `order→customer`, and `SALIENCE` promotes it past
-        every other verb to the save's headline: measured through
+        there, because replay must be lossless). Nothing then compared
+        the normalized bindings, so the fact was minted with `from` and
+        `to` both reading `order→customer`, and `SALIENCE` promoted it
+        past every other verb to the save's headline: measured through
         `Store.commit` on a domain artifact, a user who dropped an
-        arrowhead back where they found it is told "rewired
-        Order→Customer to Order→Customer".
+        arrowhead back where they found it was told "rewired
+        Order→Customer to Order→Customer". The fix is a `continue` when
+        the normalized bindings are unchanged, mirroring the guard the
+        flow arm has carried since brownfield BUG-01.
 
-        MEASURED, and the pair is the finding: the identical edit on the
-        identical scene is silent on the flow and sequence arms, which
-        guard the same comparison (the test below). One class, three
-        implementations, one of them missing its guard.
+        THE CLASS IS WHAT THIS PINS, not the one arm that was broken.
+        The identical edit on the identical scene was always silent on
+        the flow and sequence arms (the test below), so the finding was
+        never "domain has a bug" but "one class, three implementations,
+        one of them missing its guard". That is why this assertion stays
+        after the flip: it is now the third arm of a three-arm invariant
+        rather than a red, and re-deleting the guard fails here first.
 
-        FLIP HANDOFF: TASK-REROUTE has the fix — a `continue` when the
-        normalized bindings are unchanged, mirroring the flow arm's guard
-        — on branch `worktree-agent-add560f3b43622dd4` (commit 2601aa2),
-        unfolded at this head. This red flips GREEN the moment that lands,
-        and whoever folds it drops this decorator in the same change. It
-        is written here rather than there because a fix and its regression
-        pin from one pair of hands is the run-5 hazard shape; the two
-        green poles below are what make this red mean something either
-        way. OWNER of the ruling and the fix: TASK-REROUTE.
+        Written by the curator rather than by TASK-REROUTE because a fix
+        and its regression pin from one pair of hands is the run-5
+        hazard shape. The two green poles below are what made the red
+        mean something either way, and they still do.
         """
         minted = _rewire_facts("domain", _bound_pair(),
                                _refocused(_bound_pair()))
@@ -17925,23 +17926,34 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
-    "TestANoOpRebindMintsNoFact": 1,
     "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
     "TestStoredBindingsDescribeTheFinalInk": 1,
     "TestTheObstacleSetsAgreeAboutASticky": 1}
-# TWO MORE JOINED on 2026-08-17 (curator batch 28), and both for the reason
+# ONE LEFT on 2026-08-17 at TASK-REROUTE's fold, one day after joining:
+# `TestANoOpRebindMintsNoFact`'s single red flipped when the domain arm
+# got the binding comparison its two siblings already had, and a class
+# whose LAST red flips leaves this dict entirely rather than dropping to
+# 0 — the same one-day round trip `TestFurnitureIsNotAnUnconnectedNode`
+# made on 2026-08-16. The class itself is still in the file and still
+# asserts the same thing; it is simply all-green now, which is what a
+# flipped class pin looks like. Batch 28 filed it with the flip date and
+# the fold that would cause it named in advance, so this removal is the
+# predicted arithmetic rather than a drain.
+#
+# TWO JOINED on 2026-08-17 (curator batch 28), and both for the reason
 # `TestRouterPassesDoNotWorsenTheDrawing` set: their subject is not one
 # scene, so `collect_findings` has nothing to be asked.
-# `TestANoOpRebindMintsNoFact` is about a TRANSITION — what the fact
-# vocabulary says about a pair of scenes — and a `FindingSpec` takes an
-# element list and a check name; there is no check to name, because the
-# producer here is `semantic_facts` and no detector reads it.
+# `TestANoOpRebindMintsNoFact` (since departed, above) was about a
+# TRANSITION — what the fact vocabulary says about a pair of scenes —
+# and a `FindingSpec` takes an element list and a check name; there was
+# no check to name, because the producer is `semantic_facts` and no
+# detector reads it.
 # `TestTheObstacleSetsAgreeAboutASticky` is a BEFORE/AFTER over two
 # PRODUCERS, the same shape as the router pair: it asserts that two entry
 # paths agree, which is a claim no single-scene reader can hold. Both
-# carry their opposite pole in the same class, which is the rule-8
+# carried their opposite pole in the same class, which is the rule-8
 # obligation that binds an entry outside `CATALOGUE` even where the gate
 # cannot see it — the guarded arms for the first, the node-roled box for
 # the second.
