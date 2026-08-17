@@ -9499,9 +9499,12 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
     colour on any background — an agent's own #8fa can sit on a filled
     container — so per-colour constants would be wrong the first time
     somebody drew on a tinted card. Hue and saturation are held and only
-    HSL lightness moves, one 8-bit step at a time, so the suggestion is
-    recognisably the SAME colour: the authorship language (agent green,
-    user yellow) survives a repair that follows this advice.
+    HSL LIGHTNESS moves, in increments of 1/255 of that axis — which is
+    not an 8-bit channel step, it is the resolution the result is
+    quantized back to, chosen so the walk cannot step past a shade the
+    output could have expressed. So the suggestion is recognisably the
+    SAME colour: the authorship language (agent green, user yellow)
+    survives a repair that follows this advice.
 
     BOTH DIRECTIONS, NEAREST WINS. Contrast against a fixed ground is
     monotonic on each side of that ground's own luminance, so the reachable

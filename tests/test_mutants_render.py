@@ -4218,10 +4218,9 @@ class TestComposedContentVisibility(AblationLiveness, unittest.TestCase):
 # it was pinned at. The numbers in this paragraph date from the #b8b2a5
 # measurement and were NOT individually re-derived; what was checked is that
 # every assertion resting on them still holds.) Both therefore read as
-# ABSENT with a
-# transparent owner too, so `ablation_existence` firing on them says
-# nothing about burial. That is why the sweep below measures both poles for
-# every row rather than trusting the opaque one — the same vacuity trap the
+# ABSENT with a transparent owner too, so `ablation_existence` firing on
+# them says nothing about burial. That is why the sweep below measures both
+# poles rather than trusting the opaque one — the same vacuity trap the
 # neighbour exists to close, met here in the wild.
 STATE_CONTROLS = (("checkbox", {"checked": True}, "f1-chk", 36, 6),
                   ("toggle", {"checked": True}, "f1-thumb", 126, 13),

@@ -4458,6 +4458,41 @@ class TestArgusR4Arm4Fixture(FixtureReplayBase):
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
 
+    def test_this_arms_share_of_the_pre_ruling_palette_findings(self):
+        """Arm 4's 7 of the 19 standing contrast findings, by shape.
+
+        The user's 2026-08-17 contrast ruling darkened both defaults and
+        dropped the composed-furniture exemption; the frozen fixtures
+        keep the PRE-RULING ink, because they are records of sessions
+        that happened. So 19 findings stand across the corpus — true
+        statements about old drawings — and they are executable here
+        rather than asserted in prose.
+
+        WHY THIS TEST EXISTS AT ALL (review IMPORTANT-1): the first cut
+        itemized only arm 3's 8, while the handover claimed all 19 were
+        pinned. A fixture rebase that cleared 8 and left 11 would have
+        passed the whole suite under a handover saying otherwise. Arm 4
+        carries 7 — 6 chart-placeholder X strokes and 1 annotation — and
+        r5's 4 are pinned in its own class.
+
+        BY SHAPE, NOT BY TOTAL, deliberately: no warning-count assertion
+        is added here. Coupling these to this artifact's total would
+        make every unrelated check that ever fires on `dashboard-
+        wireframe` fail in a test about the palette. TASK-FOCUS-
+        FOLLOWUP's fixture rebase is what takes these to zero, and when
+        it does the counts below go to 0 in one edit.
+        """
+        lint = self.lint_all()
+        furniture = [w for w in lint["dashboard-wireframe"]["warnings"]
+                     if "1.4.11" in w and "#b8b2a5" in w]
+        self.assertEqual(len(furniture), 6, furniture)
+        for aid in ("dashboard-wireframe", "enrichment-flow"):
+            ink = [w for w in lint[aid]["warnings"]
+                   if "1.4.3 asks" in w and "#5c8a5f" in w]
+            self.assertEqual(len(ink), 1,
+                             "%s's pre-ruling annotation ink: %r"
+                             % (aid, ink))
+
     def test_the_canonical_lane_finding_survives_on_recorded_work(self):
         """The one corpus lane the auto-fan structurally cannot reach.
 
@@ -4564,6 +4599,27 @@ class TestArgusR5Fixture(FixtureReplayBase):
         for aid, r in self.lint_all().items():
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
+
+    def test_this_runs_share_of_the_pre_ruling_palette_findings(self):
+        """Run 5's 4 of the 19 standing contrast findings, by shape.
+
+        The third and last share (arm 3 has 8, arm 4 has 7 — see
+        `TestArgusR4Arm4Fixture` for why these are itemized per fixture
+        rather than claimed in prose). All four are on `admin-console`:
+        2 slider tracks at the pre-ruling `#b8b2a5`, and the sticky-era
+        annotation at `#5c8a5f`.
+
+        These stand until TASK-FOCUS-FOLLOWUP rebases the fixtures, and
+        the two clauses go to 0 in one edit when it does. No total is
+        asserted, on purpose — see the arm 4 twin.
+        """
+        lint = self.lint_all()["admin-console"]
+        furniture = [w for w in lint["warnings"]
+                     if "1.4.11" in w and "#b8b2a5" in w]
+        self.assertEqual(len(furniture), 2, furniture)
+        ink = [w for w in lint["warnings"]
+               if "1.4.3 asks" in w and "#5c8a5f" in w]
+        self.assertEqual(len(ink), 1, ink)
 
     def test_forked_branch_survives_replay_archived(self):
         names = {b["name"]: b.get("archived")
