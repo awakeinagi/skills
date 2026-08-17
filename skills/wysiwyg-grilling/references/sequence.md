@@ -28,7 +28,18 @@ activation bar spans its request→response messages.
 
 Time flows down, only down: an upward message (dy < 0) is a
 `LAYOUT_ERROR` (time reversal). An activation bar that never closes is a
-`LAYOUT_WARNING`.
+`LAYOUT_WARNING` — "closes" is read off the bar's own edges, so a bar
+whose foot no message leaves is reported with the distance from the last
+message on its lifeline. A bar that neither opens nor closes on a message
+is not this finding; it is furniture in the wrong place, and no check
+owns it yet.
+
+**Parties are not linted as flow nodes.** An actor header carries no
+binding — messages bind lifeline-to-lifeline — and a lifeline is a
+timeline rather than a route, so neither the unconnected-node note nor
+the passes-through-a-foreign-node warning applies to them. Both used to
+(r5-16), and between them they were everything lint had to say about a
+correct sequence.
 
 ## Stroke grammar (seeder)
 

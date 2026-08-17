@@ -2411,6 +2411,218 @@ class TestSequenceFacts(Base):
         self.assertTrue(any("travels UP" in e for e in lint["errors"]))
 
 
+def _lifeline_sequence(bar_height=None, reply_dy=0):
+    """A sequence drawn the way the reference says to draw one.
+
+    The seeder above binds messages ACTOR to ACTOR, which is why r5-16
+    never showed up in it: bound headers are not orphans. A real sequence
+    puts the bindings on the LIFELINES (references/sequence.md), and then
+    every actor header is unbound by construction — the shape the
+    unconnected note fired on for four versions.
+
+    Geometry is the seeder's own: headers at `100 + i*250`, lifelines at
+    `headerX + 76`, messages at `180 + j*80`.
+
+    Args:
+        bar_height: If set, an activation bar on the second lifeline
+            starting at the request. 80 closes it on the reply.
+        reply_dy: Vertical delta on the reply message; negative draws it
+            back up the page.
+
+    Returns:
+        The scene's elements.
+    """
+    els = []
+    for i, nm in enumerate(("Client", "Vendor")):
+        hx = 100 + i * 250
+        els += [{"id": "act%d" % i, "type": "rectangle", "x": hx, "y": 48,
+                 "width": 160, "height": 60,
+                 "customData": {"role": "node", "kind": "actor"}},
+                {"id": "act%d-l" % i, "type": "text", "x": hx + 10,
+                 "y": 68, "width": 100, "height": 20, "text": nm,
+                 "containerId": "act%d" % i},
+                {"id": "lf%d" % i, "type": "line", "x": hx + 76, "y": 108,
+                 "width": 0, "height": 400, "points": [[0, 0], [0, 400]],
+                 "customData": {"kind": "lifeline"}}]
+    els += [{"id": "m0", "type": "arrow", "x": 176, "y": 180, "width": 252,
+             "height": 0, "points": [[0, 0], [252, 0]],
+             "startBinding": {"elementId": "lf0", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "lf1", "focus": 0, "gap": 1},
+             "customData": {"role": "edge"}},
+            {"id": "m1", "type": "arrow", "x": 428, "y": 260, "width": 252,
+             "height": abs(reply_dy),
+             "points": [[0, 0], [-252, reply_dy]],
+             "startBinding": {"elementId": "lf1", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "lf0", "focus": 0, "gap": 1},
+             "customData": {"role": "edge"}}]
+    if bar_height is not None:
+        els.append({"id": "bar1", "type": "rectangle", "x": 424, "y": 180,
+                    "width": 8, "height": bar_height,
+                    "customData": {"kind": "activation"}})
+    return els
+
+
+def _two_lane_flow(step_y, kind="lane"):
+    """Two stacked lanes meeting at y=200, and one 60px-tall step.
+
+    Args:
+        step_y: The step's top edge. 180 straddles the boundary,
+            20px still in the upper lane and 40px into the lower —
+            asymmetric so the reported side is falsifiable.
+        kind: The frames' `kind`; anything but `"lane"` makes them
+            ordinary frames the lane check must ignore.
+
+    Returns:
+        The scene's elements.
+    """
+    return [{"id": "ln-a", "type": "frame", "x": 0, "y": 0, "width": 800,
+             "height": 200, "name": "Vendor", "customData": {"kind": kind}},
+            {"id": "ln-b", "type": "frame", "x": 0, "y": 200, "width": 800,
+             "height": 200, "name": "Ops", "customData": {"kind": kind}},
+            {"id": "s1", "type": "rectangle", "x": 100, "y": step_y,
+             "width": 140, "height": 60, "frameId": "ln-a",
+             "customData": {"role": "node", "kind": "transform"}}]
+
+
+class TestSequenceAndLaneLints(unittest.TestCase):
+    """r5-16 and the two checks `lint_layout` promised and never grew.
+
+    Every test here is one half of a pair. A lint is a channel, and a
+    channel that is wrong in either direction gets discounted wholesale —
+    which is what r5-16 cost: the unconnected note was 100% of what lint
+    had to say about a CORRECT sequence, and the only repair it left a
+    headless agent would have made the drawing wrong. So the silent poles
+    are not politeness, they are half the claim.
+    """
+
+    def _fired(self, els, needle, artifact_type="sequence"):
+        """Lint a scene and return the findings matching a phrase.
+
+        Args:
+            els: The scene's elements.
+            needle: Substring identifying the check under test.
+            artifact_type: Type passed to `lint_layout`.
+
+        Returns:
+            Matching lines across all three channels.
+        """
+        li = canvas.lint_layout(els, artifact_type=artifact_type)
+        return [m for t in ("errors", "warnings", "notes")
+                for m in li[t] if needle in m]
+
+    def test_a_correct_sequence_reports_no_unconnected_actor(self):
+        """r5-16: four versions of a note no correct sequence could clear."""
+        self.assertEqual(self._fired(_lifeline_sequence(), "unconnected"), [])
+
+    def test_a_flow_with_a_stranded_node_still_reports_it(self):
+        """The exemption's other pole — it is by KIND, not a blanket mute.
+
+        Without this, deleting the unconnected check outright would pass
+        the test above. The scene is the same shape one type over: nodes
+        carrying no binding and no frame, where the note is exactly right.
+        """
+        els = [{"id": "n%d" % i, "type": "rectangle", "x": i * 200, "y": 0,
+                "width": 140, "height": 60,
+                "customData": {"role": "node", "kind": "transform"}}
+               for i in range(3)]
+        self.assertEqual(len(self._fired(els, "unconnected", "flow")), 1)
+
+    def test_a_lifeline_crossing_its_own_activation_is_not_a_route(self):
+        """r5-16's second half: the bar sits ON the lifeline by design.
+
+        A lifeline is a timeline, not a connector, and its activation
+        bars ride on top of it — so `passes through` told every correct
+        sequence carrying a bar to route around furniture that belongs
+        exactly where it is.
+        """
+        self.assertEqual(
+            self._fired(_lifeline_sequence(bar_height=80), "passes through"),
+            [])
+
+    def test_an_arrow_through_a_foreign_node_is_still_reported(self):
+        """That narrowing's pole: the check still owns real crossings."""
+        els = [{"id": "a", "type": "rectangle", "x": 0, "y": 0, "width": 80,
+                "height": 60, "customData": {"role": "node"}},
+               {"id": "mid", "type": "rectangle", "x": 200, "y": 0,
+                "width": 80, "height": 60, "customData": {"role": "node"}},
+               {"id": "z", "type": "rectangle", "x": 400, "y": 0,
+                "width": 80, "height": 60, "customData": {"role": "node"}},
+               {"id": "t1", "type": "arrow", "x": 80, "y": 30, "width": 320,
+                "height": 0, "points": [[0, 0], [320, 0]],
+                "startBinding": {"elementId": "a", "focus": 0, "gap": 1},
+                "endBinding": {"elementId": "z", "focus": 0, "gap": 1},
+                "customData": {"role": "edge"}}]
+        self.assertEqual(len(self._fired(els, "passes through", "flow")), 1)
+
+    def test_a_reply_drawn_up_the_page_is_a_time_reversal(self):
+        """Time flows down; a back-arrow says the protocol went backwards."""
+        self.assertEqual(
+            len(self._fired(_lifeline_sequence(reply_dy=-60), "travels UP")),
+            1)
+
+    def test_a_reply_drawn_level_is_not_a_time_reversal(self):
+        """The same reply, drawn the way a reply is drawn: silent."""
+        self.assertEqual(self._fired(_lifeline_sequence(), "travels UP"), [])
+
+    def test_an_activation_that_no_message_closes_is_reported(self):
+        """The bar outlives the conversation, and says so by how much.
+
+        The magnitude is asserted, not just the firing: it is measured to
+        the last message on the lifeline (260) rather than to the bar's
+        own head (180), so a check that reported its height would say
+        240px — a different number and a different repair.
+        """
+        said = self._fired(_lifeline_sequence(bar_height=240), "never closes")
+        self.assertEqual(len(said), 1)
+        self.assertIn("160px past", said[0])
+
+    def test_an_activation_closed_by_its_reply_is_silent(self):
+        """The bar ending on the message that answers it: nothing to say."""
+        self.assertEqual(
+            self._fired(_lifeline_sequence(bar_height=80), "never closes"),
+            [])
+
+    def test_an_activation_no_message_opens_is_silent(self):
+        """A bar touching neither edge is unpaired, not unclosed.
+
+        The third pole, and the one a naive "does anything end here?"
+        implementation fails: this bar has no opening message either, so
+        it is furniture in the wrong place — a different finding, owed by
+        nobody yet, and not this check's to invent.
+        """
+        els = _lifeline_sequence(bar_height=80)
+        for e in els:
+            if e["id"] == "bar1":
+                e["y"] = 500
+        self.assertEqual(self._fired(els, "never closes"), [])
+
+    def test_a_step_drawn_across_two_lanes_is_reported(self):
+        """Two owners for one step is the drawing refusing to answer."""
+        said = self._fired(_two_lane_flow(step_y=180), "drawn across lanes",
+                           "flow")
+        self.assertEqual(len(said), 1)
+        self.assertIn("reaching 20px", said[0])
+        self.assertIn("filed under Vendor", said[0],
+                      "the declared owner is the repair instruction")
+
+    def test_a_step_inside_one_lane_is_silent(self):
+        """The same step, same `frameId`, 20px clear of the boundary."""
+        self.assertEqual(
+            self._fired(_two_lane_flow(step_y=120), "drawn across lanes",
+                        "flow"), [])
+
+    def test_ordinary_frames_are_not_lanes(self):
+        """The check reads `kind: lane`, not every frame on the canvas.
+
+        A wireframe's screen frames are stacked the same way and a step
+        spanning two of them means nothing about ownership — without this
+        pole the check would fire across an entire artifact type.
+        """
+        self.assertEqual(
+            self._fired(_two_lane_flow(step_y=180, kind="screen"),
+                        "drawn across lanes", "wireframe"), [])
+
+
 class TestTypeExtensionFacts(Base):
     def test_cardinality_changed(self):
         self.store.apply_batch({

@@ -46,6 +46,13 @@ a question). Budget: 5 lanes. (The `swimlane` artifact type in config is
 this overlay under an older name — prefer a `flow` with lane frames; a
 standalone swimlane artifact draws but narrates generically.)
 
+A step whose ink sits in **two** lanes is a `LAYOUT_ERROR`: a lane is who
+owns the step, so straddling the boundary is the drawing declining to
+answer the question lanes were added to ask. Measured on the ink and not
+on `frameId`, since a step dragged across a boundary keeps the frame id
+it was seeded with — the reported distance is how far it must move to sit
+wholly in the lane it is least in.
+
 Seed the **first node centered** and let the flow grow in both directions —
 a left-edge start guarantees a 2000px crawl rightward. Branches: "yes"
 continues the travel direction, "no" drops below; re-join at a merge dot.

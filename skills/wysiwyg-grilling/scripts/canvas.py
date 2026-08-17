@@ -8474,6 +8474,26 @@ def intent_echo(ops, els):
 
 FLOW_KINDS = {"source", "transform", "agent", "control", "sink", "store"}
 
+# The parties of a sequence, plus the timeline each one owns
+# (references/sequence.md). Two checks read this set and they must read
+# the SAME one: the arm that judges message geometry, and the orphan
+# check that must not judge these at all. A party header carries no
+# binding by construction — messages bind lifeline-to-lifeline — so a
+# CORRECT sequence put every actor in the unconnected note, and the only
+# repair available to a headless agent would have been to bind messages
+# to the headers, which is the wrong drawing (r5-16).
+SEQUENCE_PARTY_KINDS = {"actor", "system", "context", "lifeline"}
+# How far a message endpoint may sit from an activation bar's edge and
+# still be read as the message that opens or closes it. The seeder puts
+# messages 80px apart and spans a bar exactly request→response, so this
+# is a rounding allowance, not a search radius: at half the message
+# pitch a bar could claim its neighbour's message.
+ACTIVATION_EDGE_TOL = 12.0
+# How deep a node must sit inside a second lane before the drawing is
+# read as ambiguous about who owns it. One grid unit — below that the
+# overlap is a seeding artifact, not a claim.
+LANE_SPAN_TOL = 4.0
+
 # wireframe kinds a user is expected to hit/tap — the 2.5.8-shaped
 # target-size question only applies to these (v0.4 U11)
 INTERACTIVE_KINDS = {"button", "input", "checkbox", "toggle", "slider",
@@ -8561,9 +8581,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
       warnings — legibility defects worth a cosmetic repair
       notes    — style/budget observations
     Returns {"errors": [...], "warnings": [...], "notes": [...]}.
-    (Sequence/lane/shell-specific checks land with the type promotion —
-    task #7: time-reversal, activation-never-closes, lane-spanning,
-    app-shell drift, cardinality-token mismatch.)
+
+    Three of the five checks task #7 promised are now here — time
+    reversal and activation-never-closes in the sequence arm,
+    lane-spanning in the flow arm. App-shell drift and cardinality-token
+    mismatch are still owed, and are named rather than dropped: this
+    docstring's promise outliving its code is what let a sequence
+    diagram be linted by flow vocabulary for four versions (r5-16).
 
     Args:
         els: The artifact's elements.
@@ -9129,9 +9153,59 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "it. Same rule: this is a question, then a repair"
                     % name(eid))
 
+    # ---- ERROR: a step drawn across two lanes ------------------------
+    # The third check this function's docstring has promised since the
+    # type promotion. A lane is a responsibility zone (references/
+    # flow.md) and `ownership_changed` is the flagship fact of the
+    # overlay, so a step whose ink sits in two lanes is the drawing
+    # refusing to answer the one question lanes were added to ask. It is
+    # an ERROR rather than a warning for the reason the tier exists: the
+    # agent meant one owner and the picture names two.
+    #
+    # Measured on the INK against every lane, not on `frameId`, because
+    # the two disagree exactly when this fires — a step dragged across a
+    # boundary keeps the frame id it was seeded with, so a membership
+    # check would read the stale answer and stay silent. When there IS a
+    # declared owner it goes in the message, since "declared A, drawn
+    # across A and B" is the repair instruction.
+    lanes = [e for e in els if e.get("type") == "frame"
+             and kind_of(e) == "lane"]
+    if len(lanes) > 1:
+        lname = {ln["id"]: ln.get("name") or ln["id"] for ln in lanes}
+        for n in nodes:
+            nx1, ny1 = n.get("x", 0), n.get("y", 0)
+            nx2 = nx1 + n.get("width", 0)
+            ny2 = ny1 + n.get("height", 0)
+            over = []
+            for ln in lanes:
+                lx1, ly1 = ln.get("x", 0), ln.get("y", 0)
+                lx2 = lx1 + ln.get("width", 0)
+                ly2 = ly1 + ln.get("height", 0)
+                deep = min(min(nx2, lx2) - max(nx1, lx1),
+                           min(ny2, ly2) - max(ny1, ly1))
+                if deep > LANE_SPAN_TOL:
+                    over.append((deep, ln["id"]))
+            if len(over) > 1:
+                owner = n.get("frameId")
+                # magnitude is the SHALLOWER side — how far the step
+                # would have to move to sit wholly in the lane it is
+                # mostly in. The deeper side is not the repair distance
+                # and would read as a much worse defect than it is.
+                errors.append(
+                    "%s is drawn across lanes %s, reaching %dpx into the "
+                    "second — a lane is who owns the step, so this says "
+                    "two parties own it%s. Move it wholly inside one "
+                    "lane, or split it into the two steps the handoff "
+                    "actually has"
+                    % (name(n["id"]),
+                       ", ".join(lname[o] for _, o in sorted(over,
+                                                             reverse=True)),
+                       round(min(d for d, _ in over)),
+                       " (it is filed under %s)" % lname[owner]
+                       if owner in lname else ""))
+
     # ---- ERROR/NOTE: sequence invariants (gated on party/lifeline kinds)
-    seq_kinds = {"actor", "system", "context", "lifeline"}
-    if any(kind_of(e) in seq_kinds for e in els):
+    if any(kind_of(e) in SEQUENCE_PARTY_KINDS for e in els):
         msgs = [a for a in arrows if a.get("type") == "arrow"]
         for a in msgs:
             pts = a.get("points") or []
@@ -9143,8 +9217,54 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         if len(msgs) > 9:
             notes.append("%d messages (budget: 5-9 per scenario) — split "
                          "by scenario, one diagram each" % len(msgs))
-        # activation-never-closes needs message pairing semantics —
-        # deferred until activations carry their span links (task #7 tail)
+        # ---- WARNING: an activation bar that never closes --------------
+        # Promised by this function's docstring since the type promotion
+        # and deferred there for wanting "message pairing semantics".
+        # It does not need them: an activation spans its request to its
+        # response (references/sequence.md), so the bar's own EDGES are
+        # the pairing — a message landing on the top opens it, a message
+        # leaving the bottom closes it. Reading the geometry instead of a
+        # span link is also the only reading available for a bar the USER
+        # dragged, which is the case that matters: the agent cannot see
+        # that the box it drew now runs past the end of the conversation.
+        #
+        # Both endpoints of a message are tested, not just the arriving
+        # one: a response departs the bar it closes, and a self-call
+        # leaves and returns on the same lifeline.
+        for bar in els:
+            if kind_of(bar) != "activation":
+                continue
+            bx1 = bar.get("x", 0) - ACTIVATION_EDGE_TOL
+            bx2 = bx1 + bar.get("width", 0) + 2 * ACTIVATION_EDGE_TOL
+            top = bar.get("y", 0)
+            bot = top + bar.get("height", 0)
+
+            # every message endpoint standing on this bar's column, which
+            # is both halves of the question: whether an edge is met, and
+            # how far past the conversation the foot runs when it is not
+            on_column = [m.get("y", 0) + py
+                         for m in msgs
+                         for px, py in (m.get("points") or [[0, 0]])
+                         if bx1 <= m.get("x", 0) + px <= bx2]
+            if not on_column:
+                continue
+            opens = any(abs(y - top) <= ACTIVATION_EDGE_TOL
+                        for y in on_column)
+            closes = any(abs(y - bot) <= ACTIVATION_EDGE_TOL
+                         for y in on_column)
+            if opens and not closes:
+                # measured to the LAST message on the column, not to the
+                # bar's head: that is the distance a repair has to travel,
+                # and it is the number that separates a bar overshooting
+                # its response by a hair from one running to the floor
+                warnings.append(
+                    "activation %s opens on a message and never closes — "
+                    "its foot runs %dpx past the last message on its "
+                    "lifeline, so the bar claims the work is still going "
+                    "when the scenario has ended. Add the response that "
+                    "closes it, or shorten the bar to where the work "
+                    "actually stops"
+                    % (bar["id"], round(bot - max(on_column))))
 
     # ---- wireframe frame checks (v0.4 U-round) -----------------------
     # reading-order, form and WCAG-shaped questions. Epistemics rule:
@@ -9456,6 +9576,23 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 for i in range(len(rpath) - 1)] or [bbox_pts(e)]
         ends = {(e.get("startBinding") or {}).get("elementId"),
                 (e.get("endBinding") or {}).get("elementId")}
+        # r5-16's second half, found while building the activation check:
+        # a lifeline is a TIMELINE, not a route. It runs the length of the
+        # diagram by construction and its own activation bars sit on top
+        # of it, so every correct sequence carrying an activation was told
+        # to "route around" the bar — advice whose only execution would
+        # move the bar off the lifeline it measures.
+        #
+        # The subject is exempted, not the object. Exempting activation
+        # bars as DESTINATIONS silences the same scene and was written
+        # first, but it also silences a MESSAGE crossing some other
+        # party's bar, which is a real legibility finding this task has
+        # no evidence about either way. Measured: each alternative alone
+        # clears the scene, so neither is provable while both are in —
+        # this is the narrower of the two, and it is the one whose claim
+        # is unconditionally true. A lifeline is never a route.
+        if kind_of(e) == "lifeline":
+            continue
         for n in nodes:
             if n["id"] in ends:
                 continue
@@ -10579,10 +10716,21 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # positive); same for the node budget, which is per-SCREEN there
     # because the state-variant convention draws normal+degraded pairs
     # in one artifact (references/wireframe.md)
+    # sequence parties are the same shape of false positive one type
+    # over: a message binds LIFELINE to LIFELINE, so an actor header is
+    # unbound in every correct sequence ever drawn. The check fired on
+    # all four headers of a well-formed diagram and was 100% of what
+    # lint had to say about it, while the only repair it left a headless
+    # agent — bind the messages to the headers — would have made the
+    # drawing wrong (r5-16). The exemption is by KIND rather than by
+    # artifact_type: a party header is a party header in a `sequence`,
+    # in a DMF party map, and in whatever the type is called the day
+    # someone seeds one under another name.
     framed = {n["id"]: n.get("frameId") for n in nodes}
     in_frames = any(v for v in framed.values())
     orphans = [n["id"] for n in nodes
-               if n["id"] not in bound_ids and not framed.get(n["id"])]
+               if n["id"] not in bound_ids and not framed.get(n["id"])
+               and kind_of(n) not in SEQUENCE_PARTY_KINDS]
     if orphans and not in_frames:
         notes.append("unconnected node(s): %s" % ", ".join(
             name(o) for o in orphans[:4]))

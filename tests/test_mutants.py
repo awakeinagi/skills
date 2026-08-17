@@ -223,6 +223,22 @@ _FRAME_CONTAINMENT_RE = re.compile(
     r"(?P<element>[\w-]+)(?: \(.+?\))? says it is in frame .+ but is "
     r"drawn (?:(?P<mag>\d+)px clear of it|hard against its edge)")
 
+# v0.9 WP7 (task 28): the two checks `lint_layout`'s docstring had
+# promised since the type promotion and never grown. Both magnitudes are
+# REPAIR DISTANCES rather than descriptions of the damage, which is the
+# property that makes them worth pinning — the number tells the agent how
+# far something has to move, so a check that reported the wrong span
+# would send it the wrong distance and the mutant would catch it.
+# No dirmap on either: an unclosed bar overruns on one axis (time, which
+# is down by definition here) and a straddling step is reported by the
+# depth of its shallower side, so neither finding has an axis to name.
+_ACTIVATION_OPEN_RE = re.compile(
+    r"activation (?P<element>[\w-]+) opens on a message and never closes "
+    r"— its foot runs (?P<mag>\d+)px past")
+_LANE_SPAN_RE = re.compile(
+    r"(?P<element>[\w-]+)(?: \(.+?\))? is drawn across lanes .+?, "
+    r"reaching (?P<mag>\d+)px into the second")
+
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
     """One finding whose magnitude is the scene's crossing count.
@@ -361,6 +377,20 @@ DETECTORS: dict[str, dict] = {
     # `Silence("endpoint_gap")` neighbour was replaced by this check's
     # own quiet pole in the same change.
     "frame_containment": {"lint_re": _FRAME_CONTAINMENT_RE},
+    # v0.9 WP7 (task 28). Both arrived with the lint, in the same change,
+    # each with a must-fire and a must-stay-quiet mutant — the shape
+    # TASK-LINTPROMOTE's three sites set and WP5's `frame_containment`
+    # repeated. Neither has an `UNCOVERED` row for the same reason those
+    # did not: a check registered here and proven by a pair on the day it
+    # lands never spends a night in that ledger.
+    #
+    # Worth reading beside `passes_through_foreign`, which these two are
+    # partly a correction to: that check reported a LIFELINE crossing its
+    # own activation bar, so the same scene these prove healthy was
+    # already generating a finding whose repair would have broken it. A
+    # new check and a narrowed old one, on one picture, in one change.
+    "activation_never_closes": {"lint_re": _ACTIVATION_OPEN_RE},
+    "lane_spanning": {"lint_re": _LANE_SPAN_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -10380,6 +10410,80 @@ def _framed_flow(escaped: bool) -> list[dict]:
                customData={"role": "node"})]
 
 
+def _sequence_scene(bar_height: int) -> list[dict]:
+    """Two parties, a request and its reply, and one activation bar.
+
+    A CORRECT sequence in every other respect, which is the point twice
+    over. It is the scene r5-16 was measured on — messages bind lifeline
+    to lifeline, so both actor headers are unbound by construction — so
+    it is also the control that would go noisy again if the orphan
+    exemption or the lifeline/activation pass-through narrowing were
+    reverted. Nothing here is a defect except the bar's height.
+
+    The geometry is the seeder's own (references/sequence.md): headers at
+    `100 + i*250`, lifelines at `headerX + 76`, messages at `180 + j*80`.
+    So the request lands at y=180 and the reply leaves at y=260, and a
+    bar of height 80 on `lf1` is exactly the span between them — the one
+    that closes. Anything taller has no message at its foot.
+
+    Args:
+        bar_height: The activation bar's height. 80 closes it on the
+            reply; 240 runs it 160px past the last message on the column.
+
+    Returns:
+        The eight-element scene.
+    """
+    return [el(id="act0", type="rectangle", x=100, y=48, width=160,
+               height=60, customData={"role": "node", "kind": "actor"}),
+            el(id="act1", type="rectangle", x=352, y=48, width=160,
+               height=60, customData={"role": "node", "kind": "actor"}),
+            el(id="lf0", type="line", x=176, y=108, width=0, height=400,
+               points=[[0, 0], [0, 400]], customData={"kind": "lifeline"}),
+            el(id="lf1", type="line", x=428, y=108, width=0, height=400,
+               points=[[0, 0], [0, 400]], customData={"kind": "lifeline"}),
+            el(id="m0", type="arrow", x=176, y=180, width=252, height=0,
+               points=[[0, 0], [252, 0]], customData={"role": "edge"}),
+            el(id="m1", type="arrow", x=428, y=260, width=252, height=0,
+               points=[[0, 0], [-252, 0]], customData={"role": "edge"}),
+            el(id="bar1", type="rectangle", x=424, y=180, width=8,
+               height=bar_height, customData={"kind": "activation"})]
+
+
+def _laned_flow(straddling: bool) -> list[dict]:
+    """Two stacked lanes and a step, drawn across the boundary or not.
+
+    Distinct from `_framed_flow` next door, and the difference is the
+    whole check: that scene has ONE frame carrying no `kind`, and asks
+    whether a member's `frameId` claim matches where it is drawn. This
+    one has TWO frames of `kind: lane` and asks a question `frameId`
+    cannot answer — the step keeps its seeded `ln-a` membership in BOTH
+    scenes, so a check that read the claim instead of the ink would be
+    silent on the straddling one, which is exactly the failure mode the
+    lint's comment names.
+
+    The lanes meet at y=200. The step is 60px tall and sits at y=180
+    when straddling — 20px still in `ln-a` and 40px down into `ln-b`.
+    Deliberately ASYMMETRIC: at y=170 the two overlaps are both 30px,
+    and a magnitude probe swapping the shallower side for the deeper one
+    moved nothing, so the fixture could not tell the two readings apart.
+    20 is the reported repair distance; 40 is the rejected reading. When
+    it does not straddle it sits at y=120, wholly inside `ln-a`.
+
+    Args:
+        straddling: True to draw the step across the lane boundary.
+
+    Returns:
+        The three-element scene: lanes `ln-a` and `ln-b`, step `s1`.
+    """
+    return [el(id="ln-a", type="frame", x=0, y=0, width=800, height=200,
+               name="Vendor", customData={"kind": "lane"}),
+            el(id="ln-b", type="frame", x=0, y=200, width=800, height=200,
+               name="Ops", customData={"kind": "lane"}),
+            el(id="s1", type="rectangle", x=100, y=180 if straddling else 120,
+               width=140, height=60, frameId="ln-a",
+               customData={"role": "node", "kind": "transform"})]
+
+
 def _text_over_node(roled: bool) -> list[dict]:
     """A free text lying across a node, with and without a role.
 
@@ -12115,6 +12219,43 @@ _register(Mutant(
                        magnitude=(80, 0.25)),
     neighbour=Neighbour(lambda: _framed_flow(escaped=False),
                         Silence("frame_containment"))))
+
+# v0.9 WP7 (task 28). The two checks `lint_layout` promised in its
+# docstring and never grew, each landing with both its poles.
+#
+# MAGNITUDE, both times, is the REPAIR DISTANCE and not the damage. The
+# bar overruns by 160px measured to the last message on its lifeline, not
+# the 240px of its own height and not the 400px of the lifeline it rides;
+# the step reaches 20px into the lane it is least in, measured on the
+# SHALLOWER side, because that is how far it must move to sit in one
+# lane, while the deeper side (40px) would name a worse defect than the
+# picture has. Both bands exclude the rejected readings outright, and
+# both fixtures are asymmetric so that they can: the lane scene's first
+# draft put the step 30px into each lane, where min and max are the same
+# number and the magnitude claim was unfalsifiable.
+#
+# DIRECTION, both times, is the claim the line makes: the bar is reported
+# as never closing rather than as overlong, and the step as owned by two
+# parties rather than as mis-framed. `_framed_flow`'s containment check
+# is the one that would make the second of those mistake, and it stays
+# silent here — the step's `frameId` is honest in both scenes.
+_register(Mutant(
+    "activation_bar_outlives_its_conversation",
+    build=lambda: _sequence_scene(bar_height=240),
+    op="unchanged", args={},
+    expect=FindingSpec("activation_never_closes", element="bar1",
+                       magnitude=(160, 0.2)),
+    neighbour=Neighbour(lambda: _sequence_scene(bar_height=80),
+                        Silence("activation_never_closes"))))
+
+_register(Mutant(
+    "step_drawn_across_two_lanes",
+    build=lambda: _laned_flow(straddling=True),
+    op="unchanged", args={},
+    expect=FindingSpec("lane_spanning", element="s1",
+                       magnitude=(20, 0.2)),
+    neighbour=Neighbour(lambda: _laned_flow(straddling=False),
+                        Silence("lane_spanning"))))
 
 # The role gate on text checks — RED BY ABSENCE (visualize-skill mine M2,
 # 2026-08-12). `role_of` defaults everything unroled to "node"
@@ -13929,6 +14070,36 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_framed_node_escapes_its_lane(self) -> None:
         """The same members inside the lane: nothing to report, nothing said."""
         self._run_neighbour("framed_node_escapes_its_lane")
+
+    def test_mutant_activation_bar_outlives_its_conversation(self) -> None:
+        """A bar 160px longer than the reply that should have closed it."""
+        # v0.9 WP7 task 28: `activation_never_closes` is the older half
+        # of this function's docstring promise — deferred at its origin
+        # for wanting message-pairing semantics it does not need.
+        self._run("activation_bar_outlives_its_conversation")
+
+    def test_neighbour_activation_bar_outlives_its_conversation(self) -> None:
+        """The same sequence with the bar ending on its reply: silent.
+
+        Doing double duty, and deliberately so. It is this mutant's
+        quiet pole, and it is also the r5-16 regression scene: two
+        unbound actor headers and a lifeline running through its own
+        activation bar, which BOTH fired before task 28. `Silence`
+        invalidates itself on any detector crash, so this cannot pass by
+        the lint going dark — but it would pass if the orphan note or
+        the pass-through check came back, since neither is
+        `activation_never_closes`. The class's own r5-16 test next door
+        is what holds that line; this one holds the pole.
+        """
+        self._run_neighbour("activation_bar_outlives_its_conversation")
+
+    def test_mutant_step_drawn_across_two_lanes(self) -> None:
+        """A step 20px shy of the boundary and 40px past it."""
+        self._run("step_drawn_across_two_lanes")
+
+    def test_neighbour_step_drawn_across_two_lanes(self) -> None:
+        """The same step wholly inside one lane, same frameId: silent."""
+        self._run_neighbour("step_drawn_across_two_lanes")
 
     def test_mutant_unroled_text_over_node(self) -> None:
         """FLIPPED: a text with no role covering a node is now reported.
@@ -16179,13 +16350,33 @@ class TestCoverage(unittest.TestCase):
         "hard against its edge" when the member is flush and still
         wholly out — and the regex alternates over the two, the same
         shape as 46 -> 47's third crosses-through tier.
+
+        56 -> 58 on 2026-08-16 (v0.9 WP7, task 28): the
+        `activation_never_closes` warning and the `lane_spanning` error,
+        this pin's first arrivals that were PROMISED before they were
+        written — `lint_layout`'s own docstring had listed both since the
+        type promotion, one under an explicit "deferred until activations
+        carry their span links" that turned out not to be needed, since
+        the bar's own edges ARE the pairing. No `UNCOVERED` row for
+        either: both arrived with a `DETECTORS` entry and a proving pair,
+        the shape 51 -> 54 and 55 -> 56 set.
+
+        The same change NARROWED two existing sites without moving this
+        count, and that is worth recording here precisely because the
+        count cannot show it: `passes_through_foreign` was reporting a
+        lifeline crossing its own activation bar, and the orphan note was
+        reporting every actor header in a correct sequence (r5-16). So
+        the scene `activation_bar_outlives_its_conversation` uses as a
+        CONTROL was noisy before either new check existed. A site that
+        stops firing on correct drawings is invisible to an append-site
+        census by construction — this pin counts channels, not truth.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 56,
+        self.assertEqual(sites, 58,
                          "canvas.py lint_layout append-site count changed "
-                         "(56 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(58 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

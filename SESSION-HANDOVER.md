@@ -533,8 +533,8 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **23 detectors, 20 proven, 3 render-tier, 0
-  UNCOVERED** — CHECKED as of curator batch 23 by
+  a reason. Coverage totals: **25 detectors, 22 proven, 3 render-tier, 0
+  UNCOVERED** — CHECKED as of v0.9 WP7 task 28 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked
   because it had drifted: it read "18 detectors ... 15 proven" from a
