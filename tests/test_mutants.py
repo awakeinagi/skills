@@ -3228,6 +3228,136 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# ONE SPELLING, TWO CALLERS — the other field (curator batch for the spike
+# program, 2026-08-16). `mermaid_shape` exists because `_flow_to_mermaid`
+# and `flow_to_mermaid_export` each had their own shape map and one of them
+# was wrong, silently, for as long as only the re-layout path read it
+# (canvas.py, and the commit that folded them says so at length). The fold
+# covered the SHAPE. It did not cover the LABEL, and the two paths still
+# escape an edge label differently:
+#
+#   export   `mermaid_label(raw)` -> `-->|"say #quot;hi#quot;"|`
+#   relayout `raw.replace("|", "/")` -> `-->|say "hi"|`
+#
+# A double quote inside `|...|` opens a mermaid string the line never
+# closes, so the conversion fails and `--relayout` dies at `_mermaid_convert`
+# with a parse error instead of re-laying the drawing. NODE labels in the
+# relayout path DO get a substitution (`"` -> `'`), which is what makes this
+# an omission on one field rather than a path that never thought about
+# quoting.
+#
+# THE SAME SUBJECT AS `TestMermaidRoundTripIdentity` above and a separate
+# class on purpose: that one pins a protection that WORKS (identity travels
+# in the `n_` prefix) and is green; this one pins a protection that is
+# missing. Merging them would let the green vouch for the red's silence.
+#
+# BASE: three nodes and two edges, the smallest flow `--relayout` accepts
+# (it refuses under three nodes). MUTATION: one character — a `"` in one
+# edge label. MAGNITUDE/DIRECTION: not a scene reading, so neither is a
+# number; what stands in for both is that the two emitters must agree
+# CHARACTER FOR CHARACTER on the same input, which is a stricter claim than
+# "the relayout path escapes something". NEIGHBOUR: the same flow with an
+# unquoted label, where the two already agree.
+#
+# ZERO CORPUS FLOWS TRIGGER IT and no check reported anything: there is no
+# detector over emitted text, so `collect_findings` has nothing to say by
+# construction, which is why this is a hand-authored red rather than a
+# `CATALOGUE` entry.
+# ---------------------------------------------------------------------------
+
+
+class TestMermaidEdgeLabelEscaping(unittest.TestCase):
+    """Both mermaid emitters escape one label the same way, or neither."""
+
+    @staticmethod
+    def _flow(edge_label: str) -> list[dict[str, Any]]:
+        """A three-node flow whose first edge carries `edge_label`.
+
+        Three nodes because `_cmd_mermaid_relayout` refuses a flow with
+        fewer ("nothing to re-lay"), so a two-node scene could not
+        reproduce the path this is about.
+
+        Args:
+            edge_label: The text bound to the first arrow.
+
+        Returns:
+            The element list: three labelled nodes and two arrows, the
+            first of them labelled.
+        """
+        els: list[dict[str, Any]] = []
+        for i, nid in enumerate(("a", "b", "c")):
+            els.append(el(id=nid, type="rectangle", x=0.0, y=float(i * 200),
+                          width=120.0, height=60.0,
+                          customData={"role": "node"},
+                          boundElements=[{"id": nid + "-t", "type": "text"}]))
+            els.append(el(id=nid + "-t", type="text", x=10.0,
+                          y=float(i * 200 + 20), width=100.0, height=20.0,
+                          text=nid.upper(), originalText=nid.upper(),
+                          containerId=nid))
+        for i, (aid, src, dst) in enumerate((("e1", "a", "b"),
+                                             ("e2", "b", "c"))):
+            els.append(el(id=aid, type="arrow", x=60.0,
+                          y=float(60 + i * 200), width=0.0, height=140.0,
+                          points=[[0.0, 0.0], [0.0, 140.0]],
+                          startBinding={"elementId": src, "focus": 0,
+                                        "gap": 1},
+                          endBinding={"elementId": dst, "focus": 0,
+                                      "gap": 1},
+                          boundElements=[{"id": "e1-t", "type": "text"}]
+                          if aid == "e1" else []))
+        els.append(el(id="e1-t", type="text", x=60.0, y=120.0, width=80.0,
+                      height=20.0, text=edge_label,
+                      originalText=edge_label, containerId="e1"))
+        return els
+
+    @unittest.expectedFailure
+    def test_red_a_quoted_edge_label_reaches_mermaid_unescaped(self) -> None:
+        """`--relayout` emits a bare `"` the converter cannot parse.
+
+        WHAT THE DRAWING GETS WRONG: nothing, and that is the shape of
+        it. The picture is a perfectly ordinary flow whose one edge is
+        captioned `say "hi"`. What breaks is the re-layout the user
+        asked for: `_flow_to_mermaid` writes `-->|say "hi"|`, the
+        conversion fails on it, and `--relayout` exits without moving
+        anything — a request that produces neither a new layout nor a
+        statement about the drawing.
+
+        WHAT THE CHECKS REPORTED: nothing. No detector reads emitted
+        text; the corpus contains no flow with a quote in an edge label,
+        so the whole class is unexercised.
+
+        WHAT FLIPS IT: routing the edge label through `mermaid_label`,
+        the way `flow_to_mermaid_export` already does — the same fold
+        the shared shape map made, one field over. The assertion is
+        against `mermaid_label`'s own output rather than a literal, so
+        the day that function's escaping changes the two paths are still
+        forced to agree.
+        """
+        text = canvas._flow_to_mermaid(self._flow('say "hi"'))[0]
+        want = canvas.mermaid_label('say "hi"')[0]
+        self.assertIn(
+            want, text,
+            "the re-layout path emitted %r; the export path escapes the "
+            "same label as %r, and a bare quote inside |...| opens a "
+            "mermaid string the line never closes"
+            % (next(line for line in text.splitlines() if "-->" in line),
+               want))
+
+    def test_an_unquoted_edge_label_already_agrees(self) -> None:
+        """The green pole: with no quote in it, both paths emit the same.
+
+        Same scene, same two emitters, one character different in the
+        label — so this proves the comparison above is a real one and
+        not an artefact of the two paths differing everywhere.
+        """
+        label = "sends"
+        text = canvas._flow_to_mermaid(self._flow(label))[0]
+        self.assertIn("|%s|" % canvas.mermaid_label(label)[0], text)
+        self.assertIn('"%s"' % canvas.mermaid_label(label)[0],
+                      canvas.flow_to_mermaid_export(self._flow(label)))
+
+
+# ---------------------------------------------------------------------------
 # Paint order (found during the visualize-skill idea-mine, 2026-08-12 —
 # docs/research/visualize-skill_idea_mining_2026-08-12.md §(i.2), where their
 # renderer's z-order bug was turned back on ours and reproduced). Excalidraw's
@@ -8730,6 +8860,244 @@ class TestRouterGeometryRulings(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE PRODUCER PASSES' OWN INVARIANTS (curator batch for the spike program,
+# 2026-08-16, from spike-anchor.md §4 and spike-attach.md §5). The class
+# above judges the router's RULINGS — geometry decisions, each pinned as a
+# number. This one judges two passes against promises they make about
+# themselves and nothing checks:
+#
+#   `_route_candidates` builds a guard set (`interior`, `flat_on_border`)
+#   and then ends `return routed or out`. When every candidate fails
+#   `clean()` the unfiltered list is scored, so the guards are ADVICE, not
+#   invariants, and no test says which they are.
+#
+#   `fan_attach_points` is a cosmetic post-pass. It scores its slides
+#   against foreign BOXES (`_fan_hits`) and against the corner interior,
+#   and never against another ARROW — `route_arrow` scores exactly that
+#   (`other_arrows` / `_segs_cross`) three hundred lines above it.
+#
+# WHY THESE ARE PRODUCER REDS AND NOT DETECTOR REDS, said plainly because
+# the distinction is the batch's main judgement. The crossings the fan adds
+# ARE visible: `instruments.crossing_sites` counts them and
+# `collect_findings` reports `crossings_count` with the right magnitude.
+# So there is no silence to pin as a mutant — what is missing is the
+# statement that a pass whose only job is legibility may not make the
+# picture less legible. That is a property of a TRANSFORM, and `Mutant`
+# takes one scene. Hence a hand-authored red, and hence
+# `HAND_AUTHORED_RED_CLASSES` naming this class.
+#
+# BASE: two flush-stacked 120x60 nodes for the router half; the frozen
+# `tearsheet-pipeline` fixture for the fan half. MUTATION: none — both
+# subjects ARE the defect, which is why neither is expressed as an
+# operator. MAGNITUDE: how far along a border the emitted candidate is
+# drawn (24px, against the producer's own 8px refusal), and how many
+# crossings the pass adds (+3, and a second pass gives a THIRD answer).
+# DIRECTION: which way the count moved, which is the whole content of the
+# fan claim — a pass that removed crossings would be doing its job.
+# NEIGHBOURS, both green and both in this class: a pair the router routes
+# cleanly, and a freshly-routed hub whose fan adds nothing.
+# ---------------------------------------------------------------------------
+
+
+class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
+    """Two producer passes, judged against their own stated promises."""
+
+    @staticmethod
+    def _node(nid: str, x: float, y: float) -> dict[str, Any]:
+        """One 120x60 flow node.
+
+        Args:
+            nid: The element id.
+            x: Left edge.
+            y: Top edge.
+
+        Returns:
+            A `role: node` rectangle.
+        """
+        return el(id=nid, type="rectangle", x=float(x), y=float(y),
+                  width=120.0, height=60.0, customData={"role": "node"})
+
+    @staticmethod
+    def _runs_flat_on(path: list[tuple[float, float]],
+                      box: dict[str, Any]) -> float:
+        """The longest run of `path` drawn along `box`'s own border.
+
+        A transcription of `_route_candidates.flat_on_border`, kept here
+        rather than imported for the reason `tests/instruments.py`
+        exists at all: a guard checked through its own closure proves
+        the closure agrees with itself. The threshold is deliberately
+        NOT transcribed — this returns the measured length so the red
+        can quote it, and the producer's own 8px refusal is asserted
+        against that number in the test.
+
+        Args:
+            path: Absolute waypoints.
+            box: The endpoint node the run is measured against.
+
+        Returns:
+            The longest axis-aligned run lying on one of `box`'s four
+            edges, in px. 0.0 when no segment lies on one.
+        """
+        x1, y1 = box["x"], box["y"]
+        x2, y2 = x1 + box["width"], y1 + box["height"]
+        worst = 0.0
+        for (px, py), (qx, qy) in zip(path, path[1:]):
+            if abs(px - qx) <= 0.5 and min(abs(px - x1),
+                                           abs(px - x2)) <= 0.5:
+                lo, hi = sorted((py, qy))
+                worst = max(worst, min(hi, y2) - max(lo, y1))
+            elif abs(py - qy) <= 0.5 and min(abs(py - y1),
+                                             abs(py - y2)) <= 0.5:
+                lo, hi = sorted((px, qx))
+                worst = max(worst, min(hi, x2) - max(lo, x1))
+        return max(worst, 0.0)
+
+    @unittest.expectedFailure
+    def test_red_route_candidates_emits_what_its_guards_reject(self) -> None:
+        """`routed or out` hands back a path `clean()` had refused.
+
+        Two 120x60 nodes stacked flush — `s` on top of `d`, sharing the
+        line y = 60, which is an ordinary vertical flow with no gap. The
+        straight candidate's two edge anchors resolve to the same point,
+        the zero-length cleanup empties the list, and the r4-11 stub is
+        all that is left. That stub is a 24px horizontal segment lying
+        ON the seam, which `flat_on_border` refuses at anything over
+        8px — and `return routed or out` returns it regardless.
+
+        WHAT THE PICTURE WRONGLY SAYS: two boxes touching and no
+        connector. The stroke that is supposed to carry `s -> d` is
+        drawn along the line where their outlines already meet, pointing
+        sideways.
+
+        WHAT THE CHECKS REPORTED: nothing — see the catalogue entry
+        `flush_stack_border_run_under_the_band`, which pins the reader's
+        half of this. The two are one defect seen from its two ends and
+        must both flip, from different directions: this one when the
+        totality escape stops bypassing the guards, that one when the
+        lint's band closes onto the producer's own threshold.
+
+        The assertion is over EVERY returned candidate rather than the
+        one `route_arrow` picks, because the claim under test is about
+        what the function may HAND BACK. A fix that merely re-scored the
+        list would leave the guard advisory.
+        """
+        src, dst = self._node("s", 0, 0), self._node("d", 0, 60)
+        for i, path in enumerate(canvas._route_candidates(src, dst)):
+            for box in (src, dst):
+                run = self._runs_flat_on(path, box)
+                with self.subTest(candidate=i, box=box["id"]):
+                    self.assertLessEqual(
+                        run, 8.0,
+                        "candidate %d runs %.0fpx along %s's own border, "
+                        "which `flat_on_border` refuses over 8px — "
+                        "`return routed or out` handed back a path the "
+                        "function's own guards rejected: %r"
+                        % (i, run, box["id"], path))
+
+    def test_a_routed_pair_is_handed_back_only_clean_candidates(self) -> None:
+        """The green pole: an ordinary gapped pair keeps its guards.
+
+        The same two nodes with 60px between them instead of 0. Every
+        candidate `_route_candidates` returns lies clear of both
+        outlines, so the guard set is doing its work and the escape is
+        never reached. This is what makes the red above a statement
+        about the ESCAPE rather than about the guards being wrong.
+        """
+        src, dst = self._node("s", 0, 0), self._node("d", 0, 120)
+        cands = canvas._route_candidates(src, dst)
+        self.assertTrue(cands, "the router returned no candidate at all")
+        for i, path in enumerate(cands):
+            for box in (src, dst):
+                with self.subTest(candidate=i, box=box["id"]):
+                    self.assertLessEqual(
+                        self._runs_flat_on(path, box), 8.0,
+                        "a gapped pair should never need the totality "
+                        "escape: %r" % (path,))
+
+    @unittest.expectedFailure
+    def test_red_the_fan_adds_crossings_it_never_looks_for(self) -> None:
+        """`fan_attach_points` takes a corpus flow from 1 crossing to 4.
+
+        The fan's whole purpose is legibility: N arrows on one attach
+        point read as one arrow, so it spreads them. It scores each
+        slide against foreign BOXES and against the corner interior, and
+        never against another ARROW — so a slide that clears a box can
+        drive the arrow straight through a neighbour's stroke, and
+        nothing in the pass can tell.
+
+        MEASURED on the frozen corpus (2026-08-16, this head): running
+        the shipped fan over all 24 artifacts takes `crossing_sites`
+        17 -> 20, every one of the three in `tearsheet-pipeline`, which
+        goes 1 -> 4. The three new pairs are all genuine — each pair's
+        two feet were already distinct before the pass, so none of them
+        is the artefact of two arrows leaving a shared point.
+
+        AND THERE IS NO FIXED POINT. Running the same pass a second time
+        over its own output gives 3, not 4, and moves geometry again:
+        `far_coord` orders the feet on a side by the FAR end's
+        cross-coordinate, and the far end may itself have been fanned in
+        the previous pass. A cosmetic pass that does not converge is a
+        drawing that changes every time anything is applied.
+
+        WHAT THE CHECKS REPORTED: `crossings_count` reports 4, correctly
+        — this is not a silence, and no mutant is filed for it. What
+        nothing reports is the DELTA, and no shipped check reports
+        crossings to the agent at all (`lint_layout` has no crossing
+        rule; the reading lives only in `tests/instruments.py`). The
+        agent-facing lint is unchanged across this pass: 0 errors, 14
+        warnings and 4 notes before and after, the same classes, with
+        only the diagonal-length numbers moved.
+
+        Asserted as a PROPERTY (`after <= before`) rather than against
+        the literals, so the pin survives any legitimate corpus change;
+        the numbers above are the reading that made it worth writing.
+        """
+        path = next((Path(__file__).resolve().parents[1] / "tests"
+                     / "fixtures").rglob("tearsheet-pipeline.excalidraw"))
+        els = json.loads(path.read_text(encoding="utf-8"))["elements"]
+        before = len(instruments.crossing_sites(els))
+        once = copy.deepcopy(els)
+        canvas.fan_attach_points(once)
+        after = len(instruments.crossing_sites(once))
+        twice = copy.deepcopy(once)
+        canvas.fan_attach_points(twice)
+        self.assertLessEqual(
+            after, before,
+            "the fan took %s from %d crossings to %d — it scores its "
+            "slides against foreign boxes and never against another "
+            "arrow, and a third pass reports %d, so the pass has no "
+            "fixed point either"
+            % (path.name, before, after,
+               len(instruments.crossing_sites(twice))))
+
+    def test_the_fan_adds_nothing_to_a_freshly_routed_hub(self) -> None:
+        """The green pole: on geometry the router just made, the fan is safe.
+
+        One hub with two arrows the current `route_arrow` placed, then
+        the fan. Crossings stay at zero, which is what says the red
+        above is about the pass's blindness to arrows rather than about
+        the fan being broken outright — and it is also the scope of the
+        defect, honestly stated: swept over a 13x13 grid of destination
+        positions, no freshly-routed two-arrow hub reaches it. The
+        corpus does, because fixtures carry feet an older pass spread.
+        """
+        hub = self._node("hub", 0, 0)
+        da, db = self._node("da", 300, 200), self._node("db", 300, 400)
+        arrows = [el(id=aid, type="arrow", x=0, y=0, width=0, height=0,
+                     points=[[0, 0], [10, 10]]) for aid in ("ea", "eb")]
+        for arrow, dst in zip(arrows, (da, db)):
+            canvas.route_arrow(arrow, hub, dst, obstacles=[hub, da, db])
+        scene = [hub, da, db, *arrows]
+        before = len(instruments.crossing_sites(scene))
+        canvas.fan_attach_points(scene)
+        self.assertLessEqual(
+            len(instruments.crossing_sites(scene)), before,
+            "the fan added a crossing to a scene the router had just "
+            "laid out, which puts the red above's scope wider than the "
+            "corpus and its docstring wrong")
+
+
+# ---------------------------------------------------------------------------
 # Pin identity (v0.9 Task-7 review, 2026-08-13; findings M2, R1 and the
 # report's own disclosure, each reproduced by the reviewer against the
 # shipped code). The class above judges what a batch does to the MODEL;
@@ -14044,6 +14412,287 @@ class TestTurnedPolylineIsBoundByItsPoints(unittest.TestCase):
             "points; it now has some and the contrast is gone")
 
 
+# ---------------------------------------------------------------------------
+# THE ATTACH-SIDE FAMILY (curator batch for the spike program, 2026-08-16;
+# seeds from `.superpowers/sdd/2026-08-13-v0.9-work-packages/spike-attach.md`
+# §5 and `spike-anchor.md` §4/§6c). Three entries about one question the
+# repo has never had a reader for: WHICH SIDE OF A NODE DOES THIS ARROW
+# ARRIVE THROUGH, AND CAN IT?
+#
+# They share a two-node convention on purpose — a 120x60 destination whose
+# LEFT face is the one under examination — so the three can be read as one
+# spectrum rather than three unrelated scenes:
+#
+#   deviation from the side's own normal | what the drawing shows | who speaks
+#   ------------------------------------ | --------------------- | ----------
+#   0 deg    (square)                    | a normal arrival      | nobody, rightly
+#   77 deg   (grazing)                   | a stroke sliding past | NOBODY
+#   90 deg   (along), run <= 2*tol       | ink on the outline    | NOBODY
+#   90 deg   (along), run >  2*tol       | ink on the outline    | crosses_through_bound
+#
+# The two silent rows are the two mutants below; the loud row is both of
+# their neighbours, which is what makes each red a statement about a BAND
+# rather than about a dead detector. The third entry is the same question
+# asked of a PAIR of feet instead of one.
+#
+# WHY THE PRODUCER IS NOT PINNED HERE. All three scenes are emitted by
+# `_route_candidates`/`fan_attach_points` at head — the geometry is
+# reproduced from the router in `.scratch/` and named in each entry — but
+# the scenes below are LITERAL, because these are pins on the READER. When
+# the router stops producing them the reds must stay red until a check
+# reads them, which is exactly what `fanned_ellipse_foot_floats_in_the_void`
+# above records having happened to it.
+# ---------------------------------------------------------------------------
+
+
+def _facing_node(nid: str, x: float, y: float) -> dict[str, Any]:
+    """One 120x60 flow node, for the attach-side family's scenes.
+
+    Round coordinates and a single size throughout the family so the
+    only thing that differs between its scenes is the arrow.
+
+    Args:
+        nid: The element id.
+        x: Left edge.
+        y: Top edge.
+
+    Returns:
+        A `role: node` rectangle.
+    """
+    return el(id=nid, type="rectangle", x=float(x), y=float(y),
+              width=120.0, height=60.0, customData={"role": "node"})
+
+
+def _facing_arrow(aid: str, x: float, y: float,
+                  pts: list[tuple[float, float]], start: str,
+                  end: str) -> dict[str, Any]:
+    """A both-ends-bound arrow through absolute waypoints.
+
+    `gap: 0` and `focus: 0` throughout: the family is about WHERE the
+    stroke lands, and a non-zero gap would put a second variable between
+    the stored point and the drawn one.
+
+    Args:
+        aid: The arrow's element id.
+        x: Absolute origin x (the first waypoint).
+        y: Absolute origin y.
+        pts: Waypoints RELATIVE to the origin, first one `(0, 0)`.
+        start: Element id the start binds.
+        end: Element id the end binds.
+
+    Returns:
+        The arrow element.
+    """
+    return el(id=aid, type="arrow", x=float(x), y=float(y),
+              width=max(abs(p[0]) for p in pts),
+              height=max(abs(p[1]) for p in pts),
+              points=[[float(a), float(b)] for a, b in pts],
+              startBinding={"elementId": start, "focus": 0, "gap": 0},
+              endBinding={"elementId": end, "focus": 0, "gap": 0})
+
+
+def _shared_border_run(run: float, offset: float) -> list[dict[str, Any]]:
+    """Two flush-stacked nodes with the arrow drawn along their seam.
+
+    `s` sits directly on top of `d`, sharing the line y = 60, and the
+    arrow that binds them is drawn ALONG that line instead of across it.
+    This is not a hypothetical shape: it is what `_route_candidates`
+    returns for a flush-stacked pair at head. Every candidate it builds
+    fails its own `clean()` (the straight one collapses to a point and
+    the zero-length cleanup empties the list, so the r4-11 stub is all
+    that is left, and the stub lies on the seam) — and the function ends
+    `return routed or out`, so the whole guard set is bypassed and the
+    unfiltered stub is scored and drawn.
+
+    Args:
+        run: How far along the seam the stroke is drawn, in px.
+        offset: `d`'s x offset from `s`. 0 is what the router emits;
+            40 is what it emits for the neighbour's pair, and moving it
+            is what changes `run` at head rather than any second defect.
+
+    Returns:
+        `[s, d, e1]`, with `e1`'s single segment lying on y = 60.
+    """
+    return [_facing_node("s", 0, 0), _facing_node("d", offset, 60),
+            _facing_arrow("e1", 60, 60, [(0, 0), (run, 0)], "s", "d")]
+
+
+def _grazing_arrival(origin: tuple[float, float],
+                     foot: tuple[float, float],
+                     src_at: tuple[float, float]) -> list[dict[str, Any]]:
+    """An arrow landing on `dst`'s LEFT face, at a stated approach angle.
+
+    `dst` is always at (400, 200), so its left face is the segment
+    x = 400, y in [200, 260] and its outward normal is (-1, 0). The
+    source moves rather than the destination, because the reading under
+    examination belongs to the destination's side and must not change
+    when the approach does.
+
+    Args:
+        origin: The arrow's absolute first point, placed on the SOURCE's
+            own outline so `endpoint_gap` has nothing to say about it.
+        foot: The arrow's absolute last point, on `dst`'s left face.
+        src_at: Where the source node's top-left corner goes.
+
+    Returns:
+        `[dst, src, e1]`.
+    """
+    return [_facing_node("dst", 400, 200),
+            _facing_node("src", src_at[0], src_at[1]),
+            _facing_arrow("e1", origin[0], origin[1],
+                          [(0, 0), (foot[0] - origin[0],
+                                    foot[1] - origin[1])], "src", "dst")]
+
+
+def _corner_feet(dx: float, dy: float) -> list[dict[str, Any]]:
+    """Two arrows landing either side of one node's top-left corner.
+
+    The two feet are on ADJACENT sides — one on `hub`'s top edge `dx` px
+    right of the corner, one on its left edge `dy` px below it — which is
+    the configuration `shared_corridors` cannot see by construction (the
+    two runs are on different axes) and the one any adjacent-border spill
+    mechanism can produce.
+
+    Args:
+        dx: The top-edge foot's distance from the corner, in px.
+        dy: The left-edge foot's distance from the corner, in px.
+
+    Returns:
+        `[hub, a, b, e1, e2]` with the two feet `hypot(dx, dy)` apart.
+    """
+    return [_facing_node("hub", 400, 200), _facing_node("a", 100, 100),
+            _facing_node("b", 100, 340),
+            _facing_arrow("e1", 220, 130,
+                          [(0, 0), (180 + dx, 70)], "a", "hub"),
+            _facing_arrow("e2", 220, 370,
+                          [(0, 0), (180, -170 + dy)], "b", "hub")]
+
+
+# RED BY BAND, not by absence: `crosses_through_bound` owns this class and
+# fires on it — 40px of stroke on the seam is reported twice, once per
+# bound node — and goes quiet at 24px. The gate is `run + on_border >
+# tol * 2` with `tol = endpoint_tol(node, TOL)`, which is 14 for a 120x60
+# rectangle, so anything up to 28px of arrow drawn ON a node's outline is
+# invisible. The producer's OWN guard (`flat_on_border`) refuses a
+# candidate at 8px, so the whole interval (8, 28] is a band the router
+# will not knowingly emit and the reader cannot see — and `routed or out`
+# is what puts the router in it anyway.
+#
+# WHAT THE PICTURE WRONGLY SAYS: nothing arrives anywhere. `s` and `d` are
+# stacked flush, the model says `s -> d`, and the drawing shows a 24px tick
+# lying on the seam between them, pointing sideways. A reader sees two
+# boxes touching and no connector at all.
+#
+# WHAT THE CHECKS REPORTED: nothing. Zero errors, zero warnings, zero
+# notes; `collect_findings` returns `crossings=0` and stops.
+#
+# MAGNITUDE 24px, the length of the drawn run, and the band excludes every
+# other number the scene affords: 120 (either node's width, what a check
+# measuring the whole shared edge would report), 60 (the node height and
+# the stacking offset) and 0 (the interior run, which is genuinely zero and
+# is what makes the second sentence of this lint the right one). The
+# NEIGHBOUR is the same stroke at 40px on the same two boxes, so the pair
+# differs in one number and nothing else — which is what makes this a
+# statement about the threshold rather than about the scene.
+_register(Mutant(
+    "flush_stack_border_run_under_the_band",
+    build=lambda: _shared_border_run(24, 0),
+    op="unchanged", args={},
+    expect=FindingSpec("crosses_through_bound", element="e1",
+                       magnitude=(24, 0.10)),
+    neighbour=Neighbour(lambda: _shared_border_run(40, 40),
+                        FindingSpec("crosses_through_bound", element="e1",
+                                    magnitude=(40, 0.10)))))
+
+# RED BY ABSENCE. `arrival_through_side` is a check nobody has written; the
+# spec is here so that whoever writes it has to get the magnitude and the
+# direction right rather than merely fire. Named as its own check and not
+# as an arm of `crosses_through_bound` because the geometry is different:
+# this stroke never touches the node until its last pixel, so there is no
+# run to measure and the existing lint has nothing to say by construction.
+#
+# WHY NO EXISTING INSTRUMENT COVERS IT, measured rather than asserted.
+# `instruments.arrival_squareness` DOES answer about this endpoint, and it
+# answers 13.24 degrees — because it measures lean off the nearest
+# CARDINAL, and a leg of (40, 170) is 13.2 degrees off straight-down. The
+# same leg is 76.76 degrees off the LEFT face's normal, which is the side
+# its foot stands on. Two readings of one stroke, differing by 63.5
+# degrees, and the one the repo computes is the one that says the picture
+# is fine. An existence assertion over `arrival_squareness` would pass
+# here; that is precisely the shape doctrine 2 exists for.
+#
+# WHAT THE PICTURE WRONGLY SAYS: `src -> dst` as a clean connection. What
+# is drawn is a stroke sliding down the outside of `dst`'s left wall and
+# stopping against it — the reader's eye follows it PAST the box, not INTO
+# it, and the arrowhead lands edge-on where no head can be read.
+#
+# WHAT THE CHECKS REPORTED: nothing. `endpoint_gap` is 0 at both ends (both
+# feet are on their own outlines), `crosses_through_bound` measures 0
+# interior and 0 on-border, and `enumerate_defects` returns [].
+#
+# MAGNITUDE 76.76 degrees, the deviation from the foot's own side normal,
+# with a 2% band that excludes 13.24 (the cardinal reading a wrong fix
+# reports), 90 (the `along` class this one is deliberately NOT — it is the
+# neighbour) and 0. DIRECTION is the side, because "which face" is the
+# whole content of the finding: the same 76.76 degrees arriving at the
+# BOTTOM face of the same box is a perfectly ordinary picture.
+#
+# THE NEIGHBOUR IS THE 90-DEGREE POLE OF THE SAME SPECTRUM, and it fires:
+# an arrival exactly along the left face lies ON the border, so
+# `crosses_through_bound` reports its 50px run. That is a different check
+# from the one the mutant names, which is the borrow this file already has
+# a precedent for (`frame_containment` before its lint existed) — and it is
+# the borrow that stops this red hiding a dead reader, because it proves
+# the geometry reaches a live detector as soon as the angle reaches 90.
+_register(Mutant(
+    "grazing_arrival_reads_as_square",
+    build=lambda: _grazing_arrival((360, 60), (400, 230), (300, 0)),
+    op="unchanged", args={},
+    expect=FindingSpec("arrival_through_side", element="e1",
+                       magnitude=(76.76, 0.02), direction="left"),
+    neighbour=Neighbour(
+        lambda: _grazing_arrival((400, 190), (400, 250), (340, 130)),
+        FindingSpec("crosses_through_bound", element="e1",
+                    magnitude=(50, 0.10)))))
+
+# AN INVERTED-MAGNITUDE MISS, which is the rarest of the three shapes this
+# file collects and the most persuasive: the check is not merely quiet on
+# the tight pair, it is LOUDER ON THE LOOSER ONE. `shared_attach_point`
+# asks `abs(dx) < 12 and abs(dy) < 12` — a 12x12 SQUARE, not a radius — so
+# two feet 15.62px apart (dx 11, dy 11) are reported and two feet 12.17px
+# apart (dx 12, dy 2) are not. Sorting the repo's own scenes by how close
+# the feet are does not sort them by whether anything says so.
+#
+# WHAT THE PICTURE WRONGLY SAYS: `hub` has one inbound connection. Two
+# arrows land 12.17px apart across its top-left corner, well under the
+# repo's own readable-lane floor (`FAN_LANE_PITCH = 18.0`), and they read
+# as one stroke forking — the exact misreading diagram-design 6.4 and the
+# whole fan exist to prevent.
+#
+# WHAT THE CHECKS REPORTED: nothing. And the fan cannot repair it even in
+# principle: `fan_attach_points` groups by `(node, side)`, so two feet on
+# ADJACENT sides are never in one group and are never spread. This is the
+# blind spot spike-attach 4.2 predicted any adjacent-border spill
+# mechanism would be able to produce.
+#
+# NO MAGNITUDE IS ASSERTED and the reason is the template, not a choice:
+# `_SHARED_ATTACH_RE` captures no number, exactly as `_LABEL_OVERLAP_RE`
+# does, so a `FindingSpec` here can only assert the element. THE MAGNITUDE
+# CLAIM IS MADE BY THE PAIR INSTEAD — mutant at 12.17px silent, neighbour
+# at 15.62px loud, same corner, same two arrows, same node — which is a
+# strictly stronger statement than a number in one message would be, since
+# no single reading can express "these are the wrong way round". Tighten
+# this to a number the day that template grows one.
+_register(Mutant(
+    "corner_feet_outside_the_square",
+    build=lambda: _corner_feet(12, 2),
+    op="unchanged", args={},
+    expect=FindingSpec("shared_attach_point", element="hub"),
+    neighbour=Neighbour(lambda: _corner_feet(11, 11),
+                        FindingSpec("shared_attach_point",
+                                    element="hub"))))
+
+
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
 
@@ -14768,6 +15417,39 @@ class TestMutantCatalogue(unittest.TestCase):
         """
         self._run_neighbour("tiny_font_text")
 
+    @unittest.expectedFailure
+    def test_mutant_flush_stack_border_run_under_the_band(self) -> None:
+        """24px of arrow drawn on a shared border, and nobody speaks."""
+        # The gate is `run + on_border > 2 * endpoint_tol`, which is 28px
+        # here; flips when the band closes onto the producer's own 8px.
+        self._run("flush_stack_border_run_under_the_band")
+
+    def test_neighbour_flush_stack_border_run_under_the_band(self) -> None:
+        """The same stroke at 40px is reported, once per bound node."""
+        self._run_neighbour("flush_stack_border_run_under_the_band")
+
+    @unittest.expectedFailure
+    def test_mutant_grazing_arrival_reads_as_square(self) -> None:
+        """77 degrees off the face it lands on reads as 13 off a cardinal."""
+        # No check measures a leg against its foot's SIDE; flips when one
+        # does, and only if it reports the side reading and names the face.
+        self._run("grazing_arrival_reads_as_square")
+
+    def test_neighbour_grazing_arrival_reads_as_square(self) -> None:
+        """At 90 degrees the same stroke lies on the face and is reported."""
+        self._run_neighbour("grazing_arrival_reads_as_square")
+
+    @unittest.expectedFailure
+    def test_mutant_corner_feet_outside_the_square(self) -> None:
+        """Feet 12.2px apart are silent; 15.6px apart are reported."""
+        # `abs(dx) < 12 and abs(dy) < 12` is a square; flips when the
+        # shared-attach test measures a distance instead of a box.
+        self._run("corner_feet_outside_the_square")
+
+    def test_neighbour_corner_feet_outside_the_square(self) -> None:
+        """The looser pair across the same corner is the firing pole."""
+        self._run_neighbour("corner_feet_outside_the_square")
+
     def test_mutant_diamond_facet_overfire(self) -> None:
         """A perfect facet-midpoint attachment draws no complaint."""
         # Was measured against the bbox. FLIPPED by WP4 (task 15): on the
@@ -15267,11 +15949,28 @@ ASPIRATIONAL: dict[str, str] = {
     # the note below predicted would have to happen: all three lints
     # landed, all three took `DETECTORS` entries, all three mutants
     # flipped in the same change, and each borrowed neighbour was
-    # replaced by its own check's quiet pole. THE TABLE IS NOW EMPTY for
-    # the first time since `phantom_passthrough` was added to it, and
-    # emptiness is an event rather than a state reached — the next
-    # red-by-absence pin is one curator batch away, and the machinery
-    # below is what makes it safe to add.
+    # replaced by its own check's quiet pole. THE TABLE WAS EMPTY for
+    # part of 2026-08-16, for the first time since `phantom_passthrough`
+    # was added to it — and task 29's own sentence here said to read that
+    # emptiness as an event rather than a state reached, because "the
+    # next red-by-absence pin is one curator batch away". IT WAS ONE
+    # CURATOR BATCH AWAY. The spike-program batch refilled the table the
+    # same day with the entry below, so that prediction is now a record
+    # rather than a forecast, and the machinery task 29 built to make an
+    # addition safe was exercised by the very next commit to touch it.
+    #
+    # The first entry here that is not a contrast probe, and the first
+    # whose predicate is already written down in prose: spike-attach.md
+    # §1.2 sizes it at ~12 lines over `_edge_side` + `_rendered_stretches`.
+    "arrival_through_side":
+        "the angle between an arrow's final leg and the SIDE NORMAL of "
+        "the foot it lands on, not yet built. Distinct from "
+        "`instruments.arrival_squareness`, which measures lean off the "
+        "nearest CARDINAL and answers 13.24 degrees about the 76.76-degree "
+        "arrival `grazing_arrival_reads_as_square` pins — two readings of "
+        "one stroke, and the one the repo computes says nothing is wrong. "
+        "Owner: whichever WP takes spike-attach's trigger E; the same "
+        "predicate is what narration's `endpoint_port` needs",
 }
 
 # FOR WHOEVER FLIPS THESE. No aspirational mutant has a neighbour asserting
@@ -15636,7 +16335,19 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2}
+HAND_AUTHORED_RED_CLASSES = {"TestBatchPathIntegrity": 2,
+                             "TestMermaidEdgeLabelEscaping": 1,
+                             "TestRouterPassesDoNotWorsenTheDrawing": 2}
+# TWO CLASSES JOINED on 2026-08-16 (the spike-program curator batch), and
+# they are here rather than in `CATALOGUE` for one reason each, both of
+# which are the same reason: their subject is not a finding about a scene.
+# `TestMermaidEdgeLabelEscaping` asserts about a STRING the repo emits, and
+# `TestRouterPassesDoNotWorsenTheDrawing` asserts a BEFORE/AFTER property of
+# two producers — neither is expressible as `FindingSpec`/`Silence` over
+# `collect_findings`, which takes one scene and asks what the checks say.
+# The attach-side family above is the same batch's other half and IS in
+# `CATALOGUE`, because those three are ordinary "what did the reader say
+# about this picture" questions. Same batch, same day, split on that line.
 # `TestLoadFindingsReachTheAgent` LEFT this list on 2026-08-16 (v0.9 WP7,
 # task 28), draining 4 -> 0 in one task, and it is the largest single
 # departure this dict has recorded. Worth reading for WHY the four went
@@ -15813,23 +16524,36 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
-# EMPTY as of 2026-08-16 (v0.9 WP7 task 29) — the first time since the
-# catalogue was built. The WP7 contrast trio was the whole of what was
-# left, all three of it red-by-absence, and all three lints landed in one
-# change, so the set that had drained one and two at a time for four days
-# emptied in a single edit. The comment above CATALOGUE_RED_IDS's
-# predecessor said this list "now empties in one change or not at all",
-# and that is what happened.
+CATALOGUE_RED_IDS = {"corner_feet_outside_the_square",
+                     "flush_stack_border_run_under_the_band",
+                     "grazing_arrival_reads_as_square"}
+# THE EMPTINESS LASTED ONE COMMIT, and that is the most useful thing this
+# constant has ever recorded. Task 29 emptied it on 2026-08-16 — the WP7
+# contrast trio was the whole of what was left, all three red-by-absence,
+# all three lints landing in one change — and its note said to read the
+# emptiness as an EVENT rather than a state reached, because "the next
+# curator batch that witnesses a miss puts an id back here". The very next
+# commit to touch this constant is that batch. Three ids in, the same day,
+# from the spike program's witnessed misses.
 #
-# READ THE EMPTINESS AS AN EVENT, not as a state reached — the same
-# instruction SESSION-HANDOVER.md carries about the render row, which was
-# empty for part of 2026-08-15 and refilled the same day. A catalogue
-# with no reds means every defect anyone has thought to pin is caught,
-# which is a statement about our imagination and not about the code. The
-# next curator batch that witnesses a miss puts an id back here, and the
-# machinery around this constant — `ASPIRATIONAL`, `RULE8_EXEMPT`, the
-# flip contract — exists precisely so that adding one is cheap and safe.
+# So the prediction is now a measurement, and it is worth being precise
+# about what it measured: not that the catalogue is never clean, but that
+# a clean catalogue is a statement about our IMAGINATION and not about the
+# code. Nothing in `canvas.py` changed between the empty set and this one.
+# What changed is that four spikes went looking, and three of the things
+# they found had no reader.
+#
+# THESE THREE ARE NOT THE SHAPE THAT LEFT. Every id this set has ever held
+# was red BY ABSENCE — a check nobody had written. Only ONE of these three
+# is (`grazing_arrival_reads_as_square`, and `arrival_through_side` is
+# declared in `ASPIRATIONAL` for it). The other two are reds against checks
+# that exist, fire, and are already `proven` in the coverage table:
+# `crosses_through_bound` is proven and blind from 8px to 28px, and
+# `shared_attach_point` is proven and answers a 12x12 SQUARE, so its
+# answers do not order by distance. A detector can be proven and still be
+# wrong about a neighbouring magnitude. That is the thing the coverage
+# table cannot say and these can, and it is why the totals did not move
+# when they arrived.
 # `gray_text_on_ground`, `pale_stroke_node` and `tiny_font_text` LEFT
 # this set on 2026-08-16 (v0.9 WP7 task 29), the seventh, eighth and
 # ninth catalogue entries to leave it by flipping and the last three

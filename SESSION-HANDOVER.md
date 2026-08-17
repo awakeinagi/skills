@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | *(none — drained 2026-08-16 by WP7 task 29)* |
+| model (default suite) | `corner_feet_outside_the_square`, `flush_stack_border_run_under_the_band`, `grazing_arrival_reads_as_square` |
 | render (`tests/test_mutants_render.py`) | `test_red_clean_stripe_bands_report_a_perfectly_healthy_drawing` (UNGATED — it runs by default, so this row is live on every commit; see below) |
 | other (`tests/test_backend.py`) | *(none — drained 2026-08-16)* |
 
@@ -376,19 +376,28 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**2 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-measured 2026-08-16 at v0.9 WP7 task 29, which
-flipped the whole contrast trio and took `test_mutants.py` 5 -> 2,
-emptying the CATALOGUE half of that file's reds entirely — what remains
-there is hand-authored and outside the catalog; it read 5 / 1 / 0 at v0.9 WP7 task 28, which
+**8 / 1 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-measured 2026-08-17 at the spike-program curator
+batch, which ADDED six model reds rather than flipping any — three
+`CATALOGUE` entries in the attach-side family and three hand-authored
+producer/emitter pins — the largest single upward movement this sentence
+has recorded. TWO MOVEMENTS IN A DAY AND THEY WENT OPPOSITE WAYS, which
+is why this number is derived and not carried: it read 2 / 1 / 0 at v0.9
+WP7 task 29, which flipped the whole contrast trio and took
+`test_mutants.py` 5 -> 2, emptying the CATALOGUE half of that file's reds
+entirely — and the very next commit refilled it, 2 -> 8. Anyone folding
+those two changes must DERIVE this from the grep above rather than adding
++6 to the number they last read; the batch was written against 5 and
+lands on 2, and adding would have produced 11.
+It read 5 / 1 / 0 at v0.9 WP7 task 28, which
 drained `TestLoadFindingsReachTheAgent` 4 -> 0 — the largest single
 departure the hand-authored census has recorded, and one task rather
 than four because the four reds were one fix's four unreached surfaces;
 it read 9 / 1 / 0 at v0.9 WP5 task 25, which
 flipped `framed_node_escapes_its_lane` when `frame_containment` became a
 real lint; 10 / 1 / 0 at curator batch 26 — which ADDED a model
-red rather than flipping one, the `commit`-callers pin, and the only
-upward movement of this sentence since batch 25 — 9 / 1 / 0 at
+red rather than flipping one, the `commit`-callers pin, and the first
+of the two upward movements of this sentence since batch 25 — 9 / 1 / 0 at
 TASK-24-FOLLOW-UP, 11 / 3 / 0 at
 TASK-MICROFIX, 14 / 3 / 0 at TASK-E9ENVELOPE, 16 / 3 / 0 at TASK-FRAMING
 and 17 / 3 / 0 before batch 25). Do not restate any of it as one suite ef
