@@ -9343,6 +9343,23 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
 # OWNER: TASK-FOCUS. The fix is to stamp before solving (or to re-solve
 # after stamping) at both call sites; a curator writing that line would be
 # writing the acceptance test for their own patch.
+#
+# THE FIXTURE HALF OF THIS CLASS IS DELIBERATELY NOT THE SCENE, and the
+# reason arrived while this was being written. TASK-NARRATION's fix round
+# reproduced, with a second and independent instrument, three at-port feet
+# in the corpus whose STORED focus is ±0.333 where `solve_focus` now says
+# 0 — spike-narration §5's specimens. Two instruments agree they exist and
+# NO detector reports them: the narration classifier is focus-blind on
+# purpose, to stay version-independent, so it will never see them. They
+# belong to this class — a stored focus that has re-derived away from its
+# foot, with no witness — and they are a different CAUSE (a solver vintage
+# the fixtures predate) than the ordering pinned above.
+#
+# A red built on those three would die with TASK-FOCUS-FOLLOWUP's fixture
+# rebase, which clears them, and would take the class's statement with it.
+# So the scene here is CONSTRUCTED and the mechanism it pins is the one
+# that regenerates: any fractional route, at any head, produces it again.
+# The three specimens are evidence for the class, not its subject.
 # ---------------------------------------------------------------------------
 
 
@@ -9461,6 +9478,90 @@ class TestStoredBindingsDescribeTheFinalInk(unittest.TestCase):
         self.assertAlmostEqual(
             self._slip(node, arrow, stored), 0.0, places=3,
             msg="a whole-pixel route's stored binding draws its own foot")
+
+
+# ---------------------------------------------------------------------------
+# THE AGENT'S OWN EYE, HALF SHUT (curator batch 27, 2026-08-17, from task
+# 25 concern 5, reported by the mermaid-export spike and left unfixed as
+# outside that task's surface). `render_svg` is the picture an AGENT reads
+# when it cannot open a browser — the snapshot CLI's tier-3 fallback and
+# the substrate tier 2 rasterizes — so a thing it cannot draw is a thing
+# the agent cannot see, while the user looking at Excalidraw sees it
+# perfectly well. That is the family the render tier exists for, arriving
+# in a pure function this time and so provable without a browser.
+#
+# It draws `endArrowhead` and never consults `startArrowhead`. An ER
+# relation with the many-side on the left — `ORDER }o--|| CARRIER`, which
+# the seeder emits — exports and renders as an UNDIRECTED LINE.
+#
+# BASE: two nodes and one arrow. MUTATION: none. MAGNITUDE: the count of
+# drawn marks, 1 where the same arrow reversed draws 2. DIRECTION: which
+# end lost its head. NEIGHBOUR: the identical arrow carrying `endArrowhead`
+# instead, which draws both marks — same scene, same geometry, one field
+# renamed. OWNER: whoever next opens `render_svg`; it is a marker emission
+# beside one that already exists.
+# ---------------------------------------------------------------------------
+
+
+class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
+    """The fallback picture must not silently drop a direction."""
+
+    @staticmethod
+    def _marks(start: str | None, end: str | None) -> int:
+        """Count the drawn marks in the SVG of one arrow.
+
+        Args:
+            start: The arrow's `startArrowhead`.
+            end: Its `endArrowhead`.
+
+        Returns:
+            How many `polyline`/`polygon`/`path` elements the SVG holds —
+            one for the stroke, one more per head actually drawn.
+        """
+        els = [el(id="n1", type="rectangle", x=0, y=0, width=100,
+                  height=60, customData={"role": "node"}),
+               el(id="n2", type="rectangle", x=300, y=0, width=100,
+                  height=60, customData={"role": "node"}),
+               el(id="e1", type="arrow", x=100, y=30, width=200, height=0,
+                  points=[[0, 0], [200, 0]], startArrowhead=start,
+                  endArrowhead=end)]
+        svg = canvas.render_svg(els)[0]
+        return len(re.findall(r"<(?:polyline|polygon|path)\b", svg))
+
+    @unittest.expectedFailure
+    def test_red_a_start_arrowhead_is_never_drawn(self) -> None:
+        """The same arrow reversed loses its head and says nothing.
+
+        WHAT THE PICTURE WRONGLY SAYS: the relation has no direction.
+        An agent reading the fallback snapshot of `ORDER }o--|| CARRIER`
+        sees a plain line between two entities and will narrate it as
+        one, while the user's Excalidraw draws the crow's foot.
+
+        WHAT THE CHECKS REPORTED: nothing — there is no check. The SVG
+        is well-formed, the geometry is right, and the only thing wrong
+        is a mark that is absent.
+
+        Counted rather than pattern-matched on the head's own shape, so
+        the pin does not prescribe HOW the head is drawn: any emission
+        at the start end flips it.
+        """
+        self.assertEqual(
+            self._marks("arrow", None), 2,
+            "render_svg drew %d mark(s) for an arrow with a start head "
+            "and %d for the same arrow with an end head — it consults "
+            "`endArrowhead` only, so a reversed relation renders "
+            "undirected in the picture the agent reads"
+            % (self._marks("arrow", None), self._marks(None, "arrow")))
+
+    def test_an_end_arrowhead_is_drawn(self) -> None:
+        """The green pole: the ordinary direction is drawn, and once.
+
+        Two marks with an end head against one for a bare line — so the
+        renderer does draw heads, and the red above is about which field
+        it reads rather than about arrowheads being unimplemented.
+        """
+        self.assertEqual(self._marks(None, "arrow"), 2)
+        self.assertEqual(self._marks(None, None), 1)
 
 
 # ---------------------------------------------------------------------------
@@ -11417,7 +11518,7 @@ def _labelled_shape(shape: str, width: int = 200) -> list[dict]:
     return [node, lbl]
 
 
-def _framed_flow(escaped: bool) -> list[dict]:
+def _framed_flow(escaped: bool, y: int | None = None) -> list[dict]:
     """A lane frame and two members, one of them outside the lane.
 
     Minimal on purpose: an earlier draft kept the arrow joining the two
@@ -11430,8 +11531,16 @@ def _framed_flow(escaped: bool) -> list[dict]:
     spans y 0..200 and the node spans y 280..340 — and inside it at the
     same y as `s1`. Both scenes carry the identical `frameId` claim.
 
+    `y` overrides that placement for the BOUNDARY pair, which task 25
+    filed for the curator because the flip's own control has the member
+    well inside and cannot reach the edge. 140 stands the member flush
+    against the edge from within (its foot exactly on y=200); 200 stands
+    it flush from without, wholly outside with a gap of zero, which is
+    the arm the lint prints without a number.
+
     Args:
         escaped: True to place `s2` clear of the lane it claims to be in.
+        y: An explicit top edge for `s2`, overriding `escaped`.
 
     Returns:
         The three-element scene: frame `lane`, members `s1` and `s2`.
@@ -11440,7 +11549,8 @@ def _framed_flow(escaped: bool) -> list[dict]:
                name="Lane A"),
             el(id="s1", type="rectangle", x=40, y=60, width=120, height=60,
                frameId="lane", customData={"role": "node"}),
-            el(id="s2", type="rectangle", x=240, y=280 if escaped else 60,
+            el(id="s2", type="rectangle", x=240,
+               y=(280 if escaped else 60) if y is None else y,
                width=120, height=60, frameId="lane",
                customData={"role": "node"})]
 
@@ -13270,6 +13380,37 @@ _register(Mutant(
     expect=FindingSpec("frame_containment", element="s2",
                        magnitude=(80, 0.25)),
     neighbour=Neighbour(lambda: _framed_flow(escaped=False),
+                        Silence("frame_containment"))))
+
+# THE BOUNDARY PAIR task 25 filed for the curator and did not write, on the
+# stated principle that the hands writing a fix should not also write its
+# acceptance test. Its flip's control has the member WELL inside, where a
+# check that read the lane's own edge as "outside" would stay quiet anyway;
+# this is the pole that can tell those apart, and it is one pixel wide.
+#
+# GREEN BOTH WAYS, and that is the finding: the seed was filed as a
+# suspected miss and the check is RIGHT here. `y=200` stands the member
+# flush against the edge from outside — wholly outside with a gap of zero
+# — and `y=140` stands it flush from inside, its foot exactly on the same
+# line. The reading flips across that line and nowhere else.
+#
+# IT ALSO CLOSES A LIVE COVERAGE HOLE, which is why it earns an entry
+# rather than a note. `_FRAME_CONTAINMENT_RE` has TWO arms — `Npx clear of
+# it` and `hard against its edge` — and until now only the first was ever
+# exercised; the numberless arm is the one a check would most easily
+# regress into printing `0px`, which reads as "nothing is wrong".
+#
+# NO MAGNITUDE, because the message carries none by design (see the regex
+# comment: a `0px` here would be a lie about a real escape). The claim is
+# made by the PAIR instead — fires at 200, silent at 140, same scene, same
+# `frameId`, 60px of movement between them — which no single reading could
+# state. Curator batch 27, 2026-08-17, from task-25 concern 1.
+_register(Mutant(
+    "flush_escape_is_reported_without_a_number",
+    build=lambda: _framed_flow(escaped=True, y=200),
+    op="unchanged", args={},
+    expect=FindingSpec("frame_containment", element="s2"),
+    neighbour=Neighbour(lambda: _framed_flow(escaped=True, y=140),
                         Silence("frame_containment"))))
 
 # v0.9 WP7 (task 28). The two checks `lint_layout` promised in its
@@ -15541,6 +15682,15 @@ class TestMutantCatalogue(unittest.TestCase):
         # replaced — see the catalogue entry.
         self._run_neighbour("diamond_label_overflows_shape")
 
+    def test_mutant_flush_escape_is_reported_without_a_number(self) -> None:
+        """A member flush against the lane's edge from outside is named."""
+        self._run("flush_escape_is_reported_without_a_number")
+
+    def test_neighbour_flush_escape_is_reported_without_a_number(
+            self) -> None:
+        """Flush against the same edge from INSIDE, 60px away, is silent."""
+        self._run_neighbour("flush_escape_is_reported_without_a_number")
+
     def test_mutant_framed_node_escapes_its_lane(self) -> None:
         """FLIPPED: a member 80px below the lane it claims is reported."""
         # v0.9 WP5 task 25: `frame_containment` landed in `lint_layout`
@@ -17083,6 +17233,7 @@ HAND_AUTHORED_RED_CLASSES = {
     "TestBatchPathIntegrity": 2,
     "TestFurnitureIsNotAnUnconnectedNode": 1,
     "TestMermaidEdgeLabelEscaping": 1,
+    "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
     "TestStoredBindingsDescribeTheFinalInk": 1,
     "TestTheAnnotationBudgetCountsWhatTheClientDraws": 1}

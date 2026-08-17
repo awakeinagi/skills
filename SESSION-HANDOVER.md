@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**12 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
+**13 / 1 / 1** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-derived 2026-08-17 at curator batch 27, folding onto
 v0.9 WP8 task 30 of the same afternoon. THREE CHANGES MOVED THIS NUMBER
 WITHIN HOURS AND THEY WENT BOTH WAYS, which is the whole reason it is
@@ -392,7 +392,9 @@ one line before the snap that moved its foot;
 `TestFurnitureIsNotAnUnconnectedNode`, an activation bar reported as an
 orphan on a correct sequence;
 `TestTheAnnotationBudgetCountsWhatTheClientDraws`, a budget that has
-never counted a sticky the client drew; task 30's OTHER filed defect, a
+never counted a sticky the client drew; `TestRenderSvgDrawsBothArrowheads`,
+a fallback picture that draws one end of every relation; task 30's OTHER
+filed defect, a
 roundness-only mod discarded in silence, which puts
 `TestBatchPathIntegrity` back at 2 the same day it reached 1; and, in
 `test_backend.py`, the glossary challenge that is re-asked after it has
