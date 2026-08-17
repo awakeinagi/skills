@@ -215,8 +215,9 @@ the sentence failing to complete IS the test that the reading isn't ready.
   never say a wireframe "fails WCAG"; settle one, then record the answer
   as a registry `waive` (reason required) so it goes quiet.
 - **Ports** (v0.9): the `ECHO=` line names where on a node each end of an
-  arrow lands — "leaves the bottom of Validate, arrives at Enrich's left
-  edge, off centre". That is the drawing read back to you, so use it: an
+  arrow lands — "leaves the bottom of validate-order, arrives at
+  enrich-record's left edge, off centre". It names **ids**, like the rest
+  of the echo, not labels. That is the drawing read back to you, so an
   arrow you meant to enter from above and that reports leaving a side face
   is a routing bug you can see without a screenshot. **When the echo is
   silent about an end, describe the PATH and never guess a side** — the

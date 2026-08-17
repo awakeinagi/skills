@@ -8925,7 +8925,15 @@ PORT_TOL = 2.0
 # while its foot sits on a midpoint is the shape that would narrate a
 # port the client then moves; the corpus holds none, and nothing here
 # forbids one. Loosening PORT_TOL toward the endpoint lint's 12px widens
-# exactly that gap, which is why it is 2.
+# exactly that gap, which is why it is small.
+#
+# THAT IT IS 2 AND NOT 1 OR 3 IS A CHOICE, NOT A SWEEP, exactly as
+# `NORMAL_COS` is: the direction is argued above and nothing was
+# measured at other values. What a sweep would have to report is the
+# trade this constant actually makes — sentences gained against feet
+# whose stored chord leans far enough for the client to move them — and
+# the corpus can price both halves, so the work is available to whoever
+# wants the number rather than the argument.
 #
 # (An earlier draft of this comment cited `binding_focus`, which
 # TASK-FOCUS deleted one commit before this landed, for being wrong in

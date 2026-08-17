@@ -79,8 +79,9 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
    travel is mainly vertical, side ports only when mainly horizontal. Never
    puncture a side face to reach something above or below.
    **Reading one back** (v0.9): the `ECHO=` line says which face each end
-   landed on — "leaves the bottom of Validate, arrives at Enrich's left
-   edge, off centre". It is read off the DRAWN path, not the stored chord,
+   landed on, by id — "leaves the bottom of validate-order, arrives at
+   enrich-record's left edge, off centre". It is read off the DRAWN path
+   and not the stored chord,
    and it refuses to name a face when the arrival slides along it or comes
    in more than 25° off square. A silent end is not a missing port; it is
    the check telling you the picture does not show the arrow crossing that
