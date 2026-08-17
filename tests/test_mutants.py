@@ -12331,46 +12331,92 @@ class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
         ix = {e["id"]: e for e in els}
         return [(ix[aid]["x"], ix[aid]["y"]) for aid in ("r1", "r2")]
 
-    @unittest.expectedFailure
-    def test_red_a_sticky_is_solid_to_a_move_and_air_to_the_other_three(
-            self) -> None:
-        """Same scene, same arrows, four entry paths, two drawings.
+    def test_a_sticky_reads_the_same_from_every_entry_path(self) -> None:
+        """Same scene, same arrows, four entry paths, ONE drawing.
 
-        The user drags a node: `apply_ops` re-routes, its `obstacles()`
-        counts the sticky, and `r2` bends around it — 0px of it inside
-        the note. The user then presses Tidy, which moves no node here:
-        `_tidy_pass` re-routes with a set that drops annotations, so the
-        same arrow between the same two boxes snaps back onto the elbow
-        and lies 180px — the note's whole width — straight through the
-        user's own note. The load-time repair and the legacy re-route
-        draw it the same way for the same reason, which is what turns
-        batch 28's one disagreement into a majority of three to one.
+        FLIPPED 2026-08-17 (v0.9 TASK-ATTACH) by the controller's
+        ruling: annotations are SOFT everywhere. Before it, the user
+        dragged a node and `apply_ops` re-routed with an `obstacles()`
+        that counted the sticky, so `r2` bent around it — 0px inside the
+        note; then the user pressed Tidy, `_tidy_pass` re-routed with a
+        set that dropped annotations, and the same arrow between the
+        same two boxes snapped back onto the elbow and lay 180px — the
+        note's whole width — straight through the user's own note. The
+        load-time repair and the legacy re-route drew it the same way,
+        which is what turned batch 28's one disagreement into a majority
+        of three to one.
 
-        WHAT THE PICTURE WRONGLY SAYS: an arrow drawn through a note the
+        WHAT THE PICTURE WRONGLY SAID: an arrow drawn through a note the
         user wrote reads as "this note is about this connector" (or as
-        nothing at all, once the stroke cuts the text). And it is
-        unstable: which drawing you get depends on which button you
-        pressed last, so the same scene has no canonical geometry.
+        nothing at all, once the stroke cuts the text). And it was
+        unstable: which drawing you got depended on which button you
+        pressed last, so the same scene had no canonical geometry.
 
-        THE ASSERTION IS EQUALITY, NOT ZERO, deliberately. Three rulings
-        are available — annotations hard everywhere, soft everywhere
-        (which is what `apply_ops`' own comment says they are, and its
-        `soft_obstacles` only ever collects `text`), or transparent
-        everywhere — and two of them land every arm on 0 while the third
-        lands every arm on 180. All three make one scene draw one way,
-        which is the whole claim; picking among them belongs to the WP
-        that owns the router, not here. OWNER: unassigned at filing, and
-        still unassigned at this widening — the five builders are
-        `apply_ops.obstacles`, `Store._tidy_pass`, `reroute_and_confess`,
-        `reroute_scene`, and `fan_attach_points`' `fan_obstacles`.
+        THE ASSERTION IS NOW ZERO AS WELL AS EQUALITY, which is what the
+        ruling bought. At filing it could only be equality: three
+        rulings were available — annotations hard everywhere, soft
+        everywhere, or transparent everywhere — and two of them land
+        every arm on 0 while the third lands every arm on 180, so a test
+        naming a number would have been picking the ruling. The ruling
+        is made: SOFT, on the evidence that `apply_ops`' hard reading
+        was a v0.2 accident and `soft_obstacles`' own comment ("legal to
+        cross, ugly to cross") states the intent. So the number is
+        pinned, and the TRANSPARENT outcome — which also satisfies
+        equality, at 180px straight through the note — can no longer
+        pass. That is the strengthening: the weaker assertion was
+        satisfied by the wrong ruling.
+
+        AND THE SET MEMBERSHIP IS ASSERTED DIRECTLY, because the span
+        cannot tell SOFT from HARD and pretending otherwise would be the
+        vacuous half of this pin. Measured, not assumed: stubbing
+        `SOFT_ROLES` empty makes the note HARD in all five builders and
+        every behavioural assertion above still passes, because a hard
+        obstacle and a soft one both make this router bend. The scene
+        that separates them is one where the only alternative to
+        crossing the note is crossing a NODE — different geometry, and
+        building it here would be a second experiment wearing this
+        one's clothes. So the ruling itself is pinned where it is
+        expressible: the note is in the soft set and out of the hard
+        one, which is exactly the sentence the ruling is.
+
+        AND EACH ARM MUST HAVE DETOURED, for the green sibling's reason:
+        0px is also what a router that never ran produces, so every arm
+        is required to come back with four points where a plain elbow
+        through the box has three. Without it this whole class would be
+        satisfied by a dead router.
+
+        The five builders are `apply_ops.obstacles`, `Store._tidy_pass`,
+        `reroute_and_confess`, `reroute_scene`, and `fan_attach_points`'
+        `fan_obstacles`; they now share two — `hard_obstacles` and
+        `soft_obstacles` — which is the repair that makes the class of
+        defect unreachable rather than this instance of it fixed.
         """
-        spans = {arm: v[0] for arm, v in
-                 self._four_entry_paths("annotation").items()}
+        scene = self._scene("annotation")
+        self.assertIn(
+            "note", [e["id"] for e in canvas.soft_obstacles(scene)],
+            "the ruling is SOFT and the note is not in the soft set")
+        self.assertNotIn(
+            "note", [e["id"] for e in canvas.hard_obstacles(scene)],
+            "the ruling is SOFT and the note is still a hard obstacle")
+        arms = self._four_entry_paths("annotation")
+        spans = {arm: v[0] for arm, v in arms.items()}
         self.assertEqual(
             len(set(spans.values())), 1,
-            "one scene, two geometries: %s — the op path counts an "
-            "annotation-roled box as an obstacle and the other three do "
-            "not" % ", ".join("%s %.0fpx" % kv for kv in spans.items()))
+            "one scene, two geometries: %s — the entry paths disagree "
+            "about whether an annotation-roled box is an obstacle"
+            % ", ".join("%s %.0fpx" % kv for kv in spans.items()))
+        self.assertEqual(
+            spans, {"move": 0.0, "tidy": 0.0, "load": 0.0, "legacy": 0.0},
+            "the ruling is SOFT — every path must bend around a note "
+            "the user wrote, not agree to draw through it: %s" % (spans,))
+        for arm, (_, corners) in arms.items():
+            with self.subTest(arm=arm):
+                self.assertGreaterEqual(
+                    corners, 4,
+                    "%s never detoured around the note, so its 0px is "
+                    "the 0px of a router that did nothing: r2 came back "
+                    "with %d points and a plain elbow has 3"
+                    % (arm, corners))
 
     def test_the_same_box_roled_node_gets_one_answer_from_every_path(
             self) -> None:
@@ -12416,11 +12462,21 @@ class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
         name this builder and had no scene on which to measure it.
 
         THE LITERALS ARE THE PIN AND THEY ARE MEANT TO MOVE. If the
-        ruling the red above waits for goes the other way — annotations
-        hard everywhere — this arm turns red, and that is the line that
-        says the fan was not forgotten while `apply_ops` was fixed. A
-        ruling that leaves four builders agreeing and one behind is the
-        same defect wearing a different role string.
+        ruling the test above waited for had gone the other way —
+        annotations hard everywhere — this arm would have turned red,
+        and that is the line that says the fan was not forgotten while
+        `apply_ops` was fixed. A ruling that leaves four builders
+        agreeing and one behind is the same defect wearing a different
+        role string.
+
+        THE RULING CAME IN SOFT (2026-08-17, v0.9 TASK-ATTACH) and these
+        literals did NOT move, which is the outcome worth naming rather
+        than passing over: the fan has no soft tier — it accepts or
+        reverts a slide — so "soft" and "transparent" are the same
+        instruction to it, and `fan_obstacles` is now `hard_obstacles`,
+        which excludes annotations for the same reason the hand-written
+        list did. The fan is the one builder for which this ruling is a
+        no-op, and it is pinned here so that stays a measured fact.
         """
         self.assertEqual(
             self._fan_feet("annotation"), [(120, 33), (120, 67)],
@@ -18697,8 +18753,23 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
-    "TestRouterPassesDoNotWorsenTheDrawing": 2,
-    "TestTheObstacleSetsAgreeAboutASticky": 1}
+    "TestRouterPassesDoNotWorsenTheDrawing": 2}
+# ONE LEFT on 2026-08-17 (v0.9 TASK-ATTACH):
+# `TestTheObstacleSetsAgreeAboutASticky`, whose single red flipped on the
+# controller's ruling that annotations are SOFT obstacles everywhere. The
+# class keeps all three poles and the flipped test gained two arms, so
+# the dict lost a LINE and not a number — the sixth time that has been
+# the shape here in three days.
+#
+# THE FLIP IS THE FACTORING, which is why this one is worth reading. The
+# red named five builders deriving one predicate five times; the fix
+# made them call two functions (`hard_obstacles`, `soft_obstacles`), so
+# what drained is not "the sticky disagreement" but the shape of code
+# that let a sixth builder disagree next. The flipped test also gained a
+# set-membership arm, because the behavioural span it asserts CANNOT
+# tell soft from hard — measured, not assumed: stubbing `SOFT_ROLES`
+# empty makes the note hard in all five builders and every span
+# assertion still passes.
 # A THIRD LEFT on 2026-08-17 (v0.9 TASK-MICROFIX-2), the same day it
 # joined and in the same task's fourth commit:
 # `TestARetypedValueReachesDiskButNotHistory`, whose single red flipped

@@ -3040,6 +3040,68 @@ def _self_loop_path(node):
             (entry_x, y1 - r), (entry_x, y1)]
 
 
+BOX_TYPES = ("rectangle", "diamond", "ellipse")
+
+TRANSPARENT_ROLES = ("label", "pin", "decoration")
+# Roles the router does not see at all. A label rides its owner, a pin
+# marks a spot, a decoration is furniture — none of them is something an
+# arrow can be said to run "through", so routing around one would bend a
+# path for a thing the reader does not read as an obstruction.
+
+SOFT_ROLES = ("annotation",)
+# ...and the roles that are legal to cross and ugly to cross, which is
+# the third state this file needed and did not have. RULED 2026-08-17
+# after curator batch 28 found five builders deriving this set five
+# times and disagreeing: `apply_ops`' set counted an annotation-roled
+# BOX as a hard obstacle while `_tidy_pass`, `reroute_and_confess`,
+# `reroute_scene` and `fan_attach_points` treated it as air, so the same
+# scene drew two ways depending on which button was pressed last
+# (`a_sticky_is_solid_to_a_move_and_air_to_the_other_three`). The hard
+# reading was a v0.2 accident, not a decision — `soft_obstacles`' own
+# comment has said "legal to cross, ugly to cross" since v0.3, and the
+# only reason a sticky never got that treatment is that the soft set
+# collected `text` and a sticky is a rectangle.
+#
+# THE REPAIR IS THE FACTORING, not the tuple. Five copies of a predicate
+# is what let one of them drift for two minor versions; one authority
+# with five callers cannot. The tuples are module-level so the
+# disagreement is now a one-line edit rather than a five-site sweep.
+
+
+def hard_obstacles(els):
+    """Boxes the router must not draw an arrow through.
+
+    Args:
+        els: Scene elements.
+
+    Returns:
+        Every box element whose role is neither transparent nor soft.
+    """
+    return [e for e in els if e.get("type") in BOX_TYPES
+            and role_of(e) not in TRANSPARENT_ROLES
+            and role_of(e) not in SOFT_ROLES]
+
+
+def soft_obstacles(els):
+    """Elements an arrow may cross, at a cost.
+
+    Bound labels and annotation text have been in this set since v0.3;
+    annotation-roled BOXES joined it on 2026-08-17, which is the whole
+    of the sticky ruling — a note the user wrote is worth bending a path
+    around, and worth crossing when bending costs more.
+
+    Args:
+        els: Scene elements.
+
+    Returns:
+        Bound/annotation text plus annotation-roled boxes.
+    """
+    return [e for e in els
+            if (e.get("type") == "text"
+                and (e.get("containerId") or role_of(e) == "annotation"))
+            or (e.get("type") in BOX_TYPES and role_of(e) in SOFT_ROLES)]
+
+
 def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
                 other_arrows=None):
     """Compute explicit geometry for a bound arrow (bindings do NOT route —
@@ -3188,12 +3250,8 @@ def reroute_and_confess(els, node, before, artifact_id):
     bound = [e for e in els if e.get("type") == "arrow" and node["id"] in (
         (e.get("startBinding") or {}).get("elementId"),
         (e.get("endBinding") or {}).get("elementId"))]
-    obstacles = [e for e in els
-                 if e.get("type") in ("rectangle", "diamond", "ellipse")
-                 and role_of(e) not in ("label", "pin", "decoration",
-                                        "annotation")]
-    soft = [e for e in els if e.get("type") == "text"
-            and (e.get("containerId") or role_of(e) == "annotation")]
+    obstacles = hard_obstacles(els)
+    soft = soft_obstacles(els)
     moved, kept_as_drawn = [], []
     for arrow in bound:
         src = index.get((arrow.get("startBinding") or {}).get("elementId"))
@@ -4098,10 +4156,7 @@ def fan_attach_points(els):
         fan_slides.update(slide_of)
     # obstacle set for the crossing check below (the router avoids foreign
     # boxes; the fan must not undo that work by sliding a segment into one)
-    fan_obstacles = [e for e in els
-                     if e.get("type") in ("rectangle", "diamond", "ellipse")
-                     and (e.get("customData") or {}).get("role")
-                     not in ("label", "pin", "decoration", "annotation")]
+    fan_obstacles = hard_obstacles(els)
 
     def _fan_hits(a, ax, ay, pts):
         n = 0
@@ -4310,15 +4365,13 @@ def reroute_scene(els):
     """
     out = copy.deepcopy(els)
     ix = {e["id"]: e for e in out}
-    # The annotation exclusion follows `_tidy_pass`, `reroute_and_confess`
-    # and `fan_attach_points`' own `fan_obstacles`. `apply_ops`' obstacle
-    # set is the one site that omits it — noted, not changed here.
-    obstacles = [e for e in out
-                 if e.get("type") in ("rectangle", "diamond", "ellipse")
-                 and role_of(e) not in ("label", "pin", "decoration",
-                                        "annotation")]
-    soft = [e for e in out if e.get("type") == "text"
-            and (e.get("containerId") or role_of(e) == "annotation")]
+    # One authority, five callers (2026-08-17). This site's comment used
+    # to record the disagreement it could see — "`apply_ops`' obstacle
+    # set is the one site that omits it — noted, not changed here" — and
+    # noting it is what let it stand; `hard_obstacles` is that note
+    # discharged.
+    obstacles = hard_obstacles(out)
+    soft = soft_obstacles(out)
     for a in out:
         if a.get("type") != "arrow":
             continue
@@ -5394,16 +5447,12 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
         return el
 
     def obstacles():
-        return [e for e in els
-                if e.get("type") in ("rectangle", "diamond", "ellipse")
-                and (e.get("customData") or {}).get("role")
-                not in ("label", "pin", "decoration")]
-
-    def soft_obstacles():
-        # labels + annotations: legal to cross, ugly to cross (v0.3)
-        return [e for e in els if e.get("type") == "text"
-                and (e.get("containerId")
-                     or role_of(e) == "annotation")]
+        # `hard_obstacles`, not a fourth copy of its predicate. This is
+        # the site that carried the sticky divergence: it omitted
+        # `annotation` from the exclusion list, so a note the user wrote
+        # was SOLID here and air in the other four builders, and which
+        # drawing you got depended on which button you pressed last.
+        return hard_obstacles(els)
 
     def arrow_paths():
         return [(e["id"], e.get("x", 0), e.get("y", 0),
@@ -5417,7 +5466,7 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
         # agent as a bare traceback, breaking SKILL.md's promise.
         try:
             route_arrow(arrow, src, dst, obstacles(),
-                        soft_obstacles=soft_obstacles(),
+                        soft_obstacles=soft_obstacles(els),
                         other_arrows=arrow_paths())
         except Exception as e:  # noqa: BLE001 — totality backstop
             where = "op %d" % opi if opi is not None else "post-pass"
@@ -16145,12 +16194,7 @@ class Store:
                     e["x"], e["y"] = nx, ny
                     snapped += 1
                     recenter_label(els, e)
-        obstacles = [e for e in els
-                     if e.get("type") in ("rectangle", "diamond",
-                                          "ellipse")
-                     and (e.get("customData") or {}).get("role")
-                     not in ("label", "pin", "decoration",
-                             "annotation")]
+        obstacles = hard_obstacles(els)
         rerouted = 0
         for e in els:
             if e.get("type") != "arrow":
@@ -16162,10 +16206,7 @@ class Store:
                     server_owns_geometry(e):
                 route_arrow(
                     e, s, d, obstacles,
-                    soft_obstacles=[t for t in els
-                                    if t.get("type") == "text"
-                                    and (t.get("containerId") or
-                                         role_of(t) == "annotation")],
+                    soft_obstacles=soft_obstacles(els),
                     other_arrows=[(t["id"], t.get("x", 0),
                                    t.get("y", 0),
                                    t.get("points") or [])

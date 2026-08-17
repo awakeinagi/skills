@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**6 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+**5 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-derived 2026-08-17 at the TASK-MICROFIX-2 fold, where
 the merged value matched NEITHER side of the rebase conflict — C4's 10/0/0
 and MICROFIX-2's 6/1/0 were each true of their own head and both wrong of
