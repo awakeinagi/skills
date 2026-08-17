@@ -5864,11 +5864,25 @@ def replay_changes(elements: Sequence[dict[str, Any]],
     """
     els = [dict(e) for e in elements]
     ordered = [c for c in changes if c["op"] == "del"]
-    # `or 0` would read an index of 0 as "no index" — harmless only
-    # because the `is None` term already sorted those to the back. Ask
-    # once and say what the fallback is FOR: an indexless add keeps its
-    # relative position among the other indexless ones.
     def _add_order(c: dict[str, Any]) -> tuple[bool, int]:
+        """Sort key placing indexed `add`s in order, indexless ones last.
+
+        The predecessor was
+        `key=lambda c: (_add_index(c) is None, _add_index(c) or 0)`,
+        which asked twice per element and used `or 0` — a fallback that
+        would read a real index of 0 as "no index", harmless only
+        because the first term had already sorted those to the back. It
+        asks once, and the fallback says what it is FOR: an indexless
+        add has no position to claim, so it keeps its relative order
+        among the other indexless ones.
+
+        Args:
+            c: A save-record `add` change op.
+
+        Returns:
+            `(has no index, the index)` — false sorts before true, so
+            indexed adds lead in index order.
+        """
         ix = _add_index(c)
         return (ix is None, 0 if ix is None else ix)
 

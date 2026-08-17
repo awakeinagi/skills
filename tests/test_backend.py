@@ -8790,40 +8790,108 @@ class TestLintHygiene(Base):
 
 
 class TestStoredHeightMatchesThePaintedLineHeight(Base):
-    """The op paths reserve height at the element's own `lineHeight`.
+    """Every write path reserves height at the element's own `lineHeight`.
 
     `text_dims` has taken a `line_height` parameter since the Task 24
-    follow-up, and three op paths that hold an element and WRITE its
-    height went on calling it at the 1.25 default: `route_ctx`'s label
-    sizing, `_set_label` (twice) and `cmd_x_as_user`. So a label the
-    client had set to double spacing was stored at
-    `lines * fontSize * 1.25` while the paint drew
-    `lines * fontSize * lineHeight` — under by the last line, downward,
-    off the bottom.
+    follow-up, and five sites that hold an element and WRITE its height
+    went on calling it at the 1.25 default. So a text the client had set
+    to double spacing was stored at `lines * fontSize * 1.25` while the
+    paint drew `lines * fontSize * lineHeight` — under by the last line,
+    downward, off the bottom.
 
-    Curator batch 26 annotated this and deliberately did not pin it,
-    because the export is protected by `ink_extent`'s `max()` and a red
-    would have asserted a miss nobody had demonstrated. TASK-POLISH
-    fixed the call sites, which makes the ARITHMETIC demonstrable
-    without having to demonstrate a lint going quiet — so it is pinned
-    here as what the store holds, which is the thing later readers
-    inherit.
+    THE FIVE, each with the entry path that reaches it, because the
+    first draft of this class pinned ONE of them and read as though it
+    covered the change (TASK-POLISH review, Minor 1 — reverting the
+    other four left all 1320 tests green):
+
+    | site | reached by |
+    |---|---|
+    | `_set_label` label branch | `mod label` on a host element |
+    | `_set_label` text branch | `mod label` on a TEXT element |
+    | `apply_ops` mod-text branch | `mod text` on a text element |
+    | `validate_scene` text-in-text | loading an artifact with one |
+    | `cmd_x_as_user` rename | the adapter verb, over a live server |
+
+    The last is a subprocess test and lives with its server in
+    `TestXAsUserFidelity`; the other four are here. Each was proven to
+    bite by reverting ITS OWN site alone.
+
+    `route_ctx` IS NOT ONE OF THEM, and this class said it was. That
+    name came from curator batch 26's enumeration and survived into the
+    fix commit unchecked: `route_ctx` is a routing-error wrapper nested
+    inside `apply_ops` and contains no `text_dims` call at all. The site
+    is `apply_ops`' own mod-text branch, a few lines below it. Same
+    class of error this task's own concern 5 was about — a name in prose
+    that no check reads.
+
+    Curator batch 26 annotated all of this and deliberately did not pin
+    it, because the export is protected by `ink_extent`'s `max()` and a
+    red would have asserted a miss nobody had demonstrated. With the
+    sites fixed the ARITHMETIC is demonstrable without demonstrating a
+    silent lint, so it is pinned as what the STORE holds — the thing
+    every later reader inherits.
+
+    The numbers throughout are batch 26's own, at fontSize 16: three
+    lines at `lineHeight: 2.0` is 96px and at the 1.25 default 60px, and
+    the 36px gap is exactly the under-measure that was filed.
     """
 
+    TEXT = "aaa\nbbb\nccc"
+
+    def assert_reserved_at_double_spacing(self, el, where):
+        """Assert one element's stored height is the painted one.
+
+        Both the correct height and the default it must NOT be are
+        asserted, so a `text_dims` that stopped varying with
+        `line_height` fails here rather than passing because the two
+        readings agree.
+
+        Args:
+            el: The element whose height was just written.
+            where: The site's name, for the failure message.
+        """
+        fs = el.get("fontSize", 16)
+        self.assertEqual(
+            el.get("lineHeight"), 2.0,
+            "%s overwrote the client's line height, so this measures the "
+            "default twice" % where)
+        self.assertEqual(
+            (el["height"], canvas.text_dims(self.TEXT, fs)[1]), (96, 60),
+            "%s stored %rpx where the paint draws 96 at lineHeight 2.0 "
+            "(the default reads 60) — batch 26's 36px under-measure"
+            % (where, el["height"]))
+
+    def seed_text(self, tid="t1"):
+        """Seed one text element and give it the client's double spacing.
+
+        `lineHeight` is set on the element and COMMITTED rather than
+        passed through the seeding op, because that is how it arrives in
+        life: the client sets it and the next op has to read it back.
+
+        Args:
+            tid: The text element's id.
+
+        Returns:
+            The store's element list for artifact `flow`.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "F", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "text", "id": tid, "text": "one", "x": 0, "y": 0,
+                "fontSize": 16}}]})
+        for e in self.store.scenes["flow"]:
+            if e["id"] == tid:
+                e["lineHeight"] = 2.0
+        self.store.commit(author="user", base_revn=self.store.head_revn(),
+                          new_scenes={"flow": self.store.scenes["flow"]})
+        return self.store.scenes["flow"]
+
     def test_a_relabel_reserves_the_height_the_client_will_paint(self):
-        """Three lines at double spacing: 96px stored, not 60.
+        """`_set_label`'s LABEL branch, through a real `mod label`.
 
-        Driven through a real `mod label` rather than by calling
-        `_set_label`, because the claim is about the op path a client
-        reaches. The label's `lineHeight` is set the way the client sets
-        it — on the element, committed — and the relabel then has to
-        read it back.
-
-        The numbers are the batch-26 measurement at fontSize 16: 3 lines
-        at 2.0 is 96px, at the 1.25 default 60px, and the 36px gap is
-        exactly the under-measure that was filed. Both are asserted, so
-        a `text_dims` that stopped varying with `line_height` fails here
-        rather than passing because the two agree.
+        Driven through the op rather than by calling `_set_label`,
+        because the claim is about the path a client reaches.
         """
         self.store.apply_batch({
             "base_revn": 0, "artifact": "flow",
@@ -8839,21 +8907,77 @@ class TestStoredHeightMatchesThePaintedLineHeight(Base):
         self.store.apply_batch({
             "base_revn": self.store.head_revn(), "artifact": "flow",
             "ops": [{"op": "mod", "id": "n1",
-                     "attrs": {"label": "aaa\nbbb\nccc"}}]})
+                     "attrs": {"label": self.TEXT}}]})
         lbl = next(e for e in self.store.scenes["flow"]
                    if e["id"] == "n1-label")
-        fs = lbl.get("fontSize", 16)
-        self.assertEqual(lbl["lineHeight"], 2.0,
-                         "the relabel overwrote the client's line height, "
-                         "so this measures the default twice")
-        self.assertEqual(
-            lbl["height"], canvas.text_dims("aaa\nbbb\nccc", fs, 2.0)[1],
-            "the relabel stored a height the paint contradicts")
-        self.assertEqual(
-            (lbl["height"], canvas.text_dims("aaa\nbbb\nccc", fs)[1]),
-            (96, 60),
-            "the 36px under-measure batch 26 filed at fontSize 16 has "
-            "moved; re-derive it before editing this number")
+        self.assert_reserved_at_double_spacing(lbl, "mod label (bound)")
+
+    def test_mod_label_on_a_text_element_reserves_its_own_spacing(self):
+        """`_set_label`'s TEXT branch — a different branch, same op.
+
+        `mod label` on a text element means its own text and never a
+        bound one (text-in-text renders a character wide; ART-010), so
+        this reaches a second `text_dims` call the bound-label test
+        above never touches.
+        """
+        self.seed_text()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "mod", "id": "t1",
+                     "attrs": {"label": self.TEXT}}]})
+        el = next(e for e in self.store.scenes["flow"] if e["id"] == "t1")
+        self.assert_reserved_at_double_spacing(el, "mod label (text)")
+
+    def test_mod_text_reserves_the_spacing_the_element_carries(self):
+        """`apply_ops`' mod-text branch — the site misnamed `route_ctx`.
+
+        A different attribute from the two above and therefore a
+        different branch: `mod text` writes the element's text directly
+        instead of going through `_set_label`.
+        """
+        self.seed_text()
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "mod", "id": "t1",
+                     "attrs": {"text": self.TEXT}}]})
+        el = next(e for e in self.store.scenes["flow"] if e["id"] == "t1")
+        self.assert_reserved_at_double_spacing(el, "mod text")
+
+    def test_the_text_in_text_repair_reserves_the_containers_spacing(self):
+        """`validate_scene`, reached by LOADING a structure it repairs.
+
+        A text element bound to another TEXT element is illegal
+        Excalidraw structure, and the loader merges the child's content
+        into the empty container and drops the child. That merge
+        re-measures, on a container carrying its own `lineHeight`, so it
+        is the same defect on a load-repair path rather than an op path
+        — and the only one of the five not reachable through any op,
+        which is why it is driven by writing the file and re-opening the
+        project.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "F", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "x", "x": 0,
+                "y": 0, "width": 100, "height": 60}}]})
+        path = self.project.artifacts_dir / "flow.excalidraw"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc["elements"] = [
+            {"id": "host", "type": "text", "x": 0, "y": 0, "width": 10,
+             "height": 10, "text": "", "originalText": "", "fontSize": 16,
+             "lineHeight": 2.0, "containerId": None,
+             "boundElements": [{"id": "kid", "type": "text"}]},
+            {"id": "kid", "type": "text", "x": 0, "y": 0, "width": 10,
+             "height": 10, "text": self.TEXT, "originalText": self.TEXT,
+             "fontSize": 16, "lineHeight": 1.25, "containerId": "host"}]
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        reloaded = canvas.Store(self.project)
+        host = next(e for e in reloaded.scenes["flow"] if e["id"] == "host")
+        self.assertEqual(host["text"], self.TEXT,
+                         "the text-in-text repair did not merge, so this "
+                         "measures an element nothing re-sized")
+        self.assert_reserved_at_double_spacing(host, "text-in-text repair")
 
 
 class TestTextFit(Base):
@@ -13131,6 +13255,61 @@ class TestXAsUserFidelity(unittest.TestCase):
         got = self.x("answer", "--target", pins[-1]["id"], "--text", "edgar")
         self.assertIn("ANSWERED=", got.stdout, got.stdout)
         self.assertNotIn("ERROR=", got.stdout + got.stderr)
+
+    def test_rename_reserves_the_height_the_client_will_paint(self):
+        """The fifth line-height site, and the only one behind the CLI.
+
+        `cmd_x_as_user`'s rename re-measures the label — that is the
+        WP6/D28 fidelity property the verb exists for — and it did so at
+        the 1.25 default while the paint uses the element's own
+        `lineHeight`. Its four siblings are pinned in
+        `TestStoredHeightMatchesThePaintedLineHeight`; this one needs a
+        live server, so it is here with one.
+
+        On its OWN element rather than the class's shared `panel`,
+        because setting a line height is a durable scene edit and the
+        sibling tests read that fixture.
+
+        Seeded through `/api/save` and not `/api/apply`: an agent batch
+        is held behind the banner whenever the canvas is dirty, so the
+        first draft of this test edited a scene the element had not
+        reached yet and then measured the queued copy the server minted
+        at 1.25 afterwards. A save is also the honest path — the
+        `lineHeight` being set here is the CLIENT's, and the client
+        posts scenes.
+
+        96px at `lineHeight: 2.0` against the 1.25 default's 60, at
+        fontSize 16 — curator batch 26's 36px under-measure.
+        """
+        text = "aaa\nbbb\nccc"
+        els = canvas.http_json(self.url() + "api/artifact/w")["elements"]
+        els = [*els,
+               {"id": "lh", "type": "rectangle", "x": 700, "y": 700,
+                "width": 400, "height": 300,
+                "boundElements": [{"id": "lh-label", "type": "text"}]},
+               {"id": "lh-label", "type": "text", "x": 710, "y": 710,
+                "width": 40, "height": 20, "text": "one",
+                "originalText": "one", "fontSize": 16, "lineHeight": 2.0,
+                "containerId": "lh", "autoResize": True}]
+        canvas.http_json(
+            self.url() + "api/save",
+            payload={"scenes": {"w": els},
+                     "base_revn": canvas.http_json(
+                         self.url() + "api/state")["head_revn"]})
+        seeded = next(e for e in self.scene() if e["id"] == "lh-label")
+        self.assertEqual(seeded.get("lineHeight"), 2.0,
+                         "the save did not keep the client's line height, "
+                         "so the rename below has nothing to read back")
+        self.x("rename", "--artifact", "w", "--target", "lh", "--text", text)
+        lbl = next(e for e in self.scene() if e["id"] == "lh-label")
+        fs = lbl.get("fontSize", 16)
+        self.assertEqual(lbl.get("lineHeight"), 2.0,
+                         "the rename overwrote the client's line height, "
+                         "so this measures the default twice")
+        self.assertEqual(
+            (lbl["height"], canvas.text_dims(text, fs)[1]), (96, 60),
+            "`x-as-user rename` stored %rpx where the paint draws 96 at "
+            "lineHeight 2.0 (the default reads 60)" % (lbl["height"],))
 
     def test_verbs_write_what_the_client_writes(self):
         # rename re-measures like the client does
