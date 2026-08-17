@@ -12481,13 +12481,26 @@ class TestTheObstacleSetsAgreeAboutASticky(unittest.TestCase):
 # when the solved focus equals the stored one) is narrower and cannot mint
 # phantom work by construction, but only closes this one producer. The
 # curator files the divergence; the ruling is not the curator's.
+#
+# RULED AND FLIPPED 2026-08-17 (v0.9 TASK-MICROFIX-2), one day after
+# filing, on the FAN'S STAMPING — the narrow surface, for the reason this
+# entry gives: the wide one is the loosening v0.8 WP2 was made by, and a
+# repair that reopens a closed defect class is not a repair. What the
+# ruling gained beyond the entry's account is the INTENT: the differ's
+# focus/gap branch was written for exactly this churn ("record the full
+# dicts, derived") and its dict-equality guard silently defeats it on a
+# pure int->float retype, so this is a contract violated rather than an
+# edge nobody thought about. With the fan no longer rewriting equal
+# values that guard is simply unreachable by a retype, and the branch
+# keeps doing its job for genuine drift — which the class now has a
+# third pole for, over a save carrying both cases at once.
 # ---------------------------------------------------------------------------
 
 
 class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
     """A save's two records may not disagree about what it wrote."""
 
-    def _project(self) -> tuple[canvas.Store, Path]:
+    def _project(self, second_pair: bool = False) -> tuple[canvas.Store, Path]:
         """Two aligned nodes, one bound arrow, one revision already on disk.
 
         THE PRIOR REVISION IS WHAT MAKES THIS MEASURABLE and is easy to
@@ -12502,6 +12515,16 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
         solve reproduces exactly on this geometry, so a retype is the
         only thing that can happen to it.
 
+        `second_pair` adds an independent `c`->`d` arrow 600px below,
+        far enough that no fan group, no obstacle set and no label
+        recentring reaches across. It exists so ONE save can carry both
+        cases at once — the shape the FOLLOWUP-B review reproduced on a
+        real fixture save, where bindings were recorded for genuinely
+        moved arrows in the same save that silently retyped another.
+
+        Args:
+            second_pair: Add the independent `c`/`d`/`s` trio.
+
         Returns:
             `(the loaded store, its project_knowledge directory)`.
         """
@@ -12515,6 +12538,17 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
                startBinding={"elementId": "a", "focus": 0, "gap": 6},
                endBinding={"elementId": "b", "focus": 0, "gap": 6}),
         ]
+        if second_pair:
+            els.extend([
+                el(id="c", type="rectangle", x=0, y=600, width=120,
+                   height=80, customData={"role": "node"}),
+                el(id="d", type="rectangle", x=400, y=600, width=120,
+                   height=80, customData={"role": "node"}),
+                el(id="s", type="arrow", x=120, y=640, width=280, height=0,
+                   points=[[0, 0], [280, 0]],
+                   startBinding={"elementId": "c", "focus": 0, "gap": 6},
+                   endBinding={"elementId": "d", "focus": 0, "gap": 6}),
+            ])
         root = _scratch_project(
             self,
             {"f": json.dumps({"type": "excalidraw", "version": 2,
@@ -12534,6 +12568,38 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
         (pk / "model.json").write_text(json.dumps(reg), encoding="utf-8")
         return canvas.Store(canvas.Project(root)), pk
 
+    def _apply(self, ops: list[dict], second_pair: bool = False
+               ) -> tuple[dict, dict, list[dict]]:
+        """Apply one batch and hand back all three records of it.
+
+        The save record is read off the FILE rather than off the store,
+        because the file is what a later diff, revert or branch switch
+        replays; a change entry that exists only in memory is not a
+        record of anything.
+
+        Args:
+            ops: The batch's ops, applied at the store's own head.
+            second_pair: Build the two-arrow scene (see `_project`).
+
+        Returns:
+            `(disk elements by id, replayed elements by id, the change
+            entries the save file holds for artifact `f`)`.
+        """
+        store, pk = self._project(second_pair)
+        store.apply_batch({"base_revn": store.head_revn(), "artifact": "f",
+                           "ops": ops})
+        head = store.head_revn()
+        disk = json.loads((pk / "artifacts" / "f.excalidraw")
+                          .read_text(encoding="utf-8"))["elements"]
+        replay = store.state_at(head)["f"]["elements"]
+        save = next(p for p in sorted((pk / "saves").glob("*.json"))
+                    if json.loads(p.read_text(encoding="utf-8"))
+                    .get("revn") == head)
+        changes = (json.loads(save.read_text(encoding="utf-8"))["artifacts"]
+                   .get("f", {}).get("changes", []))
+        return ({e["id"]: e for e in disk},
+                {e["id"]: e for e in replay}, changes)
+
     def _focus_after(self, ops: list[dict]) -> tuple[Any, Any]:
         """Apply one batch, then read `r`'s start focus from both records.
 
@@ -12545,18 +12611,22 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
             raw and unrounded — `repr` is what tells 0 from 0.0, and any
             comparison that normalizes them first is the bug under test.
         """
-        store, pk = self._project()
-        store.apply_batch({"base_revn": store.head_revn(), "artifact": "f",
-                           "ops": ops})
-        disk = json.loads((pk / "artifacts" / "f.excalidraw")
-                          .read_text(encoding="utf-8"))["elements"]
-        replay = store.state_at(store.head_revn())["f"]["elements"]
-        return ({e["id"]: e for e in disk}["r"]["startBinding"]["focus"],
-                {e["id"]: e for e in replay}["r"]["startBinding"]["focus"])
+        disk, replay, _changes = self._apply(ops)
+        return (disk["r"]["startBinding"]["focus"],
+                replay["r"]["startBinding"]["focus"])
 
-    @unittest.expectedFailure
     def test_red_a_retyped_focus_reaches_disk_but_not_history(self) -> None:
         """One batch about another element splits the scene's two records.
+
+        FLIPPED 2026-08-17 by v0.9 TASK-MICROFIX-2, one day after it was
+        filed, on the narrower of the two surfaces the entry above
+        offered: the fan no longer rewrites a binding whose solved focus
+        already equals the stored one, so there is no retype for the
+        differ's dict equality to wave through. The diff-significance
+        surface was ruled out and stays out — the entry says why, and
+        the fix's own comment repeats it beside the code.
+
+        Kept its red-era name, this file's usual convention.
 
         The op adds `z`, a node nothing binds, 300px below everything.
         `apply_ops` runs its fan post-pass over the whole applied scene
@@ -12598,9 +12668,20 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
         RETYPING rather than about bindings never being recorded at all.
 
         Ungated, and it carries its own liveness: the focus is asserted
-        to have LEFT zero. A dead solve, or a fan that stopped stamping,
-        would leave both sides holding the stored 0 and satisfy an
-        agreement assertion perfectly while measuring nothing.
+        to have LEFT zero. A dead solve would leave both sides holding
+        the stored 0 and satisfy an agreement assertion perfectly while
+        measuring nothing.
+
+        HALF OF THAT SENTENCE WAS MEASURED FALSE at the flip (v0.9
+        TASK-MICROFIX-2) and the correction is left standing rather than
+        edited away, because it is the same lesson the class is about.
+        It read "a dead solve, OR A FAN THAT STOPPED STAMPING". A fan
+        that stops stamping leaves this arm green: `route_arrow` builds
+        the binding from scratch on every genuine re-route, and moving
+        `b` re-routes this arrow, so the focus leaves zero with the fan
+        doing nothing at all. Watched, by stubbing the stamp out. What
+        the pole below adds is the record, which is the half no
+        agreement assertion here can reach.
         """
         disk, replay = self._focus_after(
             [{"op": "mod", "id": "b", "attrs": {"y": 40}}])
@@ -12612,6 +12693,68 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
             repr(disk), repr(replay),
             "a focus the solve genuinely changed must reach history as "
             "well as disk: disk=%r replay=%r" % (disk, replay))
+
+    def test_the_drifting_binding_is_recorded_in_the_save_that_retypes(
+            self) -> None:
+        """The third pole: one save, both cases, and the contract honoured.
+
+        Added at the flip (v0.9 TASK-MICROFIX-2, from the FOLLOWUP-B
+        review that filed the defect) because the two poles above both
+        ask whether the two RECORDS agree, and agreement is a property
+        the differ can supply by recording nothing at all. This one asks
+        the differ's own contract branch instead — "same endpoint,
+        focus/gap drift (fan, v0.3): routing churn to narration, but
+        replay must be lossless — record the full dicts, derived" — and
+        demands that a genuine drift arrives in the SAVE FILE as a
+        `derived: True` binding entry. Watched failing with that branch
+        disabled, where the other two poles stay green and the record
+        quietly loses the drift; the fix this pole guards is the one
+        that made retypes unreachable by it, so the branch must keep
+        working for everything else.
+
+        WHAT IT DOES NOT CATCH, measured rather than assumed: a fan that
+        stopped stamping entirely leaves all three of these green,
+        because `route_arrow` rebuilds the binding from scratch whenever
+        the arrow is genuinely re-routed and this scene re-routes `s`.
+        The class's liveness is therefore about the RECORD, not about
+        the fan being alive; a fanned-but-not-rerouted scene is what
+        would pin that, and none of these three is it.
+
+        ONE SAVE CARRIES BOTH CASES, which is the scene shape the review
+        reproduced on a real fixture save: `d` drops 40px, so `s`'s
+        endpoint focus genuinely moves and must be recorded, while `r`
+        600px away is untouched and may only be re-solved back to the
+        `0` it already holds. Before the fix that same save wrote `r` to
+        disk as `0.0` and told history nothing.
+        """
+        disk, replay, changes = self._apply(
+            [{"op": "mod", "id": "d", "attrs": {"y": 640}}],
+            second_pair=True)
+        self.assertNotEqual(
+            disk["s"]["endBinding"]["focus"], 0,
+            "the batch was supposed to move `s`'s focus off its stored "
+            "0; it did not, so this scene proves nothing about what is "
+            "recorded")
+        recorded = [at for c in changes if c.get("id") == "s"
+                    for at in (c.get("attrs") or [])
+                    if at.get("attr") == "endBinding"]
+        self.assertTrue(
+            recorded,
+            "`s`'s endBinding drifted and no change entry in the save "
+            "names it — the differ's focus/gap branch exists to record "
+            "exactly this, losslessly, and replay reads the file: %r"
+            % (changes,))
+        self.assertTrue(
+            all(at.get("derived") for at in recorded),
+            "the drift must be recorded DERIVED — it is routing churn, "
+            "not something to narrate at the user: %r" % (recorded,))
+        self.assertEqual(
+            repr(disk["r"]["startBinding"]["focus"]),
+            repr(replay["r"]["startBinding"]["focus"]),
+            "the untouched arrow in the same save must keep one "
+            "representation: disk=%r replay=%r"
+            % (disk["r"]["startBinding"]["focus"],
+               replay["r"]["startBinding"]["focus"]))
 
 
 # ---------------------------------------------------------------------------
@@ -18554,9 +18697,22 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
-    "TestARetypedValueReachesDiskButNotHistory": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
     "TestTheObstacleSetsAgreeAboutASticky": 1}
+# A THIRD LEFT on 2026-08-17 (v0.9 TASK-MICROFIX-2), the same day it
+# joined and in the same task's fourth commit:
+# `TestARetypedValueReachesDiskButNotHistory`, whose single red flipped
+# when the fan stopped rewriting a binding whose solved focus already
+# equalled the stored one. It gained a THIRD pole at the flip — the
+# save record's `derived: True` entry on a genuine drift — because its
+# two existing poles both ask whether the two records AGREE, and a
+# differ that recorded nothing would satisfy them. That third pole also
+# measured one of the class's own claims false: a fan that stops
+# stamping leaves every agreement arm green, since `route_arrow`
+# rebuilds the binding on a genuine re-route. Three classes have now
+# made the join-and-leave round trip inside one batch cycle in two days;
+# this is the first to do it inside one TASK.
+#
 # TWO LEFT on 2026-08-17 (v0.9 TASK-MICROFIX-2), in consecutive commits,
 # and they are worth reading as the pair they are: both were batch-27
 # and spike-program filings whose OWNER clause named the change that

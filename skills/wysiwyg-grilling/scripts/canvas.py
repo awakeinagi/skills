@@ -4203,6 +4203,34 @@ def fan_attach_points(els):
         # straight back onto the shared anchor (v0.3). REPLACE the binding
         # dict: apply_ops copies elements shallowly, so an in-place write
         # would leak into the caller's scene even on a rejected batch.
+        #
+        # A VALUE THAT DID NOT CHANGE IS NOT WRITTEN, and the reason is
+        # the contract branch in the commit differ, not tidiness. That
+        # branch — `_norm_binding(ov) == _norm_binding(nv)` and yet
+        # `ov != nv`, "same endpoint, focus/gap drift (fan, v0.3):
+        # routing churn to narration, but replay must be lossless —
+        # record the full dicts, derived" — exists precisely so this
+        # loop's churn reaches history without reaching narration. Its
+        # guard is DICT EQUALITY, and this loop ran on every server-owned
+        # bound arrow whether or not anything moved, so an endpoint
+        # stored `focus: 0` came back `0.0` from a solve that returns a
+        # float: `{"focus": 0} == {"focus": 0.0}`, the guard is False,
+        # nothing is recorded, and the project keeps two answers to "what
+        # is this scene" — the artifact file holds 0.0 forever and replay
+        # reconstructs 0 forever. No pixel is involved, which is why it
+        # survived every tolerance in the file. Not rewriting an equal
+        # value serves the branch's stated intent and puts retypes out of
+        # its reach; the branch stays, because a GENUINE drift still has
+        # to ride into the change entry derived.
+        #
+        # DELIBERATELY NARROW. The other candidate surface — making the
+        # diff's significance test canonical or type-aware — repairs
+        # every attribute at once and is exactly the loosening that made
+        # v0.8 WP2's phantom reconciliations, so it is out of scope here
+        # by ruling rather than by oversight. `route_arrow` builds its
+        # bindings from scratch for the same reason it re-stamps the
+        # geometry, and it only runs where the arrow is genuinely being
+        # redrawn, so the retype rides a change that is recorded anyway.
         for which, key in (("start", "startBinding"), ("end", "endBinding")):
             b = a.get(key)
             node = ix.get((b or {}).get("elementId"))
@@ -4210,10 +4238,12 @@ def fan_attach_points(els):
                 px, py = ((ax0, ay0) if which == "start" else
                           (ax0 + spts[-1][0], ay0 + spts[-1][1]))
                 adj = spts[1] if which == "start" else spts[-2]
-                nb = dict(b)
-                nb["focus"] = solve_focus(node, ax0 + adj[0], ay0 + adj[1],
-                                          px, py, b.get("gap") or 0)
-                a[key] = nb
+                got = solve_focus(node, ax0 + adj[0], ay0 + adj[1],
+                                  px, py, b.get("gap") or 0)
+                if got != b.get("focus"):
+                    nb = dict(b)
+                    nb["focus"] = got
+                    a[key] = nb
         recenter_label(els, a)
 
 
