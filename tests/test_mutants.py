@@ -3234,23 +3234,30 @@ class TestMermaidRoundTripIdentity(unittest.TestCase):
 # and `flow_to_mermaid_export` each had their own shape map and one of them
 # was wrong, silently, for as long as only the re-layout path read it
 # (canvas.py, and the commit that folded them says so at length). The fold
-# covered the SHAPE. It did not cover the LABEL, and the two paths still
-# escape an edge label differently:
+# covered the SHAPE. It did not cover the LABEL, and the two paths escaped
+# an edge label differently:
 #
 #   export   `mermaid_label(raw)` -> `-->|"say #quot;hi#quot;"|`
 #   relayout `raw.replace("|", "/")` -> `-->|say "hi"|`
 #
 # A double quote inside `|...|` opens a mermaid string the line never
-# closes, so the conversion fails and `--relayout` dies at `_mermaid_convert`
-# with a parse error instead of re-laying the drawing. NODE labels in the
-# relayout path DO get a substitution (`"` -> `'`), which is what makes this
-# an omission on one field rather than a path that never thought about
-# quoting.
+# closes, so the conversion failed and `--relayout` died at
+# `_mermaid_convert` with a parse error instead of re-laying the drawing.
+# NODE labels in the relayout path DID get a substitution (`"` -> `'`),
+# which is what made this an omission on one field rather than a path that
+# never thought about quoting.
+#
+# FLIPPED 2026-08-17 (v0.9 TASK-MICROFIX-2): the relayout path now calls
+# `mermaid_label` and applies the same `|` -> `#124;` the export does, so
+# the second field is folded exactly as the first was. The node labels
+# keep their own `"` -> `'` and that is not an oversight — a vertex is
+# quoted here (`["…"]`) and an edge label is not, so the two positions
+# want different substitutions.
 #
 # THE SAME SUBJECT AS `TestMermaidRoundTripIdentity` above and a separate
-# class on purpose: that one pins a protection that WORKS (identity travels
-# in the `n_` prefix) and is green; this one pins a protection that is
-# missing. Merging them would let the green vouch for the red's silence.
+# class on purpose, which survives the flip: that one pins identity
+# travelling in the `n_` prefix and this one pins escaping, and merging
+# them would let either vouch for the other's silence.
 #
 # BASE: three nodes and two edges, the smallest flow `--relayout` accepts
 # (it refuses under three nodes). MUTATION: one character — a `"` in one
@@ -3311,28 +3318,39 @@ class TestMermaidEdgeLabelEscaping(unittest.TestCase):
                       originalText=edge_label, containerId="e1"))
         return els
 
-    @unittest.expectedFailure
     def test_red_a_quoted_edge_label_reaches_mermaid_unescaped(self) -> None:
         """`--relayout` emits a bare `"` the converter cannot parse.
 
-        WHAT THE DRAWING GETS WRONG: nothing, and that is the shape of
-        it. The picture is a perfectly ordinary flow whose one edge is
-        captioned `say "hi"`. What breaks is the re-layout the user
-        asked for: `_flow_to_mermaid` writes `-->|say "hi"|`, the
-        conversion fails on it, and `--relayout` exits without moving
-        anything — a request that produces neither a new layout nor a
-        statement about the drawing.
+        FLIPPED 2026-08-17 by v0.9 TASK-MICROFIX-2, which routed the
+        edge label through `mermaid_label` — the fold the shared shape
+        map already made, one field over. Kept its red-era name, which
+        is this file's usual convention; what it asserts is now the
+        function's contract rather than its absence.
 
-        WHAT THE CHECKS REPORTED: nothing. No detector reads emitted
-        text; the corpus contains no flow with a quote in an edge label,
-        so the whole class is unexercised.
+        WHAT IT WAS. The picture was a perfectly ordinary flow whose one
+        edge is captioned `say "hi"`, and nothing was wrong with it.
+        What broke was the re-layout the user asked for:
+        `_flow_to_mermaid` wrote `-->|say "hi"|`, the conversion failed
+        on it, and `--relayout` exited without moving anything — a
+        request that produced neither a new layout nor a statement about
+        the drawing. No detector reads emitted text and the corpus holds
+        no flow with a quote in an edge label, so the whole class was
+        unexercised and the checks said nothing.
 
-        WHAT FLIPS IT: routing the edge label through `mermaid_label`,
-        the way `flow_to_mermaid_export` already does — the same fold
-        the shared shape map made, one field over. The assertion is
-        against `mermaid_label`'s own output rather than a literal, so
-        the day that function's escaping changes the two paths are still
-        forced to agree.
+        The assertion is against `mermaid_label`'s own output rather
+        than a literal, so the day that function's escaping changes the
+        two paths are still forced to agree.
+
+        STRENGTHENED AT THE FLIP, because the first arm alone is
+        satisfied by a hand-rolled `"` substitution that never consults
+        `mermaid_label` at all — one `replace` coincides with it on this
+        one input. The second arm demands the WHOLE link text, character
+        for character, over a label carrying every substitution that
+        function makes: `#` (which must go first or it eats the entity
+        the others emit), `<`/`>` (labels are rendered as HTML, so an
+        unescaped tag DISAPPEARS), the quote, and the `|` that would
+        otherwise end the link text early. A quote-only fake fails it on
+        the first character.
         """
         text = canvas._flow_to_mermaid(self._flow('say "hi"'))[0]
         want = canvas.mermaid_label('say "hi"')[0]
@@ -3343,6 +3361,15 @@ class TestMermaidEdgeLabelEscaping(unittest.TestCase):
             "mermaid string the line never closes"
             % (next(line for line in text.splitlines() if "-->" in line),
                want))
+        raw = 'a #1 <b> "c" | d'
+        link = next(ln for ln
+                    in canvas._flow_to_mermaid(self._flow(raw))[0].splitlines()
+                    if "-->" in ln)
+        self.assertIn(
+            "|%s|" % canvas.mermaid_label(raw)[0].replace("|", "#124;"), link,
+            "the re-layout path emitted %r for a label carrying every "
+            "escape `mermaid_label` makes — the two emitters must agree "
+            "character for character, not merely on the quote" % link)
 
     def test_an_unquoted_edge_label_already_agrees(self) -> None:
         """The green pole: with no quote in it, both paths emit the same.
@@ -18407,10 +18434,19 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES = {
     "TestARetypedValueReachesDiskButNotHistory": 1,
-    "TestMermaidEdgeLabelEscaping": 1,
     "TestRenderSvgDrawsBothArrowheads": 1,
     "TestRouterPassesDoNotWorsenTheDrawing": 2,
     "TestTheObstacleSetsAgreeAboutASticky": 1}
+# ONE LEFT on 2026-08-17 (v0.9 TASK-MICROFIX-2):
+# `TestMermaidEdgeLabelEscaping`, whose single red flipped when the
+# re-layout path started calling `mermaid_label` — the second field of
+# the one-spelling-two-callers fold, landing a day after the first. The
+# class keeps both poles and gained an arm at the flip, so the dict lost
+# a LINE and not a number, which is the fifth time that has been the
+# shape here in two days. Filed by the spike-program batch on 2026-08-16
+# and drained the next morning; the batch named `mermaid_label` as the
+# call that would do it, so this is predicted arithmetic and not a drain.
+#
 # ONE JOINED on 2026-08-17 (curator batch 29), and it is here for the
 # reason the split below already states, arriving from a new direction:
 # `TestARetypedValueReachesDiskButNotHistory` compares two RECORDS of one
@@ -18420,6 +18456,7 @@ HAND_AUTHORED_RED_CLASSES = {
 # half is firing-shaped (the focus is asserted to have LEFT zero) rather
 # than another agreement, which is the pairing the silence-is-a-bug eval's
 # D1 falsification says a Silence-shaped pole cannot supply on its own.
+#
 # ALSO LEFT on 2026-08-17, hours apart at a different fold:
 # `TestStoredBindingsDescribeTheFinalInk`, emptied by
 # TASK-FOCUS-FOLLOWUP-A's solve-ordering fix — the batch-27 paragraph

@@ -19112,7 +19112,7 @@ def mermaid_shape(el):
     return '["%s"]'
 
 
-def _flow_to_mermaid(els):
+def _flow_to_mermaid(els: list[dict[str, Any]]) -> tuple[str, int]:
     """Render an existing flow artifact as mermaid text for re-layout.
 
     Node ids are the element ids prefixed with ``n_`` (a bare slug like
@@ -19124,6 +19124,15 @@ def _flow_to_mermaid(els):
     twice over (ellipse → stadium, roundness dropped); the re-layout
     path reads x/y only, so nothing here ever noticed.
 
+    EDGE LABELS COME FROM `mermaid_label`, for the same reason and one
+    field over: this path used to escape them itself, as
+    ``raw.replace("|", "/")``, which leaves a ``"`` intact — and a bare
+    quote inside ``|…|`` opens a mermaid string the line never closes,
+    so `--relayout` died at the converter and moved nothing. The node
+    labels above still do their own ``"`` → ``'`` because a vertex is
+    quoted here (``["…"]``) where an edge label is not, so the two are
+    not the same substitution.
+
     Args:
         els: The artifact's element list.
 
@@ -19134,7 +19143,15 @@ def _flow_to_mermaid(els):
     labels = {e["containerId"]: e.get("text", "") for e in els
               if e.get("type") == "text" and e.get("containerId")}
 
-    def ref(eid):
+    def ref(eid: Any) -> str:
+        """One node's ``n_<id><shape>`` declaration.
+
+        Args:
+            eid: The node element's id, as the payload spells it.
+
+        Returns:
+            The declaration text, label included.
+        """
         e = ix[eid]
         lbl = (labels.get(eid) or eid).replace('"', "'").replace("\n", " ")
         return "n_%s%s" % (eid, mermaid_shape(e) % lbl)
@@ -19146,7 +19163,15 @@ def _flow_to_mermaid(els):
     lines = ["flowchart TD"]
     declared = set()
 
-    def side(eid):
+    def side(eid: Any) -> str:
+        """One endpoint of a link — declared once, referenced after.
+
+        Args:
+            eid: The node element's id, as the payload spells it.
+
+        Returns:
+            The full declaration on first mention, the bare id after.
+        """
         out = ref(eid) if eid not in declared else "n_%s" % eid
         declared.add(eid)
         return out
@@ -19158,7 +19183,10 @@ def _flow_to_mermaid(els):
         d = (a.get("endBinding") or {}).get("elementId")
         if s not in node_ids or d not in node_ids:
             continue
-        lbl = (labels.get(a["id"]) or "").replace("|", "/").strip()
+        # the same escape `flow_to_mermaid_export` puts on an edge label,
+        # including the `|` substitution that ends the link text early
+        lbl = mermaid_label((labels.get(a["id"]) or "").strip())[0] \
+            .replace("|", "#124;")
         left = side(s)
         lines.append("  %s -->%s %s"
                      % (left, ("|%s|" % lbl) if lbl else "", side(d)))
