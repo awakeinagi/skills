@@ -219,40 +219,83 @@ PROBES: dict[str, dict[str, str]] = {
 }
 
 
-def _mirror_skills(src: Path, dst: Path) -> None:
-    """Mirror the product tree with its prose WRITABLE and its bulk shared.
+def _tracked(pathspec: str) -> list[str]:
+    """The repo-relative paths git is tracking under `pathspec`.
+
+    ASKING GIT IS THE POINT. A `rglob` walk reports whatever is on disk,
+    and this repo's shared checkout carries untracked `.scratch/<task>/`
+    probe workspaces holding whole copies of `canvas.py` — cited as
+    evidence in closed task reports, so they stay. A scratch tree built
+    from a disk walk is a tree that differs per checkout, which makes a
+    probe's verdict depend on residue nobody controls. `tests/livedoc.py`
+    reached this conclusion first and its comment says why: `git
+    ls-files` makes "tracked" TRUE rather than asserted, and gitignored
+    files unreachable BY CONSTRUCTION rather than by an exclusion list
+    that is correct until someone creates a directory nobody named.
+
+    Args:
+        pathspec: A git pathspec, e.g. `skills`.
+
+    Returns:
+        Sorted repo-relative paths, POSIX-separated.
+
+    Raises:
+        AssertionError: If git cannot list the index, or lists nothing —
+            an empty scan surface would build an empty scratch tree and
+            report every guard silent over a repo that was never there.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(REPO), "ls-files", "-z", "--", pathspec],
+            capture_output=True, text=True, check=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise AssertionError(
+            "git could not list tracked files under %s in %s (%s); the "
+            "scratch tree cannot be built from an unknown surface"
+            % (pathspec, REPO, exc)) from exc
+    names = sorted(n for n in out.stdout.split("\0") if n)
+    if not names:
+        raise AssertionError(
+            "git tracks no files under %r in %s — refusing to build a "
+            "scratch tree that would make every guard look silent"
+            % (pathspec, REPO))
+    return names
+
+
+def _mirror_skills(dst: Path) -> None:
+    """Mirror the TRACKED product tree, prose WRITABLE and bulk shared.
 
     `skills/` used to be one symlink, on the reasoning that nothing here
     perturbs the product. The taxonomy probes perturb SKILL.md, and
     writing through a symlinked directory would have edited the REAL
-    file — a probe that damages the repo it is measuring. So directories
-    are recreated, `.md` files are COPIED (18 of them, all prose), and
-    every other file is symlinked: the 23MB web bundle and the 900KB
-    `canvas.py` are shared, and the tree still costs kilobytes per probe.
+    file — a probe that damages the repo it is measuring. So `.md` files
+    are COPIED (18 of them, all prose) and every other tracked file is
+    symlinked: the 23MB web bundle and the 900KB `canvas.py` are shared,
+    and the tree still costs kilobytes per probe.
+
+    The `__pycache__` skip this used to carry is gone rather than kept —
+    `git ls-files` never returns it, and a rule that cannot fire is a
+    rule a reader has to think about anyway.
 
     Args:
-        src: The directory to mirror.
-        dst: Where to build the mirror; created if absent.
+        dst: The `skills/` directory to build; parents created as needed.
     """
-    dst.mkdir(parents=True, exist_ok=True)
-    for entry in src.iterdir():
-        if entry.name == "__pycache__":
-            continue
-        if entry.is_dir():
-            _mirror_skills(entry, dst / entry.name)
-        elif entry.suffix == ".md":
-            shutil.copy2(entry, dst / entry.name)
+    for name in _tracked("skills"):
+        src, out = REPO / name, dst.parent / name
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if src.suffix == ".md":
+            shutil.copy2(src, out)
         else:
-            (dst / entry.name).symlink_to(entry)
+            out.symlink_to(src)
 
 
 def _scratch(into: Path) -> Path:
     """Build a runnable copy of the repo's test surface in `into`.
 
-    `skills/` is mirrored by `_mirror_skills` — prose copied, bulk
-    symlinked — because some guards read the skill's own text and a
-    probe has to be able to break it. `SESSION-HANDOVER.md` and `tests/`
-    are real copies because they are what the probes break.
+    `skills/` is mirrored by `_mirror_skills` — TRACKED files only, prose
+    copied, bulk symlinked — because some guards read the skill's own
+    text and a probe has to be able to break it. `SESSION-HANDOVER.md`
+    and `tests/` are real copies because they are what the probes break.
 
     Args:
         into: An empty directory to build the tree in.
@@ -263,7 +306,7 @@ def _scratch(into: Path) -> Path:
     shutil.copytree(REPO / "tests", into / "tests",
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     shutil.copy2(REPO / "SESSION-HANDOVER.md", into / "SESSION-HANDOVER.md")
-    _mirror_skills(REPO / "skills", into / "skills")
+    _mirror_skills(into / "skills")
     for name in ("pyproject.toml", "uv.lock"):
         if (REPO / name).exists():
             shutil.copy2(REPO / name, into / name)

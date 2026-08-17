@@ -11133,19 +11133,52 @@ class TestGlossaryDivergence(Base):
         string. A CONSUMER IS CODE. Prose about a dead field is not a
         reader of it, and a census that counts sentences is an anchor on
         a moving corpus — this file's other subject entirely.
+
+        THE SCAN SURFACE IS `git ls-files`, and that boundary was learned
+        the hard way one fold later. The first version walked the tree
+        with `rglob` and skipped `node_modules` and `.git` BY NAME, which
+        is an exclusion list — it passed in the clean worktree it was
+        written in and failed in the shared checkout, which carries seven
+        untracked `.scratch/<task>/base/canvas.py` probe workspaces that
+        earlier tasks left as cited evidence. Every one of them is a
+        `glossary_challenge` site by copy, and none of them is a
+        consumer.
+
+        An exclusion list is a hand-maintained enumeration of what to
+        ignore, which is the shape this whole batch is about: it is
+        correct the day it is written and silently wrong the day someone
+        creates a directory nobody listed. Asking git makes "tracked"
+        TRUE rather than asserted, and gitignored residue unreachable BY
+        CONSTRUCTION. `tests/livedoc.py` had already solved this and its
+        comment says so; this is the same fix, and the empty-surface
+        refusal below is copied from it for the same reason — a scan that
+        found nothing would let this assertion pass by measuring nothing.
         """
         root = Path(canvas.__file__).resolve().parents[3]
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(root), "ls-files", "-z", "--",
+                 "*.py", "*.ts", "*.tsx"],
+                capture_output=True, text=True, check=True)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise AssertionError(
+                "git could not list tracked sources under %s (%s). An "
+                "empty scan surface would let this census pass by "
+                "measuring nothing" % (root, exc)) from exc
+        tracked = sorted(n for n in out.stdout.split("\0") if n)
+        self.assertGreater(
+            len(tracked), 10,
+            "the tracked-source scan surface is %d files, which is not a "
+            "checkout of this repo — refusing to report a census over it"
+            % len(tracked))
         readers = []
-        for path in sorted(root.rglob("*.py")) + sorted(root.rglob("*.ts")) \
-                + sorted(root.rglob("*.tsx")):
-            if "node_modules" in path.parts or ".git" in path.parts:
-                continue
+        for name in tracked:
             try:
-                text = path.read_text(encoding="utf-8")
+                text = (root / name).read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 continue
             if "glossary_challenge" in text:
-                readers.append(path.relative_to(root).as_posix())
+                readers.append(name)
         self.assertEqual(
             readers, ["skills/wysiwyg-grilling/scripts/canvas.py",
                       "tests/test_backend.py"],
