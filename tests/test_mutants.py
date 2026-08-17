@@ -263,12 +263,32 @@ _LANE_SPAN_RE = re.compile(
 _CONTRAST_TEXT_RE = re.compile(
     r"text (?P<element>[\w-]+) \(.+?\) is drawn .+? on \S+ and reads "
     r"(?P<mag>[\d.]+):1 — 1\.4\.3 asks [\d.]+:1")
-# The noun is `^\w+` rather than an alternation over roles: this check
-# speaks about anything with an outline, and enumerating the nouns here
-# would make a new role silently unmatchable — a `Silence` that passes
-# vacuously, which is the failure `ASPIRATIONAL` exists to prevent.
+# The noun is unconstrained rather than an alternation over roles: this
+# check speaks about anything with an outline, and enumerating the nouns
+# here would make a new role silently unmatchable — a `Silence` that
+# passes vacuously, which is the failure `ASPIRATIONAL` exists to
+# prevent.
+#
+# IT USED TO BE `^\w+ `, WHICH IS THAT SAME FAILURE THROUGH THE CHARACTER
+# CLASS INSTEAD OF THROUGH THE ALTERNATION. The noun `canvas.py` prints
+# is `role_of(e) or "shape"`, a free-form string read straight out of
+# `customData`, and `\w` matches neither a hyphen nor a space — so a role
+# like `note-text` (already live in the fixture corpus, on text elements)
+# made the lint speak and `collect_findings` return NOTHING. Fixed
+# 2026-08-17 by v0.9 TASK-MICROFIX-2.
+#
+# LAZY `.+?` RATHER THAN `[\w-]+`, which was the narrower repair the
+# catalogue entry proposed: a hyphen is not the only character a role can
+# carry, and shipping the hyphen while leaving the space is this repo's
+# own one-field-over defect written a third time. The noun is therefore
+# "everything before the element id", and it parses correctly because the
+# id is ANCHORED — the engine takes the shortest noun for which a
+# `[\w-]+` id is followed by the optional `(label)` and then the literal
+# ` is drawn`, so a three-word role backtracks to the right split instead
+# of stealing the id. Verified over the spaced, hyphenated and
+# parenthesised forms together.
 _CONTRAST_OBJECT_RE = re.compile(
-    r"^\w+ (?P<element>[\w-]+)(?: \(.+?\))? is drawn .+? on \S+ and "
+    r"^.+? (?P<element>[\w-]+)(?: \(.+?\))? is drawn .+? on \S+ and "
     r"reads (?P<mag>[\d.]+):1 — 1\.4\.11 asks")
 _MIN_FONT_RE = re.compile(
     r"text (?P<element>[\w-]+) \(.+?\) is set at (?P<mag>[\d.]+)px, "
@@ -16693,7 +16713,16 @@ _register(Mutant(
 
 # THE BLIND EYE IS THIS FILE'S OWN, which makes this the only red here
 # whose fix lands in `tests/test_mutants.py` rather than in the product.
-# `_CONTRAST_OBJECT_RE` opens `^\w+ ` to read the noun `canvas.py` prints
+# FLIPPED 2026-08-17 (v0.9 TASK-MICROFIX-2), one day after it was filed,
+# and the account below is kept in the present tense it was written in
+# because the entry's value now is the record of the failure mode. What
+# landed is NOT the `[\w-]+` this entry proposes further down: that
+# repair spans the hyphen and leaves a role carrying a SPACE exactly as
+# unreadable, which is the same defect one character over. The noun is
+# instead everything before the anchored element id, and the mutant's
+# own test carries spaced and mixed roles beside `note-text` so the
+# narrower repair cannot pass.
+# `_CONTRAST_OBJECT_RE` opened `^\w+ ` to read the noun `canvas.py` prints
 # in front of a 1.4.11 finding — and that noun is `role_of(e) or "shape"`,
 # a free-form string. `\w` does not match a hyphen or a space, so the
 # lint speaks and `collect_findings` returns NOTHING. That is the
@@ -17598,13 +17627,41 @@ class TestMutantCatalogue(unittest.TestCase):
         """The looser pair across the same corner is the firing pole."""
         self._run_neighbour("corner_feet_outside_the_square")
 
-    @unittest.expectedFailure
     def test_mutant_hyphen_in_the_role_blinds_the_object_reader(self) -> None:
-        """The lint names a 2.11:1 outline and this file reads no finding."""
-        # `_CONTRAST_OBJECT_RE`'s `^\w+ ` noun cannot span the hyphen in a
-        # role like `note-text`; flips when the noun class matches what
-        # `canvas.py` can actually print in front of the element id.
+        r"""The lint names a 2.11:1 outline and this file reads it.
+
+        FLIPPED 2026-08-17 by v0.9 TASK-MICROFIX-2. `_CONTRAST_OBJECT_RE`
+        opened `^\w+ `, which spans neither a hyphen nor a space, so a
+        role like `note-text` made the lint speak and `collect_findings`
+        return nothing; the noun is now everything before the anchored
+        element id.
+
+        STRENGTHENED AT THE FLIP, and the extra roles are the point
+        rather than decoration. `note-text` alone is flipped by a repair
+        that only widens the class to `[\w-]+` — the narrower fix the
+        entry itself proposed — which leaves a role carrying a SPACE
+        exactly as unreadable as the hyphen was, one character over. So
+        the loop below asks for a spaced role and a mixed one too, and
+        `role_of` returns whatever `customData` holds, which is what
+        makes them all reachable. Kept here rather than registered as
+        new catalogue entries: they are the same defect at other points
+        of the same class, and a family of one-per-character mutants
+        would say less than this loop does.
+        """
         self._run("hyphen_in_the_role_blinds_the_object_reader")
+        want = FindingSpec("contrast_object", element="n1",
+                           magnitude=(2.11, 0.05))
+        for role in ("note-text", "a role with spaces",
+                     "swim-lane header 2"):
+            with self.subTest(role=role):
+                mism = want.matches(collect_findings(
+                    _styled_scene(stroke="#b0b0b0", role=role)))
+                self.assertIsNone(
+                    mism, "role %r: %s — the lint says the same 2.11:1 "
+                    "about the same #b0b0b0 outline whatever noun it "
+                    "opens with, so a reader that only spans some nouns "
+                    "is a vacuous `Silence` waiting for the next role"
+                    % (role, mism))
 
     def test_neighbour_hyphen_in_the_role_blinds_the_object_reader(
             self) -> None:
@@ -18773,8 +18830,17 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS = {"corner_feet_outside_the_square",
                      "flush_stack_border_run_under_the_band",
-                     "grazing_arrival_reads_as_square",
-                     "hyphen_in_the_role_blinds_the_object_reader"}
+                     "grazing_arrival_reads_as_square"}
+# `hyphen_in_the_role_blinds_the_object_reader` LEFT on 2026-08-17 (v0.9
+# TASK-MICROFIX-2), one day after arriving — the only id this set has
+# ever held whose fix landed in `tests/test_mutants.py` rather than in
+# the product, and therefore the only one whose departure changed no
+# behaviour any user can see. What it cost is one character class in
+# `_CONTRAST_OBJECT_RE`. Its own entry named the fix and named the
+# owner, and the owner did not turn out to matter: the repair is the
+# same either way, and the reason the entry gave for not making it here
+# — a curator grading their own homework — is satisfied by the fix
+# arriving from a work package instead.
 # THE EMPTINESS LASTED ONE COMMIT, and that is the most useful thing this
 # constant has ever recorded. Task 29 emptied it on 2026-08-16 — the WP7
 # contrast trio was the whole of what was left, all three red-by-absence,
