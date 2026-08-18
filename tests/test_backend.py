@@ -8322,6 +8322,13 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         cannot reach. A new finding that writes its own waive literal
         instead of calling `waive_hint` fails here, in the change that
         adds it, rather than in a session six months later.
+
+        THE FIFTEENTH ARRIVED on 2026-08-18 and was born right, which is
+        the claim this pin exists to be able to make: `text_over_text`
+        (TASK-ENTITY-LINEHEIGHT) calls the formatter, and its own round
+        trip — key parsed back out of the emitted finding, fed to
+        `lint_layout` as a waive, finding silent — is in
+        `TestTextDrawnOnText`.
         """
         src = Path(canvas.__file__).read_text(encoding="utf-8")
         spellings = [ln for ln in src.splitlines() if "action: waive" in ln]
@@ -8332,8 +8339,8 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
                         spellings)
         self.assertEqual(
-            src.count("waive_hint("), 18,
-            "the waive call sites moved — 17 findings plus the "
+            src.count("waive_hint("), 19,
+            "the waive call sites moved — 18 findings plus the "
             "definition. Re-derive this count; do not relax it")
 
 
@@ -21977,8 +21984,21 @@ class TestShapeAwareLabelRoom(Base):
             (lbl["width"], lbl["height"]),
             (66, canvas.text_dims(canvas.wrap_label_text(text, 66, 16),
                                   16)[1]))                  # 90 - 24
-        self.assertAlmostEqual(
-            lbl["width"] - canvas.label_room(cont, lbl["height"]), 33.6)
+        # and the overhang it bought, stated as the COMPARISON the walk
+        # exists to win rather than as a number: the 60px floor the first
+        # shape-aware step lands on costs a fourth line, and a rhombus
+        # charges for height. Written down it was 30 against 42, and it
+        # is 33.6 against 45.9 since the estimator moved to this repo's
+        # own font's spacing — the same fact at two calibrations, which
+        # is why the assertion is now the inequality
+        chosen = lbl["width"] - canvas.label_room(cont, lbl["height"])
+        floor_h = canvas.text_dims(canvas.wrap_label_text(text, 60, 16),
+                                   16)[1]
+        self.assertLess(
+            chosen, 60 - canvas.label_room(cont, floor_h),
+            "the walk's answer overhangs further than the 60px floor it "
+            "skipped, so keeping `box` in the candidate set has stopped "
+            "buying anything")
 
     def test_an_integer_wide_box_gives_an_integer_room(self):
         """Float dust off the clip must not reach a stored label width.

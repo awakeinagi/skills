@@ -105,6 +105,15 @@ _PHANTOM_RE = re.compile(
 # it lands this spec should tighten to a magnitude.
 _LABEL_OVERLAP_RE = re.compile(
     r"labels (?P<element>.+) overlap — nudge one clear")
+# Text drawn on text (canvas.py, 2026-08-18). `element` is the LATER of
+# the two in scene order, which is paint order — the text drawn OVER the
+# other one, and the id the sentence tells you to move; the covered one
+# is in `raw`. The magnitude is the overlap's bounding-box area, the same
+# scalar `_TEXT_ON_NODE_RE` reads, so the two arms of "ink where ink
+# already is" report on one scale.
+_TEXT_ON_TEXT_RE = re.compile(
+    r"text (?P<element>[\w-]+) \(.+?\) is drawn on top of text [\w-]+ "
+    r"\(.+?\) — \d+x\d+px \((?P<mag>\d+)px²\) of ink over ink")
 # The arrow-label/foreign-node lint, registered 2026-08-15 with the
 # curvature switch. `element` is the NODE the label lands on, not the
 # label: the label is quoted as CONTENT and carries no id, and the node
@@ -544,6 +553,16 @@ DETECTORS: dict[str, dict] = {
     # legible from the two arrow ids in `raw`.
     "phantom_passthrough": {"lint_re": _PHANTOM_RE},
     "label_label_overlap": {"lint_re": _LABEL_OVERLAP_RE},
+    # v0.9 TASK-ENTITY-LINEHEIGHT, 2026-08-18, landed with the check it
+    # names — the arrangement `unreadable_color`'s row records, and for
+    # the same reason: an unregistered name is one no `FindingSpec` can
+    # assert, so registering it here is what lets the mutant that proves
+    # it be written at all. It arrives UNCOVERED with its reason in that
+    # ledger, because the acceptance mutant is the mutant-curator's to
+    # write and not this task's — the hands that wrote the check do not
+    # write its acceptance test. No dirmap: the finding is one text over
+    # another, with no axis to report.
+    "text_over_text": {"lint_re": _TEXT_ON_TEXT_RE},
     # v0.9 WP4 stage 3: landed with the curvature switch, because the
     # label anchor is the surface curvature moves and a `Silence` on an
     # unregistered check passes vacuously. No dirmap — the finding is one
@@ -22366,6 +22385,25 @@ ASPIRATIONAL: dict[str, str] = {
 # hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
+    # Landed 2026-08-18 with `text_over_text` itself
+    # (TASK-ENTITY-LINEHEIGHT), the second row this dict has ever held
+    # that names a REGISTERED detector and, like `unreadable_color`
+    # before it, deliberately: the check is the fix task's, the
+    # acceptance mutant is the mutant-curator's, and a task that writes
+    # both is the run-5 pattern this harness exists to refuse. The
+    # quadruple is handed over in that task's report — base: an entity
+    # whose name has been dragged onto its own first attribute row;
+    # operator: the registered `shift_label`; expect:
+    # `FindingSpec("text_over_text", element=<the row>)`; neighbour: the
+    # same entity unmoved, `Silence("text_over_text")`. Both poles of the
+    # check are proven ungated meanwhile in `TestTextDrawnOnText` — this
+    # row names what is missing (a CATALOGUE magnitude), not that nothing
+    # watches the check.
+    "text_over_text":
+        "landed 2026-08-18 with the check; the proving mutant is routed "
+        "to a mutant-curator (quadruple written out in "
+        "task-entity-lineheight-report.md), because the task that wrote "
+        "the check does not write its acceptance test",
     # `runs_on_node` stood here from day one — the last DETECTORS
     # row with no proving mutant — and was drained by curator batch 20
     # (2026-08-14) with `tolerable_gap_hides_interior_run`. Its own note
@@ -24321,6 +24359,307 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
                     "%s..%s and the row spans %s..%s"
                     % (rid, "add" if seeded else "mod attributes",
                        ltop, lbot, rtop, rbot))
+
+    def test_a_name_that_wraps_gets_a_header_band_that_holds_it(self) -> None:
+        """The SECOND defect on this picture, and the fold did not fix it.
+
+        Found by the whole-branch review of the fold itself, 2026-08-18:
+        the 32px header band was the depth a ONE-LINE name needs, so a
+        glossary term that wraps — "Settlement Instruction Record" in a
+        160px box, 43px of name — was drawn straight across its own
+        first attribute on BOTH verbs. The fold made the two paths agree
+        and they agreed on a broken picture, which is exactly why the
+        band test above exists beside the equality test and why this one
+        is written on a WRAPPED name rather than on a longer list of
+        rows: the rows were never the variable.
+
+        The band is now derived from the label's own drawn height, so
+        the one-line geometry is unchanged (6 + 21 + 5 = 32) and a
+        two-line term gets 56. Asserted as the GAP and the agreement,
+        not as either coordinate, so a future change to the estimator
+        moves the drawing and this pin together.
+        """
+        scenes = []
+        for seeded in (True, False):
+            errors: list[str] = []
+            add = dict(_ENTITY_ADD, label="Settlement Instruction Record")
+            ops = ([dict(add, attributes=list(_ENTITY_ROWS))] if seeded else
+                   [dict(add), {"op": "mod", "id": "E1",
+                                "attrs": {"attributes": list(_ENTITY_ROWS)}}])
+            scene = canvas.apply_ops([], ops, errors)
+            self.assertEqual(errors, [], "the long-named entity did not "
+                                         "apply, so nothing below measures "
+                                         "a drawing")
+            scenes.append(scene)
+            label = next(e for e in scene if e["id"] == "E1-label")
+            self.assertGreater(
+                label["height"], 21,
+                "this name no longer wraps, so the scene has stopped "
+                "being about a header band deeper than one line")
+            lbot = label["y"] + label["height"]
+            rtop = next(e for e in scene if e["id"] == "E1-attr-1")["y"]
+            self.assertGreaterEqual(
+                rtop - lbot, 4,
+                "the wrapped name is drawn on its own first attribute in "
+                "the %s scene: the label ends at %s and the row starts at "
+                "%s" % ("add" if seeded else "mod attributes", lbot, rtop))
+        self.assertEqual(
+            [{k: v for k, v in e.items() if k not in canvas.VOLATILE_ATTRS}
+             for e in scenes[1]],
+            [{k: v for k, v in e.items() if k not in canvas.VOLATILE_ATTRS}
+             for e in scenes[0]],
+            "the two verbs disagree about a wrapped name")
+
+
+def _dragged_name_scene(drop: int) -> list[dict]:
+    """The entity of `_entity_rows_scene`, with its name dragged down.
+
+    THE CASE THE CHECK EARNS ITS KEEP ON, and it has to be built by hand
+    because `_compose_attribute_rows` no longer produces it: the layout
+    that drew a name across its own first attribute was folded into one
+    function on 2026-08-18, so the only way to see this picture now is
+    for somebody to MOVE the label — which is a thing users do, on a
+    canvas whose whole premise is that they will.
+
+    Built from the shipped seeder rather than by hand-writing elements,
+    so the two texts are the ones `apply_ops` really mints: the same
+    fonts, the same widths, the same `attr_of` stamp.
+
+    Args:
+        drop: Pixels to move the bound label DOWN from where the layout
+            put it. 0 is the drawing as shipped.
+
+    Returns:
+        The four-element scene: entity `E1`, its two rows, its label.
+    """
+    scene = _entity_rows_scene(seeded=True)
+    label = next(e for e in scene if e["id"] == "E1-label")
+    label["y"] += drop
+    return scene
+
+
+class TestTextDrawnOnText(unittest.TestCase):
+    """`text_over_text`: the detector the entity defect had no owner for.
+
+    THE GAP, measured by curator batch 34 on the scene that witnessed it
+    and re-measured here: `label_label_overlap` walks bound labels
+    against bound labels and an attribute row is unbound;
+    `text_overlaps_node` skips any text carrying a `containerId` on one
+    side and any `decoration` role on the other, and compares text
+    against NODES in any case. So a name lying on its own container's
+    rows was a pair nothing in `lint_layout` compared, and the picture
+    went through five reviews and a full mutation sweep unreported.
+
+    The curator declined to mint a red for a check that did not exist —
+    a red naming a nonexistent check has no owner — and handed it over
+    as a proposal. The user ruled it in at WARNING tier and WIDER than
+    the proposal: it fires on ANY text over any text, not on entity rows
+    specifically, because fixing the layout stops the instance and a
+    detector stops the class.
+
+    WHY WARNING AND WHY A QUESTION: two strings can legitimately share a
+    patch of canvas, so the finding reports what it measured, names the
+    text drawn over the other, and offers the waive rather than ruling.
+
+    THE ACCEPTANCE MUTANT IS NOT HERE, deliberately: it belongs to a
+    mutant-curator, and `text_over_text` sits in `UNCOVERED` with that
+    handoff written into its reason until one lands. What is here is the
+    differential — both poles, and the three legitimate overlaps it must
+    stay quiet on.
+    """
+
+    def test_a_name_dragged_onto_its_own_row_is_reported(self) -> None:
+        """The firing pole, on the picture the whole finding came from."""
+        lint = canvas.lint_layout(_dragged_name_scene(drop=26))
+        hits = [w for w in lint["warnings"] if "ink over ink" in w]
+        self.assertEqual(
+            len(hits), 1,
+            "a bound name dragged 26px down sits squarely on its own "
+            "first attribute row and the lint said %r" % (hits,))
+        self.assertIn("E1-label", hits[0])
+        self.assertIn("E1-attr-1", hits[0])
+
+    def test_the_shipped_entity_is_quiet(self) -> None:
+        """The silent pole beside it: the same scene, undragged.
+
+        Without this the firing pole is satisfied by a check that reports
+        every entity ever drawn, which is the failure mode a new overlap
+        rule is most likely to have.
+        """
+        self.assertEqual(
+            [w for w in canvas.lint_layout(_dragged_name_scene(drop=0))
+             ["warnings"] if "ink over ink" in w], [],
+            "the entity as the seeder draws it is being reported, so this "
+            "check fires on the layout rather than on the defect")
+
+    def test_the_finding_parses_into_the_detector_row(self) -> None:
+        """`_TEXT_ON_TEXT_RE` reads the sentence the check writes.
+
+        A `DETECTORS` entry whose regex does not match its own check's
+        message is a row that silently proves nothing — every
+        `FindingSpec` against it would fail and every `Silence` would
+        pass. This is the assertion that keeps the registration honest
+        while the acceptance mutant is still the curator's to write.
+        """
+        found = [f for f in collect_findings(_dragged_name_scene(drop=26))
+                 if f["check"] == "text_over_text"]
+        self.assertEqual(len(found), 1, "%r" % (found,))
+        self.assertEqual(found[0]["element"], "E1-label")
+        self.assertGreater(found[0]["magnitude"], 0)
+
+    def test_the_waive_it_offers_silences_it(self) -> None:
+        """The question can be answered, in the vocabulary it offers.
+
+        The key is parsed back out of the finding the check ACTUALLY
+        emitted rather than rebuilt here, for the reason
+        `TestEveryWaiveSuggestionCanBeApplied` gives: a key this test
+        composed itself would pass while the printed one was unusable.
+        """
+        scene = _dragged_name_scene(drop=26)
+        hit = next(w for w in canvas.lint_layout(scene, aid="dom")["warnings"]
+                   if "ink over ink" in w)
+        key = re.search(r"key: '([^']+)'", hit).group(1)
+        self.assertEqual(
+            [w for w in canvas.lint_layout(scene, aid="dom",
+                                           waives={key: {"reason": "by "
+                                                         "design"}})
+             ["warnings"] if "ink over ink" in w], [],
+            "the waive the finding printed does not silence it")
+
+    def test_it_stays_quiet_on_the_overlaps_that_are_not_its_business(self
+                                                                     ) -> None:
+        """The differential: four legitimate overlaps, four silences.
+
+        EVERY CASE CARRIES A REAL TEXT PAIR, which is the difference
+        between a differential and a list of scenes this check cannot
+        see. A silence over a scene with one text in it is guaranteed by
+        arithmetic and proves nothing about the rule.
+
+        * a caption and a title ON A DECORATIVE BAND — two texts sharing
+          a tinted strip, side by side. The deliberate composition this
+          skill draws constantly, and the one a rule that reported "two
+          texts in the same region" would ruin.
+        * a bound label and its container's OWN composed value row — the
+          KPI arrangement: name and number stacked inside one card, both
+          inside the container that owns them, neither on the other.
+        * two BOUND labels on top of each other — a real defect, and
+          `label_label_overlap` has owned it since v0.6. Reporting it
+          again under a second name is how an agent learns to ignore
+          both, so this case also asserts that the OTHER check still
+          speaks: a silence that came from the pair loop dying would
+          otherwise read as a clean differential.
+        * a CROWDED pair whose boxes really do intersect, by 13x5px —
+          the corpus case that set the vertical bar, rebuilt. The
+          assertion is paired with a measurement of the intersection, so
+          this case cannot go vacuous the day the coordinates drift
+          apart.
+        """
+        band = [el(id="band", type="rectangle", x=0, y=0, width=400,
+                   height=40, customData={"role": "decoration"}),
+                el(id="hdr", type="text", x=10, y=8, width=120, height=21,
+                   text="Positions", originalText="Positions", fontSize=16),
+                el(id="cap", type="text", x=200, y=8, width=120, height=21,
+                   text="as of 09:00", originalText="as of 09:00",
+                   fontSize=16)]
+        kpi = [el(id="k1", type="rectangle", x=0, y=0, width=200,
+                  height=64, customData={"role": "node"},
+                  boundElements=[{"id": "k1-label", "type": "text"}]),
+               el(id="k1-value", type="text", x=10, y=6, width=180,
+                  height=30, text="62", originalText="62", fontSize=24,
+                  customData={"role": "decoration", "value_of": "k1"}),
+               el(id="k1-label", type="text", x=10, y=40, width=180,
+                  height=21, text="Open positions", fontSize=16,
+                  originalText="Open positions", containerId="k1",
+                  verticalAlign="bottom")]
+        pair = [el(id="a1", type="rectangle", x=0, y=0, width=100,
+                   height=40, customData={"role": "node"},
+                   boundElements=[{"id": "la", "type": "text"}]),
+                el(id="a2", type="rectangle", x=0, y=0, width=100,
+                   height=40, customData={"role": "node"},
+                   boundElements=[{"id": "lb", "type": "text"}]),
+                el(id="la", type="text", x=10, y=10, width=80, height=21,
+                   text="Alpha", originalText="Alpha", fontSize=16,
+                   containerId="a1"),
+                el(id="lb", type="text", x=10, y=12, width=80, height=21,
+                   text="Beta", originalText="Beta", fontSize=16,
+                   containerId="a2")]
+        crowded = [el(id="note", type="text", x=760, y=600, width=316,
+                      height=40, fontSize=16,
+                      text="POSITION carries as_of - which is\nwhat makes "
+                           "'stale' representable.",
+                      originalText="POSITION carries as_of - which is\n"
+                                   "what makes 'stale' representable.",
+                      customData={"role": "annotation"}),
+                   el(id="feeds", type="text", x=1063, y=635, width=48,
+                      height=20, text="feeds", originalText="feeds",
+                      fontSize=16, textAlign="center")]
+        for what, scene in (("two captions on a decorative band", band),
+                            ("a KPI's name and its own value row", kpi),
+                            ("two bound labels, owned by the pair "
+                             "loop", pair),
+                            ("a crowded pair 13x5px into each other",
+                             crowded)):
+            self.assertEqual(
+                [w for w in canvas.lint_layout(scene)["warnings"]
+                 if "ink over ink" in w], [],
+                "%s is being reported as ink over ink" % what)
+        self.assertNotEqual(
+            [w for w in canvas.lint_layout(pair)["warnings"]
+             if "overlap — nudge one clear" in w], [],
+            "`label_label_overlap` has gone quiet on the bound pair, so "
+            "the silence above is not a differential — it is two dead "
+            "checks agreeing")
+        note, feeds = crowded
+        self.assertEqual(
+            (min(note["x"] + note["width"], feeds["x"] + feeds["width"])
+             - max(note["x"], feeds["x"]),
+             min(note["y"] + note["height"], feeds["y"] + feeds["height"])
+             - max(note["y"], feeds["y"])), (13, 5),
+            "the crowded pair no longer intersects, so its silence has "
+            "stopped being about the bar this check sets")
+
+    def test_the_corpus_is_quiet_and_the_corpus_has_pairs_in_it(self
+                                                               ) -> None:
+        """The census, with its denominator, because a zero needs one.
+
+        MEASURED 2026-08-18 over the 24 fixture artifacts: 454 texts,
+        1739 pairs this check is allowed to compare (every text pair with
+        at most one bound side), ZERO findings. The pair count is
+        asserted alongside the silence for the reason
+        `corpus-scope-proves-nothing` records: "no artifact moved" is
+        evidence of nothing when nothing in the corpus carries the
+        attribute under test, and the number is what makes the silence a
+        measurement rather than a coincidence.
+
+        ONE finding had to be answered to get here, and it is why the
+        vertical bar is half a line box rather than the 4px its
+        neighbours use: an arrow label reading 'feeds' sat 5px into the
+        bottom of a note's last line, 13px wide — one pixel of glyph band
+        under a leading that both line boxes carry, and 62px of clear
+        canvas in the rasterized picture. Not a defect, and not silenced
+        by a special case: the bar is derived from the smaller text's own
+        line box, and the witnessed defect clears it by a factor of two.
+        """
+        corpus = sorted((Path(__file__).resolve().parent
+                         / "fixtures").rglob("*.excalidraw"))
+        pairs = 0
+        hits: list[tuple[str, str]] = []
+        for path in corpus:
+            els = json.loads(path.read_text(encoding="utf-8"))["elements"]
+            texts = [e for e in els if e.get("type") == "text"
+                     and (e.get("text") or "").strip()]
+            bound = len([e for e in texts if e.get("containerId")])
+            pairs += (len(texts) * (len(texts) - 1) // 2
+                      - bound * (bound - 1) // 2)
+            hits += [(path.name, w) for w
+                     in canvas.lint_layout(els)["warnings"]
+                     if "ink over ink" in w]
+        self.assertEqual(hits, [], "new findings on the frozen corpus")
+        self.assertGreater(
+            pairs, 1500,
+            "the corpus offers only %d comparable text pairs now, so its "
+            "silence above has stopped being evidence about this check"
+            % pairs)
 
 
 # ---------------------------------------------------------------------------
@@ -27068,13 +27407,20 @@ class TestCoverage(unittest.TestCase):
         tests/test_backend.TestComposedWidgetsAreRealGroups and by
         nothing in the corpus; a change that reverted it to one line per
         part would leave every corpus count identical.
+
+        68 -> 69 on 2026-08-18: `text_over_text`'s one site
+        (TASK-ENTITY-LINEHEIGHT). It is a REGISTERED detector with an
+        `UNCOVERED` row rather than an unregistered template, so it
+        appears in both ledgers this pin guards — the count here and the
+        reason there — and the row names the mutant-curator handoff that
+        will drain it.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 68,
+        self.assertEqual(sites, 69,
                          "canvas.py lint_layout append-site count changed "
-                         "(68 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(69 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

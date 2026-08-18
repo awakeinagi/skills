@@ -1745,6 +1745,9 @@ def wrap_label_text(text, inner, fs):
     lines, cur = [], words[0]
     for word in words[1:]:
         cand = cur + " " + word
+        # WIDTH only, so the line height cannot reach this answer: a
+        # wrap is decided by advance, and `text_dims`' `[0]` does not
+        # read its third argument at all
         if text_dims(cand, fs)[0] <= inner:
             cur = cand
         else:
@@ -2092,6 +2095,9 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             n += 1
         existing_ids.add(lbl_id)
         fs = spec.get("fontSize", 16)
+        # minted, not measured: the element does not exist yet and will
+        # carry NUNITO_LINE_HEIGHT, which is this call's own default —
+        # one constant, so the reservation and the field cannot part
         lw, lh = text_dims(label, fs)
         label_color = "#1e1e1e"
         # An agent batch passing "#000" or a picker emitting alpha must
@@ -2345,11 +2351,27 @@ def _compose_attribute_rows(el, els, rows, existing_ids):
     gid = eid + "-grp"
     if gid not in (el.get("groupIds") or []):
         el["groupIds"] = [*(el.get("groupIds") or []), gid]
-    header_h, row_h = 32, 20
-    el["height"] = max(el.get("height", 0),
-                       header_h + row_h * len(rows) + 8)
     label = next((t for t in els if t.get("type") == "text"
                   and t.get("containerId") == eid), None)
+    # THE HEADER BAND IS AS DEEP AS THE NAME IN IT. 32px was written in
+    # and is the depth a ONE-LINE name needs — 6px inset, a 21px line,
+    # 5px of air — so an entity whose term wraps to two lines had a 43px
+    # name in a 32px band and was drawn straight across its own first
+    # attribute, on BOTH verbs, with the fold in place and the lint
+    # silent ("Settlement Instruction Record" in a 160px box, v0.9
+    # whole-branch review of the fold itself). Deriving the band from
+    # the label keeps the one-line geometry EXACTLY as it was — 6 + 21 +
+    # 5 is 32 — and gives a longer term the room it needs instead of the
+    # room the shortest term needed.
+    # ...rounded UP to the 4px grid this file's own lint asks drawings to
+    # sit on: 32 and 20 are both on it, so an unrounded band was the one
+    # part of an entity that could take the whole element off the grid
+    # and make it report itself.
+    header_h = max(32, -(-(11 + int((label or {}).get("height") or 0)) // 4)
+                   * 4)
+    row_h = 20
+    el["height"] = max(el.get("height", 0),
+                       header_h + row_h * len(rows) + 8)
     if label is not None:
         # the name belongs in the header band, not in the middle of a box
         # whose middle is now an attribute. `recenter_label` owns what
@@ -2460,6 +2482,9 @@ def _compose_kpi_value(el, value_text, existing_ids):
     Returns:
         The value text element (role: decoration, value_of: owner).
     """
+    # minted, not measured: the element does not exist yet and will
+    # carry NUNITO_LINE_HEIGHT, which is this call's own default —
+    # one constant, so the reservation and the field cannot part
     vw, vh = text_dims(value_text or " ", 24)
     return _deco(
         el["id"] + "-value", "value_of", el["id"],
@@ -2489,6 +2514,9 @@ def _compose_input_value(el, value_text, existing_ids):
         The value text element (role: decoration, value_of: owner).
     """
     fs = 14
+    # minted, not measured: the element does not exist yet and will
+    # carry NUNITO_LINE_HEIGHT, which is this call's own default —
+    # one constant, so the reservation and the field cannot part
     vw, vh = text_dims(value_text or " ", fs)
     return _deco(
         el["id"] + "-value", "value_of", el["id"],
@@ -11728,6 +11756,9 @@ def _set_label(els, index, existing, el, value):
         else:
             lbl_id = mint_id(el["id"] + "-label", "label", existing)
             fs = 16
+            # minted, not measured: the element does not exist yet and will
+            # carry NUNITO_LINE_HEIGHT, which is this call's own default —
+            # one constant, so the reservation and the field cannot part
             lw, lh = text_dims(value, fs)
             lbl = dict(BASE_DEFAULTS)
             lbl.update({
@@ -16232,6 +16263,81 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "labels %r and %r overlap — nudge one clear"
                     % ((la.get("text") or "")[:24],
                        (lb.get("text") or "")[:24]))
+    # text↔text: two strings drawn on top of each other, whatever roles
+    # they carry. NOTHING IN THIS FUNCTION COMPARED THIS PAIR until
+    # 2026-08-18. The loop above walks bound labels against bound labels;
+    # the loops below walk text against SHAPES and skip any text with a
+    # `containerId` and any `decoration` role. A container's own name
+    # lying on that container's own attribute row trips every one of
+    # those skips, which is how a domain entity came to be drawn with its
+    # name across its first attribute — 16px of ink on ink over 44px of
+    # shared width — with zero errors and zero warnings reported (the
+    # v0.9 whole-branch review, curator batch 34 miss 1).
+    #
+    # WIDER THAN THE WITNESSED CASE, by the user's ruling: it fires on
+    # ANY text over any text, not on entity rows specifically. Fixing the
+    # entity layout stops that instance; a detector stops the class, and
+    # the class was invisible through five reviews and a full mutation
+    # sweep until somebody looked at the picture.
+    #
+    # WARNING and not an error, and phrased as a question: two strings
+    # can legitimately share a patch of canvas — a caption deliberately
+    # set over a title, a watermark — so this reports what it measured
+    # and offers the waive rather than ruling. Bound-label pairs are NOT
+    # re-reported here; the loop above owns them, and two names for one
+    # patch of ink is how an agent learns to ignore both.
+    #
+    # THE VERTICAL BAR IS HALF A LINE BOX, derived from the smaller of
+    # the two texts rather than a written-in tolerance, and it is what
+    # separates ink on ink from two texts merely crowding. A line box is
+    # taller than the glyphs in it, so two boxes can share their leading
+    # while nothing a reader sees touches: measured on the fixture
+    # corpus, a 4px bar reported an arrow label sitting 5px into the
+    # bottom of a note's last line — 1px of glyph band, 62px clear in the
+    # picture — and nothing else. Half a line box silences that and keeps
+    # the witnessed defect, where a 16px attribute row sits WHOLLY inside
+    # a 21px name, by a factor of two. Crowding has its own check
+    # (`min_clearance`) and its own question.
+    texts = [e for e in els if e.get("type") == "text"
+             and (e.get("text") or "").strip()]
+    for i_, ta in enumerate(texts):
+        for tb in texts[i_ + 1:]:
+            if ta.get("containerId") and tb.get("containerId"):
+                continue          # the bound-label pair loop owns these
+            band = 0.5 * min(
+                (t.get("fontSize") or 16)
+                * (t.get("lineHeight") or NUNITO_LINE_HEIGHT)
+                for t in (ta, tb))
+            # per CHANNEL, never across: a bound arrow label is drawn at
+            # its anchor on the canvas and at its slot in the export, and
+            # pairing one text's canvas rect with another's export rect
+            # describes a configuration that exists on no screen. Same
+            # rule, and the same `zip`, as the pair loop above.
+            hit = next(
+                ((min(ax2, bx2) - max(ax1, bx1),
+                  min(ay2, by2) - max(ay1, by1))
+                 for (ax1, ay1, ax2, ay2), (bx1, by1, bx2, by2)
+                 in zip(label_boxes(ta), label_boxes(tb))
+                 if min(ax2, bx2) - max(ax1, bx1) > 8
+                 and min(ay2, by2) - max(ay1, by1) > band), None)
+            if hit is None:
+                continue
+            key = "inkink:%s:%s:%s" % (aid or "<artifact>",
+                                       slugify(ta["id"]), slugify(tb["id"]))
+            if waives and key in waives:
+                continue
+            # `tb` LEADS, and it is the id the sentence tells you to move:
+            # scene order is paint order, so the later text is the one
+            # drawn over the earlier — the same non-arbitrary pick the
+            # near-miss arm makes. Both ids are in the sentence either
+            # way, so neither is lost.
+            warnings.append(
+                "text %s (%r) is drawn on top of text %s (%r) — %dx%dpx "
+                "(%dpx²) of ink over ink. Is it meant to cover it? If "
+                "not, move one clear or shorten it; if it is, %s"
+                % (tb["id"], (tb.get("text") or "")[:24], ta["id"],
+                   (ta.get("text") or "")[:24], int(hit[0]), int(hit[1]),
+                   int(hit[0] * hit[1]), waive_hint(key)))
     # label↔node: an arrow label landing on a box that is neither its
     # source nor its destination. Nothing checked this before v0.6 —
     # only free annotations were tested against nodes — so a connector
