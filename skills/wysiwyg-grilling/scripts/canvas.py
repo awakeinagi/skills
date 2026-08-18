@@ -119,12 +119,20 @@ PIN_INK = "#a54c08"
 # Registry pin states that mean THE QUESTION IS SETTLED — as opposed to
 # `open` (never answered) and `answered` (answered, and the glyph still
 # carries the answer). Named because two checks now depend on being
-# exact complements of each other: the pin-pruning finding fires ON this
-# set, and the pin-drift check is silent on it. If they ever disagreed,
-# one pin would draw two findings pulling opposite ways — "delete this
-# glyph" and "move it closer" — which is what v0.9 MIN-2 caught before
-# the fold. ONE SPELLING, so the disjointness is a fact about the code
-# and not a coincidence between two literals.
+# exact complements of each other: the stale-glyph note fires ON this
+# set — any pin the registry has closed whose ❓ is still drawn,
+# `pruned` or `resolved` or `dismissed` — and the pin-drift check is
+# silent on it, so the disjointness is a fact about the code and not a
+# coincidence between two literals. If they ever disagreed, one pin
+# would draw two findings pulling opposite ways, "delete this glyph"
+# and "move it closer", which is what v0.9 MIN-2 caught before the fold.
+#
+# THE NOTE'S NAME IS NOT "PRUNING", and this sentence said so until the
+# stream that owns it corrected the wording. `pruned` is the RAREST arm:
+# of the 16 closed-but-still-drawn pins on the frozen corpus, 15 are
+# `resolved` and exactly 1 is `pruned`. A reader who greps for the
+# pruning code to find out what this clause covers lands 15/16ths away
+# from the cases it actually reports.
 CLOSED_PIN_STATUSES = ("pruned", "resolved", "dismissed")
 # The largest raster this skill will ever produce, in device pixels. ONE
 # ceiling, shared by the two places that used to hold their own:
