@@ -22545,9 +22545,22 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # `Store.commit` writes into the save record, `collect_findings` has no code
 # for it, and `lint_layout` was right to be silent — the picture was fine.
 # The class stays in the file at five green tests; only the colour moved.
+# TWO MORE on 2026-08-18 (curator batch 35), and they are the first entries
+# here that are one defect rather than two: C-3 — an operation moves elements
+# it never named — in the two doors its `apply_ops` fix did not reach.
+# `TestTidyNarratesTheFeetItMoves` is the button, `TestARerouteNamesTheFeetIt
+# Moves` is the consent-gated re-route, and they share `_fan_store` precisely
+# so a reader can see that the scene is the same and only the verb differs.
+# Neither is a `Mutant` for the same reason the pair above are not: what is
+# wrong is a `user_note` and a fact list, and `collect_findings` has no
+# vocabulary for either. They name the v0.9 wave that owns C-3 rather than a
+# controller, which is what the routing rule above asks for — the owner is a
+# task the user has already ruled must close.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
+    "TestTidyNarratesTheFeetItMoves": 2,
+    "TestARerouteNamesTheFeetItMoves": 2,
 }
 
 # EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
@@ -24692,6 +24705,976 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             {"saved_no_changes": 1},
             "a save that posted the client's scene back byte for byte "
             "narrated a restack the user never made")
+
+
+# C-3 IN THE TWO PATHS ITS FIX DID NOT REACH. The v0.9 whole-branch review
+# named the class — an operation moves elements it never named and says
+# nothing — and the repair landed in `apply_ops` alone. `Store.tidy` and
+# `Store.reroute` reach the same three geometry passes by their own routes,
+# and both gate their router loop AND their narration on
+# `type == "arrow"` while `fan_attach_points` / `contention_feet` in
+# between iterate `("arrow", "line")`. So a plain 2-point bound `line` —
+# what the client posts for a straight line drawn between two boxes, and
+# what `server_owns_geometry` calls server-owned BY DESIGN — is moved by
+# the button and by the re-route, and neither sentence about geometry
+# counts it.
+#
+# HAND-AUTHORED rather than `CATALOGUE` entries, for the reason the two
+# section comments above give: a `Mutant` is judged by `collect_findings`
+# over an element list, and what is wrong here is what the PIPELINE SAYS
+# about a save it has already written. No `FindingSpec` in this file's
+# vocabulary can be asked about a `user_note`.
+#
+# ONE BASE SCENE, TWO DOORS, which is the dedupe guard's own argument
+# turned into a builder: `_fan_store` mints the same two boxes and the
+# same two COINCIDENT bound connectors for both classes, and `fossil=True`
+# adds only the third node and the crooked arrow `reroute_is_fossil` gates
+# on. The classes then differ by the verb the user pressed — and both are
+# needed, because the C-3 fix has to reach both doors and a repair to
+# either one alone leaves the other red.
+#
+# COINCIDENT FEET, not merely close ones, because that is the case the fan
+# exists for ("N arrows converging on a single point read as one arrow",
+# `fan_attach_points`): the drawing goes from two connectors drawn exactly
+# on top of each other to two drawn 26px apart, which is the largest
+# available answer to "could a reader have missed this?".
+# ---------------------------------------------------------------------------
+_FAN_NODES: tuple[dict[str, Any], ...] = (
+    {"type": "rectangle", "id": "A", "x": 20, "y": 100, "width": 80,
+     "height": 80, "role": "node"},
+    {"type": "rectangle", "id": "B", "x": 300, "y": 100, "width": 80,
+     "height": 80, "role": "node"},
+    {"type": "rectangle", "id": "C", "x": 20, "y": 300, "width": 80,
+     "height": 80, "role": "node"})
+# A is 80px tall, so the fan's two slots sit at `80 * k / 3` down its
+# right side — y = 126.67 and 153.33, which round to the 127 and 153 the
+# poles below assert. Every coordinate is a multiple of 20, so
+# `_tidy_pass`'s 4px grid snap has nothing to do and its `snapped` count
+# stays 0: one moving part per pin.
+
+_FAN_NOTE_RE = re.compile(
+    r"re-routed (\d+) of (\d+) server-routed arrow\(s\)")
+
+
+def _fan_connector(eid: str, etype: str, dst: str) -> dict[str, Any]:
+    """The 2-point bound connector a client posts for a drawn straight line.
+
+    NO `customData.routed` MARK, which is what makes this the client's
+    shape rather than the server's: `server_owns_geometry` falls through
+    to its unmarked-scene branch and calls any straight 2-point bound
+    connector server-owned, so the fan and the contention pass both claim
+    it. That classification is deliberate and is NOT what these pins
+    dispute — what they dispute is that the narration was written as if
+    only arrows could be in the population it claims.
+
+    Args:
+        eid: The element id.
+        etype: `"arrow"` or `"line"` — the ONE field the poles differ by.
+        dst: The id of the node the far end binds to.
+
+    Returns:
+        The element dict, ready to post in a user save. The foot is A's
+        vertical centre, so two of these are drawn on one point.
+    """
+    return {"id": eid, "type": etype, "x": 100, "y": 140,
+            "points": [[0, 0], [200, 0]],
+            "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
+            "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
+            "customData": {}}
+
+
+def _fan_store(case: unittest.TestCase, etype: str,
+               fossil: bool = False) -> canvas.Store:
+    """Two boxes and two coincident bound connectors, posted by the client.
+
+    THE REAL DOORS, in the order a user reaches them: the agent seeds the
+    nodes through `apply_batch`, and the connectors then arrive in a USER
+    save, because that is the only way a bare `line` gets into a scene at
+    all — no op mints one. Building the scene by hand and calling
+    `_tidy_pass` would prove something about a helper; this proves what
+    the pipeline does to a drawing somebody made.
+
+    Args:
+        case: The test owning the tree; its `addCleanup` removes it.
+        etype: `"arrow"` or `"line"`, for `l1` and `l2`.
+        fossil: Add node C and the crooked arrow `a1` bound A→C.
+            `Store.reroute` writes nothing unless `reroute_is_fossil`
+            says a pass would leave strictly fewer crooked ARRIVALS, and
+            a scene of straight connectors has none — which is exactly
+            why the whole-branch review could only record that path
+            LATENT. `Store.tidy` needs none of it.
+
+    Returns:
+        The loaded store, artifact `"d"` at the user's posted revision.
+
+    Raises:
+        AssertionError: If the seeding batch did not lay the nodes down.
+            A pin whose fixture failed to build must not reach its
+            assertions wearing an empty scene.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-fan-"))
+    case.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+    project = canvas.Project(tmp)
+    project.ensure_tree()
+    store = canvas.Store(project)
+    nodes = _FAN_NODES if fossil else _FAN_NODES[:2]
+    store.apply_batch({
+        "base_revn": 0, "artifact": "d",
+        "create": {"id": "d", "name": "D", "type": "flow"},
+        "ops": [{"op": "add", "element": dict(n)} for n in nodes]})
+    if [e["id"] for e in store.scenes["d"]] != [n["id"] for n in nodes]:
+        raise AssertionError(
+            "the seed batch did not lay down %r — it left %r, so nothing "
+            "below is measuring the intended scene"
+            % ([n["id"] for n in nodes],
+               [e["id"] for e in store.scenes["d"]]))
+    posted = [dict(e) for e in store.scenes["d"]]
+    posted.append(_fan_connector("l1", etype, "B"))
+    posted.append(_fan_connector("l2", etype, "B"))
+    if fossil:
+        crooked = _fan_connector("a1", "arrow", "C")
+        crooked.update(x=60, y=180, points=[[0, 0], [40, 120]])
+        posted.append(crooked)
+    store.commit(author="user", new_scenes={"d": posted})
+    return store
+
+
+def _fan_feet(store: canvas.Store) -> list[float]:
+    """Where `l1` and `l2` are drawn, as the stored scene has them.
+
+    The connectors are horizontal 2-point paths at a fixed `x`, so the
+    stored `y` IS the foot the fan slides along A's right side and no
+    projection is needed to read it.
+
+    Args:
+        store: The store holding artifact `"d"`.
+
+    Returns:
+        `[l1.y, l2.y]`.
+    """
+    by_id = {e["id"]: e for e in store.scenes["d"]}
+    return [by_id["l1"]["y"], by_id["l2"]["y"]]
+
+
+def _fan_redrawn(was: list[dict[str, Any]],
+                 store: canvas.Store) -> list[str]:
+    """Which connectors a save actually redrew, by canvas.py's own rule.
+
+    `drawn_path_changed` rather than a coordinate comparison written
+    here: it is the predicate BOTH narration sites are gated on
+    (`Store.tidy`'s `redrew`, `reroute_line`'s `path_changed`), so the
+    pin and the code under test cannot drift about what "moved" means —
+    a repair that redefines a re-route redefines this measurement with
+    it.
+
+    Args:
+        was: The scene as it stood before the save.
+        store: The store, after it.
+
+    Returns:
+        The ids whose drawn path changed, in scene order.
+    """
+    now = {e["id"]: e for e in store.scenes["d"]}
+    return [e["id"] for e in was if e["id"] in now
+            and e.get("type") in ("arrow", "line")
+            and canvas.drawn_path_changed(e, now[e["id"]])]
+
+
+class TestTidyNarratesTheFeetItMoves(unittest.TestCase):
+    """One press of tidy slides two bound lines apart and counts no arrows.
+
+    C-3 VERBATIM IN THE PATH A USER REACHES BY PRESSING A BUTTON.
+    `_tidy_pass`'s router loop skips anything that is not an `arrow`, so
+    its `routed` set can never hold a line; the three geometry passes it
+    then runs — `fan_attach_points`, `contention_feet`,
+    `fan_attach_points` — all iterate `("arrow", "line")`; and the note
+    is built from `routed`. MEASURED 2026-08-18 through
+    Store/commit/tidy: two coincident bound lines are pulled to 127 and
+    153, 26px apart, while the note says "re-routed 0 of 0 server-routed
+    arrow(s), normalized z-order" and the summary headlines "reordered
+    l1 (+3 more)".
+
+    THE ARROW POLE IS THE SAME SCENE ONE FIELD AWAY, and it lands the
+    connectors on the SAME two coordinates. That is what makes this a
+    narration defect rather than a geometry one: the picture both poles
+    draw is identical and the whole difference is the sentence.
+
+    WHO FLIPS THIS: the v0.9 wave that owns C-3 — the user ruled it must
+    close in v0.9, and this is C-3 in the door with the lowest ceremony.
+    Not this file and not a curator: the gate is canvas.py's, and a fix
+    arriving from the hands that wrote its acceptance test is the run-5
+    pattern this harness refuses. Both reds flip on one repair whichever
+    way it is written — let the router own server-owned lines so
+    `routed` holds them, or stop the geometry passes touching what the
+    narration cannot see.
+
+    WHAT IS NOT ASKED OF THE SUMMARY, stated so the omission is not read
+    as an oversight: tidy mints no per-element geometry fact even on the
+    arrow pole (`verb_counts` is `{"reordered": 4}` in both poles), so
+    the `user_note` is the ONLY surface on which this press describes
+    its own geometry work, and it is the only one these reds
+    interrogate.
+    """
+
+    def _pressed(self, etype: str
+                 ) -> tuple[dict[str, Any], list[float], list[str]]:
+        """Press tidy once on the base scene and read back what it did.
+
+        Args:
+            etype: `"arrow"` or `"line"`.
+
+        Returns:
+            `(record, feet_after, redrawn_ids)`.
+
+        Raises:
+            AssertionError: If tidy declined to write. A `noop` record
+                carries no `user_note` at all, and a red reading `None`
+                for a sentence would be about the fixture rather than
+                about the sentence.
+        """
+        store = _fan_store(self, etype)
+        was = [dict(e) for e in store.scenes["d"]]
+        record = store.tidy("d")
+        if record.get("noop"):
+            raise AssertionError(
+                "tidy declined to write on the %s pole (%r), so this "
+                "press narrated nothing and every assertion below would "
+                "be about the fixture"
+                % (etype, record["summary"]["headline"]))
+        return record, _fan_feet(store), _fan_redrawn(was, store)
+
+    def _counts(self, record: dict[str, Any]) -> tuple[int, int]:
+        """The two integers tidy's note carries, as ints.
+
+        Args:
+            record: A tidy save record.
+
+        Returns:
+            `(N, M)` out of "re-routed N of M server-routed arrow(s)".
+
+        Raises:
+            AssertionError: If the sentence no longer matches. A
+                reworded note must send a reader back to re-derive these
+                pins rather than let them silently stop measuring.
+        """
+        found = _FAN_NOTE_RE.search(record.get("user_note") or "")
+        if found is None:
+            raise AssertionError(
+                "tidy's note no longer carries a 're-routed N of M "
+                "server-routed arrow(s)' count: %r. Re-derive both reds "
+                "in this class before reading their colour"
+                % record.get("user_note"))
+        return int(found.group(1)), int(found.group(2))
+
+    def test_the_arrow_pole_counts_the_two_feet_it_slid(self) -> None:
+        """The live half, ungated: on arrows the same press speaks.
+
+        Without this both reds pass the day tidy stops moving anything —
+        a press that fans nothing reports nothing, and two silences
+        compare equal. This asserts the arrow pole really does slide two
+        coincident feet 26px apart AND says "re-routed 2 of 2", so the
+        reds below are about a gate on `type` and not about a pipeline
+        that has gone quiet.
+        """
+        record, feet, redrawn = self._pressed("arrow")
+        self.assertEqual(
+            (feet, redrawn, self._counts(record)),
+            ([127, 153], ["l1", "l2"], (2, 2)),
+            "the arrow pole has moved, and every red in this class is "
+            "measured against it — re-derive them before reading their "
+            "colour")
+
+    def test_both_connector_types_are_drawn_in_the_same_place(self) -> None:
+        """The poles are one field apart in the drawing, not just the file.
+
+        The control that makes the reds a NARRATION finding: if the line
+        pole simply moved less, a note reporting less of it would be
+        closer to honest and the reds would be overstating. Both poles
+        take the same coincident 140 to 127 and 153, so the ink is
+        identical and the whole difference is the sentence.
+        """
+        self.assertEqual(
+            self._pressed("line")[1], self._pressed("arrow")[1],
+            "the two poles no longer draw the same picture, so the reds "
+            "below have stopped isolating the narration from the "
+            "geometry")
+
+    @unittest.expectedFailure
+    def test_the_note_counts_the_connectors_it_redrew(self) -> None:
+        """The numerator: two paths changed and the note says none did.
+
+        MEASURED 2026-08-18: `drawn_path_changed` — canvas.py's own
+        predicate, the one `redrew` is computed with — says both `l1`
+        and `l2` were redrawn, and the note's "re-routed N" is 0. Under
+        by 2, in the direction that tells a user nothing happened to a
+        drawing that visibly changed.
+
+        THE WRONG READINGS THIS BAND REJECTS. `0` is the measured value
+        and would satisfy any assertion that merely required a count to
+        be present, which is why the number is compared. `4` would be
+        the whole scene's population, `1` the answer of a repair that
+        counted the fan's spread once for the pair rather than once per
+        path, and `2` — the only value asserted — is the one a reader
+        can check against the ink: two connectors are drawn somewhere
+        they were not.
+        """
+        record, _feet, redrawn = self._pressed("line")
+        self.assertEqual(
+            self._counts(record)[0], len(redrawn),
+            "tidy redrew %s and its note reports %d re-routed: the "
+            "router loop skipped them for not being arrows, and the "
+            "count is built from what the router loop saw"
+            % (redrawn, self._counts(record)[0]))
+
+    @unittest.expectedFailure
+    def test_the_note_counts_the_connectors_it_handed_the_fan(self) -> None:
+        """The denominator: M names a population these two lines are in.
+
+        A SEPARATE CLAIM FROM THE NUMERATOR, and separate for a reason
+        that outlives this scene. `_tidy_pass`'s own docstring defines
+        `routed` as the arrows "handed to the router", and the
+        DENOMINATOR paragraph in `Store.tidy` defines M as
+        "server-owned and bound at both ends". Both lines here satisfy
+        that definition — `server_owns_geometry` is True and both
+        bindings resolve — so M is wrong BY THE CODE'S OWN WORDS whether
+        or not the fan happened to move anything on this press. A repair
+        that taught the numerator to count moved lines and left the
+        population arrow-shaped would answer the red above and still
+        tell a user their drawing holds no server-routed connectors at
+        all.
+
+        MEASURED 2026-08-18: M is 0 where the definition gives 2. Under
+        by 2. The sentence's noun is wrong with it — it says "arrow(s)"
+        about two lines — and a repair has to reword it; that is left to
+        prose rather than pinned, because the number is the part a
+        reader does arithmetic with.
+        """
+        store = _fan_store(self, "line")
+        owned = [e["id"] for e in store.scenes["d"]
+                 if e.get("type") in ("arrow", "line")
+                 and canvas.server_owns_geometry(e)
+                 and (e.get("startBinding") or {}).get("elementId")
+                 and (e.get("endBinding") or {}).get("elementId")]
+        counts = self._counts(store.tidy("d"))
+        self.assertEqual(
+            counts[1], len(owned),
+            "tidy offers a denominator of %d over a scene whose "
+            "server-owned both-ends-bound connectors are %s — the "
+            "population it hands the fan, counted as if only arrows "
+            "could be in it" % (counts[1], owned))
+
+
+class TestARerouteNamesTheFeetItMoves(unittest.TestCase):
+    """`Store.reroute` moves two bound lines and names one arrow.
+
+    THE SAME BLINDNESS ONE DOOR OVER, and the whole-branch review could
+    only record it LATENT because `reroute_is_fossil` declined the scene
+    it was tried on: a re-route is offered only where a pass would leave
+    strictly fewer CROOKED ARRIVALS, `oblique_arrivals` counts arrows
+    alone, and a drawing of straight lines has none. REACHABILITY IS
+    THEREFORE THIS CLASS'S FIRST ASSERTION rather than its assumption —
+    one crooked arrow in the same drawing opens the door, and everything
+    else on the scene rides through it.
+
+    MEASURED 2026-08-18 through Store/commit/reroute: `a1` arrives
+    crooked at both ends, the pass straightens both, and in the same
+    write `l1` and `l2` are pulled off one coincident foot to 127 and
+    153 — 13px each. The note says "re-routed 1 of 1 legacy arrow(s):
+    a1: path moves up to 40px; start/end re-aimed", the record carries
+    one `rerouted` fact, and neither line is named anywhere in either.
+
+    THE DOCSTRING ASSERTS THE OPPOSITE, which is a finding this class
+    also files: `reroute_scene` says it "touches exactly the set
+    `fan_attach_points` iterates". It does — that set is
+    `("arrow", "line")`, and both lines were touched — but its routing
+    loop and its `changes` list are both `type != "arrow"` gated, so the
+    sentence a reader takes for a scope statement is true of the moving
+    and false of the reporting. Prose is repaired by the owner rather
+    than pinned; it is recorded here so a repair cannot land on the code
+    and leave the paragraph behind.
+
+    WHO FLIPS THIS: the v0.9 wave that owns C-3, alongside
+    `TestTidyNarratesTheFeetItMoves` — one gate, two doors, and a fix to
+    either alone leaves the other red. Argued rather than assumed: this
+    path is consent-gated and reaches disk only behind an explicit
+    `--apply` or a banner pull, which makes it rarer than the button —
+    and it is the SAME defect in the SAME three passes, so scheduling it
+    separately would mean shipping a C-3 fix a user can walk around.
+    """
+
+    def _rerouted(self, etype: str) -> tuple[dict[str, Any], list[str]]:
+        """Re-route the fossil scene once and read back what it did.
+
+        Args:
+            etype: `"arrow"` or `"line"`, for `l1` and `l2`. `a1` is an
+                arrow in both poles — it is the fossil that opens the
+                door, not the subject.
+
+        Returns:
+            `(record, redrawn_ids)`.
+
+        Raises:
+            AssertionError: If the re-route declined. `reroute_noop` is
+                the whole reason this defect was recorded latent, so a
+                pin that quietly measured a decline would re-file the
+                same mistake.
+        """
+        store = _fan_store(self, etype, fossil=True)
+        was = [dict(e) for e in store.scenes["d"]]
+        record = store.reroute("d")
+        if record.get("noop"):
+            raise AssertionError(
+                "reroute declined on the %s pole (%r): the scene stopped "
+                "being a fossil, so nothing below measures a write"
+                % (etype, record["summary"]["headline"]))
+        return record, _fan_redrawn(was, store)
+
+    def _facts(self, record: dict[str, Any]) -> list[str]:
+        """The elements a save narrated as re-routed.
+
+        Args:
+            record: A reroute save record.
+
+        Returns:
+            The `rerouted` facts' element ids, sorted.
+        """
+        return sorted(f["element"]
+                      for f in record["artifacts"]["d"]["facts"]
+                      if f["fact"] == "rerouted")
+
+    def test_the_scene_is_a_fossil_the_reroute_agrees_to_write(self) -> None:
+        """The premise the review could not establish: the door opens.
+
+        Asserted first and ungated, because every other test in this
+        class is vacuous without it — `Store.reroute` answers with a
+        `noop: True` stand-in on any scene `reroute_is_fossil` declines,
+        and a red measured against a decline is a statement about the
+        fixture. `a1` arrives crooked at both ends before and at neither
+        after, which is the strict decrease the offer is gated on.
+        """
+        store = _fan_store(self, "line", fossil=True)
+        before = canvas.oblique_arrivals(store.scenes["d"])
+        self.assertTrue(canvas.reroute_is_fossil(store.scenes["d"]))
+        store.reroute("d")
+        self.assertEqual(
+            (before, canvas.oblique_arrivals(store.scenes["d"])),
+            ([("a1", "start"), ("a1", "end")], []),
+            "the crooked arrival this scene is built around has moved, "
+            "so the re-route below is no longer offered for the reason "
+            "these pins assume")
+
+    def test_the_arrow_pole_names_all_three_it_redrew(self) -> None:
+        """The live half, ungated: on arrows the same pass names them.
+
+        The same scene with `l1` and `l2` typed `arrow` reports all
+        three — "re-routed 3 of 3" and three `rerouted` facts, each with
+        its own distance. This is what stops the reds below from passing
+        the day the re-route stops narrating at all, and it is also what
+        says the missing sentences are exactly the two the type gate
+        removed.
+        """
+        record, redrawn = self._rerouted("arrow")
+        self.assertEqual(
+            (sorted(redrawn), self._facts(record)),
+            (["a1", "l1", "l2"], ["a1", "l1", "l2"]),
+            "the arrow pole has moved; re-derive both reds in this class")
+        self.assertIn("re-routed 3 of 3 legacy arrow(s)",
+                      record["user_note"])
+
+    @unittest.expectedFailure
+    def test_a_rerouted_fact_is_minted_for_every_path_redrawn(self) -> None:
+        """The facts arm: three paths changed, one fact was minted.
+
+        MEASURED 2026-08-18: `drawn_path_changed` says `a1`, `l1` and
+        `l2` were all redrawn; `facts` holds `rerouted a1` alone. Under
+        by 2 — and the two missing ones are the two a reader would most
+        want, because `a1` is the arrow they consented to straighten and
+        the lines are the collateral they were not asked about.
+
+        THE FACT LIST AND NOT THE PROSE, deliberately: facts are what
+        replay, the rail and the catch-up narration are built from, so a
+        repair that added a sentence to the note and left this list at
+        one would leave every downstream surface still saying one arrow
+        moved. The prose arm is the red below.
+        """
+        record, redrawn = self._rerouted("line")
+        self.assertEqual(
+            self._facts(record), sorted(redrawn),
+            "the re-route redrew %s and minted `rerouted` facts for %s: "
+            "`reroute_scene` builds its change list under a "
+            "`type != 'arrow'` gate the fan it just ran does not share"
+            % (sorted(redrawn), self._facts(record)))
+
+    @unittest.expectedFailure
+    def test_the_note_names_every_connector_it_moved(self) -> None:
+        """The prose arm: the per-arrow list is missing two entries.
+
+        `Store.reroute`'s note is the one place this pipeline prints a
+        PER-ELEMENT distance — "a1: path moves up to 40px" — which makes
+        its silence about `l1` and `l2` a magnitude claim and not only a
+        count: each was pulled 13px off the foot the user drew it on,
+        and the sentence that exists to let somebody check a re-route
+        against the ink does not mention that anything but `a1` is drawn
+        somewhere new.
+
+        THE WRONG READING THIS ASSERTION REJECTS. Matching on the
+        denominator alone would let a repair that wrote "1 of 3" pass
+        while the list beneath it still named one element — which is
+        precisely the failure `Store.reroute`'s own docstring records
+        for its opening count ("re-routed 9" beside a headline counting
+        6). The assertion is on the ids the sentence names, so the count
+        and the list cannot drift apart again.
+        """
+        record, redrawn = self._rerouted("line")
+        named = sorted(i for i in redrawn
+                       if i + ": path" in record["user_note"])
+        self.assertEqual(
+            named, sorted(redrawn),
+            "the note names %s of the %s connectors this re-route "
+            "redrew, and each one it omits was pulled 13px off the foot "
+            "the user drew it on" % (named, sorted(redrawn)))
+
+
+# ---------------------------------------------------------------------------
+# TWO PREMISE PINS, GREEN BY INTENT, and green for two different reasons
+# the classes below give in full. Both came out of the same v0.9 wave
+# reading that produced the two reds above, and neither is written as a red
+# because a red naming a nonexistent owner teaches a reader to ignore the
+# colour — this wave's own ruling.
+#
+# The first records a REVERSION nobody has decided the policy for; the
+# second records a NEGATIVE REACHABILITY RESULT, which is the honest
+# artefact when a defect is real in the model and the gesture that would
+# reach it does not exist in the shipped client. A green pin that states
+# today's behaviour precisely is what makes the next change to it a
+# decision rather than a drift: both fail the day their premise moves, and
+# both name what to do then.
+# ---------------------------------------------------------------------------
+_BACKDROP_SCENE: tuple[dict[str, Any], ...] = (
+    {"type": "rectangle", "id": "band", "x": 0, "y": 0, "width": 200,
+     "height": 120, "role": "decoration"},
+    {"type": "rectangle", "id": "A", "x": 40, "y": 40, "width": 80,
+     "height": 40, "label": "Cart", "role": "node"})
+
+
+def _backdrop_store(case: unittest.TestCase) -> canvas.Store:
+    """A backdrop, one labelled node, and the user's bring-to-front on top.
+
+    THE SMALLEST SCENE THAT HOLDS THE ACT. `normalize_z_order` bands an
+    untagged `role: decoration` beneath everything (band 1) and a bound
+    label above everything (band 5), so a backdrop is the one element a
+    user can drag to the front that the normalizer will certainly drag
+    back — which is what makes this a statement about the reversion and
+    not about a sort that happened to agree.
+
+    The bring-to-front arrives as a USER SAVE rather than a `reorder` op,
+    because that is the only shape the act has: `normalize_z_order` runs
+    at the end of `apply_ops` on any batch carrying an add/mod/del, and a
+    user dragging on the canvas posts a whole scene in the order the
+    client painted it.
+
+    Args:
+        case: The test owning the tree; its `addCleanup` removes it.
+
+    Returns:
+        The loaded store, artifact `"d"` in the order `[A, A-label,
+        band]` — the order the user left it in.
+
+    Raises:
+        AssertionError: If the seed did not produce the three elements
+            the ordering claims below are made about.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-zorder-"))
+    case.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+    project = canvas.Project(tmp)
+    project.ensure_tree()
+    store = canvas.Store(project)
+    store.apply_batch({
+        "base_revn": 0, "artifact": "d",
+        "create": {"id": "d", "name": "D", "type": "flow"},
+        "ops": [{"op": "add", "element": dict(e)}
+                for e in _BACKDROP_SCENE]})
+    if [e["id"] for e in store.scenes["d"]] != ["band", "A", "A-label"]:
+        raise AssertionError(
+            "the seed left %r rather than the backdrop, node and bound "
+            "label these pins measure"
+            % [e["id"] for e in store.scenes["d"]])
+    moved = [dict(e) for e in store.scenes["d"] if e["id"] != "band"]
+    moved.append(next(dict(e) for e in store.scenes["d"]
+                      if e["id"] == "band"))
+    store.commit(author="user", new_scenes={"d": moved})
+    return store
+
+
+class TestTheUsersBringToFrontIsUndoneInSilence(unittest.TestCase):
+    """A rename puts the backdrop the user raised back underneath.
+
+    WITNESSED by the v0.9 whole-branch review, 2026-08-18, and
+    re-derived here through `apply_batch`. The user drags a backdrop to
+    the front; the client posts `[A, A-label, band]`; an agent then
+    renames a node it never mentioned, `apply_ops` ends on
+    `normalize_z_order` because the batch carried a `mod`, and the scene
+    comes back as `[band, A, A-label]`. The user's deliberate act is
+    gone, and the record calls it `reordered`.
+
+    THE BURIAL IS THAT `reordered` MEANS BOTH THINGS. An explicit
+    `reorder` op — the agent GRANTING a request — mints exactly the same
+    facts on exactly this scene: `[reordered band, reordered A]`, two
+    facts for the one element whose position anybody chose. The rename's
+    record adds one more, so a reader is handed "renamed 'Cart' →
+    'Basket' (+2 more)" with no way to learn that the two more are the
+    machine putting their own drawing back.
+
+    GREEN, AND A PREMISE PIN RATHER THAN A RED, which is the whole
+    judgement in this class. Three repairs are available and they
+    contradict each other: PRESERVE the user's cross-band order (which
+    `normalize_z_order`'s docstring rules out — "cross-band placement
+    rides `role: decoration`"), ANNOUNCE the override in its own verb,
+    or AGGREGATE it into the one housekeeping line the doctrine asks for
+    (`mechanical_summary`'s `low_signal` path), which would bury a
+    deliberate user act further rather than less. Nobody has decided
+    between them, so a red would assert a fix that has no owner. What is
+    pinned instead is today's behaviour, exactly, so that whichever
+    repair lands, it lands as a decision — every assertion here fails
+    the moment the answer changes.
+
+    WHO FLIPS THIS: scheduled work on the differ's housekeeping
+    vocabulary, not the C-3 fix above. Argued rather than assumed: C-3
+    is a SILENT move, and this one is not silent — it arrives through
+    the differ, with the element named, under a verb that is correct as
+    far as it goes. What is wrong is the policy and the vocabulary, and
+    both are product decisions rather than a missing `("arrow", "line")`.
+    """
+
+    def _renamed(self) -> tuple[canvas.Store, dict[str, Any]]:
+        """Rename the node, which is the act that reverts the ordering.
+
+        Returns:
+            `(store, record)` after a batch whose only op renames `A`.
+        """
+        store = _backdrop_store(self)
+        record, _pin_only = store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "d",
+            "ops": [{"op": "mod", "id": "A",
+                     "attrs": {"label": "Basket"}}]})
+        return store, record
+
+    def _facts(self, record: dict[str, Any]) -> list[tuple[str, str]]:
+        """The record's facts as `(verb, element)`, in the order minted.
+
+        Args:
+            record: A save record from `apply_batch`.
+
+        Returns:
+            One pair per fact.
+        """
+        return [(f["fact"], f["element"])
+                for f in record["artifacts"]["d"]["facts"]]
+
+    def test_the_user_save_really_does_raise_the_backdrop(self) -> None:
+        """The premise: the act reaches the store before anything undoes it.
+
+        Without this every claim below is about a bring-to-front that
+        never landed — and a user save that silently re-sorted would
+        make the reversion pinned here somebody else's defect. The
+        client's posted order survives the write, which is what
+        `Store.commit` promises for an author of `"user"`.
+        """
+        self.assertEqual(
+            [e["id"] for e in _backdrop_store(self).scenes["d"]],
+            ["A", "A-label", "band"],
+            "the user's posted paint order no longer survives the save "
+            "itself, so the reversion these pins are about is happening "
+            "one door earlier than they look")
+
+    def test_a_rename_puts_the_raised_backdrop_back_underneath(self) -> None:
+        """The reversion itself, as the drawing shows it.
+
+        MEASURED 2026-08-18: `[A, A-label, band]` in, `[band, A,
+        A-label]` out, off a batch whose only op names `A`. The backdrop
+        the user raised is painted first again, which on an opaque fill
+        is the difference between a panel behind the diagram and a panel
+        over it.
+
+        PINNED AS TODAY'S ANSWER, not as the desired one — see the class
+        docstring. If this starts failing, somebody has taught the
+        normalizer to keep a user's cross-band placement, and the
+        narration pins below have to be re-read in the same change
+        rather than repaired to match.
+        """
+        store, _record = self._renamed()
+        self.assertEqual(
+            [e["id"] for e in store.scenes["d"]], ["band", "A", "A-label"],
+            "the rename no longer re-bands the scene: `normalize_z_order` "
+            "runs at the end of `apply_ops` for any batch carrying an "
+            "add/mod/del, and this batch carried one `mod`")
+
+    def test_the_reversion_reads_as_two_ordinary_reorders(self) -> None:
+        """The narration, and what a reader is given to work with.
+
+        MEASURED 2026-08-18: `verb_counts` is
+        `{"renamed": 1, "reordered": 2}` and the headline is "renamed
+        'Cart' → 'Basket' (+2 more)". One element's position was
+        decided by anybody — `band` — and the record offers two
+        `reordered` facts, because the change op records every id whose
+        INDEX moved. So the "+2 more" a reader is told to go looking for
+        is one override of their own act plus one element that sat
+        still while another passed it.
+
+        The whole summary is asserted rather than the verb counts alone,
+        because the headline is the sentence a user actually reads and
+        an aggregation repair would change it first.
+        """
+        _store, record = self._renamed()
+        self.assertEqual(
+            record["summary"],
+            {"verb_counts": {"renamed": 1, "reordered": 2},
+             "headline": "renamed 'Cart' → 'Basket' (+2 more)",
+             "suppressed": 0},
+            "the rename's summary has moved; re-read this class's "
+            "docstring and re-derive all four pins before adjusting it")
+
+    def test_the_override_and_a_granted_reorder_mint_the_same_facts(self
+                                                                    ) -> None:
+        """The collision: one verb for "you asked" and "I overrode you".
+
+        The evidence that makes this a NARRATION finding rather than a
+        complaint about a sort. An explicit `{"op": "reorder", "id":
+        "band", "index": 0}` — the agent doing exactly what the
+        normalizer did, on request — produces `[reordered band,
+        reordered A]`; the rename produces those same two under its
+        `renamed`. Identical verbs, identical elements, opposite
+        meanings, and nothing in the record distinguishes them.
+
+        A pure-reorder batch is used for the granted pole because
+        `normalize_z_order` runs only where a batch carries an
+        add/mod/del — so the op survives, and the comparison is between
+        two records that really do describe the same final scene.
+        """
+        store = _backdrop_store(self)
+        granted, _pin_only = store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "d",
+            "ops": [{"op": "reorder", "id": "band", "index": 0}]})
+        _store2, overridden = self._renamed()
+        self.assertEqual(
+            self._facts(granted),
+            [p for p in self._facts(overridden) if p[0] != "renamed"],
+            "the granted reorder and the silent override no longer mint "
+            "the same facts — if one of them grew a verb of its own, "
+            "this class's premise has been decided and every pin in it "
+            "needs re-reading")
+
+
+_CLIENT_DRAG_SKIPS_BOUND_TEXT = re.compile(
+    r"if\((\w+)&&\(!\w+\(\1\)\|\|!\1\.containerId\)\)")
+_CLIENT_MARQUEE_SKIPS_BOUND_TEXT = re.compile(
+    r"\.filter\((\w+)=>!\(\w+\(\1\)&&\1\.containerId\)\)")
+_CLIENT_SELECT_ALL_SKIPS_BOUND_TEXT = re.compile(
+    r"\.filter\((\w+)=>!\1\.isDeleted&&!\(\w+\(\1\)&&\1\.containerId\)"
+    r"&&!\1\.locked\)")
+# Three exclusions, matched on PROPERTY NAMES and structure rather than on
+# identifiers: `containerId`, `isDeleted` and `locked` are scene-format
+# keys and survive minification, while every local name in these
+# expressions is one letter and would not survive a rebuild. The
+# backreferences are what stop the patterns matching three unrelated
+# filters — each requires the same binding throughout its own expression.
+
+
+def _client_bundle() -> str:
+    """The one entry bundle `index.html` loads, as text.
+
+    Globbed through the page rather than by filename because the name
+    carries a content hash, and read from the ONE `src` the page
+    actually runs so a stale sibling beside it cannot answer for it.
+    Same technique as `TestOneLineHeightHasTwoReaders`' font-metrics
+    referee, and for the same reason: a claim about what the client does
+    has to be read off the client.
+
+    Returns:
+        The bundle's source.
+
+    Raises:
+        AssertionError: If `index.html` loads anything other than
+            exactly one entry bundle.
+    """
+    web = (Path(__file__).resolve().parents[1] / "skills" /
+           "wysiwyg-grilling" / "scripts" / "web")
+    src = re.findall(r'src="/assets/(index-[\w-]+\.js)"',
+                     (web / "index.html").read_text(encoding="utf-8"))
+    if len(src) != 1:
+        raise AssertionError(
+            "index.html loads %r entry bundles; these pins read the one "
+            "the page actually runs" % src)
+    return (web / "assets" / src[0]).read_text(encoding="utf-8",
+                                               errors="replace")
+
+
+class TestABoundArrowLabelCannotBeDraggedOffItsArrow(unittest.TestCase):
+    """The negative result: the save exists, the gesture does not.
+
+    THE MODEL-LEVEL DEFECT IS REAL and the first test records it: post a
+    scene whose ONLY difference is an arrow's bound label at a new
+    position, and the move persists while the summary says "saved
+    without changing anything". That is the fourth sighting of a class
+    this repo has already repaired three times (links, tidy, pin flips),
+    and it arrives the same way each time — `_geometry_derived` calls a
+    bound label's coordinates derived, the diff marks them `derived`, no
+    fact is minted, and `Store.commit` synthesises `saved_no_changes`
+    for a fact list that came back empty.
+
+    WHAT MAKES THIS DIFFERENT FROM THE THREE ALREADY FIXED is that
+    nobody can perform the gesture. Three independent exclusions in the
+    shipped client, asserted below off the bundle `index.html` loads:
+    the drag translation skips any element carrying a `containerId`, a
+    marquee selection filters them out, and select-all filters them out
+    — so a bound label can be neither picked up nor swept up. And the
+    renderer does not even read the stored position for an arrow's
+    label: it overrides it with `getBoundTextElementPosition`, computed
+    from the arrow, so a scene carrying a displaced one is drawn at the
+    midpoint anyway and written back there.
+
+    SO THE HONEST ARTEFACT IS A GREEN PIN, not a red. A red here would
+    say the pipeline must narrate a save no user can produce, and the
+    task it named would be work with no user behind it. What these
+    assertions buy instead is that the negative result cannot rot: they
+    are read off the shipped client, so the day a version bump makes a
+    bound label draggable, THIS CLASS FAILS — and the first test, which
+    holds the model behaviour exactly as measured, is the red waiting to
+    be written.
+
+    WHO FLIPS THIS: whoever bumps `@excalidraw/excalidraw` (0.18.1 at
+    this head) and rebuilds `scripts/web`. If any of the three
+    exclusions goes, re-run the first test's scene through the real
+    client, and if the drag lands, promote this class to a red on
+    `saved_no_changes` and hand it to the differ's owner.
+    """
+
+    def _label_moved(self) -> tuple[canvas.Store, dict[str, Any], Path]:
+        """Post a scene whose only change is the bound label's position.
+
+        Returns:
+            `(store, record, project_root)` after the user save. The
+            root is returned so persistence can be re-read from disk
+            through a second `Store` rather than trusted in memory.
+
+        Raises:
+            AssertionError: If the seed did not bind a label to `t1`.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-boundlabel-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "d",
+            "create": {"id": "d", "name": "D", "type": "flow"},
+            "ops": [{"op": "add", "element": dict(n)}
+                    for n in _FAN_NODES[:2]]
+            + [{"op": "add", "element": {"type": "arrow", "id": "t1",
+                                         "label": "pays"},
+                "from": "A", "to": "B"}]})
+        posted = [dict(e) for e in store.scenes["d"]]
+        label = next((e for e in posted if e["id"] == "t1-label"), None)
+        if label is None or label.get("containerId") != "t1":
+            raise AssertionError(
+                "the seed did not bind a label to the arrow — the scene "
+                "holds %r" % [e["id"] for e in posted])
+        label["x"], label["y"] = label["x"] + 60, label["y"] - 40
+        record = store.commit(author="user", new_scenes={"d": posted})
+        return store, record, tmp
+
+    def test_a_save_that_only_moves_a_bound_label_says_nothing_changed(
+            self) -> None:
+        """The model-level defect, measured and held exactly as it is.
+
+        MEASURED 2026-08-18: `t1-label` goes from (182, 130) to
+        (242, 90) — 60px right and 40px up, clear of the arrow it
+        belongs to — the position survives a reload from disk, and the
+        summary is `{"saved_no_changes": 1}` under "saved without
+        changing anything". Both halves in one assertion, because the
+        finding is their conjunction: either alone is ordinary.
+
+        THIS IS THE RED THAT IS NOT WRITTEN, and it is here rather than
+        in prose so that the day the class docstring's reachability
+        argument fails, the scene and its numbers are already in the
+        tree. If narration ever starts describing this save, this test
+        fails and the right response is to write the red, not to relax
+        the assertion.
+        """
+        _store, record, root = self._label_moved()
+        reloaded = canvas.Store(canvas.Project(root))
+        landed = next(e for e in reloaded.scenes["d"]
+                      if e["id"] == "t1-label")
+        self.assertEqual(
+            ((landed["x"], landed["y"]), record["summary"]),
+            ((242, 90),
+             {"verb_counts": {"saved_no_changes": 1},
+              "headline": "saved without changing anything",
+              "suppressed": 0}),
+            "the bound-label save has stopped being the silent write "
+            "this class documents — re-read the class docstring and "
+            "decide whether the red it defers now has an owner")
+
+    def test_the_client_will_not_drag_an_element_bound_to_a_container(
+            self) -> None:
+        """The reachability premise: the drag loop skips bound text.
+
+        The translation loop that moves a selection walks the dragged
+        elements and applies the pointer delta to each — except any
+        element carrying a `containerId`, which it steps over, leaving
+        the container's own update to move the label. So even a
+        selection that somehow held a bound label would not move it.
+
+        Asserted as exactly one occurrence: two would mean the bundle
+        holds a second, differently-guarded drag path, and this pin
+        would be quoting whichever one it found first.
+        """
+        self.assertEqual(
+            len(_CLIENT_DRAG_SKIPS_BOUND_TEXT.findall(_client_bundle())), 1,
+            "the shipped client's drag translation no longer skips "
+            "elements with a `containerId` — re-run this class's first "
+            "scene against the real canvas before trusting the negative "
+            "result its docstring records")
+
+    def test_the_client_will_not_select_an_element_bound_to_a_container(
+            self) -> None:
+        """The same premise from the other end: it cannot be picked up.
+
+        Two exclusions, both required, because they cover the two ways a
+        selection is built: a marquee sweep filters bound text out of
+        what it collects, and select-all filters it out of the whole
+        scene. A user cannot get a bound label INTO a selection, which
+        is why the drag skip above is a second lock rather than the
+        only one.
+        """
+        bundle = _client_bundle()
+        self.assertEqual(
+            (len(_CLIENT_MARQUEE_SKIPS_BOUND_TEXT.findall(bundle)),
+             len(_CLIENT_SELECT_ALL_SKIPS_BOUND_TEXT.findall(bundle))),
+            (1, 1),
+            "the shipped client's selection paths no longer exclude "
+            "bound text; the gesture this class calls unreachable may "
+            "have become reachable")
+
+    def test_the_client_redraws_an_arrow_label_from_the_arrow(self) -> None:
+        """And even a displaced one is not drawn where it is stored.
+
+        The third lock, and the one that makes the negative result hold
+        against paths that are not gestures at all — an imported file, a
+        paste, a hand-edited artifact. For a container that is a linear
+        element the client spreads
+        `getBoundTextElementPosition(arrow, label, map)` over the
+        label's own `x`/`y` before drawing it, so a stored displacement
+        is overridden at render time and written back at the midpoint on
+        the next persist. The name is a class method and survives
+        minification, which is what makes it assertable here at all.
+        """
+        self.assertGreaterEqual(
+            _client_bundle().count("getBoundTextElementPosition"), 2,
+            "the shipped client no longer derives an arrow label's drawn "
+            "position from its arrow, so a stored displacement may now "
+            "survive a render — the first test in this class becomes a "
+            "red if it does")
 
 
 class TestCoverage(unittest.TestCase):
