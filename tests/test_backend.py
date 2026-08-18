@@ -20945,6 +20945,17 @@ class TestAPinReadsAsBelongingToWhateverItSitsBeside(Base):
         of the constant is that the two checks are complements of ONE
         spelling; two spellings that happen to be equal today is the
         thing it exists to prevent, one level up.
+
+        IT MATCHES BY NAME AND NEVER BY POSITION, which started as luck
+        and is now deliberate. Two streams are extending this file from
+        opposite ends, so every line number either of them writes for
+        this constant is drifting by construction — its own moved seven
+        lines when the comment above it grew, and it moves again the
+        moment the other stream's block lands. A guard keyed to a line
+        or to a neighbouring symbol would go quietly vacuous under
+        exactly the edits it exists to survive. Anything that has to
+        identify this definition in prose should name its NEIGHBOUR
+        (`PIN_INK`, immediately above) rather than its line.
         """
         src = Path(canvas.__file__).read_text(encoding="utf-8")
         defs = [ln for ln in src.splitlines()
