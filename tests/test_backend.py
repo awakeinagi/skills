@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import canvas  # noqa: E402
 import focus_probe  # noqa: E402
 import instruments  # noqa: E402
+from tests_helpers import el as mk_el  # noqa: E402
 from tests_helpers import measured  # noqa: E402
 
 # The instruments are the drawing's own measure, and one test here needs
@@ -7599,6 +7600,213 @@ class TestTheRepairNamesTheDirectionItMoved(unittest.TestCase):
         self.assertEqual(len(got), 1, got)
         self.assertNotIn("shade of the same hue", got[0])
         self.assertIn("raise its opacity or darken the ink", got[0])
+
+
+class TestEveryWaiveSuggestionCanBeApplied(Base):
+    """v0.9 blocker round I-1: the waive a finding offers is a real op.
+
+    THE DEFECT, from the whole-branch review. Eleven of fourteen
+    messages printed the waive as a copyable literal with no envelope —
+    `waive {action: waive, key: 'ink:demo:hdr', reason: ...}` — and the
+    batch validator rejects that verbatim::
+
+        op 0: unknown op None
+        (allowed: add, del, mod, pin, registry, reorder, resolve_pin)
+
+    The keys were all correct end to end. Only the envelope was wrong,
+    which is the most galling shape a defect can take: the advice named
+    the right thing and could not be followed. Three messages said
+    "waive with registry op" in prose, so the branch was internally
+    inconsistent and the majority spelling was the broken one.
+
+    THE ROUND TRIP, NOT THE STRING. Every case here parses the key back
+    out of a finding the lint ACTUALLY EMITTED, builds the op from it,
+    puts it through `Store.apply_batch`, and asserts the finding goes
+    quiet. A substring assertion on the message would be satisfied by
+    the next broken spelling; this is only satisfied by an op the
+    validator accepts and the lint then reads.
+
+    REACH, counted rather than claimed: 10 of the 14 waive-emitting
+    checks are exercised — `color` `font` `ink` `stroke` `clear` `ghost`
+    `var` from constructed scenes and `graze` `lane` `bidi` from the
+    frozen corpus. The four that are not (`q25`, `324`, `q12`,
+    `kpimap`) need a registry with mappings or a glossary file, and what
+    covers them instead is the source guard below: after this change
+    there is exactly ONE place in `canvas.py` that spells the envelope,
+    so a family that round-trips proves the spelling for all of them and
+    the fifteenth message cannot be born wrong.
+    """
+
+    WAIVE = re.compile(r"waive \{op: registry, action: waive, "
+                       r"key: '([^']+)', reason: \.\.\.\}")
+
+    def lint_of(self, aid, artifact_type=None):
+        """Every finding for one artifact, whatever tier it came from.
+
+        Args:
+            aid: Artifact id.
+            artifact_type: Optional type, for type-aware checks.
+
+        Returns:
+            The flattened findings list.
+        """
+        out = canvas.project_lint(self.project, self.store.scenes[aid],
+                                  registry=self.store.registry,
+                                  artifact_type=artifact_type, aid=aid)
+        return out["errors"] + out["warnings"] + out["notes"]
+
+    def seed(self, aid, els):
+        """Put a scene on disk and reload the store around it.
+
+        Args:
+            aid: Artifact id.
+            els: The elements.
+        """
+        canvas.write_json(
+            self.project.artifacts_dir / (aid + ".excalidraw"),
+            {"type": "excalidraw", "version": 2, "source": canvas.SOURCE_NAME,
+             "elements": els,
+             "appState": {"viewBackgroundColor": canvas.PAPER_GROUND},
+             "wysiwyg": {"artifact": aid, "name": aid, "migrations":
+                         ["0001-baseline"], "artifact_type": "flow"}})
+        self.store = canvas.Store(self.project)
+
+    def round_trip(self, aid, artifact_type=None):
+        """Apply every waive the lint offers and watch each go quiet.
+
+        Args:
+            aid: Artifact id.
+            artifact_type: Optional type, for type-aware checks.
+
+        Returns:
+            The set of waive keys exercised.
+        """
+        before = self.lint_of(aid, artifact_type)
+        keys = sorted({k for m in before for k in self.WAIVE.findall(m)})
+        self.assertTrue(keys, "no finding on %s offers a waive, so this "
+                              "case measures nothing: %r" % (aid, before))
+        # THE REAL PATH: the ops go through `apply_batch`, which is what
+        # rejected them before, not straight into `registry["waives"]`.
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": aid,
+            "ops": [{"op": "registry", "action": "waive", "key": k,
+                     "reason": "recorded by the round-trip pin"}
+                    for k in keys]})
+        after = self.lint_of(aid, artifact_type)
+        for k in keys:
+            self.assertFalse([m for m in after if k in m],
+                             "%s was waived and the lint still asks it: %r"
+                             % (k, [m for m in after if k in m]))
+        return set(keys)
+
+    def test_the_constructed_families_all_apply_and_go_quiet(self):
+        """Seven checks, one scene each, key parsed out of the finding."""
+        seen = set()
+        self.seed("legibility", [
+            mk_el(id="n1", type="rectangle", x=0, y=0, width=200, height=100,
+               strokeColor="#b0b0b0", customData={"role": "node"}),
+            mk_el(id="t1", type="text", x=0, y=160, width=120, height=20,
+               text="status", fontSize=6, strokeColor="#d0d0d0"),
+            mk_el(id="n2", type="rectangle", x=400, y=0, width=100, height=60,
+               strokeColor="rgb(1,2,3)", customData={"role": "node"})])
+        seen |= self.round_trip("legibility")
+        self.seed("crowding", [
+            mk_el(id="n1", type="rectangle", x=0, y=0, width=100, height=60,
+               customData={"role": "node"}),
+            mk_el(id="n1-l", type="text", x=0, y=0, width=100, height=20,
+               text="One", containerId="n1", customData={"role": "label"}),
+            mk_el(id="n2", type="rectangle", x=104, y=0, width=100, height=60,
+               customData={"role": "node"}),
+            mk_el(id="n2-l", type="text", x=104, y=0, width=100, height=20,
+               text="Two", containerId="n2", customData={"role": "label"})])
+        seen |= self.round_trip("crowding")
+        self.seed("ghosting", [
+            mk_el(id="n1", type="rectangle", x=0, y=0, width=120, height=60,
+               opacity=30, customData={"role": "node"}),
+            mk_el(id="n1-l", type="text", x=0, y=0, width=120, height=20,
+               text="Ghost", containerId="n1", opacity=100,
+               customData={"role": "label"})])
+        seen |= self.round_trip("ghosting")
+        self.seed("variants", [
+            mk_el(id="f1", type="frame", x=0, y=0, width=300, height=400,
+               name="SCREEN — normal"),
+            mk_el(id="f2", type="frame", x=400, y=0, width=300, height=400,
+               name="SCREEN — error", customData={"variant_of": "f1"}),
+            mk_el(id="a1", type="rectangle", x=20, y=20, width=100, height=40,
+               frameId="f1", customData={"role": "node"}),
+            mk_el(id="a1-l", type="text", x=20, y=20, width=100, height=20,
+               text="Submit", containerId="a1", frameId="f1",
+               customData={"role": "label"}),
+            mk_el(id="b1", type="rectangle", x=420, y=20, width=100, height=40,
+               frameId="f2", customData={"role": "node"}),
+            mk_el(id="b1-l", type="text", x=420, y=20, width=100, height=20,
+               text="Send", containerId="b1", frameId="f2",
+               customData={"role": "label"})])
+        seen |= self.round_trip("variants", artifact_type="wireframe")
+        self.assertEqual({k.split(":")[0] for k in seen},
+                         {"color", "font", "ink", "stroke", "clear", "ghost",
+                          "var"},
+                         "the families this case claims to reach have "
+                         "changed — re-derive the claim, do not widen it")
+
+    def test_the_frozen_corpus_waives_apply_and_go_quiet(self):
+        """The other three families, off drawings that really shipped."""
+        src = (Path(__file__).resolve().parent / "fixtures" /
+               "argus-r4-arm3" / "artifacts" / "enrichment-pipeline"
+               ".excalidraw")
+        doc, _ = canvas.validate_scene(json.loads(src.read_text()), "ep")
+        self.seed("ep", canvas.normalize_scene_doc(doc)["elements"])
+        seen = self.round_trip("ep")
+        self.assertIn("lane", {k.split(":")[0] for k in seen})
+        src2 = (Path(__file__).resolve().parent / "fixtures" /
+                "tearsheet-demo" / "artifacts" / "tearsheet-pipeline"
+                ".excalidraw")
+        doc2, _ = canvas.validate_scene(json.loads(src2.read_text()), "tp")
+        self.seed("tp", canvas.normalize_scene_doc(doc2)["elements"])
+        self.assertIn("graze", {k.split(":")[0]
+                                for k in self.round_trip("tp")})
+        src3 = (Path(__file__).resolve().parent / "fixtures" /
+                "argus-r4-arm3" / "artifacts" / "argus-domain.excalidraw")
+        doc3, _ = canvas.validate_scene(json.loads(src3.read_text()), "ad")
+        self.seed("ad", canvas.normalize_scene_doc(doc3)["elements"])
+        self.assertIn("bidi", {k.split(":")[0]
+                               for k in self.round_trip("ad", "domain")})
+
+    def test_the_envelope_less_spelling_is_still_rejected(self):
+        """The direction that says the envelope was the whole defect.
+
+        If this passed, the messages would have been fine all along and
+        the fix would be measuring nothing.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(),
+                "artifact": "checkout-flow",
+                "ops": [{"action": "waive", "key": "ink:checkout-flow:t1",
+                         "reason": "muted on purpose"}]})
+        self.assertIn("unknown op None", "\n".join(cm.exception.errors))
+
+    def test_no_message_spells_the_envelope_by_hand(self):
+        """One formatter, so the fifteenth message cannot be born wrong.
+
+        This is what carries the four families the round trips above
+        cannot reach. A new finding that writes its own waive literal
+        instead of calling `waive_hint` fails here, in the change that
+        adds it, rather than in a session six months later.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        spellings = [ln for ln in src.splitlines() if "action: waive" in ln]
+        self.assertEqual(
+            len(spellings), 2,
+            "a waive envelope is spelled outside `waive_hint`: %r"
+            % spellings)
+        self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
+                        spellings)
+        self.assertEqual(
+            src.count("waive_hint("), 15,
+            "the waive call sites moved — 14 findings plus the "
+            "definition. Re-derive this count; do not relax it")
 
 
 class TestDerivedRoundness(unittest.TestCase):

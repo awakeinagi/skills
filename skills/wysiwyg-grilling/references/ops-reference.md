@@ -412,10 +412,15 @@ it "agent asked a question" with no Apply action.
 {"op": "registry", "action": "set_budget", "artifact": "pipeline-flow",
  "clear": true}
 // one-time-question waive (v0.4): the reason IS the recorded answer.
-// Keys the lints consult: "q25:<artifact>" (progress indicator),
-// "q12:<artifact>:<label-slug>" (whose-word), "324:<artifact>:<step-slug>"
-// (one function, one label). `clear: true` un-waives. Every note that
-// offers a key prints it — copy it out of the lint line.
+// EVERY finding that can be waived prints the whole op, envelope and
+// all — `waive {op: registry, action: waive, key: '...', reason: ...}`
+// — so copy it out of the lint line and fill in the reason. Fourteen
+// checks offer one, keyed `<check>:<artifact>[:<element>...]`:
+// `ink` `font` `stroke` `color` `graze` `clear` `lane` `bidi` `ghost`
+// `var` `kpimap`, plus `q25:<artifact>` (progress indicator),
+// `q12:<artifact>:<label-slug>` (whose-word) and
+// `324:<artifact>:<step-slug>` (one function, one label).
+// `clear: true` un-waives.
 {"op": "registry", "action": "waive", "key": "q25:pipeline-flow",
  "reason": "user ruled: regulated flow, steps must show"}
 ```

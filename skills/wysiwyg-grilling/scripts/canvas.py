@@ -11784,6 +11784,44 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
     return best[1] if best else None
 
 
+def waive_hint(key):
+    """The copyable op a finding offers so its question can be answered.
+
+    ONE FORMATTER FOR FOURTEEN MESSAGES, and the reason is the defect it
+    closes rather than tidiness (v0.9 whole-branch review, I-1). Eleven
+    of the fourteen printed `waive {action: waive, key: ..., reason:
+    ...}` — no `op` field — and the batch validator rejects exactly that
+    verbatim::
+
+        op 0: unknown op None
+        (allowed: add, del, mod, pin, registry, reorder, resolve_pin)
+
+    Three said "waive with registry op" in prose beside the same
+    envelope-less literal, so the branch was internally inconsistent and
+    the MAJORITY spelling was the broken one. The keys were all correct
+    end to end — no case, hyphen or plural drift, each message printing
+    `%r` of the identical variable the lint later looks up — so the
+    failure was purely the envelope, which is the most galling kind: the
+    advice named the right thing and could not be followed.
+
+    A SHARED FORMATTER RATHER THAN FOURTEEN EDITED STRINGS so the
+    fifteenth message cannot be born wrong. The round-trip is pinned in
+    `TestEveryWaiveSuggestionCanBeApplied`, which parses the key back out
+    of a finding this function wrote, feeds the op through the real
+    apply path and watches the finding go quiet — the loop, not the
+    string, because a string assertion is satisfied by any spelling
+    including the next broken one.
+
+    Args:
+        key: The waive key the lint will look up, e.g.
+            `ink:<artifact>:<element>`.
+
+    Returns:
+        The clause, ready to follow the prose that introduces it.
+    """
+    return "waive {op: registry, action: waive, key: %r, reason: ...}" % key
+
+
 def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 aid=None):
     """Layout lint for headless agents (who can't see their own drawing),
@@ -12367,10 +12405,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "read as a colour — so its legibility %s is "
                     "UNMEASURED, not fine. What is read: %s. Meant as "
                     "written? Restate it in `#`-anchored hex, or record "
-                    "the decision with waive {action: waive, key: %r, "
-                    "reason: ...}"
+                    "the decision with %s"
                     % (noun_of(etype, e), name(eid), src, bad,
-                       against, COLOR_FORMS, key))
+                       against, COLOR_FORMS, waive_hint(key)))
         if etype == "text":
             body = e.get("text") or ""
             if not body.strip():
@@ -12417,10 +12454,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                         "text %s (%r) is drawn %s on %s and reads "
                         "%.2f:1 — 1.4.3 asks %.1f:1 of text this size. "
                         "Muted on purpose? %s%s, or record the "
-                        "decision with waive {action: waive, key: %r, "
-                        "reason: ...}"
+                        "decision with %s"
                         % (eid, quoted, drawn, hexof(bg), got, floor,
-                           fix, shade, key))
+                           fix, shade, waive_hint(key)))
             # The font floor. Separate from the ratio above and not a
             # politeness rule beside it: this is the only tier-1 handle
             # on a contrast failure that RASTERIZATION creates, which a
@@ -12434,9 +12470,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "agent reads — at the floor the rendered word holds "
                     "8.5:1 of stroke, one step below it halves to 4.6:1 "
                     "and the letters stop separating. Size it up, or "
-                    "record the decision with waive {action: waive, "
-                    "key: %r, reason: ...}"
-                    % (eid, quoted, fs, MIN_FONT_FLOOR, key))
+                    "record the decision with %s"
+                    % (eid, quoted, fs, MIN_FONT_FLOOR, waive_hint(key)))
         elif etype in CONTRAST_OBJECT_TYPES:
             # 1.4.11, the criterion people forget: non-text objects need
             # 3:1, and a pale connector on cream paper is the case it
@@ -12491,10 +12526,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "%s %s is drawn %s on %s and reads %.2f:1 — 1.4.11 "
                     "asks %.1f:1 of an object the reader has to pick "
                     "out. Muted on purpose? %s%s, or record the "
-                    "decision with waive {action: waive, key: %r, "
-                    "reason: ...}"
+                    "decision with %s"
                     % (noun, name(eid), drawn, hexof(bg), best,
-                       CONTRAST_OBJECT, fix, shade, key))
+                       CONTRAST_OBJECT, fix, shade, waive_hint(key)))
 
     # ---- WARNING: degenerate arrow geometry (WP4b e15) ----------------
     # This runs FIRST of the arrow checks because every one of them
@@ -13069,10 +13103,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                        "re-route from a border that faces the other end")
             warnings.append(
                 "arrow %s arrives at %s's %s edge %d degrees off square "
-                "(%s point) — %s. Meant to graze? waive {action: waive, "
-                "key: %r, reason: ...}"
+                "(%s point) — %s. Meant to graze? %s"
                 % (a["id"], name(tgt["id"]), foot_side, round(off), side,
-                   msg, key_w))
+                   msg, waive_hint(key_w)))
 
     # ---- ERROR: flow-kind structural invariants ----------------------
     kinds = {e["id"]: (e.get("customData") or {}).get("kind")
@@ -13296,8 +13329,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "landed on one and not the other reads as two "
                     "different controls. Same thing? Rename both. "
                     "Deliberately different (a held state, an error "
-                    "copy)? waive {action: waive, key: %r, reason: ...}"
-                    % (fname.get(a_, a_), la, fname.get(b_, b_), lb, key))
+                    "copy)? %s"
+                    % (fname.get(a_, a_), la, fname.get(b_, b_), lb,
+                       waive_hint(key)))
         for f in frames:
             order = frame_reading_order(els, f["id"])
             okinds = [(e.get("customData") or {}).get("kind")
@@ -13477,9 +13511,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "to know where they are, or do *you* need them to? "
                     "GDS removed a 12-step indicator from a live "
                     "service; completion, time and volume were "
-                    "unchanged. Settle it, then waive with registry op "
-                    "{action: waive, key: \"q25:%s\", reason: ...}"
-                    % (name(prog), aid or "<artifact>"))
+                    "unchanged. Settle it, then %s"
+                    % (name(prog),
+                       waive_hint("q25:%s" % (aid or "<artifact>"))))
 
     # ---- WARNING: legibility -----------------------------------------
     for e in arrows:
@@ -13717,9 +13751,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "%s and %s are only %dpx apart (spacing floor %dpx) — "
                     "nudge %s clear, sit them flush if they are one stack, "
                     "or record the tightness with "
-                    "waive {action: waive, key: %r, reason: ...}"
+                    "%s"
                     % (name(a["id"]), name(b["id"]), int(gap),
-                       CLEARANCE_FLOOR, b["id"], key))
+                       CLEARANCE_FLOOR, b["id"], waive_hint(key)))
     # annotations were excluded from the v0 overlap loop entirely — the
     # demo shipped a note lying across a node for five rounds
     #
@@ -14563,11 +14597,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "if that side is too short to hold them all, the fan has "
                 "already spent what it had: move an edge to another "
                 "border, grow the node, or offset one run with "
-                "`mod points`. Deliberate? waive {action: waive, "
-                "key: %r, reason: ...}"
+                "`mod points`. Deliberate? %s"
                 % (la["id"], lb["id"], round(best[0]), round(best[1]),
                    "horizontal" if best[2] == "h" else "vertical",
-                   int(LANE_TOL), why, int(FAN_LANE_PITCH), key))
+                   int(LANE_TOL), why, int(FAN_LANE_PITCH),
+                   waive_hint(key)))
 
     # ---- WARNING: a pair that reads as one bidirectional edge --------
     # `tests/instruments.false_bidi`, promoted, and promoted WITH the
@@ -14681,11 +14715,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "pair reads as one bidirectional edge, and %s. Is "
                     "the relation symmetric? Draw it as one arrow with "
                     "two heads. If it is not, offset one final leg, or "
-                    "record it with waive {action: waive, key: %r, "
-                    "reason: ...}"
+                    "record it with %s"
                     % (la["id"], lb["id"],
                        "horizontal" if idx == 0 else "vertical",
-                       round(head), round(ov), reading, key))
+                       round(head), round(ov), reading, waive_hint(key)))
                 break           # one axis is enough; the pair is one edit
 
     # stranded element: far outside everything else's bounding box
@@ -14790,9 +14823,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "not inherit its container's opacity, so the caption is "
             "%d points more visible than the thing it names and reads "
             "as a word floating with no box under it. Set both or "
-            "neither, or record the pairing with waive {action: waive, "
-            "key: %r, reason: ...}"
-            % (e["id"], lo, name(host["id"]), ho, lo - ho, key))
+            "neither, or record the pairing with %s"
+            % (e["id"], lo, name(host["id"]), ho, lo - ho,
+               waive_hint(key)))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):
@@ -15325,10 +15358,10 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 "%s all map to %s#%s through %d separate mappings — same "
                 "action, %d names; pick one? (3.2.4: one function, one "
                 "label). Deliberate? annotate a mapping "
-                "intentionally-divergent, or waive "
-                "{action: waive, key: '324:%s:%s', reason: ...}"
+                "intentionally-divergent, or %s"
                 % (" / ".join(repr(x) for x in lbls), fa, fe,
-                   len(by_mapping), len(lbls), aid0, slugify(fe)))
+                   len(by_mapping), len(lbls),
+                   waive_hint("324:%s:%s" % (aid0, slugify(fe)))))
     for lbl, refs in sorted(by_label.items()):
         flows = sorted({(fa, fe) for _, _, fa, fe in refs})
         if len(flows) > 1:
@@ -15421,8 +15454,7 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
             add(aid, "notes",
                 "label %r on %s matches the domain term — whose word "
                 "is this, yours or theirs? Do users say %r? Settle "
-                "it, then waive with registry op {action: waive, "
-                "key: %r, reason: ...}" % (lbl, e["id"], lbl, key))
+                "it, then %s" % (lbl, e["id"], lbl, waive_hint(key)))
 
     # ---- unmapped KPIs (WP5/D9) --------------------------------------
     # Tripwires are exactly as good as the mapping discipline: the
@@ -15449,10 +15481,10 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                     "%d KPI tile(s) unmapped: %s — map each to the node "
                     "that computes it (that mapping IS the drift "
                     "detector; a rename on either side then trips), or "
-                    "waive {action: waive, key: %r, reason: ...}"
+                    "%s"
                     % (len(loose),
                        ", ".join(repr(lbl) for _, lbl in loose[:4]),
-                       "kpimap:%s" % aid))
+                       waive_hint("kpimap:%s" % aid)))
     return out
 
 
