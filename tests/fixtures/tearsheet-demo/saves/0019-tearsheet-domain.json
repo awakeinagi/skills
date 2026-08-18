@@ -1962,7 +1962,7 @@
  "round": 17,
  "saved_at": "2026-08-17T21:27:11Z",
  "selection_at_save": [],
- "short_id": "f4aa116",
+ "short_id": "f6b0e08",
  "summary": {
   "headline": "rerouted r-instrument-issuer (+7 more)",
   "suppressed": 0,
@@ -1972,5 +1972,5 @@
  },
  "tripwires": [],
  "tripwires_muted": [],
- "user_note": "re-routed 11 legacy arrow(s): r-earnings-issuer: path unchanged; start/end re-aimed; r-earnings-section: path unchanged; end re-aimed; r-instrument-issuer: 2-point path becomes 4-point; r-metric-section: 2-point path becomes 3-point; r-news-issuer: 2-point path becomes 3-point; r-position-instrument: 2-point path becomes 3-point; r-position-metric: path unchanged; start re-aimed; r-price-instrument: 2-point path becomes 3-point; r-price-metric: 2-point path becomes 3-point; r-section-tearsheet: 2-point path becomes 3-point; r-story-section: 2-point path becomes 4-point — revert this save to put the old geometry back"
+ "user_note": "re-routed 8 of 11 legacy arrow(s): r-earnings-issuer: path unchanged; start/end re-aimed; r-earnings-section: path unchanged; end re-aimed; r-instrument-issuer: 2-point path becomes 4-point; r-metric-section: 2-point path becomes 3-point; r-news-issuer: 2-point path becomes 3-point; r-position-instrument: 2-point path becomes 3-point; r-position-metric: path unchanged; start re-aimed; r-price-instrument: 2-point path becomes 3-point; r-price-metric: 2-point path becomes 3-point; r-section-tearsheet: 2-point path becomes 3-point; r-story-section: 2-point path becomes 4-point — revert this save to put the old geometry back"
 }

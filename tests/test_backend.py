@@ -5525,6 +5525,29 @@ class TestModPathFixes(Base):
             "authored", after["customData"]["routed"],
             "the op did not land at all, so the withheld fact proves "
             "nothing about the gate")
+        # The withheld fact is only acceptable BECAUSE the ownership
+        # transfer survives without it, and the three arms above check
+        # that on the LIVE scene — which a replay bug would leave
+        # untouched. The controller's ruling was conditioned on the
+        # change log and the replay, so both are read here directly.
+        # Without these two the whole suite stays green through a
+        # refactor that stopped recording the mod: silence that reads
+        # exactly like the silence this test is asserting on purpose.
+        entry = next((c for c in rec["artifacts"]["checkout-flow"]["changes"]
+                      if c.get("id") == "t1"), None)
+        self.assertIn(
+            "customData", [a["attr"] for a in (entry or {}).get("attrs") or []],
+            "the ownership transfer left no change entry, so the save "
+            "narrates nothing AND records nothing — the gate has become "
+            "data loss: %r" % (entry or "no change entry at all",))
+        replayed = next(
+            (e for e in self.store.state_at(rec["revn"])["checkout-flow"]
+             ["elements"] if e["id"] == "t1"), {})
+        self.assertEqual(
+            "authored", (replayed.get("customData") or {}).get("routed"),
+            "replaying this save's change log does not reproduce the "
+            "`authored` stamp, so the state the save dropped from its "
+            "narration it also dropped from its history")
 
     def test_echo_covers_every_op_kind(self):
         """No op may be silently skipped in the echo — skipped numbers
@@ -13023,6 +13046,130 @@ class TestRerouteIsConsentGated(Base):
     def test_an_unknown_artifact_raises(self):
         with self.assertRaises(canvas.BatchError):
             self.store.reroute("ghost")
+
+
+class TestAOnePixelRedrawIsStillARedraw(Base):
+    """`REROUTE_TOL_PX` and the byte rule disagree, and ink wins.
+
+    THE WINDOW IS REAL AND IT IS NOT SUB-PIXEL EXOTICA, which is why this
+    scene is built from whole pixels. `normalize_element` stores geometry
+    at whole pixels, so the smallest move a re-route can make is exactly
+    `REROUTE_TOL_PX` — 1.0 — and `moved <= REROUTE_TOL_PX` is inclusive.
+    A one-pixel redraw therefore sat precisely on the boundary: real ink,
+    on the "same drawing" side of the tolerance.
+
+    WHAT THAT COST BEFORE THE VOCABULARY RULING, measured on this scene
+    rather than argued: `reroute_scene` dropped the entry from `changes`
+    outright (`moved <= REROUTE_TOL_PX and not refocused`), so the save
+    moved `t3` a pixel while its note never named it and no fact was
+    minted. The geometry still reached disk — `commit` diffs the scenes
+    itself and never reads this list — so the loss was NARRATION and not
+    state. That distinction is the whole reason the repair was to widen
+    the membership rather than to move the tolerance.
+
+    `t3` is authored onto the router's OWN answer and then slid one
+    pixel, so the re-route's only job on it is to put it back. That makes
+    the move exact and independent of what the router decides, which a
+    hand-picked coordinate would not: the scene asserts a boundary, so it
+    must not depend on where the boundary happens to fall. `t1` is
+    fossilised the ordinary way and is what opens the consent gate at
+    all — `reroute_is_fossil` wants strictly fewer crooked arrivals, and
+    a one-pixel slide does not straighten anything.
+
+    Origin: TASK-VOCAB review MIN-1, 2026-08-17 — the branch this pins
+    was written in that task and shipped unexercised.
+    """
+
+    def setUp(self):
+        """Fossilise `t1`, then park `t3` one pixel off its own answer."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("t1", "t3"):
+                e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
+                e["points"] = [[0, 0], [150, -70]]
+                canvas._stamp_route(e)
+        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.store = canvas.Store(self.project)
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        want = next(e for e in canvas.reroute_scene(els)[0]
+                    if e["id"] == "t3")
+        for e in els:
+            if e["id"] == "t3":
+                e.update({"x": want["x"] + 1, "y": want["y"],
+                          "width": want["width"], "height": want["height"],
+                          "points": [list(p) for p in want["points"]]})
+                for key in ("startBinding", "endBinding"):
+                    if want.get(key):
+                        e[key] = dict(want[key])
+                canvas._stamp_route(e)
+        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.store = canvas.Store(self.project)
+
+    def entry(self):
+        """`t3`'s change entry from a dry `reroute_scene` pass.
+
+        Returns:
+            The entry dict, or `{}` when the pass dropped it — which is
+            the pre-ruling behaviour and is asserted against.
+        """
+        _, changes = canvas.reroute_scene(self.store.scenes["checkout-flow"])
+        return next((c for c in changes if c["id"] == "t3"), {})
+
+    def test_the_pre_ruling_rule_would_have_dropped_this_entry(self):
+        """The scene is only worth anything if it sits on the boundary.
+
+        Asserted rather than trusted: if a router change moved `t3` by
+        more than a pixel, or started re-aiming it, this class would go
+        on passing while testing the ordinary path instead of the window
+        it was built for. That is the failure mode a scene-precondition
+        arm exists to prevent.
+        """
+        entry = self.entry()
+        self.assertTrue(entry, "the re-route no longer touches `t3` at all")
+        self.assertLessEqual(
+            entry["moved_px"], canvas.REROUTE_TOL_PX,
+            "`t3` now moves further than the tolerance, so this scene no "
+            "longer sits in the window it was built for: %r" % (entry,))
+        self.assertEqual(
+            [], entry["refocused"],
+            "`t3` is being re-aimed as well as moved, so the old rule "
+            "would have kept it and this scene proves nothing: %r"
+            % (entry,))
+
+    def test_a_one_pixel_move_is_a_changed_path(self):
+        """The byte rule sees what the tolerance cannot."""
+        entry = self.entry()
+        self.assertTrue(
+            entry.get("path_changed"),
+            "a whole pixel of ink moved and the pass called it the same "
+            "drawing — or dropped `t3` from `changes` altogether, which "
+            "is the same silence one step earlier: %r"
+            % (entry or "no change entry at all",))
+
+    def test_the_note_names_the_sub_pixel_move_and_the_fact_fires(self):
+        """Both halves of the one authority, on the same arrow.
+
+        The fact and the prose are asserted together deliberately: they
+        read one predicate now, and the defect this whole task closed was
+        a record where they disagreed. Splitting them across two tests
+        would let a future change satisfy each separately.
+        """
+        rec = self.store.reroute("checkout-flow")
+        self.assertFalse(rec.get("noop"), rec["summary"])
+        self.assertIn(
+            "t3: path moves under 1px", rec.get("user_note") or "",
+            "the note does not describe `t3`'s move in the band it "
+            "actually fell in: %r" % rec.get("user_note"))
+        self.assertIn(
+            "t3", [f.get("arrow") or f.get("element")
+                   for f in rec["artifacts"]["checkout-flow"]["facts"]
+                   if f.get("fact") == "rerouted"],
+            "`t3`'s ink moved and the history did not say so: %r"
+            % (rec["artifacts"]["checkout-flow"]["facts"],))
 
 
 class TestRerouteReachesTheFossilsOnTheFrozenCorpus(unittest.TestCase):

@@ -17410,6 +17410,18 @@ class Store:
         list is filtered, and `path_changed` is the one predicate both
         it and `reroute_line` read.
 
+        THE NOTE'S OPENING COUNT STATES BOTH TRUTHS — "re-routed N of M
+        legacy arrow(s)" — and that is the same ruling reaching one line
+        further than it first did. `M` is what the pass touched; `N` is
+        what it redrew. Writing `M` alone put the NARROWED word in front
+        of the UN-NARROWED number, so the shipped argus record opened
+        "re-routed 9" beside a headline counting 6: the defect this
+        method was fixed for, surviving in the one sentence that had
+        quoted it. Both numbers are required rather than just `N`,
+        because the pass really did touch M arrows and the per-arrow
+        lines below name all M of them — dropping `M` would leave the
+        list longer than the count that introduces it.
+
         GATED ON `reroute_is_fossil`, not on "a pass would change
         something" — that is the difference between a verb the user can
         press once and a verb that writes a revision on every press
@@ -17446,12 +17458,13 @@ class Store:
                                                 "way today's router would "
                                                 "draw it" % aid,
                                     "verb_counts": {}, "suppressed": 0}}
+            redrew = sum(1 for c in changes if c["path_changed"])
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
-                user_note="re-routed %d legacy arrow(s): %s — revert this "
-                          "save to put the old geometry back"
-                          % (len(changes),
+                user_note="re-routed %d of %d legacy arrow(s): %s — revert "
+                          "this save to put the old geometry back"
+                          % (redrew, len(changes),
                              "; ".join(reroute_line(c) for c in changes)),
                 extra_facts={aid: [{"fact": "rerouted", "element": c["id"],
                                     "arrow": c["id"]} for c in changes

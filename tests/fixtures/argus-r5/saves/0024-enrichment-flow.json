@@ -1373,7 +1373,7 @@
  "round": 6,
  "saved_at": "2026-08-17T21:27:10Z",
  "selection_at_save": [],
- "short_id": "df38bfd",
+ "short_id": "9caaac4",
  "summary": {
   "headline": "rerouted f-edgar-sentiment (+5 more)",
   "suppressed": 0,
@@ -1383,5 +1383,5 @@
  },
  "tripwires": [],
  "tripwires_muted": [],
- "user_note": "re-routed 9 legacy arrow(s): f-edgar-insider: path unchanged; start/end re-aimed; f-edgar-sentiment: path moves up to 36px; f-insider-agg: path unchanged; end re-aimed; f-market-ratios: 2-point path becomes 3-point; start re-aimed; f-market-technical: 2-point path becomes 3-point; start re-aimed; f-news-sentiment: path unchanged; start/end re-aimed; f-ratios-agg: 2-point path becomes 3-point; end re-aimed; f-sentiment-agg: 2-point path becomes 3-point; end re-aimed; f-technical-agg: path moves up to 22px; end re-aimed — revert this save to put the old geometry back"
+ "user_note": "re-routed 6 of 9 legacy arrow(s): f-edgar-insider: path unchanged; start/end re-aimed; f-edgar-sentiment: path moves up to 36px; f-insider-agg: path unchanged; end re-aimed; f-market-ratios: 2-point path becomes 3-point; start re-aimed; f-market-technical: 2-point path becomes 3-point; start re-aimed; f-news-sentiment: path unchanged; start/end re-aimed; f-ratios-agg: 2-point path becomes 3-point; end re-aimed; f-sentiment-agg: 2-point path becomes 3-point; end re-aimed; f-technical-agg: path moves up to 22px; end re-aimed — revert this save to put the old geometry back"
 }
