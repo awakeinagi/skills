@@ -89,8 +89,32 @@ repos:
   # Both require `npm --prefix frontends/wysiwyg-grilling ci` once.
   # They fail loudly rather than skipping, so a missing install can never
   # masquerade as a passing check.
+  #
+  # LOUDLY IS NOT THE SAME AS CLEARLY, which is what v0.9 whole-branch
+  # review M-6 measured and what the guard below closes. This comment and
+  # AGENTS.md both promised "a clear message"; what a fresh clone actually
+  # got was `sh: 1: eslint: not found` and exit 127 — a sentence about a
+  # binary, naming neither the cause nor the one command that fixes it.
+  # The guard runs first, on the same file set, so the remedy is the first
+  # thing in the output rather than something to infer from the noise.
+  # ONE hook and not a line in each of the two below, because a remedy
+  # spelled twice is a remedy that drifts.
   - repo: local
     hooks:
+      - id: frontend-deps
+        name: frontend deps installed?
+        entry: >-
+          bash -c 'test -d frontends/wysiwyg-grilling/node_modules && exit 0;
+          echo "frontend dependencies are not installed, so the eslint and tsc hooks cannot run.";
+          echo "Install them once with:";
+          echo "    npm --prefix frontends/wysiwyg-grilling ci";
+          echo "This is provisioning, not a code defect: the hooks fail rather than skip, so a missing install can never masquerade as a passing check.";
+          exit 1'
+        language: system
+        pass_filenames: false
+        require_serial: true
+        files: ^frontends/wysiwyg-grilling/(src/.*\.(ts|tsx)|eslint\.config\.js|tsconfig\.json|package\.json)$
+
       - id: eslint
         name: eslint (frontend)
         entry: npm --prefix frontends/wysiwyg-grilling run --silent lint

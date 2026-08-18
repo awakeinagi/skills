@@ -147,6 +147,22 @@ _TEXT_OVERFLOW_RE = re.compile(
 _LABEL_SHAPE_RE = re.compile(
     r"label (?P<element>[\w-]+) overhangs [\w-]+.*? by (?P<mag>\d+)px — "
     r"the (?:diamond|ellipse) is only \d+px across")
+# v0.9 whole-branch review M-3, the check's second reading. A separate
+# detector and not a widening, for the reason the pair above records:
+# the two sentences carry different REMEDIES, and a regex matching both
+# would let a rewrite print the sizing advice for a placement fault
+# without any pin noticing. The magnitude is the distance the ink lies
+# clear of the body, which is the number the remedy is judged against.
+_LABEL_ADRIFT_RE = re.compile(
+    r"label (?P<element>[\w-]+) is drawn (?P<mag>\d+)px clear of "
+    r"[\w-]+.*? — it is bound to that (?:diamond|ellipse)")
+# v0.9 whole-branch review M-4. The magnitude is the distance to the
+# pin's OWN TARGET and not to the rival, because that is the number the
+# check is complaining about — a pin 8px from its target is fine and a
+# pin 126px from it is the finding, whatever happens to be nearer.
+_PIN_DRIFT_RE = re.compile(
+    r"pin (?P<element>[\w-]+) asks about [\w-]+.*? but is drawn "
+    r"(?P<mag>\d+)px from it and only \d+px from ")
 # The two arms of the text/node overlap loop (canvas.py), which v0.9 WP4
 # (Task 23) made role-BLIND: every free text is measured against every node,
 # and the role picks which sentence comes out. The regexes are deliberately
@@ -263,6 +279,21 @@ _LANE_SPAN_RE = re.compile(
 _CONTRAST_TEXT_RE = re.compile(
     r"text (?P<element>[\w-]+) \(.+?\) is drawn .+? on \S+ and reads "
     r"(?P<mag>[\d.]+):1 — 1\.4\.3 asks [\d.]+:1")
+# v0.9 whole-branch review N-1. THE SECOND 1.4.3 TEMPLATE, and a separate
+# detector rather than a widening of the one above, because the two
+# report different KINDS of answer: that one carries the reading against
+# THE ground, this one carries the worse of TWO grounds a text straddles
+# and says in the same breath that no single reading exists. A regex
+# loose enough to match both would have to drop `on \S+`, and with it
+# the guarantee that the first template names exactly one ground — which
+# is the property C-1 was filed for losing.
+#
+# The magnitude is the WORSE reading, which is the number the sentence
+# leads with and the only one a repair can be judged against.
+_CONTRAST_STRADDLE_RE = re.compile(
+    r"text (?P<element>[\w-]+) \(.+?\) is drawn .+? across TWO grounds — "
+    r".+? — so it has no single reading, and the worse of the two is "
+    r"(?P<mag>[\d.]+):1 where 1\.4\.3 asks [\d.]+:1")
 # The noun is unconstrained rather than an alternation over roles: this
 # check speaks about anything with an outline, and enumerating the nouns
 # here would make a new role silently unmatchable — a `Silence` that
@@ -486,6 +517,15 @@ DETECTORS: dict[str, dict] = {
     # was built. No dirmap — this finding fails on one axis by
     # construction, the label's width against the body's chord.
     "label_overflows_shape": {"lint_re": _LABEL_SHAPE_RE},
+    # v0.9 whole-branch review M-3. Lands with its check and with an
+    # `UNCOVERED` row, the shape this file settled for a fix's own
+    # author: the entry exists so a curator's `Silence("label_adrift")`
+    # asserts something, and the proving mutant is theirs to write.
+    "label_adrift": {"lint_re": _LABEL_ADRIFT_RE},
+    # v0.9 whole-branch review M-4, and the third arrival of this shape
+    # in one change. Registered with the check so a mutant can name it;
+    # the mutant is a curator's.
+    "pin_drift": {"lint_re": _PIN_DRIFT_RE},
     # v0.9 WP4 (Task 23), the same move for the other two: the role-blind
     # text/node arm and the near-miss spacing arm both left ASPIRATIONAL the
     # day their checks landed. `annotation_overlaps_node` joins them from the
@@ -555,6 +595,15 @@ DETECTORS: dict[str, dict] = {
     "contrast_text": {"lint_re": _CONTRAST_TEXT_RE},
     "contrast_object": {"lint_re": _CONTRAST_OBJECT_RE},
     "min_font": {"lint_re": _MIN_FONT_RE},
+    # v0.9 whole-branch review N-1, the fifth of the family. It lands
+    # here in the shape `unreadable_color` set two rows down and for the
+    # identical reason: WITH a `DETECTORS` entry, WITHOUT a proving
+    # mutant, and with an `UNCOVERED` row that says whose the mutant is.
+    # Registering the name with the check is what lets a curator write
+    # `Silence("contrast_straddle")` and have it assert something — an
+    # unregistered name makes a Silence vacuous, which is the failure
+    # `ASPIRATIONAL` exists to prevent.
+    "contrast_straddle": {"lint_re": _CONTRAST_STRADDLE_RE},
     # v0.9 TASK-COLORPARSE, the fourth of that family and the odd one: it
     # reports a measurement that could NOT be taken, so it carries no
     # magnitude at all. `element` is the element that declares the colour
@@ -16498,6 +16547,161 @@ def _fanned_void_foot(shape: str) -> list[dict]:
                customData={"role": "edge", "routed": True})]
 
 
+def _straddle_stage(ink: str = "#ffffff", fill: str = "#1b2a4a",
+                    tx: int = 100) -> list[dict]:
+    """A free text over a filled card, placed and coloured to order.
+
+    THE GROUND IS DECIDED BY GEOMETRY HERE, which is what lets one
+    `shift_label` carry the whole defect. At `tx=100` the 82px of ink
+    lies wholly inside the 200px card, so the fill is the single ground
+    and white on #1b2a4a reads 14.22:1 — legible, and silent. Slide it
+    50px and half the glyphs stand on the paper instead, where the same
+    ink reads 1.06:1. Not one declared colour changed; the picture did.
+
+    THE CARD IS THE ONLY FILL IN THE SCENE, deliberately. The arm this
+    stage exercises resolves both grounds only where exactly one filled
+    element covers part of the text (canvas.py `straddled_grounds`):
+    add a second fill and a lower one may be hidden entirely under a
+    higher one, so naming its colour would name a ground the picture
+    does not show and the arm refuses by construction. A stage that
+    grew a second fill would stop exercising the arm and start
+    exercising the refusal, silently.
+
+    Args:
+        ink: The text's `strokeColor` — the ink whose two readings the
+            straddle arm has to report.
+        fill: The card's `backgroundColor`, which is the ground
+            wherever the card covers the text.
+        tx: The text's x. 100 puts it wholly on the card; 150 straddles.
+
+    Returns:
+        The two-element scene: the card `card`, then the text `hdr`.
+    """
+    return [el(id="card", type="rectangle", x=0, y=0, width=200,
+               height=40, backgroundColor=fill, strokeColor="#1e1e1e",
+               customData={"role": "node"}),
+            el(id="hdr", type="text", x=tx, y=10, width=82, height=20,
+               text="Dashboard", fontSize=16, strokeColor=ink,
+               customData={"role": "annotation"})]
+
+
+def _adrift_label_stage() -> list[dict]:
+    """A rhombus carrying a bound label centred inside its body.
+
+    Silent as built, and one `shift_label` from the M-3 defect: the
+    renderer seats a bound text at its own stored `x` and nothing
+    re-centres it at read time, so a label the user drags in the
+    browser and saves stays where they put it.
+
+    THE NUMBERS ARE CHOSEN FOR THE MAGNITUDE BAND, not for tidiness.
+    At the label's own 20px height the 200x100 rhombus runs from x=20
+    to x=180, so the 55px label centred at x=72 clears the body by 52px
+    on the left and 53px on the right (72, not 72.5, so it sits half a
+    pixel left of exact centring) and the check is right to say
+    nothing. Slide it 400px and the ink runs 472..527, wholly past the
+    body: the overhang is 527 - 180 = 347px. The +/-10% band around
+    that excludes three wrong readings on purpose — 399.5 (centre to
+    centre, which is how far it was DRAGGED rather than how far clear
+    it landed), 292 (the gap to the ink's NEAR edge, where the sibling
+    arm's convention is the total overhang), and 272 (that same gap
+    taken against the BOUNDING BOX, which is the bbox-for-body
+    substitution this whole family exists to catch).
+
+    55px OF INK IS WHAT SEPARATES THOSE THREE, so the width is load
+    bearing: the near-edge reading sits a label-width below the true
+    one and the drag sits `80 - width/2` above it, so a narrower label
+    pulls the near-edge reading into the band and a wider one pulls the
+    drag into it. Around 55px both are ~15% out, which is the widest
+    the two margins get.
+
+    Returns:
+        The two-element scene: the node `d1`, then its bound label `t1`.
+    """
+    return [el(id="d1", type="diamond", x=0, y=0, width=200, height=100,
+               customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=72, y=40, width=55, height=20,
+               text="Ready?", originalText="Ready?", fontSize=16,
+               fontFamily=1, textAlign="center", verticalAlign="middle",
+               containerId="d1")]
+
+
+def _pin_stage() -> list[dict]:
+    """A question pin hugging its own target, with a rival well clear.
+
+    Silent as built: the ❓ sits 8px off `step`, which is exactly
+    `PIN_HUG_PX` and exactly where `pin_spot` mints one, and `gate` is
+    104px away. One `shift_label` carries it across, which is the M-4
+    defect in miniature — `pin_spot` enforces "hugging the target,
+    never in a neighbour" at PLACEMENT time and nothing re-asks it
+    afterwards, so a pin left behind by a node that moved goes on
+    asking its question of whatever it now sits beside.
+
+    THE DRIFTED POSITION IS A 3-4-5 TRIANGLE, and that is the whole
+    reason for the offsets. `_rect_gap` returns a HYPOTENUSE, so a pin
+    displaced along one axis only would make the true distance equal to
+    that axis's gap and no band could tell a hypotenuse from a
+    component. At 36px right of `step`'s edge and 48px below it the
+    distance is 60px exactly, and the three numbers are three different
+    numbers.
+
+    WHAT THE +/-10% BAND AROUND 60 THEREFORE EXCLUDES, each of them a
+    reading somebody could plausibly take: 16 (the RIVAL's distance,
+    which is the one thing the detector's own comment says this
+    magnitude must not be), 36 and 48 (either leg alone) and 84 (their
+    sum), 134.5 and 75.4 (centre to centre, to the target and to the
+    rival — the metric `_rect_gap`'s docstring argues against, since a
+    ❓ is a box sitting beside a box), and 52 (the distance with the
+    standoff already subtracted).
+
+    Returns:
+        The three-element scene: the target `step`, the rival `gate`,
+        then the pin `q1`.
+    """
+    return [el(id="step", type="rectangle", x=0, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=136, y=150, width=120,
+               height=60, customData={"role": "node"}),
+            el(id="q1", type="text", x=108, y=20, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_on_a_screen_stage() -> list[dict]:
+    """A correctly placed ❓ whose target is drawn inside a screen.
+
+    THE CONTROL PINS THE GATE AND NOT GEOMETRY THAT WOULD BE SILENT
+    ANYWAY, which is the harder half to build here. A pin hugging a
+    button inside a panel is nearer the panel than the button BY
+    CONSTRUCTION, so `pin_spot`'s own "a frame is not a neighbour" rule
+    is all that stands between this check and a finding on every
+    correctly-placed pin on every wireframe — and a control where some
+    other clause also happened to silence the scene would not notice if
+    that rule were deleted.
+
+    THE MARGIN HERE IS EXACTLY ZERO, deliberately. The ❓ sits 8px off
+    `btn` — `PIN_HUG_PX`, the minted standoff — and lies inside
+    `screen`, so the screen's gap is 0 and the difference is 8, which
+    is precisely the threshold the check fires at. Nothing but
+    `_rect_contains` is keeping this quiet: with that predicate stubbed
+    to False the same scene reports "8px from it and only 0px from
+    screen".
+
+    Returns:
+        The three-element scene: the screen, the target `btn` inside
+        it, then the pin `q1`.
+    """
+    return [el(id="screen", type="rectangle", x=0, y=0, width=400,
+               height=200, customData={"role": "node"}),
+            el(id="btn", type="rectangle", x=40, y=40, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="q1", type="text", x=148, y=60, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "btn",
+                           "status": "open", "question": "which one?"})]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -19965,6 +20169,123 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _styled_scene(stroke="#d3d3d3"),
                         Silence("unreadable_color"))))
 
+# v0.9 whole-branch review N-1's acceptance test, written here because
+# the hands that write a fix do not write its acceptance test (curator
+# batch 35, 2026-08-18). GREEN ON ARRIVAL and not red: the arm landed
+# with the review, so what this pins is that it keeps speaking — and
+# keeps saying the WORSE of the two numbers.
+#
+# WHAT THE DRAWING GETS WRONG. Half of "Dashboard" stands on the navy
+# card and half on the paper, so the white ink reads 14.22:1 over one
+# and 1.06:1 over the other and has no single reading at all. The two
+# ways to answer that wrongly are exactly what this band excludes.
+# Reporting 14.22 — or saying nothing, which is what the blocker
+# round's refusal did — tells a user their illegible label is fine.
+# Inventing one blended ground is C-1, the defect the refusal was filed
+# for, and a 50/50 blend of these two grounds scores 3.17:1, which the
+# +/-10% band around 1.06 refuses as firmly as it refuses 14.22.
+#
+# THE NEIGHBOUR HOLDS THE GEOMETRY AND MOVES THE COLOUR, which is the
+# only pairing that proves this is a legibility check rather than an
+# overlap check wearing a contrast message. Same straddle, same 50px of
+# cover, both readings legible: #1e1e1e is 16.67:1 on the white card
+# and 15.70:1 on the paper. A check that fired on "text partly over a
+# filled thing" would satisfy the mutant and fail here — and that check
+# already exists, which is why the pairing is not theoretical:
+# `annotation_overlaps_node` fires on BOTH of these scenes, at 1000px²
+# each, while `contrast_straddle` must tell them apart.
+_register(Mutant(
+    "straddle_reads_the_worse_of_two_grounds",
+    build=_straddle_stage,
+    op="shift_label", args={"text_id": "hdr", "dx": 50, "dy": 0},
+    expect=FindingSpec("contrast_straddle", element="hdr",
+                       magnitude=(1.06, 0.10)),
+    neighbour=Neighbour(lambda: _straddle_stage(ink="#1e1e1e",
+                                                fill="#ffffff", tx=150),
+                        Silence("contrast_straddle"))))
+
+# v0.9 whole-branch review M-3's acceptance test — same batch, same
+# reason, and green on arrival for the same reason as the pair above.
+#
+# WHAT THE DRAWING GETS WRONG. A label bound to the rhombus is parked
+# 400px away from it and the renderer paints it there: `render_svg`
+# seats a bound text at its own stored `x`, and `recenter_label` is an
+# opt-in step on the MUTATION paths, so a label dragged in the browser
+# and saved keeps wherever the user put it. Measured at `10dc4bf` this
+# scene drew ZERO findings, because `over = drawn_w - room` compared
+# two WIDTHS and a 55px label is narrower than the 160px of chord it is
+# nowhere near. Comparing INTERVALS is the fix that flips it, and it
+# reduces to the old arithmetic exactly when the label is centred —
+# which is why the fix moved no number on the 24-artifact corpus and
+# why this pair, not the corpus, is the evidence that it works.
+#
+# THE MAGNITUDE IS THE CLEAR-OF DISTANCE, 347px, and the stage's
+# docstring derives the band: it excludes the drag distance (399.5),
+# the near-edge gap (292), and that gap taken against the bounding box
+# (272).
+#
+# THE NEIGHBOUR IS THE SIBLING ARM'S OWN SCENE, which is the control
+# this defect needs and not merely a quiet one. `_labelled_shape(
+# "diamond")` is an OVERSIZED but CENTRED label: it overhangs by 11px
+# and must come out as `label_overflows_shape`, a sizing fault with a
+# sizing remedy, while `label_adrift` stays silent on it. The two
+# sentences are not interchangeable — "shorten it" cannot help a label
+# 347px clear of anything — so a rewrite that merged them would pass
+# the mutant and fail here. Sharing the base scene with
+# `diamond_label_overflows_shape` is deliberate as well: one stage now
+# carries both arms of the check, and the arms differ by their
+# magnitude and their remedy rather than by their fixture.
+_register(Mutant(
+    "label_dragged_clear_of_its_owner",
+    build=_adrift_label_stage,
+    op="shift_label", args={"text_id": "t1", "dx": 400, "dy": 0},
+    expect=FindingSpec("label_adrift", element="t1",
+                       magnitude=(347, 0.10)),
+    neighbour=Neighbour(lambda: _labelled_shape("diamond"),
+                        Silence("label_adrift"))))
+
+# v0.9 whole-branch review M-4's acceptance test, the third of the three
+# checks that landed that day named-but-unproven, and drained by the same
+# batch for the same reason (curator batch 35, 2026-08-18). Green on
+# arrival.
+#
+# WHAT THE DRAWING GETS WRONG. The ❓ asks about `step` and is drawn
+# beside `gate`, and a reader has nothing but position to go on: a pin
+# carries no line back to its subject, so on the canvas it simply IS
+# the question of whatever it sits next to. `pin_spot` owns the rule
+# already — "hugging the target, never in a neighbour" — but enforces
+# it when the glyph is PLACED, so a pin left behind by a node that
+# moved keeps a placement that was right when it was made. The check is
+# that rule read back at lint time, and it reports the DIVERGENCE
+# rather than a remedy: the pin may be misplaced, or it may have been
+# asking about the other node all along and the `target` is the error,
+# and no check can tell those apart.
+#
+# THE MAGNITUDE IS THE DISTANCE TO ITS OWN TARGET — 60px — and not the
+# 16px to the rival, which is the single reading this entry exists to
+# forbid. A check reporting the rival's distance would be describing
+# the very thing that makes the pin look misattributed and calling it
+# the complaint. The stage's docstring derives the rest of the band:
+# 36/48/84 (the legs and their sum, against a metric that is a
+# hypotenuse), 134.5/75.4 (centre to centre), 52 (the standoff already
+# subtracted).
+#
+# THE NEIGHBOUR IS A GATE PIN, not a quiet scene. Its ❓ is correctly
+# placed at the minted 8px standoff, its target is inside a screen, and
+# the screen is nearer than the target by construction — so the
+# containment rule is the ONLY thing holding it silent, at a margin of
+# exactly zero. Stubbing `_rect_contains` to False makes that same
+# scene report "8px from it and only 0px from screen", which is what a
+# check without the rule would say about every correctly-placed pin on
+# every wireframe this skill draws.
+_register(Mutant(
+    "pin_drifts_onto_a_rival_node",
+    build=_pin_stage,
+    op="shift_label", args={"text_id": "q1", "dx": 28, "dy": 88},
+    expect=FindingSpec("pin_drift", element="q1",
+                       magnitude=(60, 0.10)),
+    neighbour=Neighbour(_pin_on_a_screen_stage, Silence("pin_drift"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -21190,6 +21511,37 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same label in a 120px box has room, and the check is quiet."""
         self._run_neighbour("wrapped_label_overflows_its_box")
 
+    def test_mutant_straddle_reads_the_worse_of_two_grounds(self) -> None:
+        """Half a white word on cream paper reads 1.06:1, not 14.22:1."""
+        # Green: the arm fires and is right to. What had never been
+        # asserted anywhere is that it fires with the WORSE number.
+        self._run("straddle_reads_the_worse_of_two_grounds")
+
+    def test_neighbour_straddle_reads_the_worse_of_two_grounds(
+            self) -> None:
+        """The same straddle in legible colours draws no contrast finding."""
+        self._run_neighbour("straddle_reads_the_worse_of_two_grounds")
+
+    def test_mutant_label_dragged_clear_of_its_owner(self) -> None:
+        """A label parked off its rhombus is measured from where it sits."""
+        # Green: the interval comparison landed with the review. The
+        # width comparison it replaced said nothing at all here.
+        self._run("label_dragged_clear_of_its_owner")
+
+    def test_neighbour_label_dragged_clear_of_its_owner(self) -> None:
+        """An oversized CENTRED label is a sizing fault, not a placement."""
+        self._run_neighbour("label_dragged_clear_of_its_owner")
+
+    def test_mutant_pin_drifts_onto_a_rival_node(self) -> None:
+        """The ❓ is 60px from what it asks about and 16px from the rest."""
+        # Green: the check fires and reports its OWN target's distance.
+        # Nothing had asserted which of the two numbers it leads with.
+        self._run("pin_drifts_onto_a_rival_node")
+
+    def test_neighbour_pin_drifts_onto_a_rival_node(self) -> None:
+        """A screen is not a rival for the button drawn inside it."""
+        self._run_neighbour("pin_drifts_onto_a_rival_node")
+
     def test_red_mutants_are_red_by_mismatch_not_by_error(self) -> None:
         """Every expectedFailure above is red for the reason it claims.
 
@@ -21561,6 +21913,24 @@ UNCOVERED: dict[str, str] = {
         "landed 2026-08-14 (WP4b e15) with unit tests on both poles but "
         "no CATALOGUE mutant — hygiene, not a missed defect; drain it "
         "with a DETECTORS lint_re over the fault clauses",
+    # THREE ROWS WERE ADDED HERE ON 2026-08-18 AND DELETED THE SAME DAY,
+    # by curator batch 35: `contrast_straddle` (N-1), `label_adrift`
+    # (M-3) and `pin_drift` (M-4), each landing with its check and its
+    # own `UNCOVERED` reason, each drained by a pair the fix's author was
+    # forbidden to write — `straddle_reads_the_worse_of_two_grounds`,
+    # `label_dragged_clear_of_its_owner`, `pin_drifts_onto_a_rival_node`.
+    # The round trip is the pattern working rather than three rows that
+    # failed to stick: a check arrives NAMED as unproven, and other hands
+    # prove it.
+    #
+    # All three mutants are green on arrival, so none of them pins a
+    # defect — what each pins is that its check keeps saying its OWN
+    # number, which is the thing a rewrite loses silently: the worse of
+    # two real grounds, the distance the ink lies clear of the body, and
+    # the distance to the pin's own target rather than to the rival it
+    # ended up beside. Each was watched go red under ablation before it
+    # was believed, because a green mutant on a working detector is
+    # indistinguishable from a green mutant on a dead one.
     "half_unbound_endpoint":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
@@ -24271,13 +24641,76 @@ class TestCoverage(unittest.TestCase):
         two existing endpoint findings. That is the 58 -> 61 judgement
         applied to refusals rather than to arms: a check speaks once per
         element however many reasons it had not to.
+
+        63 -> 64 on 2026-08-18 (v0.9 whole-branch review, N-1):
+        `contrast_straddle`, the reading for a text lying across two
+        grounds. THIS IS THE FIRST ROW THAT ADDS A SITE WITHOUT ADDING A
+        CHECK, and the distinction is worth stating because the
+        58 -> 61 rule above ("three sites for three checks, not for the
+        arms they carry") reads like it forbids this one.
+
+        It does not, and the reason is the rule's own justification.
+        That rule refuses a second site for a second ARM of one answer —
+        four templates saying the same repair with different numbers.
+        Here the answer itself is different in kind: `contrast_text`
+        reports a reading against THE ground, and this reports that
+        there is no single ground, gives the worse of the two real ones,
+        and offers a repair that is often GEOMETRIC rather than
+        chromatic (measured: white ink across a navy box and cream paper
+        has no shade of its hue clearing 4.5:1 on both). One sentence
+        cannot carry both shapes without inventing the single ratio C-1
+        was filed for inventing.
+
+        And the element-level property the 58 -> 61 rule actually
+        protects is intact: the new site is the `elif` of the old one on
+        `bg is None`, so a text still gets EXACTLY ONE 1.4.3 sentence
+        however its ground resolved. The census counts channels; what
+        the rule counts is answers per element, and that is still one.
+
+        It arrives with a `DETECTORS` entry and an `UNCOVERED` row —
+        the `unreadable_color` shape, for the `unreadable_color` reason.
+
+        64 -> 65 on 2026-08-18 (v0.9 whole-branch review, M-3):
+        `label_adrift`, the second reading of the label-overhang check.
+        The SAME shape as the row above and for the same reason — one
+        check, two answers that cannot share a sentence — but here the
+        split is in the REMEDY rather than in the measurement. A label
+        wider than its owner is a sizing fault and the advice is
+        "shorten it, widen the node"; a label the user dragged clear of
+        its owner is a placement fault, and "shorten it" is advice that
+        cannot work, because at 380px clear of a 200px diamond no
+        shorter string helps. The old sentence was printed for both.
+
+        Again the element-level property holds: the two arms are the
+        branches of one `if`, so a label still gets exactly one finding
+        from this check however it failed.
+
+        `UNCOVERED` for the same reason again — the differential is in
+        `tests/test_backend.TestShapeAwareLabelRoom`, and what a curator
+        needs is that the firing pole is a bound label moved clear of
+        its owner while the silence that must survive is a CENTRED
+        label that fits, which is every label the tool mints.
+
+        65 -> 66 on 2026-08-18 (v0.9 whole-branch review, M-4):
+        `pin_drift`, the ❓ that sits on a node other than the one its
+        question names. Unlike the two rows above this is a NEW check
+        rather than a second reading of an old one, so the 58 -> 61
+        rule applies to it in the ordinary way: one site, one check, one
+        sentence per pin however it drifted.
+
+        It reports the DIVERGENCE and not a remedy, which is the
+        deliberate part: the pin may be in the wrong place, or it may
+        have been asking about the other node all along and the
+        `target` is what is wrong, and this check cannot tell those
+        apart. Both distances are in the sentence so the reader can
+        judge the strength of the reading rather than take its word.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 63,
+        self.assertEqual(sites, 66,
                          "canvas.py lint_layout append-site count changed "
-                         "(63 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(66 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

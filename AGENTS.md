@@ -7,15 +7,25 @@ file; `CLAUDE.md` points here. Read it before writing code.
 
 | Path | What | Language |
 | --- | --- | --- |
-| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~23.3k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
+| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~23.8k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
 | `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~4.3k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
-| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->809<!-- /live:test_backend_cases --> tests — the largest module in a `tests/` tree that also holds the mutation harness and the render tier. | Python |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->822<!-- /live:test_backend_cases --> tests — the largest module in a `tests/` tree that also holds the mutation harness and the render tier. | Python |
+| `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. It currently lints to <!-- live:corpus_census -->0 errors / 51 warnings / 27 notes across 28 artifacts in 5 projects<!-- /live:corpus_census -->. | Excalidraw JSON |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
 released skill is self-contained.
 
-Three numbers in that table are **live values**, not literals: an
+**Quote the corpus census from that row, never from a measurement you took.**
+Two reviewers reading the same corpus published `0/46/27` and `0/38/20`, and
+neither was careless — they counted different things and nothing said which.
+The scopes column is why: `lint_lines()` reports the registry as a scope with
+findings of its own and no artifact behind it, so a per-artifact walk sums
+lower and does so for a reason rather than by rounding. The calculator's
+docstring in `tests/livedoc.py` has both conventions and which one this number
+is.
+
+Four numbers in that table are **live values**, not literals: an
 `<!-- live:NAME -->` / `<!-- /live:NAME -->` comment pair wraps a value that
 `tests/livedoc.py` computes, and `python3 tests/livedoc.py check` runs as a
 pre-commit hook so they cannot go stale. Every one of them had — this table
@@ -203,6 +213,15 @@ manually, `uvx pre-commit run --all-files`. To update pinned tool versions,
 The frontend hooks need `node_modules`; run
 `npm --prefix frontends/wysiwyg-grilling ci` once, or those hooks will fail
 with a clear message rather than silently passing.
+
+That sentence was **not true until 2026-08-18** (v0.9 whole-branch review,
+M-6): a fresh clone got `sh: 1: eslint: not found` and exit 127, which is
+loud but names neither the cause nor the fix. The `frontend-deps` hook now
+runs first on the same file set and prints the `npm ci` line, so the promise
+above is kept by a check rather than by this paragraph. Recorded rather than
+quietly corrected, because "the docs described a behaviour the tool did not
+have" is the class this repo keeps finding and the useful part is the
+pattern.
 
 ## Formatting — no autoformatter
 

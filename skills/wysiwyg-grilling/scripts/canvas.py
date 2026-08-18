@@ -5646,8 +5646,37 @@ def oblique_arrivals(els):
         `[(arrow_id, "start"|"end")]` for every bound endpoint over
         `REROUTE_SQUARE_TOL`, in scene order.
     """
+    return arrival_census(els)[0]
+
+
+def arrival_census(els):
+    """The crooked arrivals AND how many were examined to find them.
+
+    Split out for v0.9 whole-branch review M-5. `reroute_decline` said
+    "nothing on X arrives crooked" and that sentence was byte-identical
+    for an artifact with five square arrows and one with no arrows at
+    all — a bare zero, reporting a denominator it never named. The
+    denominator was never missing, only discarded: this walk already
+    decides which endpoints it can measure, and the count is what it
+    measured.
+
+    ONE WALK, not two. `oblique_arrivals` is now this function's first
+    element, because a second loop deciding "is this a measurable bound
+    endpoint" is a second chance to disagree with the first about
+    exactly the population the sentence claims to have checked.
+
+    Args:
+        els: A scene's elements.
+
+    Returns:
+        `(crooked, examined)` — the `[(arrow_id, "start"|"end")]` list
+        `oblique_arrivals` answers with, and the number of bound
+        endpoints this walk was able to take a reading on. Endpoints it
+        SKIPPED are not counted: an arrow with no arrival path is not
+        something the sentence may claim arrives square.
+    """
     ix = {e["id"]: e for e in els}
-    out = []
+    out, examined = [], 0
     for a in els:
         if a.get("type") != "arrow":
             continue
@@ -5663,12 +5692,13 @@ def oblique_arrivals(els):
             vx, vy = foot[0] - prev[0], foot[1] - prev[1]
             if side is None or not (vx or vy):
                 continue
+            examined += 1
             nx, ny = _SIDE_NORMALS[side]
             cos = abs((vx * nx + vy * ny) / math.hypot(vx, vy))
             lean = math.degrees(math.acos(max(-1.0, min(1.0, cos))))
             if lean > REROUTE_SQUARE_TOL:
                 out.append((a["id"], "end" if at_end else "start"))
-    return out
+    return (out, examined)
 
 
 def reroute_is_fossil(els):
@@ -5766,9 +5796,22 @@ def reroute_decline(els, aid):
     Returns:
         The decline sentence, true of whichever case applies.
     """
-    crooked = len(oblique_arrivals(els))
+    found, examined = arrival_census(els)
+    crooked = len(found)
     if not crooked:
-        return "nothing on %s arrives crooked — leaving it as drawn" % aid
+        # THE BARE ZERO, named (v0.9 whole-branch review, M-5). This
+        # read "nothing on X arrives crooked" whether the pass had
+        # measured five square arrivals or none at all, so the one
+        # sentence covered "your drawing is already square" and "there
+        # was nothing here to look at" — and the second is the case
+        # where a user is most likely to think the tool checked
+        # something. The count comes from the same walk that found the
+        # zero, so it can never describe a different population.
+        if not examined:
+            return ("nothing on %s arrives crooked — it has no bound "
+                    "arrow endpoints to measure" % aid)
+        return ("all %d bound endpoint(s) on %s already arrive square — "
+                "leaving it as drawn" % (examined, aid))
     return ("%d endpoint(s) on %s still arrive crooked, but a re-route "
             "would not straighten any of them — leaving it as drawn. The "
             "remedy is the drawing, not the router: move the nodes apart, "
@@ -6028,6 +6071,70 @@ def op_field_faults(op: dict[str, Any]) -> list[str]:
             faults.append("needs a string `question`, got %r" % (question,))
     if kind == "mod" and isinstance(op.get("attrs"), dict):
         faults.extend(element_field_faults(op["attrs"]))
+    return faults
+
+
+# Every TOP-LEVEL body field the routes beneath look something up by:
+# each is a dict key, a `in self.store.records` membership test or a
+# scene id, and every one of those dies on `unhashable type` the moment
+# a container arrives. The list is the identities and nothing else —
+# `scenes` is legitimately an object, `ops`, `selection` and `files`
+# are legitimately lists, and widening this to "every field" would
+# reject the protocol's own bodies.
+IDENTITY_FIELDS = ("artifact", "id", "revn", "base_revn", "name",
+                   "supersedes", "pending_id", "fork_name")
+
+
+def body_identity_faults(body: dict[str, Any]) -> list[str]:
+    """Say why a request body's identities cannot be looked up, or nothing.
+
+    THE DEFECT THIS EXISTS FOR (v0.9 whole-branch review, M-2/N-2). The
+    blocker round closed the SCALAR hole one layer up — `null`, `[]`,
+    `"str"` and `42` as the whole body now come back 400 — and said so
+    precisely, claiming nothing about what a well-shaped body may carry
+    INSIDE it. A container-typed identity still reached the lookups:
+    measured over every POST route at `10dc4bf`, `{"artifact": ["demo"]}`
+    and its siblings produced 21 raw escapes across seven routes —
+    `/api/reroute`, `/api/tidy`, `/api/checkout`, `/api/mermaid/poll`,
+    `/api/mermaid/complete` and `/api/screenshot/complete` answering
+    `500 {"error": "unhashable type: 'list'"}`, and `/api/apply` reaching
+    the batch envelope's backstop to answer `422 "internal error
+    validating the batch — TypeError: unhashable type: 'list'"`. A
+    Python type name is not a sentence an agent can act on, and a 500
+    says the server broke when the caller sent the wrong thing.
+
+    ONE GATE AT THE DISPATCH POINT, for the reason the shape gate beside
+    it gives in full: the identity contract is the PROTOCOL's and not
+    any endpoint's, so seven guards would be seven chances for the
+    eighth route to be born without one. The batch pipeline already
+    reasons this way — `op_field_faults` checks `id` once "because
+    identity is a string in every consumer beneath" — and this is that
+    same rule at the server's door, which is the layer that never got
+    it.
+
+    WHY THIS DOES NOT DUPLICATE `op_field_faults`: that one reads ops
+    INSIDE a batch and this one reads the envelope AROUND it. They meet
+    at `/api/apply`, where `body["artifact"]` is this function's and
+    `body["ops"][n]["id"]` is the other's, and neither can see the
+    other's field.
+
+    Args:
+        body: A decoded request body, already known to be a dict.
+
+    Returns:
+        A phrase per fault, each ready to follow "cannot act on this
+        request: ". Empty when every identity present can be looked up.
+        A scalar of the wrong type passes: `{"artifact": 42}` already
+        answers `unknown artifact 42`, which names the real fault, and
+        widening this to types would replace a true sentence with a
+        vaguer one.
+    """
+    faults = []
+    for field in IDENTITY_FIELDS:
+        value = body.get(field)
+        if isinstance(value, (list, dict)):
+            faults.append("`%s` names one thing, so it cannot be a %s — got %r"
+                          % (field, type(value).__name__, value))
     return faults
 
 
@@ -9287,6 +9394,48 @@ def _text_rect(t):
     return {"type": "rectangle", "x": x, "y": y, "width": w, "height": h}
 
 
+def shape_band_span(el, y0, y1):
+    """WHERE a node's rendered body is across a horizontal band.
+
+    The interval `shape_band_width` reduces to a length. Split out for
+    v0.9 whole-branch review M-3: the label-overhang check compared two
+    WIDTHS, which silently assumes the label and its owner share a
+    centre, and a label that has drifted off that centre — or been
+    dragged 200px clear of the node entirely — reported exactly what a
+    centred one did. A width cannot answer "is the ink inside the
+    outline"; only the interval can, and the interval was already being
+    computed here and thrown away.
+
+    Args:
+        el: The container element (`type`, `x`, `y`, `width`, `height`).
+        y0: One edge of the band, in scene coordinates.
+        y1: The other edge — need not be below `y0`.
+
+    Returns:
+        `(left, right)` in SCENE COORDINATES — the NARROWEST horizontal
+        extent of the body anywhere in the band, which for these convex
+        shapes symmetric about their centre line is the intersection of
+        the two edge probes. `None` when the band lies wholly outside
+        the shape, so a caller can tell "no room here" from "no room at
+        all".
+
+        Scene coordinates and not `shape_clip`'s parameters: that
+        function answers in `t` along the ray from the origin it was
+        given, and every one of this module's other callers uses it as a
+        DISTANCE. An interval is only useful here if it says where, so
+        the origin is added back once, here, rather than at each caller.
+    """
+    cx = el.get("x", 0) + el.get("width", 0) / 2.0
+    lo = hi = None
+    for y in (y0, y1):
+        seg = shape_clip(el, cx, y, 1.0, 0.0)
+        if seg is None or seg[1] <= seg[0]:
+            return None
+        lo = cx + seg[0] if lo is None else max(lo, cx + seg[0])
+        hi = cx + seg[1] if hi is None else min(hi, cx + seg[1])
+    return None if lo is None or hi <= lo else (lo, hi)
+
+
 def shape_band_width(el, y0, y1):
     """How wide a node's RENDERED body is across a horizontal band.
 
@@ -9313,13 +9462,12 @@ def shape_band_width(el, y0, y1):
         one.
 
     """
-    cx = el.get("x", 0) + el.get("width", 0) / 2.0
-    room = None
-    for y in (y0, y1):
-        seg = shape_clip(el, cx, y, 1.0, 0.0)
-        wide = 0.0 if seg is None else max(seg[1] - seg[0], 0.0)
-        room = wide if room is None else min(room, wide)
-    room = 0.0 if room is None else room
+    # ONE READER OF THIS GEOMETRY, not two: the span above probes the
+    # same two band edges and keeps the interval, and a second walk here
+    # would be a second chance for the two to disagree about where a
+    # rhombus's edge is.
+    span = shape_band_span(el, y0, y1)
+    room = 0.0 if span is None else max(span[1] - span[0], 0.0)
     # An integer-width box must give back an integer room. The clip
     # divides by a half-width and multiplies it back, so 72 of the 781
     # integer widths in 20..800 return inexact — and 210 returns
@@ -9557,6 +9705,63 @@ def marker_anchor(el, dx=0, dy=0, corner="br"):
     return (x, el.get("y", 0) + h - h * inset / 2 + dy)
 
 
+# How far a ❓ glyph stands off the shape it hugs. Named because it is
+# now read twice: `pin_spot` PLACES at this distance, and the drift lint
+# in `lint_layout` uses it as the margin at which a rival counts as
+# unambiguously nearer than the pin's own target (v0.9 whole-branch
+# review, M-4). Deriving the lint's threshold from the placement rule is
+# what keeps it from being an invented constant: a difference smaller
+# than the tool's own hug distance is inside its placement tolerance and
+# not a claim worth making.
+PIN_HUG_PX = 8
+
+
+def _rect_gap(a, b):
+    """Clearance between two elements' boxes, 0 when they touch.
+
+    BOXES AND NOT OUTLINES, deliberately, and the same reading
+    `pin_spot`'s collision test takes: a ❓ glyph is a box, what it
+    reads as attached to is whatever box it is nearest, and clipping to
+    a rhombus's outline here would answer a question about ink for a
+    marker whose whole job is to sit in the air beside a shape. It is
+    also the metric the whole-branch review measured M-4 with — its
+    headline instance reproduces at 8.0px from this function.
+
+    Args:
+        a: One element (`x`, `y`, `width`, `height`).
+        b: The other.
+
+    Returns:
+        Euclidean distance between the two rectangles, 0 if they
+        overlap or touch.
+    """
+    ax1, ay1 = a.get("x", 0), a.get("y", 0)
+    ax2, ay2 = ax1 + a.get("width", 0), ay1 + a.get("height", 0)
+    bx1, by1 = b.get("x", 0), b.get("y", 0)
+    bx2, by2 = bx1 + b.get("width", 0), by1 + b.get("height", 0)
+    return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
+                      max(by1 - ay2, ay1 - by2, 0))
+
+
+def _rect_contains(outer, inner):
+    """Does `outer`'s box hold all of `inner`'s?
+
+    Args:
+        outer: The candidate container.
+        inner: The candidate contained element.
+
+    Returns:
+        True when `inner` lies wholly within `outer`'s box, which is
+        what makes `outer` a screen rather than a rival for it.
+    """
+    return (outer.get("x", 0) <= inner.get("x", 0)
+            and outer.get("y", 0) <= inner.get("y", 0)
+            and outer.get("x", 0) + outer.get("width", 0)
+            >= inner.get("x", 0) + inner.get("width", 0)
+            and outer.get("y", 0) + outer.get("height", 0)
+            >= inner.get("y", 0) + inner.get("height", 0))
+
+
 def pin_spot(anchor, els, size=26):
     """Where a ❓ glyph sits: hugging the target, never in a neighbour.
 
@@ -9591,7 +9796,8 @@ def pin_spot(anchor, els, size=26):
     Returns:
         `(x, y)` for the glyph.
     """
-    px, py = marker_anchor(anchor, dx=8, dy=-8, corner="tr")
+    px, py = marker_anchor(anchor, dx=PIN_HUG_PX, dy=-PIN_HUG_PX,
+                           corner="tr")
     gx1, gy1, gx2, gy2 = px, py, px + size, py + size
     for e in els:
         if e is anchor or e.get("id") == anchor.get("id"):
@@ -12084,13 +12290,22 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             e: The element whose ground is wanted.
 
         Returns:
-            `(element, whole)` — the topmost filled element beneath `e`,
-            and whether it covers `e`'s drawn rect ENTIRELY. `(None,
-            False)` when the drawing puts nothing under it.
+            `(element, whole, n)` — the topmost filled element beneath
+            `e`, whether it covers `e`'s drawn rect ENTIRELY, and HOW
+            MANY filled elements overlap it at all. `(None, False, 0)`
+            when the drawing puts nothing under it.
+
+            The count is what lets the straddle arm below tell the one
+            case whose grounds are CERTAIN — a single cover, so the
+            uncovered remainder is paper and nothing else — from a stack
+            where a lower fill may be hidden entirely by a higher one
+            and naming it would be naming a colour the picture does not
+            show. It is derived here rather than by a second walk
+            because this loop is the only reader of that geometry.
         """
         above = zorder.get(e.get("id"))
         if above is None:
-            return (None, False)
+            return (None, False, 0)
         x, y = e.get("x", 0), e.get("y", 0)
         w, h = e.get("width", 0), e.get("height", 0)
         # A text is posed as a box for `shape_overlap`, exactly as the
@@ -12099,7 +12314,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # outline and not on the 82.8px of empty bbox corner that
         # outline leaves.
         probe = _text_rect(e) if e.get("type") == "text" else e
-        top, whole = None, False
+        top, whole, seen_n = None, False, 0
         for n in els[:above]:
             if n.get("type") not in GROUND_TYPES:
                 continue
@@ -12121,8 +12336,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # that shape's own full extent. Both axes full is therefore
             # containment, and anything short of it is a cover that
             # leaves part of the element on a different colour.
+            seen_n += 1
             top, whole = n, (ox >= w - 0.5 and oy >= h - 0.5)
-        return (top, whole)
+        return (top, whole, seen_n)
 
     def drawn_on(e):
         """The colour `e` is painted over, per the settled resolution order.
@@ -12218,7 +12434,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 return composite_over(col, ground, host.get("opacity", 100))
         if not e.get("containerId") and (e.get("type") == "text"
                                          or e.get("type") in GROUND_TYPES):
-            under, whole = painted_under(e)
+            under, whole, _n = painted_under(e)
             if under is not None:
                 if not whole:
                     # TEXT ONLY REFUSES; a box-filling shape keeps the
@@ -12241,6 +12457,115 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                         return composite_over(col, ground,
                                               under.get("opacity", 100))
         return ground
+
+    def straddled_grounds(e):
+        """The two CERTAIN grounds under a text that half-covers one box.
+
+        THE SILENCE THIS EXISTS FOR (v0.9 whole-branch review, N-1). The
+        blocker round made `drawn_on` refuse on a partial cover, and the
+        refusal is right as far as it goes — a text block standing on
+        two colours has no single ratio, and inventing one is the defect
+        C-1 was. But refusing left a genuinely unreadable label with NO
+        legibility finding at all: measured at `10dc4bf`, white text
+        half on a white box reads 1.00:1 over the box and 1.06:1 over
+        the paper — illegible on both — and `lint_layout` said only that
+        it overlapped something, which is a sentence about geometry. The
+        review's own words: what the user gets "is a sentence about
+        geometry, not legibility".
+
+        REPORTING THE WORSE OF TWO REAL READINGS IS NOT GUESSING. Both
+        numbers are measured against colours the picture actually shows,
+        both are named in the finding, and no third invented ground
+        appears — so the doctrine survives intact while the signal comes
+        back. What is refused is the *single* ratio, not the reading.
+
+        WHY EXACTLY ONE COVER, AND NOT A STACK. With one filled element
+        overlapping the text, both grounds are certain: the box where it
+        covers, the paper where it does not. Add a second fill and the
+        certainty goes — a lower one may be hidden entirely under a
+        higher one, so naming its colour would name a ground the picture
+        does not show, and whether any paper still shows would need a
+        union of the covered regions this check has no reader for. So a
+        stack keeps refusing. That is a deliberate UNDER-report: the
+        arm can miss a straddle it cannot prove, and it can never invent
+        one. Missing is the same direction the code already erred in;
+        inventing is the direction C-1 was.
+
+        Args:
+            e: The text whose grounds are wanted.
+
+        Returns:
+            `(cover_id, [(label, rgb), (label, rgb)])` — the element
+            doing the covering, and the two grounds each named for the
+            message. Worst-first is NOT imposed here; the caller sorts
+            by reading. None when `e` is not a single-cover straddle,
+            or when the cover's own colour is declared and unreadable —
+            which keeps that case refusing exactly as before, with the
+            `unreadable_color` finding on the owning element still
+            carrying the fact.
+        """
+        if e.get("type") != "text" or e.get("containerId"):
+            return None
+        if parse_color(e.get("backgroundColor")) is not None:
+            return None         # its own fill is the ground; not a straddle
+        under, whole, n_fills = painted_under(e)
+        if under is None or whole or n_fills != 1:
+            return None
+        ub = under.get("backgroundColor")
+        if unreadable_color(ub) is not None:
+            return None
+        col = parse_color(ub)
+        if col is None:
+            return None
+        box = composite_over(col, ground, under.get("opacity", 100))
+        return (under["id"],
+                [(name(under["id"]), box), ("the paper", ground)])
+
+    def compliant_on_all(col, bgs, floor, opac):
+        """One shade of this hue that clears `floor` on EVERY ground.
+
+        MEASURED, AND THE MEASUREMENT IS WHY THIS FUNCTION EXISTS. The
+        review suggested reporting the worse ground and, by implication,
+        repairing against it. Searching the hue's lightness axis over
+        the straddle cases says that is often impossible: white text
+        across a navy box and cream paper has NO shade of its hue that
+        clears 4.5:1 on both — the compliant shades for the two grounds
+        are `#fefefe` and `#727272`, and every shade between fails one
+        of them. Offering either would be a repair that fixes half the
+        word and breaks the other half, which is the same
+        confident-wrong-advice C-1 was told off for.
+
+        So the caller offers a shade only when one exists for BOTH, and
+        otherwise says the truth: no colour fixes this, the straddle
+        does. That is the honest remedy anyway — the text is illegible
+        BECAUSE it lies across two grounds, so the repair is to stop
+        lying across them.
+
+        Args:
+            col: The declared (r, g, b) triple.
+            bgs: The grounds it must clear, as (r, g, b) triples.
+            floor: The ratio the criterion asks.
+            opac: The element's opacity, folded into each candidate.
+
+        Returns:
+            The nearest such shade as (r, g, b), or None when no shade
+            of this hue clears the floor on every ground at once.
+
+            NEAREST IS BY LIGHTNESS DISTANCE, along the one axis
+            `nearest_compliant` moves, so this and that answer the same
+            question the same way and a reader comparing two findings is
+            not comparing two search strategies.
+        """
+        h, was, s = colorsys.rgb_to_hls(*(c / 255.0 for c in col))
+        best = None
+        for step in range(0, 501):
+            cand_l = step / 500.0
+            cand = tuple(c * 255.0 for c in colorsys.hls_to_rgb(h, cand_l, s))
+            if all(contrast_ratio(composite_over(cand, bg, opac), bg) >= floor
+                   for bg in bgs):
+                if best is None or abs(cand_l - was) < abs(best[0] - was):
+                    best = (cand_l, cand)
+        return None if best is None else best[1]
 
     def hexof(rgb):
         """An (r, g, b) triple as `#rrggbb`, for the message.
@@ -12457,6 +12782,67 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                         "decision with %s"
                         % (eid, quoted, drawn, hexof(bg), got, floor,
                            fix, shade, waive_hint(key)))
+            elif ink is not None:
+                # THE GROUND REFUSED TO BE A SINGLE COLOUR. When the
+                # reason is a one-cover straddle, both grounds are known
+                # and both are real, so the reading comes back as the
+                # WORSE of the two with BOTH named — no invented ratio,
+                # and the legibility signal restored (N-1). Any other
+                # refusal (an unreadable declaration, a stack this arm
+                # cannot resolve) still falls through to silence, with
+                # the fact carried by the finding on the element that
+                # owns the bad declaration.
+                straddle = straddled_grounds(e)
+                key = "ink:%s:%s" % (aid or "<artifact>", slugify(eid))
+                if straddle is not None and not (waives and key in waives):
+                    under_id, pair = straddle
+                    floor = (CONTRAST_TEXT_LARGE if fs >= CONTRAST_LARGE_PX
+                             else CONTRAST_TEXT)
+                    reads = sorted(
+                        ((contrast_ratio(composite_over(ink, g, opac), g),
+                          label, g) for label, g in pair),
+                        key=lambda r: r[0])
+                    worst, worst_label, worst_bg = reads[0]
+                    best = reads[-1]
+                    if worst < floor:
+                        drawn = ("%s at %d%% opacity"
+                                 % (hexof(ink), int(opac))
+                                 if int(opac) != 100 else hexof(ink))
+                        both = compliant_on_all(
+                            ink, [g for _l, g in pair], floor, opac)
+                        # NO SHADE FIXES A STRADDLE on a dark cover and
+                        # pale paper — measured, see `compliant_on_all`
+                        # — and the true remedy is the geometry that
+                        # made two grounds out of one. Said plainly
+                        # rather than dressed as a colour suggestion.
+                        # The geometric remedy is stated about the
+                        # STRADDLE and not about the worse ground:
+                        # "move it clear of the paper" is a sentence
+                        # nobody can act on, and which of the two
+                        # grounds reads worse does not decide which way
+                        # to move — landing wholly on either one leaves
+                        # a single reading, which is what the check can
+                        # then answer.
+                        fix = (("recolour it to %s, which clears the floor "
+                                "on both" % hexof(both)) if both is not None
+                               else ("no shade of this hue clears %.1f:1 on "
+                                     "both grounds, so the repair is the "
+                                     "geometry: move it so it lies wholly on "
+                                     "one of them, or bind it to %s so the "
+                                     "renderer seats it inside"
+                                     % (floor, name(under_id))))
+                        warnings.append(
+                            "text %s (%r) is drawn %s across TWO grounds — "
+                            "%s (%s) and %s (%s) — so it has no single "
+                            "reading, and the worse of the two is %.2f:1 "
+                            "where 1.4.3 asks %.1f:1. The glyphs over %s "
+                            "are the ones that vanish. %s, or record the "
+                            "decision with %s"
+                            % (eid, quoted, drawn,
+                               worst_label, hexof(worst_bg),
+                               best[1], hexof(best[2]),
+                               worst, floor, worst_label, fix,
+                               waive_hint(key)))
             # The font floor. Separate from the ratio above and not a
             # politeness rule beside it: this is the only tier-1 handle
             # on a contrast failure that RASTERIZATION creates, which a
@@ -14087,9 +14473,37 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # the ink is centred in whatever box holds it, so the band it
         # occupies is its own height about that box's middle
         cy = t.get("y", 0) + max(box_h, drawn_h) / 2.0
-        room = shape_band_width(owner, cy - drawn_h / 2.0,
-                                cy + drawn_h / 2.0)
-        over = drawn_w - room
+        # WHERE THE INK IS, not merely how wide it is (v0.9 whole-branch
+        # review, M-3). This compared `drawn_w` against `room` — two
+        # widths — which is only the right question if the label and the
+        # owner share a centre. Nothing enforces that at read time:
+        # `render_svg` paints a bound text at its own stored `x` with no
+        # re-centring, and `recenter_label` is an opt-in step on the
+        # MUTATION paths, so a label the user dragged in the browser and
+        # saved keeps wherever they put it. Measured at `10dc4bf`: a
+        # label bound to a diamond and parked 400px clear of it drew
+        # zero findings, and a too-wide label reported the IDENTICAL
+        # overhang whether centred or moved 300px sideways.
+        #
+        # Comparing INTERVALS answers the question the check's own
+        # docstring asks — "does the label's drawn box lie inside the
+        # outline anybody can see" — and reduces to the old arithmetic
+        # exactly when the label is centred, which is why the fixture
+        # numbers do not move.
+        span = shape_band_span(owner, cy - drawn_h / 2.0,
+                               cy + drawn_h / 2.0)
+        room = 0.0 if span is None else span[1] - span[0]
+        ink_cx = t.get("x", 0) + max(box_w, drawn_w) / 2.0
+        ink0, ink1 = ink_cx - drawn_w / 2.0, ink_cx + drawn_w / 2.0
+        if span is None:
+            # The band misses the body altogether — every pixel of the
+            # label is on empty canvas. Reported as the whole width
+            # rather than skipped, which is what the old width
+            # comparison did too (`room` was 0), so the loudest case
+            # stays loud.
+            over = drawn_w
+        else:
+            over = max(span[0] - ink0, 0.0) + max(ink1 - span[1], 0.0)
         # `>= 1` and not `> 0`: the interval `shape_clip` returns is
         # closed, so a label whose edge lands exactly on the outline is
         # touching it, not overhanging it (v0.9 WP4 review, F1), and a
@@ -14101,14 +14515,93 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # overhangs by 11px (6 left, 5 right; the label sits half a
         # pixel off centre).
         if over >= 1:
-            warnings.append(
-                "label %s overhangs %s by %dpx — the %s is only %dpx "
-                "across at the label's own height, not %dpx, so the "
-                "text is drawn on empty canvas: shorten it, widen the "
-                "node, or draw the node as a rectangle"
-                % (name(t["id"]), name(owner["id"]), round(over),
-                   owner.get("type"), round(room),
-                   int(owner.get("width") or 0)))
+            # TWO READINGS, because they have different remedies and the
+            # old sentence only fitted one of them. A label WIDER than
+            # the room it sits in is a sizing problem — shorten, widen,
+            # or use a rectangle. A label that has come OFF its owner
+            # entirely is a placement problem, and telling its author to
+            # "shorten it" is advice that cannot work: at 380px clear of
+            # a 200px diamond there is no shorter string that helps.
+            # The split is `ink wholly outside the body's interval`,
+            # which is the same measurement, read for its sign.
+            adrift = span is None or ink0 >= span[1] or ink1 <= span[0]
+            if adrift:
+                warnings.append(
+                    "label %s is drawn %dpx clear of %s — it is bound to "
+                    "that %s but none of the text lands on it, so the "
+                    "label reads as belonging to nothing. Move it back "
+                    "over its node, or unbind it and give it a role if "
+                    "it is a caption"
+                    % (name(t["id"]), round(over), name(owner["id"]),
+                       owner.get("type")))
+            else:
+                warnings.append(
+                    "label %s overhangs %s by %dpx — the %s is only %dpx "
+                    "across at the label's own height, not %dpx, so the "
+                    "text is drawn on empty canvas: shorten it, widen the "
+                    "node, or draw the node as a rectangle"
+                    % (name(t["id"]), name(owner["id"]), round(over),
+                       owner.get("type"), round(room),
+                       int(owner.get("width") or 0)))
+    # A ❓ SITTING ON THE WRONG NODE (v0.9 whole-branch review, M-4).
+    # `pin_spot` already owns the rule — "hugging the target, never in a
+    # neighbour" — and enforces it at PLACEMENT time. Nothing re-asks it
+    # afterwards, so a pin placed correctly and then left behind by a
+    # node that moved goes on pointing at whatever it now sits beside.
+    # Measured over the 24-artifact corpus: 5 of 41 pins are nearer a
+    # non-containing rival than their own target by more than the hug
+    # standoff, the worst putting a question about `draft-tearsheet` 8px
+    # from `deadline-0730` and 126px from the thing it asks about.
+    #
+    # IT REPORTS THE DIVERGENCE AND NOT A REMEDY, because the remedy is
+    # a judgement this check cannot make: the pin may be in the wrong
+    # place, or it may have been asking about the other node all along
+    # and the `target` is what is wrong. Both distances are named so the
+    # reader can see how strong the reading is rather than take the
+    # check's word for it.
+    #
+    # THE MARGIN IS `PIN_HUG_PX`, the distance `pin_spot` itself places
+    # at, so this is the placement rule read back rather than a
+    # tolerance invented for a lint. Four corpus pins sit 2-5px nearer a
+    # rival — inside the tool's own placement tolerance, where "nearer"
+    # is arithmetic rather than something a reader would see — and this
+    # is the constant that keeps them quiet without a magic number.
+    pin_nodes = [e for e in els
+                 if e.get("type") in ("rectangle", "diamond", "ellipse")
+                 and role_of(e) not in ("label", "pin", "decoration",
+                                        "annotation")]
+    for e in els:
+        cd = e.get("customData") or {}
+        if cd.get("role") != "pin" or cd.get("status") == "resolved":
+            continue
+        tgt = ix.get(cd.get("target") or "")
+        if tgt is None:
+            continue        # a pin with no target in scene is I-8's class
+        own = _rect_gap(e, tgt)
+        rival, rival_gap = None, None
+        for n in pin_nodes:
+            if n["id"] in (e["id"], tgt["id"]) or _rect_contains(n, tgt):
+                # a container of the target is the SCREEN the target is
+                # drawn inside, not a rival for it — the same rule
+                # `pin_spot` states as "a frame is not a neighbour"
+                continue
+            d = _rect_gap(e, n)
+            if rival_gap is None or d < rival_gap:
+                rival, rival_gap = n, d
+        if rival is None or own - rival_gap < PIN_HUG_PX:
+            continue
+        key = "pindrift:%s:%s" % (aid or "<artifact>", slugify(e["id"]))
+        if waives and key in waives:
+            continue
+        warnings.append(
+            "pin %s asks about %s but is drawn %dpx from it and only "
+            "%dpx from %s, so on the canvas it reads as %s's question "
+            "(%r). Either the ❓ or the `target` is in the wrong place, "
+            "and which one is a judgement this check cannot make — or "
+            "record the decision with %s"
+            % (name(e["id"]), name(tgt["id"]), round(own),
+               round(rival_gap), name(rival["id"]), name(rival["id"]),
+               (cd.get("question") or "")[:60], waive_hint(key)))
     # shared attach points
     anchor_pts = {}
     for a in arrows:
@@ -20016,6 +20509,18 @@ def make_handler(app):
                         {"ok": False,
                          "error": "JSON body must be an object, got %s"
                                   % type(body).__name__}, 400)
+                # THE BODY IS AN OBJECT, AND ITS IDENTITIES ARE STILL
+                # UNSHAPED. The gate above closed the scalar hole and
+                # claimed only that; a container-typed `artifact` or
+                # `id` went on reaching the lookups and answering with a
+                # Python type name (M-2/N-2 — 21 raw escapes over seven
+                # routes). Same door, same argument, one field deeper.
+                id_faults = body_identity_faults(body)
+                if id_faults:
+                    return self._send_json(
+                        {"ok": False,
+                         "error": "cannot act on this request: %s"
+                                  % "; ".join(id_faults)}, 400)
                 result = app.handle_post(path, body)
                 return self._send_json(result)
             except _Err as e:

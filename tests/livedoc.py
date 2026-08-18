@@ -102,8 +102,10 @@ derivation that has stopped being watched.
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
@@ -330,6 +332,78 @@ def unittest_suite_cases() -> str:
         and render tier included.
     """
     return str(_discovered_case_count("test*.py"))
+
+
+@calculator("corpus_census")
+def corpus_census() -> str:
+    """What the frozen corpus lints to, by a convention that is CODE.
+
+    THE DISAGREEMENT THIS SETTLES (v0.9 whole-branch review, N-3). Two
+    competent readers measured the same 24 artifacts and published
+    `0/46/27` and `0/38/20`. Neither was careless; they counted
+    different things, and the prose said which for neither. Re-derived
+    here at `10dc4bf`, the two live conventions are:
+
+      * `0/46/27` — every line the `lint` CLI PRINTS, over each project
+        in turn. This is what a reviewer running the tool sees.
+      * `0/38/18` — `project_lint` called once per artifact and summed.
+        Lower, and lower for a REASON rather than by rounding: the
+        registry is a scope with findings of its own and no artifact
+        behind it, so a per-artifact walk cannot see them. `cmd_lint`
+        says as much in its own comment ("SCOPES, not ARTIFACTS").
+
+    THE CLI'S CONVENTION IS THE ONE PINNED, because it is the number a
+    human can reproduce by running the tool, and because the other one
+    is missing findings rather than counting differently. Derived
+    through `Store.lint_lines()`, which is the same call `cmd_lint`
+    prints from — not a re-implementation of it, for the reason
+    `_harness` gives about second copies of a derivation.
+
+    A THIRD NUMBER IS THE POINT. Neither published figure is reproduced
+    exactly by either convention (`0/38/20` is nobody's), which is what
+    an unpinned convention buys: three readers, three answers, and an
+    argument about arithmetic instead of about drawings. After this the
+    disagreement can only be about the corpus.
+
+    Returns:
+        `E errors / W warnings / N notes across A artifacts in P
+        projects`.
+
+    Raises:
+        AssertionError: If the fixture corpus is absent or holds no
+            project, which would otherwise report a confident zero
+            about a corpus that is not there.
+    """
+    sys.path.insert(0, str(REPO / "skills" / "wysiwyg-grilling" / "scripts"))
+    import canvas
+    roots = sorted(p for p in (REPO / "tests" / "fixtures").glob("*")
+                   if p.is_dir() and (p / "artifacts").is_dir())
+    if not roots:
+        raise AssertionError(
+            "no fixture project under tests/fixtures holds an artifacts/ "
+            "directory — the corpus has moved and this calculator would "
+            "report 0/0/0 rather than fail")
+    tally = {"errors": 0, "warnings": 0, "notes": 0}
+    arts = 0
+    tmp = Path(tempfile.mkdtemp(prefix="livedoc-census-"))
+    try:
+        for src in roots:
+            # COPIED, NOT READ IN PLACE. `Store` writes — it repairs on
+            # load and lays down a runtime tree — and a calculator that
+            # mutated the corpus it measures would make `refresh`
+            # non-idempotent, which this module's header forbids.
+            root = tmp / src.name
+            shutil.copytree(src, root / "project_knowledge")
+            lines = canvas.Store(canvas.Project(root)).lint_lines()
+            arts += len(lines)
+            for row in lines.values():
+                for tier in tally:
+                    tally[tier] += len(row.get(tier) or [])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ("%d errors / %d warnings / %d notes across %d artifacts in "
+            "%d projects" % (tally["errors"], tally["warnings"],
+                             tally["notes"], arts, len(roots)))
 
 
 def _harness() -> ModuleType:
