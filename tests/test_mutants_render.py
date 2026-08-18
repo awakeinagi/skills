@@ -1271,7 +1271,7 @@ def _client_cache_key(elements: list[dict]) -> str:
 def _drawn_corners(e: dict) -> list[tuple[float, float]]:
     """Where ONE element's ink lands — advance and rotation included.
 
-    Three bounds unioned in the element's own upright frame, because each
+    Four bounds unioned in the element's own upright frame, because each
     one holds ink the others let out:
 
     - The STORED box, which is the honest bound for every class
@@ -1287,6 +1287,20 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
     - The `points` polyline, which overhangs the stored box on the three
       point-strung classes — `canvas.ink_extent`'s own note, and the one
       widening this function already made before v0.9 TASK-FRAMING.
+    - `canvas._rendered_path` FOR A CURVED POLYLINE, because the chord
+      hull above is where the stored VERTICES are and the spline bows
+      outside it — `leg / 13.5` on a perpendicular elbow, up to 59px on
+      an 800px leg (v0.9 SPIKE-DERIVEDFRAME, and spike-flatten's closed
+      form before it). `canvas.ink_extent` reads the chords here on
+      purpose and says so in its own comment: for the product's export
+      that is safe in both directions, because the export frames the
+      same element and widens with it. It is NOT safe for THIS function,
+      whose corners place the anchors — a bow past `_ANCHOR_GAP` puts
+      real ink outside the ring that is supposed to be outside
+      everything, and then a variant that ablates the bowing arrow
+      reframes. Returns the stored chords unchanged on a sharp arrow, so
+      this costs nothing wherever `derived_roundness` kept a route
+      square.
     - `canvas.ink_extent` OF THIS ELEMENT ALONE, which is the product's
       bound and the only one of the three that knows what a string's real
       advance is. Read rather than restated: a text's drawn extent is a
@@ -1346,9 +1360,14 @@ def _drawn_corners(e: dict) -> list[tuple[float, float]]:
     w, h = float(e.get("width") or 0), float(e.get("height") or 0)
     box = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
     strung = e.get("type") in ("arrow", "line", "freedraw")
-    cand = []
-    for px, py in (e.get("points") or []):
-        cand.append((x + float(px), y + float(py)))
+    pts = [(float(px), float(py)) for px, py in (e.get("points") or [])]
+    cand = [(x + px, y + py) for px, py in pts]
+    # the DRAWN path on top of the chords, for a curved polyline only —
+    # the docstring's third bullet carries the argument. Guarded on the
+    # same two conditions `_rendered_stretches` itself branches on, so a
+    # sharp arrow never builds a sample grid it would not use.
+    if strung and e.get("roundness") and len(pts) > 2:
+        cand += canvas._rendered_path(dict(e, x=x, y=y, points=pts))
     if not strung:
         cand += box
         drawn = canvas.ink_extent(
@@ -1690,6 +1709,30 @@ def _derived_frame(elements: list[dict]) -> tuple[int, int]:
     string. v0.9 TASK-FRAMING checked the derivation against all 13 real
     client rasters this tier produced and it matched exactly, 13/13, with
     no slack.
+
+    WHY IT IS EXACT, which 13/13 did not say and which curator batch 31
+    found the hard way. The client frames on ELEMENT BOUNDS, and for a
+    curved arrow those are the spline's, not the chords' — while
+    `canvas.ink_extent` bounds the chords by design. The two agree only
+    while the ANCHORS are the extremes, i.e. while nothing paints more
+    than `_ANCHOR_GAP` outside `_scene_bbox`; batch 31 walked past that
+    on a 374px elbow and read a frame 3px taller than this predicted,
+    which is the same order as the 0.7px it was measuring. So the
+    exactness rests on `_drawn_corners` — not on this function — and it
+    rests there deliberately: fixed at the anchors, EVERY consumer of the
+    framing gets it, and this stays a two-line derivation. The 13/13 held
+    for a reason nobody had checked: measured 2026-08-17, not one of the
+    24 distinct scenes the client tier renders carries `roundness` on any
+    element, so no scene of ours had a bow to disagree about.
+
+    THE RESIDUE, stated so it can be checked rather than assumed: the
+    client's INK still leaves `_scene_bbox` by the stroke's half-width
+    and by an arrowhead's barb spread — a measured worst of 7.0px over
+    the leg ladder, against `_ANCHOR_GAP`'s 24. Neither moves the FRAME
+    (Excalidraw's bounds read neither), so this function is unaffected,
+    but the day one of them exceeds the gap the anchors stop being the
+    extremes again and this goes back to reading small.
+    `TestCurvedFramingIsExactRegime` is the pin that says so.
 
     Args:
         elements: The scene WITHOUT anchors; this adds them, because the
@@ -3952,12 +3995,26 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
 # now reads the drawn extent through `_drawn_corners`, and these three tests
 # are what holds it there.
 #
-# BOTH WERE HARNESS DEFECTS, which made them unlike most of this file: a
+# A THIRD INSTANCE, and the one that WAS corpus-reachable (v0.9
+# SPIKE-DERIVEDFRAME, 2026-08-17). Same lesson, third class: a curved arrow's
+# stored vertices are not its ink either. `canvas.ink_extent` bounds the
+# chords and the spline bows outside them by `leg / 13.5`, so `_scene_bbox`
+# — which delegates to it — under-reported by 59px on an 800px leg. Unlike
+# the two above, the frozen corpus carries it: 6 of its 36 curved arrows bow
+# past `_ANCHOR_GAP`'s 24px, worst 41.4px on `tearsheet-flow`'s
+# `t-analysis-cutoff`, so an ablation run over any of those four artifacts
+# was already exposed. It went unseen because the client tier has never
+# rendered a curved arrow — 0 of its 24 distinct scenes carries `roundness`
+# on any element, against 9 that carry a linear at all and 3 that carry a
+# 3+-point one. A blind spot in the harness, hidden by a gap in the fixtures.
+#
+# ALL THREE WERE HARNESS DEFECTS, which made them unlike most of this file: a
 # wrong answer here does not misreport a drawing, it silently weakens every
-# ablation measurement taken through it. Neither was reachable by any corpus
-# scene — that is why they were pins and not incidents — and the fix belonged
-# to whoever owns this module's framing, not to a curator. It was taken
-# there: nothing in `canvas.py` changed for either flip.
+# ablation measurement taken through it. The first two were not reachable by
+# any corpus scene — that is why they were pins and not incidents — and the
+# fix belonged to whoever owns this module's framing, not to a curator. It
+# was taken there: nothing in `canvas.py` changed for any of the three, and
+# `ink_extent`'s chord bound is deliberate and stays.
 #
 # WHAT DID NOT FLIP WITH THEM, and must not be read as fixed by proxy:
 # `canvas.ink_extent` is still rotation-blind, and `test_mutants.
@@ -4114,6 +4171,80 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
             "painted corners span %r"
             % (over, _ANCHOR_GAP, _scene_bbox(scene), ink))
 
+    def test_red_c_a_curved_elbows_bow_paints_past_the_anchors(self) -> None:
+        """WAS RED at this file's own base. FLIPPED by v0.9 SPIKE-DERIVEDFRAME.
+
+        The third instance of the section comment's one lesson, and the
+        first that the frozen corpus could reach. A curved arrow's stored
+        vertices are the ends of its CHORDS; the spline the client draws
+        bows outside them, by the preceding leg over 13.5 on a
+        perpendicular elbow (spike-flatten §1.2's closed form, driven
+        against the real bundle by curator batch 31 at four legs).
+        `_scene_bbox` delegates to `canvas.ink_extent`, which bounds the
+        chords — deliberately, and its own comment says so — so the
+        anchors were being placed around a box the ink leaves.
+
+        MAGNITUDE AND DIRECTION AS FOUND: on the 800px leg below,
+        `canvas._rendered_path` reaches 59.15px above the chord hull
+        (closed form 59.26; the 20-sample grid's nearest step to the
+        cubic's `t = 1/3` apex under-reads it by 0.11px). `_ANCHOR_GAP`
+        is 24, so 35.15px of real drawing sat OUTSIDE the ring that
+        exists to be outside everything. One direction only — up, over
+        the corner — which is the tell that this is the bow and not a
+        constant.
+
+        WHY IT IS AN INCIDENT AND NOT ONLY A PIN, unlike the two reds
+        above: the corpus carries it. Censused at this head over all 24
+        fixture artifacts, 36 of the 194 arrow/line elements are curved
+        (`roundness` and three or more points) and SIX of those bow past
+        `_ANCHOR_GAP` — worst 41.4px on `tearsheet-flow`'s
+        `t-analysis-cutoff` — across four artifacts. Every one of them
+        was one ablation run away from the failure `_anchored` exists to
+        prevent, in the sharpest form: ablate the bowing arrow and the
+        export REFRAMES, so the two rasters being differenced are not
+        pictures of the same region.
+
+        WHY NOBODY SAW IT, and it is the transferable half: the client
+        tier has never rendered a curved arrow. Measured 2026-08-17 by
+        instrumenting `_client_cache_key` across the whole tier — 24
+        distinct scenes, 9 with a linear element, 3 with a 3+-point one,
+        and ZERO carrying `roundness` on anything. The harness was blind
+        and the fixtures never asked. That is also why fixing it moved no
+        baseline and invalidated no cached raster: the churn is zero
+        because the coverage was zero, and those are the same fact.
+
+        THE FIX IS AT `_drawn_corners`, not here and not in `canvas.py`.
+        The product's chord bound is correct for the product — an export
+        frames the same element and widens with its own bow — so nothing
+        shipped changed. Fixing it at the corners means every consumer of
+        this module's framing gets it at once, `_derived_frame` included,
+        and that function needed no edit at all: with the anchors back
+        outside the ink, they are the extremes again and its two-line
+        derivation is exact. `TestCurvedFramingIsExactRegime` proves that
+        against the real client.
+
+        MEASURED AGAINST THE MODEL, not against a literal, for C5's
+        reason: `canvas._rendered_path` is the one spelling of what the
+        renderer draws, pinned to the client's own ink at 0.70px by
+        curator batch 31's `TestFlatteningFidelity`. A number written
+        here would be a second copy of the flattening, free to drift.
+        """
+        scene = [{"id": "a1", "type": "arrow", "x": 200, "y": 900,
+                  "width": 39, "height": 800, "roughness": 0,
+                  "strokeWidth": 2, "roundness": {"type": 2},
+                  "points": [[0, 0], [0, -800], [39, -800]]}]
+        path = canvas._rendered_path(scene[0])
+        ink = (min(p[0] for p in path), min(p[1] for p in path),
+               max(p[0] for p in path), max(p[1] for p in path))
+        over = self._overhang(scene, ink)
+        self.assertEqual(
+            over, 0.0,
+            "the drawn spline bows %.2fpx past the box the anchors are "
+            "placed around — %.2fpx past the %dpx ring itself: _scene_bbox "
+            "says %r, canvas._rendered_path spans %r"
+            % (over, over - _ANCHOR_GAP, _ANCHOR_GAP, _scene_bbox(scene),
+               tuple(round(v, 2) for v in ink)))
+
     def test_the_bbox_does_bound_an_upright_scene_and_its_waypoints(
             self) -> None:
         """Both pins' live pole: unturned and untexted, it is correct.
@@ -4221,6 +4352,268 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
                                 "wrong together and that is the point of "
                                 "this pin"
                                 % (_scene_bbox(scene), want))
+
+
+# ---------------------------------------------------------------------------
+# The curved-framing pins (v0.9 SPIKE-DERIVEDFRAME, 2026-08-17). The class
+# above measures this module's framing against this repo's own other
+# spellings; this one measures it against the pixels, which is the half that
+# could not be faked and the half batch 31's concern 2 asked for.
+#
+# GATED, unlike its sibling, because both claims are about what Excalidraw
+# DRAWS: one reads the size of a real export, the other reads where the ink
+# in one lands. Neither is derivable, which is the whole point — the bias
+# this fixes was invisible to every derivation in the file precisely because
+# the harness and the product were wrong in the same direction.
+#
+# THE LADDER IS THE INSTRUMENT, not a sample. `leg / 13.5` is a closed form,
+# so the four rungs are chosen against `_ANCHOR_GAP` and not for coverage:
+# 110 sits well under it, 324 lands on it to 0.04px, 374 is the leg curator
+# batch 31 measured its 3px frame error on, and 800 is 2.5 gaps out. A fix
+# that merely padded by a constant passes at one rung and fails at another.
+# ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts the real app and a chromium)")
+class TestCurvedFramingIsExactRegime(unittest.TestCase):
+    """The client's own frame and the client's own ink, on curved elbows."""
+
+    # The final run every elbow ends on, fixed across the ladder BECAUSE the
+    # closed form says the bow does not depend on it: a run that varied with
+    # the leg could not tell "the bow scales with the leg" from "the bow
+    # scales with something". Curator batch 31's `_FLAT_RUN`, same value and
+    # same reason; the two files' elbows are deliberately the same shape.
+    RUN = 39
+    LEGS = (110, 324, 374, 800)
+
+    def _elbow(self, leg: int, rounded: bool = True,
+               head: str | None = None) -> list[dict[str, Any]]:
+        """One L-shaped arrow: `leg` px up, then `RUN` px right.
+
+        Perpendicular on purpose — `leg / 13.5` is exact only for a right
+        angle, and a sloped corner would put this ladder against
+        arithmetic no simpler than the code it checks. `roughness` is 0
+        because roughjs adds ~1.2px of seeded jitter that does not move
+        the control points, which is noise of the same order as the
+        residues measured below.
+
+        Args:
+            leg: Length of the preceding vertical leg in px.
+            rounded: Whether the arrow carries `roundness`. The sharp arm
+                is the control and inks its chords exactly.
+            head: `endArrowhead`, or None for a bare stroke.
+
+        Returns:
+            A one-element scene.
+        """
+        return [el(id="a1", type="arrow", x=200.0, y=100.0 + leg,
+                   width=float(self.RUN), height=float(leg),
+                   points=[[0.0, 0.0], [0.0, -float(leg)],
+                           [float(self.RUN), -float(leg)]],
+                   roughness=0, strokeWidth=2,
+                   roundness={"type": 2} if rounded else None,
+                   startArrowhead=None, endArrowhead=head)]
+
+    def _anchor_box(self, shot: bytes) -> tuple[int, int, int, int]:
+        """The rectangle the two 8x8 framing anchors span, in raster px.
+
+        RASTER, deliberately, and no origin is solved for. The claim
+        below is a containment between two things in the same picture —
+        ink inside the anchors — so converting either side to scene
+        coordinates would add an assumption the claim does not need, and
+        the assumption that was WRONG here for a year was exactly that
+        kind. (Curator batch 31's `_raster_to_scene` solves the harder
+        problem, origin AND scale, because it measures distances; this
+        needs neither.)
+
+        Args:
+            shot: The PNG bytes of an anchored variant.
+
+        Returns:
+            `(x0, y0, x1, y1)`, inclusive, spanning both anchor squares.
+
+        Raises:
+            RuntimeError: When the two squares are not both found —
+                which means these bytes are not a picture of the scene
+                that was asked for, and measuring them anyway is the
+                failure `_refuse_unmeasurable` exists to refuse.
+        """
+        w, h, pix = read_png_gray(shot)
+        mask = bytearray(1 if p < INK_THRESHOLD else 0 for p in pix)
+        found = [c["bbox"] for c in components(w, h, mask)
+                 if abs(c["bbox"][2] - c["bbox"][0] - _ANCHOR_SIDE) <= 2
+                 and abs(c["bbox"][3] - c["bbox"][1] - _ANCHOR_SIDE) <= 2]
+        if len(found) != 2:
+            raise RuntimeError(
+                "expected the two %dpx framing anchors in this %dx%d raster "
+                "and found %d square components"
+                % (_ANCHOR_SIDE, w, h, len(found)))
+        return (min(b[0] for b in found), min(b[1] for b in found),
+                max(b[2] for b in found), max(b[3] for b in found))
+
+    def _ink_outside(self, shot: bytes,
+                     box: tuple[int, int, int, int]) -> tuple[float, int]:
+        """How far the drawing's ink escapes `box`, and how many pixels do.
+
+        Anchor ink is excluded by the box itself: every pixel of both
+        squares is inside it by construction, so nothing has to be
+        subtracted and no tolerance is spent guessing where they were.
+
+        Args:
+            shot: The PNG bytes.
+            box: `(x0, y0, x1, y1)`, inclusive.
+
+        Returns:
+            `(worst, count)` — the largest distance any ink pixel sits
+            outside the box on any side, and how many sit outside at all.
+        """
+        w, h, pix = read_png_gray(shot)
+        x0, y0, x1, y1 = box
+        worst, count = 0.0, 0
+        for py in range(h):
+            row = py * w
+            for px in range(w):
+                if pix[row + px] >= INK_THRESHOLD:
+                    continue
+                out = max(x0 - px, px - x1, y0 - py, py - y1)
+                if out > 0:
+                    worst = max(worst, float(out))
+                    count += 1
+        return worst, count
+
+    def test_the_derived_frame_matches_the_clients_export_up_the_ladder(
+            self) -> None:
+        """`_derived_frame` against the real export, curved and sharp.
+
+        CURATOR BATCH 31'S CONCERN 2, answered with the client. Its
+        `TestFlatteningFidelity` found `_derived_frame` 3px short on a
+        374px elbow and worked around it by calibrating on the anchors,
+        recording "anyone writing a sub-pixel reading in this tier should
+        copy that and not `_derived_frame`". That workaround was right
+        for that batch and it is not the permanent answer, because the
+        3px was not a property of `_derived_frame` at all: the client
+        frames on ELEMENT bounds, which for a curved arrow are the
+        spline's, and the anchors were being placed 24px outside a box
+        that stopped at the chords. Past a 324px leg the bow overtook the
+        gap and the export reframed on the arrow instead.
+
+        MEASURED BEFORE THE FIX, on this exact ladder, dW/dH of the
+        client's raster against this function:
+
+        | leg | bow | frame error, before |
+        |---|---|---|
+        | 110 | 8.15 | 0x0 |
+        | 324 | 24.00 | 0x0 |
+        | 340 | 25.19 | 0x**1** |
+        | 374 | 27.70 | 0x**3** |
+        | 500 | 37.04 | 0x**13** |
+        | 800 | 59.26 | 0x**35** |
+
+        `floor(bow - _ANCHOR_GAP)` at every rung, with nothing fitted:
+        the bias was never a property of curvature, it was the bow
+        walking out of the anchor ring. After the fix every rung reads
+        0x0, and the two rungs BELOW the gap are what make that a
+        measurement rather than a tautology — they were exact before and
+        must stay exact, so a fix that widened the frame by any constant
+        fails here.
+
+        THE SHARP CONTROL is not decoration. Every number above is 0 for
+        a sharp elbow at every leg, so without the curved arm this test
+        is satisfied by a scene that bows nothing; without the sharp arm
+        it is satisfied by a `_drawn_corners` that widened every polyline
+        and would have moved the frame on the corpus's other 158
+        arrows.
+        """
+        variants: dict[str, list[dict[str, Any]]] = {}
+        for leg in self.LEGS:
+            variants["curved-%d" % leg] = self._elbow(leg)
+        variants["sharp-800"] = self._elbow(800, rounded=False)
+        shots = _client_shots({k: _anchored(v, _scene_bbox(v))
+                               for k, v in variants.items()})
+        for name in sorted(variants):
+            with self.subTest(variant=name):
+                w, h, _pix = read_png_gray(shots[name])
+                self.assertEqual(
+                    _derived_frame(variants[name]), (w, h),
+                    "the client framed %r at %dx%d and _derived_frame "
+                    "predicted %r — the anchors are no longer the extremes "
+                    "of this scene, so nothing in this tier may derive an "
+                    "origin from that prediction"
+                    % (name, w, h, _derived_frame(variants[name])))
+
+    def test_a_curved_arrows_ink_stays_inside_its_own_framing_anchors(
+            self) -> None:
+        """`_anchored`'s promise, read off the pixels, with its own bound.
+
+        THE PIN THAT MUST NOT ROT, and the reason this file gets one at
+        all. `_anchored` promises that every variant of an ablation run
+        frames the same region, and it keeps that promise by placing two
+        squares `_ANCHOR_GAP` outside `_scene_bbox`. The promise is worth
+        exactly what that gap is worth, and the gap is a CONSTANT bound
+        on a quantity nothing here controls: how far Excalidraw's ink
+        strays from the geometry we hand it. Three things stray — a
+        stroke's half-width, an arrowhead's barbs, and (until this fix) a
+        spline's bow — and only the third was ever unbounded.
+
+        THE CLAIM IS A CONTAINMENT AND IT IS ASSERTED BY COUNT: not one
+        pixel of the drawing may sit outside the rectangle its own two
+        anchors span. That is stronger than any tolerance and it is what
+        the promise actually says; a residue "small enough" is a number
+        that drifts.
+
+        THE RESIDUE THIS LEAVES, measured 2026-08-17 across the ladder
+        with and without an arrowhead, as the distance from `_scene_bbox`
+        to the outermost ink: 1.0px bare (the 2px stroke's half-width),
+        7.0px with an `arrowhead` on the sharp arm (the barbs, whose
+        length Excalidraw caps at 30px and whose spread is therefore
+        capped too), 5.0px with 8px of stroke. Against `_ANCHOR_GAP`'s
+        24 that is 17px of headroom, and this test is what notices if it
+        ever closes — a wider arrowhead, a fatter stroke cap, a second
+        curve model — instead of the harness quietly measuring deltas
+        between differently-framed pictures again.
+
+        BOTH POLES ON ONE RASTER, which is why the arm below reads the
+        CHORD hull: that is the box `_scene_bbox` answered before the
+        fix, so the second assertion is not a synthetic construction at
+        all — it is the previous behaviour, measured against the same
+        pixels, escaping by 35px past a 24px gap. The raster does not
+        have to be re-rendered to say so, and no mock is involved in
+        either direction.
+        """
+        variants = {"headed-800": self._elbow(800, head="arrow"),
+                    "bare-800": self._elbow(800)}
+        shots = _client_shots({k: _anchored(v, _scene_bbox(v))
+                               for k, v in variants.items()})
+        for name in sorted(variants):
+            with self.subTest(variant=name, pole="inside the anchors"):
+                box = self._anchor_box(shots[name])
+                worst, count = self._ink_outside(shots[name], box)
+                self.assertEqual(
+                    (worst, count), (0.0, 0),
+                    "%d ink pixels of %r are drawn outside the box its own "
+                    "anchors span, the worst by %.0fpx against _ANCHOR_GAP's "
+                    "%dpx — an ablation run over this scene would reframe "
+                    "the moment the arrow is removed"
+                    % (count, name, worst, _ANCHOR_GAP))
+
+        with self.subTest(pole="the chord hull, which is what it was"):
+            # the anchors this ARROW would have been given before the fix:
+            # the chord hull, `_ANCHOR_GAP` out, in this raster's own px
+            shot = shots["bare-800"]
+            x0, y0, x1, y1 = self._anchor_box(shot)
+            path = canvas._rendered_path(variants["bare-800"][0])
+            pts = [(200.0 + p[0], 900.0 + p[1])
+                   for p in variants["bare-800"][0]["points"]]
+            inset = round(min(p[1] for p in pts) - min(p[1] for p in path))
+            worst, count = self._ink_outside(shot, (x0, y0 + inset, x1, y1))
+            self.assertGreater(
+                worst, _ANCHOR_GAP,
+                "the chord hull is %dpx below the drawn path's top on this "
+                "elbow, and the ink outside anchors placed around IT reads "
+                "only %.0fpx over %d pixels — so this pole is not measuring "
+                "the bow and the pole above it proves nothing"
+                % (inset, worst, count))
 
 
 class TestContinuityNarrowingRegime(unittest.TestCase):
