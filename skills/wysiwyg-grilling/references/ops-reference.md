@@ -282,7 +282,11 @@ another channel, is bookkeeping drift: sweep it in your next batch.
 explicit `del` needed. When a pin's TARGET element gets deleted, the server
 auto-prunes the registry pin — but the leftover ❓ element stays on canvas
 until you remove it with an ordinary `del` in your next revision (tidying
-wreckage, not a proposal).
+wreckage, not a proposal). **The lint now says so**: any pin the registry
+has closed — `pruned`, `resolved` or `dismissed` — whose ❓ is still drawn
+gets a NOTE on that artifact naming the `del` that clears it. The tool
+reports rather than sweeps, because removing an element in a revision
+nobody asked for is the drawing changing under the user.
 
 A pin id names **one** question. Reusing an id the registry has **ever**
 filed — whatever its status: open, answered, resolved or auto-pruned — is
@@ -473,8 +477,9 @@ it "agent asked a question" with no Apply action.
   one `REROUTE=<id>: <arrow>: …` line per arrow, then
   `ARTIFACTS`/`ARROWS`/`CHECKPOINT`/`APPLIED=false`. `--apply` needs
   `--artifact` — consent is given one drawing at a time, never
-  project-wide — and commits an ordinary agent revision, so **reverting
-  that save restores the old geometry exactly**. *Ordinary* is literal:
+  project-wide — and commits an ordinary agent revision, so **reverting to
+  the save named in `CHECKPOINT=` restores the old geometry exactly**.
+  That line prints the command verbatim; run it. *Ordinary* is literal:
   under `pulled` cadence, or while the user has unsaved edits, it queues
   behind the pending-revision banner exactly as `apply` does and prints
   `QUEUED=true` with the same `REASON=`. It is recomputed when the user
@@ -513,6 +518,22 @@ it "agent asked a question" with no Apply action.
   - `start` and `lint` print a `LEGACY_ROUTING=` line per affected
     artifact. That is all a load ever does about it — **the loader never
     redraws the picture the user last saw.**
+- `canvas.py revert --to <N> [--apply]` → put save #N's drawing back, as a
+  NEW save on top of head. **This is the operation every `CHECKPOINT=` line
+  names**, and the number it prints is the one to pass. Append-only: nothing
+  in history is rewritten, so a revert is itself revertible and its own
+  `CHECKPOINT=` says how. **Dry run by default** — prints
+  `REVERT_TO`/`ARTIFACTS`/`CHANGED`/`TARGET_HEADLINE`/`CHECKPOINT` and writes
+  nothing; `--apply` commits. Reverting to a save that already holds today's
+  drawing is a no-op with a sentence, never an empty revision. Only the
+  artifacts that actually move are re-committed. Under `pulled` cadence, or
+  while the user has unsaved edits, it queues behind the banner exactly as
+  `apply` and `reroute` do — and it is recomputed against head when they pull
+  it, so **anything they draw while it waits is what it puts back over**.
+  - **The UI's ↺ revert is a different button.** That one discards the
+    user's *unsaved* edits and touches no save; the timeline's time travel
+    is a read-only view that forks on the next Save. Neither of them moves
+    main back to an earlier save. This does.
 - `canvas.py export --artifact <id> --with-footnotes` → SVG carrying its
   tooltips as numbered footnotes plus the glossary — for handover.
 - `canvas.py export --artifact <id> --format mermaid [--direction TD|LR]
@@ -553,6 +574,8 @@ it "agent asked a question" with no Apply action.
   to when a server is up. Use the CLI: writing the files directly behind a
   running store makes the re-route arrive as an out-of-session edit, and
   the user gets told they made it.
+- `POST <url>api/revert {"revn": N}` → what `revert --apply` posts to when a
+  server is up, and the same rule applies: use the CLI.
 - `POST <url>api/pending/resolve {"id": N, "action": ...}` → the banner's
   own buttons: `apply_now`, `after_save`, or `discard` (v0.5 — the user's
   way to say no). The user drives this; you supersede or re-send.

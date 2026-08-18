@@ -22,7 +22,7 @@ Mention at most one per round, when its moment arrives. A tour is noise.
 | **⇓ png** | Exports the current artifact as PNG, real Excalidraw rendering. | They want to paste a drawing into a doc or a ticket. **Carries no tooltips** — for handover use `canvas.py export --with-footnotes` instead. |
 | **⤢ fit** | Zooms the artifact to fit. | They say they can't see it all. |
 | **▶ walk** | **Steps through a wireframe's screen frames like a prototype** — ←/→ to move, Esc to exit. Enabled only on artifacts that have screen frames. | The single most under-used control. Say it when a wireframe grows a second state (normal / stale / error), and at handover: "open the dashboard and press ▶ walk" beats four static frames. |
-| **↺ revert** | Undoes the last save. | They regret a save. It is theirs to use; don't pre-empt it. |
+| **↺ revert** | **Discards their UNSAVED edits** and redraws the currently selected history node. It does not undo a save — its own modal says "Nothing already saved is touched". | They want to throw away the last few minutes of drawing. It is theirs to use; don't pre-empt it. If they regret a *save*, that is `canvas.py revert --to N --apply` and it is yours to run. |
 | **Save** | Commits their edits. Each Save is a commit; nothing they do is destructive. | Worth saying once, early, to a nervous user. |
 
 **per-round / pulled** is a toggle *they* own. `per-round` lands your revisions
@@ -41,7 +41,11 @@ modal carrying the `detail` and `examples` you wrote, which is the only
 out-of-band briefing they get, so write them. **Layout** — the lint findings
 for the current artifact. **Branches** and **Save history** — the commit
 timeline; entries are clickable (time travel), and the bookmark button labels
-a save ("v1 baseline").
+a save ("v1 baseline"). **Time travel is a read-only view** — clicking an old
+entry shows it, and if they then Save, that save FORKS onto a new branch
+rather than moving main back. Putting an old drawing back on main is
+`canvas.py revert --to N --apply`, which re-commits that save's state forward
+as a new save; nothing in the timeline does it and neither does ↺ revert.
 
 ## On the canvas itself
 

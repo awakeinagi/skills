@@ -24281,13 +24281,34 @@ class TestCoverage(unittest.TestCase):
         two existing endpoint findings. That is the 58 -> 61 judgement
         applied to refusals rather than to arms: a check speaks once per
         element however many reasons it had not to.
+
+        63 -> 64 on 2026-08-18 (v0.9 whole-branch review, I-7): the
+        on-border run measured against a node the arrow does NOT bind.
+        NO `DETECTORS` ROW AND NO `UNCOVERED` ROW, which is a fourth
+        shape and the reason it needs saying here. This is not a new
+        check: it is `crosses_through_bound`'s existing claim — arrow
+        ink lying on a node's outline — with its population widened from
+        "shapes this arrow binds" to "shapes", and it prints that check's
+        own sentence, which `_RUNS_INSIDE_RE` already reads. So the row
+        that would cover it exists and is already proven
+        (`tolerable_gap_hides_interior_run`, which still fires on the
+        bound half). It takes a SITE rather than a row because the
+        widening could not live in the per-binding loop the original
+        arm sits in — `tgt` there comes from `startBinding`/`endBinding`
+        and there is no unbound node to reach.
+
+        NAMING DEBT, RECORDED RATHER THAN PAID: the row is still called
+        `crosses_through_bound` and half of what it now reads is about
+        an unbound node. Renaming a `DETECTORS` key is the curator's,
+        not a fix task's; the CLAIM the row asserts is unchanged, so
+        coverage is honest and only the name is narrower than the check.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 63,
+        self.assertEqual(sites, 64,
                          "canvas.py lint_layout append-site count changed "
-                         "(63 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(64 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

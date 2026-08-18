@@ -963,6 +963,51 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
                     "mapping %r member %s points at a deleted element — "
                     "re-map it, or tombstone the mapping"
                     % (m.get("concept"), ref))
+    # A ❓ THE PROJECT HAS ALREADY CLOSED, still drawn. The registry and
+    # the canvas are two stores of one fact and nothing compared them:
+    # pin a node, delete the node, and the arrow that bound it gets a
+    # precise ERROR above while the pin gets silence — registry
+    # `status: pruned`, canvas `text: '❓' isDeleted: False`, lint
+    # nothing (v0.9 whole-branch review, I-8). The doctrine is
+    # SKILL.md's: resolution REMOVES the ❓ from the canvas, because
+    # settled things leave both channels.
+    #
+    # REPORTED, NOT SWEPT, and that is the substantive choice. Deleting
+    # the glyph here would be the server changing the user's drawing in
+    # a commit nobody asked for — the class this very review named as
+    # its headline one layer out, and the class the v0.10 wave exists
+    # for. `references/ops-reference.md` already rules that the leftover
+    # "stays on canvas until you remove it with an ordinary `del` in
+    # your next revision (tidying wreckage, not a proposal)"; what was
+    # missing was anything that TOLD the agent, which is this repo's
+    # silence-is-a-bug shape exactly.
+    #
+    # NOTES, and one template for all three closed statuses. The
+    # nearest sibling is the orphaned-`annotates` note directly above —
+    # a glyph anchored to something that is gone, where a tombstone left
+    # on purpose is legitimate and the tool says so rather than ruling.
+    # Splitting `pruned` onto the warning tier would give one repair two
+    # tiers and two sentences, which is how one finding becomes two.
+    #
+    # Measured on the frozen corpus at this head: 16 of 73 filed pins
+    # are closed in the registry with the ❓ still drawn — 1 pruned, 15
+    # resolved — and every one of them was silent.
+    closed = {"pruned": "its target %s no longer exists",
+              "resolved": "the question was answered",
+              "dismissed": "the question was dismissed"}
+    for p in (registry or {}).get("pins") or []:
+        why = closed.get(p.get("status"))
+        aid = p.get("artifact")
+        if why is None or aid not in ids_by_aid \
+                or p.get("id") not in ids_by_aid[aid]:
+            continue
+        add(aid, "notes",
+            "pin %s is %s in the registry and its ❓ is still drawn (%s) "
+            "— the canvas is asking a question the project has already "
+            "closed. Take the glyph down with `del %s`: settled things "
+            "leave both channels"
+            % (p["id"], p["status"],
+               why % (p.get("element"),) if "%s" in why else why, p["id"]))
     return out
 
 
@@ -11891,6 +11936,48 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
     return best[1] if best else None
 
 
+def revert_hint(revn, what):
+    """The checkpoint clause: which save puts the drawing back, and how.
+
+    ONE FORMATTER FOR SIX MESSAGES, for `waive_hint`'s reason read onto
+    a different failure. Every reroute and relayout checkpoint, both
+    their committed notes, and `--apply`'s help printed "revert save #N"
+    — an operation the tool did not offer at all until this round, since
+    `Store.revert_to` had no caller anywhere. Worse, two of them
+    disagreed about WHICH N seconds apart: the applied path named the
+    save it had just written ("revert save #20 to put the old geometry
+    back") while the dry run named head ("revert save #20 to restore the
+    current geometry"), and `revert_to(revn)` restores state AT revn, so
+    the first was wrong. A shared formatter is what stops the seventh
+    site being born with a third answer (v0.9 whole-branch review, I-5).
+
+    Args:
+        revn: The save whose state a revert restores — the BASE of the
+            change being described, never the change's own new save.
+            None when the caller could not learn it, which is reachable
+            on the server path: a response that predates `base_revn`
+            riding it has the number and did not send it.
+        what: What that state is, e.g. `"the old geometry"`. Named by
+            the caller because only the caller knows whether it is
+            geometry, placement, or the whole drawing.
+
+    Returns:
+        The clause, ready to stand as a `CHECKPOINT=` value or to close
+        a `user_note`. With no `revn` it says there is a save and that
+        this response did not name it — which is the one thing that is
+        true. It does NOT guess `revn - 1`: a save's base is whatever
+        `base_revn` records and on a forked branch that is not the
+        number below it, so the guess would name a real save holding a
+        different drawing, and following the message would be worse
+        than not being given one.
+    """
+    if revn is None:
+        return ("the save this was written on top of puts %s back, and "
+                "this response did not name it — `canvas.py status` "
+                "lists the saves" % what)
+    return "`canvas.py revert --to %d --apply` puts %s back" % (revn, what)
+
+
 def waive_hint(key):
     """The copyable op a finding offers so its question can be answered.
 
@@ -13750,6 +13837,65 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "arrow %s passes through %s, which is neither its "
                     "source nor destination — route around it"
                     % (e["id"], name(n["id"])))
+                continue
+            # THE SAME READING, ABOUT THE OTHER HALF OF THE SCENE. The
+            # on-border run — arrow and outline drawn on the same pixels
+            # — was measured only against shapes the arrow BINDS, because
+            # it lives inside the per-binding loop and `tgt` comes from
+            # `startBinding`/`endBinding` (v0.9 whole-branch review,
+            # I-7). In a six-node scene the tool's OWN router drew a leg
+            # down x=220 past three boxes whose right or left border is
+            # x=220: 28px on the bound one, REPORTED, and 56px on each of
+            # the other two, silent. The unreported runs were each twice
+            # the reported one, and on screen the arrow and two unrelated
+            # outlines are the same pixels — verbatim the reading this
+            # check exists to call out.
+            #
+            # `_seg_hits_rect` cannot see it and is right not to: it
+            # insets by 2px precisely so a path GRAZING an edge is not
+            # called a crossing. Grazing is not crossing; it is its own
+            # finding, and until now only the bound half of it had one.
+            #
+            # SAME SENTENCE AS THE BOUND ARM, deliberately, because it is
+            # the same claim about the same pixels — one detector regex
+            # reads both, and a second wording would have been a second
+            # finding for one defect. Only the clause naming WHOSE border
+            # it is differs, and the remedy with it: nothing here is an
+            # attachment, so "give the arrow an exit that steps off the
+            # edge" is the wrong advice and "route it clear" is the
+            # right one. (Detector naming debt, for the curator: the
+            # registry row is still called `crosses_through_bound` and
+            # this half is not about a bound node. The CLAIM the row
+            # asserts — arrow ink lying on a node's outline — is
+            # unchanged, and its proving mutant still fires on the bound
+            # case, so coverage is honest; the NAME is now narrower than
+            # the check.)
+            #
+            # NO WAIVE KEY, matching both siblings in this family. The
+            # waive channel is for judgement calls; the producer
+            # (`_route_candidates`) already REFUSES to draw this stroke
+            # over `BORDER_RUN_TOL`, so reader and writer share one
+            # constant and there is no question here to settle by
+            # decision. A waive on this arm and none on the bound one
+            # would be the one-key-two-surfaces defect all over again.
+            #
+            # WARNING, not error: nothing is mis-attached — this arrow
+            # binds neither end to `n` — so what is wrong is legibility,
+            # which is the tier its bound twin rides for the same reason.
+            onb = 0.0
+            for (p0x, p0y), (p1x, p1y) in zip(rpath, rpath[1:]):
+                ddx, ddy = p1x - p0x, p1y - p0y
+                seg = (ddx * ddx + ddy * ddy) ** 0.5
+                if not _clipped_len(n, p0x, p0y, ddx, ddy, seg, 1):
+                    onb += _clipped_len(n, p0x, p0y, ddx, ddy, seg, 0)
+            if onb > BORDER_RUN_TOL:
+                warnings.append(
+                    "arrow %s runs %dpx along %s's own border, and %s is "
+                    "neither its source nor destination — arrow and "
+                    "outline are drawn on the same pixels, so the two "
+                    "read as one line through the box; route it clear "
+                    "of that edge"
+                    % (e["id"], round(onb), name(n["id"]), n["id"]))
     for i, a in enumerate(shapes):
         for b in shapes[i + 1:]:
             # declared containment (customData.parent) is nesting, not
@@ -18781,9 +18927,12 @@ class Store:
         itself commits unconditionally: it is what the banner PULLS, so
         a gate here would gate the user's own click.
 
-        The checkpoint is this commit's own base: reverting
-        the save it returns restores the geometry exactly, which is why
-        this goes through `commit` rather than through `apply_ops`. It
+        The checkpoint is this commit's own base: reverting TO that save
+        — `canvas.py revert --to <base> --apply` — restores the geometry
+        exactly, which is why this goes through `commit` rather than
+        through `apply_ops`. The note said "revert this save", which is
+        the new one and would put the re-route back rather than take it
+        away; `revert_hint` writes both halves now (review I-5). It
         could not go through ops anyway — a `mod points` marks the arrow
         `routed: "authored"`, so expressing a re-route as ops would
         disown every arrow it touched and freeze the fossil in place
@@ -18865,17 +19014,18 @@ class Store:
             declined = self.reroute_noop(aid)
             if declined is not None:
                 return declined
+            base = self.head_revn()
             examined = len(routable_arrows(self.scenes[aid]))
             els, changes = reroute_scene(self.scenes[aid])
             redrew = sum(1 for c in changes if c["path_changed"])
             return self.commit(
                 author="agent", new_scenes={aid: els},
-                base_revn=self.head_revn(),
+                base_revn=base,
                 user_note="re-routed %d of %d server-routed arrow(s); %d "
-                          "moved or were re-aimed: %s — revert "
-                          "this save to put the old geometry back"
+                          "moved or were re-aimed: %s — %s"
                           % (redrew, examined, len(changes),
-                             "; ".join(reroute_line(c) for c in changes)),
+                             "; ".join(reroute_line(c) for c in changes),
+                             revert_hint(base, "the old geometry")),
                 extra_facts={aid: [{"fact": "rerouted", "element": c["id"],
                                     "arrow": c["id"]} for c in changes
                                    if c["path_changed"]]})
@@ -18907,6 +19057,83 @@ class Store:
             self.rollback = None
             return record
 
+    def revert_plan(self, revn):
+        """What a revert to `revn` would put back, without putting it back.
+
+        SPLIT OUT so the question can be ASKED WITHOUT COMMITTING, the
+        shape `reroute_noop` sets: `cmd_revert`'s dry run and
+        `/api/revert`'s cadence hold both need to know whether there is
+        anything to restore BEFORE a revision is written or queued, and
+        deriving it twice is how two surfaces come to disagree about
+        what counts as nothing to do.
+
+        Args:
+            revn: The revision whose state to restore.
+
+        Returns:
+            `(scenes, meta, changed)` — the scene map and meta map the
+            commit would write, and the sorted artifact ids that differ
+            from head in their ELEMENTS or in their META. `changed`
+            empty means head already holds what `revn` holds. Meta is
+            in the comparison because an artifact renamed since `revn`
+            is something a revert genuinely puts back, and reading only
+            the drawing would call that revert a no-op.
+
+        Raises:
+            BatchError: If `revn` names no save record. THE GUARD IS THE
+                POINT: `state_at` answers `{}` for a revn outside the
+                lineage — `lineage` walks `records` and stops — and this
+                method then reads that empty answer as "every artifact
+                was removed", so `revert_to(999)` on a live project
+                committed EVERY ARTIFACT EMPTY, headlined "deleted Cart
+                (+13 more)". Reproduced at this head. Nothing could
+                reach it while the method had no caller; the moment it
+                gained a CLI verb the number came off the command line
+                (v0.9 whole-branch review, I-5).
+        """
+        with self.lock:
+            if revn not in self.records:
+                raise BatchError(
+                    ["revert: no save record with revn %r (this project "
+                     "has %s)"
+                     % (revn, "saves 1..%d" % max(self.records)
+                        if self.records else "no saves yet")])
+            target = self.state_at(revn)
+            scenes = {aid: p["elements"] for aid, p in target.items()}
+            meta = {aid: p["meta"] or self.artifact_meta.get(aid) or {}
+                    for aid, p in target.items()}
+            for gone in set(self.scenes.keys()) - set(scenes.keys()):
+                scenes[gone] = []
+                meta[gone] = dict(self.artifact_meta.get(gone) or {})
+            # NAME AND TYPE, not the whole meta dict. The two maps are
+            # not the same shape: `_write_artifact` stamps an `artifact`
+            # key onto the LIVE `artifact_meta` that records written
+            # before it did not carry, so `==` on the dicts reports a
+            # difference on artifacts nothing has ever touched (measured
+            # on `argus-r5 / edgar-late`, which then took a revert of a
+            # different drawing along with it and made "revert to head"
+            # write an empty save). These two are what a revert can
+            # meaningfully put back and both are always present.
+            def shape(m):
+                """The meta fields a revert restores.
+
+                Args:
+                    m: An artifact's meta block, or None.
+
+                Returns:
+                    `(name, artifact_type)`.
+                """
+                return ((m or {}).get("name"),
+                        (m or {}).get("artifact_type"))
+
+            changed = sorted(
+                aid for aid, els in scenes.items()
+                if self._tidy_hash(els) != self._tidy_hash(
+                    self.scenes.get(aid) or [])
+                or shape(meta.get(aid)) != shape(
+                    self.artifact_meta.get(aid)))
+            return scenes, meta, changed
+
     def revert_to(self, revn):
         """Append-only 'undo': re-commit revn's state as a NEW commit.
 
@@ -18921,24 +19148,73 @@ class Store:
         mis-stacked artifact returns the stacking its base actually had,
         which an inverse walk would not.
 
+        REACHABLE SINCE 2026-08-18, and that is the change. This had NO
+        caller anywhere — no subcommand, no route — while eight surfaces
+        instructed the user to run it: every reroute and relayout
+        checkpoint, `--apply`'s own help, a committed `user_note` in the
+        frozen corpus, and `references/canvas-app.md`'s row for the ↺
+        button (which does something else entirely: it drops UNSAVED
+        buffers and its own modal says "Nothing already saved is
+        touched"). The timeline's checkout is a read-only view that
+        FORKS on the next user save, so there was no second door either.
+        Correcting the copy would have had to say that nothing can put a
+        re-route back — which contradicts the reason `Store.reroute`
+        commits through here rather than through `apply_ops` in the
+        first place. So the affordance was built rather than the promise
+        withdrawn (v0.9 whole-branch review, I-5).
+
         Args:
             revn: The revision whose state to restore.
 
         Returns:
-            The save record for the new commit.
+            The save record for the new commit, or the `noop: True`
+            stand-in when head already holds `revn`'s drawing —
+            committing anyway writes the "saved without changing
+            anything" revision every other verb here guards against. An
+            unknown `revn` raises `BatchError` from `revert_plan`, which
+            is where that is decided.
         """
         with self.lock:
             head = self.head_revn()
-            target = self.state_at(revn)
-            scenes = {aid: p["elements"] for aid, p in target.items()}
-            meta = {aid: p["meta"] or self.artifact_meta.get(aid) or {}
-                    for aid, p in target.items()}
-            for gone in set(self.scenes.keys()) - set(scenes.keys()):
-                scenes[gone] = []
-                meta[gone] = dict(self.artifact_meta.get(gone) or {})
-            return self.commit(author="agent", new_scenes=scenes,
-                               base_revn=head, new_meta=meta,
-                               user_note="revert to revn %d" % revn)
+            scenes, meta, changed = self.revert_plan(revn)
+            if not changed:
+                return {"revn": head, "noop": True,
+                        "summary": {"headline":
+                                    "save #%d already holds this drawing "
+                                    "— nothing to put back" % revn,
+                                    "verb_counts": {}, "suppressed": 0}}
+            # ONLY THE ARTIFACTS THAT MOVE. Handing `commit` the whole
+            # project minted a `saved_no_changes` fact per untouched
+            # artifact, so a revert of one drawing in a six-drawing
+            # project headlined "saved without changing anything (+4
+            # more)" — five sentinels drowning the one real change.
+            #
+            # AND `rerouted` FOR THE ARROWS WHOSE INK MOVED, which is
+            # `Store.reroute`'s own remedy for its own reason: bound
+            # arrow geometry is DERIVED, so a save carrying only that
+            # narrates as empty. It is the same word for the same event
+            # (a drawn path changed) and the same predicate decides it,
+            # so a revert of a re-route reads back the way the re-route
+            # read. Nothing is synthesised for anything else — a revert
+            # that restores a node, a label or a deletion produces
+            # ordinary facts already.
+            facts = {}
+            for aid in changed:
+                was = {e["id"]: e for e in (self.scenes.get(aid) or [])
+                       if e.get("type") == "arrow"}
+                now = {e["id"]: e for e in scenes[aid]
+                       if e.get("type") == "arrow"}
+                moved = sorted(i for i in was if i in now
+                               and drawn_path_changed(was[i], now[i]))
+                if moved:
+                    facts[aid] = [{"fact": "rerouted", "element": i,
+                                   "arrow": i} for i in moved]
+            return self.commit(
+                author="agent", base_revn=head,
+                new_scenes={aid: scenes[aid] for aid in changed},
+                new_meta={aid: meta[aid] for aid in changed},
+                extra_facts=facts or None,
+                user_note="revert to revn %d" % revn)
 
     # -- state for the frontend ------------------------------------------
     def public_state(self, queued=False):
@@ -19301,8 +19577,10 @@ class ServerApp:
         """Hold a revision behind the banner for the user to pull.
 
         Args:
-            batch: The validated op-batch envelope, or a `reroute: True`
-                marker naming the artifact a held re-route will redraw.
+            batch: The validated op-batch envelope, a `reroute: True`
+                marker naming the artifact a held re-route will redraw,
+                or a `revert: N` marker naming the save a held revert
+                will restore.
             pin_only: Whether the batch draws nothing.
             supersedes: Queue entry this batch replaces. A corrected retry
                 used to stack a second banner beside the broken original,
@@ -19390,6 +19668,11 @@ class ServerApp:
         waiting behind the banner is that the user may draw while it
         waits, and a re-route is a function of the geometry it lands on.
 
+        A `revert` entry is the same shape and lands the same way. Its
+        TARGET is fixed — save #N holds what it holds — but what it
+        writes over is head at pull time, so it is re-run here too and
+        the queue hint says so.
+
         Args:
             entry: The queue entry to apply.
             trigger: What pulled it, for the failure event's message.
@@ -19409,6 +19692,16 @@ class ServerApp:
             if batch.get("reroute"):
                 record, pin_only = self.store.reroute(
                     batch.get("artifact")), False
+            elif batch.get("revert"):
+                # A revert entry carries no ops either, and for a
+                # sharper version of the reroute arm's reason: a revert
+                # is defined against the head it lands on, not against
+                # the head it was queued from. Re-running it here is
+                # what makes "the user may draw while it waits" mean
+                # "and what they drew is what this puts back over",
+                # which the queue hint says out loud.
+                record, pin_only = self.store.revert_to(
+                    batch["revert"]), False
             else:
                 batch["base_revn"] = self.store.head_revn()
                 record, pin_only = self.store.apply_batch(
@@ -19843,6 +20136,66 @@ class ServerApp:
             # drifted apart in the first place.
             return {"ok": True, "revn": record["revn"], "noop": False,
                     "short_id": record["short_id"],
+                    "base_revn": record.get("base_revn"),
+                    "headline": record["summary"]["headline"]}
+        if path == "/api/revert":
+            # What `revert --apply` posts to when a server is up, for
+            # `/api/reroute`'s reason: writing the files behind a
+            # running store makes the revert arrive as an out-of-session
+            # edit and the user is told they made it.
+            #
+            # THE SAME CADENCE GATE, and the same argument. A revert is
+            # an ordinary agent revision — the AGENT asks for it, and
+            # under `pulled` the user has said nothing changes on their
+            # canvas until they pull. `/api/tidy` is the exemption and
+            # stays one because its only caller is the ✨ button, where
+            # the press IS the consent; nothing here is a button press.
+            revn = body.get("revn")
+            if not isinstance(revn, int) or isinstance(revn, bool):
+                return err(400, "revert needs an integer `revn`, got %r"
+                                % (revn,))
+            try:
+                _s, _m, changed = self.store.revert_plan(revn)
+            except BatchError as e:
+                return err(404, "\n".join(e.errors))
+            if not changed:
+                # answers now rather than taking a slot on the banner
+                # the user would then have to dismiss — `reroute_noop`'s
+                # rule, and the reason `revert_plan` is split out
+                return {"ok": True, "revn": self.store.head_revn(),
+                        "noop": True,
+                        "headline": "save #%d already holds this drawing "
+                                    "— nothing to put back" % revn}
+            cadence = self.store.config.get("canvas_updates", "per-round")
+            if self.dirty or cadence == "pulled":
+                entry = self.queue_pending(
+                    {"revert": revn,
+                     "note": "revert to save #%d" % revn}, False)
+                self.events.append("agent_pending", pending_id=entry["id"],
+                                   pin_only=False, revert=True,
+                                   reason="dirty canvas" if self.dirty
+                                   else "pulled cadence")
+                return {
+                    "ok": True, "queued": True, "noop": False,
+                    "pending_id": entry["id"],
+                    "reason": ("the user has unsaved edits" if self.dirty
+                               else "cadence is set to pulled"),
+                    "hint": "The revert will land behind the pending-"
+                            "revision banner; the user chooses when. It "
+                            "restores save #%d's drawing over whatever "
+                            "head holds then, so anything drawn while it "
+                            "waits is what it puts back over." % revn}
+            try:
+                record = self.store.revert_to(revn)
+            except (BatchError, StaleError) as e:
+                return err(400, str(e))
+            self.events.append("agent_revision", revn=record["revn"],
+                               short_id=record["short_id"],
+                               headline=record["summary"]["headline"],
+                               revert=True)
+            return {"ok": True, "revn": record["revn"], "noop": False,
+                    "short_id": record["short_id"],
+                    "base_revn": record.get("base_revn"),
                     "headline": record["summary"]["headline"]}
         if path == "/api/save-label":
             try:
@@ -20812,8 +21165,8 @@ def cmd_reroute(args):
                              in sorted(store.scenes.items())) or \
                 "this project has no artifacts"
         print_kv(artifacts=len(fossils), arrows=arrows, applied="false",
-                 checkpoint="revert save #%d to restore the current "
-                            "geometry" % store.head_revn(),
+                 checkpoint=revert_hint(store.head_revn(),
+                                        "the current geometry"),
                  note=note)
         return 0
     if not args.artifact:
@@ -20850,7 +21203,8 @@ def cmd_reroute(args):
             return 0
         return _print_reroute_applied(
             args.artifact, arrows, resp.get("revn"), resp.get("short_id"),
-            resp.get("headline"), bool(resp.get("noop")), offline=False)
+            resp.get("headline"), bool(resp.get("noop")), offline=False,
+            base_revn=resp.get("base_revn"))
     try:
         record = store.reroute(args.artifact)
     except (BatchError, StaleError) as e:
@@ -20864,11 +21218,12 @@ def cmd_reroute(args):
             reroute=True)
     return _print_reroute_applied(
         args.artifact, arrows, record["revn"], record.get("short_id"),
-        record["summary"]["headline"], noop, offline=True)
+        record["summary"]["headline"], noop, offline=True,
+        base_revn=record.get("base_revn"))
 
 
 def _print_reroute_applied(aid, arrows, revn, short_id, headline, noop,
-                           offline):
+                           offline, base_revn=None):
     """Print an `--apply` result, the SAME way whichever path produced it.
 
     ONE PRINTER BECAUSE TWO SURFACES DISAGREED. The server branch and
@@ -20885,6 +21240,16 @@ def _print_reroute_applied(aid, arrows, revn, short_id, headline, noop,
     disappears when the news is good reads as "nobody said", not as
     "nothing happened".
 
+    THE CHECKPOINT NAMES THE BASE, not the save just written, since
+    2026-08-18. It said "revert save #20 to put the old geometry back"
+    about the revision that CREATED the new geometry, seconds after the
+    dry run had said "revert save #20 to restore the current geometry"
+    about head — one number, two opposite claims, and `revert_to(revn)`
+    restores state AT revn, so the applied path's was the wrong one
+    (v0.9 whole-branch review, I-5). `base_revn` rides the response for
+    `short_id`'s reason: a value only one of the two paths could compute
+    is how they drifted apart the first time.
+
     Args:
         aid: The artifact.
         arrows: How many arrows the local detection named.
@@ -20894,6 +21259,9 @@ def _print_reroute_applied(aid, arrows, revn, short_id, headline, noop,
         headline: The record's headline.
         noop: Whether anything was actually committed.
         offline: Whether this went straight to disk or through a server.
+        base_revn: The save this revision was written on top of — the
+            one a revert restores. Unused on the no-op path, where
+            nothing was written to go back from.
 
     Returns:
         Process exit code: 0.
@@ -20903,8 +21271,139 @@ def _print_reroute_applied(aid, arrows, revn, short_id, headline, noop,
              revn=revn, short_id=short_id, headline=headline,
              checkpoint=("nothing was written — head is still save #%s"
                          % revn) if noop else
-                        ("revert save #%s to put the old geometry back"
-                         % revn),
+                        revert_hint(base_revn, "the old geometry"),
+             offline=str(offline).lower())
+    return 0
+
+
+def cmd_revert(args):
+    """Put an earlier save's drawing back, as a new save on top of head.
+
+    THE VERB EIGHT MESSAGES ALREADY NAMED. `Store.revert_to` shipped
+    complete and tested with NO CALLER — no subcommand, no route — while
+    every reroute and relayout checkpoint, `--apply`'s own help and a
+    committed `user_note` in the frozen corpus told the user to run it.
+    The UI's `↺ revert` is a different operation (it discards UNSAVED
+    buffers; its own modal says "Nothing already saved is touched") and
+    the timeline's checkout is a read-only view that FORKS on the next
+    user save, so there was no second door to redirect the copy to. The
+    alternative repair — telling the user nothing can put a re-route
+    back — contradicts the reason `Store.reroute` commits through
+    `commit` at all (v0.9 whole-branch review, I-5).
+
+    DRY RUN IS THE DEFAULT and `--apply` is the consent gate, the shape
+    `reroute` and `--relayout` set. A revert changes the drawing, and
+    the two verbs that already do print what would change first; a third
+    that acted on sight would be the odd one out on the one operation
+    reached for when something has gone wrong.
+
+    THROUGH THE SERVER WHENEVER ONE IS UP, for `cmd_reroute`'s reason
+    verbatim: writing the files behind a running store makes the revert
+    arrive as an out-of-session edit and the user gets told THEY made
+    it. `/api/revert` holds it behind the cadence banner exactly as
+    `/api/apply` and `/api/reroute` do — the agent is the one asking, so
+    under `pulled` the user's consent gate applies (blocker round C-2).
+
+    Args:
+        args: Parsed CLI args — `project`, `to`, `apply`.
+
+    Returns:
+        Process exit code: 0 on a report or a successful revert, 2 on a
+        missing or unknown `--to`, 3 on an unreachable server, 5 on a
+        rejected write.
+    """
+    project = Project(args.project)
+    store = Store(project)
+    if args.to is None:
+        die("ERROR=revert needs --to N, naming the save whose drawing to "
+            "put back. Every CHECKPOINT= line prints that number; "
+            "`canvas.py status` lists the saves.", 2)
+    try:
+        _scenes, _meta, changed = store.revert_plan(args.to)
+    except BatchError as e:
+        # `e.errors`, not `str(e)`: `BatchError.__str__` opens "invalid
+        # op batch", and there is no op batch here — the number came off
+        # the command line
+        die("ERROR=%s" % "; ".join(e.errors), 2)
+    rec = store.records[args.to]
+    if not args.apply:
+        print_kv(revert_to=args.to, artifacts=len(changed),
+                 changed=",".join(changed) or None, applied="false",
+                 target_headline=(rec.get("summary") or {}).get("headline"),
+                 checkpoint=revert_hint(store.head_revn(),
+                                        "today's drawing"),
+                 note="nothing was changed — re-run with --apply to "
+                      "accept" if changed else
+                      "save #%d already holds this drawing — nothing to "
+                      "put back" % args.to)
+        return 0
+    state = project.read_state()
+    if server_alive(state):
+        try:
+            resp = http_json(state["url"] + "api/revert",
+                             payload={"revn": args.to}, timeout=30.0)
+        except urllib.error.HTTPError as e:
+            try:
+                payload = json.loads(e.read().decode("utf-8"))
+            except ValueError:
+                payload = {"error": str(e)}
+            die("ERROR=%s" % payload.get("error", str(e)), 5)
+        except (OSError, ValueError, urllib.error.URLError) as e:
+            die("ERROR=server unreachable (%s) — run canvas.py start" % e, 3)
+        if resp.get("queued"):
+            print_kv(revert_to=args.to, applied="false", queued="true",
+                     pending_id=resp.get("pending_id"),
+                     reason=resp.get("reason"), hint=resp.get("hint"))
+            return 0
+        return _print_revert_applied(
+            args.to, resp.get("revn"), resp.get("short_id"),
+            resp.get("headline"), bool(resp.get("noop")),
+            resp.get("base_revn"), offline=False)
+    try:
+        record = store.revert_to(args.to)
+    except (BatchError, StaleError) as e:
+        die("ERROR=%s" % e, 5)
+    noop = bool(record.get("noop"))
+    if not noop:
+        EventLog(project.events_path).append(
+            "agent_revision", revn=record["revn"],
+            short_id=record["short_id"],
+            headline=record["summary"]["headline"], offline=True,
+            revert=True)
+    return _print_revert_applied(
+        args.to, record["revn"], record.get("short_id"),
+        record["summary"]["headline"], noop, record.get("base_revn"),
+        offline=True)
+
+
+def _print_revert_applied(to, revn, short_id, headline, noop, base_revn,
+                          offline):
+    """Print a `revert --apply` result, one printer for both paths.
+
+    `_print_reroute_applied`'s shape and for its reason: two branches
+    each spelling the outcome by hand is how one key came to mean two
+    things on one event. `CHECKPOINT` prints on the no-op too.
+
+    Args:
+        to: The save that was reverted to.
+        revn: Head revn after the call.
+        short_id: The new save's short id, when there is one.
+        headline: The record's headline.
+        noop: Whether anything was committed.
+        base_revn: The save the revert was written on top of — what a
+            revert OF THE REVERT would restore, which is how the user
+            undoes this.
+        offline: Whether this went straight to disk or through a server.
+
+    Returns:
+        Process exit code: 0.
+    """
+    print_kv(revert_to=to, applied=str(not noop).lower(),
+             noop=str(noop).lower(), revn=revn, short_id=short_id,
+             headline=headline,
+             checkpoint=("nothing was written — head is still save #%s"
+                         % revn) if noop else
+                        revert_hint(base_revn, "today's drawing"),
              offline=str(offline).lower())
     return 0
 
@@ -22487,9 +22986,10 @@ def _cmd_mermaid_relayout(args, project, store):
     label), converted in the browser, and the dagre positions come back
     as plain ``mod x/y`` ops through apply: bound 2-point arrows
     re-route, the revision queues behind the banner under `pulled`
-    cadence (the user's consent gate), and reverting the save restores
-    the old placement exactly. Prints the checkpoint revn it would
-    revert to.
+    cadence (the user's consent gate), and reverting to the save it is
+    written on top of restores the old placement exactly. Prints that
+    save as the checkpoint, through `revert_hint` so the command it
+    names is the one `cmd_revert` accepts.
 
     Args:
         args: Parsed CLI args (artifact, tab_timeout, no_headless,
@@ -22561,13 +23061,12 @@ def _cmd_mermaid_relayout(args, project, store):
               "placement is theirs; under pulled cadence the banner asks "
               "first, otherwise narrate it"
               % (len(moved_user), ", ".join(moved_user[:5])))
+    base = store.head_revn()
     print_kv(relayout=aid, moves=len(ops),
-             checkpoint="revert save #%d to restore the current "
-                        "placement" % store.head_revn())
-    batch = {"base_revn": store.head_revn(), "artifact": aid, "ops": ops,
-             "note": "re-layout via mermaid/dagre (%d nodes moved) — "
-                     "revert this save to restore the old placement"
-                     % len(ops)}
+             checkpoint=revert_hint(base, "the current placement"))
+    batch = {"base_revn": base, "artifact": aid, "ops": ops,
+             "note": "re-layout via mermaid/dagre (%d nodes moved) — %s"
+                     % (len(ops), revert_hint(base, "the old placement"))}
     outdir = project.runtime_dir
     outdir.mkdir(parents=True, exist_ok=True)
     bpath = outdir / ("mermaid-relayout-%s.json" % aid)
@@ -23350,8 +23849,17 @@ def main(argv=None):
                         "consent is given one drawing at a time)")
     p.add_argument("--apply", action="store_true",
                    help="accept the re-route for --artifact and commit it "
-                        "as an ordinary revision — reverting that save "
-                        "restores the old geometry exactly")
+                        "as an ordinary revision — `revert --to` the save "
+                        "named in CHECKPOINT restores the old geometry "
+                        "exactly")
+    p = sub.add_parser("revert", help="restore an earlier save's drawing as "
+                                      "a NEW save on top of head — dry run "
+                                      "by default")
+    p.add_argument("--to", type=int, default=None,
+                   help="the save whose drawing to put back (its number is "
+                        "in every CHECKPOINT= line)")
+    p.add_argument("--apply", action="store_true",
+                   help="commit the revert; without it nothing is written")
     p = sub.add_parser("pending", help="list revisions held behind the "
                                        "user's banner")
     p.add_argument("--discard", type=int, default=None,
@@ -23439,7 +23947,7 @@ def main(argv=None):
     handlers = {
         "start": cmd_start, "status": cmd_status, "stop": cmd_stop,
         "wait": cmd_wait, "apply": cmd_apply, "lint": cmd_lint,
-        "export": cmd_export, "reroute": cmd_reroute,
+        "export": cmd_export, "reroute": cmd_reroute, "revert": cmd_revert,
         "pending": cmd_pending, "screenshot": cmd_snapshot,
         "snapshot": cmd_snapshot, "mermaid": cmd_mermaid,
         "serve": cmd_serve,

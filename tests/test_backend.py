@@ -845,6 +845,127 @@ class TestPinLifecycle(Base):
                           base_revn=self.store.head_revn())
         self.assertEqual(self.pin("pin-a")["status"], "dismissed")
 
+    def glyphs(self):
+        """Every ❓ still drawn on the flow, by id.
+
+        Returns:
+            The live pin-role element ids.
+        """
+        return {e["id"] for e in self.store.scenes["checkout-flow"]
+                if canvas.role_of(e) == "pin" and not e.get("isDeleted")}
+
+    def stale(self):
+        """Every finding about a closed pin whose ❓ survives.
+
+        Returns:
+            The matching lines from every channel and every scope.
+        """
+        return [m for d in self.store.lint_lines().values()
+                for tier in ("errors", "warnings", "notes")
+                for m in d[tier] if "is still drawn" in m]
+
+    def test_a_pruned_pin_whose_glyph_survives_is_reported(self):
+        """v0.9 whole-branch review, I-8: two stores, one fact, no check.
+
+        Pin a node, delete the node. The ARROW that bound it gets a
+        precise error; the pin gets nothing, and the registry says
+        `pruned` while the canvas goes on drawing a ❓ whose own
+        `customData` still says `open`. SKILL.md's lifecycle is explicit
+        — resolution removes the ❓ from the canvas, because settled
+        things leave both channels.
+
+        The divergence is asserted first and the finding second, so a
+        repair that silenced this by SWEEPING the glyph (which would be
+        the server editing the drawing in a commit nobody asked for,
+        this review's own headline defect) fails the premise rather than
+        passing the assertion.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        els = canvas.apply_ops(els, [{"op": "del", "id": "confirm"}], [])
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.assertEqual(self.pin("pin-b")["status"], "pruned")
+        self.assertIn("pin-b", self.glyphs(),
+                      "the glyph is gone, so there is no divergence "
+                      "left for this test to be about")
+        said = self.stale()
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("pin pin-b is pruned in the registry", said[0])
+        self.assertIn("its target confirm no longer exists", said[0])
+        self.assertIn("del pin-b", said[0])
+
+    def test_an_open_pin_is_not_reported(self):
+        """The quiet pole, on the same scene one op earlier.
+
+        `pin-a` stays open and its ❓ stays drawn, which is the whole
+        everyday state of a grilling session: a check that could not
+        tell the two apart would nag on every question ever asked.
+        """
+        self.assertEqual(self.pin("pin-a")["status"], "open")
+        self.assertIn("pin-a", self.glyphs())
+        self.assertFalse(self.stale())
+
+    def test_resolving_a_pin_the_ordinary_way_leaves_nothing_to_report(self):
+        """`resolve_pin` takes the glyph down, so no finding is owed.
+
+        The other side of the same claim: this finding exists to catch
+        the divergence, not to nag about every closed pin. If the
+        supported path ever stopped removing the ❓, this is where that
+        shows up — as a finding appearing, not as silence.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "resolve_pin", "id": "pin-a"}]})
+        self.assertEqual(self.pin("pin-a")["status"], "resolved")
+        self.assertNotIn("pin-a", self.glyphs())
+        self.assertFalse(self.stale())
+
+    def test_a_resolved_pin_redrawn_by_hand_is_reported(self):
+        """The other arm of the same template, and the corpus's own case.
+
+        16 of the frozen corpus's 73 filed pins are closed in the
+        registry with the ❓ still drawn — 1 pruned and 15 resolved —
+        so the resolved arm is the one that actually ships, and it
+        cannot be reached through `resolve_pin`, which removes the
+        glyph. Re-drawing it is what a stale artifact on disk looks
+        like.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "resolve_pin", "id": "pin-a"}]})
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        els.append({"id": "pin-a", "type": "text", "text": "❓",
+                    "x": 500.0, "y": 60.0, "width": 20.0, "height": 24.0,
+                    "customData": {"role": "pin", "target": "payment",
+                                   "question": "a?", "status": "resolved"}})
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        said = self.stale()
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("pin pin-a is resolved in the registry", said[0])
+        self.assertIn("the question was answered", said[0])
+
+    def test_the_finding_stands_on_the_artifact_the_pin_lives_on(self):
+        """Scoped to the drawing, beside the arrow's own warning.
+
+        A registry-scoped note would put the ❓ and the arrow it hangs
+        beside into two different buckets of the lint debt, which is the
+        arrangement `project_lint` records as having turned one finding
+        into four.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        els = canvas.apply_ops(els, [{"op": "del", "id": "confirm"}], [])
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        lines = self.store.lint_lines()
+        self.assertTrue([m for m in lines["checkout-flow"]["notes"]
+                         if "pin pin-b is pruned" in m], lines)
+        self.assertFalse([m for m in (lines.get("registry") or
+                                      {"notes": []})["notes"]
+                          if "is still drawn" in m], lines)
+
 
 class TestZOrderReplay(Base):
     def test_a_recorded_index_is_read_the_way_the_client_reads_it(self):
@@ -14558,7 +14679,11 @@ class TestRerouteIsConsentGated(Base):
         self.assertTrue(any("t1:" in ln for ln in named), out)
         self.assertTrue(any("t3:" in ln for ln in named), out)
         self.assertIn("APPLIED=false", out)
-        self.assertTrue(any(ln.startswith("CHECKPOINT=revert save #")
+        # the checkpoint names the command, not a phrase: "revert save
+        # #N" named an operation the tool did not offer at all until
+        # the v0.9 review's I-5 built it
+        self.assertTrue(any(re.match(r"CHECKPOINT=`canvas\.py revert "
+                                     r"--to \d+ --apply`", ln)
                             for ln in out), out)
 
     def test_the_dry_run_changes_nothing(self):
@@ -14580,7 +14705,11 @@ class TestRerouteIsConsentGated(Base):
         self.assertEqual(sorted(f["element"] for f in facts
                                 if f["fact"] == "rerouted"), ["t1", "t3"])
         self.assertIn("rerouted", rec["summary"]["headline"])
-        self.assertIn("revert this save", rec.get("user_note") or "")
+        # the note names the BASE and the command that follows it, not
+        # "revert this save" — reverting THIS save restores the
+        # re-route (v0.9 whole-branch review, I-5)
+        self.assertIn("canvas.py revert --to %d --apply" % rec["base_revn"],
+                      rec.get("user_note") or "")
         self.assertIn("t1:", rec.get("user_note") or "")
 
     def test_the_save_is_the_checkpoint(self):
@@ -15239,14 +15368,14 @@ class TestTheDeclineReportsSetsAndNotACount(unittest.TestCase):
         finding IS: the old sentence's numbers all came from
         `len(oblique_arrivals(...))` and every one of them was true.
         """
-        _before, _after, fixed, broke = self.sets()
+        before, after, fixed, broke = self.sets()
         said = canvas.reroute_decline(self.els, self.ARTIFACT)
         self.assertIn("straighten %d of them" % len(fixed), said)
         self.assertIn("leave %d different one(s) crooked" % len(broke), said)
         for aid, side in fixed | broke:
             self.assertIn("%s's %s" % (aid, side), said, said)
         # and it does not name an endpoint that is crooked either side
-        for aid, side in _before & _after:
+        for aid, side in before & after:
             self.assertNotIn("%s's %s" % (aid, side), said, said)
 
     def test_the_sentence_reaches_the_cli_and_the_store_alike(self):
@@ -15572,17 +15701,42 @@ class TestRerouteSaysTheSameThingOnBothPaths(Base):
         return run_reroute_cli(self.project, self.tmp, resp, **kw)
 
     def test_a_committed_apply_reads_the_same_either_way(self):
+        # `base_revn` rides the response for `short_id`'s reason and is
+        # in the payload here for the same one: it is a value only the
+        # server can compute, and the checkpoint names the save a revert
+        # restores, so a fake that omitted it would be testing the two
+        # paths agreeing about a key neither could fill
         offline = self.cli()
         server = self.cli(resp={"ok": True, "revn": offline["REVN"],
                                 "short_id": offline.get("SHORT_ID"),
                                 "noop": False,
+                                "base_revn": int(offline["REVN"]) - 1,
                                 "headline": offline["HEADLINE"]})
         for key in ("APPLIED", "NOOP", "REVN", "SHORT_ID", "HEADLINE",
                     "CHECKPOINT"):
             self.assertEqual(offline.get(key), server.get(key), key)
         self.assertEqual(offline["APPLIED"], "true")
         self.assertEqual(offline["NOOP"], "false")
-        self.assertIn("revert save #", offline["CHECKPOINT"])
+        self.assertIn("canvas.py revert --to", offline["CHECKPOINT"])
+
+    def test_a_response_that_names_no_base_says_so_rather_than_guessing(self):
+        """The one place `revert_hint` may print no number.
+
+        A server response predating `base_revn` riding it HAS the save
+        and did not send it. Guessing `revn - 1` would name a real save
+        — a forked branch's base is not the number below it — so the
+        message says a save exists and that the response did not name
+        it, and points at `status`. Not a traceback either: this was one
+        (`TypeError: %d format: a real number is required`).
+        """
+        offline = self.cli()
+        server = self.cli(resp={"ok": True, "revn": offline["REVN"],
+                                "short_id": offline.get("SHORT_ID"),
+                                "noop": False,
+                                "headline": offline["HEADLINE"]})
+        self.assertIn("did not name it", server["CHECKPOINT"])
+        self.assertNotIn("--to", server["CHECKPOINT"])
+        self.assertIn("canvas.py status", server["CHECKPOINT"])
 
     def test_a_no_op_reads_the_same_either_way(self):
         self.store.reroute("checkout-flow")          # spend the offer
@@ -15815,6 +15969,368 @@ class TestRerouteHonoursTheCadenceBanner(Base):
         self.assertEqual(out["PENDING_ID"], "7")
         self.assertEqual(out["REASON"], "cadence is set to pulled")
         self.assertNotIn("REVN", out, "a queued re-route has no save to name")
+
+
+class TestTheCheckpointNamesAnOperationTheToolOffers(Base):
+    """v0.9 whole-branch review, I-5: `revert save #N` had no `revert`.
+
+    `Store.revert_to` shipped complete and tested with NO CALLER
+    ANYWHERE — no subcommand, no route — while every reroute and
+    relayout checkpoint, `--apply`'s own help and a committed
+    `user_note` in the frozen corpus instructed the user to run it. The
+    UI's `↺ revert` discards UNSAVED buffers (its own modal: "Nothing
+    already saved is touched") and the timeline's checkout is a
+    read-only view that FORKS on the next user save, so there was no
+    second door the copy could have been redirected to.
+
+    And two consecutive commands made opposite claims about the same
+    number: the applied path said "revert save #20 to put the old
+    geometry back" about the save it had just written, seconds after the
+    dry run said "revert save #20 to restore the current geometry" about
+    head. `revert_to(revn)` restores state AT revn, so the first was
+    wrong.
+
+    THE LOOP, NOT THE STRING. The load-bearing arm below parses the save
+    number out of the message the tool itself printed, runs the command
+    that message names through the REAL argument parser, and compares
+    the geometry byte for byte — the shape
+    `TestEveryWaiveSuggestionCanBeApplied` uses, and for its reason: a
+    string assertion is satisfied by any spelling, including the next
+    broken one.
+    """
+
+    def setUp(self):
+        """Seed the fossilised flow both reroute classes use."""
+        super().setUp()
+        seed_fossil_flow(self.store)
+        self.store = canvas.Store(self.project)
+
+    def run_cli(self, argv):
+        """Drive `canvas.py` through its real parser.
+
+        Args:
+            argv: Args after the program name, `--project` excluded.
+
+        Returns:
+            `(exit_code, {KEY: value})` from stdout.
+        """
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code = canvas.main(["--project", str(self.tmp), *argv])
+        out = {}
+        for line in buf.getvalue().splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                out[k] = v
+        return code, out
+
+    def geometry(self):
+        """Every arrow's stored path, off disk.
+
+        Returns:
+            `{id: (x, y, points)}`.
+        """
+        raw = json.loads((self.project.artifacts_dir /
+                          "checkout-flow.excalidraw").read_text())
+        return {e["id"]: (e.get("x"), e.get("y"), e.get("points"))
+                for e in raw["elements"] if e.get("type") == "arrow"}
+
+    def test_the_verb_the_checkpoints_name_exists(self):
+        """The bare fact the finding is about, asserted at the parser.
+
+        A checkpoint naming a subcommand `argparse` rejects is a
+        checkpoint naming nothing, however well the underlying method
+        works — so this drives the REAL parser and distinguishes the two
+        exit-2s it can produce: argparse's "invalid choice" (the verb
+        does not exist) from the handler's own refusal (it does, and it
+        wants a save number).
+        """
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(buf), \
+                self.assertRaises(SystemExit) as e:
+            canvas.main(["--project", str(self.tmp), "revert"])
+        self.assertEqual(e.exception.code, 2)
+        self.assertNotIn("invalid choice", buf.getvalue())
+        self.assertIn("revert needs --to N", buf.getvalue())
+
+    def test_following_the_checkpoint_restores_the_geometry_exactly(self):
+        """Re-route, then run the command the tool printed. Byte for byte.
+
+        The number is READ OUT of the message rather than computed here,
+        so a checkpoint that named the wrong save fails this even though
+        `revert_to` itself is correct — which is precisely the half of
+        I-5 that a unit test of `revert_to` cannot see.
+        """
+        before = self.geometry()
+        code, out = self.run_cli(["reroute", "--artifact", "checkout-flow",
+                                  "--apply"])
+        self.assertEqual(code, 0, out)
+        self.assertNotEqual(self.geometry(), before,
+                            "the re-route changed nothing, so there is "
+                            "no checkpoint to follow")
+        told = re.search(r"revert --to (\d+) --apply", out["CHECKPOINT"])
+        self.assertTrue(told, "the checkpoint does not name a runnable "
+                              "command: %r" % out.get("CHECKPOINT"))
+        code, out = self.run_cli(["revert", "--to", told.group(1),
+                                  "--apply"])
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.geometry(), before,
+                         "following the checkpoint did not put the old "
+                         "geometry back")
+
+    def test_the_dry_run_and_the_applied_run_agree_about_which_save(self):
+        """One number, one meaning — the contradiction, both sides.
+
+        The dry run names HEAD ("the current geometry") and the applied
+        run names its own BASE ("the old geometry"). Those are the same
+        save, which is why the two messages may carry the same number:
+        what they may not do is carry it while meaning opposite things.
+        """
+        head = self.store.head_revn()
+        _c, dry = self.run_cli(["reroute", "--artifact", "checkout-flow"])
+        self.assertIn("revert --to %d --apply" % head, dry["CHECKPOINT"])
+        self.assertIn("the current geometry", dry["CHECKPOINT"])
+        _c, applied = self.run_cli(["reroute", "--artifact",
+                                    "checkout-flow", "--apply"])
+        self.assertIn("revert --to %d --apply" % head,
+                      applied["CHECKPOINT"])
+        self.assertIn("the old geometry", applied["CHECKPOINT"])
+        self.assertNotEqual(applied["REVN"], str(head),
+                            "the re-route did not write a new save, so "
+                            "the two numbers coinciding proves nothing")
+
+    def test_the_committed_note_names_the_base_and_not_itself(self):
+        """The `user_note` the frozen corpus carries wrong.
+
+        `argus-r5/0024-enrichment-flow.json` ships "revert this save to
+        put the old geometry back" — reverting THAT save restores the
+        re-route, not the geometry it replaced.
+        """
+        rec = self.store.reroute("checkout-flow")
+        self.assertIn("revert --to %d --apply" % rec["base_revn"],
+                      rec["user_note"])
+        self.assertNotIn("revert this save", rec["user_note"])
+        self.assertNotIn("revert --to %d " % rec["revn"], rec["user_note"])
+
+    def test_an_unknown_save_is_refused_instead_of_emptying_the_project(self):
+        """The hazard the missing caller was hiding.
+
+        `lineage` walks `records` and stops, so `state_at(999)` answers
+        `{}`; `revert_to` read that as "every artifact was removed" and
+        committed the whole project EMPTY, headlined "deleted Cart (+13
+        more)". Reproduced at this head before the guard. Nothing could
+        reach it while the method had no caller — the moment it gained a
+        CLI verb the number came off the command line.
+        """
+        before = self.geometry()
+        self.assertTrue(before, "the scene has no arrows to lose")
+        with self.assertRaises(canvas.BatchError) as e:
+            self.store.revert_to(999)
+        self.assertIn("999", str(e.exception))
+        self.assertEqual(self.geometry(), before)
+        with self.assertRaises(SystemExit) as sysexit:
+            self.run_cli(["revert", "--to", "999", "--apply"])
+        self.assertEqual(sysexit.exception.code, 2)
+        self.assertEqual(self.geometry(), before)
+        self.assertEqual(canvas.Store(self.project).scenes["checkout-flow"],
+                         self.store.scenes["checkout-flow"])
+
+    def test_the_dry_run_writes_nothing_and_apply_writes(self):
+        """The consent gate, both poles, `reroute`'s own shape."""
+        self.store.reroute("checkout-flow")
+        base = self.store.head_revn() - 1
+        after_reroute = self.geometry()
+        code, out = self.run_cli(["revert", "--to", str(base)])
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out["APPLIED"], "false")
+        self.assertEqual(out["CHANGED"], "checkout-flow")
+        self.assertEqual(self.geometry(), after_reroute)
+        self.assertEqual(canvas.Store(self.project).head_revn(),
+                         self.store.head_revn())
+        self.run_cli(["revert", "--to", str(base), "--apply"])
+        self.assertNotEqual(self.geometry(), after_reroute)
+
+    def test_reverting_to_a_save_that_already_holds_this_drawing_is_a_noop(
+            self):
+        """No empty revision, the guard every other verb here carries."""
+        head = self.store.head_revn()
+        rec = self.store.revert_to(head)
+        self.assertTrue(rec.get("noop"), rec)
+        self.assertIn("nothing to put back", rec["summary"]["headline"])
+        self.assertEqual(self.store.head_revn(), head)
+
+    def test_a_revert_of_arrow_ink_does_not_narrate_as_an_empty_save(self):
+        """Bound-arrow geometry is derived, so the diff alone says nothing.
+
+        `Store.reroute` synthesises `rerouted` facts for exactly this
+        reason and a revert of a re-route has exactly the same problem:
+        without them the save headlines "saved without changing
+        anything" while four arrows moved on screen.
+        """
+        rec = self.store.reroute("checkout-flow")
+        back = self.store.revert_to(rec["base_revn"])
+        self.assertFalse(back.get("noop"), back)
+        facts = back["artifacts"]["checkout-flow"]["facts"]
+        self.assertEqual(
+            sorted(f["element"] for f in facts if f["fact"] == "rerouted"),
+            ["t1", "t3"], facts)
+        self.assertNotIn("saved without changing anything",
+                         back["summary"]["headline"])
+
+    def test_a_revert_touches_only_the_artifacts_that_move(self):
+        """One drawing's revert does not re-commit the whole project.
+
+        Handing `commit` every artifact minted a `saved_no_changes`
+        fact per untouched one, so a revert of a single drawing in a
+        six-drawing project headlined "saved without changing anything
+        (+4 more)" — five sentinels drowning the one real change.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "other",
+            "create": {"id": "other", "name": "Other", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "solo", "label": "Solo",
+                "x": 40, "y": 40, "width": 140, "height": 60}}]})
+        rec = self.store.reroute("checkout-flow")
+        back = self.store.revert_to(rec["base_revn"])
+        self.assertEqual(sorted(back["artifacts"]), ["checkout-flow"],
+                         "the revert re-committed artifacts it did not "
+                         "change: %r" % sorted(back["artifacts"]))
+        self.assertIn("solo", {e["id"] for e in self.store.scenes["other"]})
+
+
+class TestRevertHonoursTheCadenceBanner(Base):
+    """A revert is an agent revision, so the banner gates it (C-2's rule).
+
+    `/api/tidy` is the exemption and stays one because its only caller
+    is the ✨ button, where the press IS the consent. Nothing reaches
+    `/api/revert` but the agent's CLI, so under `pulled` cadence — where
+    the user has said nothing changes on their canvas until they pull —
+    it queues exactly as `/api/apply` and `/api/reroute` do. Asserted by
+    comparing the two endpoints in ONE server rather than against a
+    remembered string, the shape `TestRerouteHonoursTheCadenceBanner`
+    set: the claim is that they AGREE.
+    """
+
+    def setUp(self):
+        """Seed the fossilised flow and re-route it, so a revert has work."""
+        super().setUp()
+        seed_fossil_flow(self.store)
+        self.store = canvas.Store(self.project)
+        self.target = self.store.head_revn()
+        self.store.reroute("checkout-flow")
+
+    def app_with(self, cadence="pulled", dirty=False):
+        """A server app in a stated cadence and dirty state.
+
+        Args:
+            cadence: `canvas_updates`.
+            dirty: Whether the user has unsaved edits.
+
+        Returns:
+            The app; the caller closes its log.
+        """
+        app = canvas.ServerApp(self.project)
+        app.store.config["canvas_updates"] = cadence
+        app.dirty = dirty
+        return app
+
+    def test_under_pulled_cadence_a_revert_queues_exactly_as_an_apply_does(
+            self):
+        app = self.app_with(cadence="pulled")
+        try:
+            before = app.store.head_revn()
+            r = app.handle_post("/api/revert", {"revn": self.target})
+            a = app.handle_post("/api/apply", {
+                "base_revn": app.store.head_revn(),
+                "artifact": "checkout-flow",
+                "ops": [{"op": "mod", "id": "cart", "attrs": {"x": 44}}]})
+            self.assertTrue(r["queued"], r)
+            self.assertEqual(r["reason"], a["reason"])
+            self.assertNotIn("revn", r, "a queued revert has written no "
+                                        "revision and must not name one")
+            self.assertEqual(app.store.head_revn(), before)
+        finally:
+            app.log_file.close()
+
+    def test_the_queued_revert_lands_when_the_user_pulls_it(self):
+        app = self.app_with(cadence="pulled")
+        try:
+            geo = {e["id"]: e.get("points") for e in
+                   app.store.state_at(self.target)["checkout-flow"]
+                   ["elements"] if e.get("type") == "arrow"}
+            r = app.handle_post("/api/revert", {"revn": self.target})
+            out = app.handle_post("/api/pending/resolve",
+                                  {"id": r["pending_id"],
+                                   "action": "apply_now"})
+            self.assertFalse(out.get("noop"), out)
+            self.assertEqual(
+                {e["id"]: e.get("points")
+                 for e in app.store.scenes["checkout-flow"]
+                 if e.get("type") == "arrow"}, geo)
+            self.assertEqual(app.pending, [])
+        finally:
+            app.log_file.close()
+
+    def test_under_per_round_cadence_it_commits(self):
+        """The other pole: the gate is the cadence, not the endpoint."""
+        app = self.app_with(cadence="per-round")
+        try:
+            before = app.store.head_revn()
+            r = app.handle_post("/api/revert", {"revn": self.target})
+            self.assertFalse(r.get("queued"), r)
+            self.assertEqual(r["revn"], before + 1)
+            self.assertEqual(r["base_revn"], before)
+        finally:
+            app.log_file.close()
+
+    def test_a_revert_with_nothing_to_do_answers_instead_of_queueing(self):
+        """`reroute_noop`'s rule: do not take a banner slot to say no."""
+        app = self.app_with(cadence="pulled")
+        try:
+            r = app.handle_post("/api/revert",
+                                {"revn": app.store.head_revn()})
+            self.assertTrue(r["noop"], r)
+            self.assertNotIn("queued", r)
+            self.assertEqual(app.pending, [])
+        finally:
+            app.log_file.close()
+
+    def post(self, app, body):
+        """Call `/api/revert`, turning its `_Err` into a payload dict.
+
+        Args:
+            app: The server app.
+            body: The request body.
+
+        Returns:
+            The response, or the error payload with its `status`.
+        """
+        try:
+            return app.handle_post("/api/revert", body)
+        except canvas._Err as e:
+            return dict(e.payload, status=e.status)
+
+    def test_an_unshaped_revn_is_a_400_and_not_a_traceback(self):
+        """A number off the wire is not a number until it is checked.
+
+        `True` is in the list on `index_fault`'s ruling: `bool` is an
+        `int` subclass, so a JSON `true` would read as save #1 and
+        restore a drawing the batch never named.
+        """
+        app = self.app_with(cadence="per-round")
+        try:
+            for bad in (None, "3", 3.0, True, [3], {"revn": 3}):
+                with self.subTest(bad=bad):
+                    resp = self.post(app, {"revn": bad})
+                    self.assertEqual(resp.get("status"), 400, resp)
+                    self.assertIn("integer", resp["error"])
+            self.assertEqual(self.post(app, {"revn": 9999})["status"], 404)
+            self.assertEqual(app.store.head_revn(), self.store.head_revn())
+        finally:
+            app.log_file.close()
 
 
 class TestDivergenceVerbs(Base):
@@ -19789,6 +20305,202 @@ class TestBorderCollinearExit(Base):
         arrow = {"id": "a", "type": "arrow"}
         canvas.route_arrow(arrow, src, dst)
         self.assertEqual(len(arrow["points"]), 3)
+
+
+class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
+    """v0.9 whole-branch review, I-7: bound was the wrong population.
+
+    The on-border run — arrow and outline drawn on the same pixels —
+    lived inside `lint_layout`'s per-binding loop, so `tgt` could only
+    ever be a shape the arrow BINDS. A leg running down an unrelated
+    box's edge was therefore silent, and the review measured the shape
+    on the tool's own router output: 28px along the bound node's border
+    reported, 56px along each of two unbound ones silent, every pixel of
+    it visible in the same picture.
+
+    `_seg_hits_rect` cannot cover it and is right not to — it insets 2px
+    precisely so a grazing path is not called a crossing, which is what
+    keeps the diamond and ellipse corner-void refusals honest. Grazing
+    is its own finding; only the bound half of it had one.
+
+    THE SCENE IS A STRAIGHT DROP PAST A COLUMN OF BOXES whose facing
+    borders share one x. Nothing here needs a router: the numbers are
+    read off the geometry, and the bound node contributes ZERO on-border
+    length, so the existing arm is silent by construction and every
+    finding below is the new one.
+    """
+
+    def scene(self, unbound_x=220):
+        """One bound source and two boxes the arrow only passes.
+
+        `a` is 60..220 on x and 148..228 on y, so its RIGHT border is
+        x=220 and the arrow's foot stands on its bottom-right corner:
+        the drop leaves along the border rather than lying on it, which
+        is what keeps `a`'s own on-border run at 0.
+
+        `b` and `c` are stacked below with their LEFT border at
+        `unbound_x`, each 80px tall, so the drop lies on 80px of each
+        when that is 220 and on none of it otherwise.
+
+        Args:
+            unbound_x: Left edge of the two boxes the arrow passes.
+
+        Returns:
+            `[a, b, c, d, arrow]`.
+        """
+        def box(i, x, y):
+            return mk_el(id=i, type="rectangle", x=x, y=y, width=160,
+                      height=80, customData={"role": "node"})
+
+        return [box("a", 60, 148), box("b", unbound_x, 250),
+                box("c", unbound_x, 360), box("d", 530, 438),
+                mk_el(id="ag", type="arrow", x=220, y=228, width=310,
+                   height=250, points=[[0, 0], [0, 250], [310, 250]],
+                   startBinding={"elementId": "a", "focus": 0, "gap": 4},
+                   endBinding={"elementId": "d", "focus": 0, "gap": 4},
+                   customData={"role": "edge"})]
+
+    def runs(self, els):
+        """Every on-border-run finding a scene produces.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The matching lines from both speaking tiers.
+        """
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        return [m for m in lint["warnings"] + lint["errors"]
+                if "own border" in m]
+
+    def test_a_run_along_an_unbound_shapes_border_is_reported(self):
+        """The silence, with both sets of pixels measured.
+
+        The premise is asserted first: the BOUND node contributes zero,
+        so a check that had merely started double-counting `a` would
+        fail here rather than pass by coincidence.
+        """
+        els = self.scene()
+        a, b, c, _d, ag = els
+        rpath = canvas._rendered_path(ag)
+
+        def on_border(node):
+            total = 0.0
+            for (p0x, p0y), (p1x, p1y) in zip(rpath, rpath[1:]):
+                dx, dy = p1x - p0x, p1y - p0y
+                seg = math.hypot(dx, dy)
+                if not canvas._clipped_len(node, p0x, p0y, dx, dy, seg, 1):
+                    total += canvas._clipped_len(node, p0x, p0y, dx, dy,
+                                                 seg, 0)
+            return total
+
+        for node, want in ((a, 0.0), (b, 80.0), (c, 80.0)):
+            self.assertAlmostEqual(
+                on_border(node), want, places=6,
+                msg="the scene no longer measures 0/80/80 (%s reads %r), "
+                    "so the assertions below are about a different "
+                    "drawing" % (node["id"], on_border(node)))
+        found = self.runs(els)
+        self.assertEqual(len(found), 2, found)
+        self.assertTrue(any("80px along b" in m for m in found), found)
+        self.assertTrue(any("80px along c" in m for m in found), found)
+        self.assertFalse([m for m in found if "along a" in m], found)
+
+    def test_it_says_the_shape_is_neither_end_and_gives_that_remedy(self):
+        """The wording differs from the bound arm exactly where the
+        situation does.
+
+        "Give the arrow an exit that steps off the edge" is advice about
+        an ATTACHMENT, and there is no attachment here — so the sentence
+        names the node as neither end and says route it clear. The
+        shared opening is deliberate: it is the same claim about the
+        same pixels, and one detector regex reads both.
+        """
+        found = self.runs(self.scene())
+        for m in found:
+            self.assertIn("neither its source nor destination", m)
+            self.assertIn("route it clear of that edge", m)
+            self.assertNotIn("give the arrow an exit", m)
+
+    def test_moving_the_boxes_off_the_line_silences_it(self):
+        """The quiet pole: one variable moves, both findings go.
+
+        Also the pole that a check counting mere PROXIMITY would fail —
+        the boxes are still beside the arrow at x=232, just not under
+        it.
+        """
+        self.assertFalse(self.runs(self.scene(unbound_x=232)))
+
+    def test_a_shape_the_arrow_binds_is_not_reported_twice(self):
+        """The bound arm keeps its own sentence and its own tier.
+
+        Its wording, its remedy and its `(start|end) point` clause all
+        stay, and the new arm must not add a line about a node the arrow
+        binds — which is what the `ends` skip is for. The flush pair
+        below has the drop lying on BOTH borders, so the bound arm
+        speaks twice and the new one not at all: two findings, two ends,
+        no third sentence.
+        """
+        src = mk_el(id="s", type="rectangle", x=0, y=0, width=160, height=64,
+                 customData={"role": "node"})
+        dst = mk_el(id="d", type="rectangle", x=160, y=92, width=160,
+                 height=64, customData={"role": "node"})
+        arrow = mk_el(id="a", type="arrow", x=160, y=32, width=0, height=92,
+                   points=[[0, 0], [0, 92]],
+                   startBinding={"elementId": "s", "focus": 0, "gap": 6},
+                   endBinding={"elementId": "d", "focus": 0, "gap": 6},
+                   customData={"role": "edge"})
+        found = self.runs([src, dst, arrow])
+        self.assertEqual(len(found), 2, found)
+        self.assertTrue(any("runs 32px along s's own border (start point)"
+                            in m for m in found), found)
+        self.assertTrue(any("runs 32px along d's own border (end point)"
+                            in m for m in found), found)
+        for m in found:
+            self.assertIn("give the arrow an exit", m)
+            self.assertNotIn("neither its source nor destination", m)
+
+    def test_a_crossing_keeps_the_passes_through_sentence(self):
+        """The hand-off: through the box is not along its edge.
+
+        Driven ONTO the same unbound box rather than past it. Only one
+        of the two sentences may fire, or one drawing earns two findings
+        for one stroke — the arrangement the graze check's own
+        `continue` chain already keeps.
+        """
+        els = self.scene()
+        els[4]["x"] = 300           # the drop now cuts b and c in half
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        crossed = [m for m in lint["warnings"] if "passes through" in m]
+        self.assertEqual(len(crossed), 2, lint["warnings"])
+        self.assertFalse(self.runs(els), lint["warnings"])
+
+    def test_the_finding_reaches_the_surface_an_agent_reads(self):
+        """Firing pole through `apply_batch` and `Store.lint_lines`.
+
+        The scene is drawn by the real op path — so the arrow is bound
+        and routed by the server, and the boxes are placed where the
+        batch says — and the finding is read off the standing lint debt
+        rather than off a direct `lint_layout` call.
+        """
+        def add(i, x, y):
+            return {"op": "add", "element": {
+                "type": "rectangle", "id": i, "label": i.upper(), "x": x,
+                "y": y, "width": 160, "height": 80, "role": "node"}}
+
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "brd",
+            "create": {"id": "brd", "name": "Border", "type": "flow"},
+            "ops": [add("a", 60, 148), add("b", 220, 250),
+                    add("c", 220, 360), add("d", 530, 438)]})
+        els = [dict(e) for e in self.store.scenes["brd"]]
+        els.append(self.scene()[4])
+        self.store.commit(author="agent", new_scenes={"brd": els},
+                          base_revn=self.store.head_revn())
+        store = canvas.Store(self.project)
+        found = [m for m in store.lint_lines()["brd"]["warnings"]
+                 if "own border" in m]
+        self.assertEqual(len(found), 2, store.lint_lines()["brd"])
 
 
 class TestGrazingArrival(Base):
