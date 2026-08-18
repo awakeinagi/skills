@@ -189,50 +189,41 @@ class TestRefreshRepairs(LiveDocCase):
 
 
 class TestRefreshCannotEatItsOwnAnswer(LiveDocCase):
-    """The repair command that was reported to corrupt what it repaired.
+    """The repair command may not corrupt what it repairs.
 
-    TWO WITNESSES, ONE WRONG DIAGNOSIS. TASK-ELBOX (concern 8) and
-    curator batch 31 (concern 6) both watched `refresh` turn a marker
-    holding the sentinel `0` into `1410410410410410410410410410` and
-    both concluded the replacement was substring-based, so a stored
-    value that is a substring of its answer eats itself. Measured here
-    before anything was written: it is not. `refresh_files` splices by
-    OFFSET (`text[:marker.start] + fresh + text[marker.end:]`) and walks
-    each file's markers right to left, so a digit sentinel is perfectly
-    safe — the first test below drives the exact shape the reports
-    blame and it converges in one pass. The advice they leave behind
-    ("use a letter, not a digit") is harmless and its stated reason is
-    wrong, which is worse than no reason: it points the next reader
-    away from the real trigger.
+    WRITTEN AS A PREMISE PIN ON THE CORRUPTION, REWRITTEN AS THE
+    GUARANTEE the day the one-line repair landed (curator batch 33 filed
+    it, the v0.9 FINAL FIX ROUND closed it, both 2026-08-18). Its own
+    failure message asked for exactly this rewrite. What it used to
+    assert is kept below as the arithmetic, because the number is what
+    makes the class legible: the reports quote a real string.
 
-    THE REAL TRIGGER IS A DUPLICATED PATH, and it is reproduced below.
-    `refresh_files` scans ALL paths first and then rewrites file by
-    file, so a path appearing twice in `paths` has its markers found
-    twice AND is opened twice — n entries give n*n splices, each one
-    laying the fresh value over the FIRST CHARACTER of the value the
-    previous splice wrote. The answer is `fresh + fresh[1:] * (n*n - 1)`,
-    which is exactly the shape of the corruption both reports quote:
-    `1410` followed by `410` over and over.
+    TWO WITNESSES, ONE WRONG DIAGNOSIS, and this is why the diagnosis
+    paragraph outlives the red. TASK-ELBOX (concern 8) and curator batch
+    31 (concern 6) both watched `refresh` turn a marker holding the
+    sentinel `0` into `1410410410410410410410410410`, both concluded the
+    replacement was substring-based, and both left behind the advice
+    "use a letter sentinel, not a digit". It is not substring-based:
+    `refresh_files` splices by OFFSET
+    (`text[:marker.start] + fresh + text[marker.end:]`) and walks each
+    file's markers right to left, so a digit sentinel is safe and the
+    first test below drives the exact shape the reports blame. The
+    advice is harmless and its stated reason is wrong, which is worse
+    than no reason — it points the next reader away from the trigger.
 
-    HOW A DUPLICATE GETS IN. `tracked_prose_files` builds `paths` from
-    `git ls-files`, which prints one row per STAGE for an unmerged path
-    — and both witnesses hit this while resolving a merge conflict in
-    the file that carries the marker. That route is named rather than
-    asserted (a test that needs a conflicted index would be measuring
-    git); what is pinned is the function's own contract, which is where
-    the repair belongs.
-
-    WHY THIS IS GREEN. It asserts the CORRUPTION, not the fix, which is
-    the `test_the_pipeline_really_does_not_settle` shape: the repair is
-    one line in `refresh_files` (de-duplicate `paths`, or scan and write
-    per unique file), it belongs to whoever owns this module, and the
-    day it lands this class fails and asks to be rewritten as the
-    guarantee instead. `check` catches the mangled value afterwards, so
-    nothing could ship — but a repair tool that silently damages what it
-    repairs is the "silence is a bug" shape and should not be
-    undocumented. Origin: TASK-ELBOX concern 8 and curator batch 31
-    concern 6; measured and re-diagnosed during curator batch 33,
-    2026-08-18.
+    THE TRIGGER WAS A DUPLICATED PATH. `refresh_files` scanned ALL paths
+    and then rewrote file by file, so a path appearing n times had its
+    markers found n times AND its text rewritten n times from one
+    pre-read snapshot: n*n splices, each laying the fresh value over the
+    FIRST CHARACTER of the value the previous splice wrote, giving
+    `fresh + fresh[1:] * (n*n - 1)` — `1410` then `410` over and over.
+    The route in is `tracked_prose_files`, which reads `git ls-files`:
+    one row per STAGE for an UNMERGED path, and both witnesses hit this
+    while resolving a merge conflict in the file carrying the marker.
+    That route is named rather than asserted — a test needing a
+    conflicted index would be measuring git — and the repair sits in
+    the function's own contract, which is what the tests below hold:
+    ONE FILE IS ONE FILE HOWEVER OFTEN IT IS NAMED.
     """
 
     def test_a_sentinel_that_is_a_substring_of_its_answer_is_safe(self
@@ -258,13 +249,21 @@ class TestRefreshCannotEatItsOwnAnswer(LiveDocCase):
                 self.assertIn(">%s<" % fresh,
                               path.read_text(encoding="utf-8"))
 
-    def test_the_same_file_named_twice_is_written_into_itself(self) -> None:
-        """A PREMISE PIN on the corruption, with its arithmetic.
+    def test_the_same_file_named_twice_is_written_once(self) -> None:
+        """The guarantee, against the arithmetic it replaced.
 
-        `n` copies of one path produce `n*n` splices and the value
-        `fresh + fresh[1:] * (n*n - 1)`. Asserted for two and three
-        copies rather than one, because a formula pinned at a single
-        point is a coincidence.
+        Two and three copies rather than one, because a duplicate that
+        works at n=2 by accident is exactly what the n*n law would look
+        like from a single sample. The failure message carries the old
+        corrupt value so a regression is recognised on sight rather than
+        re-diagnosed: it is the string the two reports quote.
+
+        THE RETURNED CHANGE LIST IS CHECKED TOO, and it is the half that
+        would catch a repair made in the wrong place. De-duplicating
+        only the WRITE loop would leave `_scan_all` finding the marker n
+        times and reporting n repairs of one value — a correct file
+        described by a lying summary, which is the shape this module
+        exists to refuse.
         """
         fresh = livedoc.canvas_py_lines()
         for copies in (2, 3):
@@ -273,34 +272,41 @@ class TestRefreshCannotEatItsOwnAnswer(LiveDocCase):
                     "canvas.py is %s lines.\n"
                     % self.marked("canvas_py_lines", "0"),
                     name="dup-%d.md" % copies)
-                livedoc.refresh_files([path] * copies)
+                changed = livedoc.refresh_files([path] * copies)
                 got = path.read_text(encoding="utf-8").split("-->")[1] \
                                                       .split("<!--")[0]
                 self.assertEqual(
-                    got, fresh + fresh[1:] * (copies * copies - 1),
+                    got, fresh,
                     "`refresh_files` handed %d copies of one path wrote "
-                    "%r. If it now writes %r, the de-duplication landed "
-                    "— rewrite this class as the guarantee and delete "
-                    "its diagnosis paragraph" % (copies, got, fresh))
+                    "%r where %r is the whole answer. The n*n splice is "
+                    "back: %d copies used to write "
+                    "`fresh + fresh[1:] * (n*n - 1)`"
+                    % (copies, got, fresh, copies))
+                self.assertEqual(
+                    len(changed), 1,
+                    "one marker was repaired and %d repairs were "
+                    "reported: %r" % (len(changed), changed))
+                self.assertEqual(livedoc.check_files([path]), [])
 
-    def test_the_damage_is_what_check_then_reports(self) -> None:
-        """The system's own alarm, so the blast radius is named too.
+    def test_the_duplicate_costs_no_extra_write(self) -> None:
+        """Idempotence survives the duplicate, which is the other half.
 
-        What kept this from shipping is that `check` fails loudly on the
-        mangled value. Pinned so the pair reads honestly: the repair
-        tool can damage a file, and the guard catches it, and those are
-        two separate facts about the same module.
+        A de-duplication that collapsed the paths but re-read the file
+        per entry would still pass the test above — the second pass
+        finds the value already fresh and splices nothing — while
+        rewriting a file it had no reason to touch. `refresh_files`
+        promises an untouched file stays untouched byte for byte, and
+        mtime is what a build or a pre-commit hook actually watches, so
+        it is what this measures.
         """
         path = self.doc("canvas.py is %s lines.\n"
                         % self.marked("canvas_py_lines", "0"))
-        livedoc.refresh_files([path, path])
-        drifted = livedoc.check_files([path])
-        self.assertEqual(len(drifted), 1, drifted)
-        self.assertIn("live:canvas_py_lines", drifted[0])
+        self.assertEqual(len(livedoc.refresh_files([path, path])), 1)
+        before = path.stat().st_mtime_ns
+        self.assertEqual(livedoc.refresh_files([path] * 4), [])
         self.assertEqual(
-            len(livedoc.refresh_files([path])), 1,
-            "a refresh over the DAMAGED file, named once, must repair "
-            "it — the tool is only dangerous on the duplicate")
+            path.stat().st_mtime_ns, before,
+            "a second refresh over an already-current file rewrote it")
         self.assertEqual(livedoc.check_files([path]), [])
 
 

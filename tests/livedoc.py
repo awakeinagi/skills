@@ -540,17 +540,34 @@ def refresh_files(paths: Sequence[Path]) -> list[str]:
     Idempotent: a file whose values are already current is not rewritten at
     all, so a second run reports nothing and touches nothing.
 
+    ONE FILE IS ONE FILE HOWEVER OFTEN IT IS NAMED, which is the first
+    line of the body and is a repair rather than a nicety. Markers are
+    spliced by OFFSET into text read once per PATH ENTRY, so a path
+    appearing n times had its markers found n times and its text rewritten
+    n times from a snapshot taken before any of them — n*n splices, each
+    laying the fresh value over the first character of the value the
+    previous splice wrote, and a stored `0` came back as
+    `1410410410410410…` (`fresh + fresh[1:] * (n*n - 1)`). Two agents
+    reported that corruption and both diagnosed substring replacement,
+    which this function does not do; the real route in is
+    `tracked_prose_files`, which reads `git ls-files` — one row per STAGE
+    for an UNMERGED path, so resolving a merge conflict in a file carrying
+    a marker is enough. Pinned by `TestRefreshCannotEatItsOwnAnswer`.
+    `dict.fromkeys` and not `set`, so the order files are repaired in stays
+    the order they were handed in.
+
     Raises `AssertionError` on a malformed marker, an unregistered name or a
     calculator whose subject is gone — the same refusals `check` makes, and
     made BEFORE anything is written, because a file half-rewritten from a
     broken derivation is worse than one left stale.
 
     Args:
-        paths: Files to repair.
+        paths: Files to repair. Duplicates are collapsed.
 
     Returns:
         One line per marker whose stored value was replaced.
     """
+    paths = list(dict.fromkeys(paths))
     pairs = _scan_all(paths)
     values = _values(pairs)
     changed = []
