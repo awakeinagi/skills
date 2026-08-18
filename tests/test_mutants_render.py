@@ -1439,14 +1439,60 @@ def _anchored(elements: list[dict],
     caller's decision that reads on the page instead of an invariant to
     remember.
 
+    THE ANCHORS LAND ON INTEGER SCENE COORDINATES, and the box is snapped
+    OUTWARD here to put them there (v0.9 SPIKE-DERIVEDFRAME fix round 1).
+    Until that spike every `_scene_bbox` any caller passed happened to be
+    integral, so this was an accident nothing stated and nothing checked —
+    and the moment `_drawn_corners` learned to read a curved arrow's
+    flattened path, which lands wherever the arithmetic puts it, the
+    accident ended and `_raster_to_scene`'s scale guard started refusing
+    every curved scene.
+
+    THAT GUARD IS RIGHT AND WAS NOT RELAXED, which was the other candidate
+    and is the reason this is worth a paragraph. `_raster_to_scene` divides
+    an INTEGER raster separation — two component bboxes, whole pixels — by
+    the anchors' SCENE separation, so a fractional separation cannot read
+    scale 1 no matter how the tolerance is written. Measured rather than
+    argued (2026-08-18): rendered both ways and asked each raster where the
+    same elbow's apex is, fractional anchors disagree with snapped ones by
+    0.11px at leg 30, 0.11px at 110 and 0.33px at 374, and the scale they
+    solve drifts to 1.0014 — an error that is not sub-pixel at all, because
+    it is a SCALE and so grows with the scene (1.3px across a 900px raster).
+    `TestFlatteningFidelity` reports 0.70px against a 1.0px band with a
+    0.47px instrument floor; a ruler bent by a third of a pixel and
+    stretching would eat most of that margin silently. Loosening the guard
+    buys a green test and a worse measurement, which is the trade this
+    project refuses everywhere else.
+
+    OUTWARD, never inward: `floor` the minimum and `ceil` the maximum, so
+    the ring can only ever widen. The gap the two squares leave is
+    therefore `_ANCHOR_GAP` to `_ANCHOR_GAP + 1` rather than exactly 24,
+    and every claim in this module is written against the constant as a
+    FLOOR — ink must stay inside the anchors, not at some exact distance
+    from them — so a px of slack costs nothing and a px of squeeze would
+    have cost the promise.
+
     Args:
         elements: The variant scene.
-        box: `(minx, miny, maxx, maxy)` of the FULL scene.
+        box: `(minx, miny, maxx, maxy)` of the FULL scene. Fractional is
+            fine and expected; it is snapped here rather than at
+            `_scene_bbox`, which answers where the INK is and should not
+            round a measurement to make a ruler convenient.
 
     Returns:
         A new list: the two anchors followed by the scene's elements.
     """
-    minx, miny, maxx, maxy = box
+    # `float(...)` around each, and it is NOT cosmetic: `math.floor` returns
+    # an `int`, `_client_cache_key` serializes the scene with `json.dumps`,
+    # and `10` is not `10.0` in that text — so returning ints here changed
+    # the key of EVERY scene in the tier, including the integer-box ones the
+    # snap does not move at all, and missed the whole client render cache.
+    # Measured: 18 of 18 pre-existing scenes re-keyed with the ints, 6 of 18
+    # with the floats, and the 6 are exactly the scenes whose box is
+    # fractional. Same class as the parity-spec lesson about `2.0` emitting
+    # `2` — a type is part of the wire format.
+    minx, miny = float(math.floor(box[0])), float(math.floor(box[1]))
+    maxx, maxy = float(math.ceil(box[2])), float(math.ceil(box[3]))
     lo = (minx - _ANCHOR_GAP, miny - _ANCHOR_GAP)
     hi = (maxx + _ANCHOR_GAP - _ANCHOR_SIDE, maxy + _ANCHOR_GAP - _ANCHOR_SIDE)
     anchors = [el(id="abl-anchor-%s" % tag, type="rectangle", x=x, y=y,
@@ -4002,8 +4048,9 @@ class TestClientTierReadsWhateverItIsHandedRegime(unittest.TestCase):
 # — which delegates to it — under-reported by 59px on an 800px leg. Unlike
 # the two above, the frozen corpus carries it: 6 of its 36 curved arrows bow
 # past `_ANCHOR_GAP`'s 24px, worst 41.4px on `tearsheet-flow`'s
-# `t-analysis-cutoff`, so an ablation run over any of those four artifacts
-# was already exposed. It went unseen because the client tier has never
+# `t-analysis-cutoff`, so an ablation run over any of those three artifacts
+# (`tearsheet-flow`, `enrichment-flow`, `daily-run`) was already exposed. It
+# went unseen because the client tier has never
 # rendered a curved arrow — 0 of its 24 distinct scenes carries `roundness`
 # on any element, against 9 that carry a linear at all and 3 that carry a
 # 3+-point one. A blind spot in the harness, hidden by a gap in the fixtures.
@@ -4198,7 +4245,11 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
         fixture artifacts, 36 of the 194 arrow/line elements are curved
         (`roundness` and three or more points) and SIX of those bow past
         `_ANCHOR_GAP` — worst 41.4px on `tearsheet-flow`'s
-        `t-analysis-cutoff` — across four artifacts. Every one of them
+        `t-analysis-cutoff` — spread over THREE artifacts:
+        `tearsheet-flow` twice, `enrichment-flow` twice, `daily-run`
+        twice. (It read "four" until the review of this commit counted
+        them; the six rows were right and the file count was not.)
+        Every one of them
         was one ablation run away from the failure `_anchored` exists to
         prevent, in the sharpest form: ablate the bowing arrow and the
         export REFRAMES, so the two rasters being differenced are not
@@ -4244,6 +4295,101 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
             "says %r, canvas._rendered_path spans %r"
             % (over, over - _ANCHOR_GAP, _ANCHOR_GAP, _scene_bbox(scene),
                tuple(round(v, 2) for v in ink)))
+
+    def test_the_anchors_land_on_integers_however_fractional_the_box_is(
+            self) -> None:
+        """The ruler is on whole pixels — stated, now that it is not luck.
+
+        WRITTEN BECAUSE ITS ABSENCE COST A CRITICAL. Every `_scene_bbox`
+        any caller had ever passed `_anchored` was integral, so "the
+        anchors sit on integer scene coordinates" was true by accident,
+        depended on by `_raster_to_scene` — which divides an INTEGER
+        raster separation by the anchors' scene separation and refuses
+        anything that is not scale 1.000 — and written down nowhere. The
+        first commit to widen `_drawn_corners` onto a flattened path put
+        the anchors on fractions and turned curator batch 31's two green
+        `TestFlatteningFidelity` pins into hard errors. The review of
+        this commit caught it; nothing in the suite did.
+
+        SO THE INVARIANT IS THE TEST, not the symptom. Asserting that
+        `TestFlatteningFidelity` passes would cover the one neighbour
+        that happened to notice, cost a browser, and say nothing about
+        the next reader of these coordinates. This asks `_anchored` the
+        question directly, for free, in the tier that runs on every
+        commit.
+
+        THE SECOND CLAIM IS THE DIRECTION, and it is what makes this more
+        than a rounding assertion: snapping OUTWARD is load-bearing.
+        Every promise in this module reads `_ANCHOR_GAP` as a floor — ink
+        stays inside the anchors — so a box snapped inward would shave
+        the ring on exactly the scenes whose geometry is fractional, and
+        it would do it invisibly, since integer anchors are all this
+        test's first claim can see. Both are checked.
+
+        The scenes are chosen so the box is fractional for two DIFFERENT
+        reasons: a curved arrow, whose flattened path lands wherever the
+        bezier puts it, and a bare element at fractional coordinates,
+        which needs no curve at all. A snap that only handled the path
+        would pass the first and fail the second.
+        """
+        curved = [{"id": "a1", "type": "arrow", "x": 200, "y": 900,
+                   "width": 39, "height": 800, "roughness": 0,
+                   "strokeWidth": 2, "roundness": {"type": 2},
+                   "points": [[0, 0], [0, -800], [39, -800]]}]
+        offset = [{"id": "r1", "type": "rectangle", "x": 10.4, "y": 20.7,
+                   "width": 100.3, "height": 40.9}]
+        for label, scene in (("curved", curved), ("fractional", offset)):
+            box = _scene_bbox(scene)
+            anchors = _anchored(scene, box)[:2]
+            with self.subTest(scene=label, claim="integers"):
+                coords = [a["x"] for a in anchors] + [a["y"] for a in anchors]
+                self.assertEqual(
+                    [c for c in coords if c != int(c)], [],
+                    "%s: _anchored put an anchor on a fractional scene "
+                    "coordinate (%r) from box %r — _raster_to_scene divides "
+                    "a whole-pixel raster separation by this and cannot read "
+                    "scale 1.000, so every render-tier reading calibrated on "
+                    "these anchors refuses rather than measures"
+                    % (label, coords, tuple(round(v, 4) for v in box)))
+            with self.subTest(scene=label, claim="outward"):
+                # TOLERANCE-FREE ON PURPOSE, and it took a rewrite to get
+                # there: the obvious spelling — measure the ring's tightest
+                # side and require >= _ANCHOR_GAP — compares two floats that
+                # are mathematically equal when nothing snaps, and it duly
+                # failed at 23.999999999999986. An assertion whose verdict
+                # turns on the last bit of a subtraction is testing the FPU.
+                # These four compare an anchor edge against the ink box
+                # directly, so with integer anchors each side reduces to
+                # `floor(v) <= v` (exact) and an INWARD snap reduces to
+                # `ceil(v) <= v` (false by a whole pixel). The exactness
+                # therefore RESTS ON the claim above — in a state where the
+                # anchors are fractional this arm reconstructs the box
+                # through a subtraction and can report last-bit noise, which
+                # is harmless only because that state fails the integer
+                # claim first and louder. Watched at both poles: inverted to
+                # ceil/floor, the integer claim stays GREEN and this one
+                # fails by a whole pixel, which is why the two are separate
+                # subtests rather than one.
+                lo, hi = anchors
+                for side, near, far in (("left", lo["x"] + _ANCHOR_GAP,
+                                         box[0]),
+                                        ("top", lo["y"] + _ANCHOR_GAP,
+                                         box[1]),
+                                        ("right", box[2],
+                                         hi["x"] + _ANCHOR_SIDE
+                                         - _ANCHOR_GAP),
+                                        ("bottom", box[3],
+                                         hi["y"] + _ANCHOR_SIDE
+                                         - _ANCHOR_GAP)):
+                    self.assertLessEqual(
+                        near, far,
+                        "%s/%s: the anchor ring is tighter than _ANCHOR_GAP's "
+                        "%dpx on this side (%r vs %r, box %r) — the snap went "
+                        "INWARD, which shaves the ring precisely on the "
+                        "fractional scenes and is invisible to the integer "
+                        "claim beside this one"
+                        % (label, side, _ANCHOR_GAP, near, far,
+                           tuple(round(v, 4) for v in box)))
 
     def test_the_bbox_does_bound_an_upright_scene_and_its_waypoints(
             self) -> None:
@@ -4510,9 +4656,14 @@ class TestCurvedFramingIsExactRegime(unittest.TestCase):
         | 500 | 37.04 | 0x**13** |
         | 800 | 59.26 | 0x**35** |
 
-        `floor(bow - _ANCHOR_GAP)` at every rung, with nothing fitted:
-        the bias was never a property of curvature, it was the bow
-        walking out of the anchor ring. After the fix every rung reads
+        `max(0, floor(bow - _ANCHOR_GAP))` at every rung, with nothing
+        fitted — and the CLAMP is the whole point rather than a detail of
+        notation, which is why the review of this commit caught it stated
+        without one. Below the gap the expression goes negative while the
+        error stays 0: the anchors are still the extremes there, so the
+        prediction is not merely close, it is exact and has nothing to
+        correct. The bias was never a property of curvature, it was the
+        bow walking out of the anchor ring. After the fix every rung reads
         0x0, and the two rungs BELOW the gap are what make that a
         measurement rather than a tautology — they were exact before and
         must stay exact, so a fix that widened the frame by any constant
@@ -4602,9 +4753,14 @@ class TestCurvedFramingIsExactRegime(unittest.TestCase):
             # the chord hull, `_ANCHOR_GAP` out, in this raster's own px
             shot = shots["bare-800"]
             x0, y0, x1, y1 = self._anchor_box(shot)
-            path = canvas._rendered_path(variants["bare-800"][0])
-            pts = [(200.0 + p[0], 900.0 + p[1])
-                   for p in variants["bare-800"][0]["points"]]
+            arrow = variants["bare-800"][0]
+            # `x`/`y` READ off the element `_elbow` built, never retyped:
+            # the two agreed at this leg, and a second copy of a constant
+            # the helper owns is how they would stop agreeing (review of
+            # this commit, MINOR 4).
+            path = canvas._rendered_path(arrow)
+            pts = [(arrow["x"] + p[0], arrow["y"] + p[1])
+                   for p in arrow["points"]]
             inset = round(min(p[1] for p in pts) - min(p[1] for p in path))
             worst, count = self._ink_outside(shot, (x0, y0 + inset, x1, y1))
             self.assertGreater(
