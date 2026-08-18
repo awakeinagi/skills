@@ -8,6 +8,7 @@ import argparse
 import ast
 import base64
 import contextlib
+import copy
 import io
 import json
 import math
@@ -7087,7 +7088,7 @@ class TestFanAttachPoints(unittest.TestCase):
             # was a wrong number in a score vector until the corridor
             # reading became `lint_layout`'s `shared_lane`; now the
             # server hands the agent a warning about geometry it just
-            # produced and cannot improve on this side. That is the
+            # produced and cannot improve ON THIS SIDE. That is the
             # known over-fire surface of the promoted lint — 53 of 120
             # swept fanned scenes, all cramped sides at >= 4 feet — and
             # it is pinned HERE, as a fact, rather than left as a
@@ -7096,6 +7097,19 @@ class TestFanAttachPoints(unittest.TestCase):
             # goes quiet and this assertion says so, and the day the
             # lint stops reading the drawing it goes quiet for the wrong
             # reason and the sibling test above catches that instead.
+            #
+            # THE FIRST OF THOSE TWO DAYS ARRIVED on 2026-08-17 and this
+            # assertion did NOT go quiet, which is worth understanding
+            # before reading it as a prediction that failed. What landed
+            # (`contention_feet`) is a separate pass, so `fan_attach_
+            # points` alone still cannot spill and its shortfall here is
+            # still exactly as real as it was. The scene's other half —
+            # the same three shapes through the pipeline an artifact
+            # actually goes through — is
+            # `test_the_search_spills_what_the_fan_could_only_crowd`,
+            # where the lane does go quiet. Two tests, because there are
+            # two claims: what this function does, and what the server
+            # ships.
             said = [w for w in canvas.lint_layout(els)["warnings"]
                     if "run together for" in w]
             self.assertTrue(
@@ -7109,6 +7123,232 @@ class TestFanAttachPoints(unittest.TestCase):
             # the "unfollowable advice" defect this repo has recorded
             # once already.
             self.assertIn("too short to hold them all", said[0])
+
+    def test_the_search_spills_what_the_fan_could_only_crowd(self) -> None:
+        """The day the test above predicted, through the shipped pass.
+
+        The same three scenes, run through fan -> search -> fan, which
+        is what `apply_ops`, `_tidy_pass` and `reroute_scene` all do.
+        `contention_feet` moves one of the four feet onto an adjacent
+        border and the lane warning goes to zero on all three shapes:
+        rectangle and ellipse spill to the top, the rhombus to the top
+        and the bottom, which is its own geometry showing through — a
+        rhombus's side is its longest diagonal, so its adjacent borders
+        are the roomiest of the three.
+
+        THE HONEST-SHORTFALL POLE IS PRESERVED and moved to where the
+        shortfall now genuinely lives. A side too short for FOUR feet is
+        no longer a scene the server cannot improve; a 160x40 rhombus
+        with FIVE is, because no pair of its borders can hold them, and
+        the lint still says so. Without that last assertion this test
+        would read as "the search fixes cramped sides", when what it
+        does is fix the ones that are fixable — and a search that
+        silenced the rest would be hiding a shortfall rather than
+        repairing it.
+        """
+        for shape, w, h in (("rectangle", 160, 64), ("ellipse", 160, 64),
+                            ("diamond", 200, 80)):
+            els = self._elbowed(shape, 4, w, h)
+            canvas.fan_attach_points(els)
+            canvas.contention_feet(els)
+            canvas.fan_attach_points(els)
+            said = [x for x in canvas.lint_layout(els)["warnings"]
+                    if "run together for" in x]
+            self.assertEqual(
+                said, [],
+                "%s %dx%d: the search left a lane the agent is told to "
+                "repair on a node whose adjacent borders are empty: %s"
+                % (shape, w, h, said))
+            # AND A FOOT ACTUALLY LEFT THE SIDE. "No lane warning" is
+            # also what a pass that dropped the arrows produces, and the
+            # claim here is about SPILLING rather than about the lint
+            # going quiet.
+            node = els[0]
+            sides = [canvas._edge_side(node, x, y)
+                     for x, y in self._feet(els)]
+            self.assertEqual(len(sides), 4, (shape, sides))
+            self.assertTrue(
+                all(s is not None for s in sides),
+                "%s %dx%d: the search left a foot on no side at all: %s"
+                % (shape, w, h, sides))
+            self.assertTrue(
+                any(s in ("top", "bottom") for s in sides),
+                "%s %dx%d: the lane went quiet with every foot still on "
+                "the left side, so something other than a spill did it: "
+                "%s" % (shape, w, h, sides))
+        els = self._elbowed("diamond", 5, 160, 40)
+        canvas.fan_attach_points(els)
+        canvas.contention_feet(els)
+        canvas.fan_attach_points(els)
+        said = [x for x in canvas.lint_layout(els)["warnings"]
+                if "run together for" in x]
+        self.assertTrue(
+            said,
+            "a 160x40 rhombus cannot hold five feet on any pair of its "
+            "borders and the lint must still say so")
+        self.assertIn("too short to hold them all", said[0])
+
+    def test_a_side_with_room_is_never_searched(self) -> None:
+        """CONTENTION ONLY: an uncrowded scene comes back byte-identical.
+
+        The trigger is the whole difference between this pass and a
+        re-layout. A node with room for its feet is not a node with a
+        problem, and a search that moved a foot there would be redrawing
+        a fine picture on every apply — so the assertion is geometric
+        identity over the whole scene, not "no new warnings".
+
+        Two feet on a 300px side sit 100px apart, five and a half times
+        the pitch: neither trigger can fire, and the pass returns after
+        one dict walk without touching geometry.
+        """
+        els = self._elbowed("rectangle", 2, 160, 300)
+        canvas.fan_attach_points(els)
+        was = [(e["id"], e.get("x"), e.get("y"),
+                copy.deepcopy(e.get("points"))) for e in els]
+        canvas.contention_feet(els)
+        self.assertEqual(
+            [(e["id"], e.get("x"), e.get("y"), e.get("points"))
+             for e in els], was,
+            "the search moved geometry on a side with room for its feet "
+            "— it is meant to run on contention and nothing else")
+
+    def test_no_searched_foot_sits_on_a_border_its_arrow_doubles_back_to(
+            self) -> None:
+        """The facing filter's own invariant, and only it.
+
+        THE FIRST VERSION OF THIS TEST ASSERTED THE WRONG THING and is
+        worth recording, because it passed. It said "no foot lands on
+        the node's far side", which is true — and true because
+        `ADJACENT_SIDES` never enumerates the opposite border at all, so
+        the assertion held with `_side_faces` deleted. Measured: with
+        the filter stubbed out, zero of the 120 sweep rows put a foot on
+        the far side. A test that cannot fail when its subject is
+        removed is not testing its subject.
+
+        What the filter actually decides is narrower and is this: an
+        ADJACENT border is only a candidate when the arrow's other end
+        lies beyond it. Without that, a source below-left of its target
+        could have its foot spilled onto the TOP border, which the arrow
+        would then climb past the node and double back to reach — the
+        same reasoning `_route_candidates` uses picking an exit face.
+
+        AND THE FILTER IS CURRENTLY SUBSUMED, which is the honest state
+        of it and is why this test asserts the OUTPUT invariant rather
+        than claiming to exercise `_side_faces`. Stubbing the filter out
+        leaves this green as well: the score's manhattan term is the
+        last tiebreak, and a foot on a border the arrow doubles back to
+        is always the longer path, so length alone reaches the same
+        answer on all 120 sweep rows and all 24 artifacts. The filter is
+        kept because it is the guard that survives a change to the
+        SCORE — the ordering that currently subsumes it is five terms
+        deep and nothing pins it there — but at this head no scene makes
+        it load-bearing, and a test implying otherwise would be the
+        vacuous kind this suite exists to refuse.
+
+        So the assertion is the invariant itself, over every foot the
+        search left, whichever mechanism enforces it: the partner
+        endpoint is outside the face the foot stands on.
+        """
+        for shape in ("rectangle", "ellipse", "diamond"):
+            for n in (3, 4, 5):
+                els = self._elbowed(shape, n, 160, 48)
+                canvas.fan_attach_points(els)
+                canvas.contention_feet(els)
+                node = els[0]
+                for e in els:
+                    if e.get("type") != "arrow":
+                        continue
+                    pts = e["points"]
+                    foot = (e["x"] + pts[-1][0], e["y"] + pts[-1][1])
+                    anchor = (e["x"] + pts[0][0], e["y"] + pts[0][1])
+                    side = canvas._edge_side(node, foot[0], foot[1])
+                    with self.subTest(shape=shape, n=n, arrow=e["id"]):
+                        self.assertIsNotNone(side, (shape, n, foot))
+                        self.assertTrue(
+                            canvas._side_faces(node, side, anchor),
+                            "%s n=%d: %s stands on %s's %s border while "
+                            "its other end is on the wrong side of that "
+                            "face, so the arrow doubles back around the "
+                            "node it is arriving at"
+                            % (shape, n, e["id"], node["id"], side))
+
+    def test_no_searched_foot_lands_on_a_path_the_fan_cannot_respace(
+            self) -> None:
+        """The three-point cap, and why it is not a style rule.
+
+        `fan_attach_points` only touches paths with two or three points,
+        so a foot the search placed on a four-point Z would be frozen
+        where it stood — the fan could never re-space it again, and the
+        spike measured exactly that as two feet left 7px apart with the
+        lint naming the waypoint count.
+
+        Swept over the cramped end of the size ladder rather than
+        asserted on one scene, because the cap is a property of every
+        path the search can build.
+        """
+        for shape in ("rectangle", "ellipse", "diamond"):
+            for n in (3, 4, 5):
+                els = self._elbowed(shape, n, 160, 48)
+                canvas.fan_attach_points(els)
+                canvas.contention_feet(els)
+                for e in els:
+                    if e.get("type") != "arrow":
+                        continue
+                    with self.subTest(shape=shape, n=n, arrow=e["id"]):
+                        self.assertIn(
+                            len(e["points"]), (2, 3),
+                            "%s n=%d: %s came back with %d points, which "
+                            "puts it outside the set the fan can respace"
+                            % (shape, n, e["id"], len(e["points"])))
+
+    def test_the_search_adds_no_crossing_and_no_corridor(self) -> None:
+        """The search's scene-level output, on the corpus it was built for.
+
+        A per-endpoint score is blind to crossings and corridors by
+        construction: both are properties of a PAIR of paths, and no
+        amount of scoring one foot can see them. The spike's unguarded
+        arm manufactured 2 crossings and 2 corridors on this corpus
+        before the accept-guard existed.
+
+        Measured over every frozen artifact against the same artifact
+        through the fan alone, so what is asserted is the DELTA the
+        search is responsible for and not an absolute the fixtures
+        happen to carry.
+
+        WHAT THIS DOES NOT PROVE, stated because the alternative is a
+        test whose name overclaims. The accept-guard's revert arm is
+        currently UNEXERCISED: instrumented across all 24 artifacts and
+        all 120 sweep rows, the guard reverted 0 moves of 124 stamped,
+        because the per-endpoint score never proposes a move this corpus
+        would be worse for. Stubbing the revert out therefore leaves
+        this test green — measured, not assumed. So what stands here is
+        a property of the search's OUTPUT, which is a real regression
+        guard and the one that would catch a future scoring change; the
+        guard's own behaviour is a safety net nothing currently lands
+        on. Filed for the curator as a scene owed, not left as a
+        silence: a mutant needs a scene where a lane repair costs a
+        crossing, and none of the frozen 24 is one.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        for path in sorted(root.rglob("*.excalidraw")):
+            base = json.loads(path.read_text(encoding="utf-8"))["elements"]
+            fanned = copy.deepcopy(base)
+            canvas.fan_attach_points(fanned)
+            searched = copy.deepcopy(base)
+            canvas.fan_attach_points(searched)
+            canvas.contention_feet(searched)
+            canvas.fan_attach_points(searched)
+            with self.subTest(artifact=path.name):
+                self.assertLessEqual(
+                    canvas._scene_lane_cost(
+                        [e for e in searched
+                         if e.get("type") in ("arrow", "line")]),
+                    canvas._scene_lane_cost(
+                        [e for e in fanned
+                         if e.get("type") in ("arrow", "line")]),
+                    "%s: the search made the scene worse in crossings "
+                    "or corridors, which is what its accept-guard "
+                    "exists to prevent" % path.name)
 
     def test_the_fan_survives_a_second_pass(self) -> None:
         """Re-running the post-pass on its own output moves nothing.

@@ -4401,6 +4401,394 @@ def fan_attach_points(els):
         recenter_label(els, a)
 
 
+ADJACENT_SIDES = {"left": ("top", "bottom"), "right": ("top", "bottom"),
+                  "top": ("left", "right"), "bottom": ("left", "right")}
+# Which borders a foot may spill onto. The OPPOSITE side is deliberately
+# absent: reaching it means wrapping the arrow around the node, which the
+# facing filter below would refuse anyway, and leaving it out of the
+# enumeration is cheaper than scoring it and throwing it away.
+
+CONTENTION_SPILL_SLOTS = 2
+# Pitch slots either side of a candidate border's midpoint. Two is what
+# the midpoint plus four slots needs to hold five feet, which is the top
+# of the cramped range the sweep covers; a wider fan on a side that
+# already has room is the ordinary fan's job, not this one's.
+
+
+def _scene_lane_cost(arrows):
+    """The scene-level reading a per-endpoint score cannot see.
+
+    Crossings and corridors are properties of a PAIR of paths, so no
+    amount of scoring one endpoint can notice them: the spike's
+    unguarded arm manufactured 2 crossings and 2 corridors on the corpus
+    before this existed. Both are counted here in `lint_layout`'s own
+    terms rather than the instruments module's, because `canvas.py` is
+    stdlib-only and single-file and cannot import that module — the
+    mirroring `LANE_TOL` already documents.
+
+    Args:
+        arrows: The scene's arrow/line elements.
+
+    Returns:
+        `(crossings, corridors)` — properly-intersecting segment pairs,
+        and pairs of parallel runs within `LANE_TOL` for `LANE_RUN`.
+    """
+    drawn = [_rendered_path(a) for a in arrows]
+    lanes = [[ax for ax in (_lane_axis(s) for s in _rendered_stretches(a))
+              if ax is not None] for a in arrows]
+    crossings = corridors = 0
+    for i in range(len(arrows)):
+        for j in range(i + 1, len(arrows)):
+            for p1, p2 in zip(drawn[i], drawn[i][1:]):
+                for q1, q2 in zip(drawn[j], drawn[j][1:]):
+                    if _segs_cross(p1[0], p1[1], p2[0], p2[1],
+                                   q1[0], q1[1], q2[0], q2[1]):
+                        crossings += 1
+            for axa in lanes[i]:
+                for axb in lanes[j]:
+                    if axb[0] != axa[0] or abs(axa[1] - axb[1]) > LANE_TOL:
+                        continue
+                    if min(axa[3], axb[3]) - max(axa[2], axb[2]) >= LANE_RUN:
+                        corridors += 1
+                        break
+                else:
+                    continue
+                break
+    return crossings, corridors
+
+
+def _side_faces(node, side, other):
+    """Is `other` beyond `side`, so an arrow could reach it without wrapping?
+
+    THE CONSTRAINT MEASUREMENT FOUND, and without it the search satisfies
+    the lane rule by wrapping an arrow to the far side of its own node —
+    measured on the spike as an arrow entering a hub's RIGHT face from a
+    source 540px to its left. It is the same reasoning `_route_candidates`
+    uses picking an exit face, stated once here.
+
+    Args:
+        node: The node the foot would stand on.
+        side: The candidate border.
+        other: The arrow's far endpoint, in scene coordinates.
+
+    Returns:
+        True when the partner endpoint lies outside that face.
+    """
+    cx = node["x"] + node.get("width", 0) / 2.0
+    cy = node["y"] + node.get("height", 0) / 2.0
+    nx, ny = SIDE_INWARD_NORMAL[side]
+    return (other[0] - cx) * -nx + (other[1] - cy) * -ny > 0
+
+
+def _feasible_feet(node, side, taken):
+    """Candidate feet on one border, as points ON THE INK.
+
+    Every `want` is chosen as an ink coordinate and inverted through
+    `_fan_slot`, never spaced on the box and projected — that is the M1
+    lesson `fan_attach_points` already encodes, and a conic or a rhombus
+    compresses an evenly-spaced box slot back under the pitch the
+    spacing was for.
+
+    Args:
+        node: The node the feet would stand on.
+        side: The candidate border.
+        taken: Ink cross-coordinates of feet already on that side.
+
+    Returns:
+        `[(x, y)]` on the node's drawn outline, midpoint first.
+    """
+    horiz = side in ("top", "bottom")
+    length = node.get("width", 0) if horiz else node.get("height", 0)
+    if length <= 2 * FAN_EDGE_MARGIN:
+        return []
+    lo = _fan_cross(node, side, FAN_EDGE_MARGIN)
+    hi = _fan_cross(node, side, length - FAN_EDGE_MARGIN)
+    mid = _fan_cross(node, side, length / 2.0)
+    wants = [mid]
+    for k in range(1, CONTENTION_SPILL_SLOTS + 1):
+        wants += [mid + k * FAN_LANE_PITCH, mid - k * FAN_LANE_PITCH]
+    out = []
+    for want in wants:
+        if not lo <= want <= hi:
+            continue
+        if any(abs(want - t) <= LANE_TOL for t in taken):
+            continue
+        out.append(_fan_point(node, side, _fan_slot(node, side, want,
+                                                    length)))
+    return out
+
+
+def _contention_path(anchor, foot, side):
+    """A path from `anchor` into `foot` that arrives square to `side`.
+
+    CAPPED AT THREE POINTS, and the cap is not a style choice:
+    `fan_attach_points` only touches paths with `len(points) in (2, 3)`,
+    so a foot placed on a 4-point Z could never be re-spaced by the fan
+    again. Measured on the spike as two feet left 7px apart with the
+    lint naming the waypoint count.
+
+    Args:
+        anchor: The arrow's other endpoint, in scene coordinates.
+        foot: The candidate foot.
+        side: The border the foot stands on, which fixes the final leg's
+            axis.
+
+    Returns:
+        Two or three absolute points, `anchor` first and `foot` last.
+    """
+    corner = ((anchor[0], foot[1]) if side in ("left", "right")
+              else (foot[0], anchor[1]))
+    if (abs(corner[0] - anchor[0]) < 0.5 and
+            abs(corner[1] - anchor[1]) < 0.5) or \
+            (abs(corner[0] - foot[0]) < 0.5 and
+             abs(corner[1] - foot[1]) < 0.5):
+        return [anchor, foot]
+    return [anchor, corner, foot]
+
+
+def contention_feet(els):
+    """Move feet onto other borders where one side cannot hold them.
+
+    The fan spreads feet along the side it was given and can do nothing
+    else, so a side too short for its feet — or two feet its obstacle
+    slide pushed into one lane — stays crowded however often the pass
+    runs. This enumerates the node's OTHER feasible borders, scores each
+    candidate path on terms the repo already measures, and moves a foot
+    only when it is strictly better and the whole scene is no worse.
+
+    CONTENTION ONLY, NEVER "ALWAYS". Two triggers, both read from
+    STORED geometry: a side with less clear outline than
+    `(n - 1) * FAN_LANE_PITCH` (the boundary
+    `test_a_side_too_short_for_the_pitch_still_spreads` derives), and
+    two feet within `LANE_TOL` on a side that HAD room, which is what
+    the fan's obstacle slide leaves behind. The trigger reads stored
+    geometry and the score reads rendered, deliberately: expressibility
+    is about the ray the client re-derives from the stored adjacent
+    point, so the trigger must read what the client reads, and reading
+    rendered geometry there would send the search chasing curvature bows
+    no foot placement can fix.
+
+    THE ITERATION SET IS THE FAN'S, exactly: `server_owns_geometry`
+    true, both ends bound, two or three points. Authored waypoints,
+    user-reshaped paths and unmarked bent paths are never enumerated,
+    scored or moved.
+
+    THE SCENE GUARD IS NOT DECORATION. Crossings and corridors are
+    properties of a PAIR of paths and the per-endpoint score is blind to
+    both; the spike's unguarded arm manufactured 2 crossings and 2
+    corridors on the corpus. And the gate is STRICT IMPROVEMENT on a
+    non-negative metric, which is `route_arrow`'s reroute pattern and is
+    what makes this terminate by well-foundedness rather than by a pass
+    limit — the routing pipeline orbits on nine of the frozen artifacts,
+    so a pass that merely "changes something" would join the orbit.
+
+    Args:
+        els: The whole applied scene, mutated in place.
+    """
+    ix = {e["id"]: e for e in els}
+    arrows = [a for a in els if a.get("type") in ("arrow", "line")]
+    movable = {}    # (arrow_id, which) -> (node, side, foot, anchor)
+    per_side = {}   # (node_id, side) -> [(arrow_id, which)]
+    for a in arrows:
+        pts = a.get("points") or []
+        if not server_owns_geometry(a) or len(pts) not in (2, 3):
+            continue
+        both = [ix.get((a.get(k) or {}).get("elementId"))
+                for k in ("startBinding", "endBinding")]
+        if any(n is None for n in both):
+            continue
+        for which, node in zip(("start", "end"), both):
+            end = pts[0] if which == "start" else pts[-1]
+            far = pts[-1] if which == "start" else pts[0]
+            foot = (a["x"] + end[0], a["y"] + end[1])
+            side = _edge_side(node, foot[0], foot[1])
+            if side is None:
+                continue
+            movable[a["id"], which] = (
+                node, side, foot, (a["x"] + far[0], a["y"] + far[1]))
+            per_side.setdefault((node["id"], side), []).append(
+                (a["id"], which))
+
+    contended = set()
+    for (nid, side), members in per_side.items():
+        if len(members) < 2:
+            continue
+        node = ix[nid]
+        horiz = side in ("top", "bottom")
+        length = node.get("width", 0) if horiz else node.get("height", 0)
+        room = (_fan_cross(node, side, length - FAN_EDGE_MARGIN)
+                - _fan_cross(node, side, FAN_EDGE_MARGIN))
+        crosses = sorted(_cross_of(node, side, movable[m][2])
+                         for m in members)
+        tight = any(b - a < LANE_TOL for a, b in zip(crosses, crosses[1:]))
+        if room < (len(members) - 1) * FAN_LANE_PITCH or tight:
+            contended.add((nid, side))
+    if not contended:
+        return          # the quiet-scene path: one dict walk, no geometry
+
+    boxes = hard_obstacles(els)
+    before = _scene_lane_cost(arrows)
+    for (nid, side) in sorted(contended):
+        for aid, which in sorted(per_side[nid, side]):
+            a = ix[aid]
+            node, cur_side, foot, anchor = movable[aid, which]
+            best = _contention_score(a, node, cur_side, foot, anchor,
+                                     els, boxes, movable)
+            chosen = None
+            for cand_side in (cur_side,) + ADJACENT_SIDES[cur_side]:
+                if not _side_faces(node, cand_side, anchor):
+                    continue
+                taken = [_cross_of(node, cand_side, movable[m][2])
+                         for m in per_side.get((nid, cand_side), ())
+                         if m != (aid, which)]
+                for cand in _feasible_feet(node, cand_side, taken):
+                    score = _contention_score(a, node, cand_side, cand,
+                                              anchor, els, boxes, movable)
+                    if score < best:
+                        best, chosen = score, (cand_side, cand)
+            if chosen is None:
+                continue
+            was = (a["x"], a["y"], a.get("points"), a.get("width"),
+                   a.get("height"), a.get("roundness"))
+            _stamp_contention(a, which, anchor, chosen[1], chosen[0],
+                              node, ix)
+            after = _scene_lane_cost(arrows)
+            if after > before:
+                # REVERTED WHOLE, geometry and all. A move that trades a
+                # lane for a crossing is not an improvement in a currency
+                # this pass is allowed to spend.
+                (a["x"], a["y"], a["points"], a["width"], a["height"],
+                 a["roundness"]) = was
+                continue
+            before = after
+            movable[aid, which] = (node, chosen[0], chosen[1], anchor)
+            per_side[nid, side] = [m for m in per_side[nid, side]
+                                   if m != (aid, which)]
+            per_side.setdefault((nid, chosen[0]), []).append((aid, which))
+            recenter_label(els, a)
+
+
+def _cross_of(node, side, foot):
+    """A foot's coordinate along its side, from that side's low corner.
+
+    Args:
+        node: The node the foot stands on.
+        side: The border it stands on.
+        foot: The foot, in scene coordinates.
+
+    Returns:
+        Distance along the side, in the same frame `_fan_cross` reports.
+    """
+    return (foot[1] - node["y"] if side in ("left", "right")
+            else foot[0] - node["x"])
+
+
+def _contention_score(a, node, side, foot, anchor, els, boxes, movable):
+    """Lexicographic cost of landing `a` on `foot`. Lower is better.
+
+    Every term is one the repo already measures; none of them is new
+    geometry. They are ordered the way `route_arrow` orders its own:
+    what the drawing cannot afford first, what it merely prefers last.
+
+    `min_clearance` is deliberately absent — it is a FEASIBILITY filter
+    and not a term, since every candidate is on the ink by construction
+    (`_fan_point`), and scoring a quantity that is zero for every
+    candidate would only look like rigour.
+
+    Args:
+        a: The arrow being moved.
+        node: The node it binds at this end.
+        side: The border the candidate foot stands on.
+        foot: The candidate foot.
+        anchor: The arrow's other endpoint.
+        els: The scene, for the crossing term.
+        boxes: Hard obstacles.
+        movable: The endpoint table, for the lane term.
+
+    Returns:
+        `(box hits, arrow crossings, arrival off-normal, lane crowding,
+        bends, manhattan length)`.
+    """
+    path = _contention_path(anchor, foot, side)
+    keep = {(a.get("startBinding") or {}).get("elementId"),
+            (a.get("endBinding") or {}).get("elementId")}
+    hits = crossings = 0
+    for p, q in zip(path, path[1:]):
+        for ob in boxes:
+            if ob.get("id") not in keep and \
+                    _seg_hits_rect(p[0], p[1], q[0], q[1], ob):
+                hits += 1
+        for other in els:
+            if other.get("type") not in ("arrow", "line") or \
+                    other.get("id") == a.get("id"):
+                continue
+            op = _abs_pts(other)
+            for r, s in zip(op, op[1:]):
+                if _segs_cross(p[0], p[1], q[0], q[1],
+                               r[0], r[1], s[0], s[1]):
+                    crossings += 1
+    cos = side_normal_cos(side, path[-2], foot)
+    lean = 1.0 if cos is None else round(1.0 - cos, 6)
+    mine = _cross_of(node, side, foot)
+    crowd = 0
+    for (oid, _owhich), (onode, oside, ofoot, _oa) in movable.items():
+        if oid == a.get("id") or onode["id"] != node["id"] or oside != side:
+            continue
+        if abs(_cross_of(node, side, ofoot) - mine) <= LANE_TOL:
+            crowd += 1
+    bends = len(path) - 2
+    span = sum(abs(q[0] - p[0]) + abs(q[1] - p[1])
+               for p, q in zip(path, path[1:]))
+    return (hits, crossings, lean, crowd, bends, span)
+
+
+def _stamp_contention(a, which, anchor, foot, side, node, ix):
+    """Write a chosen foot onto the arrow, bindings and label included.
+
+    The same four steps `fan_attach_points` takes, and for its reasons:
+    the binding dict is REPLACED rather than written into (`apply_ops`
+    copies elements shallowly, so an in-place write leaks into the
+    caller's scene even on a rejected batch), and the focus is re-solved
+    from the ADJACENT point as well as the foot, because moving one end
+    of an L drags the corner and so changes the direction the arrow
+    arrives from.
+
+    Args:
+        a: The arrow, mutated in place.
+        which: `"start"` or `"end"` — the end being moved.
+        anchor: The endpoint that is not moving.
+        foot: Where the moved end lands.
+        side: The border it lands on.
+        node: The node it binds.
+        ix: Scene elements by id.
+    """
+    path = _contention_path(anchor, foot, side)
+    if which == "start":
+        path = list(reversed(path))
+    x0, y0 = path[0]
+    a["x"], a["y"] = x0, y0
+    a["points"] = [[px - x0, py - y0] for px, py in path]
+    a["width"] = max(abs(p[0]) for p in a["points"])
+    a["height"] = max(abs(p[1]) for p in a["points"])
+    a["roundness"] = derived_roundness(a)
+    _stamp_route(a)         # snap first, then solve — route_arrow's order
+    spts, ax0, ay0 = a["points"], a["x"], a["y"]
+    for w, key in (("start", "startBinding"), ("end", "endBinding")):
+        b = a.get(key)
+        n = ix.get((b or {}).get("elementId"))
+        if not b or n is None:
+            continue
+        px, py = ((ax0, ay0) if w == "start"
+                  else (ax0 + spts[-1][0], ay0 + spts[-1][1]))
+        adj = spts[1] if w == "start" else spts[-2]
+        got = solve_focus(n, ax0 + adj[0], ay0 + adj[1], px, py,
+                          b.get("gap") or 0)
+        if got != b.get("focus"):
+            nb = dict(b)
+            nb["focus"] = got
+            a[key] = nb
+
+
 REROUTE_TOL_PX = 1.0
 # How far a re-routed point may sit from the stored one and still count as
 # the same drawing. Routed geometry is snapped to whole pixels before it is
@@ -4487,6 +4875,8 @@ def reroute_scene(els):
                                   for t in out if t.get("type") == "arrow"
                                   and len(t.get("points") or []) >= 2])
         recenter_label(out, a)
+    fan_attach_points(out)
+    contention_feet(out)
     fan_attach_points(out)
     rebuild_bound_elements(out)
     was = {e["id"]: e for e in els if e.get("type") == "arrow"}
@@ -6126,6 +6516,8 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
             if hit:
                 route_ctx(e, sN, dN)
                 recenter_label(els, e)
+        fan_attach_points(els)
+        contention_feet(els)
         fan_attach_points(els)
         els = normalize_z_order(els)
     return els
@@ -16398,6 +16790,8 @@ class Store:
                                   and len(t.get("points") or []) >= 2])
                 recenter_label(els, e)
                 rerouted += 1
+        fan_attach_points(els)
+        contention_feet(els)
         fan_attach_points(els)
         return normalize_z_order(els), snapped, rerouted
 
