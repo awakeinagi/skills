@@ -376,8 +376,11 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**1 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-18 at curator batch 32's fold, which
+**0 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-18 at TASK-ROUTERLEG's fold, which
+flipped the router-graze red in the same change that landed the scoring
+term and its scene guard, draining the tree again 1 -> 0; the 1 was
+re-derived at curator batch 32's fold, which
 lands `router_elects_a_grazing_final_leg`'s hand-authored red
 (`TestTheElectedRouteIsReadableWhereItLands`) RED against today's router,
 taking the drained tree 0 -> 1 with the flip owned by TASK-ROUTERLEG's

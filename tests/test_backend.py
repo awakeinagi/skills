@@ -17041,6 +17041,163 @@ class TestGrazeSceneGuard(Base):
                                            src, near))
 
 
+class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
+    """v0.9 TASK-ROUTERLEG round 2: the guard's boundary, measured.
+
+    `apply_ops` routes too and carries NO graze guard. Round 1 named
+    that as unmeasured scope; this is the measurement, kept executable
+    because the disposition rests on it.
+
+    A cascade IS reachable there — over a swept 792-batch family of
+    convergence scenes, 82 come back worse on `_scene_route_cost`. The
+    disposition is nonetheless "no guard here", because in **82 of
+    those 82** the penalty had IMPROVED the drawing and only the cost
+    vector disagreed: arrivals over 70 degrees went 52 -> 0 across the
+    family, over 45 went 144 -> 0, and the worst arrival anywhere went
+    84.0 -> 40.1. A pass-vs-pass guard on this path would revert every
+    one of those repairs to protect a reading that cannot see what it
+    is reverting.
+
+    THE COST VECTOR IS BLIND TO GRAZES BY CONSTRUCTION — that is the
+    premise of this whole task — so it is only safe as a VETO where the
+    population has no graze to lose. `reroute_scene` is such a place
+    and was measured to be one: on both artifacts the guard declines,
+    both passes have zero arrivals over 45 degrees. This path is not.
+    """
+
+    def _batch(self):
+        """Two sources converging on one target at a grazing offset.
+
+        The swept family's cleanest member: `dx=700, dy=46, spread=150`.
+        Every node is moved in one apply, so the F1 post-pass re-routes
+        both arrows in sequence and the second sees the first's new
+        path — the cascade setup, through the real op path.
+
+        Returns:
+            `(elements, ops)` ready for `canvas.apply_ops`.
+        """
+        def node(nid, x, y):
+            return {"id": nid, "type": "rectangle", "x": x, "y": y,
+                    "width": 120, "height": 60, "boundElements": [],
+                    "customData": {"role": "node"}}
+        els = [node("T", 700, 46)]
+        ops = [{"op": "mod", "id": "T", "attrs": {"x": 700, "y": 46}}]
+        for i in range(2):
+            els.append(node("S%d" % i, 0, i * 150))
+            els.append({"id": "e%d" % i, "type": "arrow", "x": 0, "y": 0,
+                        "points": [[0, 0], [1, 0]],
+                        "customData": {"role": "edge"},
+                        "startBinding": {"elementId": "S%d" % i,
+                                         "focus": 0, "gap": 6},
+                        "endBinding": {"elementId": "T",
+                                       "focus": 0, "gap": 6}})
+            ops.append({"op": "mod", "id": "S%d" % i,
+                        "attrs": {"x": 0, "y": i * 150}})
+        return canvas.apply_ops(els, [], []), ops
+
+    def _applied(self, graze):
+        """Run the batch through `apply_ops` with the penalty on or off.
+
+        Args:
+            graze: False ablates `_grazing_terminal_legs`.
+
+        Returns:
+            The resulting elements.
+        """
+        els, ops = self._batch()
+        real = canvas._grazing_terminal_legs
+        if not graze:
+            canvas._grazing_terminal_legs = lambda p: 0
+        try:
+            return canvas.apply_ops(copy.deepcopy(els),
+                                    copy.deepcopy(ops), [])
+        finally:
+            canvas._grazing_terminal_legs = real
+
+    def _worst_arrival(self, els):
+        """The worst drawn arrival in the scene, off its landing normal.
+
+        Args:
+            els: A scene's elements.
+
+        Returns:
+            Degrees, 0.0 when nothing is measurable.
+        """
+        ix = {e["id"]: e for e in els}
+        worst = 0.0
+        for a in els:
+            if a.get("type") != "arrow":
+                continue
+            for key, at_end in (("startBinding", False),
+                                ("endBinding", True)):
+                tgt = ix.get((a.get(key) or {}).get("elementId"))
+                if tgt is None:
+                    continue
+                got = canvas._arrival_path(a, at_end)
+                if not got or got[1] is None:
+                    continue
+                seq, prev = got
+                side = canvas._edge_side(tgt, seq[0][0], seq[0][1])
+                if side is None:
+                    continue
+                cos = canvas.side_normal_cos(side, prev, seq[0])
+                if cos is not None:
+                    worst = max(worst, math.degrees(
+                        math.acos(max(-1.0, min(1.0, cos)))))
+        return worst
+
+    def test_the_penalty_reaches_apply_ops_and_repairs_the_drawing(self):
+        """The half that says a guard here would destroy something.
+
+        Unguarded, the penalty turns a 78-degree arrival into a 4-degree
+        one on this batch. That is the repair a `_scene_route_cost` veto
+        would throw away.
+        """
+        self.assertGreater(self._worst_arrival(self._applied(False)), 70.0)
+        self.assertLess(self._worst_arrival(self._applied(True)), 45.0)
+
+    def test_the_cost_vector_calls_that_repair_a_regression(self):
+        """The half that says the veto would fire.
+
+        The plain pass scores a perfect `(0, 0, 0, 0)` while drawing two
+        arrivals a reader cannot follow, because no check in
+        `canvas.py` reports a graze. The repaired scene scores one
+        warning. `_worse` therefore prefers the unreadable drawing.
+
+        IF THIS ASSERTION EVER FAILS because `_scene_route_cost` learned
+        to see arrivals, that is not a broken test — it is the signal
+        that a guard on this path became possible and that this
+        disposition is due a re-visit.
+        """
+        plain, penalised = self._applied(False), self._applied(True)
+        self.assertEqual(canvas._scene_route_cost(plain), (0, 0, 0, 0))
+        self.assertTrue(canvas._worse(canvas._scene_route_cost(penalised),
+                                      canvas._scene_route_cost(plain)))
+
+    def test_where_the_guard_does_run_it_throws_no_arrival_away(self):
+        """Why the same veto IS safe in `reroute_scene`: population.
+
+        On both artifacts the guard declines, both passes leave zero
+        arrivals over 45 degrees — so the decline costs no legibility,
+        only the sub-threshold polish named in the report. That is the
+        condition under which a graze-blind cost may be used as a veto,
+        and it is asserted rather than assumed.
+        """
+        root = Path(__file__).resolve().parent / "fixtures" / "tearsheet-demo"
+        for name in ("tearsheet-domain", "tearsheet-pipeline"):
+            path = root / "artifacts" / ("%s.excalidraw" % name)
+            doc, _ = canvas.validate_scene(json.loads(path.read_text()), name)
+            els = canvas.normalize_scene_doc(doc)["elements"]
+            real = canvas._grazing_terminal_legs
+            canvas._grazing_terminal_legs = lambda p: 0
+            try:
+                plain, _ = canvas.reroute_scene(copy.deepcopy(els))
+            finally:
+                canvas._grazing_terminal_legs = real
+            with self.subTest(artifact=name):
+                self.assertLess(self._worst_arrival(plain), 45.0)
+
+
 class TestPhantomPassThrough(Base):
     """WP4b e1: a node with a stroke drawn across it stops being a step.
 

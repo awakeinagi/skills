@@ -9958,10 +9958,15 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
         return "a %.0fpx final leg under a %.0fpx run (%.1f%% of it)" % (
             leg, run, share)
 
-    @unittest.expectedFailure
     def test_the_elected_path_does_not_graze_the_face_it_lands_on(
             self) -> None:
-        """The router elects a 240px run elbowed into a 2px stub.
+        """FLIPPED 2026-08-18 (v0.9 TASK-ROUTERLEG): the scoring term
+        `_grazing_terminal_legs` (weight 2 in the shape slot) makes the
+        router elect the proportionate candidate, so this passes on the
+        assertion it always stated. Decorator dropped in the fold that
+        landed the fix, per the flip contract.
+
+        The router elects a 240px run elbowed into a 2px stub.
 
         RED BY ELECTION, and the word matters: nothing here is missing
         or degenerate. `_route_candidates` hands the scorer six paths,
@@ -21191,9 +21196,11 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheElectedRouteIsReadableWhereItLands": 1,
-}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+# ONE LEFT on 2026-08-18 (v0.9 TASK-ROUTERLEG's fold), one train-stop after
+# it joined: the router-graze red flipped when the scoring term landed, so
+# the dict lost its line the same day batch 32 folded it in — the shortest
+# possible red lifetime that still honoured mutant-before-fix end to end.
 # ONE JOINED on 2026-08-17 (curator batch 32), and it is the FIRST entry
 # here filed by the curator agent off another task's review rather than off
 # a sweep or a spike: TASK-ARRIVALLINT's reviewer reproduced the router's
