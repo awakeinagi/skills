@@ -114,6 +114,25 @@ _LABEL_OVERLAP_RE = re.compile(
 # was waiting on.
 _LABEL_ON_FOREIGN_RE = re.compile(
     r"arrow label .+ lands on (?P<element>[\w-]+), which is neither end")
+# The composed-widget group note (canvas.py), registered by curator batch
+# 36 to drain the row TASK-PIN-BACKEND filed against itself. `element` is
+# the OWNER — the body the loose parts belong to and the thing a re-group
+# acts on — and the `[\w-]+` stops before the ` ('Label')` suffix
+# `canvas.name()` appends, as `_SHARED_ATTACH_RE`'s does.
+#
+# THE MAGNITUDE IS THE PART COUNT, and it is the whole reason this row is
+# worth having. `composed_group_gaps` returns one `(part, owner)` pair per
+# loose part and `lint_layout` folds them into ONE note per owner — "a
+# checkbox column of ten would otherwise file ten findings saying one
+# thing". Nothing could see that fold: the frozen corpus has 45 gaps over
+# 45 findings in 5 artifacts, distribution `{1: 45}`, so every affected
+# widget there has exactly one loose part and per-owner and per-part
+# aggregation are indistinguishable on it. Capturing the count is what
+# makes the aggregation assertable, and it takes a constructed multi-part
+# case to exercise — hence `_composed_widget(grouped=False)` below.
+_WIDGET_GROUP_RE = re.compile(
+    r"(?P<element>[\w-]+)(?: \(.+?\))? has (?P<mag>\d+) composed "
+    r"part\(s\) \(.+?\) outside its own group")
 # The clipped-text lint (canvas.py), whose template is the richest one
 # here: it carries a 2-D need AND a 2-D allowance AND which axis failed.
 # `element` is the OWNER, not the text — the text is quoted as CONTENT and
@@ -530,6 +549,11 @@ DETECTORS: dict[str, dict] = {
     # unregistered check passes vacuously. No dirmap — the finding is one
     # label on one box, with no axis to report.
     "label_on_foreign_node": {"lint_re": _LABEL_ON_FOREIGN_RE},
+    # Curator batch 36, 2026-08-18, draining the row TASK-PIN-BACKEND filed
+    # against its own check. No dirmap — a part is either in the owner's
+    # group or it is not, and there is no axis to report; the magnitude
+    # carries the claim the poles in test_backend cannot reach.
+    "widget_group_incomplete": {"lint_re": _WIDGET_GROUP_RE},
     # Batch D follow-up, 2026-08-13: left the enumerated-no-mutant ledger
     # when the pair below proved it fires, on both arms, with magnitude and
     # direction. The dirmap keeps the three arms distinct because the
@@ -16895,6 +16919,57 @@ def _pin_on_a_screen_stage() -> list[dict]:
                            "status": "open", "question": "which one?"})]
 
 
+def _composed_widget(grouped: bool) -> list[dict]:
+    """An entity body and THREE attribute rows, grouped with it or not.
+
+    THREE PARTS, AND THAT IS THE POINT. `composed_group_gaps` yields one
+    `(part, owner)` pair per loose part and `lint_layout` folds them into
+    one note per OWNER carrying a count — but the frozen corpus cannot
+    witness the fold, because all 45 of its gaps sit on 5 artifacts with
+    exactly one loose part each (distribution `{1: 45}`), so per-owner
+    and per-part aggregation produce byte-identical output on every
+    scene we own. A regression that split the note back to one line per
+    part would read as healthy on the whole corpus and on both poles in
+    `TestComposedWidgetsAreRealGroups`. It takes a constructed
+    multi-part widget to tell the two apart, and this is it: three rows
+    give one note saying 3 where a per-part check gives three saying 1.
+
+    THE ONLY DIFFERENCE BETWEEN THE POLES IS `groupIds`. Same body, same
+    three rows, same `attr_of` backlinks, same coordinates — the
+    backlink says WHICH PART THIS IS and the group is what holds the
+    widget together, and keeping the two apart is the distinction the
+    check exists to police. A control that also changed the parts could
+    not tell "the group is missing" from "these are not parts".
+
+    Hand-built rather than minted, because `make_element` is the path
+    that is already proven to produce whole widgets and a mutant should
+    not depend on the seeder to state its defect. The shapes are copied
+    from what the seeder really emits for
+    `{"kind": "entity", "attributes": [...]}` — measured 2026-08-18: the
+    body carries `kind`/`role: node`, each row carries
+    `role: decoration` plus `attr_of`, and every one of them shares the
+    body's `w-grp`.
+
+    Args:
+        grouped: True mints the healthy pole, every row sharing the
+            body's group. False leaves all three rows in no group —
+            the standing configuration a user's Ctrl+Shift+G produces
+            and the one the check reports rather than repairs.
+
+    Returns:
+        The four-element scene: body `w`, then rows `w-attr-1..3`.
+    """
+    grp = ["w-grp"] if grouped else []
+    return [el(id="w", type="rectangle", x=0, y=0, width=160, height=100,
+               groupIds=["w-grp"],
+               customData={"kind": "entity", "role": "node"})] + [
+        el(id="w-attr-%d" % i, type="text", x=10, y=20 + 20 * i,
+           width=140, height=20, text="row %d" % i,
+           originalText="row %d" % i, fontSize=16, groupIds=list(grp),
+           customData={"role": "decoration", "attr_of": "w"})
+        for i in (1, 2, 3)]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -20566,6 +20641,70 @@ _register(Mutant(
                        magnitude=(80, 0.10), direction=None),
     neighbour=Neighbour(lambda: _border_run_past_a_bystander(232),
                         Silence("runs_on_node"))))
+# `widget_group_incomplete`'s acceptance mutant, draining the row
+# TASK-PIN-BACKEND filed against its own check when it landed the same
+# day. Origin: curator batch 36, 2026-08-18. The check reports a
+# composed widget whose parts are outside its body's group — a part the
+# canvas will not drag with the widget and that every group-walking pass
+# is blind to, measured at 45 across 5 frozen artifacts.
+#
+# NOT RED, AND NOT A MISSED DEFECT. The behaviour was right on the day it
+# shipped and both poles are proven ungated in
+# tests/test_backend.TestComposedWidgetsAreRealGroups — every minted
+# widget silent, a de-grouped one reported. What that class cannot reach,
+# and what the filed row named, is exactly two things, and this entry is
+# built to be the smallest thing that reaches both.
+#
+# ONE: THE WORDING. `TestComposedWidgetsAreRealGroups` asserts through
+# `composed_group_gaps`, the helper, not through the sentence. A rewrite
+# that kept the behaviour and reworded the note past a regex would leave
+# every one of those tests green while `collect_findings` — which is what
+# every `Silence` in this file is judged against — went blind. Registering
+# `_WIDGET_GROUP_RE` is what makes a `Silence` on this check mean
+# anything at all rather than pass vacuously.
+#
+# TWO: THE AGGREGATION, and it is the half the corpus is structurally
+# unable to see. `composed_group_gaps` yields one pair per loose PART;
+# `lint_layout` folds them into one note per OWNER with a count, because
+# "a checkbox column of ten would otherwise file ten findings saying one
+# thing". Every affected widget in the corpus has exactly one loose part
+# — 45 gaps, 45 findings, 5 artifacts, distribution {1: 45} — so the
+# folded and unfolded implementations emit identical bytes over
+# everything we own, and no census could have caught the difference. The
+# scene here is CONSTRUCTED to break that tie: three loose rows on one
+# body.
+#
+# WHAT THE MAGNITUDE BAND REJECTS. The number is the PART COUNT, 3,
+# asserted at ±10% — [2.7, 3.3], which over an integer means 3 and
+# nothing else. Each rejected value is a real aggregation a check of this
+# shape can have:
+#   * 1 — the per-part regression: three notes, each naming one part.
+#     This is the reading the corpus cannot distinguish and the reason
+#     the scene has three rows instead of one.
+#   * 4 — the count of ELEMENTS in the widget rather than of loose parts,
+#     i.e. counting the body as one of its own missing pieces.
+#   * 2 — the count of DISTINCT groups involved, or of parts minus one,
+#     which is what an off-by-one in the fold produces.
+# A tight band is right here and costs no robustness: this magnitude is a
+# cardinality, not a measurement, so there is no estimator that could
+# legitimately move it by a fraction.
+#
+# THE NEIGHBOUR IS THE SAME WIDGET, WHOLE, and it differs in `groupIds`
+# and in nothing else — same body, same three rows, same `attr_of`
+# backlinks. It rejects a check that reported any composite with parts
+# (which would fire on every widget this skill mints, the failure mode a
+# new group rule is most likely to have) and a check that read the
+# backlink as the grouping. What it cannot reject is the per-part fold,
+# since a silent scene is silent under either; the magnitude carries that
+# one alone, which is why both halves are needed.
+_register(Mutant(
+    "ungrouped_widget_parts_are_counted_once",
+    build=lambda: _composed_widget(grouped=False),
+    op="unchanged", args={},
+    expect=FindingSpec("widget_group_incomplete", element="w",
+                       magnitude=(3, 0.10)),
+    neighbour=Neighbour(lambda: _composed_widget(grouped=True),
+                        Silence("widget_group_incomplete"))))
 
 
 class TestMutantCatalogue(unittest.TestCase):
@@ -21391,6 +21530,20 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same grey, spelled `#d3d3d3`, is measured and not reported."""
         self._run_neighbour("unreadable_stroke_is_reported_not_skipped")
 
+    def test_mutant_ungrouped_widget_parts_are_counted_once(self) -> None:
+        """Three loose rows are ONE note saying 3, not three saying 1."""
+        # GREEN at birth: nothing here was broken. This asserts the
+        # sentence and the fold, the two things the behavioural poles in
+        # `TestComposedWidgetsAreRealGroups` cannot reach and the frozen
+        # corpus is structurally unable to see. Proven by ablation before
+        # it was committed — unfolding the note to one line per part
+        # makes this say 1 and fail by assertion.
+        self._run("ungrouped_widget_parts_are_counted_once")
+
+    def test_neighbour_ungrouped_widget_parts_are_counted_once(self) -> None:
+        """The same widget with its rows in the body's group is silent."""
+        self._run_neighbour("ungrouped_widget_parts_are_counted_once")
+
     def test_mutant_pale_stroke_node(self) -> None:
         """#b0b0b0 stroke is 2.11:1 where 1.4.11 asks 3:1."""
         # FLIPPED by WP7 (task 29): `contrast_object` is a real lint.
@@ -22189,24 +22342,19 @@ UNCOVERED: dict[str, str] = {
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "decoration_overhang":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
-    # Added 2026-08-18 (v0.9 TASK-PIN-BACKEND) with the template itself.
-    # It takes the SHAPE OF THE TWO ROWS ABOVE — a lint_layout note with
-    # no `DETECTORS` entry — rather than `unreadable_color`'s, and that
-    # is the deliberate half: registering a detector obliges a proving
-    # mutant, and a fix's author does not write its own acceptance test
-    # (the mutant-curator's charter, and the reason `unreadable_color`
-    # sat here for a day). Both poles ARE proven ungated in
-    # tests/test_backend.TestComposedWidgetsAreRealGroups — every minted
-    # widget silent, a de-grouped one reported — so the gap this row
-    # names is specific: nothing asserts the note's WORDING or its
-    # per-widget aggregation through `collect_findings`, so a rewrite
-    # that kept the behaviour and split it back to one line per part
-    # would pass the catalogue. Draining it needs a `DETECTORS` entry
-    # with a `lint_re` over the "outside its own group" clause, authored
-    # by a curator.
-    "widget_group_incomplete":
-        "added 2026-08-18 with the check; the proving mutant is a "
-        "curator's to author — in lint_layout",
+    # `widget_group_incomplete` stood here for a few hours — added
+    # 2026-08-18 (v0.9 TASK-PIN-BACKEND) with the template itself, in the
+    # shape of the two rows above (a lint_layout note with no `DETECTORS`
+    # entry) rather than `unreadable_color`'s, and that was the
+    # deliberate half: registering a detector obliges a proving mutant,
+    # and a fix's author does not write its own acceptance test. Drained
+    # the same day by `ungrouped_widget_parts_are_counted_once` (curator
+    # batch 36), which is now a REGISTERED detector row. The two things
+    # the filed row named are both reached: `_WIDGET_GROUP_RE` pins the
+    # WORDING, and a constructed three-loose-part widget pins the
+    # per-owner FOLD at a magnitude of 3 — the half no census could have
+    # closed, because all 45 corpus gaps sit one-per-widget and the
+    # folded and unfolded implementations are byte-identical there.
     # Added 2026-08-14 (v0.9 WP4, task 24) with the template itself, which
     # is what this ledger is for: WP4b's e15 arrived with no CATALOGUE
     # mutant because no defect indicts it — it is input hygiene, and the
