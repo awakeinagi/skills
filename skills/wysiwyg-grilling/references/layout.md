@@ -141,7 +141,9 @@ both L-elbow orientations, and bounded Z-detours, and picks the cleanest
 path, the lint flags it — repair by hand with `mod points` (waypoints
 relative to the arrow's x,y; axis-aligned paths render as sharp elbows,
 the route is re-stamped as server-owned, and the change narrates as a
-`rerouted` fact). For N parallel edges between two clusters, one thick
+`rerouted` fact whenever the drawn path actually moved — a re-route that
+only re-aims a binding is recorded but not narrated, because the word is
+a claim about ink). For N parallel edges between two clusters, one thick
 low-opacity `role: decoration` backdrop line with the real arrows offset
 ±10px along it.
 

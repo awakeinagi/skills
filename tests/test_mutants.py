@@ -14116,11 +14116,17 @@ class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
                         focus=0.5),
         ]
 
-    def _rerouted(self) -> dict:
+    def _rerouted(self) -> tuple:
         """Build a project on the scene above and re-route it.
 
+        The STORE comes back beside the record because half of what this
+        class asserts is not in the record's narration at all: `state_at`
+        replays the change log, and that replay is the proof the gate
+        below drops a sentence and never a fact of state.
+
         Returns:
-            The save record `Store.reroute` writes.
+            `(store, record)` — the live `Store` and the save record
+            `Store.reroute` wrote through it.
         """
         els = self._scene()
         root = _scratch_project(
@@ -14140,11 +14146,12 @@ class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
         reg["branches"] = [{"name": "main", "head": 1, "archived": False}]
         (root / "project_knowledge" / "model.json").write_text(
             json.dumps(reg), encoding="utf-8")
-        rec = canvas.Store(canvas.Project(root)).reroute("f")
+        store = canvas.Store(canvas.Project(root))
+        rec = store.reroute("f")
         self.assertFalse(rec.get("noop"),
                          "the re-route declined this scene, so there are "
                          "no facts to read: %r" % (rec["summary"],))
-        return rec
+        return store, rec
 
     @staticmethod
     def _facts(rec: dict, name: str) -> list[str]:
@@ -14161,15 +14168,56 @@ class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
                 for f in rec["artifacts"]["f"]["facts"]
                 if f.get("fact") == name]
 
+    @staticmethod
+    def _change(rec: dict, eid: str) -> dict:
+        """One element's entry in the save's low-level change log.
+
+        Args:
+            rec: A save record.
+            eid: Element id.
+
+        Returns:
+            The change entry, or `{}` when the log does not carry one —
+            which is itself a finding here and is asserted as one.
+        """
+        return next((c for c in rec["artifacts"]["f"]["changes"]
+                     if c.get("id") == eid), {})
+
+    @staticmethod
+    def _focus(els: list, eid: str) -> tuple:
+        """An arrow's stored binding focus at both ends.
+
+        Args:
+            els: A replayed element list.
+            eid: Arrow id.
+
+        Returns:
+            `(start_focus, end_focus)`, or `(None, None)` when the arrow
+            is absent from the list.
+        """
+        a = next((e for e in els if e.get("id") == eid), None)
+        if a is None:
+            return (None, None)
+        return ((a.get("startBinding") or {}).get("focus"),
+                (a.get("endBinding") or {}).get("focus"))
+
     def test_an_arrow_the_router_really_redrew_is_narrated(self) -> None:
         """The live pole: `rerouted` is a true sentence about `r1`.
 
         Ungated, and it carries its own liveness — the change entry is
         asserted to say the path became a 3-point elbow, so a re-route
         that stopped moving anything would fail here rather than leaving
-        the red below passing for the wrong reason.
+        the flipped pole below passing for the wrong reason.
+
+        THE HEADLINE IS ASSERTED TOO, and it was not before the flip.
+        The gate this class won narrows what gets minted, and the cheap
+        way to pass a "no fact for `r2`" assertion is to mint nothing at
+        all — a `rerouted` vocabulary that has gone silent everywhere
+        satisfies the other pole perfectly. Reading the headline back
+        checks that the verb still reaches the surface a user actually
+        sees, which is `SALIENCE`'s output and not the fact list.
         """
-        rec = self._rerouted()
+        _, rec = self._rerouted()
         self.assertIn(
             "r1", self._facts(rec, "rerouted"),
             "the arrow whose 2-point path became an elbow got no "
@@ -14178,54 +14226,96 @@ class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
             "r1: 2-point path becomes 3-point", rec.get("user_note") or "",
             "`r1` was supposed to be the genuinely redrawn arrow in this "
             "scene and the note says otherwise: %r" % rec.get("user_note"))
+        self.assertEqual(
+            "rerouted r1", rec["summary"]["headline"],
+            "the fact was minted but the save does not lead with it, so "
+            "the one arrow this re-route redrew is not what the timeline "
+            "says it did: %r" % (rec["summary"],))
 
-    @unittest.expectedFailure
     def test_red_an_arrow_whose_path_did_not_move_is_narrated_as_rerouted(
             self) -> None:
-        """`r2` gets "rerouted r2" for a save that moved no pixel of it.
+        """`r2` got "rerouted r2" for a save that moved no pixel of it.
 
-        THE RECORD CONTRADICTS ITSELF INSIDE ONE SAVE, which is what
-        makes this a defect rather than a wording preference.
-        `reroute_line` is honest — the `user_note` on this very record
-        reads "r2: path unchanged; start/end re-aimed" — and
-        `Store.reroute` then mints one `rerouted` fact per change
-        regardless, which `headline_for` renders as "rerouted r2". A user
-        auditing the save is told the path moved by the fact vocabulary
-        and told it did not by the sentence beside it.
+        FLIPPED 2026-08-17 by TASK-VOCAB, on the user's ruling: the word
+        `rerouted` is written only when the arrow's DRAWN PATH changed,
+        and "changed" is byte-inequality of `points`/`x`/`y`/`width`/
+        `height` after normalization — no epsilon, no threshold constant.
+        A re-route that moves only binding bookkeeping is not narrated.
+        The red-era name is kept because it names the DEFECT this was
+        filed for, which is the convention two flipped siblings in this
+        file already follow.
 
-        WHAT THE PICTURE WRONGLY SAYS: nothing moved, and the history
-        says something did. FOLLOWUP-B's review measured six of these on
-        one real save — six arrows carrying `rerouted` facts with
-        byte-identical geometry — so the reach is a live corpus number
-        and not a constructed curiosity.
+        THE RECORD CONTRADICTED ITSELF INSIDE ONE SAVE, which is what
+        made it a defect rather than a wording preference. `reroute_line`
+        was honest — the `user_note` on this very record reads "r2: path
+        unchanged; start/end re-aimed" — and `Store.reroute` then minted
+        one `rerouted` fact per change regardless, which `headline_for`
+        rendered as "rerouted r2". A user auditing the save was told the
+        path moved by the fact vocabulary and told it did not by the
+        sentence beside it. FOLLOWUP-B's review measured six of these on
+        one real save; the amendment that removed them from the fixture
+        corpus rode in with this flip, and this test is why they cannot
+        come back.
 
-        THE FIX-SHAPE QUESTION IS NAMED AND NOT ANSWERED, because it is a
-        vocabulary ruling and this file does not own the vocabulary.
-        Either a `rerouted` fact is gated on `moved_px > REROUTE_TOL_PX`
-        — and the focus-only re-solve then narrates as nothing, which may
-        be right since it is derived churn — or the vocabulary gains a
-        finer word ("re-aimed") beside it, which is what the `user_note`
-        already says in prose. `apply_batch`'s hand-`mod points` arm
-        mints the same verb from the same premise and would want the same
-        ruling. Owner: whoever owns the fact vocabulary and the re-route
-        verb (TASK-REROUTE's lineage; unassigned at filing). Origin:
-        FOLLOWUP-B review finding 2, curated during curator batch 30,
-        2026-08-17.
+        THE SECOND HALF IS THE LOAD-BEARING ONE. A gate that drops a fact
+        is one refactor away from a gate that drops the STATE, and a
+        silent re-route that also failed to record its own focus solve
+        would satisfy the fact assertion perfectly while losing data. So
+        the change log is read directly — `r2`'s binding move is asserted
+        present with its `from`/`to` — and then `state_at` is replayed to
+        prove the log alone rebuilds the new focus. Facts are narration;
+        `changes` is the record. Only the first was allowed to get
+        quieter.
 
-        The assertion is on the FACT and not on the headline: which
-        sentence leads is `SALIENCE`'s business, and a fact that should
-        never have been minted is wrong wherever it is ranked.
+        RE-EARNED BY STUBBING THE GATE, because a green test that would
+        stay green without the fix proves nothing, and the stub had to be
+        built twice before it measured what it claimed. Forcing
+        `drawn_path_changed` to `False` fails the live pole above (no
+        fact for `r1`). Forcing it to `True` fails BOTH poles — but this
+        one on its scene precondition, not on its fact assertion, because
+        `reroute_line` reads the same predicate now and the note stops
+        saying "path unchanged" along with it. That arm is therefore not
+        evidence about the fact gate at all. Restoring the pre-ruling
+        code exactly — ungated facts AND the old `REROUTE_TOL_PX`-banded
+        `reroute_line` — is the arm that counts, and it reproduces the
+        original defect verbatim: `'r2' unexpectedly found in ['r1',
+        'r2']`. A stub that fails the test you are re-earning for the
+        wrong reason reads exactly like one that fails it for the right
+        one; only the message tells them apart.
+
+        Origin: FOLLOWUP-B review finding 2, curated during curator batch
+        30, 2026-08-17; ruled and flipped the same day.
         """
-        rec = self._rerouted()
+        store, rec = self._rerouted()
         self.assertIn(
             "r2: path unchanged", rec.get("user_note") or "",
             "the change entry no longer reports `r2` as unmoved, so this "
-            "scene is not the one the red is about: %r"
+            "scene is not the one this test is about: %r"
             % rec.get("user_note"))
         self.assertNotIn(
             "r2", self._facts(rec, "rerouted"),
             "the save minted `rerouted r2` for an arrow its own note "
             "calls unchanged — one record, two answers")
+        moved = self._change(rec, "r2")
+        attrs = {a["attr"]: a for a in (moved.get("attrs") or [])}
+        self.assertEqual(
+            {"startBinding", "endBinding"}, set(attrs),
+            "`r2`'s re-solve left the change log, so the unnarrated half "
+            "of this save is now unrecorded too — the gate has become "
+            "data loss: %r" % (moved or "no change entry at all",))
+        for key in ("startBinding", "endBinding"):
+            self.assertEqual(
+                (0.5, 0.0), (attrs[key]["from"]["focus"],
+                             attrs[key]["to"]["focus"]),
+                "`r2`'s %s should record the 0.5 the scene stored moving "
+                "to the 0 the solve answers; the log says %r"
+                % (key, attrs[key]))
+        self.assertEqual(
+            (0.0, 0.0), self._focus(store.state_at(rec["revn"])["f"]
+                                    ["elements"], "r2"),
+            "replaying this save's change log does not reproduce `r2`'s "
+            "re-aimed binding, so the state the save dropped from its "
+            "narration it also dropped from its history")
 
 
 # ---------------------------------------------------------------------------
@@ -20471,10 +20561,29 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestARerouteFactImpliesAChangedPath": 1,
     "TestTheClientBoxIsBoundByItsPoints": 1,
     "TestThePinHugSurvivesItsOwnContainer": 1,
 }
+# ONE LEFT on 2026-08-17 (v0.9 TASK-VOCAB), one day after it joined:
+# `TestARerouteFactImpliesAChangedPath`, whose single red flipped on the
+# user's ruling that `rerouted` is written only when the DRAWN PATH
+# changed. So the dict lost a LINE and not a number — the eighth time
+# that has been the shape here in three days, and the second time a
+# class has arrived and left inside two batches.
+# WHAT FLIPPED IT WAS THE WORD, NOT THE CODE, which is why this entry is
+# worth reading. The red deliberately refused to prejudge the fix shape
+# ("either gated on `moved_px > REROUTE_TOL_PX` or the vocabulary gains
+# a finer word") and named the owner as the vocabulary's. The ruling
+# came back narrower than either option the red imagined — byte
+# inequality after normalization, and no threshold constant at all — and
+# a red that had guessed would have had to be rewritten to accept its
+# own fix. A mutant that names the question and leaves it open is what
+# let this one flip untouched except for its marker.
+# The flipped test gained THREE arms, all on the half a fact gate can
+# quietly break: the change log still carries the unnarrated re-solve,
+# with its `from`/`to`, and `state_at` replays it back. Facts got
+# quieter; the record did not.
+#
 # ONE JOINED on 2026-08-17 (curator batch 31), at a fold that RE-DERIVED
 # this dict rather than picking a side of it — the resolution the
 # MICROFIX-2 paragraph below asks for, performed. Batch 30 and batch 31

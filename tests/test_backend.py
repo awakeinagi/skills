@@ -5482,6 +5482,50 @@ class TestModPathFixes(Base):
         self.assertIn("rerouted", names)
         self.assertIn("rerouted", rec["summary"]["headline"])
 
+    def test_mod_points_that_redraws_nothing_narrates_nothing(self):
+        """The silent pole of the `rerouted` verb's SECOND producer.
+
+        `Store.reroute` is not the only site that mints this word —
+        `apply_batch` synthesises it for an explicit `mod points`, from
+        the same premise (the diff entries are derived, so without a
+        synthesised fact a hand re-route narrates as an empty save). The
+        vocabulary ruling of 2026-08-17 is about the WORD and not about
+        one call site, so both are gated on `drawn_path_changed` and both
+        need a pole here; the test above is this arm's live half.
+
+        Re-sending the geometry an arrow already carries is the minimal
+        way to reach it: a real op, validated and applied, that moves no
+        ink. It is not a no-op — the `routed` stamp flips to "authored",
+        the change log records it, and the sibling above asserts that
+        transfer — so what is being checked is precisely that a fact
+        about the PATH is withheld while a genuine change lands beside
+        it. Before the ruling this minted "rerouted t1" for an arrow that
+        did not move, which is the same sentence six real corpus saves
+        were carrying.
+        """
+        t1 = next(e for e in self.store.scenes["checkout-flow"]
+                  if e["id"] == "t1")
+        rec, _ = self.store.apply_batch({
+            "base_revn": 2, "artifact": "checkout-flow", "ops": [
+                {"op": "mod", "id": "t1",
+                 "attrs": {"points": [list(p) for p in t1["points"]]}}]})
+        facts = rec["artifacts"]["checkout-flow"]["facts"]
+        self.assertEqual(
+            [], [f for f in facts if f["fact"] == "rerouted"],
+            "a `mod points` that re-sent the arrow's own geometry minted "
+            "`rerouted` for a path that did not move: %r" % (facts,))
+        after = next(e for e in self.store.scenes["checkout-flow"]
+                     if e["id"] == "t1")
+        self.assertEqual(
+            [list(p) for p in t1["points"]],
+            [list(p) for p in after["points"]],
+            "this test only means what it says if the path really did "
+            "stay put, and it moved")
+        self.assertEqual(
+            "authored", after["customData"]["routed"],
+            "the op did not land at all, so the withheld fact proves "
+            "nothing about the gate")
+
     def test_echo_covers_every_op_kind(self):
         """No op may be silently skipped in the echo — skipped numbers
         read as dropped ops (capability assessment)."""

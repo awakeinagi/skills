@@ -1100,16 +1100,6 @@
    ],
    "facts": [
     {
-     "arrow": "r-earnings-issuer",
-     "element": "r-earnings-issuer",
-     "fact": "rerouted"
-    },
-    {
-     "arrow": "r-earnings-section",
-     "element": "r-earnings-section",
-     "fact": "rerouted"
-    },
-    {
      "arrow": "r-instrument-issuer",
      "element": "r-instrument-issuer",
      "fact": "rerouted"
@@ -1127,11 +1117,6 @@
     {
      "arrow": "r-position-instrument",
      "element": "r-position-instrument",
-     "fact": "rerouted"
-    },
-    {
-     "arrow": "r-position-metric",
-     "element": "r-position-metric",
      "fact": "rerouted"
     },
     {
@@ -1977,12 +1962,12 @@
  "round": 17,
  "saved_at": "2026-08-17T21:27:11Z",
  "selection_at_save": [],
- "short_id": "2ffce10",
+ "short_id": "f4aa116",
  "summary": {
-  "headline": "rerouted r-earnings-issuer (+10 more)",
+  "headline": "rerouted r-instrument-issuer (+7 more)",
   "suppressed": 0,
   "verb_counts": {
-   "rerouted": 11
+   "rerouted": 8
   }
  },
  "tripwires": [],

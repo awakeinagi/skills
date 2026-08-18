@@ -201,7 +201,9 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
       // `mod points` a real repair tool for shared attach points). A
       // rewire (mod from/to) is a new path request and re-routes.
       // Axis-aligned paths render as sharp elbows; narrates as a
-      // `rerouted` fact — never an empty save.
+      // `rerouted` fact when the DRAWN path actually changed — never an
+      // empty save. Re-sending the geometry an arrow already has moves
+      // no ink, so it mints no fact: the word means the path moved.
   "kind": "sink", "role": "decoration", "intent": "…", "parent": "shelf",
   "document": "docs/x.md", "annotates": "node-id",
       // these six fold into customData correctly

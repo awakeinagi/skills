@@ -4926,6 +4926,47 @@ REROUTE_TOL_FOCUS = 0.005
 # client aims along, so a stale one draws the foot somewhere the stored
 # geometry does not say — the whole reason a fossil is visible at all.
 
+DRAWN_GEOM_ATTRS = ("points", "x", "y", "width", "height")
+# The drawn path, attribute by attribute. `points` alone would not do it:
+# points are stored RELATIVE to `x`/`y`, so translating an arrow leaves
+# every point byte-identical, and the stored box rides along because a
+# point-strung element is bound by both (the corpus lesson that cost a
+# Major — bound by points, never by width/height alone, and never the
+# other way round either).
+
+
+def drawn_path_changed(was, now):
+    """Does this element draw a different path than it did before?
+
+    THE PREDICATE IS EQUALITY AND NOTHING ELSE — no tolerance, no
+    epsilon, no threshold constant, by ruling. `normalize_element` is
+    already the repo's one answer to "what does a stored coordinate
+    mean" (`_round_geom` takes every geometry attr to a whole pixel), so
+    comparing normalized forms asks the only question a user can check
+    against the ink: is one drawing the same as the other. A tolerance
+    here would be a second, quieter normalizer — and a threshold is
+    exactly the shape the `rerouted` vocabulary ruling refused, because
+    every value it could take is a claim about how far a path may move
+    while the history says it did not.
+
+    This is deliberately NOT `_reroute_shift`'s question.
+    `_reroute_shift` measures HOW FAR, for prose and for change-list
+    membership; this answers WHETHER, for the fact vocabulary. They are
+    the same authority only because `reroute_line` now reads this one
+    too — see `reroute_line`, where the two used to disagree inside a
+    single record.
+
+    Args:
+        was: The element as stored.
+        now: The same element after whatever moved it. Neither is
+            mutated — `normalize_element` copies.
+
+    Returns:
+        True when any of `DRAWN_GEOM_ATTRS` differs after normalization.
+    """
+    a, b = normalize_element(was), normalize_element(now)
+    return any(a.get(k) != b.get(k) for k in DRAWN_GEOM_ATTRS)
+
 
 def reroute_scene(els):
     """Redraw the scene's server-owned arrows the way today's router would.
@@ -4972,7 +5013,13 @@ def reroute_scene(els):
         fixes read as non-normal again, because a re-routed path keeps a
         curvature it can no longer earn. `changes` has one entry per
         arrow that actually moved: `{"id", "moved_px", "refocused",
-        "was_points", "now_points"}`, sorted by id.
+        "was_points", "now_points", "path_changed"}`, sorted by id.
+        `path_changed` is the DRAWN half on its own (`drawn_path_changed`)
+        and it is what the `rerouted` fact is gated on: an entry with
+        `refocused` and no `path_changed` is a binding-bookkeeping
+        re-solve, which still has to reach the change record — replay
+        rebuilds from that, not from facts — but is not a re-route the
+        history narrates.
     """
     out = copy.deepcopy(els)
     ix = {e["id"]: e for e in out}
@@ -5011,10 +5058,11 @@ def reroute_scene(els):
             continue
         moved = _reroute_shift(old, a)
         refocused = _reroute_refocus(old, a)
-        if moved <= REROUTE_TOL_PX and not refocused:
+        redrawn = drawn_path_changed(old, a)
+        if moved <= REROUTE_TOL_PX and not refocused and not redrawn:
             continue
         changes.append({"id": a["id"], "moved_px": moved,
-                        "refocused": refocused,
+                        "refocused": refocused, "path_changed": redrawn,
                         "was_points": len(old.get("points") or []),
                         "now_points": len(a.get("points") or [])})
     return out, sorted(changes, key=lambda c: c["id"])
@@ -5228,6 +5276,19 @@ def _reroute_refocus(was, now):
 def reroute_line(change):
     """One arrow's re-route, in a sentence a user can check against the ink.
 
+    THIS SENTENCE AND THE `rerouted` FACT NOW READ ONE AUTHORITY, and
+    that is the point of the `path_changed` branch rather than a tidy-up.
+    The prose used to say "path unchanged" below `REROUTE_TOL_PX` while
+    the fact was minted for every change entry, so ONE SAVE RECORD
+    ANSWERED ITS OWN QUESTION TWICE — the note calling an arrow unmoved
+    and the fact vocabulary calling it re-routed, six times over on one
+    measured save. Gating the fact alone would only have moved the seam:
+    a path whose points round to different whole pixels while travelling
+    under a pixel would then have carried the fact under a sentence
+    denying it. Both halves ask `drawn_path_changed`, so they cannot
+    disagree; `moved_px` is left to say HOW FAR, which is all it ever
+    knew.
+
     Args:
         change: An entry from `reroute_scene`'s `changes`.
 
@@ -5239,10 +5300,12 @@ def reroute_line(change):
     if change["was_points"] != change["now_points"]:
         what = "%d-point path becomes %d-point" % (change["was_points"],
                                                    change["now_points"])
+    elif not change["path_changed"]:
+        what = "path unchanged"
     elif change["moved_px"] > REROUTE_TOL_PX:
         what = "path moves up to %.0fpx" % change["moved_px"]
     else:
-        what = "path unchanged"
+        what = "path moves under 1px"
     if change["refocused"]:
         what += "; %s re-aimed" % "/".join(change["refocused"])
     return "%s: %s" % (change["id"], what)
@@ -16433,22 +16496,36 @@ class Store:
             pin_only, ops = checked["pin_only"], checked["ops"]
             base_revn = batch.get("base_revn")
 
+            # Measured against the PRE-op scene, because the ops have
+            # already re-routed it. Both arms below read `was`.
+            was = {e["id"]: e for e in (self.scenes.get(aid) or [])}
+            now = {e["id"]: e for e in new_els}
             # explicit points mods are intent, but their diff entries are
             # derived (bound-arrow geometry) — surface them as facts so
-            # a hand-reroute never narrates as an empty save
+            # a hand-reroute never narrates as an empty save. GATED ON
+            # THE DRAWN PATH, and the gate is on this producer as well as
+            # on `Store.reroute` because the ruling is about the WORD:
+            # `rerouted` is written when the path moved, wherever the
+            # save comes from. A `mod points` that re-sends the geometry
+            # the arrow already had is a real op with a real change entry
+            # and nothing to narrate. An id absent from either side is
+            # not a path that stayed put — an arrow added or deleted in
+            # this same batch has no before-and-after to compare — so it
+            # keeps the fact rather than losing it to a missing key.
             reroutes = [{"fact": "rerouted", "element": o.get("id"),
                          "arrow": o.get("id")}
                         for o in ops if o.get("op") == "mod"
                         and isinstance(o.get("attrs"), dict)
-                        and "points" in o["attrs"]]
+                        and "points" in o["attrs"]
+                        and (o.get("id") not in was or o.get("id") not in now
+                             or drawn_path_changed(was[o["id"]],
+                                                   now[o["id"]]))]
             # a rewire re-routes by design — "a rewire is a new path
             # request" — but when the path being replaced is one the USER
             # drew by hand, nothing said so. The session that found this
             # shows one arrow re-dragged four times: to the agent that
             # reads as indecision, when it is the user redoing work the
-            # agent keeps undoing (brownfield BUG-06). Measured against
-            # the PRE-op scene, because the ops have already re-routed it.
-            was = {e["id"]: e for e in (self.scenes.get(aid) or [])}
+            # agent keeps undoing (brownfield BUG-06).
             reroutes += [
                 {"fact": "user_route_replaced", "element": o.get("id"),
                  "arrow": o.get("id")}
@@ -17312,12 +17389,26 @@ class Store:
         disown every arrow it touched and freeze the fossil in place
         permanently.
 
-        Every changed arrow gets its own `rerouted` fact, so the save
-        narrates arrow by arrow instead of as one anonymous count. The
-        geometry diff alone would not: bound-arrow geometry is derived,
-        and a save carrying only derived changes narrates as an empty
-        one (the same reason `apply_batch` synthesises these facts for a
-        hand `mod points`).
+        Every arrow whose DRAWN PATH changed gets its own `rerouted`
+        fact, so the save narrates arrow by arrow instead of as one
+        anonymous count. The geometry diff alone would not: bound-arrow
+        geometry is derived, and a save carrying only derived changes
+        narrates as an empty one (the same reason `apply_batch`
+        synthesises these facts for a hand `mod points`).
+
+        THE PATH, NOT THE BOOKKEEPING (ruled 2026-08-17). An arrow this
+        pass only RE-AIMS — a binding focus or gap re-solved, however
+        real the numeric move — gets no fact. `rerouted` is a sentence
+        about ink, and minting it for an arrow whose every pixel stayed
+        put made one record answer its own question twice: the
+        `user_note` below says "path unchanged" for exactly those
+        arrows, in prose, in the same save. Nothing is lost by the
+        silence — the re-solve is in the change record, which is what
+        replay rebuilds from, and the note still names it — so what
+        drains is narration and never state. `changes` is therefore
+        still built from every arrow that moved at all; only the fact
+        list is filtered, and `path_changed` is the one predicate both
+        it and `reroute_line` read.
 
         GATED ON `reroute_is_fossil`, not on "a pass would change
         something" — that is the difference between a verb the user can
@@ -17363,7 +17454,8 @@ class Store:
                           % (len(changes),
                              "; ".join(reroute_line(c) for c in changes)),
                 extra_facts={aid: [{"fact": "rerouted", "element": c["id"],
-                                    "arrow": c["id"]} for c in changes]})
+                                    "arrow": c["id"]} for c in changes
+                                   if c["path_changed"]]})
 
     def label_save(self, revn, label):
         """Bookmark a save (Phase 6): a short human name shown in the

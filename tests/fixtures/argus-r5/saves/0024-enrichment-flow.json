@@ -775,18 +775,8 @@
    ],
    "facts": [
     {
-     "arrow": "f-edgar-insider",
-     "element": "f-edgar-insider",
-     "fact": "rerouted"
-    },
-    {
      "arrow": "f-edgar-sentiment",
      "element": "f-edgar-sentiment",
-     "fact": "rerouted"
-    },
-    {
-     "arrow": "f-insider-agg",
-     "element": "f-insider-agg",
      "fact": "rerouted"
     },
     {
@@ -797,11 +787,6 @@
     {
      "arrow": "f-market-technical",
      "element": "f-market-technical",
-     "fact": "rerouted"
-    },
-    {
-     "arrow": "f-news-sentiment",
-     "element": "f-news-sentiment",
      "fact": "rerouted"
     },
     {
@@ -1388,12 +1373,12 @@
  "round": 6,
  "saved_at": "2026-08-17T21:27:10Z",
  "selection_at_save": [],
- "short_id": "bd13d62",
+ "short_id": "df38bfd",
  "summary": {
-  "headline": "rerouted f-edgar-insider (+8 more)",
+  "headline": "rerouted f-edgar-sentiment (+5 more)",
   "suppressed": 0,
   "verb_counts": {
-   "rerouted": 9
+   "rerouted": 6
   }
  },
  "tripwires": [],
