@@ -4795,6 +4795,32 @@ def _contention_score(a, node, side, foot, anchor, els, boxes, softs,
     path = _contention_path(anchor, foot, side)
     keep = {(a.get("startBinding") or {}).get("elementId"),
             (a.get("endBinding") or {}).get("elementId")}
+    # ...AND THE ARROW'S OWN LABEL, which `soft_obstacles` collects like
+    # any other bound text. An arrow runs THROUGH its own centred label
+    # — 70 of the 72 labelled arrows in the corpus do — so without this
+    # the incumbent path self-hits while a candidate moving away from
+    # where that label currently sits may not: a bias TOWARD moving,
+    # the exact opposite of what this term is for. It is the
+    # stored-vs-intended family again, since `recenter_label` runs only
+    # after a move is ACCEPTED, so the position being scored against is
+    # one no accepted move would leave behind.
+    #
+    # INERT TWICE OVER TODAY, measured rather than assumed, and both
+    # numbers are here because they say different things. Patching it
+    # changes 0 of 144 scenes (24 artifacts + 120 sweep rows) — and
+    # underneath that, of the 9 scorings where a labelled arrow is
+    # actually under contention, the reconstructed candidate path misses
+    # its own label in every one, so the exclusion currently removes no
+    # hit at all. The reconstruction is why: `_contention_path` rebuilds
+    # a 2- or 3-point path whose corner need not be the stored one, and
+    # the label is centred on the stored geometry. So this is not a live
+    # bias being corrected but a live bias being FORECLOSED, against the
+    # day a candidate family is added whose paths do pass through where
+    # labels sit. Written down because a directional error that happens
+    # to cost nothing is still directional, and it would otherwise have
+    # rested on a comment.
+    keep.update(t.get("id") for t in softs
+                if t.get("containerId") == a.get("id"))
     hits = crossings = 0
     for p, q in zip(path, path[1:]):
         for ob in boxes:
