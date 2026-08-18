@@ -6694,12 +6694,244 @@ class TestComposedKindsAndTooltips(Base):
                           r"(#[0-9a-f]{6})", asked[0])
         self.assertIsNotNone(shade, "no computed fix in %r" % asked[0])
         ratio = canvas.contrast_ratio(
-            canvas.parse_hex_color(shade.group(1)),
-            canvas.parse_hex_color(canvas.SVG_GROUND))
+            canvas.parse_color(shade.group(1)),
+            canvas.parse_color(canvas.SVG_GROUND))
         self.assertGreaterEqual(
             ratio, canvas.CONTRAST_OBJECT,
             "the suggested shade %s reads %.2f:1, still under the floor "
             "the finding quoted" % (shade.group(1), ratio))
+
+
+class TestUnreadableColourIsReported(unittest.TestCase):
+    """v0.9 TASK-COLORPARSE: both halves of report-don't-skip.
+
+    THE DEFECT, from curator batch 30's `css_keyword_stroke_is_never_
+    read`: `parse_color` (then `parse_hex_color`) answered None for
+    anything that was not hex, and BOTH legibility arms read their
+    colours through it and fell silent on None — the 1.4.3 arm by never
+    entering its `if`, the 1.4.11 arm through a `continue` whose comment
+    was written about an `image`'s absent stroke. So a shape stroked
+    `white` on this skill's #fdfcf8 paper was invisible in the picture
+    and absent from the lint at once, while the SAME COLOUR spelled
+    `#ffffff` was reported at 1.03:1.
+
+    THE FIX HAS TWO HALVES and needs both, which is why they are pinned
+    together here. The parser learned the 16 CSS Level 1 names, so
+    `white` is now MEASURED — the keyword pole below asserts the number,
+    not merely that something fired, because a fix that reported
+    "unreadable" for `white` would satisfy an existence assertion while
+    losing the reading. And what the parser still cannot read is now
+    REPORTED rather than skipped, because a silence and a colour are not
+    the same answer.
+
+    REACH, censused rather than claimed: the frozen corpus holds 1,952
+    colour strings and none of them are unreadable, so the corpus pole
+    below is a pole and not a measurement of this change's value. The
+    population it was built for is elsewhere and was counted — 26
+    downloaded `.excalidrawlib` shape libraries, 13,548 colour strings,
+    175 unreadable across 154 elements: 126 `white`/`black` (now
+    measured) and 49 four-digit `#rgba` (now reported).
+    """
+
+    GROUND = "#fdfcf8"
+
+    def _scene(self, stroke="#1e1e1e", fill="transparent"):
+        """One node on bare paper, styled to order.
+
+        Args:
+            stroke: The node's `strokeColor`.
+            fill: The node's `backgroundColor`.
+
+        Returns:
+            A one-element scene: the node `n1`.
+        """
+        return [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 200, "height": 100, "strokeColor": stroke,
+                 "backgroundColor": fill, "opacity": 100,
+                 "customData": {"role": "node"}}]
+
+    def _warnings(self, els, waives=None):
+        """The layout lint's warnings for a scene.
+
+        Args:
+            els: The scene.
+            waives: Optional waives dict.
+
+        Returns:
+            The warnings list.
+        """
+        return canvas.lint_layout(els, artifact_type="flow",
+                                  waives=waives)["warnings"]
+
+    def _unreadable(self, els, waives=None):
+        """Just the unreadable-colour findings.
+
+        Args:
+            els: The scene.
+            waives: Optional waives dict.
+
+        Returns:
+            The matching warnings.
+        """
+        return [w for w in self._warnings(els, waives)
+                if "cannot read as a colour" in w]
+
+    def test_a_css_keyword_is_measured_and_not_merely_noticed(self):
+        """`white` reads 1.03:1 — the same number `#ffffff` reads.
+
+        The pair batch 30's red is built on, asserted from the fix's
+        side: two spellings of one colour, identical pixels in every
+        renderer this skill ships through, and the lint must say the
+        same thing about both. The ratio is asserted rather than the
+        existence of a finding, because "something fired" is also true
+        of a fix that reported the keyword as unreadable — and that fix
+        would have left the agent without the one number that tells it
+        how far the colour has to move.
+        """
+        keyword = self._warnings(self._scene(stroke="white"))
+        hexed = self._warnings(self._scene(stroke="#ffffff"))
+        self.assertEqual(len(keyword), 1, keyword)
+        self.assertIn("reads 1.03:1", keyword[0])
+        self.assertIn("1.4.11 asks", keyword[0])
+        self.assertEqual(
+            [w.replace("#ffffff", "<c>") for w in hexed],
+            [w.replace("#ffffff", "<c>") for w in keyword],
+            "the two spellings of white are told apart by a check that "
+            "cannot tell them apart in the picture")
+        self.assertEqual(self._unreadable(self._scene(stroke="white")), [],
+                         "a colour the parser now reads is still being "
+                         "reported as one it cannot read")
+
+    def test_a_keyword_that_is_legible_stays_silent(self):
+        """`black` on cream is 20.46:1 and gets no finding at all.
+
+        The measurement's other direction, and the one that makes the
+        table worth having rather than being a way to generate findings:
+        teaching the parser a name must not turn every named colour into
+        a question. `black` is the second of the two keywords the shape
+        libraries actually use, so this is the majority case for 57 of
+        the 126 measured keyword declarations.
+        """
+        self.assertEqual(self._warnings(self._scene(stroke="black")), [])
+        self.assertEqual(
+            canvas.contrast_ratio(canvas.parse_color("black"),
+                                  canvas.parse_color(canvas.SVG_GROUND)),
+            canvas.contrast_ratio(canvas.parse_color("#000000"),
+                                  canvas.parse_color(canvas.SVG_GROUND)))
+
+    def test_a_colour_the_parser_cannot_read_is_reported(self):
+        """`rgb(0,0,0)` is a question; `#000000` is an answer.
+
+        The report-don't-skip half, on the same shape of pair: one
+        colour, two spellings, one of which this file reads. The
+        unreadable one used to leave through the 1.4.11 arm's `image`
+        `continue` and say nothing; it now says what it could not do.
+        The readable spelling must stay SILENT, or the new report is
+        just noise wearing a doctrine.
+        """
+        said = self._unreadable(self._scene(stroke="rgb(0,0,0)"))
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("declares its stroke as 'rgb(0,0,0)'", said[0])
+        self.assertIn("UNMEASURED, not fine", said[0])
+        self.assertIn("#rrggbb", said[0], "the finding does not say what "
+                      "it CAN read, so its advice is unfollowable")
+        self.assertEqual(self._warnings(self._scene(stroke="#000000")), [])
+
+    def test_an_unreadable_fill_is_reported_under_a_legible_stroke(self):
+        """The case a "only when nothing else parsed" gate would lose.
+
+        1.4.11 is answered by the BETTER of stroke and fill, so a shape
+        with a readable dark stroke passes on the stroke alone and the
+        unreadable fill never changes that verdict. It is still the
+        colour the shape's own LABEL is measured against — `drawn_on`
+        resolves a bound label's background to its container's fill and
+        falls back to the paper when it cannot read it, which is a
+        confident ratio against a ground that is not there. So the
+        declaration is reported where it is made, and the 1.4.11 finding
+        stays absent because the shape really is legible.
+        """
+        els = self._scene(fill="lightgray")
+        said = self._unreadable(els)
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("declares its fill as 'lightgray'", said[0])
+        self.assertEqual([w for w in self._warnings(els)
+                          if "1.4.11 asks" in w], [],
+                         "a shape legible by its stroke was asked about "
+                         "as if it were not")
+
+    def test_the_report_is_waivable_like_every_other_question(self):
+        """A recorded decision silences it, per the narration contract.
+
+        Every legibility finding offers a waive key and this one is no
+        different — the message is a question, and an answered question
+        goes quiet. The key carries the FIELD as well as the element
+        because stroke and fill are separately fixable: waiving one must
+        not silence the other.
+        """
+        els = self._scene(stroke="rgb(0,0,0)", fill="lightgray")
+        self.assertEqual(len(self._unreadable(els)), 2)
+        left = self._unreadable(
+            els, waives={"color:<artifact>:n1:stroke": {"reason": "meant"}})
+        self.assertEqual(len(left), 1, left)
+        self.assertIn("declares its fill", left[0])
+
+    def test_the_frozen_fixtures_declare_no_unreadable_colour(self):
+        """The corpus pole, with the denominator stated.
+
+        A zero here proves nothing on its own — 0 unreadable colours in
+        a corpus with no colours would read identically — so the count
+        of colour strings ACTUALLY READ is asserted beside it. That is
+        this repo's own recorded lesson about citing zeroes, and it is
+        also the honest statement of this change's reach: the frozen
+        artifacts are all hex, so nothing here moved, and the population
+        the change is for is the shape libraries that are not in the
+        repo.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        seen, strings = 0, 0
+        for path in sorted(root.rglob("*.excalidraw")):
+            seen += 1
+            els = json.loads(path.read_text()).get("elements") or []
+            for e in els:
+                for field in ("strokeColor", "backgroundColor"):
+                    if e.get(field) is None:
+                        continue
+                    strings += 1
+                    self.assertIsNone(
+                        canvas.unreadable_color(e[field]),
+                        "%s: %s declares %s=%r, which the legibility "
+                        "checks cannot read"
+                        % (path.name, e.get("id"), field, e.get(field)))
+        self.assertGreaterEqual(seen, 20, "fixture corpus went missing")
+        self.assertGreater(strings, 1500,
+                           "only %d colour strings were read, so the "
+                           "silence above is about an empty scan"
+                           % strings)
+
+    def test_the_parser_tells_absent_from_unreadable(self):
+        """`parse_color` answers a triple; `unreadable_color` answers why.
+
+        The seam the whole change turns on, tested directly because
+        every caller depends on the distinction and none of them can see
+        it: None from `parse_color` means "not a colour I read", and it
+        is `unreadable_color` that says whether that is because nothing
+        was declared or because something was.
+
+        `transparent` is the case that must land on the ABSENT side. It
+        is a CSS keyword, so a table that swallowed keywords wholesale
+        would resolve it to some triple and start measuring the contrast
+        of paint that does not exist.
+        """
+        self.assertEqual(canvas.parse_color("white"), (255, 255, 255))
+        self.assertEqual(canvas.parse_color("WHITE"), (255, 255, 255))
+        self.assertEqual(canvas.parse_color(" navy "), (0, 0, 128))
+        self.assertIsNone(canvas.parse_color("transparent"))
+        self.assertIsNone(canvas.parse_color("#ff00"))
+        for absent in (None, "", "  ", "transparent", "TRANSPARENT",
+                       "#1e1e1e", "white"):
+            self.assertIsNone(canvas.unreadable_color(absent), absent)
+        for declared in ("rgb(0,0,0)", "#ff00", "lightgray", "#12345"):
+            self.assertEqual(canvas.unreadable_color(declared), declared)
 
 
 class TestDerivedRoundness(unittest.TestCase):

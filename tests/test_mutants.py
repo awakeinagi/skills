@@ -293,6 +293,22 @@ _CONTRAST_OBJECT_RE = re.compile(
 _MIN_FONT_RE = re.compile(
     r"text (?P<element>[\w-]+) \(.+?\) is set at (?P<mag>[\d.]+)px, "
     r"under the \d+px floor")
+# v0.9 TASK-COLORPARSE. NO `mag` GROUP, and this is the only detector in
+# the table without one — the whole content of the finding is that no
+# number could be taken. A regex that invented one (the ratio against a
+# guessed colour, say) would let a mutant assert a measurement the check
+# does not claim to have made.
+#
+# The noun is `^.+? ` for the reason `_CONTRAST_OBJECT_RE` records at
+# length: it is `role_of`'s free-form string, and a character class here
+# is how a role like `note-text` made a lint speak while
+# `collect_findings` returned nothing. The FIELD is matched but not
+# captured, and matched as an alternation rather than `\w+` on purpose —
+# `stroke` and `fill` are the only two colour fields an element has, so
+# a third arriving is a change that should reach this regex.
+_UNREADABLE_COLOR_RE = re.compile(
+    r"^.+? (?P<element>[\w-]+)(?: \(.+?\))? declares its (?:stroke|fill) "
+    r"as '.+?', which this check cannot read as a colour")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -460,6 +476,19 @@ DETECTORS: dict[str, dict] = {
     "contrast_text": {"lint_re": _CONTRAST_TEXT_RE},
     "contrast_object": {"lint_re": _CONTRAST_OBJECT_RE},
     "min_font": {"lint_re": _MIN_FONT_RE},
+    # v0.9 TASK-COLORPARSE, the fourth of that family and the odd one: it
+    # reports a measurement that could NOT be taken, so it carries no
+    # magnitude at all. `element` is the element that declares the colour
+    # and the FIELD is deliberately not a `dir` — a dirmap turns an axis
+    # into a discriminator, and stroke-vs-fill is not an axis of the same
+    # finding, it is two separately fixable declarations that each get
+    # their own sentence and their own waive key. Both are in `raw`.
+    #
+    # UNCOVERED on arrival, with the reason in the ledger: registering it
+    # here is what makes a `Silence("unreadable_color")` assert anything
+    # at all, and the entry lands with the check so that no mutant can be
+    # written against an unregistered name in the meantime.
+    "unreadable_color": {"lint_re": _UNREADABLE_COLOR_RE},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -19153,7 +19182,7 @@ class TestMutantCatalogue(unittest.TestCase):
         suggested at 40% would not fix the finding — the failure mode a
         presence-only assertion cannot see.
         """
-        ground = canvas.parse_hex_color(canvas.SVG_GROUND)
+        ground = canvas.parse_color(canvas.SVG_GROUND)
         for scene, check, floor in (
                 (_styled_scene(text_color="#d0d0d0"), "contrast_text",
                  canvas.CONTRAST_TEXT),
@@ -19167,7 +19196,7 @@ class TestMutantCatalogue(unittest.TestCase):
             self.assertIsNotNone(
                 got, "%s carries no computed fix: %r" % (check, raw[0]))
             ratio = canvas.contrast_ratio(
-                canvas.parse_hex_color(got.group(1)), ground)
+                canvas.parse_color(got.group(1)), ground)
             self.assertGreaterEqual(
                 ratio, floor,
                 "%s suggested %s, which reads %.2f:1 — under the %.1f:1 "
@@ -19182,7 +19211,7 @@ class TestMutantCatalogue(unittest.TestCase):
         self.assertIsNotNone(got, faded[0])
         self.assertGreaterEqual(
             canvas.contrast_ratio(
-                canvas.composite_over(canvas.parse_hex_color(got.group(1)),
+                canvas.composite_over(canvas.parse_color(got.group(1)),
                                       ground, 60), ground),
             canvas.CONTRAST_TEXT,
             "the shade suggested for a 60%%-opacity element is compliant "
@@ -19217,19 +19246,19 @@ class TestMutantCatalogue(unittest.TestCase):
         self.assertAlmostEqual(canvas.relative_luminance(white), 1.0, 6)
         self.assertAlmostEqual(canvas.relative_luminance(black), 0.0, 6)
         self.assertAlmostEqual(canvas.contrast_ratio(black, white), 21.0, 4)
-        grey = canvas.parse_hex_color("#767676")
+        grey = canvas.parse_color("#767676")
         self.assertEqual(grey, (118, 118, 118))
         self.assertAlmostEqual(canvas.contrast_ratio(grey, white),
                                4.542, delta=0.01)
         self.assertAlmostEqual(
             canvas.contrast_ratio(
-                grey, canvas.parse_hex_color(canvas.SVG_GROUND)),
+                grey, canvas.parse_color(canvas.SVG_GROUND)),
             4.425, delta=0.01)
         # The fold is a plain source-over composite, so half-strength ink
         # on white is the midpoint grey and not some eased approximation.
         self.assertEqual(
             canvas.composite_over(black, white, 50), (127.5, 127.5, 127.5))
-        self.assertIsNone(canvas.parse_hex_color("transparent"))
+        self.assertIsNone(canvas.parse_color("transparent"))
 
     def test_composed_furniture_is_checked_like_everything_else(
             self) -> None:
@@ -19325,9 +19354,23 @@ class TestMutantCatalogue(unittest.TestCase):
             "the carve-out has swallowed the graded fold: 60% ink reads "
             "4.38:1 and must still be asked about")
 
-    @unittest.expectedFailure
     def test_mutant_css_keyword_stroke_is_never_read(self) -> None:
-        """A white-stroked shape on cream paper, invisible and unremarked."""
+        """A white-stroked shape on cream paper, now read at 1.03:1."""
+        # FLIPPED by v0.9 TASK-COLORPARSE, one day after it was filed:
+        # `parse_color` (renamed from `parse_hex_color` in the same
+        # change) learned the 16 CSS Level 1 names, so `white` resolves
+        # to (255, 255, 255) and the 1.4.11 arm measures it instead of
+        # `continue`ing past it. The entry's own asserted MAGNITUDE is
+        # what made this the fix rather than the other one available:
+        # reporting the keyword as unreadable would have produced a
+        # finding and no number, and the pair exists to say that the two
+        # spellings of one colour get the same reading.
+        #
+        # The parser's remaining blind spots do NOT leave by this door
+        # any more — an `rgb()` triple or a 4-digit `#rgba` is reported
+        # as a colour the check cannot read, and that report has its own
+        # `DETECTORS` row (`unreadable_color`) and its poles in
+        # tests/test_backend.TestUnreadableColourIsReported.
         self._run("css_keyword_stroke_is_never_read")
 
     def test_neighbour_css_keyword_stroke_is_never_read(self) -> None:
@@ -20239,6 +20282,29 @@ UNCOVERED: dict[str, str] = {
     "label_wider_than_container_refit":
         "enumerated 2026-08-12; no proving mutant yet — "
         "ART-011, validate_scene",
+    # Added 2026-08-17 (v0.9 TASK-COLORPARSE) and DIFFERENT IN KIND from
+    # every row above it: this one names a detector that IS registered in
+    # `DETECTORS`, so `coverage_table` reads it and the census reports 1
+    # UNCOVERED where it reported 0. That number moving is the point of
+    # the row, not a regression to be tidied away — the alternative was
+    # the check's own author writing the mutant that proves it, which is
+    # the arrangement `TestFrameContainment`'s note two screens up and
+    # the mutant-curator's own charter both forbid, and which shipped
+    # run 5's failure-path defects.
+    #
+    # WHAT IS ALREADY PROVEN WITHOUT IT, so the gap is narrow and named:
+    # `TestUnreadableColourIsReported` (tests/test_backend.py) pins both
+    # poles through the real lint — the finding on `rgb(0,0,0)` and the
+    # silence on the same colour spelled `#000000` — plus the corpus-wide
+    # silence and the keyword measurement. What no CATALOGUE entry
+    # asserts is the finding through `collect_findings`, so a rewrite
+    # that kept the behaviour and reworded the sentence past
+    # `_UNREADABLE_COLOR_RE` would pass everything that exists.
+    "unreadable_color":
+        "landed 2026-08-17 (TASK-COLORPARSE) with both poles pinned in "
+        "tests/test_backend.TestUnreadableColourIsReported; the CATALOGUE "
+        "mutant is a curator's — the hands that wrote the fix do not "
+        "write its acceptance test",
 }
 
 
@@ -20717,15 +20783,21 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS = {"css_keyword_stroke_is_never_read",
-                     "grazing_arrival_reads_as_square"}
+CATALOGUE_RED_IDS = {"grazing_arrival_reads_as_square"}
 # `css_keyword_stroke_is_never_read` joined on 2026-08-17 (curator batch
-# 30): `parse_hex_color` answers None for a CSS keyword and the 1.4.11 arm
-# `continue`s when neither the stroke nor the fill parses, so a shape
-# stroked `white` on this skill's cream paper is invisible in the picture
-# and absent from the lint. Its neighbour is the SAME COLOUR spelled
-# `#ffffff`, which fires at 1.03:1 — so the pair asserts a number rather
-# than an existence, and the mutation between them is a spelling.
+# 30) and LEFT THE SAME DAY (v0.9 TASK-COLORPARSE), the shortest stay any
+# entry has had. It was filed because `parse_hex_color` answered None for
+# a CSS keyword and the 1.4.11 arm `continue`d when neither the stroke
+# nor the fill parsed, so a shape stroked `white` on this skill's cream
+# paper was invisible in the picture and absent from the lint; the parser
+# now reads the 16 CSS Level 1 names and the shape is measured at the
+# 1.03:1 its `#ffffff` neighbour always reported.
+#
+# The stay is short and the entry is NOT a curiosity, because the pair
+# chose the fix: it asserts the neighbour's NUMBER, so the other repair
+# on the table — report the keyword as unreadable and take no reading —
+# would not have flipped it. A red that says "fire" can be answered by
+# any noise; this one said "say 1.03".
 # `corner_feet_outside_the_square` left on 2026-08-17 (v0.9 TASK-ATTACH)
 # when `shared_attach_point` started measuring a DISTANCE instead of a
 # 12x12 box, against `FAN_LANE_PITCH`. Its neighbour moved in the same
@@ -21957,13 +22029,24 @@ class TestCoverage(unittest.TestCase):
         background through a container and switches floors on the large
         arm, and all of that produces ONE sentence whose numbers differ —
         four templates would be four ways to say the same repair.
+
+        61 -> 62 on 2026-08-17 (v0.9 TASK-COLORPARSE): `unreadable_color`,
+        the report that replaced the 1.4.11 arm's silent `continue` on a
+        colour `parse_color` does not speak. It arrives WITH a `DETECTORS`
+        entry and WITHOUT a proving mutant, which is a shape none of the
+        arrivals above had, and the `UNCOVERED` row it carries says why —
+        the mutant is a curator's to author, because the hands that write
+        a fix do not get to write its acceptance test. The site itself
+        follows the one-site-per-check rule the paragraph above sets: two
+        FIELDS can be unreadable on one element and both come out of this
+        template, exactly as `contrast_text`'s four paths do.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 61,
+        self.assertEqual(sites, 62,
                          "canvas.py lint_layout append-site count changed "
-                         "(61 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(62 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

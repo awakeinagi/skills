@@ -108,6 +108,13 @@ CONTRAST_OBJECT = 3.0           # 1.4.11, strokes/borders/connectors
 # is deliberately absent — nothing in this skill's palette sets weight, so
 # an arm no scene can reach would be a branch no mutant could pin.
 CONTRAST_LARGE_PX = 24.0
+# The types 1.4.11 reads — everything with an outline a reader has to pick
+# out. Hoisted to a constant by v0.9 TASK-COLORPARSE, which needed the same
+# set a second time: `unreadable_color`'s report must cover EXACTLY the
+# elements the two contrast arms cover, or a type added to one and not the
+# other becomes silent again in the one place this change exists to stop.
+CONTRAST_OBJECT_TYPES = ("rectangle", "diamond", "ellipse", "arrow", "line",
+                         "frame")
 # The fontSize floor, MEASURED 2026-08-13 rather than chosen: the render
 # tier's sweep at deviceScaleFactor 1 (docs/todo/contrast-and-min-font-
 # lints.md, table + method) shows rendered stroke contrast holding to 12px,
@@ -10760,32 +10767,106 @@ def _seg_hits_rect(x1, y1, x2, y2, el, inset=2):
 # lookups on a wireframe. Misses are memoized as None too, which is why
 # the read below is `in` rather than `.get()`.
 _COLOR_MEMO: dict[str, tuple | None] = {}
+# The 16 CSS Level 1 colour names, hand-rolled because this file is
+# stdlib-only and `webcolors` is not coming.
+#
+# WHY THESE SIXTEEN AND NOT THE 148 EXTENDED NAMES, measured rather than
+# guessed. Across 26 downloaded `.excalidrawlib` shape libraries — 13,548
+# colour strings, the population this parser is about to meet — exactly
+# TWO keywords appear: `white` (69) and `black` (57). Not one extended
+# name. The Level 1 set covers both, and every value in it is a 0x00 /
+# 0x80 / 0xFF lattice point that a reviewer can check by eye; the other
+# 132 would be hex transcribed from memory with no source in this repo to
+# check them against, so a mistyped `darkslategray` would become a
+# CONFIDENT WRONG MEASUREMENT — the one outcome worse than the silence
+# this whole change is about.
+#
+# THE BOUNDARY IS NOT A SILENCE, which is what makes the small table
+# safe: `lint_layout` REPORTS a colour it cannot read (`unreadable_color`)
+# instead of skipping the element, so `lightgray` gets an honest "I
+# cannot read this, so its legibility is unmeasured" rather than nothing
+# at all. Growing the table later turns one of those findings into a
+# measurement; it can never turn a measurement into a finding.
+#
+# `transparent` IS NOT HERE and must not be: it is the CSS keyword for
+# "no paint", and None — "nothing declared" — is the right reading of it
+# everywhere this parser is consumed. Pinned by
+# `test_the_colour_math_reproduces_published_wcag_values`.
+_CSS_LEVEL1: dict[str, tuple] = {
+    "black": (0, 0, 0), "silver": (192, 192, 192), "gray": (128, 128, 128),
+    "white": (255, 255, 255), "maroon": (128, 0, 0), "red": (255, 0, 0),
+    "purple": (128, 0, 128), "fuchsia": (255, 0, 255), "green": (0, 128, 0),
+    "lime": (0, 255, 0), "olive": (128, 128, 0), "yellow": (255, 255, 0),
+    "navy": (0, 0, 128), "blue": (0, 0, 255), "teal": (0, 128, 128),
+    "aqua": (0, 255, 255)}
+# The forms `parse_color` reads, in the words the finding uses. Declared
+# beside the parser so the sentence an agent is shown cannot drift from
+# what the parser actually accepts.
+COLOR_FORMS = ("transparent, #rgb, #rrggbb, #rrggbbaa and the 16 CSS "
+               "Level 1 names (black, white, red, blue, ...)")
 
 
-def parse_hex_color(spec):
+def parse_color(spec):
     """An Excalidraw color string as an (r, g, b) triple of 0-255 ints.
+
+    RENAMED from `parse_hex_color` on 2026-08-17 (v0.9 TASK-COLORPARSE),
+    when it learned the CSS Level 1 names: a function called
+    `parse_hex_color` that answers a triple for `white` invites exactly
+    the reading that shipped the defect this change fixes — a caller
+    assuming the parser's reach from its name and treating None as
+    "nothing declared".
 
     Args:
         spec: A color string. `#rgb`, `#rrggbb` and `#rrggbbaa` are read
             (the alpha byte is DROPPED — `opacity` is the channel this
             skill actually uses, and folding two alpha sources would
-            double-count). Anything else — `transparent`, a CSS name, a
+            double-count), as are the 16 CSS Level 1 names,
+            case-insensitively. Anything else — `transparent`, an
+            extended CSS name, a 4-digit `#rgba`, an `rgb()` triple, a
             gradient, None — returns None.
 
     Returns:
-        The (r, g, b) triple, or None if `spec` is not a hex color.
+        The (r, g, b) triple, or None if `spec` is not a color this file
+        reads. None means UNKNOWN, not white and not absent: a caller
+        that needs to tell "nothing declared" from "declared something I
+        cannot read" asks `unreadable_color`.
     """
     if not isinstance(spec, str):
         return None
     if spec in _COLOR_MEMO:
         return _COLOR_MEMO[spec]
-    got = _parse_hex_color_uncached(spec)
+    got = _parse_color_uncached(spec)
     _COLOR_MEMO[spec] = got
     return got
 
 
-def _parse_hex_color_uncached(spec):
-    """`parse_hex_color`'s body, without the memo.
+def unreadable_color(spec):
+    """The spec, when it declares a colour this file cannot read.
+
+    The distinction `parse_color`'s None flattens, and the whole content
+    of TASK-COLORPARSE: `transparent` and a missing field declare NO
+    paint, which is a complete answer, while `rgb(0,0,0)` declares paint
+    this file cannot measure, which is a question. Callers that skip on
+    the first must report the second.
+
+    Args:
+        spec: Whatever was in a `strokeColor` / `backgroundColor` field.
+
+    Returns:
+        The stripped spec string when it is a non-empty declaration that
+        is neither `transparent` nor readable by `parse_color`; None
+        otherwise.
+    """
+    if not isinstance(spec, str):
+        return None
+    s = spec.strip()
+    if not s or s.lower() == "transparent":
+        return None
+    return None if parse_color(s) is not None else s
+
+
+def _parse_color_uncached(spec):
+    """`parse_color`'s body, without the memo.
 
     Args:
         spec: The color string, already known to be a `str`.
@@ -10793,6 +10874,9 @@ def _parse_hex_color_uncached(spec):
     Returns:
         The (r, g, b) triple, or None.
     """
+    named = _CSS_LEVEL1.get(spec.strip().lower())
+    if named is not None:
+        return named
     h = spec.strip().lstrip("#")
     if len(h) == 3:
         h = "".join(c * 2 for c in h)
@@ -11134,8 +11218,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             % (name(mem["id"]), fr.get("name") or fr["id"], where))
 
     # ---- WARNING: legibility — colour and type size (v0.9 WP7) --------
-    # Three checks over one idea: an element can be perfectly correct in
-    # the model and unreadable in the picture. Ops allow free-form colour
+    # FOUR checks over one idea (three measurements, and since v0.9
+    # TASK-COLORPARSE one report of a measurement that could NOT be
+    # taken): an element can be perfectly correct in the model and
+    # unreadable in the picture. Ops allow free-form colour
     # and free-form `fontSize`, so nothing before this stopped an agent
     # writing #d0d0d0 on the #fdfcf8 ground (1.50:1) or setting a 6px
     # label. Legibility was enforced NOWHERE — not in lint, not on the
@@ -11183,7 +11269,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # The frozen fixtures keep the old ink — they are a record of sessions
     # that happened — so those 16 stand as true findings about old
     # drawings until TASK-FOCUS-FOLLOWUP rebases them.
-    ground = parse_hex_color(SVG_GROUND)
+    ground = parse_color(SVG_GROUND)
 
     def drawn_on(e):
         """The colour `e` is painted over, per the settled resolution order.
@@ -11205,12 +11291,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             An (r, g, b) triple.
         """
         if e.get("type") == "text":
-            own = parse_hex_color(e.get("backgroundColor"))
+            own = parse_color(e.get("backgroundColor"))
             if own is not None:
                 return composite_over(own, ground, e.get("opacity", 100))
         host = ix.get(e.get("containerId") or "")
         if host is not None:
-            hb = parse_hex_color(host.get("backgroundColor"))
+            hb = parse_color(host.get("backgroundColor"))
             if hb is not None:
                 return composite_over(hb, ground, host.get("opacity", 100))
         return ground
@@ -11246,6 +11332,26 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 " — nearest compliant shade of the same hue: %s"
                 % hexof(fixed))
 
+    def noun_of(etype, e):
+        """The word a legibility finding about `e` opens with.
+
+        Shared by the 1.4.11 arm and the unreadable-colour report so the
+        two speak about one element the same way — a reader matching the
+        second finding to the first should not have to work out that
+        "connector" and "arrow" are the same thing.
+
+        Args:
+            etype: The element's `type`, already read.
+            e: The element.
+
+        Returns:
+            The noun.
+        """
+        return ("text" if etype == "text"
+                else "connector" if etype in ("arrow", "line")
+                else "frame" if etype == "frame"
+                else role_of(e) or "shape")
+
     for e in els:
         etype = e.get("type")
         eid = e["id"]
@@ -11270,6 +11376,56 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # here is this check declining a question, not the drawing
             # going unremarked.
             continue
+        # ---- WARNING: a colour these checks cannot read ---------------
+        # REPORT, DON'T SKIP — v0.9 TASK-COLORPARSE, from curator batch
+        # 30's `css_keyword_stroke_is_never_read`. Both arms below read
+        # their colours through `parse_color` and both used to fall
+        # silent when it answered None, under comments written for
+        # `transparent` and for an `image`'s absent stroke. Those are
+        # correct declines: NOTHING DECLARED is a complete answer. A
+        # colour the parser does not speak is the opposite — a
+        # declaration this file cannot measure — and answering it with
+        # the same silence is how a shape stroked `rgb(255,255,255)` on
+        # #fdfcf8 paper is invisible in the picture and absent from the
+        # lint at once.
+        #
+        # UNCONDITIONAL, not gated on whether the element is otherwise
+        # proven legible, because the cheap version of that gate is
+        # wrong: a rectangle with a readable dark stroke and an
+        # unreadable fill passes 1.4.11 on the stroke, and its fill is
+        # still what the LABEL inside it is measured against — that is
+        # `drawn_on`'s one-hop resolution reading a wrong ground and
+        # reporting a confident ratio. Reporting the declaration where it
+        # is made puts the fact in front of the agent once, on the
+        # element that owns it. The noise this buys is measured at ZERO:
+        # 1,952 colour strings over the 24 frozen artifacts, none of them
+        # unreadable.
+        #
+        # ONE FINDING PER FIELD rather than per element: `stroke` and
+        # `fill` are separately fixable and separately waivable, and the
+        # element's own id is in both keys.
+        #
+        # An EMPTY text slot is declined here exactly as 1.4.3 declines
+        # it four lines down ("an empty slot has no ink to read"): the
+        # two must cover the same elements, and a wireframe's blank
+        # fields are numerous enough that the difference would show.
+        if ((etype in CONTRAST_OBJECT_TYPES)
+                or (etype == "text" and (e.get("text") or "").strip())):
+            for src, raw in (("stroke", e.get("strokeColor")),
+                             ("fill", e.get("backgroundColor"))):
+                bad = unreadable_color(raw)
+                key = "color:%s:%s:%s" % (aid or "<artifact>",
+                                          slugify(eid), src)
+                if bad is None or (waives and key in waives):
+                    continue
+                warnings.append(
+                    "%s %s declares its %s as %r, which this check cannot "
+                    "read as a colour — so its legibility against %s is "
+                    "UNMEASURED, not fine. What is read: %s. Meant as "
+                    "written? Restate it in hex, or record the decision "
+                    "with waive {action: waive, key: %r, reason: ...}"
+                    % (noun_of(etype, e), name(eid), src, bad,
+                       hexof(drawn_on(e)), COLOR_FORMS, key))
         if etype == "text":
             body = e.get("text") or ""
             if not body.strip():
@@ -11278,7 +11434,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # 1.4.3 — the ink against what it is written on. `fontSize`
             # decides which floor, and the LARGE arm is the criterion's
             # own relaxation rather than a tolerance of ours.
-            ink = parse_hex_color(e.get("strokeColor"))
+            ink = parse_color(e.get("strokeColor"))
             fs = e.get("fontSize") or 16
             if ink is not None:
                 bg = drawn_on(e)
@@ -11328,8 +11484,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "record the decision with waive {action: waive, "
                     "key: %r, reason: ...}"
                     % (eid, quoted, fs, MIN_FONT_FLOOR, key))
-        elif etype in ("rectangle", "diamond", "ellipse", "arrow", "line",
-                       "frame"):
+        elif etype in CONTRAST_OBJECT_TYPES:
             # 1.4.11, the criterion people forget: non-text objects need
             # 3:1, and a pale connector on cream paper is the case it
             # exists for. The object is legible if EITHER its outline or
@@ -11341,7 +11496,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             best, from_ = None, None
             for src, raw in (("stroke", e.get("strokeColor")),
                              ("fill", e.get("backgroundColor"))):
-                col = parse_hex_color(raw)
+                col = parse_color(raw)
                 if col is None:
                     continue        # `transparent` paints nothing
                 got = contrast_ratio(composite_over(col, bg, opac), bg)
@@ -11352,6 +11507,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # a transparent stroke and its picture is bytes this file
                 # is never handed. There is no colour to ask about; the
                 # render tier owns that question.
+                #
+                # THIS DECLINE IS NOW EXACTLY THAT and nothing else. It
+                # used to swallow a second case its comment never claimed:
+                # a shape whose colours ARE declared and are simply
+                # unreadable here left by the same door. That case is
+                # reported above, before either arm runs, so the element
+                # is silent here and spoken about there.
                 continue
             key = "stroke:%s:%s" % (aid or "<artifact>", slugify(eid))
             if best < CONTRAST_OBJECT and not (waives and key in waives):
@@ -11360,9 +11522,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 drawn = ("%s at %d%% opacity, so %s"
                          % (hexof(col), int(opac), hexof(seen))
                          if int(opac) != 100 else hexof(col))
-                noun = ("connector" if etype in ("arrow", "line")
-                        else "frame" if etype == "frame"
-                        else role_of(e) or "shape")
+                noun = noun_of(etype, e)
                 fix = ("raise its opacity or darken the %s" % src
                        if int(opac) != 100 else "darken the %s" % src)
                 warnings.append(
