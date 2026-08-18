@@ -12920,6 +12920,1053 @@ class TestARetypedValueReachesDiskButNotHistory(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# CURATOR BATCH 30 (2026-08-17). Six classes, one file section, per the
+# per-agent-section convention `test_the_mutants_are_distinct_experiments`
+# names as the only defence these non-`CATALOGUE` classes have.
+# ---------------------------------------------------------------------------
+
+
+def _app_tsx() -> str:
+    """The client's source, as text, for the parity gates below.
+
+    Three of this section's classes make a claim about `App.tsx` and the
+    model tier cannot execute it, so they read it. That is the same
+    instrument `TestAssessorUserEdits.client_custom_data` in
+    `test_backend.py` established for the `customData` stamps and the two
+    `exportPadding` gates use for the export frame: a value restated by
+    hand agrees with the client exactly once, on the day it is written.
+
+    Returns:
+        The whole file. Callers slice it with `_app_tsx_body`.
+    """
+    return (Path(__file__).resolve().parents[1] / "frontends" /
+            "wysiwyg-grilling" / "src" / "App.tsx").read_text(
+                encoding="utf-8")
+
+
+def _app_tsx_body(opening: str, closing: str) -> str:
+    """One declaration's body, bounded by the declaration that follows it.
+
+    RAISES RATHER THAN ASSERTS on a missing anchor, exactly as the
+    `customData` parser does and for its reason: `python -O` strips
+    `assert`, and this guard is the only thing between a renamed helper
+    and an empty slice that satisfies every comparison below vacuously.
+
+    Args:
+        opening: A string appearing exactly once, where the body starts.
+        closing: A string appearing exactly once, where it ends.
+
+    Returns:
+        The text between them, exclusive.
+
+    Raises:
+        AssertionError: If either anchor is missing or repeated.
+    """
+    src = _app_tsx()
+    for anchor in (opening, closing):
+        if src.count(anchor) != 1:
+            raise AssertionError(
+                "%r appears %d times in App.tsx; the parity parser needs "
+                "it exactly once to bound a declaration's body"
+                % (anchor, src.count(anchor)))
+    return src.split(opening, 1)[1].split(closing, 1)[0]
+
+
+class TestTheAcceptGuardRevertsALaneRepairThatCostsACrossing(
+        unittest.TestCase):
+    """`contention_feet`'s scene guard, on the scene it was built for."""
+
+    @staticmethod
+    def _arrow(aid: str, pts: list[tuple[float, float]],
+               sb: str | None, eb: str | None,
+               routed: bool = True) -> dict:
+        """One arrow through absolute points, stamped server-owned.
+
+        Args:
+            aid: The arrow's id.
+            pts: Absolute scene points, first to last.
+            sb: Element id the start binds, or None for an unbound end.
+            eb: Element id the end binds, or None.
+            routed: Stamp `customData.routed` with the live signature,
+                which is what puts the arrow in the pass's iteration set.
+
+        Returns:
+            The arrow element.
+        """
+        x0, y0 = pts[0]
+        a = el(id=aid, type="arrow", x=x0, y=y0,
+               points=[[px - x0, py - y0] for px, py in pts],
+               customData={"role": "edge"})
+        if sb:
+            a["startBinding"] = {"elementId": sb, "focus": 0, "gap": 1}
+        if eb:
+            a["endBinding"] = {"elementId": eb, "focus": 0, "gap": 1}
+        a["width"] = max(abs(p[0]) for p in a["points"])
+        a["height"] = max(abs(p[1]) for p in a["points"])
+        if routed:
+            a["customData"]["routed"] = canvas._route_sig(a)
+        return a
+
+    def _scene(self, decoy: bool) -> list[dict]:
+        """Two feet in one lane on `N`, and one obstacle in `a0`'s way.
+
+        THE FROZEN CORPUS CANNOT STATE THIS CLAIM, which is why the scene
+        is constructed. TASK-ATTACH instrumented the guard across all 24
+        artifacts and all 120 sweep rows and measured it reverting 0
+        moves of 124 stamped: the per-endpoint score never proposes a
+        move any of those scenes is worse for, so the revert arm could be
+        deleted with the whole suite green (measured by that task, not
+        assumed here).
+
+        The scene is built to make the score PREFER a move the scene
+        cannot afford, and each half is one lever:
+
+        * `a0` and `a1` stand 10px apart on `N`'s left border, inside
+          `LANE_TOL`, which is the pass's "two feet the fan's obstacle
+          slide left in one lane" trigger. Their two horizontal runs are
+          also a corridor, so the scene starts at a cost of one.
+        * `B` sits on `a0`'s vertical leg. `_contention_score` is
+          lexicographic with box hits FIRST, so a candidate that clears
+          `B` beats the current foot however the later terms fall.
+        * `decoy` adds `d`, an unbound authored stroke crossing the air
+          `a0` would sweep on its way to `N`'s top border. The candidate
+          therefore costs a crossing — and it is the SECOND term, so the
+          box hit still carries the decision.
+
+        `d` is unbound and unstamped deliberately: it must be visible to
+        `_scene_lane_cost` and to the score's crossing term while staying
+        out of `movable`, or the pass would try to repair the decoy too
+        and the scene would stop being about one guarded move.
+
+        Args:
+            decoy: Add the crossing stroke, which is the one mutation
+                between this class's two poles.
+
+        Returns:
+            The scene, ready for `contention_feet`.
+        """
+        els = [
+            el(id="N", type="rectangle", x=400, y=100, width=120,
+               height=200, customData={"role": "node"}),
+            el(id="S0", type="rectangle", x=100, y=60, width=60,
+               height=40, customData={"role": "node"}),
+            el(id="S1", type="rectangle", x=100, y=340, width=60,
+               height=40, customData={"role": "node"}),
+            el(id="B", type="rectangle", x=140, y=150, width=60,
+               height=40, customData={"role": "node"}),
+            self._arrow("a0", [(160, 80), (160, 280), (400, 280)],
+                        "S0", "N"),
+            self._arrow("a1", [(160, 360), (160, 290), (400, 290)],
+                        "S1", "N"),
+        ]
+        if decoy:
+            els.append(self._arrow("d", [(300, 20), (300, 140)], None, None,
+                                   routed=False))
+        return els
+
+    @staticmethod
+    def _geometry(els: list[dict]) -> dict[str, tuple]:
+        """Each arrow's drawn geometry, for a moved/not-moved comparison.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            `{arrow id: (x, y, points)}`.
+        """
+        return {e["id"]: (e["x"], e["y"], copy.deepcopy(e["points"]))
+                for e in els if e.get("type") == "arrow"}
+
+    @staticmethod
+    def _cost(els: list[dict]) -> tuple[int, int]:
+        """The scene's `(crossings, corridors)`, the guard's own currency.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            What `_scene_lane_cost` reads over its arrows.
+        """
+        return canvas._scene_lane_cost(
+            [e for e in els if e.get("type") in ("arrow", "line")])
+
+    def test_a_move_that_trades_a_lane_for_a_crossing_is_reverted(
+            self) -> None:
+        """The revert arm, exercised for the first time.
+
+        `a0`'s best candidate is on `N`'s top border: it clears `B`,
+        which the current foot runs through, so it wins the score's first
+        term outright. Landing there sweeps the air `d` occupies, and the
+        scene goes from `(0 crossings, 1 corridor)` to `(1, 0)` — worse,
+        in a currency the pass is not allowed to spend. The guard puts
+        `a0` back whole.
+
+        THREE ASSERTIONS, and the third is the one that makes this a test
+        of the GUARD rather than of the scene. `a0` unchanged is also
+        what "the search found no candidate at all" looks like, so the
+        arm is watched being load-bearing: with `_scene_lane_cost` stubbed
+        to a constant — the smallest edit that disarms `after > before`
+        and nothing else — `a0` DOES move, and the scene picks up the
+        crossing. That is the deletion TASK-ATTACH said no test would
+        notice, performed here and noticed.
+
+        The lane is still repaired, by `a1` spilling to the bottom
+        border, which is what stops the guard reading as "reverts
+        everything": one costing move refused, one free move taken, in
+        one pass over one scene.
+
+        WHAT THIS ASSERTS AND WHAT IT DOES NOT: the DRAWN path is put
+        back, which is the arm's stated job. The binding and the route
+        signature are not, and that is the red below on this same scene
+        — so read the two together rather than reading this one as "the
+        revert works".
+        """
+        els = self._scene(decoy=True)
+        was = self._geometry(els)
+        self.assertEqual(self._cost(els), (0, 1),
+                         "this scene is meant to start with one corridor "
+                         "and no crossing; it no longer does, so nothing "
+                         "below is measuring what it names")
+        canvas.contention_feet(els)
+        now = self._geometry(els)
+        self.assertEqual(
+            now["a0"], was["a0"],
+            "the guard let `a0` take a foot that costs the scene a "
+            "crossing to save a lane — `_scene_lane_cost` went %s -> %s"
+            % (self._cost(self._scene(decoy=True)), self._cost(els)))
+        self.assertNotEqual(
+            now["a1"], was["a1"],
+            "nothing moved at all, so the revert above proves nothing: "
+            "the contended side was supposed to be repaired by the foot "
+            "the scene CAN afford")
+        self.assertEqual(
+            self._cost(els), (0, 0),
+            "the pass ended with the scene no better than it started")
+        # ...and the arm is the cause. A guard that always accepts takes
+        # the crossing, which is the state the corpus could not produce.
+        unguarded = self._scene(decoy=True)
+        with mock.patch.object(canvas, "_scene_lane_cost",
+                               lambda arrows: (0, 0)):
+            canvas.contention_feet(unguarded)
+        self.assertNotEqual(
+            self._geometry(unguarded)["a0"], was["a0"],
+            "with the scene guard disarmed `a0` still did not move, so "
+            "this scene does not exercise the revert arm and the "
+            "assertion above passes for another reason")
+        self.assertEqual(
+            self._cost(unguarded), (1, 0),
+            "the disarmed pass was supposed to manufacture exactly the "
+            "crossing the guard refuses")
+
+    def test_red_the_revert_restores_the_geometry_and_nothing_else(
+            self) -> None:
+        """"REVERTED WHOLE, geometry and all" was two-thirds true.
+
+        FLIPPED 2026-08-17 by v0.9 TASK-ATTACH fix round 1 (`b4f095c`),
+        hours after this batch filed it and exactly as the handoff below
+        predicted from the second of its two directions. The arm now
+        snapshots the whole element (`copy.deepcopy(a)`, restored with
+        `a.clear()` / `a.update`) instead of six named geometry keys — a
+        snapshot rather than an enumeration, because an enumeration is a
+        place that has to know what the stamps write and it was already
+        wrong once.
+
+        KEPT ITS RED-ERA NAME, this file's usual convention (see
+        `test_red_a_retyped_focus_reaches_disk_but_not_history`, which
+        says the same). Both census guards read the DECORATOR
+        (`__unittest_expecting_failure__`) and neither reads the method
+        name, so the prefix costs no accuracy; what it buys is that the
+        name still describes the defect the assertion exists to refuse.
+
+        WHAT WAS WRONG, kept because it is what the assertion is for. The
+        arm restored six fields — `x`, `y`, `points`, `width`, `height`,
+        `roundness` — and `_stamp_contention` writes THREE more that it
+        never snapshotted. Measured on this scene, on `a0`, the arrow the
+        guard puts back:
+
+        * `endBinding.focus` stays at the STAMPED **-0.6** instead of the
+          stored **0**. Focus is the ray the client re-derives the foot
+          along, so the drawing now stores a path to the left border and
+          a binding aiming at the top one — the arrow expresses a foot it
+          does not have, which is the whole class of defect
+          TASK-FOCUS-FOLLOWUP-A's ordering fix exists to prevent, one
+          call site over.
+        * `customData.routed` stays at the signature `_stamp_route`
+          computed for the geometry that was thrown away, so it no longer
+          matches the geometry that survived — and `server_owns_geometry`
+          therefore reads **False** on an arrow it read True on one call
+          earlier. That is the consequence worth stating in full: a
+          reverted arrow is silently DISOWNED. `fan_attach_points`,
+          `contention_feet`, `route_arrow`'s post-pass and
+          `reroute_scene` all iterate exactly the server-owned set, so
+          the guard's own safety net takes the arrow out of every pass
+          that could ever have improved it, permanently, and nothing
+          says so.
+
+        WHY THIS AND ATTACH'S SIBLING ARE TWO PINS, and both sides now
+        say so in their own words — `test_backend.py`'s
+        `test_a_reverted_move_restores_the_whole_element` calls this one
+        "the durable reachable pin" and declares itself "deliberately
+        independent of whether such a scene exists". That is the split:
+
+        * THEIRS owns the RESTORATION. It patches `_scene_lane_cost` to
+          report a worse scene after every move, so the arm runs whether
+          or not any drawing can reach it, and asserts whole-element
+          equality.
+        * THIS ONE owns the REACHABILITY, and can only assert the
+          restoration because it got there honestly. Nothing is patched:
+          the guard fires because this scene's best candidate genuinely
+          costs a crossing. So a change that repaired the restoration
+          while making the arm unreachable — a score that stops
+          proposing the costing move, a trigger that stops firing —
+          leaves theirs green and fails the first assertion here.
+
+        AND IT KEEPS THE THREE-FACT MAPPING rather than adopting their
+        whole-element equality, which is not a second opinion about the
+        same thing. Whole-element equality is the stronger assertion and
+        the right one where the subject is "the snapshot is complete"; it
+        fails with a dict diff. This one names the CONSEQUENCE in its
+        message — that `server_owns_geometry` flips and every pass over
+        the server-owned set silently drops the arrow — which is the half
+        a diff of two dicts leaves the reader to work out, and the half
+        no other test in the repo states.
+        """
+        els = self._scene(decoy=True)
+        was = {e["id"]: copy.deepcopy(e) for e in els}
+        canvas.contention_feet(els)
+        a0 = next(e for e in els if e["id"] == "a0")
+        self.assertEqual(
+            (a0["x"], a0["y"], a0["points"]),
+            (was["a0"]["x"], was["a0"]["y"], was["a0"]["points"]),
+            "`a0` was not reverted at all, so this test is not about a "
+            "partial restoration")
+        # ONE ASSERTION OVER BOTH FIELDS, so the failure names both. Split
+        # into two the focus fails first and the reader never sees the
+        # disowning, which is the more consequential of the two and the
+        # one no other test in the repo states.
+
+        def unstamped(e: dict) -> dict:
+            """The three facts the revert is supposed to put back.
+
+            Args:
+                e: The arrow, stored or reverted.
+
+            Returns:
+                Its end binding, its route signature, and whether the
+                signature still matches the geometry beside it.
+            """
+            return {"endBinding": e.get("endBinding"),
+                    "routed": (e.get("customData") or {}).get("routed"),
+                    "server_owns_geometry":
+                        canvas.server_owns_geometry(e)}
+
+        self.assertEqual(
+            unstamped(a0), unstamped(was["a0"]),
+            "the guard put `a0`'s geometry back and left the rejected "
+            "move's binding and route signature on it. The binding aims "
+            "the client at a foot the arrow no longer has; the signature "
+            "describes geometry that was thrown away, so "
+            "`server_owns_geometry` now reads False and every pass that "
+            "iterates the server-owned set — the fan, this search, the "
+            "router's post-pass, `reroute_scene` — skips this arrow from "
+            "here on")
+
+    def test_an_improving_move_still_lands(self) -> None:
+        """The opposite pole: the same repair, with nothing in its way.
+
+        One element apart from the scene above — `d` is gone — and the
+        move the guard refused there is taken here: `a0` spills onto
+        `N`'s top border, the corridor goes to zero and no crossing
+        replaces it. Without this pole a guard that reverted EVERY move
+        would satisfy the test above perfectly.
+        """
+        els = self._scene(decoy=False)
+        was = self._geometry(els)
+        self.assertEqual(self._cost(els), (0, 1))
+        canvas.contention_feet(els)
+        self.assertNotEqual(
+            self._geometry(els)["a0"], was["a0"],
+            "the improving move was reverted too, so the guard is not "
+            "reading the scene — it is refusing everything")
+        foot = (els[4]["x"] + els[4]["points"][-1][0],
+                els[4]["y"] + els[4]["points"][-1][1])
+        self.assertEqual(
+            canvas._edge_side(els[0], foot[0], foot[1]), "top",
+            "`a0` moved somewhere other than the border the score picks "
+            "for it: foot=%r" % (foot,))
+        self.assertEqual(
+            self._cost(els), (0, 0),
+            "the free move landed and the lane it was taken for survived")
+
+
+class TestTheFanIsTheOnlyWriterOnAFannedScene(unittest.TestCase):
+    """The fan's own surface, on a scene nothing else in the pass writes."""
+
+    @staticmethod
+    def _node(nid: str, x: float, y: float, w: float = 120,
+              h: float = 80) -> dict:
+        """One roled node.
+
+        Args:
+            nid: Element id.
+            x: Left edge.
+            y: Top edge.
+            w: Width.
+            h: Height.
+
+        Returns:
+            The node element.
+        """
+        return el(id=nid, type="rectangle", x=x, y=y, width=w, height=h,
+                  customData={"role": "node"})
+
+    def _scene(self) -> list[dict]:
+        """Two arrows landing 20px apart on one 200px-tall border.
+
+        EVERY SEPARATION IN THIS SCENE IS CHOSEN AGAINST A CONSTANT, so
+        that exactly one pass in `apply_ops` has work to do:
+
+        * 20px apart is OUTSIDE `LANE_TOL` (16), so `contention_feet`'s
+          tight-lane trigger does not fire and the 200px side has room
+          for both, so its short-side trigger does not either. Measured,
+          not reasoned: stubbing `contention_feet` out leaves this scene
+          byte-identical.
+        * 20px is INSIDE the fan's `FAN_LANE_PITCH` (18) plus its own
+          widening, so `fan_attach_points` re-spaces both feet to 67 and
+          133 and re-solves both start focuses off their stored `0`.
+        * the batch adds a node 900px below that nothing binds, so no
+          arrow is re-routed and `route_arrow` writes nothing.
+
+        WHY THIS SCENE IS OWED. `TestARetypedValueReachesDiskButNotHistory`
+        measured one of its own claims false at its flip: a fan that
+        stops stamping leaves every agreement arm there green, because
+        `route_arrow` rebuilds the binding from scratch on any genuine
+        re-route. Its docstring says what would pin the fan instead — "a
+        fanned-but-not-rerouted scene… and none of these three is it" —
+        and TASK-ATTACH left that boundary to this batch deliberately.
+
+        Returns:
+            The five-element scene: target `t`, sources `a`/`b`, arrows
+            `r1`/`r2`.
+        """
+        els = [self._node("t", 400, 0, 120, 200), self._node("a", 0, 0),
+               self._node("b", 0, 240)]
+        for aid, src, y0, foot_y in (("r1", "a", 40, 90),
+                                     ("r2", "b", 280, 110)):
+            a = el(id=aid, type="arrow", x=120, y=y0,
+                   points=[[0, 0], [280, foot_y - y0]],
+                   startBinding={"elementId": src, "focus": 0, "gap": 6},
+                   endBinding={"elementId": "t", "focus": 0, "gap": 6},
+                   customData={"role": "edge"})
+            a["width"] = 280
+            a["height"] = abs(foot_y - y0)
+            a["customData"]["routed"] = canvas._route_sig(a)
+            els.append(a)
+        return els
+
+    @staticmethod
+    def _feet(els: list[dict]) -> dict[str, tuple]:
+        """Each arrow's foot and its start focus.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            `{arrow id: (foot x, foot y, start focus)}`.
+        """
+        return {e["id"]: (round(e["x"] + e["points"][-1][0], 3),
+                          round(e["y"] + e["points"][-1][1], 3),
+                          (e.get("startBinding") or {}).get("focus"))
+                for e in els if e.get("type") == "arrow"}
+
+    def _applied(self, els: list[dict]) -> list[dict]:
+        """Run the shipped op path over the scene with one unrelated add.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The applied scene with the added node dropped, so a caller
+            compares like with like.
+
+        Raises:
+            AssertionError: If the batch reported an op error, which
+                would make every geometric comparison below vacuous.
+        """
+        errors: list[dict] = []
+        out = canvas.apply_ops(copy.deepcopy(els), [
+            {"op": "add", "element": self._node("z", 0, 900)}], errors)
+        if errors:
+            raise AssertionError("the probe batch failed: %r" % (errors,))
+        return [e for e in out if e["id"] != "z"]
+
+    def test_the_fan_spreads_and_re_aims_two_feet_in_one_lane(self) -> None:
+        """The firing pole: the fan acts, and it is the only thing that does.
+
+        Two assertions about the picture — the feet separate, and the
+        stored focus leaves `0` — plus the one that makes them mean the
+        fan: with `fan_attach_points` stubbed to a no-op, the same batch
+        over the same scene comes back byte-identical, geometry and
+        bindings alike. That is what a fan that stopped stamping looks
+        like, and it is what this class exists to refuse.
+
+        The focus half is asserted separately from the geometry half
+        because they are separate writes: `_stamp_route` snaps the path
+        and `solve_focus` re-aims the binding, and a fan that moved feet
+        without re-aiming would leave the client drawing the foot along
+        the old ray (TASK-FOCUS-FOLLOWUP-A's ordering defect, one call
+        site over).
+        """
+        els = self._scene()
+        before = self._feet(els)
+        self.assertEqual(
+            [before["r1"][1], before["r2"][1]], [90, 110],
+            "the feet no longer start 20px apart, so this scene no "
+            "longer sits between LANE_TOL and the fan's pitch")
+        after = self._feet(self._applied(els))
+        self.assertGreater(
+            abs(after["r1"][1] - after["r2"][1]),
+            abs(before["r1"][1] - before["r2"][1]),
+            "the fan left two feet no further apart than it found them: "
+            "%r -> %r" % (before, after))
+        self.assertNotEqual(
+            (after["r1"][2], after["r2"][2]), (0, 0),
+            "the feet moved and both start focuses are still the stored "
+            "0 — the client will draw the foot along the ray it was "
+            "aimed at before the move: %r" % (after,))
+        with mock.patch.object(canvas, "fan_attach_points",
+                               lambda els_: None):
+            stubbed = self._feet(self._applied(els))
+        self.assertEqual(
+            stubbed, before,
+            "with the fan stubbed out something ELSE wrote this scene "
+            "(%r -> %r), so the assertions above are not about the fan"
+            % (before, stubbed))
+
+    def test_the_fan_leaves_its_own_output_alone(self) -> None:
+        """The quiet pole: the fan is a repair, not a redraw.
+
+        The fan meets its own feet on every apply, so the scene it just
+        produced is the scene it is handed next. Running the same batch
+        over its own output must move nothing — feet and focus alike, and
+        the focus is the half that matters here, because it is the field
+        the retype class next door was filed about and a fan re-solving
+        it to a fresh float on every apply is that defect's other end.
+
+        Without this pole, "the fan writes something" would be satisfied
+        by a fan that rewrote every arrow on every apply, which is a
+        drawing that never settles and a save record that never stops
+        talking.
+        """
+        once = self._applied(self._scene())
+        before = self._feet(once)
+        after = self._feet(self._applied(once))
+        self.assertEqual(
+            after, before,
+            "the fan moved feet it had already spread: %r -> %r"
+            % (before, after))
+
+
+class TestThePinSpotMirrorCarriesTheServersConstants(unittest.TestCase):
+    """`pinSpot` mirrors `pin_spot`; nothing held the two together."""
+
+    BODY_OPEN = "const pinSpot = "
+    BODY_CLOSE = "export default function App"
+
+    def _body(self) -> str:
+        """`pinSpot`'s body, sliced out of App.tsx.
+
+        Returns:
+            The declaration's text.
+        """
+        return _app_tsx_body(self.BODY_OPEN, self.BODY_CLOSE)
+
+    def _list_literal(self, body: str, tested: str) -> list[str]:
+        """The string list the client tests one field's membership in.
+
+        Anchored on what is being TESTED rather than on position, since
+        both of `pinSpot`'s filters are `[...].includes(field)` and the
+        only thing that tells them apart is the field. Anchoring on order
+        would silently swap them the day the two clauses are reordered.
+
+        Args:
+            body: The sliced declaration.
+            tested: The start of the expression inside `.includes(`.
+
+        Returns:
+            The quoted members, in source order.
+
+        Raises:
+            AssertionError: If no such membership test is in the body.
+        """
+        m = re.search(r"\[([^\]]*)\]\s*\.includes\(" + re.escape(tested),
+                      body, re.S)
+        if m is None:
+            raise AssertionError(
+                "pinSpot no longer tests membership for %r; the parity "
+                "gate cannot find the list it is about" % (tested,))
+        return re.findall(r'"([^"]*)"', m.group(1))
+
+    def _server_literals(self, after: str) -> list[str]:
+        """The matching tuple in `canvas.pin_spot`, read the same way.
+
+        BOTH SIDES ARE PARSED, which is the difference between a parity
+        gate and a hand copy with two owners: a value retyped into this
+        file agrees with `canvas.py` on the day it is written and then
+        drifts in the same silence the client half would.
+
+        Args:
+            after: Text the tuple follows in `pin_spot`'s source.
+
+        Returns:
+            The quoted members, in source order.
+
+        Raises:
+            AssertionError: If the anchor is gone from `pin_spot`.
+        """
+        src = inspect.getsource(canvas.pin_spot)
+        tail = src.split(after, 1)
+        if len(tail) != 2:
+            raise AssertionError(
+                "canvas.pin_spot no longer contains %r" % (after,))
+        return re.findall(r'"([^"]*)"', tail[1].split(")", 1)[0])
+
+    def test_the_hug_spot_is_the_servers_hug_spot(self) -> None:
+        """The client's own numbers, driven through the server's function.
+
+        NOT A LITERAL COMPARISON, which is what makes this worth having:
+        the three constants `pinSpot` hands `markerAnchor` — `8`, `-8`,
+        `"tr"` — are parsed out of the client and then used to call
+        `canvas.marker_anchor`, and the answer must be the spot
+        `canvas.pin_spot` returns for the same uncrowded target. So the
+        gate fails if the client's nudge moves, if the corner changes, or
+        if the server's hug arm stops going through `marker_anchor` at
+        all — three different drifts, one assertion.
+
+        The default glyph size is compared as a literal because it is one:
+        it is a default in both signatures and neither side computes it.
+        """
+        body = self._body()
+        m = re.search(r"markerAnchor\(target,\s*(-?\d+),\s*(-?\d+),\s*"
+                      r'"(\w+)"\)', body)
+        self.assertIsNotNone(
+            m, "pinSpot no longer calls markerAnchor with literal "
+               "arguments; the parity gate reads them: %r" % body[:200])
+        dx, dy, corner = int(m.group(1)), int(m.group(2)), m.group(3)
+        size = re.search(r"size\s*=\s*(\d+)", body)
+        self.assertIsNotNone(size, "pinSpot's glyph size is no longer a "
+                                   "literal default")
+        self.assertEqual(
+            int(size.group(1)),
+            inspect.signature(canvas.pin_spot).parameters["size"].default,
+            "the ❓ glyph is %s px wide on the client and %s in the "
+            "seeder, so the two sides test collision against different "
+            "boxes" % (size.group(1),
+                       inspect.signature(canvas.pin_spot)
+                       .parameters["size"].default))
+        target = el(id="t", type="rectangle", x=100, y=100, width=120,
+                    height=80, customData={"role": "node"})
+        far = el(id="n2", type="rectangle", x=600, y=100, width=120,
+                 height=80, customData={"role": "node"})
+        self.assertEqual(
+            canvas.pin_spot(target, [target, far]),
+            canvas.marker_anchor(target, dx=dx, dy=dy, corner=corner),
+            "the client hugs at (%d, %d, %r) and the server's hug spot "
+            "is somewhere else — the user's ❓ and the agent's land in "
+            "two places on one drawing" % (dx, dy, corner))
+
+    def test_the_buried_fallback_lands_inside_the_targets_own_corner(
+            self) -> None:
+        """The other arm, driven the same way.
+
+        `pinSpot`'s fallback is `target.x + width - size - 2` by
+        `target.y + 2`; both offsets are parsed and then used to predict
+        what `canvas.pin_spot` returns on a scene where the hug spot IS
+        buried. The neighbour rectangle is placed exactly as
+        `test_pin_spot_dodges_dense_neighbours_hugs_on_flows` places it
+        in `test_backend.py`, so the two files agree about what "dense"
+        means.
+        """
+        body = self._body()
+        m = re.search(r"target\.x \+ \(target\.width \|\| 0\) - size - "
+                      r"(\d+), y: target\.y \+ (\d+)", body)
+        self.assertIsNotNone(
+            m, "pinSpot's buried fallback is no longer two literal "
+               "offsets off the target's own corner: %r" % body[-300:])
+        inx, iny = int(m.group(1)), int(m.group(2))
+        target = el(id="t", type="rectangle", x=100, y=100, width=120,
+                    height=80, customData={"role": "node"})
+        crowd = el(id="n", type="rectangle", x=232, y=60, width=120,
+                   height=80, customData={"role": "node"})
+        size = inspect.signature(canvas.pin_spot).parameters["size"].default
+        self.assertEqual(
+            canvas.pin_spot(target, [target, crowd]),
+            (target["x"] + target["width"] - size - inx,
+             target["y"] + iny),
+            "the client falls back %dpx inside its target's top-right "
+            "corner and the seeder falls somewhere else" % inx)
+
+    def test_both_sides_filter_the_same_types_and_the_same_roles(
+            self) -> None:
+        """The collision candidates, parsed from both sources.
+
+        This is the arm a hand-written mirror loses first. A shape type
+        one side considers and the other does not means the two ❓
+        buttons disagree about what "buried" is, silently and only on the
+        drawings where it matters — which is the r4b-3 failure the mirror
+        was written for, arriving through the filter instead of through
+        the offset.
+        """
+        body = self._body()
+        self.assertEqual(
+            self._list_literal(body, "e.type"),
+            self._server_literals('e.get("type") not in ('),
+            "the client and the seeder consider different shape types "
+            "as neighbours of a ❓ glyph")
+        self.assertEqual(
+            self._list_literal(body, "e.customData"),
+            self._server_literals("role_of(e) in ("),
+            "the client and the seeder exclude different roles from the "
+            "collision test, so one of them treats a label, a pin, a "
+            "decoration or an annotation as something a glyph can hide "
+            "behind")
+
+
+class TestTheFrameInsertClearsEveryDrawnThing(unittest.TestCase):
+    """`insertFrame`'s `avoidFrames` default, recorded rather than assumed."""
+
+    def test_the_frame_site_is_the_only_one_that_avoids_everything(
+            self) -> None:
+        """A DOCUMENTED DECISION, filed after reading what the code claims.
+
+        VERIFY-FIRST, and it decided the shape of this test. `dropClear`'s
+        own JSDoc gives ONE reason for the flag — "two screens stacked on
+        each other is not a container relationship, it is a mess" — while
+        its `@param` line says what the flag does: "Treat frames as
+        obstacles TOO". The word is `too`. The base obstacle set is every
+        live element that is not a frame, so the flag ADDS frames to a
+        set that already holds nodes, labels, notes and arrows. The code
+        therefore matches its parameter documentation exactly and exceeds
+        its stated rationale, which is not the same thing as a bug — so
+        what is pinned here is the DECISION, not a defect.
+
+        WHAT THE DECISION FORECLOSES, named so the ruling is made on the
+        record rather than by nobody: a user zoomed in on a sketch who
+        presses ＋ → Phone cannot land the frame around that sketch. The
+        drop slides clear of it, and drawing a frame around existing
+        work is how Excalidraw frames acquire children. Whether that is
+        right is the placement owner's call (v0.9 TASK-PLACEMENT's
+        review filed it as gap 2); this class only makes the default
+        impossible to change by accident, at the one insert site the e2e
+        placement suite does not drive — `covered()` in
+        `placement.spec.ts` excludes frames deliberately, so a frame
+        insert has no predicate there at all.
+
+        Both poles, from the two sites: the frame passes the flag, the
+        note does not.
+        """
+        frame = _app_tsx_body("const insertFrame = ", "const importMermaid")
+        self.assertEqual(
+            len(re.findall(r"dropClear\(", frame)), 1,
+            "insertFrame no longer has exactly one dropClear call, so "
+            "the argument this gate reads is ambiguous: %r" % frame[:300])
+        self.assertIsNotNone(
+            re.search(r"dropClear\(w,\s*h,\s*true\)", frame),
+            "insertFrame stopped passing `true` to dropClear. That is "
+            "either the foreclosure above being lifted deliberately — in "
+            "which case update this test and say so — or a frame insert "
+            "silently landing on top of another screen: %r" % frame[:300])
+        note = _app_tsx_body("const addStickyNote = ", "const askUserPin")
+        self.assertIsNotNone(
+            re.search(r"dropClear\(NOTE_W,\s*NOTE_H\)", note),
+            "the 🗒 note site now passes an avoidFrames argument too, so "
+            "the two sites no longer differ and the frame site's flag is "
+            "no longer a decision about frames: %r" % note[:300])
+
+    def test_the_flag_adds_frames_rather_than_replacing_the_obstacles(
+            self) -> None:
+        """The half that makes the sentence above true.
+
+        `dropClear(w, h, true)` only "avoids all content" because the
+        filter is a disjunction: `avoidFrames || e.type !== "frame"`. A
+        filter that SELECTED frames when the flag was set would make the
+        frame site avoid frames and nothing else — which is exactly what
+        the rationale sentence describes, and it would leave the test
+        above green while the behaviour it documents had gone. So the
+        obstacle expression is read here rather than inferred.
+        """
+        body = _app_tsx_body("const dropClear = ", "Bring the view to a "
+                             "fresh insert")
+        self.assertIsNotNone(
+            re.search(r"avoidFrames \|\| e\.type !== \"frame\"", body),
+            "dropClear's obstacle filter changed shape; the frame "
+            "insert's reach depends on it being additive: %r" % body)
+
+
+class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
+    """A polyline's box is its points — the rule `ink_extent` already holds."""
+
+    def test_the_server_bounds_a_leftward_arrow_by_its_ink(self) -> None:
+        """The live pole, and the rule the client is measured against.
+
+        A 600px arrow drawn leftward stores `width: 600` and points that
+        run from `0` to `-600`. The stored width is a MAGNITUDE and the
+        points are COORDINATES, so anything that maximises one against
+        the other reads the box as twice the ink, with the phantom half
+        on the side the arrow never reaches.
+
+        `ink_extent` refuses that by name — "what a polyline paints is
+        its points, and its stored box is a summary of them that this
+        loop has never been entitled to widen by" — and this is that
+        sentence as an assertion, on the smallest scene that can carry
+        it. It is also the control for the red below: the repo has the
+        rule, in code, on one side of the wire.
+        """
+        arrow = el(id="a", type="arrow", x=840, y=464, width=600,
+                   height=0, points=[[0, 0], [-600, 0]],
+                   customData={"role": "edge"})
+        x0, y0, w, h = canvas.ink_extent([arrow], pad=0)
+        self.assertEqual(
+            (x0, y0, w, h), (240, 464, 600, 0),
+            "the server widened a leftward arrow past its own ink; the "
+            "bound-by-points rule is the one this file measures the "
+            "client against")
+
+    @unittest.expectedFailure
+    def test_red_the_clients_box_helper_unions_the_stored_box(self) -> None:
+        """`elBox` maximises a stored magnitude against a point coordinate.
+
+        The expression is `Math.max(e.width || 0, ...xs)`, and for every
+        arrow whose points run left or up it is the stored width that
+        wins — 600px of declared box where there is no ink, beyond the
+        origin, on the empty side.
+
+        MEASURED REACH, on the frozen corpus at this head: 194 elements
+        carry a `points` list, 68 of them have an `elBox` that overhangs
+        their own point hull, and 63 overhang it by more than `LANE_TOL`.
+        The worst is `review-publish-flow`'s `r-held-vets` at 600px — a
+        box exactly twice the stroke it describes. So "conservative but
+        against the rule" is only half true: the box is never too small,
+        and the excess is up to 100% of the element's own extent.
+
+        WHAT THE PICTURE WRONGLY SAYS: `elBox` feeds `clearSpot` (every
+        ＋ insert and the 🗒 note) and `pinSpot`'s buried test, so a user
+        inserting beside a leftward arrow is pushed out of clear canvas,
+        and a ❓ hugging a target beside one falls inside its own corner
+        for a collision with air. Both are the r4b-3 shape — a marker
+        that reads as being about the wrong thing — arriving through a
+        box instead of through an offset.
+
+        A SOURCE ASSERTION, and the limitation is the point rather than
+        an oversight: the model tier cannot execute `App.tsx`, and this
+        file's client gates are literal reads for that reason (the same
+        instrument as the `customData` and `exportPadding` parity tests).
+        The BEHAVIOURAL pin belongs in the e2e tier, driving ❓ against a
+        leftward arrow, and it is named here as owed rather than left as
+        a silence. THE FIX IS NOT THIS FILE'S: `elBox` belongs to the
+        frontend placement surface (v0.9 TASK-PLACEMENT, whose review
+        filed this as a nit before it was measured), and a curator who
+        repairs the helper is a curator grading their own homework.
+        Origin: TASK-PLACEMENT review nit, measured during curator batch
+        30, 2026-08-17.
+        """
+        body = _app_tsx_body("const elBox = ", "Where a `w`×`h` insert")
+        self.assertIn(
+            "points", body,
+            "elBox no longer reads `points` at all, so this test is "
+            "measuring something else entirely")
+        self.assertEqual(
+            re.findall(r"Math\.max\(e\.(width|height) \|\| 0, \.\.\.\w+\)",
+                       body), [],
+            "elBox bounds a point-strung element by the maximum of its "
+            "stored box and its point hull, so a leftward or upward "
+            "polyline declares up to twice the box it paints — 63 of the "
+            "corpus's 194 point-strung elements, worst case 600px")
+
+
+class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
+    """The audit trail may not say a path moved when the path did not."""
+
+    @staticmethod
+    def _node(nid: str, x: float, y: float) -> dict:
+        """One 120x80 roled node.
+
+        Args:
+            nid: Element id.
+            x: Left edge.
+            y: Top edge.
+
+        Returns:
+            The node element.
+        """
+        return el(id=nid, type="rectangle", x=x, y=y, width=120, height=80,
+                  customData={"role": "node"})
+
+    @staticmethod
+    def _arrow(aid: str, sb: str, eb: str,
+               pts: list[tuple[float, float]], focus: float = 0) -> dict:
+        """One server-owned arrow between two bound nodes.
+
+        Args:
+            aid: Element id.
+            sb: Element id the start binds.
+            eb: Element id the end binds.
+            pts: Absolute scene points.
+            focus: The stored binding focus at both ends.
+
+        Returns:
+            The arrow element.
+        """
+        x0, y0 = pts[0]
+        a = el(id=aid, type="arrow", x=x0, y=y0,
+               points=[[px - x0, py - y0] for px, py in pts],
+               startBinding={"elementId": sb, "focus": focus, "gap": 6},
+               endBinding={"elementId": eb, "focus": focus, "gap": 6},
+               customData={"role": "edge"})
+        a["width"] = max(abs(p[0]) for p in a["points"])
+        a["height"] = max(abs(p[1]) for p in a["points"])
+        a["customData"]["routed"] = canvas._route_sig(a)
+        return a
+
+    def _scene(self) -> list[dict]:
+        """One arrow a re-route redraws, one it only re-aims.
+
+        `r1` runs diagonally between two offset nodes and arrives crooked
+        at both ends, so a re-route turns it into a 3-point elbow: that
+        is the arrow the `rerouted` verb is true of, and it is also what
+        makes `reroute_is_fossil` open the gate at all (the gate is
+        strict improvement in crooked arrivals, so a scene whose only
+        change is a focus is never offered).
+
+        `r2` sits 800px below on two aligned nodes, already drawn exactly
+        where the router would draw it, with a stored focus of `0.5` the
+        solve answers `0`. Its DRAWN PATH does not move by one pixel;
+        only the ray the client re-derives the foot along changes.
+
+        Returns:
+            The six-element scene.
+        """
+        return [
+            self._node("p", 0, 0), self._node("q", 400, 200),
+            self._arrow("r1", "p", "q", [(120, 40), (400, 232)]),
+            self._node("c", 0, 800), self._node("d", 400, 800),
+            self._arrow("r2", "c", "d", [(120, 840), (400, 840)],
+                        focus=0.5),
+        ]
+
+    def _rerouted(self) -> dict:
+        """Build a project on the scene above and re-route it.
+
+        Returns:
+            The save record `Store.reroute` writes.
+        """
+        els = self._scene()
+        root = _scratch_project(
+            self,
+            {"f": json.dumps({"type": "excalidraw", "version": 2,
+                              "elements": els,
+                              "wysiwyg": {"artifact_type": "flow",
+                                          "name": "f"}})},
+            {"0001-f": json.dumps(
+                {"revn": 1, "base_revn": 0, "author": "agent",
+                 "branch": "main",
+                 "artifacts": {"f": {"changes": [{"op": "add",
+                                                  "element": e}
+                                                 for e in els]}}})})
+        reg = json.loads(json.dumps(canvas.DEFAULT_REGISTRY))
+        reg["revn"] = 1
+        reg["branches"] = [{"name": "main", "head": 1, "archived": False}]
+        (root / "project_knowledge" / "model.json").write_text(
+            json.dumps(reg), encoding="utf-8")
+        rec = canvas.Store(canvas.Project(root)).reroute("f")
+        self.assertFalse(rec.get("noop"),
+                         "the re-route declined this scene, so there are "
+                         "no facts to read: %r" % (rec["summary"],))
+        return rec
+
+    @staticmethod
+    def _facts(rec: dict, name: str) -> list[str]:
+        """The arrows one fact verb was minted for.
+
+        Args:
+            rec: A save record.
+            name: The `fact` value to collect.
+
+        Returns:
+            Arrow ids, in record order.
+        """
+        return [f.get("arrow") or f.get("element")
+                for f in rec["artifacts"]["f"]["facts"]
+                if f.get("fact") == name]
+
+    def test_an_arrow_the_router_really_redrew_is_narrated(self) -> None:
+        """The live pole: `rerouted` is a true sentence about `r1`.
+
+        Ungated, and it carries its own liveness — the change entry is
+        asserted to say the path became a 3-point elbow, so a re-route
+        that stopped moving anything would fail here rather than leaving
+        the red below passing for the wrong reason.
+        """
+        rec = self._rerouted()
+        self.assertIn(
+            "r1", self._facts(rec, "rerouted"),
+            "the arrow whose 2-point path became an elbow got no "
+            "`rerouted` fact at all: %r" % (rec["artifacts"]["f"]["facts"],))
+        self.assertIn(
+            "r1: 2-point path becomes 3-point", rec.get("user_note") or "",
+            "`r1` was supposed to be the genuinely redrawn arrow in this "
+            "scene and the note says otherwise: %r" % rec.get("user_note"))
+
+    @unittest.expectedFailure
+    def test_red_an_arrow_whose_path_did_not_move_is_narrated_as_rerouted(
+            self) -> None:
+        """`r2` gets "rerouted r2" for a save that moved no pixel of it.
+
+        THE RECORD CONTRADICTS ITSELF INSIDE ONE SAVE, which is what
+        makes this a defect rather than a wording preference.
+        `reroute_line` is honest — the `user_note` on this very record
+        reads "r2: path unchanged; start/end re-aimed" — and
+        `Store.reroute` then mints one `rerouted` fact per change
+        regardless, which `headline_for` renders as "rerouted r2". A user
+        auditing the save is told the path moved by the fact vocabulary
+        and told it did not by the sentence beside it.
+
+        WHAT THE PICTURE WRONGLY SAYS: nothing moved, and the history
+        says something did. FOLLOWUP-B's review measured six of these on
+        one real save — six arrows carrying `rerouted` facts with
+        byte-identical geometry — so the reach is a live corpus number
+        and not a constructed curiosity.
+
+        THE FIX-SHAPE QUESTION IS NAMED AND NOT ANSWERED, because it is a
+        vocabulary ruling and this file does not own the vocabulary.
+        Either a `rerouted` fact is gated on `moved_px > REROUTE_TOL_PX`
+        — and the focus-only re-solve then narrates as nothing, which may
+        be right since it is derived churn — or the vocabulary gains a
+        finer word ("re-aimed") beside it, which is what the `user_note`
+        already says in prose. `apply_batch`'s hand-`mod points` arm
+        mints the same verb from the same premise and would want the same
+        ruling. Owner: whoever owns the fact vocabulary and the re-route
+        verb (TASK-REROUTE's lineage; unassigned at filing). Origin:
+        FOLLOWUP-B review finding 2, curated during curator batch 30,
+        2026-08-17.
+
+        The assertion is on the FACT and not on the headline: which
+        sentence leads is `SALIENCE`'s business, and a fact that should
+        never have been minted is wrong wherever it is ranked.
+        """
+        rec = self._rerouted()
+        self.assertIn(
+            "r2: path unchanged", rec.get("user_note") or "",
+            "the change entry no longer reports `r2` as unmoved, so this "
+            "scene is not the one the red is about: %r"
+            % rec.get("user_note"))
+        self.assertNotIn(
+            "r2", self._facts(rec, "rerouted"),
+            "the save minted `rerouted r2` for an arrow its own note "
+            "calls unchanged — one record, two answers")
+
+
+# ---------------------------------------------------------------------------
 # Scene builders. Every coordinate here was measured against live canvas.py
 # and instruments.py output, so the numbers are frozen: move a point and you
 # move the finding the catalogue asserts. The diamond is 200x100 at
@@ -17091,6 +18138,51 @@ _register(Mutant(
                         FindingSpec("contrast_object", element="n1",
                                     magnitude=(2.11, 0.05)))))
 
+# The same shape one layer down, and the worse of the two: the check does
+# not merely go unread here, it is never RUN. `parse_hex_color` returns None
+# for anything that is not `#rgb`/`#rrggbb`/`#rrggbbaa` — a CSS keyword, a
+# `rgb()` triple, a typo'd hex — and the 1.4.11 arm reads BOTH the stroke
+# and the fill through it, then `continue`s when neither parses. So a shape
+# stroked `white` with no fill is drawn on #fdfcf8 paper at 1.03:1,
+# invisible, and unreported.
+#
+# THE PAIR IS ONE COLOUR SPELLED TWO WAYS. `#ffffff` and `white` are the
+# same pixels in every renderer this skill ships through, the scenes are
+# identical to the byte otherwise, and the reader goes from a 1.03:1
+# finding to nothing at all. That is the magnitude the mutant asserts: not
+# "something should fire" but "the number the OTHER spelling already
+# produces".
+#
+# THE SKIPPING BRANCH IS DOCUMENTED FOR A DIFFERENT CASE, which is how it
+# survived — its comment reads "Nothing declared to read — an Excalidraw
+# `image` carries a transparent stroke and its picture is bytes this file
+# is never handed", and that is a correct decline for an image. A colour
+# the parser does not happen to speak is not a colour that is absent, and
+# one `continue` serves both.
+#
+# HONEST ABOUT REACH, censused rather than asserted: the frozen corpus
+# holds 1,952 colour strings, 931 of them `transparent` and ZERO CSS
+# keywords, so nothing in it trips this today. The hazard is arriving, not
+# hypothetical — spike-shapelibs measured 176 keyword-coloured elements in
+# the downloaded shape libraries whose stamp it prototypes, and a paste
+# from any other tool is one keyword away.
+#
+# THE FIX THAT FLIPS THIS is either teaching `parse_hex_color` the CSS
+# named colours (it is a table, and `transparent` already gets a special
+# reading) or making the 1.4.11 arm distinguish "declared nothing" from
+# "declared something unreadable" and say so. It belongs to whoever owns
+# the WCAG lint surface, not here. Origin: spike-shapelibs by-product,
+# curated during curator batch 30, 2026-08-17.
+_register(Mutant(
+    "css_keyword_stroke_is_never_read",
+    build=lambda: _styled_scene(stroke="white"),
+    op="unchanged", args={},
+    expect=FindingSpec("contrast_object", element="n1",
+                       magnitude=(1.03, 0.01)),
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#ffffff"),
+                        FindingSpec("contrast_object", element="n1",
+                                    magnitude=(1.03, 0.01)))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -17880,6 +18972,15 @@ class TestMutantCatalogue(unittest.TestCase):
                 for f in collect_findings(_styled_scene(opacity=60))),
             "the carve-out has swallowed the graded fold: 60% ink reads "
             "4.38:1 and must still be asked about")
+
+    @unittest.expectedFailure
+    def test_mutant_css_keyword_stroke_is_never_read(self) -> None:
+        """A white-stroked shape on cream paper, invisible and unremarked."""
+        self._run("css_keyword_stroke_is_never_read")
+
+    def test_neighbour_css_keyword_stroke_is_never_read(self) -> None:
+        """The same white, spelled `#ffffff`, reads 1.03:1 and is reported."""
+        self._run_neighbour("css_keyword_stroke_is_never_read")
 
     def test_mutant_pale_stroke_node(self) -> None:
         """#b0b0b0 stroke is 2.11:1 where 1.4.11 asks 3:1."""
@@ -18887,7 +19988,48 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestARerouteFactImpliesAChangedPath": 1,
+    "TestTheClientBoxIsBoundByItsPoints": 1,
+}
+# ONE JOINED AND LEFT INSIDE ONE BATCH on 2026-08-17 (curator batch 30),
+# which is the shortest round trip this dict has recorded and is worth
+# reading as an event rather than as churn.
+# `TestTheAcceptGuardRevertsALaneRepairThatCostsACrossing` was filed as a
+# fully-green coverage pin — the revert arm had never fired in any test,
+# so nothing had ever read what it restores. The TASK-ATTACH review,
+# running beside the batch, then proved the arm ITSELF wrong; the class
+# gained a red; and TASK-ATTACH fix round 1 (`b4f095c`) landed the
+# whole-element snapshot hours later, so the red flipped at the fold. A
+# class whose LAST red flips leaves this dict entirely rather than
+# dropping to 0, so the dict lost a LINE and not a number — the seventh
+# time that has been the shape here in three days.
+# THE CLASS IS STILL HERE AND STILL ASSERTS THE SAME THING, all-green,
+# which is what a flipped class pin looks like. Its red kept its red-era
+# name (both census guards read the DECORATOR, not the name) and its
+# sibling in `test_backend.py` stayed: theirs FORCES the arm and owns the
+# restoration, this one REACHES it and can only assert the restoration
+# because it got there honestly. Both sides now say so in their own
+# docstrings.
+#
+# TWO JOINED on 2026-08-17 (curator batch 30), refilling the dict the day
+# after it emptied — the seventh time the emptiness has read as an event
+# rather than a state reached. Both are here for the reason
+# `TestRouterPassesDoNotWorsenTheDrawing` set and not by a new one:
+# `collect_findings` takes an element list and asks the checks about it,
+# and neither subject is a scene being read.
+# `TestARerouteFactImpliesAChangedPath` is about a TRANSITION narrated —
+# what the fact vocabulary says about a re-route — and the producer is
+# `Store.reroute`, which no detector reads. Its live half fires (the
+# genuinely redrawn arrow IS narrated) rather than being another silence,
+# which is the pairing the silence-is-a-bug eval's D1 falsification says a
+# Silence-shaped pole cannot supply alone.
+# `TestTheClientBoxIsBoundByItsPoints` is about a CLIENT helper the model
+# tier cannot execute at all, so its red is a source read; its live half
+# is the same question answered correctly by `ink_extent`, in code, on
+# this side of the wire. The behavioural pin it is standing in for is
+# named in the red's docstring as owed to the e2e tier.
+#
 # EMPTY on 2026-08-17 (v0.9 TASK-ATTACH), when
 # `TestRouterPassesDoNotWorsenTheDrawing` lost its second red to
 # the fan's crossing term. The last hand-authored red in this file;
@@ -19195,7 +20337,15 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS = {"grazing_arrival_reads_as_square"}
+CATALOGUE_RED_IDS = {"css_keyword_stroke_is_never_read",
+                     "grazing_arrival_reads_as_square"}
+# `css_keyword_stroke_is_never_read` joined on 2026-08-17 (curator batch
+# 30): `parse_hex_color` answers None for a CSS keyword and the 1.4.11 arm
+# `continue`s when neither the stroke nor the fill parses, so a shape
+# stroked `white` on this skill's cream paper is invisible in the picture
+# and absent from the lint. Its neighbour is the SAME COLOUR spelled
+# `#ffffff`, which fires at 1.03:1 — so the pair asserts a number rather
+# than an existence, and the mutation between them is a spelling.
 # `corner_feet_outside_the_square` left on 2026-08-17 (v0.9 TASK-ATTACH)
 # when `shared_attach_point` started measuring a DISTANCE instead of a
 # 12x12 box, against `FAN_LANE_PITCH`. Its neighbour moved in the same

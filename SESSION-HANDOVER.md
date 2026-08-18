@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `grazing_arrival_reads_as_square` |
+| model (default suite) | `css_keyword_stroke_is_never_read`, `grazing_arrival_reads_as_square` |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
 
@@ -376,8 +376,24 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**1 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at the TASK-MICROFIX-2 fold, where
+**4 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at curator batch 30's fold onto
+TASK-ATTACH fix round 1, and re-derived is the operative word: the batch
+recorded **5** at its own head and the fix round overtook it before the
+fold, so NEITHER SIDE of that number was true of the merged tree — the
+MICROFIX-2 lesson arriving again, one wave later, and the resolution is
+the grep rather than either side. Batch 30 added FOUR model reds, taking
+`test_mutants.py` 1 -> 5: the CSS-keyword contrast blind spot, `elBox`
+unioning a stored magnitude with a point coordinate, a `rerouted` fact
+minted for an arrow whose drawn path did not move, and the accept guard's
+revert restoring geometry while leaving the binding and the route
+signature stamped. `b4f095c` then FLIPPED the fourth — the whole-element
+snapshot — taking it 5 -> 4 in the same change that folds it, which is
+the flip contract honoured in the only window it had. That red was filed
+hours earlier by the TASK-ATTACH review, against a class the batch had
+written fully green, so one class joined `HAND_AUTHORED_RED_CLASSES` and
+left it inside a single batch.
+The previous re-derivation, at the TASK-MICROFIX-2 fold, read 1 / 0 / 0, where
 the merged value matched NEITHER side of the rebase conflict — C4's 10/0/0
 and MICROFIX-2's 6/1/0 were each true of their own head and both wrong of
 the merged tree; the resolution was the grep, not a side — the rebase conflicted
