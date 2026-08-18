@@ -11,10 +11,17 @@ file; `CLAUDE.md` points here. Read it before writing code.
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
 | `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~4.3k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
 | `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->833<!-- /live:test_backend_cases --> tests — the largest module in a `tests/` tree that also holds the mutation harness and the render tier. | Python |
-| `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. It currently lints to <!-- live:corpus_census -->0 errors / 50 warnings / 27 notes across 28 artifacts in 5 projects<!-- /live:corpus_census -->. | Excalidraw JSON |
+| `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. Across 5 projects it currently lints to <!-- live:corpus_census -->artifacts=24 scopes=28 errors=0 warnings=50 notes=27<!-- /live:corpus_census -->. | Excalidraw JSON |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
 released skill is self-contained.
+
+**`artifacts` and `scopes` are different numbers and the row says both.**
+There are 24 artifacts; 28 is what got LINTED, because the registry is a scope
+with findings of its own and no artifact behind it (r5-1 — `cmd_lint` carries
+the ruling). `scopes - artifacts` is the count of projects that currently have
+a registry finding, so it moves when one is settled while `artifacts` does
+not: delete one project's glossary and it reads 27 with nothing removed.
 
 **Quote the corpus census from that row, never from a measurement you took.**
 Two reviewers reading the same corpus published `0/46/27` and `0/38/20`. The

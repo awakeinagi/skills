@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 import shutil
 import subprocess
 import sys
@@ -583,6 +584,47 @@ class TestTheRepoItself(LiveDocCase):
             "boundary allows exactly %r; read this test's docstring "
             "before deciding the change is fine"
             % (sorted(found), sorted(self.LIVE_CENSUS_VALUES)))
+
+    def test_the_corpus_census_keeps_artifacts_and_scopes_apart(self) -> None:
+        """Two facts, two names — the r5-1 ruling, one layer up.
+
+        THIS SHIPPED WRONG. `corpus_census` read `len(lint_lines())` and
+        called it "artifacts", which is the SCOPE count: the registry is
+        a scope with findings of its own and no artifact behind it, so a
+        24-artifact corpus answered 28. `cmd_lint` already carries the
+        ruling ("SCOPES, not ARTIFACTS … a project with one artifact
+        printed `ARTIFACTS=2`") in the very function this derives from,
+        and the sibling stream caught the marker re-committing it in
+        tracked prose, where the next reviewer would have quoted it.
+
+        The name is the assertion. A count of drawings must not move
+        when no drawing moved, and `scopes` does: `lint_debt` adds the
+        registry key only when it HAS a finding, so settling a glossary
+        orphan takes 28 to 27 with the corpus untouched. That is
+        precisely the failure mode a live value is worst at, because
+        `refresh` rewrites it without anyone asking why.
+        """
+        got = livedoc.corpus_census()
+        self.assertRegex(
+            got, r"^artifacts=\d+ scopes=\d+ errors=\d+ warnings=\d+ "
+                 r"notes=\d+$", got)
+        arts = int(re.search(r"artifacts=(\d+)", got).group(1))
+        scopes = int(re.search(r"scopes=(\d+)", got).group(1))
+        # ARTIFACTS is the corpus, derived here independently of the
+        # calculator so this cannot agree with it by sharing its bug.
+        on_disk = sum(len(list((p / "artifacts").glob("*.excalidraw")))
+                      for p in sorted((REPO / "tests" / "fixtures").glob("*"))
+                      if (p / "artifacts").is_dir())
+        self.assertEqual(arts, on_disk,
+                         "the marker's artifact count disagrees with the "
+                         "drawings on disk (%d vs %d)" % (arts, on_disk))
+        self.assertGreaterEqual(scopes, arts,
+                                "fewer scopes than artifacts means an "
+                                "artifact was linted under no scope")
+        # and the two must not have been quietly re-merged into one
+        self.assertNotIn("%d artifacts" % scopes, got,
+                         "the scope count is being reported as artifacts "
+                         "again — this is r5-1: %r" % got)
 
 
 class TestTheCheckoutGate(LiveDocCase):

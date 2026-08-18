@@ -393,14 +393,45 @@ def corpus_census() -> str:
     re-implementation of it, for the reason `_harness` gives about
     second copies of a derivation.
 
+    ARTIFACTS AND SCOPES ARE DIFFERENT NUMBERS, and this shipped calling
+    28 of them "artifacts" until the pin-pruning stream caught it before
+    the fold. `Store.lint_lines()` is keyed by SCOPE, and the registry is
+    a scope with findings of its own and no artifact behind it — so the
+    24-artifact corpus answers 28. That is r5-1, and the ruling against
+    it is in `cmd_lint`, in the very function this derives from: "SCOPES,
+    not ARTIFACTS … a project with one artifact printed `ARTIFACTS=2`".
+    Re-committing it here would have been worse than in the CLI, for two
+    reasons that are the whole argument for naming both:
+
+      * TRACKED PROSE IS QUOTED. N-3 exists because two readers already
+        published different counts off this corpus; a marker reading
+        "28 artifacts" hands the next one a fourth number with an
+        authoritative label on it.
+      * SCOPES MOVES FOR REASONS ARTIFACTS DO NOT. `lint_debt` adds the
+        registry key only `if any(reg[k] …)`, so the total is 24 plus
+        however many projects currently HAVE a registry finding —
+        `argus-r4-arm3` has none and contributes no scope. Measured:
+        delete one project's CONTEXT.md glossary and the count goes 28
+        -> 27 with no artifact gone. A live value that moves for a
+        reason unrelated to its own name is worse than a stale one,
+        because `refresh` will dutifully rewrite it and nobody will ask
+        why.
+
+    Both are emitted under the names the repo already owns, and they
+    close arithmetically — `scopes - artifacts` is the number of
+    projects carrying registry findings — which is the same shape as the
+    `SCOPES + QUARANTINED` identity `cmd_lint` documents.
+
     Returns:
-        `E errors / W warnings / N notes across A artifacts in P
-        projects`.
+        `artifacts=A scopes=S errors=E warnings=W notes=N`.
 
     Raises:
         AssertionError: If the fixture corpus is absent or holds no
             project, which would otherwise report a confident zero
-            about a corpus that is not there.
+            about a corpus that is not there; or if scopes ever falls
+            BELOW artifacts, which would mean an artifact was linted
+            under no scope and the two readings have stopped being
+            reconcilable.
     """
     sys.path.insert(0, str(REPO / "skills" / "wysiwyg-grilling" / "scripts"))
     import canvas
@@ -412,7 +443,7 @@ def corpus_census() -> str:
             "directory — the corpus has moved and this calculator would "
             "report 0/0/0 rather than fail")
     tally = {"errors": 0, "warnings": 0, "notes": 0}
-    arts = 0
+    arts = scopes = 0
     tmp = Path(tempfile.mkdtemp(prefix="livedoc-census-"))
     try:
         for src in roots:
@@ -422,16 +453,28 @@ def corpus_census() -> str:
             # non-idempotent, which this module's header forbids.
             root = tmp / src.name
             shutil.copytree(src, root / "project_knowledge")
-            lines = canvas.Store(canvas.Project(root)).lint_lines()
-            arts += len(lines)
+            store = canvas.Store(canvas.Project(root))
+            lines = store.lint_lines()
+            # ARTIFACTS from the loaded scenes, SCOPES from what was
+            # linted. Two reads because they are two facts; taking the
+            # second and calling it the first is the defect this
+            # docstring records.
+            arts += len(store.scenes)
+            scopes += len(lines)
             for row in lines.values():
                 for tier in tally:
                     tally[tier] += len(row.get(tier) or [])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    return ("%d errors / %d warnings / %d notes across %d artifacts in "
-            "%d projects" % (tally["errors"], tally["warnings"],
-                             tally["notes"], arts, len(roots)))
+    if scopes < arts:
+        raise AssertionError(
+            "the corpus linted %d scopes over %d artifacts — fewer scopes "
+            "than artifacts means an artifact was linted under no scope, "
+            "and the two readings have stopped being reconcilable"
+            % (scopes, arts))
+    return ("artifacts=%d scopes=%d errors=%d warnings=%d notes=%d"
+            % (arts, scopes, tally["errors"], tally["warnings"],
+               tally["notes"]))
 
 
 def _harness() -> ModuleType:
