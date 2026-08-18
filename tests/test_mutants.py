@@ -9765,6 +9765,290 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE LEG THE SCORE CANNOT SEE (curator batch 32, 2026-08-17, from the
+# TASK-ARRIVALLINT review's §3, which reproduced it independently and asked
+# for it to be pinned rather than documented). A fourth producer promise,
+# and the one the class above states in its own title: a pass whose job is
+# legibility may not hand back the least legible option it built.
+#
+# `route_arrow.score` is `(hits, soft, bends + diag, length)`. Not one of
+# those four terms can see how the length is DISTRIBUTED across the
+# segments, so a 240px run elbowed into a 2px stub scores exactly as a
+# one-bend path of the same total, and one bend beats the two that every
+# readable alternative costs. The arrow is then curved (`derived_roundness`
+# type 2), and a Bezier through a 2px final control span does not turn: the
+# stroke sails past the box on the run's own heading and stops against it.
+#
+# WHY IT IS A RED AND NOT A MUTANT, which is the same argument the two
+# classes either side of this one make. `collect_findings` is silent here
+# and correctly so — measured, not assumed: over the scene below every
+# lint is quiet and the only finding of any kind is `crossings_count=0`.
+# The stored chord is 0.00 degrees, so it is square by every reading the
+# model persists; the defect is in what the producer ELECTED, and a
+# `FindingSpec` has no check name to hold it. (The reader's half of this
+# family is `grazing_arrival_reads_as_square`, still red by absence.)
+#
+# BASE: two 120x60 `role: node` rectangles from the class above's own
+# `_node`, `s` at the origin and `d` at (300, -32) — shared with that class
+# deliberately, so the only thing separating the router family's scenes is
+# the offset. MUTATION: none; the election IS the defect, which is why no
+# operator names it. MAGNITUDE 86.10 degrees, the elected arrival read
+# against the normal of the face it lands on, and the band excludes every
+# other number this scene affords: 0.00 (the stored chord, and what a fix
+# that re-measured the model instead of the drawing would report), 0.07
+# (`_arrival_lean`'s cardinal reading, which calls a 2px hop straight up a
+# perfect arrival) and 6.09 (the straight candidate the scorer threw away).
+# DIRECTION: `d`'s BOTTOM face, and the direction carries the whole
+# finding — the same 86 degrees arriving at a face the run is square to is
+# an ordinary picture. NEIGHBOURS, three, all green and all in this class:
+# the scorer's own candidate list holding a 6.09-degree arrival it
+# rejected, the same pair at dy = -120 where the elected leg is 90px and
+# reads 18.03 degrees, and the reading proven live on a LITERAL copy of
+# the elected geometry so a dead instrument cannot hide under the mask —
+# literal because the elected path is the very thing the fix moves, and a
+# live half read off it would break at the flip it exists to survive.
+#
+# SCOPE, re-derived in this tree rather than inherited: over a 4641-arrival
+# grid (dx 200..1200 step 20, dy -90..90 step 2, this base's boxes) 1394
+# elected arrivals read past 70 degrees and 2642 past 45, worst 89.18 at
+# dx=1200 dy=-32 — `[[0, 0], [1140, 0], [1140, -2]]`. Not a corner case.
+#
+# OWNER: TASK-ROUTERLEG, and the flip is theirs to take. The repair named
+# in the filing is a scoring term penalising a terminal leg short against
+# the run feeding it; any such term drops candidate 1 below the straight
+# candidate here and this red becomes an UNEXPECTED SUCCESS, which is the
+# runner's own instruction to delete the `@unittest.expectedFailure` in
+# the same commit as the fix. A curator writing that term would be writing
+# the acceptance test for their own patch, so this file only pins it.
+# ---------------------------------------------------------------------------
+
+
+class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
+    """The scorer may not elect the arrival its own candidates beat."""
+
+    GRAZE_BAR_DEG = 45.0
+    # Half a right angle, and geometric rather than borrowed: at 45
+    # degrees an arrival's component INTO the face equals its component
+    # ALONG it, so past this line the stroke reads as sliding by the box
+    # rather than entering it. Deliberately not a lint threshold — no
+    # lint owns this reading — and deliberately generous, so the red
+    # states "unreadable" and not "imperfect": the elected arrival is
+    # 86.10 and the healthy pole is 18.03.
+
+    @staticmethod
+    def _routed(dy: float) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Route one arrow from `s` at the origin to `d` offset (300, dy).
+
+        The destination moves on ONE axis only, so every difference
+        between this class's scenes is the vertical offset and nothing
+        else — which is what makes the pair at dy = -32 and the pair at
+        dy = -120 a statement about the scorer rather than about two
+        unrelated drawings.
+
+        Args:
+            dy: `d`'s vertical offset from `s`, in px.
+
+        Returns:
+            `(dst, arrow)` after the shipped `route_arrow` has elected a
+            path and stamped it.
+        """
+        node = TestRouterPassesDoNotWorsenTheDrawing._node
+        src, dst = node("s", 0, 0), node("d", 300, dy)
+        arrow = el(id="e1", type="arrow", x=0.0, y=0.0, width=10.0,
+                   height=0.0, points=[[0.0, 0.0], [10.0, 0.0]])
+        canvas.route_arrow(arrow, src, dst)
+        return dst, arrow
+
+    def _drawn_arrival(self, arrow: dict[str, Any],
+                       dst: dict[str, Any]) -> tuple[str, float]:
+        """How far the DRAWN head misses the normal of the face it hits.
+
+        Every primitive here is the shipped one, called and not copied:
+        `_arrival_path` for the flattened stroke and the sample its
+        direction is read from, `_edge_side` for which face the foot
+        stands on, `side_normal_cos` for the angle between them. A
+        second transcription of this trigonometry is exactly how two
+        readers of one stroke would come to disagree, which is the
+        argument `side_normal_cos`'s own docstring makes.
+
+        An instance method and not a `staticmethod` so the "is the foot
+        even on this node" guard can be an assertion of the harness's
+        own kind: a foot that has left `dst` entirely makes the number
+        below meaningless rather than merely large, and that must read
+        as a failure with a name, not as a `None` propagating into
+        `acos`.
+
+        Args:
+            arrow: A routed, stamped arrow whose end lands on `dst`.
+            dst: The node the head arrives at.
+
+        Returns:
+            `(side, degrees)` — the face the foot stands on and the
+            deviation from that face's inward normal, 0 for a dead
+            square arrival and 90 for one sliding along the face.
+        """
+        seq, prev = canvas._arrival_path(arrow, True)
+        foot = seq[0]
+        side = canvas._edge_side(dst, foot[0], foot[1])
+        self.assertIsNotNone(
+            side, "the foot %r is not on %r at all, so there is no face "
+            "to read the arrival against" % (foot, dst["id"]))
+        cos = canvas.side_normal_cos(side, prev, foot)
+        return side, math.degrees(math.acos(max(-1.0, min(1.0, cos))))
+
+    @unittest.expectedFailure
+    def test_the_elected_path_does_not_graze_the_face_it_lands_on(
+            self) -> None:
+        """The router elects a 240px run elbowed into a 2px stub.
+
+        RED BY ELECTION, and the word matters: nothing here is missing
+        or degenerate. `_route_candidates` hands the scorer six paths,
+        five of which arrive square, and `score` picks the sixth —
+        `[[0, 0], [240, 0], [240, -2]]` from (120, 30) — because one
+        bend beats two and no term in the tuple can see that 238 of its
+        240px of run are spent before the last 2. The arrow is curved
+        at stamp time, and a Bezier whose final control span is 2px
+        does not turn, so the ink arrives 86.10 degrees off the normal
+        of `d`'s bottom face while the stored chord reads 0.00.
+
+        WHAT THE PICTURE WRONGLY SAYS: `s -> d` as an ordinary
+        left-to-right step. What is drawn is a stroke that runs level
+        past `d`'s whole width and stops dead against its underside,
+        head-on to nothing — the reader's eye follows it PAST the box.
+
+        WHAT THE CHECKS REPORT: nothing, and that silence is not the
+        defect. `collect_findings` over this scene returns one entry,
+        `crossings_count=0`. Every reading the model persists says the
+        arrival is square, because it is; only the drawing disagrees.
+
+        THE FLIP IS TASK-ROUTERLEG'S. When a scoring term penalising a
+        short terminal leg lands, the straight candidate (6.09 degrees,
+        two points, no curve to bow) wins this pair, this assertion
+        starts passing, and unittest turns that into a hard failure —
+        `unexpected success` — which is the signal to delete this
+        decorator in the same commit as the fix. Do not weaken the bar
+        to get there; 45 degrees is already twice the healthy pole.
+        """
+        dst, arrow = self._routed(-32)
+        side, off = self._drawn_arrival(arrow, dst)
+        pts = arrow["points"]
+        leg = math.hypot(pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1])
+        run = math.hypot(pts[-2][0] - pts[-3][0], pts[-2][1] - pts[-3][1])
+        self.assertLessEqual(
+            off, self.GRAZE_BAR_DEG,
+            "the elected path arrives %.2f degrees off %s's %s face — a "
+            "%.0fpx final leg under a %.0fpx run (%.1f%% of it), which "
+            "`score` cannot see because none of its four terms reads how "
+            "the length is distributed: %r"
+            % (off, dst["id"], side, leg, run, 100.0 * leg / run, pts))
+
+    def test_the_scorer_had_a_square_arrival_among_its_own_candidates(
+            self) -> None:
+        """A green pole: this is an election, not a router that cannot.
+
+        Without this, the red above would be indistinguishable from
+        "no readable path exists between these two boxes", and the
+        repair it asks for would be unfounded. `_route_candidates`
+        returns a STRAIGHT two-point path for this pair — 181px from
+        (120, 23.6) to (300, 4.4), landing on `d`'s left face 6.09
+        degrees off its normal. A two-point arrow takes
+        `derived_roundness` None, so there is no curve to bow and its
+        drawn arrival IS its chord; the number needs no sampling and
+        cannot drift with the curve model.
+
+        The scorer throws it away for one reason: it is a diagonal, so
+        `bends + (2 if diag else 0)` charges it 2 against the elbow's
+        1. That is a legibility preference, correctly held in general,
+        applied without the counterweight the red asks for.
+        """
+        node = TestRouterPassesDoNotWorsenTheDrawing._node
+        src, dst = node("s", 0, 0), node("d", 300, -32)
+        straight = [p for p in canvas._route_candidates(src, dst)
+                    if len(p) == 2]
+        self.assertTrue(
+            straight, "the scorer had no straight candidate at all, so "
+            "the red above is about the candidate set and not the score")
+        best = min(
+            math.degrees(math.acos(max(-1.0, min(1.0, canvas.side_normal_cos(
+                canvas._edge_side(dst, *p[-1]), p[-2], p[-1])))))
+            for p in straight
+            if canvas._edge_side(dst, *p[-1]) is not None)
+        self.assertLess(
+            best, 10.0,
+            "the best straight candidate arrives %.2f degrees off its "
+            "face, so a readable arrival was NOT available and the red "
+            "above is mis-filed" % best)
+
+    def test_a_proportionate_final_leg_is_elected_when_the_offset_allows(
+            self) -> None:
+        """The healthy pole: the same pair, further apart, reads clean.
+
+        `d` moved to dy = -120 and nothing else. The router elects the
+        same SHAPE — one bend, a 240px run into a vertical leg — but the
+        leg is now 90px, the curve has room to turn into the face, and
+        the drawn arrival is 18.03 degrees. So the red above is a
+        statement about the PROPORTION of the terminal leg and not
+        about elbows, about curvature, or about this pair of boxes.
+        """
+        dst, arrow = self._routed(-120)
+        side, off = self._drawn_arrival(arrow, dst)
+        pts = arrow["points"]
+        leg = math.hypot(pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1])
+        self.assertGreater(
+            leg, 45.0,
+            "the elected final leg is %.0fpx, so this pole is not the "
+            "proportionate one it claims to be: %r" % (leg, pts))
+        self.assertLess(
+            off, self.GRAZE_BAR_DEG,
+            "an elbow with a %.0fpx final leg still arrives %.2f degrees "
+            "off %s's %s face, which would put the red above's cause "
+            "somewhere other than the leg" % (leg, off, dst["id"], side))
+
+    def test_the_arrival_reading_is_live_under_the_masked_red(self) -> None:
+        """The live half: the instrument SEES the graze it is masked over.
+
+        `@unittest.expectedFailure` reports a wrong answer and a raised
+        exception identically, so a reading that had quietly died —
+        `_arrival_path` returning the chord, `_edge_side` answering
+        None, `side_normal_cos` degenerating — would leave the red above
+        looking healthy forever. This runs the same reading, ungated,
+        and pins both numbers: 86.10 degrees drawn against 0.00 stored.
+
+        THE GEOMETRY IS A LITERAL AND NOT `_routed(-32)`, deliberately,
+        and this is the one place in the class where that is true. What
+        the router elects is exactly what the red's repair changes, so
+        an instrument proof read off the elected path would break the
+        day TASK-ROUTERLEG lands and hand them a second red to fix
+        beside their own flip. Written out, the numbers stay true
+        forever: this IS what `route_arrow` emitted for `s` at the
+        origin and `d` at (300, -32) on 2026-08-17, and the reading of
+        it does not depend on the router still choosing it.
+
+        The 63-plus-degree spread between the two readings is also the
+        record of WHY no check fires. Every instrument that persists an
+        answer about this arrow reads the chord and finds it perfect.
+        """
+        dst = TestRouterPassesDoNotWorsenTheDrawing._node("d", 300, -32)
+        arrow = el(id="e1", type="arrow", x=120.0, y=30.0, width=240.0,
+                   height=2.0,
+                   points=[[0.0, 0.0], [240.0, 0.0], [240.0, -2.0]])
+        arrow["roundness"] = canvas.derived_roundness(arrow)
+        side, off = self._drawn_arrival(arrow, dst)
+        self.assertEqual(side, "bottom")
+        self.assertAlmostEqual(off, 86.10, delta=0.05)
+        pts = arrow["points"]
+        foot = (arrow["x"] + pts[-1][0], arrow["y"] + pts[-1][1])
+        adj = (arrow["x"] + pts[-2][0], arrow["y"] + pts[-2][1])
+        stored = math.degrees(math.acos(max(-1.0, min(1.0,
+                              canvas.side_normal_cos(side, adj, foot)))))
+        self.assertAlmostEqual(
+            stored, 0.0, delta=0.05,
+            msg="the stored chord reads %.2f degrees, so the two readings "
+                "no longer differ and the red above would be reachable by "
+                "a check that measures the model" % stored)
+
+
+# ---------------------------------------------------------------------------
 # THE STORED BINDING AND THE FINAL INK (curator batch 27, 2026-08-17, from
 # TASK-FOCUS fix round 1's filed-not-fixed note). A third producer promise,
 # and the quietest kind: not a decision made badly but a correct decision
@@ -20795,7 +21079,20 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheElectedRouteIsReadableWhereItLands": 1,
 }
+# ONE JOINED on 2026-08-17 (curator batch 32), and it is the FIRST entry
+# here filed by the curator agent off another task's review rather than off
+# a sweep or a spike: TASK-ARRIVALLINT's reviewer reproduced the router's
+# grazing election independently, ruled it out of scope for a lint
+# promotion, and handed it over rather than closing with it in prose.
+# `TestTheElectedRouteIsReadableWhereItLands` is a producer claim by the
+# same test as its three neighbours — `route_arrow.score` decides which
+# path is DRAWN, there is no finding code for a `FindingSpec` to name, and
+# `collect_findings` is silent on the scene by design. Its flip belongs to
+# TASK-ROUTERLEG, which owns the scoring term; this dict loses the line the
+# day that term lands and the red reports `unexpected-success`.
+#
 # ONE LEFT on 2026-08-17 (v0.9 TASK-VOCAB), one day after it joined:
 # `TestARerouteFactImpliesAChangedPath`, whose single red flipped on the
 # user's ruling that `rerouted` is written only when the DRAWN PATH
