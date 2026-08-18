@@ -20,7 +20,10 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import unittest
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import ClassVar
 from unittest import mock
@@ -7807,6 +7810,146 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
             src.count("waive_hint("), 15,
             "the waive call sites moved — 14 findings plus the "
             "definition. Re-derive this count; do not relax it")
+
+
+class TestNoPostBodyReachesAHandlerUnshaped(Base):
+    """v0.9 blocker round I-2 + M-1: the two envelope holes at the door.
+
+    THROUGH A REAL SOCKET, and that is the point rather than ceremony.
+    Both faults live in `do_POST` and in a handler's first line — above
+    everything `handle_post` tests reach — and both were found with live
+    servers because that is the only place they exist. This is the
+    suite's only HTTP-level case; it costs one loopback port.
+
+    M-1: `null`, `[]`, `"str"` and `42` are all valid JSON and none of
+    them is an object, so every handler's opening `body.get(...)`
+    answered with a 500 carrying a raw Python sentence. Measured on this
+    tree before the fix: **19 of 25 POST routes**, for each of the four
+    bodies.
+
+    I-2: `/api/apply` pre-scanned `body["ops"]` for drawing ops before
+    any validation, so `{"ops": ["hello"]}` came back
+    `500 'str' object has no attribute 'get'` — the exact fault
+    `_validate_batch`'s docstring says it eliminated, one layer up from
+    where that commit worked. `Store.check_batch` on the identical batch
+    already answered correctly, which is what makes the gap a routing
+    bug rather than a missing check.
+    """
+
+    BAD_BODIES: ClassVar[tuple[str, ...]] = ("null", "[]", '"str"', "42")
+
+    def setUp(self):
+        """Seed a flow and put a real server in front of it."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.app = canvas.ServerApp(self.project)
+        self.httpd = canvas.ThreadingHTTPServer(
+            ("127.0.0.1", 0), canvas.make_handler(self.app))
+        self.base = "http://127.0.0.1:%d" % self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever,
+                                       daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        """Stop the server before the tree goes."""
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.thread.join(timeout=5)
+        self.app.log_file.close()
+        super().tearDown()
+
+    def post(self, path, raw):
+        """POST a raw body string and read the status back.
+
+        Args:
+            path: The route.
+            raw: The body, already serialised — the point is to send
+                shapes `json.dumps` of a dict could not produce.
+
+        Returns:
+            `(status, payload_dict)`.
+        """
+        req = urllib.request.Request(
+            self.base + path, data=raw.encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode("utf-8"))
+
+    @staticmethod
+    def post_routes():
+        """Every `/api/...` path `handle_post` dispatches on.
+
+        Read out of the source rather than listed here, so a route added
+        without a body guard is covered by this case on the day it lands
+        — a hand-kept list is exactly how the twentieth endpoint would
+        be born unguarded.
+
+        Returns:
+            The sorted route paths.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        return sorted(set(re.findall(r'path == "(/api/[a-z/-]+)"', src)))
+
+    def test_a_top_level_scalar_body_is_a_400_on_every_post_route(self):
+        """M-1, across the whole surface rather than a sample."""
+        routes = self.post_routes()
+        self.assertGreaterEqual(len(routes), 20,
+                                "the route scan found %d — it has stopped "
+                                "reading the dispatcher" % len(routes))
+        for raw in self.BAD_BODIES:
+            for route in routes:
+                with self.subTest(body=raw, route=route):
+                    status, payload = self.post(route, raw)
+                    self.assertEqual(status, 400, (route, raw, payload))
+                    self.assertIn("must be an object", payload["error"])
+
+    def test_a_json_object_body_still_reaches_its_handler(self):
+        """The other direction, or the gate is a wall."""
+        status, payload = self.post("/api/apply", json.dumps(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "cart", "attrs": {"x": 44}}]}))
+        self.assertEqual(status, 200, payload)
+        self.assertTrue(payload["ok"])
+
+    def test_a_non_dict_op_gets_the_batch_envelope_not_a_python_error(self):
+        """I-2: the message `Store.check_batch` already knew how to say."""
+        status, payload = self.post("/api/apply", json.dumps(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ["hello"]}))
+        self.assertEqual(status, 422, payload)
+        self.assertIn("op 0: every op must be an object with an `op` key",
+                      payload["error"])
+        self.assertNotIn("attribute", payload["error"],
+                         "a Python attribute error reached a response body")
+
+    def test_an_ops_field_that_is_not_a_list_is_named_as_such(self):
+        """The pre-scan iterated whatever `ops` held, including a str."""
+        for ops in ('"hello"', "5", "{}"):
+            with self.subTest(ops=ops):
+                status, payload = self.post("/api/apply", (
+                    '{"base_revn": %d, "artifact": "checkout-flow", '
+                    '"ops": %s}' % (self.store.head_revn(), ops)))
+                self.assertEqual(status, 422, payload)
+                self.assertIn("`ops` list", payload["error"])
+
+    def test_the_handler_and_the_store_answer_the_same_batch_alike(self):
+        """The claim I-2 rests on: `Store` was already right.
+
+        A fix that invented a second message here would pass every
+        assertion above and put the surface back on the road to drift,
+        which is the whole reason the repair was to ROUTE rather than to
+        re-check.
+        """
+        batch = {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow", "ops": ["hello"]}
+        check = self.store.check_batch(copy.deepcopy(batch))
+        self.assertFalse(check["ok"])
+        _, payload = self.post("/api/apply", json.dumps(batch))
+        self.assertEqual(payload["error"], "\n".join(check["errors"]))
 
 
 class TestDerivedRoundness(unittest.TestCase):

@@ -19408,9 +19408,29 @@ class ServerApp:
                     "round_stall": self.store.round_stall()}
         if path == "/api/apply":
             cadence = self.store.config.get("canvas_updates", "per-round")
-            ops = body.get("ops") or []
-            drawing = [o for o in ops if o.get("op") in
-                       ("add", "mod", "del", "reorder")]
+            # THE SCAN NO LONGER JUDGES THE BATCH — it only asks which
+            # gate to send it to, and the validator that owns the
+            # envelope answers afterwards either way (v0.9 whole-branch
+            # review, I-2). It used to read `o.get("op")` off whatever
+            # the body held, so `{"ops": ["hello"]}` came back as
+            # `500 {"error": "'str' object has no attribute 'get'"}` —
+            # verbatim the fault `_validate_batch`'s docstring says it
+            # eliminated, because TASK-E9ENVELOPE touched only `Store`
+            # and never `make_handler`. `Store.check_batch` on that same
+            # batch already answered `op 0: every op must be an object
+            # with an `op` key, got 'hello'`.
+            #
+            # DEFERRED RATHER THAN DUPLICATED: a shape check here would
+            # be a second copy of a message that must not drift, and it
+            # would ALSO truncate the envelope — the real validator
+            # reports every fault in the batch at once, and an early
+            # return would hand back only the first class of them. A
+            # malformed batch simply reaches `check_batch` (held) or
+            # `apply_batch` (open) and gets the whole list, as 422.
+            ops = body.get("ops")
+            ops = ops if isinstance(ops, list) else []
+            drawing = [o for o in ops if isinstance(o, dict)
+                       and o.get("op") in ("add", "mod", "del", "reorder")]
             pin_only = not drawing and not body.get("create")
             # pin-only revisions change nothing visual — they never hold
             # behind the banner (feel-test finding, Appendix A row 13)
@@ -19979,6 +19999,23 @@ def make_handler(app):
                 except ValueError:
                     return self._send_json(
                         {"ok": False, "error": "invalid JSON body"}, 400)
+                # VALID JSON IS NOT AN OBJECT. `null`, `[]`, `"str"` and
+                # `42` all parse, and every one of the twenty handlers
+                # below opens with `body.get(...)`, so each answered a
+                # top-level scalar with a 500 carrying a raw Python
+                # sentence: `'NoneType' object has no attribute 'get'`
+                # (v0.9 whole-branch review, M-1 — measured at 19 of 20
+                # endpoints, the twentieth only because it reads nothing
+                # off the body). ONE GATE AT THE DISPATCH POINT rather
+                # than twenty guards, because the shape is the protocol's
+                # and not any endpoint's, and twenty guards is twenty
+                # chances for the twenty-first route to be born without
+                # one. 400, not 500: the caller sent the wrong thing.
+                if not isinstance(body, dict):
+                    return self._send_json(
+                        {"ok": False,
+                         "error": "JSON body must be an object, got %s"
+                                  % type(body).__name__}, 400)
                 result = app.handle_post(path, body)
                 return self._send_json(result)
             except _Err as e:
