@@ -15782,6 +15782,44 @@ def _boxed_label(height: int) -> list[dict]:
                originalText=text)]
 
 
+def _line_height_box(height: int, line_height: float) -> list[dict]:
+    """`_boxed_label`'s scene, carrying a line height the BROWSER writes.
+
+    THE SAME BASE SCENE as `wrapped_label_overflows_its_box`, on purpose:
+    this is that check's own defect class seen through the one field the
+    two readers disagree about, so sharing the base keeps the family
+    together and leaves `room_w`, the wrap and the 172px width identical
+    across every pole. Only the height and the multiplier move.
+
+    `autoResize` is off in both poles because that is the state a
+    fixed-width bound label is actually in — `fit_label_in` (canvas.py)
+    writes it, and it is what makes `render_svg` wrap the label into the
+    three lines the check already assumes. It is part of the SCENE and
+    not part of the mutation: both poles carry it.
+
+    `lineHeight` cannot be reached by any op — it is absent from
+    `MOD_ATTRS` and `normalize_element` writes 1.25 — so the only way it
+    is ever anything else is the client persisting the scene back, and
+    the client's own font table gives Nunito (this repo's
+    `FONT_LEGIBLE`) a default of 1.35. That is why 1.35 is the value
+    here rather than a round number chosen to fail.
+
+    Args:
+        height: The container's height. `room_h` is this minus 4.
+        line_height: The label's `lineHeight` multiplier — 1.25 for
+            Excalidraw's default, 1.35 for what the shipped client
+            writes under Nunito.
+
+    Returns:
+        The two-element scene: node `n1`, then its bound label `t1`.
+    """
+    scene = _boxed_label(height=height)
+    label = next(e for e in scene if e["id"] == "t1")
+    label["lineHeight"] = line_height
+    label["autoResize"] = False
+    return scene
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -21789,7 +21827,26 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# TWO JOINED on 2026-08-18 (curator batch 34), off the v0.9 whole-branch
+# review's witnessed misses, and they are the first entries here to arrive as
+# a PAIR from one reading rather than one at a time from a sweep or a spike.
+# Both are producer/measurement claims of the shape this dict exists for —
+# `TestTheEntityNameClearsItsOwnAttributeRows` is about what `apply_ops`
+# MINTS on the second of two paths to one layout rule, and
+# `TestOneLineHeightHasTwoReaders` is about two readers of one field
+# disagreeing by 4px — and neither is a `Mutant`, for the two different
+# reasons their own docstrings give: the first has no detector to name at
+# all, and the second's wrong number is on the axis `_TEXT_OVERFLOW_RE` does
+# not capture. Both name the same owner, and that is deliberate rather than
+# lazy: the review's dispositions are being decided by one controller, and a
+# red whose owner is a person rather than a task is the thing the routing
+# rule above was written to prevent. Re-read both `WHO FLIPS THIS:`
+# paragraphs the day that triage names its tasks.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheEntityNameClearsItsOwnAttributeRows": 2,
+    "TestOneLineHeightHasTwoReaders": 2,
+}
 
 # EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
 # this dict was written. `TestAFreedrawKeepsTheGeometryItWasGiven` left it
@@ -23090,6 +23147,387 @@ class TestTheRouterAndTheInstrumentCountDifferentCrossings(unittest.TestCase):
              if e.get("type") == "arrow"], [{"type": 2}, {"type": 2}],
             "the curved pole stopped being curved, so the two poles no "
             "longer differ by the one thing this pair varies")
+
+
+# ---------------------------------------------------------------------------
+# The entity attribute-row layout rule, typed at two sites that drifted.
+# Witnessed by the v0.9 whole-branch review, 2026-08-18, and filed here
+# rather than in `CATALOGUE` for the reason the section comment above gives:
+# a `Mutant` is judged by `collect_findings` over an ELEMENT LIST, and this
+# defect is what `apply_ops` MINTS. There is no operator that can express
+# "reach the same entity by the other verb", and — see the class docstring —
+# no detector that answers about the picture it leaves either.
+# ---------------------------------------------------------------------------
+_ENTITY_ADD = {"op": "add", "id": "E1", "type": "rectangle", "x": 100,
+               "y": 100, "width": 160, "height": 80, "label": "Order",
+               "customData": {"kind": "entity"}}
+_ENTITY_ROWS = ["id", "total"]
+
+
+def _entity_rows_scene(seeded: bool) -> list[dict]:
+    """One domain entity with two attribute rows, by one of the two verbs.
+
+    THE REAL ENTRY POINT, not the two helpers side by side, because the
+    defect is what the pipeline DRAWS and not what either function
+    contains. `make_element` re-aligns the bound label when it mints
+    rows (canvas.py, `verticalAlign = "top"` and `y = el["y"] + 6`);
+    `_reset_attribute_rows` claims in its own docstring to mirror that
+    minting — "same geometry" — and omits exactly those two lines. Both
+    sites agree about `header_h`/`row_h`, the `+ 8` height rule and the
+    14-key row dict, which is what makes the drift survive a reading.
+
+    The geometry is the reviewer's, re-derived here: a 160x80 box at
+    (100, 100) with two rows. Two rows and not three because two is the
+    fewest that puts the centred label's own band (y=130..150) INSIDE the
+    first row's (y=132..148) rather than merely across it — total
+    containment reads as one defect on the page instead of as a near
+    miss. The box is 80px because `need` is `32 + 20*2 + 8` = 80, so
+    neither path grows it and the container's geometry is identical in
+    both poles: the ONLY thing that differs is where the name is drawn.
+
+    Args:
+        seeded: True to mint the entity and its rows in one `add` (the
+            healthy pole), False to `add` the bare entity and then reach
+            it with `mod attributes` (the pole under test).
+
+    Returns:
+        The scene `apply_ops` produced, in its order.
+
+    Raises:
+        AssertionError: If the batch reported an error. A pin whose
+            fixture failed to build is a statement about this test, and
+            it must not reach the assertions wearing an empty scene.
+    """
+    errors: list[str] = []
+    if seeded:
+        ops = [dict(_ENTITY_ADD, attributes=list(_ENTITY_ROWS))]
+    else:
+        ops = [dict(_ENTITY_ADD),
+               {"op": "mod", "id": "E1",
+                "attrs": {"attributes": list(_ENTITY_ROWS)}}]
+    scene = canvas.apply_ops([], ops, errors)
+    if errors:
+        raise AssertionError(
+            "the entity batch did not apply: %r. The scene under test was "
+            "never built, so nothing below measures the drawing" % errors)
+    return scene
+
+
+def _row_band(scene: list[dict], eid: str) -> tuple[float, float]:
+    """One element's vertical span, as the drawing lays it down.
+
+    Args:
+        scene: The scene to read.
+        eid: The element's id.
+
+    Returns:
+        `(top, bottom)` in scene px.
+
+    Raises:
+        AssertionError: If nothing in the scene carries that id — which
+            would mean the seeder's naming moved and the overlap below
+            was measured against a default rather than an element.
+    """
+    for e in scene:
+        if e["id"] == eid:
+            return (e.get("y", 0), e.get("y", 0) + e.get("height", 0))
+    raise AssertionError(
+        "no element %r in the scene %r built — the attribute seeder's "
+        "naming has moved and this pin is measuring nothing"
+        % (eid, [e["id"] for e in scene]))
+
+
+class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
+    """A domain entity's name, drawn on top of its first attribute.
+
+    Witnessed by the v0.9 whole-branch review, 2026-08-18: `add` an
+    entity WITH attributes and its name is set `top` at y=106, clear
+    above the rows; `add` a bare entity and then `mod attributes` and
+    the name stays `middle` at y=130, spanning 130..150 while the first
+    row spans 132..148. The name is drawn ON its first attribute, and
+    `lint_layout` returns zero errors and zero warnings about it.
+
+    WHO FLIPS THIS: the v0.9 whole-branch review triage
+    (controller-assigned), which owns the disposition of both sites.
+    Not this file and not a curator — `_reset_attribute_rows` is
+    canvas.py's, and the fix and its acceptance test coming from the
+    same hands is the run-5 pattern this harness exists to refuse. Both
+    reds flip on one repair: give the mirror the label re-alignment the
+    minting does.
+
+    NO CHECK OWNS THE PICTURE, which is a separate finding and is why
+    the second red is stated as a DRAWING claim rather than as a
+    `FindingSpec`. Measured on this scene: `label_label_overlap` walks
+    bound labels against bound labels and the attribute row is unbound,
+    `text_overlaps_node` skips any text carrying a `containerId` on the
+    text side and any `decoration` role on the other, and both skips
+    fire here — so a bound label lying on its own container's decoration
+    text is a pair nothing in `lint_layout` compares. `collect_findings`
+    over this scene returns one `crossings=0` metric and nothing else.
+    A red naming a check that does not exist would have no owner, so
+    that gap is reported to the fix task instead of pinned here.
+    """
+
+    def test_the_seeded_entity_draws_its_name_above_its_rows(self) -> None:
+        """The healthy pole, ungated, and the live half of both reds.
+
+        Without this the two reds could both be satisfied by a seeder
+        that stopped emitting attribute rows at all — an empty band
+        overlaps nothing and two identical absences compare equal. This
+        asserts the `add` path still puts a real name above two real
+        rows, so the reds below are measuring a drawing rather than a
+        hole where one used to be.
+        """
+        scene = _entity_rows_scene(seeded=True)
+        label = next(e for e in scene if e["id"] == "E1-label")
+        top, bottom = _row_band(scene, "E1-label")
+        self.assertEqual(
+            (label.get("verticalAlign"), top, bottom,
+             _row_band(scene, "E1-attr-1")),
+            ("top", 106, 126, (132, 148)),
+            "the `add` path's own geometry has moved, so the poles below "
+            "no longer differ by the label re-alignment alone")
+
+    @unittest.expectedFailure
+    def test_both_paths_align_the_entity_label_the_same_way(self) -> None:
+        """The drift itself: one rule, two sites, two answers.
+
+        The narrowest statement of the defect, and the one that survives
+        whichever way the repair is written — it names no coordinate, so
+        a fix that re-aligns to some third position still flips it as
+        long as both verbs agree. MEASURED 2026-08-18: `("top", 106)`
+        from the seeder against `("middle", 130.0)` from the mirror.
+
+        `y` and `verticalAlign` together and not either alone, because
+        the client re-derives the drawn baseline from both: `middle` at
+        y=106 and `top` at y=130 are each half a fix, and half a fix
+        leaves the name in a third wrong place.
+        """
+        seeded = next(e for e in _entity_rows_scene(seeded=True)
+                      if e["id"] == "E1-label")
+        modded = next(e for e in _entity_rows_scene(seeded=False)
+                      if e["id"] == "E1-label")
+        self.assertEqual(
+            (modded.get("verticalAlign"), modded.get("y")),
+            (seeded.get("verticalAlign"), seeded.get("y")),
+            "`mod attributes` leaves the bound label where a bare entity "
+            "put it while `add` re-aligns it, so one layout rule is typed "
+            "at two sites and they disagree")
+
+    @unittest.expectedFailure
+    def test_the_relabelled_entity_keeps_its_name_off_the_first_row(self
+                                                                   ) -> None:
+        """What the reader sees: the name sitting on its first attribute.
+
+        The drift's consequence, asserted on the DRAWING rather than on
+        the two functions, because a fix that made the two sites agree on
+        a position that still overlapped would pass the red above and
+        leave the picture broken. MEASURED 2026-08-18: the label spans
+        130.0..150.0 and `E1-attr-1` spans 132..148, so the row is
+        wholly inside the name's band — 16px of vertical overlap over
+        the 44px the two share horizontally.
+
+        The assertion is on the vertical band alone. The two are
+        horizontally nested by construction (the label is centred in a
+        box the rows run the width of), so the horizontal reading can
+        only ever confirm what the vertical one decides, and folding it
+        in would let a fix that merely narrowed the label pass without
+        moving the name off the row.
+        """
+        scene = _entity_rows_scene(seeded=False)
+        (ltop, lbot), (rtop, rbot) = (_row_band(scene, "E1-label"),
+                                      _row_band(scene, "E1-attr-1"))
+        self.assertLessEqual(
+            min(lbot, rbot) - max(ltop, rtop), 0,
+            "the entity's name is drawn across its own first attribute: "
+            "the label spans %s..%s and the row spans %s..%s"
+            % (ltop, lbot, rtop, rbot))
+
+
+# ---------------------------------------------------------------------------
+# One `lineHeight`, two readers, and the client as referee. Witnessed by the
+# v0.9 whole-branch review, 2026-08-18. Hand-authored rather than a
+# `CATALOGUE` entry because the thing that is wrong is the HEIGHT the check
+# quotes, and `_TEXT_OVERFLOW_RE` captures the width — `needs ~(\d+)x\d+px`
+# — so no `FindingSpec` in this file's vocabulary can say "you spoke, and
+# your number was 4px short". The silent pole IS expressible as a mutant
+# (`text_overflow` firing at 172px, direction `tall`, on a
+# `set_line_height` of `_boxed_label(height=64)`); it is written here beside
+# its magnitude sibling instead, so one defect keeps one home.
+# ---------------------------------------------------------------------------
+_CLIENT_FONT_METRICS = re.compile(
+    r"\[dn\.Nunito\]:\{metrics:\{unitsPerEm:1e3,ascender:1011,"
+    r"descender:-353,lineHeight:([\d.]+)\}")
+
+
+class TestOneLineHeightHasTwoReaders(unittest.TestCase):
+    """`render_svg` reads the element's `lineHeight`; `lint_layout` does not.
+
+    canvas.py's `paint` lays every line down at `fontSize * (lineHeight
+    or 1.25)` and `render_svg`'s bounds loop reserves height the same
+    way — a comment there records that a written-in 1.25 was itself a
+    defect. `lint_layout` never got the same treatment: its three
+    `text_dims(txt, fs)` calls in the fit check and the one in
+    `fit_label_in` all take the 1.25 default, so the checker measures a
+    block the renderer does not draw.
+
+    THE FIELD ARRIVES FROM THE BROWSER, which is what makes this reachable
+    rather than theoretical. `lineHeight` is absent from `MOD_ATTRS`, so no
+    agent op can write it; `normalize_element` writes 1.25; and it survives
+    a round trip. The only writer is the client — and the shipped client
+    gives Nunito, this repo's `FONT_LEGIBLE`, a default of 1.35. The first
+    test below is that referee, read off the bundle the page loads.
+
+    WHO FLIPS THIS: the v0.9 whole-branch review triage
+    (controller-assigned). Both reds flip on one repair — thread the
+    element's own `lineHeight` into the fit check's `text_dims` calls,
+    the way `render_svg` already does — and they flip together on
+    purpose: one says the check is silent where the ink leaves the box,
+    the other says that when it does speak its number describes the
+    wrong block. A fix that only lowered a threshold would answer the
+    first and not the second.
+
+    WHICH ARM THIS PROVES, stated because the review flagged the other
+    one as open: this is the EXPORT arm, server-side and complete —
+    `canvas.render_svg`'s own ink leaves the container by 4px while the
+    lint is quiet. Whether the real Excalidraw canvas auto-grows the
+    container instead of spilling is a CLIENT question, not decidable
+    here and not decidable in the render tier either, which rasterizes
+    `render_svg`'s markup rather than loading the app. It belongs to the
+    e2e tier beside `placement.spec.ts`, and the divergence pinned here
+    does not depend on its answer: two readers of one field disagree
+    about an artifact this repo ships whatever the browser then does.
+    """
+
+    def test_the_shipped_client_gives_nunito_a_line_height_of_1_35(self
+                                                                   ) -> None:
+        """The referee: 1.35 is the client's number, not this test's.
+
+        Without this the two reds rest on a multiplier nobody can source,
+        and "1.35" reads as a value picked to make a check fail. The
+        client's own per-font metrics table is what decides the drawn
+        block, and it is in the tree — so the calibration-literal
+        discipline says derive it rather than write it down.
+
+        The bundle is globbed because its filename carries a content
+        hash; the assertion is on the ONE bundle `index.html` loads, so a
+        second stale bundle beside it cannot supply the answer.
+        """
+        web = (Path(__file__).resolve().parents[1] / "skills" /
+               "wysiwyg-grilling" / "scripts" / "web")
+        src = re.findall(r'src="/assets/(index-[\w-]+\.js)"',
+                         (web / "index.html").read_text(encoding="utf-8"))
+        self.assertEqual(len(src), 1,
+                         "index.html loads %r entry bundles; this pin reads "
+                         "the one the page actually runs" % src)
+        found = _CLIENT_FONT_METRICS.findall(
+            (web / "assets" / src[0]).read_text(encoding="utf-8",
+                                                errors="replace"))
+        self.assertEqual(
+            found, ["1.35"],
+            "the client's font-metrics table no longer gives Nunito "
+            "(fontFamily %d, this repo's FONT_LEGIBLE) a default "
+            "lineHeight of 1.35 — re-read %s and re-derive the poles below "
+            "before touching them" % (canvas.FONT_LEGIBLE, src[0]))
+
+    def test_the_export_paints_the_block_at_the_elements_line_height(self
+                                                                     ) -> None:
+        """The divergence, measured on the artifact rather than the path.
+
+        Same scene, same box, same label, one field apart: at 1.25 the
+        ink stops exactly on the container's bottom edge, and at 1.35 it
+        runs 4px past it. That 4px is the whole of what the check below
+        cannot see, and it is read off `ink_extent` — the extent the
+        export writes its viewBox from — so it is the drawing's number
+        and not a re-derivation of `text_dims`.
+        """
+        default = ink_box(_line_height_box(height=64, line_height=1.25),
+                          pad=0)
+        client = ink_box(_line_height_box(height=64, line_height=1.35),
+                         pad=0)
+        self.assertEqual(
+            (default[3], client[3]), (64, 68),
+            "the export's own ink no longer straddles the 64px container "
+            "at these two line heights, so the poles below have stopped "
+            "being 4px apart")
+
+    def test_the_fit_check_still_speaks_when_the_box_is_plainly_short(self
+                                                                     ) -> None:
+        """The check's live firing pole, ungated, beside the silent red.
+
+        A red that asserts a check should have spoken passes the day the
+        check dies, and cannot tell "silent because the rule is wrong"
+        from "silent because nothing runs". This is the same check on the
+        same base scene with the container 8px shorter, where it fires
+        correctly at 1.25 — so the red below is about the rule and not
+        about a corpse.
+        """
+        lint = canvas.lint_layout(_line_height_box(height=56,
+                                                   line_height=1.25))
+        self.assertEqual(
+            [w for w in lint["warnings"] if "does not fit" in w],
+            ["'reconcile every settled position n' does not fit n1 "
+             "('reconcile every settled position nightly against "
+             "custody'): needs ~172x60px, the box gives 192x52px (too "
+             "tall) — widen the box, shorten the text, or move the detail "
+             "to a tooltip"],
+            "the fit check's firing pole has moved; re-derive the two "
+            "reds in this class before reading their colour")
+
+    @unittest.expectedFailure
+    def test_the_fit_check_sees_the_ink_leave_the_box(self) -> None:
+        """The silent pole: 4px of the last line is drawn outside the box.
+
+        MEASURED 2026-08-18 on a 200x64 node whose bound label wraps to
+        three lines. `room_h` is 60; at the client's 1.35 the drawn block
+        is 3 * 16 * 1.35 = 64.8px and the export's ink reaches y=68,
+        4px below the container. The check measures 60 against 60,
+        calls it a fit, and says nothing — zero errors, zero warnings.
+
+        The assertion counts the fit warnings rather than matching the
+        sentence, because the number this check will quote once it reads
+        the element's own multiplier is the subject of the red below and
+        must not be pre-judged here. This one says only: speak.
+        """
+        lint = canvas.lint_layout(_line_height_box(height=64,
+                                                   line_height=1.35))
+        self.assertNotEqual(
+            [w for w in lint["warnings"] if "does not fit" in w], [],
+            "the label's last line is drawn 4px below its container and "
+            "the fit check is silent: it reserved height at the 1.25 "
+            "default while `paint` drew at the element's own 1.35")
+
+    @unittest.expectedFailure
+    def test_the_overflow_warning_quotes_the_height_that_is_drawn(self
+                                                                  ) -> None:
+        """The magnitude arm: it speaks, and the number is 4px short.
+
+        The pole that a threshold change would not answer. On the same
+        base scene with the container at 56px the check DOES fire — the
+        green above pins that at 1.25 — but at the client's 1.35 it
+        still quotes `needs ~172x60px` for a block the export paints
+        64px tall. A reader widening the box by the number they were
+        given lands 4px short of the ink.
+
+        Read against `text_dims` at the element's own multiplier rather
+        than against a literal 64, per the calibration-literal
+        discipline: the expected value is what `paint` uses, so a fix
+        that changes the estimator moves both sides together and this
+        pin keeps asking the same question.
+        """
+        scene = _line_height_box(height=56, line_height=1.35)
+        label = next(e for e in scene if e["id"] == "t1")
+        drawn = canvas.text_dims(
+            canvas.wrap_label_text(label["text"], 192, 16), 16,
+            label["lineHeight"])[1]
+        quoted = [int(m) for w in canvas.lint_layout(scene)["warnings"]
+                  for m in re.findall(r"needs ~\d+x(\d+)px", w)]
+        self.assertEqual(
+            quoted, [drawn],
+            "the fit warning quotes %s where the export paints a %dpx "
+            "block — the check reserved height at the 1.25 default and "
+            "the number a reader would widen the box by is short by %d"
+            % (quoted, drawn, drawn - (quoted[0] if quoted else drawn)))
 
 
 class TestCoverage(unittest.TestCase):
