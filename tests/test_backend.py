@@ -7188,6 +7188,164 @@ class TestFanAttachPoints(unittest.TestCase):
             "borders and the lint must still say so")
         self.assertIn("too short to hold them all", said[0])
 
+    def _noted(self, notes: list[tuple[int, int]]) -> list[dict]:
+        """A contended 160x64 node with annotation-roled notes beside it.
+
+        Args:
+            notes: `(x, y)` per note; each is 200x70, the size that
+                covers a spill lane on the border it sits against.
+
+        Returns:
+            `_elbowed("rectangle", 4, 160, 64)` plus the notes.
+        """
+        els = self._elbowed("rectangle", 4, 160, 64)
+        for i, (nx, ny) in enumerate(notes):
+            els.append({"id": "note%d" % i, "type": "rectangle", "x": nx,
+                        "y": ny, "width": 200, "height": 70,
+                        "customData": {"role": "annotation",
+                                       "author": "user"}})
+        return els
+
+    def _crossings_of(self, els: list[dict], nid: str) -> int:
+        """How many arrow segments run through element `nid`.
+
+        Args:
+            els: The scene.
+            nid: The element to count against.
+
+        Returns:
+            The number of segments hitting it.
+        """
+        box = {e["id"]: e for e in els}[nid]
+        n = 0
+        for e in els:
+            if e.get("type") != "arrow":
+                continue
+            p = [(e["x"] + px, e["y"] + py) for px, py in e["points"]]
+            for (x1, y1), (x2, y2) in zip(p, p[1:]):
+                if canvas._seg_hits_rect(x1, y1, x2, y2, box):
+                    n += 1
+        return n
+
+    def test_the_search_spills_away_from_a_note_not_through_it(self
+                                                               ) -> None:
+        """A soft obstacle is not transparent to the search.
+
+        The sticky ruling made annotations SOFT — legal to cross, ugly
+        to cross — and gave the file a third obstacle state. The search
+        was built with the hard set only, so an annotation was fully
+        TRANSPARENT to it: on this scene it spilled a foot onto the top
+        border straight through a note the user wrote, the lane count
+        fell from three to zero, and nothing reported the crossing.
+
+        Both directions, on one scene apiece.
+
+        AVOIDANCE: with a note above only, the search still relieves the
+        contention and takes the BOTTOM border instead — so the term is
+        steering the choice rather than disabling the pass, which is the
+        distinction a single-note test could not make.
+
+        REFUSAL: with notes above AND below, the search declines to act
+        at all and the lane warning stays fired. That is the shipped
+        semantics and it is narrower than the router's: the incumbent
+        foot is itself a candidate and crosses nothing, so it takes
+        soft = 0, and `crowd` sits three slots lower in the tuple, so
+        lane relief can never buy a note crossing. The refusal is
+        deliberate — a lane is cosmetic and the server made it, a note
+        is content the user wrote — and it is not silent, which is the
+        assertion that matters: `lint_layout` still names the shortfall,
+        so the cost of refusing is a warning an agent can act on, where
+        the cost of the old behaviour was an unreported stroke through
+        the note.
+        """
+        els = self._noted([(380, 10)])
+        canvas.fan_attach_points(els)
+        canvas.contention_feet(els)
+        canvas.fan_attach_points(els)
+        self.assertEqual(
+            self._crossings_of(els, "note0"), 0,
+            "the search drew through a note the user wrote to relieve a "
+            "lane it created itself")
+        self.assertEqual(
+            [x for x in canvas.lint_layout(els)["warnings"]
+             if "run together for" in x], [],
+            "the note is above, the bottom border is clear, and the "
+            "search failed to relieve the contention at all — the soft "
+            "term is meant to steer the choice, not disable the pass")
+        sides = [canvas._edge_side(els[0], x, y) for x, y in self._feet(els)]
+        self.assertIn(
+            "bottom", sides,
+            "the lane went quiet without a foot reaching the clear "
+            "border: %s" % (sides,))
+        self.assertNotIn("top", sides, sides)
+
+        els = self._noted([(380, 10), (380, 170)])
+        canvas.fan_attach_points(els)
+        canvas.contention_feet(els)
+        canvas.fan_attach_points(els)
+        for nid in ("note0", "note1"):
+            self.assertEqual(
+                self._crossings_of(els, nid), 0,
+                "every spill crossed a note and the search took one "
+                "anyway — it must decline instead")
+        self.assertTrue(
+            [x for x in canvas.lint_layout(els)["warnings"]
+             if "run together for" in x],
+            "the search declined to act, correctly, and the lint went "
+            "quiet about the contention that is still there — a refusal "
+            "the agent is never told about is the worse half of this "
+            "defect, not the fix")
+
+    def test_a_reverted_move_restores_the_whole_element(self) -> None:
+        """"REVERTED WHOLE" has to mean the bindings and the signature too.
+
+        `_stamp_contention` re-solves BOTH bindings through
+        `solve_focus` and re-signs `customData` through `_stamp_route`,
+        and the first version of the accept-guard restored six geometry
+        keys. A reverted move therefore left the arrow standing exactly
+        where it started with a focus solved for a foot it no longer had
+        and a route signature describing geometry that was never
+        written. The signature is the worse half: `server_owns_geometry`
+        READS it, so a stale one can make a later pass misclassify a
+        server-routed arrow as user-shaped and stop touching it.
+
+        FORCED, because the guard's revert arm is unreachable on any
+        scene in the repo — 0 reverts of 123 stamped moves across the
+        corpus and the whole sweep. `_scene_lane_cost` is stubbed to
+        report a worse scene after every move, which exercises the arm
+        without needing a scene that earns it. The durable reachable
+        pin is curator batch 30's, on a constructed costly-lane scene;
+        this one owns the RESTORATION and is deliberately independent of
+        whether such a scene exists.
+
+        Asserted as whole-element equality rather than key by key: an
+        enumeration here would be a second place that has to know what
+        the stamps write, which is the mistake being fixed.
+        """
+        els = self._elbowed("rectangle", 4, 160, 64)
+        canvas.fan_attach_points(els)
+        before = copy.deepcopy(els)
+        real = canvas._scene_lane_cost
+        calls = []
+
+        def worse(arrows: list[dict]) -> tuple[int, ...]:
+            got = real(arrows)
+            calls.append(got)
+            return got if len(calls) == 1 else tuple(x + 1 for x in got)
+
+        with mock.patch.object(canvas, "_scene_lane_cost", worse):
+            canvas.contention_feet(els)
+        self.assertGreater(
+            len(calls), 1,
+            "the stub was never re-consulted, so no move was stamped "
+            "and this test proved nothing about the revert")
+        self.assertEqual(
+            els, before,
+            "a rejected move left the scene changed. The guard restored "
+            "geometry only; `solve_focus` and `_stamp_route` also ran, "
+            "so a focus and a route signature survived a move that was "
+            "supposed to be undone whole")
+
     def test_a_side_with_room_is_never_searched(self) -> None:
         """CONTENTION ONLY: an uncrowded scene comes back byte-identical.
 
@@ -12807,28 +12965,33 @@ class TestTheOscillatorIsTheRouter(unittest.TestCase):
                         canvas.normalize_scene_doc(doc)["elements"]))
         return out
 
-    def one_pass(self, els, route=True, fan=True, obstacles=True):
+    def one_pass(self, els, route=True, fan=True, obstacles=True,
+                 search=False):
         """A single pipeline pass with components ablated.
+
+        THE OBSTACLE SETS ARE THE PRODUCT'S, not this harness's. They
+        were hand-written here — a SIXTH copy of the predicate whose
+        five other copies the sticky ruling folded into
+        `hard_obstacles` and `soft_obstacles` — and a harness measuring
+        convergence with a different obstacle set than the pipeline uses
+        is measuring a pipeline that does not ship. It agreed with the
+        product when written; that is exactly what the five did.
 
         Args:
             els: Scene elements. Not mutated.
             route: Run the router.
             fan: Run the attach-point fan.
             obstacles: Give the router an obstacle set at all.
+            search: Run `contention_feet` between the two fan calls,
+                which is what the three shipped call sites do.
 
         Returns:
             The new elements.
         """
         out = json.loads(json.dumps(els))
         ix = {e["id"]: e for e in out}
-        obs = [e for e in out
-               if e.get("type") in ("rectangle", "diamond", "ellipse")
-               and canvas.role_of(e) not in ("label", "pin", "decoration",
-                                             "annotation")] if obstacles \
-            else []
-        soft = [e for e in out if e.get("type") == "text"
-                and (e.get("containerId") or
-                     canvas.role_of(e) == "annotation")] if obstacles else []
+        obs = canvas.hard_obstacles(out) if obstacles else []
+        soft = canvas.soft_obstacles(out) if obstacles else []
         if route:
             for a in out:
                 if a.get("type") != "arrow":
@@ -12847,6 +13010,9 @@ class TestTheOscillatorIsTheRouter(unittest.TestCase):
                 canvas.recenter_label(out, a)
         if fan:
             canvas.fan_attach_points(out)
+            if search:
+                canvas.contention_feet(out)
+                canvas.fan_attach_points(out)
         canvas.rebuild_bound_elements(out)
         return out
 
@@ -12888,6 +13054,25 @@ class TestTheOscillatorIsTheRouter(unittest.TestCase):
     def test_routing_without_obstacles_settles_on_the_first_pass(self):
         # a pure function of the two endpoints — nothing left to re-decide
         self.assertEqual(self.orbiters(fan=False, obstacles=False), [])
+
+    def test_the_contention_search_joins_no_orbit(self):
+        """The search is orbit-NEUTRAL, measured rather than assumed.
+
+        v0.9 TASK-ATTACH put a third pass between the two fan calls at
+        all three shipped call sites, and doc 6.3b requires an
+        accept-guard to be evaluated against the ORBIT rather than a
+        single pass. The guard is a strict-improvement gate on a
+        non-negative metric, which terminates by well-foundedness — but
+        that is an argument, and this is the measurement: the orbiting
+        set is byte-identical with the search in the pass and without
+        it, the same nine artifacts by name.
+
+        Asserted against `orbiters()` rather than against the literal
+        nine, so it states the DELTA the search is responsible for and
+        keeps saying it if the corpus moves — which is what the sibling
+        below owns instead.
+        """
+        self.assertEqual(self.orbiters(search=True), self.orbiters())
 
     def test_nine_frozen_artifacts_never_settle(self):
         """The count, made mechanical because prose disagreed about it.

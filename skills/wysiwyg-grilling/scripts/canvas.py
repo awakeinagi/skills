@@ -4457,6 +4457,35 @@ def _scene_lane_cost(arrows):
     return crossings, corridors
 
 
+def _worse(after, before):
+    """Did any scene reading get worse? PER-DIMENSION, not lexicographic.
+
+    `after > before` on two `(crossings, corridors)` tuples is a
+    LEXICOGRAPHIC comparison, and lexicographic is not what "the scene
+    is no worse" means: it accepts `(1, 5)` over `(2, 0)` — one crossing
+    bought with five new corridors — and the docstring beside it claimed
+    the opposite. The names and the operator disagreed.
+
+    Per-dimension is the reading the prose always made, and it is the
+    conservative one: a move must not worsen EITHER count. Measured
+    before choosing, because the safer rule is only free if it costs
+    nothing: across all 24 frozen artifacts and all 120 sweep rows the
+    two rules accept exactly the same moves, since no candidate this
+    search proposes trades a crossing for a corridor in either
+    direction. So this is a semantics repair with no behavioural delta
+    today, chosen because the day a trade DOES appear is the day the
+    lexicographic reading silently spends five corridors.
+
+    Args:
+        after: The scene reading after a move.
+        before: The reading before it.
+
+    Returns:
+        True when any one reading rose.
+    """
+    return any(x > y for x, y in zip(after, before))
+
+
 def _side_faces(node, side, other):
     """Is `other` beyond `side`, so an arrow could reach it without wrapping?
 
@@ -4627,13 +4656,14 @@ def contention_feet(els):
         return          # the quiet-scene path: one dict walk, no geometry
 
     boxes = hard_obstacles(els)
+    softs = soft_obstacles(els)
     before = _scene_lane_cost(arrows)
     for (nid, side) in sorted(contended):
         for aid, which in sorted(per_side[nid, side]):
             a = ix[aid]
             node, cur_side, foot, anchor = movable[aid, which]
             best = _contention_score(a, node, cur_side, foot, anchor,
-                                     els, boxes, movable)
+                                     els, boxes, softs, movable)
             chosen = None
             for cand_side in (cur_side,) + ADJACENT_SIDES[cur_side]:
                 if not _side_faces(node, cand_side, anchor):
@@ -4643,22 +4673,36 @@ def contention_feet(els):
                          if m != (aid, which)]
                 for cand in _feasible_feet(node, cand_side, taken):
                     score = _contention_score(a, node, cand_side, cand,
-                                              anchor, els, boxes, movable)
+                                              anchor, els, boxes, softs,
+                                              movable)
                     if score < best:
                         best, chosen = score, (cand_side, cand)
             if chosen is None:
                 continue
-            was = (a["x"], a["y"], a.get("points"), a.get("width"),
-                   a.get("height"), a.get("roundness"))
+            # THE WHOLE ELEMENT, because `_stamp_contention` touches more
+            # than geometry and the first version of this restored only
+            # geometry. It re-solves BOTH bindings through `solve_focus`
+            # and re-signs `customData` through `_stamp_route`, so a
+            # reverted move used to leave the arrow standing where it
+            # started with a focus solved for a foot it no longer has
+            # (measured: 0.75 -> -0.45) and a route signature describing
+            # geometry that was never written. The signature is the
+            # worse half: `server_owns_geometry` READS it, so a stale one
+            # can make the next pass misclassify a server-routed arrow
+            # as user-shaped and stop touching it forever.
+            #
+            # A snapshot of the whole dict rather than a list of keys,
+            # deliberately: an enumeration is a fifth place that has to
+            # know what the stamps write, and it was already wrong once.
+            # This costs one deep copy per STAMPED move, of which the
+            # corpus and the whole sweep together make 124.
+            was = copy.deepcopy(a)
             _stamp_contention(a, which, anchor, chosen[1], chosen[0],
                               node, ix)
             after = _scene_lane_cost(arrows)
-            if after > before:
-                # REVERTED WHOLE, geometry and all. A move that trades a
-                # lane for a crossing is not an improvement in a currency
-                # this pass is allowed to spend.
-                (a["x"], a["y"], a["points"], a["width"], a["height"],
-                 a["roundness"]) = was
+            if _worse(after, before):
+                a.clear()
+                a.update(was)       # same dict object: `els` and `ix` hold it
                 continue
             before = after
             movable[aid, which] = (node, chosen[0], chosen[1], anchor)
@@ -4683,7 +4727,8 @@ def _cross_of(node, side, foot):
             else foot[0] - node["x"])
 
 
-def _contention_score(a, node, side, foot, anchor, els, boxes, movable):
+def _contention_score(a, node, side, foot, anchor, els, boxes, softs,
+                      movable):
     """Lexicographic cost of landing `a` on `foot`. Lower is better.
 
     Every term is one the repo already measures; none of them is new
@@ -4695,6 +4740,43 @@ def _contention_score(a, node, side, foot, anchor, els, boxes, movable):
     (`_fan_point`), and scoring a quantity that is zero for every
     candidate would only look like rigour.
 
+    THE SOFT TERM IS `route_arrow`'S, INCLUDING ITS GROUPING. Soft
+    obstacle hits and arrow crossings share one slot here exactly as
+    they share one in `route_arrow.score`, ranked below hard hits and
+    above everything else. Keeping them in one term rather than two is
+    the choice worth arguing: they are the same claim — "this stroke
+    runs over something a reader is looking at" — and splitting them
+    would let the search trade a note-crossing for an arrow-crossing on
+    the strength of an ordering nobody has measured a reason for. The
+    router has ranked them together since v0.3 and this pass runs
+    immediately after it; two producers disagreeing about the relative
+    cost of ink over a label is how one scene comes to have two
+    answers.
+    WHAT THIS PASS DOES WITH "LEGAL TO CROSS, UGLY TO CROSS" IS NARROWER
+    THAN THE ROUTER'S, and the difference is worth stating plainly
+    rather than inheriting by accident. The router chooses among
+    candidates that all have to go SOMEWHERE, so its soft term breaks a
+    tie between unavoidable evils. Here the incumbent foot is one of the
+    candidates and it is already scored: a foot on a crowded side
+    crosses nothing, so it takes soft = 0, and no spill that crosses an
+    annotation can beat it on a term ranked this high. The lane
+    relief lives in `crowd`, three slots lower, and lexicographic order
+    means it never buys a note crossing.
+
+    So the shipped semantics is: THE SEARCH DECLINES TO ACT RATHER THAN
+    DRAW THROUGH A NOTE. Measured — a contended node with annotations
+    above AND below keeps all four feet on the crowded side and the lane
+    warning stays fired. That is the right way round for this pass and
+    not merely the way it fell out. A lane is cosmetic and the server
+    made it; a note is content the user wrote. Declining leaves the
+    contention visible to `lint_layout`, which tells the agent about it
+    in a sentence naming the shortfall, so the cost of refusing is a
+    warning someone can act on. The cost of the alternative was a stroke
+    through the user's own note that nothing reported at all — which is
+    exactly what this pass did before the term existed, spilling a foot
+    through an annotation directly above a contended node while the lane
+    count fell from three to zero.
+
     Args:
         a: The arrow being moved.
         node: The node it binds at this end.
@@ -4703,11 +4785,12 @@ def _contention_score(a, node, side, foot, anchor, els, boxes, movable):
         anchor: The arrow's other endpoint.
         els: The scene, for the crossing term.
         boxes: Hard obstacles.
+        softs: Soft obstacles — labels, annotation text, sticky boxes.
         movable: The endpoint table, for the lane term.
 
     Returns:
-        `(box hits, arrow crossings, arrival off-normal, lane crowding,
-        bends, manhattan length)`.
+        `(box hits, soft hits + arrow crossings, arrival off-normal,
+        lane crowding, bends, manhattan length)`.
     """
     path = _contention_path(anchor, foot, side)
     keep = {(a.get("startBinding") or {}).get("elementId"),
@@ -4718,6 +4801,10 @@ def _contention_score(a, node, side, foot, anchor, els, boxes, movable):
             if ob.get("id") not in keep and \
                     _seg_hits_rect(p[0], p[1], q[0], q[1], ob):
                 hits += 1
+        for ob in softs:
+            if ob.get("id") not in keep and \
+                    _seg_hits_rect(p[0], p[1], q[0], q[1], ob):
+                crossings += 1
         for other in els:
             if other.get("type") not in ("arrow", "line") or \
                     other.get("id") == a.get("id"):
