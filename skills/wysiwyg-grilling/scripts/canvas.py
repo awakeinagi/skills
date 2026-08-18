@@ -5463,6 +5463,41 @@ def _scene_route_cost(els):
             crossings, corridors)
 
 
+def routable_arrows(els):
+    """The arrows a routing pass is handed, in scene order.
+
+    ONE PREDICATE, THREE READERS, and the third of them read it wrong.
+    `reroute_scene` and `_tidy_pass` each spelled "server-owned and bound
+    at both ends" inline and agreed; `Store.reroute`'s note did not spell
+    it at all and printed `len(changes)` — the arrows that MOVED —
+    against a sentence whose own docstring said "`M` is what the pass
+    touched". On `argus-r5 / tuesday-triage` that is "re-routed 4 of 4"
+    about a pass that examined eleven (v0.9 whole-branch review, I-6).
+    `Store.tidy`'s sibling sentence had been fixed for exactly this one
+    day earlier, in a comment naming `Store.reroute` as the model it
+    copies — it had copied a different computation, which is the failure
+    mode a shared name makes impossible rather than merely unlikely.
+
+    Args:
+        els: A scene's elements. Not mutated, and no element is
+            required to be routable — a scene of none answers empty.
+
+    Returns:
+        `[element_id, ...]` for every arrow whose PATH a pass will
+        recompute. An arrow with only one end bound has no pair to route
+        between, and an authored path is nobody's to redraw
+        (`server_owns_geometry`), so neither is in the set — which is
+        why this is the honest denominator for "re-routed N of M": the
+        arrows outside it were never candidates.
+    """
+    ix = {e["id"]: e for e in els if e.get("id") is not None}
+    return [a["id"] for a in els if a.get("type") == "arrow"
+            and ix.get((a.get("startBinding") or {}).get("elementId"))
+            is not None
+            and ix.get((a.get("endBinding") or {}).get("elementId"))
+            is not None and server_owns_geometry(a)]
+
+
 def reroute_scene(els):
     """Redraw the scene's server-owned arrows the way today's router would.
 
@@ -5536,13 +5571,17 @@ def reroute_scene(els):
         obstacles = hard_obstacles(out)
         soft = soft_obstacles(out)
         decisive = False
+        # The population is `routable_arrows`' since 2026-08-18, not a
+        # fourth inline spelling of it: `Store.reroute` counts the same
+        # set to say how many arrows this pass looked at, and a
+        # denominator derived beside the loop it describes is how I-6
+        # happened.
+        routable = set(routable_arrows(out))
         for a in out:
-            if a.get("type") != "arrow":
+            if a.get("id") not in routable:
                 continue
-            src = ix.get((a.get("startBinding") or {}).get("elementId"))
-            dst = ix.get((a.get("endBinding") or {}).get("elementId"))
-            if src is None or dst is None or not server_owns_geometry(a):
-                continue
+            src = ix[a["startBinding"]["elementId"]]
+            dst = ix[a["endBinding"]["elementId"]]
             # `other_arrows` is read fresh each time, as every other
             # caller reads it: the crossing term must see the paths
             # already re-routed in this pass, not the fossils they
@@ -5748,6 +5787,24 @@ def reroute_is_fossil(els):
     return len(oblique_arrivals(reroute_scene(els)[0])) < before
 
 
+def _endpoint_list(ends, cap=3):
+    """Name a few crooked endpoints, the way a user would look for them.
+
+    Args:
+        ends: `(arrow_id, "start"|"end")` pairs, as `oblique_arrivals`
+            returns them.
+        cap: How many to name before summarising the rest. Three keeps
+            the clause inside one read; the count is always exact.
+
+    Returns:
+        `"a's start, a's end (+2 more)"`, or `""` for an empty set.
+    """
+    shown = sorted(ends)
+    text = ", ".join("%s's %s" % (aid, side) for aid, side in shown[:cap])
+    return text + (" (+%d more)" % (len(shown) - cap)
+                   if len(shown) > cap else "")
+
+
 def reroute_decline(els, aid):
     """Say why a re-route was NOT offered, without saying a false thing.
 
@@ -5759,20 +5816,59 @@ def reroute_decline(els, aid):
     Both false, and false in the direction that tells a user their
     drawing is fine when they can see that it is not.
 
+    THE SECOND REASON IS TWO REASONS, and this reported them as one
+    until 2026-08-18. `reroute_is_fossil` compares COUNTS — deliberately,
+    because a strict decrease on a non-negative integer is what makes the
+    offer terminate — and this function reported SET MEMBERSHIP from that
+    comparison: "a re-route would not straighten any of them". On the
+    shipped `tearsheet-demo / tearsheet-domain` that is false. Measured
+    at this head, 4 crooked before and 4 after:
+
+        straightened: r-metric-section's start, r-section-tearsheet's end
+        newly crooked: r-price-instrument's start, r-price-instrument's end
+        untouched:    r-earnings-issuer's start, r-earnings-issuer's end
+
+    So a pass would straighten two of the four and crook two DIFFERENT
+    ones — a trade, not a refusal — and the sentence went on to send the
+    user to "the remedy is the drawing, not the router", which is the
+    wrong remedy for a scene the router genuinely improves in part. That
+    is the exact defect `reroute_is_fossil`'s own docstring warns of one
+    branch over ("False covers TWO different situations ... which callers
+    must not narrate as one"), reaching the caller it warned.
+
+    THE SETS, NOT A THIRD COUNT. Naming the endpoints is what separates
+    the trade from the refusal for a reader: the two lists are disjoint
+    by construction, and a user looking at the drawing can find both.
+    The offer is still gated on the count — nothing about the decision
+    changes here, only what is said about it.
+
     Args:
         els: The scene's elements.
         aid: The artifact id, named in the sentence.
 
     Returns:
-        The decline sentence, true of whichever case applies.
+        The decline sentence, true of whichever case applies. Costs a
+        router pass only when something IS crooked, so the everyday
+        artifact still answers for the price of `oblique_arrivals`.
     """
-    crooked = len(oblique_arrivals(els))
-    if not crooked:
+    before = set(oblique_arrivals(els))
+    if not before:
         return "nothing on %s arrives crooked — leaving it as drawn" % aid
-    return ("%d endpoint(s) on %s still arrive crooked, but a re-route "
-            "would not straighten any of them — leaving it as drawn. The "
-            "remedy is the drawing, not the router: move the nodes apart, "
-            "or author the path with `mod points`" % (crooked, aid))
+    after = set(oblique_arrivals(reroute_scene(els)[0]))
+    fixed, broke = before - after, after - before
+    if not fixed:
+        return ("%d endpoint(s) on %s still arrive crooked (%s), and a "
+                "re-route would not straighten any of them — leaving it "
+                "as drawn. The remedy is the drawing, not the router: "
+                "move the nodes apart, or author the path with `mod "
+                "points`" % (len(before), aid, _endpoint_list(before)))
+    return ("%d endpoint(s) on %s arrive crooked. A re-route would "
+            "straighten %d of them (%s) and leave %d different one(s) "
+            "crooked (%s), so it is a trade rather than a repair and is "
+            "not offered — leaving it as drawn. Move those nodes apart, "
+            "or author those paths with `mod points`"
+            % (len(before), aid, len(fixed), _endpoint_list(fixed),
+               len(broke), _endpoint_list(broke)))
 
 
 def _reroute_shift(was, now):
@@ -18428,26 +18524,28 @@ class Store:
                     snapped += 1
                     recenter_label(els, e)
         obstacles = hard_obstacles(els)
-        routed = set()
+        # `routable_arrows`, not this loop's own spelling of the same
+        # rule: `M` in tidy's note and `M` in `Store.reroute`'s are one
+        # population, and they disagreed for a day because each site
+        # derived it (v0.9 whole-branch review, I-6). Read once BEFORE
+        # any routing, which is the same set the incremental build
+        # produced — routing one arrow changes neither the bindings nor
+        # the ownership of another.
+        routed = set(routable_arrows(els))
         for e in els:
-            if e.get("type") != "arrow":
+            if e.get("id") not in routed:
                 continue
-            s = index.get((e.get("startBinding") or {})
-                          .get("elementId"))
-            d = index.get((e.get("endBinding") or {}).get("elementId"))
-            if s is not None and d is not None and \
-                    server_owns_geometry(e):
-                route_arrow(
-                    e, s, d, obstacles,
-                    soft_obstacles=soft_obstacles(els),
-                    other_arrows=[(t["id"], t.get("x", 0),
-                                   t.get("y", 0),
-                                   t.get("points") or [])
-                                  for t in els
-                                  if t.get("type") == "arrow"
-                                  and len(t.get("points") or []) >= 2])
-                recenter_label(els, e)
-                routed.add(e["id"])
+            route_arrow(
+                e, index[e["startBinding"]["elementId"]],
+                index[e["endBinding"]["elementId"]], obstacles,
+                soft_obstacles=soft_obstacles(els),
+                other_arrows=[(t["id"], t.get("x", 0),
+                               t.get("y", 0),
+                               t.get("points") or [])
+                              for t in els
+                              if t.get("type") == "arrow"
+                              and len(t.get("points") or []) >= 2])
+            recenter_label(els, e)
         fan_attach_points(els)
         contention_feet(els)
         fan_attach_points(els)
@@ -18713,16 +18811,36 @@ class Store:
         it and `reroute_line` read.
 
         THE NOTE'S OPENING COUNT STATES BOTH TRUTHS — "re-routed N of M
-        legacy arrow(s)" — and that is the same ruling reaching one line
-        further than it first did. `M` is what the pass touched; `N` is
-        what it redrew. Writing `M` alone put the NARROWED word in front
-        of the UN-NARROWED number, so the shipped argus record opened
-        "re-routed 9" beside a headline counting 6: the defect this
-        method was fixed for, surviving in the one sentence that had
-        quoted it. Both numbers are required rather than just `N`,
-        because the pass really did touch M arrows and the per-arrow
-        lines below name all M of them — dropping `M` would leave the
-        list longer than the count that introduces it.
+        server-routed arrow(s)" — and that is the same ruling reaching
+        one line further than it first did. `M` is what the pass
+        touched; `N` is what it redrew. Writing `M` alone put the
+        NARROWED word in front of the UN-NARROWED number, so the shipped
+        argus record opened "re-routed 9" beside a headline counting 6:
+        the defect this method was fixed for, surviving in the one
+        sentence that had quoted it.
+
+        `M` IS `routable_arrows`, NOT `len(changes)`, since 2026-08-18.
+        The sentence said "of M" while M counted the arrows that MOVED,
+        so the fraction read "how many of the arrows I changed changed
+        their ink" and carried no scope at all: `argus-r5 /
+        tuesday-triage` opened "re-routed 4 of 4" about a pass that was
+        handed eleven (v0.9 whole-branch review, I-6). This docstring
+        already said the right thing — "`M` is what the pass touched" —
+        and its own justification for keeping `M` had reasoned FROM the
+        wrong number ("the per-arrow lines below name all M of them"),
+        which is how a paragraph and its code disagreed in plain sight.
+        `Store.tidy`'s sibling sentence was corrected one day earlier
+        with a comment naming this method as the model it copies; it is
+        now true, and the noun matches so the two read as one family.
+
+        THE LIST KEEPS AN ANCHOR OF ITS OWN, which is what the old
+        justification was really protecting. With `M` widened, the
+        per-arrow lines are a SUBSET of it, and on `daily-run` six
+        entries under "4 of 9" would be a list nothing introduces. So a
+        third count names the list directly. Three numbers rather than
+        two, and each is separately checkable against the ink: examined,
+        redrawn, and changed in any way at all — the last being the one
+        `changes` was always built from, `path_changed` or not.
 
         GATED ON `reroute_is_fossil`, not on "a pass would change
         something" — that is the difference between a verb the user can
@@ -18747,14 +18865,16 @@ class Store:
             declined = self.reroute_noop(aid)
             if declined is not None:
                 return declined
+            examined = len(routable_arrows(self.scenes[aid]))
             els, changes = reroute_scene(self.scenes[aid])
             redrew = sum(1 for c in changes if c["path_changed"])
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
-                user_note="re-routed %d of %d legacy arrow(s): %s — revert "
+                user_note="re-routed %d of %d server-routed arrow(s); %d "
+                          "moved or were re-aimed: %s — revert "
                           "this save to put the old geometry back"
-                          % (redrew, len(changes),
+                          % (redrew, examined, len(changes),
                              "; ".join(reroute_line(c) for c in changes)),
                 extra_facts={aid: [{"fact": "rerouted", "element": c["id"],
                                     "arrow": c["id"]} for c in changes

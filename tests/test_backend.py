@@ -14606,6 +14606,124 @@ class TestRerouteIsConsentGated(Base):
         with self.assertRaises(canvas.BatchError):
             self.store.reroute("ghost")
 
+    def test_the_denominator_is_the_arrows_the_pass_was_handed(self):
+        """"N of M" where `M` is the population, not the survivors.
+
+        The v0.9 whole-branch review's I-6: `M` was `len(changes)` —
+        arrows that MOVED — so the fraction said "how many of the
+        arrows I changed changed their ink" and carried no scope at
+        all. `Store.reroute`'s own docstring said "`M` is what the pass
+        touched", which is `routable_arrows`.
+
+        THIS SCENE SEPARATES THE THREE POPULATIONS, which is the whole
+        point of adding a fourth arrow: three are routable, two of them
+        move, both of those are redrawn, and one unbound arrow is
+        present and was never a candidate. So `3` cannot be read off
+        the arrow count, off the change count, or off the redraw count
+        — every one of the four numbers in this scene is different.
+        """
+        loose = {"id": "t9", "type": "arrow", "x": 900.0, "y": 900.0,
+                 "width": 60.0, "height": 0.0, "points": [[0, 0], [60, 0]],
+                 "startBinding": None, "endBinding": None,
+                 "customData": {"role": "edge"}}
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]] + [loose]
+        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.store = canvas.Store(self.project)
+        base = self.store.scenes["checkout-flow"]
+        present = [e["id"] for e in base if e.get("type") == "arrow"]
+        handed = canvas.routable_arrows(base)
+        changes = canvas.reroute_scene(base)[1]
+        redrew = [c["id"] for c in changes if c["path_changed"]]
+        self.assertEqual(
+            (len(present), len(handed), len(changes), len(redrew)),
+            (4, 3, 2, 2),
+            "this scene is supposed to hold four arrows, three of them "
+            "routable, two of which move and are redrawn — it holds "
+            "present=%r handed=%r changed=%r redrawn=%r"
+            % (present, handed, [c["id"] for c in changes], redrew))
+        note = self.store.reroute("checkout-flow")["user_note"]
+        self.assertIn("re-routed 2 of 3 server-routed arrow(s)", note, note)
+        self.assertNotIn("legacy arrow(s)", note)
+
+    def test_the_list_underneath_keeps_a_count_of_its_own(self):
+        """The anchor the widened `M` would otherwise have taken away.
+
+        The old sentence's `M` doubled as the list's introduction, and
+        the docstring's justification for keeping `M` rested on that
+        ("the per-arrow lines below name all M of them"). With `M`
+        widened to the examined population the list is a SUBSET, so a
+        reader counting the entries under "re-routed 4 of 9" on
+        `argus-r5 / daily-run` would find six. A third count names the
+        list directly.
+
+        `t2` is authored onto the router's own answer carrying a WRONG
+        binding focus, so the pass re-aims it and redraws nothing: a
+        change entry whose `path_changed` is False, which is exactly
+        the arrow that makes the redraw count and the list length
+        differ. The frozen corpus holds the same shape (`argus-r5 /
+        daily-run` changes six and redraws four) but DECLINES the
+        offer, so it can never produce a committed note to read.
+        """
+        want = next(e for e in canvas.reroute_scene(
+            self.store.scenes["checkout-flow"])[0] if e["id"] == "t2")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "t2":
+                e.update({"x": want["x"], "y": want["y"],
+                          "width": want["width"], "height": want["height"],
+                          "points": [list(p) for p in want["points"]]})
+                e["startBinding"] = dict(want["startBinding"] or {})
+                e["startBinding"]["focus"] = 0.77
+                e["endBinding"] = dict(want["endBinding"] or {})
+                canvas._stamp_route(e)
+        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        self.store = canvas.Store(self.project)
+        base = self.store.scenes["checkout-flow"]
+        changes = canvas.reroute_scene(base)[1]
+        redrew = sum(1 for c in changes if c["path_changed"])
+        self.assertNotEqual(
+            redrew, len(changes),
+            "every changed arrow was also redrawn, so this scene cannot "
+            "tell the list's count from the redraw count: %r"
+            % ([(c["id"], c["path_changed"]) for c in changes],))
+        note = self.store.reroute("checkout-flow")["user_note"]
+        self.assertIn("re-routed %d of %d server-routed arrow(s); %d moved "
+                      "or were re-aimed" % (redrew, len(
+                          canvas.routable_arrows(base)), len(changes)),
+                      note, note)
+        # counted by the ids the list names rather than by its
+        # separator: `reroute_line` uses "; " WITHIN an entry too
+        # ("path unchanged; start re-aimed"), so splitting on it counts
+        # clauses and not arrows
+        self.assertEqual(
+            sum(1 for c in changes if "%s: " % c["id"] in note),
+            len(changes),
+            "the list under the note does not name as many arrows as "
+            "the count that introduces it: %r" % note)
+
+    def test_the_one_predicate_answers_for_every_pass_that_reads_it(self):
+        """`routable_arrows` is what `reroute_scene` iterates, measured.
+
+        The factoring is the repair, not the arithmetic: `reroute_scene`
+        and `_tidy_pass` each spelled "server-owned and bound at both
+        ends" inline and agreed, and the count beside them derived it
+        from a different quantity. This asserts the set the helper
+        returns IS the set a pass can touch — nothing outside it moves.
+        """
+        base = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        handed = set(canvas.routable_arrows(base))
+        after = {e["id"]: e for e in canvas.reroute_scene(base)[0]}
+        for e in base:
+            if e.get("type") != "arrow" or e["id"] in handed:
+                continue
+            self.assertFalse(
+                canvas.drawn_path_changed(e, after[e["id"]]),
+                "%s is outside `routable_arrows` and the pass redrew it "
+                "anyway" % e["id"])
+        self.assertTrue(handed, "nothing is routable in this scene")
+
 
 class TestAOnePixelRedrawIsStillARedraw(Base):
     """`REROUTE_TOL_PX` and the byte rule disagree, and ink wins.
@@ -15014,6 +15132,155 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
             self.store.scenes["edgar-late"]), [])
         self.assertIn("nothing on edgar-late arrives crooked",
                       self.store.reroute("edgar-late")["summary"]["headline"])
+
+    def test_the_refusal_names_the_endpoints_it_is_refusing_about(self):
+        """The refusal arm keeps its claim AND now shows its working.
+
+        `daily-run`'s two crooked arrivals survive a pass unchanged, so
+        "would not straighten any of them" is TRUE here and must stay —
+        this is the pole that a repair widening the trade sentence over
+        both cases would break.
+        """
+        head = self.store.reroute("daily-run")["summary"]["headline"]
+        crooked = canvas.oblique_arrivals(self.store.scenes["daily-run"])
+        self.assertIn("would not straighten", head)
+        for aid, side in crooked:
+            self.assertIn("%s's %s" % (aid, side), head, head)
+
+
+class TestTheDeclineReportsSetsAndNotACount(unittest.TestCase):
+    """`reroute_decline`'s third case, which it used to narrate as the
+    second (v0.9 whole-branch review, I-4).
+
+    `reroute_is_fossil` compares COUNTS — a strict decrease on a
+    non-negative integer, which is what makes the offer terminate — and
+    `reroute_decline` reported SET MEMBERSHIP from that comparison:
+    "a re-route would not straighten any of them". On the shipped
+    `tearsheet-demo / tearsheet-domain` a pass straightens two of the
+    four and crooks two DIFFERENT ones, so the claim was false and the
+    remedy that followed it ("the remedy is the drawing, not the
+    router") was addressed to a scene the router does partly improve.
+
+    Driven on the shipped fixture rather than a construction, because
+    the disagreement is what the frozen corpus actually holds and a
+    synthetic pair that happened to trade would prove the sentence
+    without proving the defect ever shipped.
+    """
+
+    FIXTURE = "tearsheet-demo"
+    ARTIFACT = "tearsheet-domain"
+
+    def setUp(self):
+        """Load the frozen fixture from a temp copy."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-decline-"))
+        src = Path(__file__).resolve().parent / "fixtures" / self.FIXTURE
+        shutil.copytree(src, self.tmp / "project_knowledge")
+        self.project = canvas.Project(self.tmp)
+        self.store = canvas.Store(self.project)
+        self.els = self.store.scenes[self.ARTIFACT]
+
+    def tearDown(self):
+        """Remove the temp copy and the shared runtime files."""
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    def sets(self):
+        """What a pass would straighten and what it would crook.
+
+        Returns:
+            `(before, after, fixed, broke)` as sets of
+            `(arrow_id, "start"|"end")`.
+        """
+        before = set(canvas.oblique_arrivals(self.els))
+        after = set(canvas.oblique_arrivals(
+            canvas.reroute_scene(self.els)[0]))
+        return before, after, before - after, after - before
+
+    def test_the_fixture_still_trades_rather_than_refusing(self):
+        """The premise, asserted rather than trusted.
+
+        Every claim below is about a scene where the count does not
+        move and the SETS do. If a router change ever makes this an
+        ordinary refusal — or an offer — the arms below would go on
+        passing while testing a different sentence, so the shape is
+        pinned here first.
+        """
+        before, after, fixed, broke = self.sets()
+        self.assertEqual(len(before), len(after),
+                         "the counts moved, so this is no longer the "
+                         "case `reroute_is_fossil` declines on a tie")
+        self.assertFalse(canvas.reroute_is_fossil(self.els))
+        self.assertTrue(fixed, "a pass no longer straightens anything "
+                               "here — this fixture is now an ordinary "
+                               "refusal and proves nothing about I-4")
+        self.assertTrue(broke)
+        self.assertFalse(fixed & broke, "the two lists must be disjoint")
+
+    def test_it_no_longer_claims_a_pass_straightens_none_of_them(self):
+        """The false sentence, and the wrong remedy it carried.
+
+        Both halves are asserted: a repair that dropped the claim but
+        kept sending the user to "the remedy is the drawing, not the
+        router" would leave them acting on a scene the router improves.
+        """
+        said = canvas.reroute_decline(self.els, self.ARTIFACT)
+        self.assertNotIn("would not straighten any of them", said)
+        self.assertNotIn("The remedy is the drawing, not the router", said)
+        self.assertIn("trade rather than a repair", said)
+
+    def test_it_names_both_sets_and_counts_them_correctly(self):
+        """The measurement, quoted endpoint by endpoint.
+
+        A count alone would be satisfiable by a sentence that had the
+        sizes right and the members wrong, which is the failure this
+        finding IS: the old sentence's numbers all came from
+        `len(oblique_arrivals(...))` and every one of them was true.
+        """
+        _before, _after, fixed, broke = self.sets()
+        said = canvas.reroute_decline(self.els, self.ARTIFACT)
+        self.assertIn("straighten %d of them" % len(fixed), said)
+        self.assertIn("leave %d different one(s) crooked" % len(broke), said)
+        for aid, side in fixed | broke:
+            self.assertIn("%s's %s" % (aid, side), said, said)
+        # and it does not name an endpoint that is crooked either side
+        for aid, side in _before & _after:
+            self.assertNotIn("%s's %s" % (aid, side), said, said)
+
+    def test_the_sentence_reaches_the_cli_and_the_store_alike(self):
+        """The firing pole through the real entry points, both of them.
+
+        `Store.reroute_noop` puts this sentence in a save record's
+        headline and `cmd_reroute` prints it as `NOTE=`; a message
+        corrected only in the free function reaches an agent through
+        neither.
+        """
+        rec = self.store.reroute(self.ARTIFACT)
+        self.assertTrue(rec.get("noop"), rec)
+        self.assertIn("trade rather than a repair",
+                      rec["summary"]["headline"])
+        out = io.StringIO()
+        args = argparse.Namespace(project=str(self.tmp),
+                                  artifact=self.ARTIFACT, apply=False)
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(canvas.cmd_reroute(args), 0)
+        self.assertIn("trade rather than a repair", out.getvalue())
+
+    def test_the_decision_itself_is_unchanged(self):
+        """Only the narration moved: the offer is still count-gated.
+
+        `reroute_is_fossil`'s count comparison is what makes the offer
+        terminate (a well-founded descent on a non-negative integer),
+        so a repair that "fixed" I-4 by offering the trade would
+        reintroduce BUG-02 on every scene that trades. Nothing is
+        written here.
+        """
+        head = self.store.head_revn()
+        self.assertTrue(self.store.reroute(self.ARTIFACT).get("noop"))
+        self.assertEqual(self.store.head_revn(), head)
+        self.assertEqual(self.store.legacy_routing_for(self.ARTIFACT), [])
 
 
 class TestTheCorpusKeepsItsTwoDeliberateFossils(unittest.TestCase):

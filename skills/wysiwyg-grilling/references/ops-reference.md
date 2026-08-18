@@ -492,12 +492,19 @@ it "agent asked a question" with no Apply action.
     no-op rather than another revision. Same wall `tidy` hits and answers
     by refusing; refusing here would fix none of the corpus's crooked
     endpoints, since all of them sit on artifacts that cycle.
-  - **Two different declines, two different sentences.** "Nothing arrives
-    crooked" means the drawing is square and there is nothing to do; "N
-    endpoints still arrive crooked, but a re-route would not straighten
-    any of them" means the geometry is beyond this mechanism and the
-    remedy is the drawing — move the nodes apart, or author the path with
-    `mod points`. Do not read the second as the first.
+  - **Three different declines, three different sentences.** "Nothing
+    arrives crooked" means the drawing is square and there is nothing to
+    do. "N endpoints still arrive crooked *(named)*, and a re-route would
+    not straighten any of them" means the geometry is beyond this
+    mechanism and the remedy is the drawing — move the nodes apart, or
+    author the path with `mod points`. "A re-route would straighten K of
+    them *(named)* and leave L different one(s) crooked *(named)*, so it
+    is a trade rather than a repair" means the router genuinely helps
+    some of the endpoints and hurts others, and the offer is declined
+    only because it is gated on strictly fewer crooked arrivals overall
+    — that gate is what makes the offer terminate. Read the third one
+    endpoint by endpoint: those are the nodes to move. Do not read any
+    of the three as another.
   - `--apply` prints the same keys whether or not a server is up and
     whether or not anything was committed:
     `ARTIFACT`/`ARROWS`/`APPLIED`/`NOOP`/`REVN`/`HEADLINE`/`CHECKPOINT`/
