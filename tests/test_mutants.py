@@ -16944,19 +16944,33 @@ _register(Mutant(
 # NO MAGNITUDE IS ASSERTED and the reason is the template, not a choice:
 # `_SHARED_ATTACH_RE` captures no number, exactly as `_LABEL_OVERLAP_RE`
 # does, so a `FindingSpec` here can only assert the element. THE MAGNITUDE
-# CLAIM IS MADE BY THE PAIR INSTEAD — mutant at 12.17px silent, neighbour
-# at 15.62px loud, same corner, same two arrows, same node — which is a
+# CLAIM WAS MADE BY THE PAIR INSTEAD — mutant at 12.17px silent, neighbour
+# at 15.62px loud, same corner, same two arrows, same node — which was a
 # strictly stronger statement than a number in one message would be, since
 # no single reading can express "these are the wrong way round". Tighten
 # this to a number the day that template grows one.
+#
+# FLIPPED 2026-08-17 (v0.9 TASK-ATTACH): the metric is a RADIUS, and the
+# radius is `FAN_LANE_PITCH` — two feet closer than the gap the fan tries
+# to leave are two feet that read as one stroke forking.
+#
+# THE NEIGHBOUR MOVED AT THE FLIP, and this is the debt a flip owes. The
+# old pair said "12.17 silent, 15.62 loud" — an ORDERING, which is
+# exactly the claim the square-vs-radius defect made false. Repair the
+# metric and both poles fire, and a pair that fires at both ends proves
+# nothing about a check except that it is not dead. So the neighbour is
+# now this check's own QUIET pole, on the same diagonal the square got
+# wrong: 18.38px (dx 13, dy 13), the first whole-pixel pair OUTSIDE the
+# radius. Mutant 12.17 loud, neighbour 18.38 silent, same corner, same
+# two arrows — the boundary is pinned from both sides and on the axis
+# where the old shape was worst.
 _register(Mutant(
     "corner_feet_outside_the_square",
     build=lambda: _corner_feet(12, 2),
     op="unchanged", args={},
     expect=FindingSpec("shared_attach_point", element="hub"),
-    neighbour=Neighbour(lambda: _corner_feet(11, 11),
-                        FindingSpec("shared_attach_point",
-                                    element="hub"))))
+    neighbour=Neighbour(lambda: _corner_feet(13, 13),
+                        Silence("shared_attach_point"))))
 
 # THE BLIND EYE IS THIS FILE'S OWN, which makes this the only red here
 # whose fix lands in `tests/test_mutants.py` rather than in the product.
@@ -17867,15 +17881,26 @@ class TestMutantCatalogue(unittest.TestCase):
         """At 90 degrees the same stroke lies on the face and is reported."""
         self._run_neighbour("grazing_arrival_reads_as_square")
 
-    @unittest.expectedFailure
     def test_mutant_corner_feet_outside_the_square(self) -> None:
-        """Feet 12.2px apart are silent; 15.6px apart are reported."""
-        # `abs(dx) < 12 and abs(dy) < 12` is a square; flips when the
-        # shared-attach test measures a distance instead of a box.
+        """Feet 12.2px apart across a corner are reported."""
+        # FLIPPED 2026-08-17 (v0.9 TASK-ATTACH). `abs(dx) < 12 and
+        # abs(dy) < 12` was a SQUARE, reaching 16.97px on a diagonal and
+        # 12px on an axis; the check now measures a distance, and the
+        # distance it measures against is `FAN_LANE_PITCH`.
         self._run("corner_feet_outside_the_square")
 
     def test_neighbour_corner_feet_outside_the_square(self) -> None:
-        """The looser pair across the same corner is the firing pole."""
+        """18.4px across the same corner is the quiet pole.
+
+        The neighbour CHANGED at the flip. It used to be the looser pair
+        at 15.62px asserting the check FIRED, which said "these two are
+        the wrong way round" — a claim about an ordering, and the
+        ordering is what the repair removed. Both poles fired after it,
+        and a pair loud at both ends says nothing about a check beyond
+        it being alive. So this is now the check's own silence, one
+        whole pixel outside the radius and on the diagonal the square
+        read worst.
+        """
         self._run_neighbour("corner_feet_outside_the_square")
 
     def test_mutant_hyphen_in_the_role_blinds_the_object_reader(self) -> None:
@@ -19107,8 +19132,14 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS = {"corner_feet_outside_the_square",
-                     "grazing_arrival_reads_as_square"}
+CATALOGUE_RED_IDS = {"grazing_arrival_reads_as_square"}
+# `corner_feet_outside_the_square` left on 2026-08-17 (v0.9 TASK-ATTACH)
+# when `shared_attach_point` started measuring a DISTANCE instead of a
+# 12x12 box, against `FAN_LANE_PITCH`. Its neighbour moved in the same
+# change — from the 15.62px firing pole to an 18.38px SILENCE — because
+# the old pair asserted an ORDERING ("the check is louder on the looser
+# pair") and repairing the metric made both ends fire. A pair loud at
+# both ends proves only that a check is alive.
 # `flush_stack_border_run_under_the_band` left on 2026-08-17 (v0.9
 # TASK-ATTACH), together with the producer-side red it was one half of.
 # The two were filed as one defect seen from its two ends and they

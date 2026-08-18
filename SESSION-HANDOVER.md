@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `corner_feet_outside_the_square`, `grazing_arrival_reads_as_square` |
+| model (default suite) | `grazing_arrival_reads_as_square` |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
 
@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**3 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+**2 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (re-derived 2026-08-17 at the TASK-MICROFIX-2 fold, where
 the merged value matched NEITHER side of the rebase conflict — C4's 10/0/0
 and MICROFIX-2's 6/1/0 were each true of their own head and both wrong of

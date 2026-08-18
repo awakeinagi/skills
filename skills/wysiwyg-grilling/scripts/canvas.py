@@ -12151,7 +12151,30 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     for tgt, pts in anchor_pts.items():
         for i, (id1, px1, py1) in enumerate(pts):
             for id2, px2, py2 in pts[i + 1:]:
-                if abs(px1 - px2) < 12 and abs(py1 - py2) < 12:
+                # A RADIUS, NOT A SQUARE, and the shape is the whole
+                # repair. `abs(dx) < 12 and abs(dy) < 12` is a 12x12
+                # BOX, so it reached 16.97px along a diagonal and 12px
+                # along an axis: two feet 15.62px apart (dx 11, dy 11)
+                # were reported and two feet 12.17px apart (dx 12, dy 2)
+                # were not. The check was not merely quiet on the tight
+                # pair, it was LOUDER ON THE LOOSER ONE — sorting the
+                # repo's own scenes by how close the feet are did not
+                # sort them by whether anything said so
+                # (`corner_feet_outside_the_square`).
+                #
+                # `FAN_LANE_PITCH` IS THE RADIUS because it is what the
+                # number means: two feet closer than the gap the fan
+                # itself tries to leave are two feet that read as one
+                # stroke forking, which is the misreading the fan exists
+                # to prevent. A third coupling to that constant, and the
+                # only one that could have double-reported the fan's own
+                # output — so it was measured rather than reasoned:
+                # across the 120-row cramped-side sweep, every row where
+                # the lane lint is silent leaves its feet EXACTLY 18.00px
+                # apart and every cramped row lands at 16 or below. There
+                # is no borderline regime, and `<` is strict, so a fan
+                # that reached its pitch cannot trip this.
+                if math.hypot(px1 - px2, py1 - py2) < FAN_LANE_PITCH:
                     # the apply post-pass auto-fans, so if they are still
                     # together the fan did not move them. It used to say
                     # "obstacles in every slot" — a cause it never
