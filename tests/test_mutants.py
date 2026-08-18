@@ -23372,8 +23372,17 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
 # `set_line_height` of `_boxed_label(height=64)`); it is written here beside
 # its magnitude sibling instead, so one defect keeps one home.
 # ---------------------------------------------------------------------------
+# The identifier holding the font enum is MINIFIER-GENERATED and is not
+# pinned here: it was `dn` when this was written and became `un` the day a
+# frontend commit added one module, because that reshuffles the chunk graph
+# and renames every short symbol in it. Pinning it made an unrelated source
+# change fail this test with "the client no longer gives Nunito 1.35" while
+# the bundle still plainly said 1.35, in the same entry chunk, one letter
+# over. Everything the referee actually claims — that the number is READ
+# OFF the shipped bundle rather than written down here — is preserved by
+# matching any identifier; `1.35` stays the assertion.
 _CLIENT_FONT_METRICS = re.compile(
-    r"\[dn\.Nunito\]:\{metrics:\{unitsPerEm:1e3,ascender:1011,"
+    r"\[[A-Za-z_$][\w$]*\.Nunito\]:\{metrics:\{unitsPerEm:1e3,ascender:1011,"
     r"descender:-353,lineHeight:([\d.]+)\}")
 
 
