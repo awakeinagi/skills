@@ -254,7 +254,8 @@ class TestCorridorKind(unittest.TestCase):
         hits = instruments.shared_corridors(els)
         self.assertEqual([h["kind"] for h in hits], ["fan"], hits)
 
-    def _converging_elbows(self, gap: float, rounded: bool) -> list[dict]:
+    def _converging_elbows(self, gap: float, rounded: bool,
+                           stagger: float = 0.0) -> list[dict]:
         """Two elbows onto a shared band whose bows face each other.
 
         `a` comes in from the LEFT and turns down; `b` from the RIGHT
@@ -266,14 +267,21 @@ class TestCorridorKind(unittest.TestCase):
         Args:
             gap: Chord separation between the two vertical runs.
             rounded: Whether to curve the elbows.
+            stagger: How far down to start `b`'s elbow. At 0 the two
+                APPROACHES share a lane too, and since `shared_corridors`
+                breaks on the first qualifying stretch pair it is the
+                approaches it reports; any value past `LANE_TOL`
+                separates them and leaves the vertical runs as the only
+                pair that can speak.
 
         Returns:
             The two arrows, with no bindings, so `kind` stays out of it.
         """
         out = []
-        for eid, x0, sign in (("a", 0.0, 1.0), ("b", gap, -1.0)):
+        for eid, x0, y0, sign in (("a", 0.0, 0.0, 1.0),
+                                  ("b", gap, stagger, -1.0)):
             pts = [[-200.0 * sign, 0.0], [0.0, 0.0], [0.0, 300.0]]
-            arrow = _edge(eid, x0, 0.0, pts)
+            arrow = _edge(eid, x0, y0, pts)
             arrow["roundness"] = {"type": 2} if rounded else None
             out.append(arrow)
         return out
@@ -307,6 +315,55 @@ class TestCorridorKind(unittest.TestCase):
         self.assertEqual(
             instruments.shared_corridors(self._converging_elbows(40, False)),
             [])
+
+    def test_a_chord_lane_is_reported_once_even_when_both_runs_bow(
+            self) -> None:
+        """The additive guarantee, pinned — because the obvious proof is empty.
+
+        The ink arm is meant to speak ONLY where the chords were silent,
+        so that it can add findings and never take one away or double
+        one. The evidence first offered for that was "the corpus census
+        did not move", and that evidence is VACUOUS in the direction it
+        was offered for: every one of the six corpus corridor pairs bows
+        0.00, so the `if not bows` prefilter skips all six and the census
+        could not have moved whatever the ink arm did. It is good
+        evidence for the opposite direction only — the ink arm does fire
+        on the stored corpus, 49 times in a lint pass, and adds nothing.
+
+        This is the case the corpus cannot supply: a pair the CHORD arm
+        already reports (10px apart, well inside `LANE_TOL`) whose two
+        runs each carry a real 14.79px bow, so both arms are live on the
+        same pair. The finding must come back exactly once, and at the
+        chord's magnitude rather than the ink's — 260px, which is the
+        shared extent, not the shorter band the converging ink holds.
+
+        Asserted against the SHARP counterpart rather than against
+        literals alone, since "unchanged by curvature" is the property
+        and a pair of literals that both drifted would satisfy a
+        one-sided version of this test.
+
+        The elbows are staggered so the two APPROACHES do not also share
+        a lane; without that, `shared_corridors` breaks on the approach
+        pair and this would be pinning the wrong stretches.
+        """
+        sharp = self._converging_elbows(10, False, stagger=40.0)
+        curved = self._converging_elbows(10, True, stagger=40.0)
+        bows = [instruments._stretch_bow(s) for a in curved
+                for s in instruments.rendered_stretches(a)
+                if (instruments._stretch_axis(s) or ("",))[0] == "v"]
+        self.assertEqual(len(bows), 2, bows)
+        for bow in bows:
+            self.assertAlmostEqual(bow, 14.7875, places=3)
+        hits = instruments.shared_corridors(curved)
+        self.assertEqual(len(hits), 1, hits)
+        self.assertEqual(hits, instruments.shared_corridors(sharp))
+        self.assertAlmostEqual(hits[0]["overlap"], 260.0, places=6)
+        said = [w for w in canvas.lint_layout(curved)["warnings"]
+                if "run together for" in w]
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("run together for 260px, 10px apart", said[0])
+        self.assertEqual(said, [w for w in canvas.lint_layout(sharp)["warnings"]
+                                if "run together for" in w])
 
     def test_bows_that_face_apart_still_report_the_chords_lane(self) -> None:
         """The residual, pinned as what it is rather than left unsaid.

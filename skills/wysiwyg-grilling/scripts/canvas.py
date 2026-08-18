@@ -2568,9 +2568,17 @@ def _lane_overlap(sa, sb, orient, tol=None):
     the chord is where the ink is pinned at both ends and nowhere in
     between. Through the shipped router and the shipped fan — a 100px
     hub taking two edges from 300px either side — two feet the fan set
-    34px apart draw ink that runs 2.5px apart for 342px, and the chord
-    reading calls that silent for its own stated reason. `_lane_bow`
-    has the arithmetic that makes it reachable.
+    34px apart draw ink that runs 2.50px apart for 220.85px at this
+    function's own `tol`, and the chord reading calls that silent for
+    its own stated reason. `_lane_bow` has the arithmetic that makes it
+    reachable.
+
+    THAT 220.85 IS AT `LANE_TOL` AND MOVES WITH IT, which is worth
+    saying because the first draft of this paragraph quoted 342px — the
+    run the same scene gives at a tolerance of about 32. The run is a
+    level set of the separation profile, not a property of the scene, so
+    a figure quoted here without its tolerance is a figure a future
+    reader cannot re-derive.
 
     NOT the naive per-micro-segment relapse, which is a different and
     worse thing: classifying each flattened sub-segment independently
@@ -2594,6 +2602,28 @@ def _lane_overlap(sa, sb, orient, tol=None):
     between the chords, and the covered interval is the chord overlap.
     That is what keeps the corpus census still.
 
+    TWO KNOWN IMPRECISIONS, both recorded rather than built for, and
+    neither reachable from anything the shipped producers draw.
+
+    First, the two returned numbers need not describe the SAME place.
+    `run` is the longest contiguous band, `sep` the global minimum over
+    all shared extent, so a pair that dips inside `tol` in two separate
+    places can hand a caller a run measured in one band and a separation
+    measured in the other — and the lane warning prints them side by
+    side as if they were one observation. On the reproduction above they
+    coincide (the 2.50px minimum sits inside the 220.85px band). Anyone
+    who needs them paired should return the minimum WITHIN the winning
+    band instead; it is a two-line change and it is not made here
+    because no scene has yet been seen that needs it.
+
+    Second, the merge below assumes each stroke advances monotonically
+    along its own axis. Zero-extent segments are skipped, but a stroke
+    that DOUBLED BACK along the axis would have two of its passes merged
+    into one apparent run. A Catmull-Rom span between two axis-aligned
+    stored points is monotone along that axis (its along-coordinate
+    derivative is a sum of positive terms), so the router cannot produce
+    one; a hand-authored path with a hairpin inside one span could.
+
     Args:
         sa: One sampled stretch, in scene coordinates.
         sb: The other, already known to share `orient`.
@@ -2604,8 +2634,8 @@ def _lane_overlap(sa, sb, orient, tol=None):
     Returns:
         `(run, sep)` — the longest CONTIGUOUS along-axis extent over
         which the two strokes stay within `tol`, and the smallest
-        separation seen anywhere they share extent. `(0.0, None)` when
-        they share no extent at all.
+        separation seen anywhere they share extent, which need not lie
+        inside that run. `(0.0, None)` when they share no extent at all.
     """
     tol = LANE_TOL if tol is None else tol
     ai, ci = (0, 1) if orient == "h" else (1, 0)
@@ -13773,14 +13803,33 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # about this arithmetic. So this arm only ever speaks where the
     # chords were silent, and no finding anywhere can be taken away by
     # it. The residual left standing is named at the top of
-    # `_lane_overlap`.
+    # `_lane_overlap`. THE END STATE IS ONE READER, not two: the ink is
+    # the check's own stated claim and the chord an approximation a
+    # curve invalidates. The collapse waits on the curator's ruling,
+    # deliberately, because settling a catalogue judgement from inside
+    # the fix that depends on it is what the curator split prevents.
+    #
+    # THAT ADDITIVE PROPERTY IS PINNED, and it needs to be, because the
+    # obvious evidence for it is VACUOUS. "The corpus census did not
+    # move" proves nothing in this direction: every one of the six
+    # corpus corridor pairs bows 0.00, so `if not bows` skips all six
+    # and the census could not have moved whatever this arm did. It is
+    # good evidence for the other direction only — 49 ink-arm calls do
+    # fire on the stored corpus and add nothing.
+    # `test_a_chord_lane_is_reported_once_even_when_both_runs_bow` is
+    # the actual guarantee: a pair the chord arm reports, with nonzero
+    # bows on both stretches, still reported exactly once and at the
+    # chord's magnitude.
     #
     # THE ZERO-BOW SKIP is what keeps it cheap, and it is exact rather
     # than approximate: `_lane_bow` is 0.0 on a sharp arrow, and where
     # both bows are 0 the ink IS the chord, so an arm that already
     # declined on the chords cannot find anything. Counted over the 24
-    # artifacts it drops the exact reading to 33 calls per lint pass and
-    # 82 per gate pass.
+    # artifacts it drops the exact reading to 82 calls per gate pass,
+    # and per lint pass to 33 over the POST-GATE corpus or 49 over the
+    # stored one — two populations, because the gate declines curvature
+    # on 10 of the 36 arrows the files carry rounded, and a count of
+    # curvature-driven work has to say which it counted.
     #
     # WHAT IT COSTS, measured the way the paragraph above insists on and
     # reported with its noise rather than without it: `time.process_time`
