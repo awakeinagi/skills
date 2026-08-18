@@ -174,11 +174,25 @@ PROBES: dict[str, dict[str, str]] = {
         # `{"TestBatchPathIntegrity": 1,` — an ENTRY, better than a count
         # and still the container's contents, and batch 27 added a class
         # to this very dict hours later. The declaration
-        # `HAND_AUTHORED_RED_CLASSES = {` is the only part that has not
-        # moved across four re-anchors, and a phantom class prepended
-        # into it perturbs whatever the dict happens to hold.
-        "old": "HAND_AUTHORED_RED_CLASSES = {",
-        "new": 'HAND_AUTHORED_RED_CLASSES = {"TestNobodyWrote": 1, ',
+        # `HAND_AUTHORED_RED_CLASSES = {` survived four re-anchors and
+        # died on the fifth (v0.9 TASK-ATTACH, 2026-08-17): the dict
+        # EMPTIED, and an empty one needs `: dict[str, int]` between the
+        # name and the `=` for mypy, so the anchor lost its `= {`.
+        #
+        # THE FIFTH RE-ANCHOR STOPS CHASING THE SHAPE, which is what the
+        # first four were doing. Every previous anchor named part of the
+        # dict's SYNTAX — a trailing comma, an entry, a count, the `= {`
+        # — and this dict's syntax changes whenever it crosses between
+        # empty and non-empty, which is exactly the event a probe on it
+        # is most likely to be running near. What does NOT change is
+        # that the definition is the one occurrence at COLUMN ZERO; the
+        # other ten are indented uses. So the anchor is a newline plus
+        # the name, and the perturbation prepends a whole new definition
+        # and renames the original out of the way — which works against
+        # an empty dict and a full one without knowing which it is.
+        "old": "\nHAND_AUTHORED_RED_CLASSES",
+        "new": '\nHAND_AUTHORED_RED_CLASSES = {"TestNobodyWrote": 1}'
+               '\n_SHADOWED_HAND_AUTHORED_RED_CLASSES',
     },
     "catalogue-reds-drift": {
         "test": "test_the_catalogue_reds_are_the_ones_declared",
