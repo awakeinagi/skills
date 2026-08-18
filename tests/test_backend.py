@@ -12664,6 +12664,133 @@ class TestTidyRunsToAFixedPoint(Base):
             self.store.tidy("ghost")
 
 
+class TestTidyCountsTheArrowsItRedrew(Base):
+    """tidy's note may not call an arrow re-routed for being looked at.
+
+    THE THIRD SITE THE INK RULING REACHED (2026-08-17). `Store.reroute`'s
+    facts and its note preamble were narrowed first; this is the same
+    word carrying the same kind of count in a different command, and it
+    was overstating for a different mechanical reason. `_tidy_pass`
+    incremented once per arrow it handed to the router, so the number
+    counted arrows EXAMINED — every server-owned bound arrow in the
+    scene, on every press, whether or not a pixel moved.
+
+    ON THIS SCENE THE OLD NUMBER WAS 3 AND THE TRUE ONE IS 2, and the
+    scene is the ordinary one the class above already tidies: nudging
+    `payment` off the 4px grid moves `t2` and `t3` and leaves `t1` drawn
+    exactly where it was. So the overstatement was not an edge case
+    needing a contrived scene — it was on every tidy that ever ran.
+
+    THE MULTI-PASS QUESTION DISSOLVED RATHER THAN BEING ANSWERED, which
+    is worth recording because it is why this stayed a one-line repair.
+    tidy iterates to a fixed point, so "how many re-routes" looked like
+    it needed a rule for arrows moved on one pass and moved back on the
+    next. Under the ink doctrine there is nothing to decide: measure the
+    scene BEFORE the first pass against the scene AFTER convergence and
+    pass-internal churn is invisible, exactly as it is to the reader.
+    The accumulation is gone too — `routed` is now a SET unioned across
+    passes, so the count can no longer exceed the arrows in the scene,
+    which the old sum could ("re-routed 6 arrow(s)" of a three-arrow
+    drawing).
+
+    NOT PINNED HERE, and said rather than implied: the move-and-move-back
+    arrow. I swept `payment`, `cart` and `checkout` across eight offsets
+    each looking for an arrow that differs from base after pass 1 and
+    matches base after convergence, and found none — this scaffolding
+    settles in two passes with the second one breaking on an unchanged
+    hash. The net diff covers that case by construction rather than by
+    coincidence, but no scene here exercises it.
+    """
+
+    def setUp(self):
+        """Seed the flow and knock one node off the grid."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        for e in self.store.scenes["checkout-flow"]:
+            if e["id"] == "payment":
+                e["x"] = e["x"] + 3
+        self.base = [dict(e) for e in self.store.scenes["checkout-flow"]]
+
+    def moved(self):
+        """The arrows whose drawn geometry differs across the whole tidy.
+
+        Returns:
+            Sorted ids, measured off the stored scene rather than off any
+            counter the implementation kept.
+        """
+        now = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        return sorted(
+            e["id"] for e in self.base
+            if e.get("type") == "arrow" and e["id"] in now
+            and canvas.drawn_path_changed(e, now[e["id"]]))
+
+    def test_the_note_counts_redraws_not_visits(self):
+        """The number in the note is the number of arrows that moved."""
+        rec = self.store.tidy("checkout-flow")
+        self.assertFalse(rec.get("noop"), rec["summary"]["headline"])
+        arrows = [e["id"] for e in self.base if e.get("type") == "arrow"]
+        moved = self.moved()
+        self.assertEqual(
+            ["t2", "t3"], moved,
+            "this scene is supposed to move exactly two of its three "
+            "arrows; it moved %r, so the counts below would be pinning "
+            "something else" % (moved,))
+        self.assertIn(
+            "re-routed %d of %d arrow(s)" % (len(moved), len(arrows)),
+            rec["user_note"],
+            "tidy's note disagrees with the drawing: %d arrow(s) moved "
+            "out of %d examined, and the note says %r"
+            % (len(moved), len(arrows), rec["user_note"]))
+
+    def test_an_arrow_the_router_visited_without_moving_is_not_counted(self):
+        """`t1` is handed to the router and stays exactly where it was.
+
+        The differential is the sibling above: `t2` and `t3` go through
+        the identical code path and ARE counted, so this is not a check
+        that tidy has gone quiet — it is a check that it distinguishes.
+        """
+        rec = self.store.tidy("checkout-flow")
+        now = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        t1 = next(e for e in self.base if e["id"] == "t1")
+        self.assertFalse(
+            canvas.drawn_path_changed(t1, now["t1"]),
+            "`t1` moved after all, so it is no longer the unmoved arrow "
+            "this test is about")
+        self.assertIn(
+            "re-routed 2 of 3 arrow(s)", rec["user_note"],
+            "`t1` was routed but not redrawn and the note counted it "
+            "anyway: %r" % rec["user_note"])
+
+    def test_the_examined_count_cannot_exceed_the_arrows_present(self):
+        """`routed` is a set, so passes cannot inflate the denominator.
+
+        The old accumulator summed per-pass counts, which is only ever
+        right when tidy settles in one pass. This asserts the invariant
+        that makes the denominator a fact about the drawing rather than
+        about how hard the pipeline worked.
+
+        THIS SCENE CANNOT RE-EARN THIS ARM, and saying so is the point of
+        the paragraph. tidy settles here in two passes with the second
+        breaking on an unchanged hash — and the loop breaks BEFORE
+        accumulating — so the old sum also produced 3 and this assertion
+        would have passed against the code it was written to reject.
+        Reaching the inflation needs three passes that each genuinely
+        change the scene, and scenes like that tend to trip the cycle
+        detector and return a noop instead of a note. So this is a
+        structural invariant guarded going forward, not a reproduction of
+        a measured failure; the sibling arms carry the measured half.
+        """
+        rec = self.store.tidy("checkout-flow")
+        arrows = [e["id"] for e in self.base if e.get("type") == "arrow"]
+        got = int(re.search(r"re-routed \d+ of (\d+) arrow\(s\)",
+                            rec["user_note"]).group(1))
+        self.assertLessEqual(
+            got, len(arrows),
+            "tidy says it examined %d arrow(s) in a scene holding %d — "
+            "the count is of visits, not of arrows: %r"
+            % (got, len(arrows), rec["user_note"]))
+
+
 class TestNoOpRewireIsNotASequenceChange(Base):
     """Dropping an endpoint back on its own node is not a re-sequence.
 

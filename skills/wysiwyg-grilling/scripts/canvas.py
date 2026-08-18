@@ -17186,7 +17186,13 @@ class Store:
             base: The artifact's elements. Not mutated.
 
         Returns:
-            `(elements, snapped, rerouted)` for the tidied copy.
+            `(elements, snapped, routed)` for the tidied copy. `routed`
+            is the SET of arrow ids this pass handed to the router —
+            arrows EXAMINED, which is not the same question as arrows
+            moved and is deliberately not counted as if it were. A set
+            rather than a count because `Store.tidy` unions it across
+            passes: summing per-pass counts made "re-routed 6 arrow(s)"
+            sayable of a scene holding three.
         """
         els = [dict(e) for e in base]
         index = {e["id"]: e for e in els}
@@ -17202,7 +17208,7 @@ class Store:
                     snapped += 1
                     recenter_label(els, e)
         obstacles = hard_obstacles(els)
-        rerouted = 0
+        routed = set()
         for e in els:
             if e.get("type") != "arrow":
                 continue
@@ -17221,11 +17227,11 @@ class Store:
                                   if t.get("type") == "arrow"
                                   and len(t.get("points") or []) >= 2])
                 recenter_label(els, e)
-                rerouted += 1
+                routed.add(e["id"])
         fan_attach_points(els)
         contention_feet(els)
         fan_attach_points(els)
-        return normalize_z_order(els), snapped, rerouted
+        return normalize_z_order(els), snapped, routed
 
     def tidy(self, aid):
         """One-click repair (Phase 6): snap nodes to the 4px grid,
@@ -17271,7 +17277,7 @@ class Store:
                         "summary": {"headline": headline,
                                     "verb_counts": {}, "suppressed": 0}}
 
-            els, snapped, rerouted = self._tidy_pass(base)
+            els, snapped, routed = self._tidy_pass(base)
             seen = {self._tidy_hash(base), self._tidy_hash(els)}
             for _ in range(self.TIDY_MAX_PASSES - 1):
                 nxt, s2, r2 = self._tidy_pass(els)
@@ -17287,18 +17293,34 @@ class Store:
                         "keeps undoing the attach-point fan. Author the "
                         "paths with `mod points`, or move the nodes apart")
                 seen.add(h)
-                els, snapped, rerouted = nxt, snapped + s2, rerouted + r2
+                els, snapped, routed = nxt, snapped + s2, routed | r2
             if self._tidy_hash(els) == self._tidy_hash(base):
                 # nothing to repair — committing anyway would write an
                 # empty "saved without changing anything" revision (v0.3
                 # assessment bug)
                 return noop("already tidy — nothing to change")
+            # NET, not per-pass. `routed` is what the passes EXAMINED;
+            # what the note may call re-routed is what ended up drawn
+            # somewhere else, measured once across the whole tidy
+            # (2026-08-17 ruling, extending the `rerouted` ink gate to
+            # every place the word carries a count). Two things fall out
+            # of measuring the ends rather than accumulating: an arrow
+            # the router touched on every pass without moving it is not
+            # narrated, exactly as a no-ink re-route is not; and an
+            # arrow that moved on one pass and came back by the last is
+            # a fact about the pipeline's internals, not about the
+            # picture, so the reader is not told a story that the
+            # drawing cannot corroborate.
+            was = {e["id"]: e for e in base}
+            now = {e["id"]: e for e in els}
+            redrew = sum(1 for i in routed if i in was and i in now
+                         and drawn_path_changed(was[i], now[i]))
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
                 user_note="tidy: snapped %d node(s) to grid, re-routed "
-                          "%d arrow(s), normalized z-order"
-                          % (snapped, rerouted))
+                          "%d of %d arrow(s), normalized z-order"
+                          % (snapped, redrew, len(routed)))
 
     def legacy_routing(self):
         """Which loaded artifacts still carry an older router's geometry.

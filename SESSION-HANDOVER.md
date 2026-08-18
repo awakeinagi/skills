@@ -376,8 +376,10 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**4 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at TASK-COLORPARSE's fold, which
+**3 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at TASK-VOCAB's fold, which
+flipped the vocabulary red and took the merged tree 4 -> 3; the 4 was
+re-derived at TASK-COLORPARSE's fold, which
 flipped `css_keyword_stroke_is_never_read` and took the merged tree
 5 -> 4; the 5 was re-derived at curator batch 31's fold onto
 batch 30's, and the arithmetic is the warning below happening a THIRD
