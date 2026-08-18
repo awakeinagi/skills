@@ -335,6 +335,25 @@ class TestACalculatorNeverFallsBackToTheProse(LiveDocCase):
                 self.assertRaises(AssertionError):
             livedoc.check_files([path])
 
+    def test_a_fourth_coverage_status_is_refused_not_dropped(self) -> None:
+        """A state the sentence has no word for stops the derivation.
+
+        `detector_coverage_totals` renders three named buckets out of
+        `coverage_table()`, so a fourth status would land in none of them
+        and the total would go on reading complete while a detector's
+        state had silently left the prose. That is the confident-wrong
+        measurement this repo ranks below silence, arriving inside the
+        tool built to prevent stale numbers. The refusal names the
+        status so the reader knows what the sentence has to grow a word
+        for.
+        """
+        harness = livedoc._harness()
+        rows = [("a", "proven", "m1"), ("b", "quarantined", "")]
+        with mock.patch.object(harness, "coverage_table", lambda: rows), \
+                self.assertRaises(AssertionError) as caught:
+            livedoc.detector_coverage_totals()
+        self.assertIn("quarantined", str(caught.exception))
+
     def test_an_empty_frontend_tree_fails_rather_than_summing_zero(
             self) -> None:
         """A moved `src/` must not read as a UI of `~0.0k` lines."""
@@ -467,37 +486,59 @@ class TestTheRepoItself(LiveDocCase):
         self.assertEqual(
             livedoc.unplaced_calculators(livedoc.tracked_prose_files()), [])
 
-    def test_the_census_sentences_stay_out_of_livedoc(self) -> None:
-        """`SESSION-HANDOVER.md` carries no live marker, on purpose.
+    # The two census values that ARE live, and the only two. Named rather
+    # than counted: a test asserting "at most two markers" would pass a
+    # change that made the catalogue-reds table live and the coverage
+    # totals a literal, which is the exact swap this boundary forbids.
+    LIVE_CENSUS_VALUES = ("durable_red_counts", "detector_coverage_totals")
 
-        The boundary between the two systems, held mechanically instead of
-        by a paragraph nobody rereads. Five guards in `tests/test_mutants.py`
-        (`handover_catalogue_reds`, `handover_coverage_totals`,
-        `handover_durable_counts`, `handover_render_reds`, and the render-row
-        derivation beside them) each read that file and each require their
-        subject to appear EXACTLY ONCE. They are tripwires: a red count
-        moving is a claim about the product and is meant to stop a human.
-        `refresh` would repair the sentence the human was supposed to read
-        the failure of, and the readers match on the numbers in place, so a
-        marker inside `**N / N / N** for` + backticked filenames either
-        breaks the guard or makes the calculator generate the guard's own
-        anchor — a guard checking generated text against its generator,
-        which is the calibration-literal defect written up beside
-        `CATALOGUE_RED_IDS`.
+    def test_the_census_sentences_carry_only_the_two_live_totals(
+            self) -> None:
+        """`SESSION-HANDOVER.md` carries exactly two live markers.
 
-        If this is ever deliberately reversed, delete this test in the same
-        change and say why. Do not leave it passing over a file it no longer
-        describes.
+        THE BOUNDARY MOVED ON 2026-08-18 AND IS STILL A BOUNDARY, which
+        is why this test was rewritten rather than deleted. It used to
+        assert that the census's file carried NO marker at all, and said
+        that reversing it deliberately meant deleting this test and
+        saying why. The reversal was deliberate and partial; deleting the
+        test would have left the file with no mechanical statement of
+        where the line now runs, which is worse than the old line.
+
+        WHAT MAY BE LIVE IS A TOTAL. `durable_red_counts` and
+        `detector_coverage_totals` are pure counts — how many reds per
+        file, how many detectors in each state — and the durable one went
+        stale seven recorded times without a single human stopping to
+        look at what the guard was telling them. A number nobody reads as
+        an event is not a tripwire; it is a chore, and the neither-side
+        disease this repo names elsewhere.
+
+        WHAT MAY NOT IS A ROSTER. The other three guarded subjects
+        (`handover_catalogue_reds`, `handover_render_reds`, and the
+        render-row derivation beside them) name INDIVIDUAL mutant ids and
+        test names. A red arriving or leaving by name is exactly the
+        event a human must open the paragraph for, and `refresh` would
+        repair the sentence they were meant to read the failure of.
+
+        Five guards in `tests/test_mutants.py` still read this file and
+        still require their subject to appear EXACTLY ONCE; two of them
+        now compare a marker's content to the function that wrote it and
+        are honest in their docstrings about the smaller thing that
+        proves. If a THIRD subject is ever made live, add it here in the
+        same change and record which of the two categories above it fell
+        into.
         """
         handover = REPO / "SESSION-HANDOVER.md"
         if not handover.is_file():
             self.skipTest("SESSION-HANDOVER.md is not in this tree, so the "
                           "census boundary cannot be checked here")
+        found = [m.name for m in livedoc.scan(
+            handover.read_text(encoding="utf-8"), "SESSION-HANDOVER.md")]
         self.assertEqual(
-            livedoc.scan(handover.read_text(encoding="utf-8"),
-                         "SESSION-HANDOVER.md"), [],
-            "a live marker has appeared in the census's file; read this "
-            "test's docstring before deciding it is fine")
+            sorted(found), sorted(self.LIVE_CENSUS_VALUES),
+            "the live markers in the census's file are %r where the "
+            "boundary allows exactly %r; read this test's docstring "
+            "before deciding the change is fine"
+            % (sorted(found), sorted(self.LIVE_CENSUS_VALUES)))
 
 
 class TestTheCheckoutGate(LiveDocCase):

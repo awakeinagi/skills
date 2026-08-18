@@ -26,8 +26,10 @@ lowercase, which is what lets this paragraph spell the syntax with an
 uppercase `NAME` without creating a marker; and the suite's *runtime* is
 deliberately still a literal, because a value that moves on its own would
 make `refresh` rewrite the file forever. That module's docstring has the
-rest, including why the census counts in `SESSION-HANDOVER.md` are
-deliberately **not** live values.
+rest, including which of the census numbers in `SESSION-HANDOVER.md` may be
+live and which may not — the two **totals** are, the **rosters** of mutant
+ids and test names beside them are not, and the difference is whether a
+human is supposed to stop and read the change.
 
 ## Hard constraints — do not violate
 

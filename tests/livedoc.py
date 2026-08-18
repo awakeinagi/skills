@@ -39,26 +39,47 @@ anything that reads the network, and anything that needs a browser stay
 literals. AGENTS.md's suite-runtime figure is deliberately one of these.
 
 THE BOUNDARY WITH THE CENSUS — read this before adding a calculator that
-counts reds, mutants or catalogue rows. `SESSION-HANDOVER.md` already has
-five guards over it (`handover_catalogue_reds`, `handover_coverage_totals`,
+counts reds, mutants or catalogue rows, and read it as a line that MOVED
+rather than one that was always here. `SESSION-HANDOVER.md` has five
+guards over it (`handover_catalogue_reds`, `handover_coverage_totals`,
 `handover_durable_counts`, `handover_render_reds`, and the render-row
 derivation beside them, all in `tests/test_mutants.py`), each requiring
-its subject to appear EXACTLY ONCE. Those numbers are deliberately NOT
-live, and the difference is not stylistic:
+its subject to appear EXACTLY ONCE. Until 2026-08-18 all five subjects
+were hand-typed literals and this section said so at length. Two of them
+are now live and three are not, and WHICH two is the whole rule:
 
   - a livedoc marker promises "you never have to think about this number";
   - a census guard promises "when this number moves, STOP AND LOOK",
     because a red flipping is a claim about the product, not a count.
 
-`refresh` would disarm the second promise by repairing the sentence a
-human was supposed to read the failure of. Worse, the census readers match
-on the numbers in place — `_HANDOVER_DURABLE` wants `**N / N / N** for
-` + backticked filenames as one span — so a marker either breaks the guard
-outright or has to generate the guard's own anchor, at which point the
-guard checks generated text against its generator and can no longer fail.
-That is the calibration-literal defect this repo already wrote up at
-length beside `CATALOGUE_RED_IDS`. `test_the_census_sentences_stay_out_of
-_livedoc` in `tests/test_livedoc.py` holds the line mechanically.
+A TOTAL CANNOT KEEP THE SECOND PROMISE, which is what the seven recorded
+staleness events of the durable-count sentence were actually saying.
+Nobody ever read `2 / 0 / 0` and stopped: the guard fired, a human
+retyped three digits, and the wave went on. That is a chore wearing a
+tripwire's clothes, and it is the neither-side disease — a fact derived
+by code, restated by hand, and owned by neither. So the two pure TOTALS
+are now live values: `durable_red_counts` and `detector_coverage_totals`.
+
+THE THREE THAT STAYED LITERALS NAME INDIVIDUALS. `handover_catalogue_reds`
+is a table of mutant IDS, `handover_render_reds` a row of test NAMES, and
+the derivation beside them the same. A red arriving or leaving by name is
+the event a human must read, the sentence is not a number, and `refresh`
+would repair exactly the paragraph the failure was meant to make somebody
+open.
+
+WHAT THE SECOND LOCK STILL PROVES, said plainly because it is less than
+it was. The two guards now compare a marker's content to the same
+function that wrote it, so they no longer catch a WRONG DERIVATION — if
+`durable_red_counts()` broke, both sides would move together. They do
+still catch a STALE file (the marker is written by `refresh`, not by the
+guard, so a commit that flips a red without refreshing fails), a
+DUPLICATED sentence, and a sentence REWORDED past its anchor. The
+markers wrap the guards' anchors WHOLE — the value includes its own `**`
+— so no guard regex was widened to tolerate a comment inside a number,
+which is the failure mode this section used to predict.
+`test_the_census_sentences_carry_only_the_two_live_totals` in
+`tests/test_livedoc.py` holds the new line mechanically, and refuses a
+third marker in that file as loudly as the old one refused the first.
 
 Everything else — line counts, suite totals, catalogue row counts nobody
 guards — is fair game and is what this tool is for.
@@ -86,6 +107,7 @@ import sys
 import unittest
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
+from types import ModuleType
 from typing import NamedTuple
 
 REPO = Path(__file__).resolve().parents[1]
@@ -308,6 +330,101 @@ def unittest_suite_cases() -> str:
         and render tier included.
     """
     return str(_discovered_case_count("test*.py"))
+
+
+def _harness() -> ModuleType:
+    """`tests/test_mutants.py`, imported on demand.
+
+    The two census calculators below CALL the harness's own derivations
+    rather than re-implementing them, and that is deliberate: a second
+    copy of "count the decorator lines" or "walk `DETECTORS`" would be a
+    third statement of a fact this repo has already watched go stale in
+    its second. The cost is measured and small — 0.17s to import, against
+    the hook's ~0.5s — and it is paid only when a marker names one of
+    them.
+
+    Returns:
+        The imported module.
+
+    Raises:
+        AssertionError: If it cannot be imported. A calculator that could
+            not reach its subject must never fall through to the stored
+            value; the exception is re-raised as the refusal every other
+            calculator here makes, with the original attached.
+    """
+    tests_dir = str(Path(__file__).resolve().parent)
+    if tests_dir not in sys.path:
+        sys.path.insert(0, tests_dir)
+    try:
+        import test_mutants
+    except Exception as exc:
+        raise AssertionError(
+            "tests/test_mutants.py could not be imported (%s), so the "
+            "census values it derives cannot be recomputed. This is a "
+            "finding about that module, not about the prose holding the "
+            "marker — do not delete the marker to make it go away" % exc
+        ) from exc
+    return test_mutants
+
+
+@calculator("durable_red_counts")
+def durable_red_counts() -> str:
+    """Red decorator lines per file, as SESSION-HANDOVER.md states them.
+
+    THE SENTENCE THAT DRIFTED SEVEN TIMES, and the one whose own prose
+    prints the grep that derives it — everything needed to keep it honest
+    was on the page for six of those seven, which is the argument that
+    being cheap to derive is not the same as being derived. Guarded since
+    2026-08-16 by `TestCoverage.test_the_handover_transcribes_the_durable
+    _red_counts`, which stays: see this module's header on what the two
+    locks now each promise.
+
+    The value carries its own `**` so the guard's anchor
+    (`_HANDOVER_DURABLE`, which matches `**N / N / N** for` + the three
+    backticked filenames as one span) is spliced whole and needs no
+    widening to tolerate a comment inside it.
+
+    Returns:
+        `**N / N / N**` for `DURABLE_RED_FILES` in that order.
+    """
+    return "**%d / %d / %d**" % _harness().durable_red_counts()
+
+
+@calculator("detector_coverage_totals")
+def detector_coverage_totals() -> str:
+    """The coverage table's totals, as SESSION-HANDOVER.md states them.
+
+    Derived from `coverage_table()` — the same function the `--coverage`
+    CLI prints and the same one
+    `TestCoverage.test_the_handover_transcribes_the_coverage_totals`
+    compares this sentence against. It went stale once and badly: it read
+    "18 detectors ... 15 proven" from a batch-21 measurement while the
+    live table said 19 and 16.
+
+    The value carries its own `**` for the reason `durable_red_counts`
+    gives.
+
+    Returns:
+        `**N detectors, N proven, N render-tier, N UNCOVERED**`.
+
+    Raises:
+        AssertionError: If the harness cannot be imported, or if
+            `coverage_table()` reports a status this sentence has no word
+            for — a fourth state would otherwise be silently dropped from
+            a total that still read as complete.
+    """
+    rows = _harness().coverage_table()
+    tally = {"proven": 0, "render-tier": 0, "UNCOVERED": 0}
+    for _name, status, _evidence in rows:
+        if status not in tally:
+            raise AssertionError(
+                "coverage_table() reports the status %r, which this "
+                "sentence has no word for. The table grew a state and the "
+                "prose would have gone on quoting three" % status)
+        tally[status] += 1
+    return ("**%d detectors, %d proven, %d render-tier, %d UNCOVERED**"
+            % (len(rows), tally["proven"], tally["render-tier"],
+               tally["UNCOVERED"]))
 
 
 # --------------------------------------------------------------------------

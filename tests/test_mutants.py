@@ -22435,8 +22435,20 @@ def handover_coverage_totals() -> tuple[int, int, int, int]:
 # are different numbers for good reasons, and the handover's sentence is
 # about the first. Reading it the other way would make this guard fail
 # honestly-written prose.
+#
+# THE `(?:\s*<!--[^>]*-->)?` IS THE LIVEDOC CLOSE MARKER and nothing else.
+# 2026-08-18 made these three numbers a live value, so `refresh` writes
+# them and the sentence now reads `**0 / 0 / 0**<!-- /live:durable_red_
+# counts --> for …`. The marker wraps the `**` PAIR rather than sitting
+# inside it, deliberately: the whole span this pattern matches is spliced
+# as one unit, so nothing here had to learn to skip a comment BETWEEN two
+# digits, and the guard still fails on a sentence reworded past its
+# anchor — which is what it did, correctly, the moment the marker landed
+# and before this clause was added. `[^>]*` and not `.*?` so a runaway
+# match cannot swallow prose to the next comment.
 _HANDOVER_DURABLE = re.compile(
-    r"\*\*(\d+) / (\d+) / (\d+)\*\*\s+for\s+`test_mutants\.py`,\s+"
+    r"\*\*(\d+) / (\d+) / (\d+)\*\*(?:\s*<!--[^>]*-->)?"
+    r"\s+for\s+`test_mutants\.py`,\s+"
     r"`test_mutants_render\.py`\s+and\s+`test_backend\.py`", re.S)
 
 # In the order the sentence lists them, which is the order the tuple is
@@ -23355,6 +23367,19 @@ class TestCoverage(unittest.TestCase):
         it is written, and nothing connects the two again. The fix is
         never to delete the prose — people need it — but to make the copy
         an assertion.
+
+        NO LONGER A HAND COPY as of 2026-08-18: the sentence is a livedoc
+        marker (`live:detector_coverage_totals`) written by
+        `tests/livedoc.py refresh` from this same `coverage_table()`. This
+        guard STAYS as the second lock, and is honest about being a
+        smaller one now. It cannot catch a wrong derivation — both sides
+        would move together — and it still catches the three things
+        `refresh` does not promise: a file committed without refreshing,
+        a DUPLICATE of the sentence (the `.findall` refusal in
+        `handover_coverage_totals`, which is what the old `.search` let
+        past), and a rewording past the anchor. The full argument for
+        which census numbers may be live is in `tests/livedoc.py`'s
+        header.
         """
         stated = handover_coverage_totals()
         rows = coverage_table()
@@ -23365,9 +23390,10 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(
             stated, live,
             "SESSION-HANDOVER.md states (detectors, proven, render-tier, "
-            "UNCOVERED) = %s while coverage_table() reports %s. Update the "
-            "sentence; this is a hand copy of a derived fact and it has "
-            "drifted before" % (stated, live))
+            "UNCOVERED) = %s while coverage_table() reports %s. The "
+            "sentence is a live value: run `python3 tests/livedoc.py "
+            "refresh`. If that does not close it, the marker and this "
+            "guard are reading different sentences" % (stated, live))
 
     def test_the_handover_transcribes_the_durable_red_counts(self) -> None:
         """The fourth census hand copy to get a guard, v0.9 (2026-08-16).
@@ -23403,6 +23429,16 @@ class TestCoverage(unittest.TestCase):
         Matched to the grep and not to the runner, deliberately: see the
         comment on `_HANDOVER_DURABLE` for why those are different
         numbers and why the sentence means the first.
+
+        NO LONGER A HAND COPY as of 2026-08-18, and this sentence is the
+        reason the rule changed. Seven staleness events and not one of
+        them was a human stopping to look: the guard fired, somebody
+        retyped three digits, the wave went on. A TOTAL cannot keep a
+        tripwire's promise, so `durable_red_counts` became a livedoc
+        marker and `refresh` writes it. What this guard still proves —
+        freshness, uniqueness, anchor — and what it has stopped proving
+        is set out on `test_the_handover_transcribes_the_coverage_totals`
+        above and at length in `tests/livedoc.py`'s header.
         """
         stated = handover_durable_counts()
         live = durable_red_counts()
@@ -23417,8 +23453,10 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(
             stated, live,
             "SESSION-HANDOVER.md's durable-count sentence reads %s for "
-            "%s while the live decorators say %s. Edit the sentence — it "
-            "is a hand copy of a derived fact and it has drifted before"
+            "%s while the live decorators say %s. The sentence is a live "
+            "value: run `python3 tests/livedoc.py refresh`. If that does "
+            "not close it, the marker and this guard are reading "
+            "different sentences"
             % (" / ".join(map(str, stated)), ", ".join(DURABLE_RED_FILES),
                " / ".join(map(str, live))))
 

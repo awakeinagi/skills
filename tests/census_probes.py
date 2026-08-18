@@ -98,13 +98,24 @@ PROBES: dict[str, dict[str, str]] = {
     # nothing, and reported the guard SILENT. A probe that perturbs a
     # value into an equal value is worse than a dead one, because it
     # accuses a healthy guard instead of raising.
+    #
+    # RE-ANCHORED 2026-08-18 when the three numbers became a live value.
+    # The old anchor was `reads\n**`, and `refresh`'s open marker now sits
+    # between those two — which is the rule three probes above already
+    # state, arriving once more: an anchor whose neighbours can be
+    # rewritten is a probe with a half-life. The MARKER NAME is the most
+    # stable declaration this sentence has: it is the identifier the
+    # calculator is registered under, `livedoc.check` fails if it stops
+    # naming a real derivation, and prose around it may be rewritten
+    # freely. Injecting a `9` after the `**` still forces a real change
+    # whatever the digits are, per the rejected-fix note above.
     "durable-counts-drift": {
         "test": "test_the_handover_transcribes_the_durable_red_counts",
         "file": "SESSION-HANDOVER.md",
-        "why": "the per-file red counts are hand-copied and have drifted "
-               "seven recorded times",
-        "old": "reads\n**",
-        "new": "reads\n**9",
+        "why": "the per-file red counts are a live value whose guard must "
+               "still fail on a file committed without a refresh",
+        "old": "live:durable_red_counts -->**",
+        "new": "live:durable_red_counts -->**9",
     },
     # AND THIS ONE DIED WITHIN THE HOUR of the note below being written,
     # which is the best evidence for it. Batch 27 re-anchored the three

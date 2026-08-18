@@ -376,8 +376,14 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**0 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-18 at the FINAL FIX ROUND's fold,
+<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
+`tests/livedoc.py refresh` writes them from the same grep the line above
+prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
+counts` stays as the second lock on the sentence's freshness, uniqueness
+and anchor; see this repo's `tests/livedoc.py` header on why a TOTAL may
+be live where the catalogue-reds table beside it may not. Re-derived
+2026-08-18 at the FINAL FIX ROUND's fold,
 which flipped the freedraw pair (`TestAFreedrawKeepsTheGeometryItWasGiven`)
 by giving `make_element` a `freedraw` branch — points, pressures,
 simulatePressure — and drained the tree 2 -> 0; the 2 was
@@ -707,9 +713,11 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **30 detectors, 27 proven, 3 render-tier, 0
-  UNCOVERED** — CHECKED as of v0.9 WP7 task 29 by
-  `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
+  a reason. Coverage totals:
+  <!-- live:detector_coverage_totals -->**30 detectors, 27 proven, 3 render-tier, 0 UNCOVERED**<!-- /live:detector_coverage_totals -->
+  — a LIVE VALUE as of 2026-08-18: `tests/livedoc.py refresh` writes it
+  from `coverage_table()`, and it is still CHECKED (since v0.9 WP7 task 29)
+  by `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked
   because it had drifted: it read "18 detectors ... 15 proven" from a
   batch-21 measurement, and `label_on_foreign_node` was registered by the
