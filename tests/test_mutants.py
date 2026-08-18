@@ -15689,9 +15689,10 @@ def _styled_scene(text_color: str = "#1e1e1e", stroke: str = "#1e1e1e",
     One base for every legibility mutant, since they differ only in which
     declared style is wrong: the text's color, the node's stroke, the
     font size, or the opacity that thins all of them. Everything sits on
-    `SVG_GROUND` (#fdfcf8) with no fills, so the effective background is
-    unambiguous and the WCAG ratio is a pure function of the declared
-    style.
+    `PAPER_GROUND` (#faf8f2) with no fills and no overlap between the two
+    elements, so the effective background is unambiguous — nothing is
+    drawn on anything — and the WCAG ratio is a pure function of the
+    declared style.
 
     `opacity` rides on BOTH elements, so one knob drives the text arm and
     the object arm of the fold. The two checks read different floors off
@@ -17566,8 +17567,22 @@ _register(Mutant(
 # MAGNITUDE CONVENTION: the finding carries the MEASURED WCAG ratio, not a
 # pass/fail. Ratios below were computed from the todo's own formula —
 # relative luminance over linearized sRGB, `(L1 + 0.05) / (L2 + 0.05)` —
-# against SVG_GROUND #fdfcf8. A check that reports a boolean, or the
+# against `PAPER_GROUND` #faf8f2. A check that reports a boolean, or the
 # inverse ratio, will not flip these.
+#
+# RE-DERIVED 2026-08-18, v0.9 blocker round C-1: every ratio in this
+# family was computed against `SVG_GROUND` #fdfcf8, which is the paper
+# `render_svg` exports on and NOT the one the user's canvas paints
+# (`PAPER_GROUND` #faf8f2, all three `viewBackgroundColor` sites in
+# `App.tsx`). The lint now measures the user's paper, and every
+# near-threshold pole here had to move with it because these poles are
+# what a ground change is supposed to disturb — greys 0x73-0x74 flip the
+# 4.5 verdict between the two papers and 0x91-0x92 flip the 3.0 one, so
+# four of the six silent neighbours below sat on the wrong side of their
+# own floor the moment the ground was corrected. Every pole KEPT its
+# stated property (one step of grey across the floor, one percentage
+# point across the opacity crossing); only the constants moved. The old
+# readings are named beside each new one so the move is auditable.
 # FLIPPED 2026-08-16 (v0.9 WP7 task 29), with the other two below: the
 # three lints landed, took `DETECTORS` rows, and each borrowed
 # `Silence("endpoint_gap")` neighbour was replaced by this check's own
@@ -17575,18 +17590,21 @@ _register(Mutant(
 # a flip owes.
 #
 # The pole is NEAR-THRESHOLD ON PURPOSE and that is the whole of its
-# value. #747474 reads 4.55:1 where the floor is 4.5 — one step of gray
-# from the boundary, against a mutant at 1.50:1 that any broken check
-# fires on. A control at the default 16.24:1 ink would have been the easy
-# shape and would have proved only that the check has a quiet half; this
-# one fails the moment the arithmetic drifts by 1%.
+# value. #727272 reads 4.53:1 where the floor is 4.5 — one step of gray
+# from the boundary (#737373 is 4.46, under), against a mutant at 1.45:1
+# that any broken check fires on. A control at the default 15.70:1 ink
+# would have been the easy shape and would have proved only that the
+# check has a quiet half; this one fails the moment the arithmetic
+# drifts by 1%. (Was #747474 at 4.55 on the old `SVG_GROUND`; that same
+# grey reads 4.40 on the user's paper, i.e. under, which is exactly the
+# class of verdict the ground correction moved.)
 _register(Mutant(
     "gray_text_on_ground",
     build=lambda: _styled_scene(text_color="#d0d0d0"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_text", element="t1",
-                       magnitude=(1.50, 0.05)),
-    neighbour=Neighbour(lambda: _styled_scene(text_color="#747474"),
+                       magnitude=(1.45, 0.05)),
+    neighbour=Neighbour(lambda: _styled_scene(text_color="#727272"),
                         Silence("contrast_text"))))
 
 # The BOUNDARY-HONEST case the design doc asks every legibility lint to
@@ -17595,23 +17613,29 @@ _register(Mutant(
 #
 # #767676 is the web's best-known "lightest gray that passes on white":
 # 4.54:1 against #ffffff, just over the 4.5 floor. Our paper is not
-# white. Against `SVG_GROUND` #fdfcf8 the same ink reads 4.42:1 — just
-# UNDER — so this mutant fires only if the check resolved the effective
+# white. Against `PAPER_GROUND` #faf8f2 the same ink reads 4.28:1 — UNDER
+# — so this mutant fires only if the check resolved the effective
 # background instead of assuming the usual white. A lint written from the
 # WCAG examples, which are all on white, passes every other pin in this
 # family and fails exactly here.
 #
-# It is 0.07 under the floor, so it is also the tightest firing pole in
-# the file: with the neighbour above at 4.55 the pair straddles 4.5 with
-# ONE STEP OF GRAY between them (0x74 / 0x76), and nothing about either
-# scene differs but that byte.
+# THE GROUND CORRECTION MADE THIS POLE STRONGER, not weaker: on the old
+# `SVG_GROUND` it read 4.42 and was 0.07 under, and on the paper the user
+# actually looks at it is 0.22 under. What the correction cost is the
+# ONE-BYTE straddle this comment used to claim — the boundary on this
+# paper is 0x72/0x73 (4.53 over, 4.46 under), not 0x74/0x76 — so the
+# neighbour is the boundary grey #727272 and the mutant is four steps
+# from it. The tightest-pair property now lives on `gray_text_on_ground`'s
+# neighbour, which is that same boundary grey; this mutant keeps the job
+# it was built for, which is the white-paper assumption and not the
+# decimal.
 _register(Mutant(
     "text_that_would_pass_on_white_paper",
     build=lambda: _styled_scene(text_color="#767676"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_text", element="t1",
-                       magnitude=(4.42, 0.005)),
-    neighbour=Neighbour(lambda: _styled_scene(text_color="#747474"),
+                       magnitude=(4.28, 0.005)),
+    neighbour=Neighbour(lambda: _styled_scene(text_color="#727272"),
                         Silence("contrast_text"))))
 
 # OPACITY, pinned because the decision to fold it was SETTLED rather than
@@ -17623,55 +17647,68 @@ _register(Mutant(
 # passing.
 #
 # Reproduced here on our OWN default ink, which is the sharper statement:
-# #1e1e1e on the ground is 16.24:1 at 100% and 4.38:1 at 60%. So this
+# #1e1e1e on the ground is 15.70:1 at 100% and 4.33:1 at 60%. So this
 # scene declares nothing wrong anywhere — the color a reviewer greps for
 # is the one every healthy drawing uses — and is still under the floor.
-# A check that skips the fold reads 16.24 and says nothing.
+# A check that skips the fold reads 15.70 and says nothing.
 #
 # TWO FLOORS, ONE SCENE. The node carries the same 60% and the same ink,
-# and `contrast_object` must stay SILENT on it: 4.38 clears the 3:1
+# and `contrast_object` must stay SILENT on it: 4.33 clears the 3:1
 # non-text floor. So the pair of assertions on this one mutant proves the
 # two checks hold genuinely different numbers rather than sharing a
 # constant, which no other scene in the family can show.
 #
-# The neighbour is 61%. One percentage point, 4.52:1, silent — the
-# opacity crossing of the 4.5 floor to the resolution the field stores.
+# THE MUTANT STAYS AT 60% because 60 is not a round number picked here —
+# it is the visualize-skill mine's own rule, quoted above, and the pin's
+# claim is about that rule meeting our default ink. What moved with the
+# ground is where the 4.5 crossing sits: it was between 60% and 61%
+# (4.38 -> 4.52 on `SVG_GROUND`) and on the user's paper it is between
+# 61% and 62% (4.46 -> 4.61). So the neighbour is 62%, the FIRST silent
+# point above the crossing, and the crossing is still located to the
+# resolution the field stores — which is the property this pair exists
+# to hold.
 _register(Mutant(
     "faded_ink_reads_as_full_strength",
     build=lambda: _styled_scene(opacity=60),
     op="unchanged", args={},
     expect=FindingSpec("contrast_text", element="t1",
-                       magnitude=(4.38, 0.005)),
-    neighbour=Neighbour(lambda: _styled_scene(opacity=61),
+                       magnitude=(4.33, 0.005)),
+    neighbour=Neighbour(lambda: _styled_scene(opacity=62),
                         Silence("contrast_text"))))
 
 # WCAG 1.4.11, the criterion people forget: non-text objects need 3:1, and
 # a pale stroke on cream paper is the case it exists for. #b0b0b0 scores
-# 2.11:1 — present in the model, practically invisible in the picture.
+# 2.04:1 — present in the model, practically invisible in the picture.
 _register(Mutant(
     "pale_stroke_node",
     build=lambda: _styled_scene(stroke="#b0b0b0"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_object", element="n1",
-                       magnitude=(2.11, 0.05)),
-    neighbour=Neighbour(lambda: _styled_scene(stroke="#929292"),
+                       magnitude=(2.04, 0.05)),
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#909090"),
                         Silence("contrast_object"))))
 
 # 1.4.11's boundary, built the same way as the text one above and one
-# step of gray wide: #939393 reads 2.99:1 and #929292 reads 3.03:1
+# step of gray wide: #919191 reads 2.97:1 and #909090 reads 3.01:1
 # against the same paper. The pair is what stops the non-text floor being
 # quietly rounded, borrowed from the text arm, or applied with `<=`
-# instead of `<` — and 2.99 against 4.42 next door is what stops the two
+# instead of `<` — and 2.97 against 4.28 next door is what stops the two
 # checks sharing one constant, which is the cheapest wrong
 # implementation of this pair of criteria and the one WCAG's own summary
 # tables invite.
+#
+# THE WHOLE PAIR SHIFTED ONE STEP DARKER with the ground correction: on
+# `SVG_GROUND` the boundary byte was 0x92/0x93 (3.03 / 2.99) and on the
+# user's paper it is 0x90/0x91 (3.01 / 2.97). The old silent neighbour
+# #929292 reads 2.93 here — under the floor it was pinned to clear,
+# which is the whole reason a boundary pole is worth having.
 _register(Mutant(
     "stroke_one_step_under_the_object_floor",
-    build=lambda: _styled_scene(stroke="#939393"),
+    build=lambda: _styled_scene(stroke="#919191"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_object", element="n1",
-                       magnitude=(2.99, 0.005)),
-    neighbour=Neighbour(lambda: _styled_scene(stroke="#929292"),
+                       magnitude=(2.97, 0.005)),
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#909090"),
                         Silence("contrast_object"))))
 
 # The font floor. 6px is legible in a zoomed editor and gone in a
@@ -17689,7 +17726,7 @@ _register(Mutant(
 # every legibility lint to carry. The evidence is that between 7px and 6px the
 # rendered word loses nearly half its stroke contrast (8.50:1 to 4.62:1, the
 # sharpest step in the sweep) and drops from 5px to 3px of ink height, while
-# its DECLARED contrast stays 16.24:1 throughout — so a lint reading declared
+# its DECLARED contrast stays 15.70:1 throughout — so a lint reading declared
 # colors alone waves through text the picture cannot deliver.
 #
 # The neighbour is the FLOOR ITSELF, 7px, and that is the strongest pole
@@ -19753,7 +19790,7 @@ _register(Mutant(
 # other entry in this file exists to make impossible.
 #
 # THE PAIR DIFFERS BY ONE STRING AND NOTHING ELSE. Same #b0b0b0 stroke,
-# same ground, same 2.11:1 — measured identical in both lint lines, so
+# same ground, same 2.04:1 — measured identical in both lint lines, so
 # the magnitude assertion is not the thing that moves. Only `note-text`
 # versus `node` moves, and the reader goes from 1 finding to 0. It is
 # `pale_stroke_node`'s scene with a hyphen in it.
@@ -19780,10 +19817,10 @@ _register(Mutant(
     build=lambda: _styled_scene(stroke="#b0b0b0", role="note-text"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_object", element="n1",
-                       magnitude=(2.11, 0.05)),
+                       magnitude=(2.04, 0.05)),
     neighbour=Neighbour(lambda: _styled_scene(stroke="#b0b0b0", role="node"),
                         FindingSpec("contrast_object", element="n1",
-                                    magnitude=(2.11, 0.05)))))
+                                    magnitude=(2.04, 0.05)))))
 
 # The same shape one layer down, and the worse of the two: the check did
 # not merely go unread here, it was never RUN. `parse_hex_color` — the name
@@ -19791,12 +19828,12 @@ _register(Mutant(
 # for anything that was not `#rgb`/`#rrggbb`/`#rrggbbaa`: a CSS keyword, an
 # `rgb()` triple, a typo'd hex. The 1.4.11 arm read BOTH the stroke
 # and the fill through it, then `continue`d when neither parsed. So a shape
-# stroked `white` with no fill was drawn on #fdfcf8 paper at 1.03:1,
+# stroked `white` with no fill was drawn on #faf8f2 paper at 1.06:1,
 # invisible, and unreported.
 #
 # THE PAIR IS ONE COLOUR SPELLED TWO WAYS. `#ffffff` and `white` are the
 # same pixels in every renderer this skill ships through, the scenes are
-# identical to the byte otherwise, and the reader goes from a 1.03:1
+# identical to the byte otherwise, and the reader goes from a 1.06:1
 # finding to nothing at all. That is the magnitude the mutant asserts: not
 # "something should fire" but "the number the OTHER spelling already
 # produces".
@@ -19821,7 +19858,7 @@ _register(Mutant(
 # history rather than as a choice deferred: `parse_color` (renamed from
 # `parse_hex_color` in the same change, because the old name invited the
 # very misreading this red is about) learned the 16 CSS Level 1 names, so
-# `white` resolves and is MEASURED at the 1.03:1 its `#ffffff` neighbour
+# `white` resolves and is MEASURED at the 1.06:1 its `#ffffff` neighbour
 # always reported; and the arms now distinguish "declared nothing" from
 # "declared something unreadable" and say so, as `unreadable_color`.
 #
@@ -19841,10 +19878,10 @@ _register(Mutant(
     build=lambda: _styled_scene(stroke="white"),
     op="unchanged", args={},
     expect=FindingSpec("contrast_object", element="n1",
-                       magnitude=(1.03, 0.01)),
+                       magnitude=(1.06, 0.01)),
     neighbour=Neighbour(lambda: _styled_scene(stroke="#ffffff"),
                         FindingSpec("contrast_object", element="n1",
-                                    magnitude=(1.03, 0.01)))))
+                                    magnitude=(1.06, 0.01)))))
 
 # THE OTHER HALF OF TASK-COLORPARSE, and the entry the paragraph above
 # says is owed: the REPORT arm. `unreadable_color` was the coverage
@@ -20315,7 +20352,7 @@ class TestMutantCatalogue(unittest.TestCase):
         self._run_neighbour("text_that_would_pass_on_white_paper")
 
     def test_mutant_faded_ink_reads_as_full_strength(self) -> None:
-        """The default ink at 60% is 4.38:1, and declares 16.24:1."""
+        """The default ink at 60% is 4.33:1, and declares 15.70:1."""
         self._run("faded_ink_reads_as_full_strength")
 
     def test_the_faded_scene_is_silent_on_the_non_text_floor(self) -> None:
@@ -20612,7 +20649,7 @@ class TestMutantCatalogue(unittest.TestCase):
 
         THE SECOND HALF IS WHAT KEEPS THAT HONEST. Furniture at the
         shipped `FURNITURE_INK` must be SILENT, because the ruling's
-        other part was to darken it to 3.48:1: quiet furniture now means
+        other part was to darken it to 3.36:1: quiet furniture now means
         COMPLIANT furniture, and a check that fired on everything tagged
         would pass the pole above and fail here. Together they are the
         property the ruling asked for — furniture checked like everything
@@ -20806,7 +20843,7 @@ class TestMutantCatalogue(unittest.TestCase):
         self._run_neighbour("corner_feet_outside_the_square")
 
     def test_mutant_hyphen_in_the_role_blinds_the_object_reader(self) -> None:
-        r"""The lint names a 2.11:1 outline and this file reads it.
+        r"""The lint names a 2.04:1 outline and this file reads it.
 
         FLIPPED 2026-08-17 by v0.9 TASK-MICROFIX-2. `_CONTRAST_OBJECT_RE`
         opened `^\w+ `, which spans neither a hyphen nor a space, so a
@@ -20828,14 +20865,14 @@ class TestMutantCatalogue(unittest.TestCase):
         """
         self._run("hyphen_in_the_role_blinds_the_object_reader")
         want = FindingSpec("contrast_object", element="n1",
-                           magnitude=(2.11, 0.05))
+                           magnitude=(2.04, 0.05))
         for role in ("note-text", "a role with spaces",
                      "swim-lane header 2"):
             with self.subTest(role=role):
                 mism = want.matches(collect_findings(
                     _styled_scene(stroke="#b0b0b0", role=role)))
                 self.assertIsNone(
-                    mism, "role %r: %s — the lint says the same 2.11:1 "
+                    mism, "role %r: %s — the lint says the same 2.04:1 "
                     "about the same #b0b0b0 outline whatever noun it "
                     "opens with, so a reader that only spans some nouns "
                     "is a vacuous `Silence` waiting for the next role"
@@ -20843,7 +20880,7 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_hyphen_in_the_role_blinds_the_object_reader(
             self) -> None:
-        """The same stroke under a one-word role IS read, at the same 2.11."""
+        """The same stroke under a one-word role IS read, at the same 2.04."""
         self._run_neighbour("hyphen_in_the_role_blinds_the_object_reader")
 
     def test_mutant_diamond_facet_overfire(self) -> None:

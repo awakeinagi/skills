@@ -4602,7 +4602,7 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
         # it. The ruling darkened both defaults and dropped the
         # composed-furniture exemption, which took admin-console 5 -> 7
         # and dashboard 2 -> 8: 2 slider tracks here and 6
-        # chart-placeholder X strokes there, all #b8b2a5 at 2.06:1
+        # chart-placeholder X strokes there, all #b8b2a5 at 1.99:1
         # against 1.4.11's 3:1. Those were TRUE findings about a frozen
         # drawing — this arm really did ship furniture a reader cannot
         # pick out, and no tier reported it until the exemption went.
@@ -6718,7 +6718,7 @@ class TestComposedKindsAndTooltips(Base):
         self.assertEqual(ix["kpi-alpha"]["customData"]["author"], "agent")
         self.assertEqual(ix["note-1"]["customData"]["author"], "agent")
         # DARKENED by the user's 2026-08-17 contrast ruling (was #5c8a5f
-        # at 3.89:1, under 1.4.3's 4.5). Still the agent-green half of
+        # at 3.76:1, under 1.4.3's 4.5). Still the agent-green half of
         # the v0.3 authorship language — the ruling required the colour
         # family to survive, which is why this pin reads a green and not
         # merely "something compliant".
@@ -6741,8 +6741,8 @@ class TestComposedKindsAndTooltips(Base):
         from `contrast_object` is gone, so a slider's track, a KPI value
         row and an agent annotation are now checked like anything else —
         and the whole scene must still be silent. That silence is now
-        earned by the palette (#47704b at 5.55:1, `FURNITURE_INK`
-        #8d877a at 3.48:1) instead of by a carve-out, which is the
+        earned by the palette (#47704b at 5.36:1, `FURNITURE_INK`
+        #8d877a at 3.36:1) instead of by a carve-out, which is the
         ruling's actual content: a REGRESSED DEFAULT would fire here,
         where under the exemption it could not.
 
@@ -6791,13 +6791,13 @@ class TestComposedKindsAndTooltips(Base):
                          "above is about a check that stopped answering "
                          "rather than about the palette: %r"
                          % contrast_lines(faint))
-        self.assertIn("reads 2.06:1", asked[0])
+        self.assertIn("reads 1.99:1", asked[0])
         shade = re.search(r"nearest compliant shade of the same hue: "
                           r"(#[0-9a-f]{6})", asked[0])
         self.assertIsNotNone(shade, "no computed fix in %r" % asked[0])
         ratio = canvas.contrast_ratio(
             canvas.parse_color(shade.group(1)),
-            canvas.parse_color(canvas.SVG_GROUND))
+            canvas.parse_color(canvas.PAPER_GROUND))
         self.assertGreaterEqual(
             ratio, canvas.CONTRAST_OBJECT,
             "the suggested shade %s reads %.2f:1, still under the floor "
@@ -6815,7 +6815,7 @@ class TestUnreadableColourIsReported(unittest.TestCase):
     was written about an `image`'s absent stroke. So a shape stroked
     `white` on this skill's #fdfcf8 paper was invisible in the picture
     and absent from the lint at once, while the SAME COLOUR spelled
-    `#ffffff` was reported at 1.03:1.
+    `#ffffff` was reported at 1.06:1.
 
     THE FIX HAS TWO HALVES and needs both, which is why they are pinned
     together here. The parser learned the 16 CSS Level 1 names, so
@@ -6835,7 +6835,7 @@ class TestUnreadableColourIsReported(unittest.TestCase):
     measured) and 49 four-digit `#rgba` (now reported).
     """
 
-    GROUND = "#fdfcf8"
+    GROUND = canvas.PAPER_GROUND
 
     def _scene(self, stroke="#1e1e1e", fill="transparent"):
         """One node on bare paper, styled to order.
@@ -6900,7 +6900,7 @@ class TestUnreadableColourIsReported(unittest.TestCase):
                  "customData": {"role": "label"}}]
 
     def test_a_css_keyword_is_measured_and_not_merely_noticed(self):
-        """`white` reads 1.03:1 — the same number `#ffffff` reads.
+        """`white` reads 1.06:1 — the same number `#ffffff` reads.
 
         The pair batch 30's red is built on, asserted from the fix's
         side: two spellings of one colour, identical pixels in every
@@ -6914,7 +6914,7 @@ class TestUnreadableColourIsReported(unittest.TestCase):
         keyword = self._warnings(self._scene(stroke="white"))
         hexed = self._warnings(self._scene(stroke="#ffffff"))
         self.assertEqual(len(keyword), 1, keyword)
-        self.assertIn("reads 1.03:1", keyword[0])
+        self.assertIn("reads 1.06:1", keyword[0])
         self.assertIn("1.4.11 asks", keyword[0])
         self.assertEqual(
             [w.replace("#ffffff", "<c>") for w in hexed],
@@ -6926,7 +6926,7 @@ class TestUnreadableColourIsReported(unittest.TestCase):
                          "reported as one it cannot read")
 
     def test_a_keyword_that_is_legible_stays_silent(self):
-        """`black` on cream is 20.46:1 and gets no finding at all.
+        """`black` on cream is 19.77:1 and gets no finding at all.
 
         The measurement's other direction, and the one that makes the
         table worth having rather than being a way to generate findings:
@@ -6938,9 +6938,9 @@ class TestUnreadableColourIsReported(unittest.TestCase):
         self.assertEqual(self._warnings(self._scene(stroke="black")), [])
         self.assertEqual(
             canvas.contrast_ratio(canvas.parse_color("black"),
-                                  canvas.parse_color(canvas.SVG_GROUND)),
+                                  canvas.parse_color(canvas.PAPER_GROUND)),
             canvas.contrast_ratio(canvas.parse_color("#000000"),
-                                  canvas.parse_color(canvas.SVG_GROUND)))
+                                  canvas.parse_color(canvas.PAPER_GROUND)))
 
     def test_a_colour_the_parser_cannot_read_is_reported(self):
         """`rgb(0,0,0)` is a question; `#000000` is an answer.
@@ -7168,8 +7168,8 @@ class TestUnreadableColourIsReported(unittest.TestCase):
         # true — computed here rather than quoted, so the argument for
         # the silence is checked and not merely told.
         ink, paper = canvas.parse_color("#f0f0f0"), canvas.parse_color(
-            canvas.SVG_GROUND)
-        self.assertAlmostEqual(canvas.contrast_ratio(ink, paper), 1.11,
+            canvas.PAPER_GROUND)
+        self.assertAlmostEqual(canvas.contrast_ratio(ink, paper), 1.07,
                                delta=0.01)
         self.assertAlmostEqual(
             canvas.contrast_ratio(ink, (47, 79, 79)), 7.83, delta=0.01)
@@ -7296,6 +7296,241 @@ class TestUnreadableColourIsReported(unittest.TestCase):
             self.assertIsNone(canvas.unreadable_color(absent), absent)
         for declared in ("rgb(0,0,0)", "#ff00", "lightgray", "#12345"):
             self.assertEqual(canvas.unreadable_color(declared), declared)
+
+
+class TestTheGroundIsWhatTheDrawingPutsUnderTheInk(Base):
+    """v0.9 blocker round C-1: the contrast lint reads the picture.
+
+    THE DEFECT, from the whole-branch review. `drawn_on` resolved
+    own-background -> container -> paper and never asked what the
+    drawing put underneath, so white header text lying on a navy box
+    was reported as `drawn #ffffff on #fdfcf8 and reads 1.03:1` when the
+    true reading is 14.22:1 — and the shade it offered, #747474, takes
+    the REAL reading to 3.04:1, below even the 3.0 object floor. The
+    next warning in the same output named the box the text was on.
+
+    THREE THINGS ARE PINNED HERE and they are not the same claim:
+
+      * the wrong number is GONE and the right one is taken, so a fix
+        that merely silenced the pairing would fail the second pole;
+      * the paper case still MEASURES, because a check that resolved
+        every ground to "refuse" would satisfy the first pole and
+        delete the lint;
+      * a PARTIAL cover refuses, because glyphs standing on two colours
+        have no single ratio and picking one is the defect again with a
+        different number in it.
+
+    THROUGH THE REAL FUNNEL. The scene is built with `apply_batch` and
+    read with `project_lint`, not hand-assembled dicts: the review's
+    reproduction came out of a live lint call, and a pin that skips the
+    op funnel cannot see a normaliser that drops `backgroundColor`.
+    """
+
+    def scene_with(self, ink, fill="#1b2a4a", tx=100):
+        """Text over a filled box, both minted through the op funnel.
+
+        Args:
+            ink: The free text's `strokeColor`.
+            fill: The box's `backgroundColor`.
+            tx: The text's x, so a caller can slide it half off the box.
+
+        Returns:
+            The committed scene's elements.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "hdr-demo",
+            "create": {"id": "hdr-demo", "name": "Header",
+                       "type": "wireframe"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "navy", "x": 100, "y": 100,
+                    "width": 200, "height": 32, "backgroundColor": fill,
+                    "strokeColor": "#1b2a4a", "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "text", "id": "hdr", "x": tx, "y": 100,
+                    "width": 200, "height": 32, "text": "Dashboard",
+                    "fontSize": 16, "strokeColor": ink,
+                    "role": "annotation"}}]})
+        return self.store.scenes["hdr-demo"]
+
+    def ink_findings(self, els):
+        """The 1.4.3 findings `project_lint` reports for a scene.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The matching warnings.
+        """
+        out = canvas.project_lint(self.project, els,
+                                  registry=self.store.registry,
+                                  artifact_type="wireframe", aid="hdr-demo")
+        return [w for w in out["warnings"] if "1.4.3 asks" in w]
+
+    def test_white_on_a_navy_box_is_not_measured_against_the_paper(self):
+        """The review's own scene, and the number it should never say."""
+        els = self.scene_with("#ffffff")
+        self.assertEqual(
+            self.ink_findings(els), [],
+            "white on navy reads 14.22:1 and the lint is asking about it")
+        # The claim is the RESOLUTION, not the silence: assert the ground
+        # the resolver picked, so a fix that skipped every text with
+        # anything under it would fail here.
+        ix = {e["id"]: e for e in els}
+        self.assertAlmostEqual(
+            canvas.contrast_ratio(canvas.parse_color("#ffffff"),
+                                  canvas.parse_color("#1b2a4a")),
+            14.22, delta=0.01)
+        self.assertEqual(ix["hdr"]["backgroundColor"], "transparent",
+                         "the text declares no ground of its own, so the "
+                         "only way to the box is the geometry")
+
+    def test_pale_ink_on_that_same_box_is_measured_against_the_box(self):
+        """The firing pole: the box's fill is the ground, and it reads."""
+        got = self.ink_findings(self.scene_with("#3f4a5e"))
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("on #1b2a4a", got[0])
+        self.assertIn("reads 1.59:1", got[0])
+        # and the repair moves the way the shade beside it moved
+        self.assertIn("lighten the ink", got[0])
+
+    def test_text_on_bare_paper_still_measures_against_the_paper(self):
+        """The direction that stops the fix from deleting the check."""
+        els = self.scene_with("#d0d0d0", fill="transparent")
+        got = self.ink_findings(els)
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("on %s" % canvas.PAPER_GROUND, got[0])
+        self.assertIn("darken the ink", got[0])
+
+    def test_a_box_under_only_part_of_the_text_is_refused(self):
+        """Two grounds, no single ratio — so the check declines."""
+        els = self.scene_with("#ffffff", tx=200)
+        self.assertEqual(self.ink_findings(els), [],
+                         "the glyphs stand on paper AND on navy; a ratio "
+                         "against either one is a confident wrong number")
+        overlaps = [w for w in canvas.project_lint(
+            self.project, els, registry=self.store.registry,
+            artifact_type="wireframe", aid="hdr-demo")["warnings"]
+            if "lies on top of" in w]
+        self.assertEqual(len(overlaps), 1, "the refusal is only defensible "
+                                           "because the geometry is still "
+                                           "reported: %r" % overlaps)
+
+    def test_the_lint_measures_against_the_canvas_the_user_looks_at(self):
+        """`PAPER_GROUND`, not `SVG_GROUND` — the second cluster item.
+
+        Two constants existed for one physical fact and the lint read
+        the wrong one. Every artifact this skill writes carries
+        `PAPER_GROUND` as its `viewBackgroundColor` and the client
+        paints it; `SVG_GROUND` is `render_svg`'s export paper and
+        nothing the user looks at. The gap flips the 4.5 verdict
+        for greys 0x73/0x74, which is asserted rather than described so
+        that a silent re-unification of the two constants fails here.
+        """
+        doc, _ = canvas.validate_scene({}, "hdr-demo")
+        self.assertEqual(
+            canvas.normalize_scene_doc(doc)["appState"]
+            ["viewBackgroundColor"], canvas.PAPER_GROUND)
+        paper = canvas.parse_color(canvas.PAPER_GROUND)
+        svg = canvas.parse_color(canvas.SVG_GROUND)
+        self.assertLess(canvas.contrast_ratio(canvas.parse_color("#747474"),
+                                              paper), canvas.CONTRAST_TEXT)
+        self.assertGreater(canvas.contrast_ratio(canvas.parse_color("#747474"),
+                                                 svg), canvas.CONTRAST_TEXT)
+        got = self.ink_findings(self.scene_with("#747474", fill="transparent"))
+        self.assertEqual(len(got), 1, "the lint is still reading the "
+                                      "export's paper: %r" % got)
+        self.assertIn("on %s" % canvas.PAPER_GROUND, got[0])
+
+
+class TestTheRepairNamesTheDirectionItMoved(unittest.TestCase):
+    """v0.9 blocker round C-1: "darken" was a hardcoded word.
+
+    `nearest_compliant` searches BOTH directions and says so in its own
+    docstring — "the reachable fix is 'darker' for ink on paper and
+    'lighter' for pale ink on a dark card" — while the imperative
+    printed beside its answer was the literal string "darken the ink".
+    So #4a4a4a measured on #333333 was told to darken and handed
+    #9b9b9b, which is lighter, in one sentence.
+
+    BOTH ARMS, because the two messages built the string separately and
+    a fix to one of them is how they came apart in the first place.
+    """
+
+    def _lint(self, els):
+        """The contrast warnings for a hand-built scene.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The 1.4.3 and 1.4.11 warnings.
+        """
+        return [w for w in canvas.lint_layout(els, aid="d")["warnings"]
+                if "1.4.3 asks" in w or "1.4.11 asks" in w]
+
+    def _dark_card(self, **text_kw):
+        """A near-black card with a free text lying wholly inside it.
+
+        Args:
+            **text_kw: Overrides for the text element.
+
+        Returns:
+            The two-element scene.
+        """
+        text = {"id": "t1", "type": "text", "x": 0, "y": 0, "width": 200,
+                "height": 100, "text": "status", "fontSize": 16,
+                "strokeColor": "#4a4a4a", "backgroundColor": "transparent",
+                "opacity": 100}
+        text.update(text_kw)
+        return [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 200, "height": 100, "strokeColor": "#333333",
+                 "backgroundColor": "#333333", "fillStyle": "solid",
+                 "opacity": 100, "customData": {"role": "node"}}, text]
+
+    def test_the_text_arm_says_lighten_when_the_shade_is_lighter(self):
+        """The review's own pair: #4a4a4a on #333333."""
+        got = [w for w in self._lint(self._dark_card()) if "1.4.3" in w]
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("lighten the ink", got[0])
+        self.assertIn("shade of the same hue: #9b9b9b", got[0])
+        self.assertNotIn("darken", got[0])
+
+    def test_the_text_arm_still_says_darken_when_the_shade_is_darker(self):
+        """The other direction, or the assertion above is satisfied by
+        flipping one hardcoded word for another."""
+        got = [w for w in self._lint(
+            [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 120,
+              "height": 20, "text": "status", "fontSize": 16,
+              "strokeColor": "#d0d0d0", "backgroundColor": "transparent",
+              "opacity": 100}]) if "1.4.3" in w]
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("darken the ink", got[0])
+        self.assertIn("shade of the same hue: #727272", got[0])
+
+    def test_the_object_arm_takes_the_same_direction_from_the_same_search(
+            self):
+        """1.4.11's imperative was a second copy of the same literal."""
+        card = self._dark_card()
+        card[1] = {"id": "n2", "type": "rectangle", "x": 20, "y": 20,
+                   "width": 60, "height": 40, "strokeColor": "#4a4a4a",
+                   "backgroundColor": "transparent", "opacity": 100,
+                   "customData": {"role": "node"}}
+        got = [w for w in self._lint(card) if "1.4.11" in w
+               and w.startswith("node n2")]
+        self.assertEqual(len(got), 1, self._lint(card))
+        self.assertIn("lighten the stroke", got[0])
+
+    def test_the_verb_survives_having_no_shade_to_offer(self):
+        """A faded element gets no shade, and still gets a direction."""
+        got = [w for w in self._lint(
+            [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 120,
+              "height": 20, "text": "status", "fontSize": 16,
+              "strokeColor": "#1e1e1e", "backgroundColor": "transparent",
+              "opacity": 40}]) if "1.4.3" in w]
+        self.assertEqual(len(got), 1, got)
+        self.assertNotIn("shade of the same hue", got[0])
+        self.assertIn("raise its opacity or darken the ink", got[0])
 
 
 class TestDerivedRoundness(unittest.TestCase):

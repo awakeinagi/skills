@@ -263,26 +263,35 @@ measured, says what the criterion asks for, and takes a `waive`.
 | `contrast_object` | 1.4.11 — can this shape be picked out? | 3:1 | `stroke:<aid>:<id>` |
 | `min_font` | is this type big enough to survive the snapshot? | 7px | `font:<aid>:<id>` |
 
-The paper is `#fdfcf8`, not white, and that is not a detail: `#767676`
-is the web's best-known "lightest grey that passes on white" and it
-reads 4.42:1 here, just under. **A colour you validated against a white
-background may not clear the floor on this ground.**
+The paper is `#faf8f2`, not white — the `viewBackgroundColor` your
+canvas is painted with — and that is not a detail: `#767676` is the
+web's best-known "lightest grey that passes on white" and it reads
+4.28:1 here, under. **A colour you validated against a white background
+may not clear the floor on this ground.**
 
 Three things worth knowing before you argue with a finding:
 
 - **Opacity counts.** The ratio is taken after opacity is folded into
   the colour, because that is what a reader sees. The default ink
-  `#1e1e1e` is 16.24:1 at full strength and **4.38:1 at 60%** — under
+  `#1e1e1e` is 15.70:1 at full strength and **4.33:1 at 60%** — under
   the text floor while declaring nothing unusual anywhere. An element at
   opacity 0 is exempt: it is not faint, it is not drawn, and the
   `opacity ≠ 100` note already owns that.
 - **An object needs only one of its two colours.** A pale stroke around
   a solid dark fill is a shape you can see, so the reading is the better
   of stroke and fill; a finding means neither reaches 3:1.
+- **The ground is what the text is drawn on, not always the paper.**
+  Free text lying wholly inside a filled box is measured against that
+  box's fill — white on navy reads 14:1, not 1:1. When a filled element
+  covers only *part* of the text, the glyphs stand on two colours and
+  no single ratio is the reading, so the check declines rather than
+  picking one; the overlap itself is reported by its own warning. A
+  bound label always takes its container's fill, because the renderer
+  re-centres it there.
 - **The font floor is not politeness.** It was MEASURED, not chosen: at
   7px a rendered word holds 8.5:1 of stroke, at 6px that halves to
   4.6:1 and the letters stop separating — while the DECLARED contrast
-  is 16.24:1 at both sizes. A colour check cannot see this, which is
+  is 15.70:1 at both sizes. A colour check cannot see this, which is
   why the floor is a separate check rather than a style note.
 
 Composed parts — a slider's track, an X-box's strokes, a tile's value
@@ -297,8 +306,10 @@ speak, it is telling you something changed.
 **Every contrast finding carries the fix.** The message names the
 nearest shade of the same hue that clears the floor — computed against
 the background that element is actually drawn on, and through its own
-opacity — so "reads 2.06:1 where 3:1 is asked" arrives with
-`nearest compliant shade of the same hue: #9b9280` beside it. On an
+opacity — so "reads 1.99:1 where 3:1 is asked" arrives with
+`nearest compliant shade of the same hue: #978f7c` beside it, and the
+verb beside it ("darken"/"lighten") is the direction that shade actually
+moved rather than an assumption that ink is always too pale. On an
 element that opacity rather than colour has faded, no shade is offered,
 because none would fix it: raise the opacity. And a waive with a reason
 is always the other answer.

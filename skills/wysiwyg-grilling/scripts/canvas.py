@@ -69,13 +69,18 @@ SVG_GROUND = "#fdfcf8"
 # 2026-08-17 contrast ruling had to move all five together and found them
 # by grep: the next person to move it should not have to.
 #
-# It was #b8b2a5, which reads 2.06:1 on `SVG_GROUND` where 1.4.11 asks
+# It was #b8b2a5, which reads 1.99:1 on `PAPER_GROUND` where 1.4.11 asks
 # 3:1, and it went unreported because `lint_layout` exempted composed
 # furniture outright. The ruling dropped that exemption and darkened this
-# instead: #8d877a measures 3.48:1 with this file's own `contrast_ratio`,
+# instead: #8d877a measures 3.36:1 with this file's own `contrast_ratio`,
 # same hue (HSL 0.114, unchanged), so furniture is quiet by being
 # COMPLIANT rather than by being skipped. See the block comment above the
 # legibility checks in `lint_layout`.
+#
+# BOTH NUMBERS WERE RESTATED in the v0.9 blocker round, which moved the
+# lint's ground from `SVG_GROUND` to the paper the user actually looks
+# at: they read 2.06:1 and 3.48:1 on the old one. The ruling survives
+# the move with room to spare — the point was never the decimal.
 FURNITURE_INK = "#8d877a"
 # The largest raster this skill will ever produce, in device pixels. ONE
 # ceiling, shared by the two places that used to hold their own:
@@ -1563,7 +1568,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # authorship color language, v0.3) — explicit strokeColor wins
         #
         # RULED BY THE USER 2026-08-17: DARKEN. This default used to be
-        # #5c8a5f, which reads 3.89:1 on the #fdfcf8 ground where 1.4.3
+        # #5c8a5f, which reads 3.76:1 on the #faf8f2 ground where 1.4.3
         # asks 4.5:1 — so every annotation drawn without an explicit
         # colour tripped `contrast_text` about a colour the AGENT did not
         # choose (v0.9 WP7 task 29 measured it as that lint's whole
@@ -1573,9 +1578,11 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # floor to fit the palette was ruled out from the start as the
         # threshold fudge the harness contract forbids.
         #
-        # #47704b measures 5.55:1 on the ground with this file's own
+        # #47704b measures 5.36:1 on the ground with this file's own
         # `contrast_ratio` — comfortably over 4.5 rather than a hair over
-        # it, so the margin survives a future ground change. It is the
+        # it, so the margin survives a future ground change. IT DID: the
+        # v0.9 blocker round moved the lint's ground to `PAPER_GROUND`
+        # and this reading went 5.55 -> 5.36, still clear. It is the
         # SAME GREEN, darker: HSL hue 0.350 against the old 0.344, with
         # the move carried by lightness (0.359 against 0.451). The
         # authorship language the v0.3 decision established survives,
@@ -11940,7 +11947,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # taken): an element can be perfectly correct in the model and
     # unreadable in the picture. Ops allow free-form colour
     # and free-form `fontSize`, so nothing before this stopped an agent
-    # writing #d0d0d0 on the #fdfcf8 ground (1.50:1) or setting a 6px
+    # writing #d0d0d0 on the #faf8f2 ground (1.45:1) or setting a 6px
     # label. Legibility was enforced NOWHERE — not in lint, not on the
     # render tier (docs/todo/contrast-and-min-font-lints.md, user-directed
     # 2026-08-12; corroborated by the excalidraw-mcp mine's O4/M5, whose
@@ -11986,20 +11993,152 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # The frozen fixtures keep the old ink — they are a record of sessions
     # that happened — so those 16 stand as true findings about old
     # drawings until TASK-FOCUS-FOLLOWUP rebases them.
-    ground = parse_color(SVG_GROUND)
+    # THE GROUND IS THE CANVAS THE USER IS LOOKING AT — `PAPER_GROUND`
+    # #faf8f2, which is what `new_doc` writes into `appState` and what
+    # all three `viewBackgroundColor` sites in `App.tsx` paint. It read
+    # `SVG_GROUND` #fdfcf8 until the v0.9 blocker round, and that is a
+    # paper nothing but `render_svg`'s own export uses. The gap is not
+    # cosmetic at this floor: greys 115-116 flip the 4.5 verdict between
+    # the two and 145-146 flip the 3.0 one, so the lint was passing ink
+    # that is under the floor on the screen the user has open (#747474
+    # reads 4.55:1 on the SVG paper and 4.40:1 on the real one).
+    #
+    # `render_svg` KEEPS ITS OWN and that is deliberate rather than
+    # unfinished: `SVG_GROUND` is the export's paper and the backing
+    # painted under arrow labels inside that same export, one internally
+    # consistent surface, and moving it would repaint every render-tier
+    # baseline for a difference no eye resolves. The two names now mean
+    # two different things instead of one thing spelled twice — what the
+    # user sees, and what the export paints — and the LINT follows the
+    # user. (A scene whose `appState` carries a hand-changed
+    # `viewBackgroundColor` is still measured against the constant;
+    # `lint_layout` is handed elements, not the document.)
+    ground = parse_color(PAPER_GROUND)
+    # Z-ORDER, for `painted_under`. Excalidraw paints the array in order,
+    # so only what sits EARLIER than an element can be the ground under
+    # it — something later paints OVER it, which is occlusion and a
+    # different question.
+    zorder = {e.get("id"): i for i, e in enumerate(els)}
+    # The types that paint a filled body a reader's ink can land on.
+    # Arrows and lines are absent on purpose: a stroke has no interior,
+    # so nothing is ever "on" one.
+    GROUND_TYPES = ("rectangle", "diamond", "ellipse", "frame")
+
+    def painted_under(e):
+        """The topmost filled element the drawing puts beneath `e`.
+
+        THE DEFECT THIS EXISTS FOR (v0.9 whole-branch review C-1):
+        `drawn_on` resolved own-background -> container -> paper and
+        never asked what was geometrically underneath, so white header
+        text lying on a navy box was reported as "drawn #ffffff on
+        #fdfcf8 and reads 1.03:1" when the true reading is 14.22:1 —
+        and the repair it offered took the REAL reading to 3.04:1, below
+        even the 3.0 object floor. The warning immediately below it in
+        the same output named the box the text was on.
+
+        ONE GEOMETRY READER, not a second one: this uses
+        `shape_overlap(_text_rect(...), n)` behind the same free box
+        prefilter as the annotation-overlap loop further down, so a text
+        clipping an ellipse's shoulder and a text lying across its
+        middle are told apart here exactly as they are there.
+
+        Args:
+            e: The element whose ground is wanted.
+
+        Returns:
+            `(element, whole)` — the topmost filled element beneath `e`,
+            and whether it covers `e`'s drawn rect ENTIRELY. `(None,
+            False)` when the drawing puts nothing under it.
+        """
+        above = zorder.get(e.get("id"))
+        if above is None:
+            return (None, False)
+        x, y = e.get("x", 0), e.get("y", 0)
+        w, h = e.get("width", 0), e.get("height", 0)
+        # A text is posed as a box for `shape_overlap`, exactly as the
+        # annotation-overlap loop poses it; a box-filling shape goes in
+        # as ITSELF, so an ellipse inside a card is judged on its
+        # outline and not on the 82.8px of empty bbox corner that
+        # outline leaves.
+        probe = _text_rect(e) if e.get("type") == "text" else e
+        top, whole = None, False
+        for n in els[:above]:
+            if n.get("type") not in GROUND_TYPES:
+                continue
+            raw = n.get("backgroundColor")
+            if parse_color(raw) is None and unreadable_color(raw) is None:
+                continue        # transparent paints nothing to land on
+            if (min(x + w, n.get("x", 0) + n.get("width", 0))
+                    - max(x, n.get("x", 0)) <= 0):
+                continue
+            if (min(y + h, n.get("y", 0) + n.get("height", 0))
+                    - max(y, n.get("y", 0)) <= 0):
+                continue
+            ox, oy = shape_overlap(probe, n)
+            if ox <= 0 or oy <= 0:
+                continue
+            # WHOLLY COVERED, per axis: `_axis_overlap` answers with the
+            # WIDEST facing overlap across the band, so for a convex
+            # shape sitting inside another the answer on each axis is
+            # that shape's own full extent. Both axes full is therefore
+            # containment, and anything short of it is a cover that
+            # leaves part of the element on a different colour.
+            top, whole = n, (ox >= w - 0.5 and oy >= h - 0.5)
+        return (top, whole)
 
     def drawn_on(e):
         """The colour `e` is painted over, per the settled resolution order.
 
         Own solid `backgroundColor` (text only — for a shape that field
         is the object's own fill, so reading it as the background would
-        be circular) -> the container's fill for a bound label -> the
-        `SVG_GROUND` paper. `transparent` inherits, which is what makes
-        the free-text-on-paper case exact.
+        be circular) -> the container's fill for a bound label -> WHAT
+        THE DRAWING PUTS UNDERNEATH -> the `PAPER_GROUND` paper.
+        `transparent` inherits, which is what makes the
+        free-text-on-paper case exact.
 
-        ONE HOP, deliberately: a container inside a filled container is
-        not a shape this skill composes, and a resolver that walked would
-        need a cycle guard for a case no scene produces.
+        THE GEOMETRIC ARM READS UNBOUND text and box-filling shapes, and
+        each half of that is a measured choice rather than a scoping
+        convenience.
+
+        *Unbound*, because a BOUND label is placed by the RENDERER,
+        which re-centres it inside its container: its stored coordinate
+        is not where anybody sees it, so reading geometry off it would
+        answer with a ground the picture never had. That is the same
+        reason the annotation-overlap loop exempts bound labels
+        wholesale. A label bound to a TRANSPARENT container that itself
+        lies on a filled box therefore still resolves to paper — the
+        residue of ONE HOP, recorded rather than crossed, since walking
+        would need a cycle guard for a case no scene this skill
+        composes produces.
+
+        *Box-filling*, because "what is under this" is a question a
+        BODY answers and a PATH does not. An arrow or a line is a stroke
+        that crosses grounds by construction, and its extent is its
+        `points` rather than the stored box every reader here would ask
+        for — so arrows and lines keep the paper, which for a connector
+        is also the ground 1.4.11's question is about.
+
+        IT REFUSES ON A PARTIAL COVER, AND ONLY FOR TEXT. When the
+        topmost element beneath a text covers only part of it, the
+        glyphs are standing on two different colours and NO single ratio
+        is the reading — reporting either one is the same
+        confident-wrong-number this docstring's next paragraph forbids.
+        A partially covered SHAPE keeps the paper instead: 1.4.11 asks
+        whether the reader can pick a whole outline out, the paper is
+        what most of that outline is picked out against, and refusing
+        there would silence the pale-connector-clipping-a-node case the
+        check exists for. Either way the geometry itself still travels —
+        the annotation-overlap check reports the text's ("lies on top of
+        … 200x30px of overlap") and the node pair loop reports the
+        shape's.
+
+        MEASURED ON THE FROZEN CORPUS, so the arm's reach is a number
+        and not a hope: 10 elements sit wholly inside a filled one and
+        12 clip one without being covered. None of the 22 moves a
+        verdict — the corpus's contrast census is 0 findings before and
+        after — so this arm is defended by the constructed cases in
+        `TestTheGroundIsWhatTheDrawingPutsUnderTheInk`, not by the
+        fixtures.
 
         IT REFUSES RATHER THAN FALLING BACK when the ground it would
         resolve is DECLARED AND UNREADABLE — v0.9 TASK-COLORPARSE fix
@@ -12019,8 +12158,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
 
         Returns:
             An (r, g, b) triple, or None when the ground is declared and
-            unreadable, which asks every caller to decline rather than
-            measure against a colour that is not there.
+            unreadable, or when the drawing puts an opaque element under
+            only PART of the text — both of which ask every caller to
+            decline rather than measure against a colour the picture
+            contradicts.
         """
         if e.get("type") == "text":
             own = e.get("backgroundColor")
@@ -12037,6 +12178,30 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             col = parse_color(hb)
             if col is not None:
                 return composite_over(col, ground, host.get("opacity", 100))
+        if not e.get("containerId") and (e.get("type") == "text"
+                                         or e.get("type") in GROUND_TYPES):
+            under, whole = painted_under(e)
+            if under is not None:
+                if not whole:
+                    # TEXT ONLY REFUSES; a box-filling shape keeps the
+                    # paper. See the resolution order above: a partial
+                    # cover leaves a text block standing on two colours
+                    # with no single reading, while a shape's 1.4.11
+                    # question is whether its whole outline can be
+                    # picked out, and the paper is the ground it is
+                    # mostly picked out against. The overlap itself is
+                    # reported either way — by the annotation loop for
+                    # the text, by the node pair loop for the shape.
+                    if e.get("type") == "text":
+                        return None
+                else:
+                    ub = under.get("backgroundColor")
+                    if unreadable_color(ub) is not None:
+                        return None
+                    col = parse_color(ub)
+                    if col is not None:
+                        return composite_over(col, ground,
+                                              under.get("opacity", 100))
         return ground
 
     def hexof(rgb):
@@ -12051,8 +12216,17 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         return "#%02x%02x%02x" % tuple(
             max(0, min(255, int(round(c)))) for c in rgb)
 
-    def suggestion(col, bg, floor, opac):
-        """The nearest-compliant clause for a finding's message.
+    def repair(col, bg, floor, opac):
+        """The verb and the nearest-compliant clause, from one search.
+
+        ONE FUNCTION FOR BOTH HALVES, which is the whole point. The verb
+        used to be the hardcoded word "darken" printed beside a shade
+        `nearest_compliant` had searched BOTH directions for, so
+        `#4a4a4a` measured on `#333333` was told to darken and offered
+        `#9b9b9b` — a LIGHTER shade, in the same sentence (v0.9
+        whole-branch review, C-1's second cluster item). Two halves of
+        one answer computed in two places is how they came apart;
+        computed here together they cannot.
 
         Args:
             col: The declared (r, g, b) triple the message names.
@@ -12061,12 +12235,24 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             opac: The element's opacity, folded into each candidate.
 
         Returns:
-            A clause naming the shade, or "" when no shade of this hue
-            reaches the floor at this opacity (a faded element, where the
-            followable advice is the opacity and not the colour).
+            `(verb, clause)` — the direction the repair actually moves
+            ("darken" or "lighten"), and a clause naming the shade, or
+            "" when no shade of this hue reaches the floor at this
+            opacity (a faded element, where the followable advice is the
+            opacity and not the colour). With no shade to point at, the
+            verb is still derived rather than assumed: away from the
+            ground's own luminance is the only direction that can gain.
         """
         fixed = nearest_compliant(col, bg, floor, opac)
-        return ("" if fixed is None else
+        if fixed is None:
+            return (("lighten" if relative_luminance(col)
+                     >= relative_luminance(bg) else "darken"), "")
+        # `nearest_compliant` holds hue and saturation and moves HSL
+        # LIGHTNESS only, so that axis is exactly what the answer moved
+        # along and comparing it is the direction, not an estimate of it.
+        was = colorsys.rgb_to_hls(*(c / 255.0 for c in col))[1]
+        now = colorsys.rgb_to_hls(*(c / 255.0 for c in fixed))[1]
+        return (("lighten" if now > was else "darken"),
                 " — nearest compliant shade of the same hue: %s"
                 % hexof(fixed))
 
@@ -12215,14 +12401,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     drawn = ("%s at %d%% opacity, so %s"
                              % (hexof(ink), int(opac), hexof(seen))
                              if int(opac) != 100 else hexof(ink))
-                    # The repair names what actually moved the reading.
-                    # "Darken the ink" is unfollowable advice on a scene
-                    # whose ink is already #1e1e1e and whose opacity is
-                    # what thinned it — the lint's own advice being
-                    # unfollowable is a recorded v0.3 assessment finding
-                    # and a shipped one is not defensible twice.
-                    fix = ("raise its opacity or darken the ink"
-                           if int(opac) != 100 else "darken the ink")
+                    # The repair names what actually moved the reading —
+                    # both the OPACITY clause and the DIRECTION. "Darken
+                    # the ink" is unfollowable advice on a scene whose
+                    # ink is already #1e1e1e and whose opacity is what
+                    # thinned it, and it is wrong outright on pale ink
+                    # over a dark ground, where the answer beside it is
+                    # lighter; the lint's own advice being unfollowable
+                    # is a recorded v0.3 assessment finding and a shipped
+                    # one is not defensible twice.
+                    verb, shade = repair(ink, bg, floor, opac)
+                    fix = ("raise its opacity or %s the ink" % verb
+                           if int(opac) != 100 else "%s the ink" % verb)
                     warnings.append(
                         "text %s (%r) is drawn %s on %s and reads "
                         "%.2f:1 — 1.4.3 asks %.1f:1 of text this size. "
@@ -12230,7 +12420,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                         "decision with waive {action: waive, key: %r, "
                         "reason: ...}"
                         % (eid, quoted, drawn, hexof(bg), got, floor,
-                           fix, suggestion(ink, bg, floor, opac), key))
+                           fix, shade, key))
             # The font floor. Separate from the ratio above and not a
             # politeness rule beside it: this is the only tier-1 handle
             # on a contrast failure that RASTERIZATION creates, which a
@@ -12294,8 +12484,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                          % (hexof(col), int(opac), hexof(seen))
                          if int(opac) != 100 else hexof(col))
                 noun = noun_of(etype, e)
-                fix = ("raise its opacity or darken the %s" % src
-                       if int(opac) != 100 else "darken the %s" % src)
+                verb, shade = repair(col, bg, CONTRAST_OBJECT, opac)
+                fix = ("raise its opacity or %s the %s" % (verb, src)
+                       if int(opac) != 100 else "%s the %s" % (verb, src))
                 warnings.append(
                     "%s %s is drawn %s on %s and reads %.2f:1 — 1.4.11 "
                     "asks %.1f:1 of an object the reader has to pick "
@@ -12303,8 +12494,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "decision with waive {action: waive, key: %r, "
                     "reason: ...}"
                     % (noun, name(eid), drawn, hexof(bg), best,
-                       CONTRAST_OBJECT, fix,
-                       suggestion(col, bg, CONTRAST_OBJECT, opac), key))
+                       CONTRAST_OBJECT, fix, shade, key))
 
     # ---- WARNING: degenerate arrow geometry (WP4b e15) ----------------
     # This runs FIRST of the arrow checks because every one of them
