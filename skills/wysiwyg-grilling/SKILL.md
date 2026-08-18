@@ -308,17 +308,22 @@ canvas-first questions become a place where the user's answers go quiet.
 | `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
 | `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
 
-**Event taxonomy** — all fifteen types, and who a type belongs to
+**Event taxonomy** — all sixteen types, and who a type belongs to
 decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
 |---|---|---|
-| `save`, `pin_answer`, `tripwire_answer`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed` | `server_started`, `reconciliation` |
+| `save`, `pin_answer`, `tripwire_answer`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop` | `server_started`, `reconciliation` |
 
 `agent_revision_failed` is yours, but it is not an echo to ignore: it
 fires when a revision the **user** pulled could not be applied, and its
 `error` field is the only place that is ever said. Re-read state and
 redraw — the user clicked Apply and got nothing.
+
+`agent_revision_noop` is the quieter sibling: the user pulled a held
+re-route and the drawing had moved on, so nothing was written. Nothing
+is broken and nothing is owed — but the banner you were told about is
+gone, so don't narrate a straightening that never happened.
 
 **Tier 3 — no `Monitor` tool?** `canvas.py wait --timeout 540` (defaults
 to `--for user`, the same filter server-side; exits 3 on timeout, and the

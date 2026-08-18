@@ -18563,11 +18563,55 @@ class Store:
                    aid)
                 for aid, ch in sorted(self.legacy_routing().items())]
 
+    def reroute_noop(self, aid):
+        """The stand-in `reroute` answers with when it will not write.
+
+        SPLIT OUT so the question can be ASKED WITHOUT COMMITTING, which
+        is what `/api/reroute` needs the moment it honours the cadence
+        banner (v0.9 blocker round C-2): a re-route that would not
+        straighten anything is not a revision, so it must answer now
+        rather than take up a slot on the banner the user then has to
+        dismiss. `reroute` calls it first, so the two can never drift
+        into disagreeing about what counts as nothing to do.
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            The `noop: True` stand-in record when a re-route would write
+            nothing, or None when it would write a revision.
+
+        Raises:
+            BatchError: If `aid` names no artifact.
+        """
+        with self.lock:
+            base = self.scenes.get(aid)
+            if base is None:
+                raise BatchError(["reroute: unknown artifact %r" % aid])
+            if not reroute_is_fossil(base):
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline": reroute_decline(base, aid),
+                                    "verb_counts": {}, "suppressed": 0}}
+            if not reroute_scene(base)[1]:
+                return {"revn": self.head_revn(), "noop": True,
+                        "summary": {"headline": "%s is already routed the "
+                                                "way today's router would "
+                                                "draw it" % aid,
+                                    "verb_counts": {}, "suppressed": 0}}
+            return None
+
     def reroute(self, aid):
         """Re-route one artifact's fossil arrows, as a revertible revision.
 
-        The consent gate is the CLI's (`reroute` reports; `--apply`
-        acts) and the checkpoint is this commit's own base: reverting
+        TWO CONSENT GATES, not one. The CLI's is per-drawing (`reroute`
+        reports; `--apply` acts on one artifact), and the cadence
+        banner's is per-moment — `/api/reroute` holds this call behind
+        it under `pulled` cadence or a dirty canvas, exactly as
+        `/api/apply` does, since v0.9's blocker round. This method
+        itself commits unconditionally: it is what the banner PULLS, so
+        a gate here would gate the user's own click.
+
+        The checkpoint is this commit's own base: reverting
         the save it returns restores the geometry exactly, which is why
         this goes through `commit` rather than through `apply_ops`. It
         could not go through ops anyway — a `mod points` marks the arrow
@@ -18620,30 +18664,18 @@ class Store:
             aid: Artifact id.
 
         Returns:
-            The save record, or a `noop: True` stand-in when a re-route
-            would not straighten the drawing — committing anyway would
-            write a revision headlined "saved without changing
-            anything", or worse, one that changed the picture for
-            nothing.
-
-        Raises:
-            BatchError: If `aid` names no artifact.
+            The save record, or the `noop: True` stand-in
+            `reroute_noop` answers with when a re-route would not
+            straighten the drawing — committing anyway would write a
+            revision headlined "saved without changing anything", or
+            worse, one that changed the picture for nothing. An unknown
+            `aid` raises `BatchError` from there.
         """
         with self.lock:
-            base = self.scenes.get(aid)
-            if base is None:
-                raise BatchError(["reroute: unknown artifact %r" % aid])
-            if not reroute_is_fossil(base):
-                return {"revn": self.head_revn(), "noop": True,
-                        "summary": {"headline": reroute_decline(base, aid),
-                                    "verb_counts": {}, "suppressed": 0}}
-            els, changes = reroute_scene(base)
-            if not changes:
-                return {"revn": self.head_revn(), "noop": True,
-                        "summary": {"headline": "%s is already routed the "
-                                                "way today's router would "
-                                                "draw it" % aid,
-                                    "verb_counts": {}, "suppressed": 0}}
+            declined = self.reroute_noop(aid)
+            if declined is not None:
+                return declined
+            els, changes = reroute_scene(self.scenes[aid])
             redrew = sum(1 for c in changes if c["path_changed"])
             return self.commit(
                 author="agent", new_scenes={aid: els},
@@ -19077,7 +19109,8 @@ class ServerApp:
         """Hold a revision behind the banner for the user to pull.
 
         Args:
-            batch: The validated op-batch envelope.
+            batch: The validated op-batch envelope, or a `reroute: True`
+                marker naming the artifact a held re-route will redraw.
             pin_only: Whether the batch draws nothing.
             supersedes: Queue entry this batch replaces. A corrected retry
                 used to stack a second banner beside the broken original,
@@ -19156,12 +19189,23 @@ class ServerApp:
         the entry waited, not the one the queue is about to drain back
         to — see `effective_round`.
 
+        A `reroute` entry carries no ops — it is a geometry pass, not a
+        batch, for the reason `Store.reroute` states (expressing one as
+        `mod points` would mark every arrow `routed: "authored"` and
+        freeze the fossil forever). It is RECOMPUTED here rather than
+        replayed, which is the same rebase `base_revn` performs for an
+        op batch and matters for the same reason: the whole point of
+        waiting behind the banner is that the user may draw while it
+        waits, and a re-route is a function of the geometry it lands on.
+
         Args:
             entry: The queue entry to apply.
             trigger: What pulled it, for the failure event's message.
 
         Returns:
-            The save record.
+            The save record, or a `noop: True` stand-in when a re-route
+            entry found nothing left to straighten by the time it was
+            pulled. The entry is dropped either way.
 
         Raises:
             BatchError: The batch does not validate against the head it
@@ -19169,10 +19213,14 @@ class ServerApp:
             StaleError: Propagated from `commit`; the entry is dropped.
         """
         batch = dict(entry["batch"])
-        batch["base_revn"] = self.store.head_revn()
         try:
-            record, pin_only = self.store.apply_batch(
-                batch, min_round=entry.get("round"))
+            if batch.get("reroute"):
+                record, pin_only = self.store.reroute(
+                    batch.get("artifact")), False
+            else:
+                batch["base_revn"] = self.store.head_revn()
+                record, pin_only = self.store.apply_batch(
+                    batch, min_round=entry.get("round"))
         except (BatchError, StaleError) as e:
             self.drop_pending(entry["id"])
             self.events.append(
@@ -19181,6 +19229,14 @@ class ServerApp:
                       "Re-read state and redraw." % (trigger, e))
             raise
         self.drop_pending(entry["id"])
+        if record.get("noop"):
+            # The user drew over the fossil while the re-route waited,
+            # so there is nothing left to straighten. Nothing is written
+            # — the same answer the open path gives — and the event says
+            # so rather than leaving a banner that silently vanished.
+            self.events.append("agent_revision_noop", pending_id=entry["id"],
+                               headline=record["summary"]["headline"])
+            return record
         # the agent is not the one who clicked Apply, so the event log is
         # the only surface it hears this on when the banner (rather than
         # `x-pending`) is what pulled the revision. Written only when
@@ -19411,6 +19467,14 @@ class ServerApp:
                     record = self.commit_pending(entry)
                 except (BatchError, StaleError) as e:
                     return err(422, str(e))
+                if record.get("noop"):
+                    # a held re-route whose fossil the user straightened
+                    # by hand while it waited: the banner clears, nothing
+                    # is written, and the reason is said rather than
+                    # answered with a revn that never moved
+                    return {"ok": True, "revn": record["revn"],
+                            "noop": True, "changes": {},
+                            "headline": record["summary"]["headline"]}
                 out = {"ok": True, "revn": record["revn"],
                        "changes": {aid: part.get("changes") or []
                                    for aid, part in
@@ -19504,6 +19568,52 @@ class ServerApp:
             # out-of-session edit the running store then reconciles, so
             # the user would be told THEY changed the drawing.
             aid = body.get("artifact")
+            # THE SAME GATE `/api/apply` HOLDS, and for the same reason.
+            # This committed straight over the pulled-cadence banner
+            # until the v0.9 blocker round (review C-2): in identical
+            # server state `/api/apply` answered `{"queued": true,
+            # "reason": "cadence is set to pulled"}` and `/api/reroute`
+            # answered `{"ok": true, "revn": 26}`. A re-route IS an
+            # ordinary agent revision — `--apply`'s own help says so, and
+            # `_cmd_mermaid_relayout` defines an ordinary revision as one
+            # that queues behind this banner, which it calls the user's
+            # consent gate. Reroute had taken the flag half of that
+            # contract (`reroute` reports, `--apply` acts) and dropped
+            # the banner half, inheriting `/api/tidy`'s shape — a USER
+            # BUTTON PRESS, where the press is itself the consent — when
+            # `/api/apply`'s was the one that applied.
+            #
+            # NO `pin_only` ARM: a re-route that draws nothing is a
+            # no-op, and no-ops answer immediately below rather than
+            # queueing, so the two exemptions the apply path needs
+            # collapse into one question here.
+            cadence = self.store.config.get("canvas_updates", "per-round")
+            if self.dirty or cadence == "pulled":
+                try:
+                    declined = self.store.reroute_noop(aid)
+                except (BatchError, StaleError) as e:
+                    return err(400, str(e))
+                if declined is not None:
+                    return {"ok": True, "revn": declined["revn"],
+                            "noop": True,
+                            "headline": declined["summary"]["headline"]}
+                entry = self.queue_pending(
+                    {"artifact": aid, "reroute": True,
+                     "note": "re-route %s's legacy arrows" % aid}, False)
+                self.events.append("agent_pending", pending_id=entry["id"],
+                                   pin_only=False, reroute=True,
+                                   reason="dirty canvas" if self.dirty
+                                   else "pulled cadence")
+                return {
+                    "ok": True, "queued": True, "noop": False,
+                    "pending_id": entry["id"],
+                    "reason": ("the user has unsaved edits" if self.dirty
+                               else "cadence is set to pulled"),
+                    "hint": "The re-route will land behind the pending-"
+                            "revision banner; the user chooses when. It is "
+                            "recomputed against whatever the drawing looks "
+                            "like then, so what it redraws may differ from "
+                            "what the survey named."}
             try:
                 record = self.store.reroute(aid)
             except (BatchError, StaleError) as e:
@@ -20498,6 +20608,17 @@ def cmd_reroute(args):
             die("ERROR=%s" % payload.get("error", str(e)), 5)
         except (OSError, ValueError, urllib.error.URLError) as e:
             die("ERROR=server unreachable (%s) — run canvas.py start" % e, 3)
+        if resp.get("queued"):
+            # The banner took it (v0.9 blocker round C-2). Printed in the
+            # SAME keys `apply` uses for the same event, because an agent
+            # that has learned to read `QUEUED=true` off one of the two
+            # write paths should not have to learn a second spelling —
+            # and printing an APPLIED= line here would be the bypass all
+            # over again, one layer out, in the surface the agent reads.
+            print_kv(artifact=args.artifact, arrows=arrows, applied="false",
+                     queued="true", pending_id=resp.get("pending_id"),
+                     reason=resp.get("reason"), hint=resp.get("hint"))
+            return 0
         return _print_reroute_applied(
             args.artifact, arrows, resp.get("revn"), resp.get("short_id"),
             resp.get("headline"), bool(resp.get("noop")), offline=False)
@@ -20679,7 +20800,7 @@ USER_EVENT_TYPES = frozenset({
     "branch_switch", "branch_archive", "suggest_view", "config_changed"})
 AGENT_EVENT_TYPES = frozenset({
     "agent_revision", "agent_pending", "agent_revision_discarded",
-    "agent_revision_failed"})
+    "agent_revision_failed", "agent_revision_noop"})
 
 
 def cmd_wait(args):

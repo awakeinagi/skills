@@ -469,9 +469,13 @@ it "agent asked a question" with no Apply action.
   `ARTIFACTS`/`ARROWS`/`CHECKPOINT`/`APPLIED=false`. `--apply` needs
   `--artifact` — consent is given one drawing at a time, never
   project-wide — and commits an ordinary agent revision, so **reverting
-  that save restores the old geometry exactly**. Arrows whose geometry is
-  the USER's (`mod points`, hand-reshaped, unmarked bent paths) are
-  neither reported nor touched.
+  that save restores the old geometry exactly**. *Ordinary* is literal:
+  under `pulled` cadence, or while the user has unsaved edits, it queues
+  behind the pending-revision banner exactly as `apply` does and prints
+  `QUEUED=true` with the same `REASON=`. It is recomputed when the user
+  pulls it, so what it redraws may differ from what the survey named.
+  Arrows whose geometry is the USER's (`mod points`, hand-reshaped,
+  unmarked bent paths) are neither reported nor touched.
   - **The offer is made only when it would straighten the drawing**, not
     whenever a re-route would change something. Obstacle-aware routing is
     not idempotent — the search re-decides against a scene its own last
@@ -527,8 +531,12 @@ it "agent asked a question" with no Apply action.
   loop without doing something useful between).
 - `canvas.py screenshot --artifact <id>` → PNG path (needs the browser open;
   context only, never truth).
-- `POST <url>api/tidy {"artifact": id}` → grid-snap + re-route + re-fan +
-  z-order as an ordinary agent revision (revertible).
+- `POST <url>api/tidy {"artifact": id}` → what the canvas's ✨ tidy
+  button posts: grid-snap + re-route + re-fan + z-order, revertible like
+  any save. **The button press is the user's consent**, so unlike
+  `apply` and `reroute` this one does not queue behind the cadence
+  banner — which is exactly why it is not yours to press. Suggest tidy;
+  let them run it.
 - `POST <url>api/reroute {"artifact": id}` → what `reroute --apply` posts
   to when a server is up. Use the CLI: writing the files directly behind a
   running store makes the re-route arrive as an out-of-session edit, and

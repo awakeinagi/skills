@@ -71,6 +71,74 @@ _NO_CHECKOUT = ("not a git checkout — this census's scan surface is "
                 "as is `census_probes.py`'s")
 
 
+def run_reroute_cli(project, tmp, resp=None, **kw):
+    """Run `cmd_reroute --apply`, optionally against a fake server.
+
+    ONE RUNNER FOR TWO CLASSES, for the same reason `seed_fossil_flow`
+    is one seeder: this patches `server_alive` and `http_json` in a
+    specific pairing, and a second hand-rolled copy that patched only
+    one of them would run the OFFLINE branch while its test name claimed
+    the server one.
+
+    Args:
+        project: The Project (its `state_path` is written for the server
+            branch).
+        tmp: The project root, for the arg namespace.
+        resp: The `/api/reroute` payload to answer with. None runs the
+            offline branch.
+        **kw: Overrides for the arg namespace.
+
+    Returns:
+        Stdout as a `{KEY: value}` dict.
+    """
+    ns = argparse.Namespace(project=tmp, artifact="checkout-flow",
+                            apply=True)
+    for k, v in kw.items():
+        setattr(ns, k, v)
+    buf = io.StringIO()
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(contextlib.redirect_stdout(buf))
+        stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+        if resp is not None:
+            project.state_path.write_text(json.dumps(
+                {"url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
+                 "protocol_version": canvas.PROTOCOL_VERSION}),
+                encoding="utf-8")
+            stack.enter_context(mock.patch.object(
+                canvas, "server_alive", lambda s: True))
+            stack.enter_context(mock.patch.object(
+                canvas, "http_json", lambda *a, **k: resp))
+        else:
+            stack.enter_context(mock.patch.object(
+                canvas, "server_alive", lambda s: False))
+        canvas.cmd_reroute(ns)
+    return dict(ln.split("=", 1) for ln in buf.getvalue().splitlines()
+                if "=" in ln and not ln.startswith("REROUTE="))
+
+
+def seed_fossil_flow(store):
+    """Seed the checkout flow and fossilise two of its arrows.
+
+    ONE FIXTURE, TWO CLASSES: `TestRerouteSaysTheSameThingOnBothPaths`
+    needs a re-route with real work to do, and so does
+    `TestRerouteHonoursTheCadenceBanner` — and a second class that
+    inherited the first only to borrow its `setUp` would silently re-run
+    every one of its assertions under a name describing something else.
+
+    Args:
+        store: The Store to seed. Left at the fossilised head.
+    """
+    store.apply_batch(seed_flow_batch())
+    els = [dict(e) for e in store.scenes["checkout-flow"]]
+    for e in els:
+        if e["id"] in ("t1", "t3"):
+            e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
+            e["points"] = [[0, 0], [150, -70]]
+            canvas._stamp_route(e)
+    store.commit(author="agent", new_scenes={"checkout-flow": els},
+                 base_revn=store.head_revn())
+
+
 def seed_flow_batch(base_revn=0):
     """The feel-prototype checkout flow: cart → checkout → payment → confirm."""
     return {
@@ -14869,19 +14937,11 @@ class TestRerouteSaysTheSameThingOnBothPaths(Base):
     def setUp(self):
         """Seed a flow and fossilise two arrows into crooked arrivals."""
         super().setUp()
-        self.store.apply_batch(seed_flow_batch())
-        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
-        for e in els:
-            if e["id"] in ("t1", "t3"):
-                e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
-                e["points"] = [[0, 0], [150, -70]]
-                canvas._stamp_route(e)
-        self.store.commit(author="agent", new_scenes={"checkout-flow": els},
-                          base_revn=self.store.head_revn())
+        seed_fossil_flow(self.store)
         self.store = canvas.Store(self.project)
 
     def cli(self, resp=None, **kw):
-        """Run `cmd_reroute --apply`, optionally against a fake server.
+        """`run_reroute_cli`, bound to this case's project.
 
         Args:
             resp: The `/api/reroute` payload to answer with. None runs
@@ -14891,29 +14951,7 @@ class TestRerouteSaysTheSameThingOnBothPaths(Base):
         Returns:
             Stdout as a `{KEY: value}` dict.
         """
-        ns = argparse.Namespace(project=self.tmp, artifact="checkout-flow",
-                                apply=True)
-        for k, v in kw.items():
-            setattr(ns, k, v)
-        buf = io.StringIO()
-        with contextlib.ExitStack() as stack:
-            stack.enter_context(contextlib.redirect_stdout(buf))
-            stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
-            if resp is not None:
-                self.project.state_path.write_text(json.dumps(
-                    {"url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
-                     "protocol_version": canvas.PROTOCOL_VERSION}),
-                    encoding="utf-8")
-                stack.enter_context(mock.patch.object(
-                    canvas, "server_alive", lambda s: True))
-                stack.enter_context(mock.patch.object(
-                    canvas, "http_json", lambda *a, **k: resp))
-            else:
-                stack.enter_context(mock.patch.object(
-                    canvas, "server_alive", lambda s: False))
-            canvas.cmd_reroute(ns)
-        return dict(ln.split("=", 1) for ln in buf.getvalue().splitlines()
-                    if "=" in ln and not ln.startswith("REROUTE="))
+        return run_reroute_cli(self.project, self.tmp, resp, **kw)
 
     def test_a_committed_apply_reads_the_same_either_way(self):
         offline = self.cli()
@@ -14971,6 +15009,194 @@ class TestRerouteSaysTheSameThingOnBothPaths(Base):
             self.assertEqual(e.exception.status, 400)
         finally:
             app.log_file.close()
+
+
+class TestRerouteHonoursTheCadenceBanner(Base):
+    """v0.9 blocker round C-2: the consent gate covers both write paths.
+
+    THE DEFECT, reproduced by the whole-branch review in identical
+    server state with `canvas_updates: pulled`::
+
+        POST /api/apply   -> {"queued": true, "reason": "cadence is set
+                              to pulled"}
+        POST /api/reroute -> {"ok": true, "revn": 26, "noop": false}
+
+    `/api/apply` computes `hold = (self.dirty or cadence == "pulled")
+    and not pin_only` and queues; `/api/reroute` had no such check.
+    `_cmd_mermaid_relayout` calls this banner **the user's consent
+    gate** and `--apply`'s own help promises to "commit it as an
+    ordinary revision" — reroute took the flag half of that contract and
+    dropped the banner half.
+
+    THE ASSERTIONS COMPARE THE TWO ENDPOINTS IN ONE SERVER rather than
+    checking reroute against a remembered string, because the claim is
+    that they agree, and a reason string reworded on one side is exactly
+    how they came apart. `seed_fossil_flow` is what makes that possible:
+    it fossilises two arrows, so a re-route here has real work to do and
+    a queue that silently no-op'd would fail the pull.
+    """
+
+    def setUp(self):
+        """Seed the same fossilised flow the sibling class uses."""
+        super().setUp()
+        seed_fossil_flow(self.store)
+        self.store = canvas.Store(self.project)
+
+    def cli(self, resp, **kw):
+        """`run_reroute_cli`, bound to this case's project.
+
+        Args:
+            resp: The `/api/reroute` payload to answer with.
+            **kw: Overrides for the arg namespace.
+
+        Returns:
+            Stdout as a `{KEY: value}` dict.
+        """
+        return run_reroute_cli(self.project, self.tmp, resp, **kw)
+
+    def app_with(self, cadence="pulled", dirty=False):
+        """A server app in a stated cadence and dirty state.
+
+        Args:
+            cadence: `canvas_updates`.
+            dirty: Whether the user has unsaved edits.
+
+        Returns:
+            The app; the caller closes its log.
+        """
+        app = canvas.ServerApp(self.project)
+        app.store.config["canvas_updates"] = cadence
+        app.dirty = dirty
+        return app
+
+    def both(self, app):
+        """Post a re-route and an ordinary apply to the same server.
+
+        Args:
+            app: The server app.
+
+        Returns:
+            `(reroute_response, apply_response)`.
+        """
+        r = app.handle_post("/api/reroute", {"artifact": "checkout-flow"})
+        a = app.handle_post("/api/apply", {
+            "base_revn": app.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "mod", "id": "cart", "attrs": {"x": 44}}]})
+        return r, a
+
+    def test_under_pulled_cadence_a_reroute_queues_exactly_as_an_apply_does(
+            self):
+        """The review's own reproduction, both endpoints, one server."""
+        app = self.app_with(cadence="pulled")
+        try:
+            before = app.store.head_revn()
+            r, a = self.both(app)
+            self.assertTrue(r["queued"], r)
+            self.assertEqual(r["reason"], a["reason"])
+            self.assertNotIn("revn", r, "a queued re-route has not written "
+                                        "a revision and must not name one")
+            self.assertEqual(app.store.head_revn(), before,
+                             "the re-route committed over the banner")
+            self.assertEqual(len(app.pending), 2)
+        finally:
+            app.log_file.close()
+
+    def test_a_dirty_canvas_holds_it_too_and_says_the_other_reason(self):
+        """The gate's second arm — the user has unsaved edits."""
+        app = self.app_with(cadence="per-round", dirty=True)
+        try:
+            r, a = self.both(app)
+            self.assertTrue(r["queued"], r)
+            self.assertEqual(r["reason"], a["reason"])
+            self.assertEqual(r["reason"], "the user has unsaved edits")
+        finally:
+            app.log_file.close()
+
+    def test_a_clean_canvas_on_push_cadence_still_commits(self):
+        """The other direction, or the gate is just a dead endpoint."""
+        app = self.app_with(cadence="per-round", dirty=False)
+        try:
+            before = app.store.head_revn()
+            r, _ = self.both(app)
+            self.assertNotIn("queued", r)
+            self.assertFalse(r["noop"])
+            self.assertEqual(r["revn"], before + 1)
+            self.assertIn("rerouted", r["headline"])
+            self.assertEqual(app.pending, [])
+        finally:
+            app.log_file.close()
+
+    def test_a_held_reroute_lands_when_the_user_pulls_it(self):
+        """Queueing is only honouring the gate if the pull still draws."""
+        app = self.app_with(cadence="pulled")
+        try:
+            r = app.handle_post("/api/reroute", {"artifact": "checkout-flow"})
+            before = app.store.head_revn()
+            out = app.handle_post("/api/pending/resolve",
+                                  {"id": r["pending_id"],
+                                   "action": "apply_now"})
+            self.assertTrue(out["ok"])
+            self.assertEqual(out["revn"], before + 1)
+            self.assertEqual(app.pending, [])
+            rec = app.store.records[out["revn"]]
+            self.assertIn("re-routed", rec.get("user_note") or "")
+        finally:
+            app.log_file.close()
+
+    def test_a_reroute_with_nothing_to_do_answers_now_instead_of_queueing(
+            self):
+        """A no-op is not a revision, so it never takes a banner slot.
+
+        Without this the user gets a banner for a re-route that will
+        write nothing, and has to dismiss it to find that out — the
+        opposite of what a consent gate is for.
+        """
+        app = self.app_with(cadence="pulled")
+        try:
+            canvas.Store(self.project)      # the fossil is on disk
+            app.store.reroute("checkout-flow")      # spend the offer
+            r = app.handle_post("/api/reroute", {"artifact": "checkout-flow"})
+            self.assertTrue(r["noop"])
+            self.assertNotIn("queued", r)
+            self.assertEqual(app.pending, [])
+        finally:
+            app.log_file.close()
+
+    def test_a_held_reroute_the_user_pre_empted_writes_nothing(self):
+        """The drawing moved while the revision waited.
+
+        `commit_pending` RECOMPUTES a held re-route rather than replaying
+        it — the same rebase an op batch gets from `base_revn` — so a
+        fossil the user straightened by hand in the meantime leaves the
+        banner with nothing to do, and that is said rather than answered
+        with a revn nothing moved.
+        """
+        app = self.app_with(cadence="pulled")
+        try:
+            r = app.handle_post("/api/reroute", {"artifact": "checkout-flow"})
+            app.store.reroute("checkout-flow")      # the user got there first
+            head = app.store.head_revn()
+            out = app.handle_post("/api/pending/resolve",
+                                  {"id": r["pending_id"],
+                                   "action": "apply_now"})
+            self.assertTrue(out["noop"], out)
+            self.assertEqual(out["revn"], head)
+            self.assertEqual(app.pending, [])
+        finally:
+            app.log_file.close()
+
+    def test_the_cli_prints_the_queue_in_the_same_keys_apply_uses(self):
+        """The surface the agent reads must not say APPLIED either."""
+        out = self.cli(resp={"ok": True, "queued": True, "noop": False,
+                             "pending_id": 7,
+                             "reason": "cadence is set to pulled",
+                             "hint": "the user chooses when"})
+        self.assertEqual(out["QUEUED"], "true")
+        self.assertEqual(out["APPLIED"], "false")
+        self.assertEqual(out["PENDING_ID"], "7")
+        self.assertEqual(out["REASON"], "cadence is set to pulled")
+        self.assertNotIn("REVN", out, "a queued re-route has no save to name")
 
 
 class TestDivergenceVerbs(Base):
