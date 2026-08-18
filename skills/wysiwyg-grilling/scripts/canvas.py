@@ -9509,6 +9509,40 @@ def exact_ink_extent(els, pad=40):
     return ink_extent([e for e in els if e.get("type") != "text"], pad=pad)
 
 
+def arrowhead_of(e: dict[str, Any], at_end: bool) -> Any:
+    """The arrowhead the CLIENT would draw at one end of an arrow.
+
+    ABSENT IS NOT NONE, and the difference is a mark the user sees and
+    the agent does not. Excalidraw reads both ends through a destructuring
+    default — `let {startArrowhead: o = null, endArrowhead: h = "arrow"}
+    = e` — which fires on `undefined` and never on an explicit `null`, so
+    an arrow that merely OMITS `endArrowhead` is headed and one that
+    stores `null` there is bare. The vendored bundle carries that spelling
+    twice, at `restoreElement`'s `case "arrow"` and again in the shape
+    generator, where the draw guard is `if (u !== null)` — a null test,
+    not a truthy one, which is why this returns the value and callers
+    ask `is not None` rather than `if`.
+
+    `render_svg` used to truthy-test `e.get("endArrowhead")` directly,
+    so a stored arrow lacking the key drew HEADLESS in the fallback
+    picture while Excalidraw drew the head — the same family as the
+    start-arrowhead defect (see `_svg_arrowhead`), arriving through a
+    missing key instead of an unread field. `make_element` has always
+    defaulted the field the client's way; this is the reader catching up
+    with the writer.
+
+    Args:
+        e: The arrow element, as loose Excalidraw JSON.
+        at_end: True for the `endArrowhead` end, False for the start.
+
+    Returns:
+        The arrowhead kind the client would draw there, or `None` for an
+        end that carries no mark.
+    """
+    return e.get("endArrowhead", "arrow") if at_end \
+        else e.get("startArrowhead")
+
+
 def _svg_arrowhead(e: dict[str, Any], abs_pts: Sequence[tuple[float, float]],
                    at_end: bool, stroke: str, brk: str) -> str:
     """The filled mark at ONE end of an arrow, as SVG markup.
@@ -9555,7 +9589,10 @@ def _svg_arrowhead(e: dict[str, Any], abs_pts: Sequence[tuple[float, float]],
                tip[1] - 10 * uy - 4 * py, stroke, brk))
 
 
-def render_svg(els, title="", footnotes=False, glossary=None):
+def render_svg(els: list[dict[str, Any]], title: str = "",
+               footnotes: bool = False,
+               glossary: Sequence[tuple[str, str]] | None = None
+               ) -> tuple[str, int, int]:
     """Deterministic stdlib SVG of an element array — the snapshot CLI's
     tier-3 fallback and the substrate tier 2 rasterizes. Geometry-faithful
     (drawn from the same coordinates the lint reads); text set in system
@@ -9612,7 +9649,7 @@ def render_svg(els, title="", footnotes=False, glossary=None):
     # — collected once rather than per text element
     arrow_ids = {e["id"] for e in live
                  if e.get("type") in ("arrow", "line")}
-    breaks = {}
+    breaks: dict[Any, list[tuple[float, float, float, float]]] = {}
     for e in live:
         if e.get("type") == "text" and e.get("containerId") in arrow_ids:
             breaks.setdefault(e["containerId"], []) \
@@ -9732,10 +9769,13 @@ def render_svg(els, title="", footnotes=False, glossary=None):
                 # BOTH ends are asked, in stored order so an ordinary
                 # end-headed arrow emits exactly the markup it always
                 # did; `_svg_arrowhead` carries why the start one is not
-                # optional
-                if e.get("endArrowhead"):
+                # optional, and `arrowhead_of` why an ABSENT
+                # `endArrowhead` is a head and an explicit null is not —
+                # the client's own defaults, tested `is not None` because
+                # the client's draw guard is `!== null`
+                if arrowhead_of(e, True) is not None:
                     out.append(_svg_arrowhead(e, abs_pts, True, stroke, brk))
-                if e.get("startArrowhead"):
+                if arrowhead_of(e, False) is not None:
                     out.append(_svg_arrowhead(e, abs_pts, False, stroke, brk))
         elif et == "text":
             # the wrap moved to `painted_text_lines` in v0.9 task 46 so
@@ -12885,14 +12925,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # Whether an arrowhead sits AT THIS NODE, which is the cue the
             # no-ink arm below turns on. The end that terminates here is
             # the one bound here: `endArrowhead` for a foot arriving,
-            # `startArrowhead` for one leaving. `endArrowhead` DEFAULTS
-            # TO PRESENT for an arrow, matching `make_element` and the
-            # client, so a scene that merely omits the field reads as
-            # terminated — the conservative direction, since the arm
-            # below is gated on the cue's ABSENCE and a missing field is
-            # not evidence of a missing arrowhead.
-            head = (a.get("endArrowhead", "arrow") if arriving
-                    else a.get("startArrowhead"))
+            # `startArrowhead` for one leaving, and the absent-vs-null
+            # rule is `arrowhead_of`'s — one spelling of the client's
+            # defaults, since this site and `render_svg` disagreeing
+            # about a missing key is exactly how the fallback picture
+            # came to draw fewer heads than the canvas.
+            head = arrowhead_of(a, arriving)
             feet.setdefault(tgt_id, []).append(
                 (a["id"], arriving, axis, 1 if step > 0 else -1, foot,
                  bool(head)))

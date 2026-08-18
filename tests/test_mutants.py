@@ -10070,6 +10070,136 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# ABSENT IS NOT NONE (v0.9 TASK-MICROFIX-3, 2026-08-17, from TASK-MICROFIX-2's
+# concern 3, which named it and left it deliberately). GREEN FROM BIRTH: the
+# defect and this pin land in one commit, so there is no red here and none is
+# owed — it was a backlogged concern, never a standing red.
+#
+# The class above is the same disease read off a field the renderer never
+# consulted. This is the disease read off a KEY that is not there. `render_svg`
+# truthy-tested `e.get("endArrowhead")`, so an arrow that merely OMITS the
+# field drew headless in the picture the agent reads, while the client — which
+# defaults an absent `endArrowhead` to `"arrow"` — drew the head the user sees.
+# Same false statement, same fallback picture, arriving through the dict lookup
+# instead of through the field name.
+#
+# THE ANCHOR IS THE VENDORED BUNDLE, not this repo's belief about the client.
+# `skills/wysiwyg-grilling/scripts/web/assets/index-DIydcWDi.js` carries the
+# destructuring twice, and both spellings are `= "arrow"`:
+#
+#   restoreElement, case "arrow":
+#     let{startArrowhead:o=null,endArrowhead:h="arrow"}=e
+#   the shape generator, where the mark is actually emitted:
+#     let{startArrowhead:d=null,endArrowhead:u="arrow"}=e;
+#     if(d!==null){...} if(u!==null){...}
+#
+# A destructuring default fires on `undefined` and NEVER on an explicit
+# `null`, and the draw guard is a null test rather than a truthy one — which
+# is the whole of the semantics this pin holds, and why `arrowhead_of`'s
+# callers ask `is not None`.
+#
+# WHY IT IS SEPARATE FROM THE CLASS ABOVE rather than a third arm on it: that
+# one pins WHICH END, this one pins WHICH ABSENCE, and merging them would let
+# either vouch for the other's silence — the same reason
+# `TestMermaidEdgeLabelEscaping` is not folded into
+# `TestMermaidRoundTripIdentity`.
+#
+# COST, MEASURED BEFORE THE CHANGE AND NOT ESTIMATED: 0 of 174 stored arrow
+# ELEMENTS in the tracked corpus omit `endArrowhead` (every `.excalidraw`
+# artifact and every save under tests/fixtures; the 1,262 arrow-typed dicts a
+# naive deep walk also finds are `boundElements` references, which carry no
+# geometry and are never drawn). `tests_helpers.el` defaults the field to
+# `"arrow"`, so no harness scene omits it either. The render tier's cache is
+# content-addressed on the SVG markup itself (`_cache_key`), so a change to
+# `render_svg` mints new keys by construction and there is nothing to
+# regenerate. The honest number for baselines moved is therefore ZERO, and it
+# is zero because the writers already agreed with the client — `make_element`
+# has defaulted this field the client's way since it was written. It was only
+# the READER that disagreed.
+# ---------------------------------------------------------------------------
+
+
+class TestRenderSvgHonoursTheClientArrowheadDefault(unittest.TestCase):
+    """An omitted `endArrowhead` is a head, an explicit null is not."""
+
+    @staticmethod
+    def _marks(arrow: dict[str, Any]) -> int:
+        """Count the drawn marks in the fallback picture of one arrow.
+
+        Args:
+            arrow: Overrides for the arrow element — in particular
+                whether `endArrowhead` is present at all.
+
+        Returns:
+            How many `polyline`/`polygon` elements the SVG holds: one
+            for the stroke, one more per head actually drawn.
+        """
+        base = {"id": "e1", "type": "arrow", "x": 100.0, "y": 30.0,
+                "width": 200.0, "height": 0.0,
+                "points": [[0.0, 0.0], [200.0, 0.0]]}
+        base.update(arrow)
+        els = [el(id="n1", type="rectangle", x=0.0, y=0.0, width=100.0,
+                  height=60.0, customData={"role": "node"}),
+               el(id="n2", type="rectangle", x=300.0, y=0.0, width=100.0,
+                  height=60.0, customData={"role": "node"}),
+               base]
+        return len(re.findall(r"<(?:polyline|polygon)\b",
+                              canvas.render_svg(els)[0]))
+
+    def test_an_absent_end_arrowhead_draws_the_clients_default(self) -> None:
+        """The pole the fix moved: no key at all still means a head.
+
+        Counted rather than shape-matched, deliberately and for the same
+        reason the sibling class counts: the fallback picture draws every
+        arrowhead KIND as one triangle, so pinning the head's own shape
+        would prescribe a rendering nobody promised. What is pinned is
+        that a mark ARRIVES — the difference between the agent reading a
+        directed relation and reading a plain line.
+
+        A bare line (`type: "line"`) is the control: it has no default
+        head in the client either, so the two marks below are not an
+        artefact of every stroke drawing a triangle.
+        """
+        self.assertEqual(
+            self._marks({}), 2,
+            "an arrow with no `endArrowhead` key drew %d mark(s); the "
+            "client defaults the absent field to \"arrow\" (restore and "
+            "the shape generator both spell it `endArrowhead:…=\"arrow\"`), "
+            "so a headless fallback picture states a direction the user's "
+            "canvas does not" % self._marks({}))
+        self.assertEqual(self._marks({"type": "line"}), 1)
+
+    def test_an_explicit_null_end_arrowhead_stays_headless(self) -> None:
+        """The other pole, and the one the fix must NOT have moved.
+
+        A destructuring default fires on `undefined` only, so a stored
+        `null` is a deliberate statement that this end carries no mark,
+        and `_er_seed_ops` is a live producer of it: a `||--||` relation
+        gets `startArrowhead=None, endArrowhead=None` at both ends and
+        must render as the undirected line the erDiagram asked for.
+        Reading absent and null alike — the lazy way to draw the default
+        — would put a head on every one-to-one relation in the corpus.
+        """
+        self.assertEqual(self._marks({"endArrowhead": None}), 1)
+        self.assertEqual(
+            self._marks({"startArrowhead": None, "endArrowhead": None}), 1)
+        self.assertEqual(self._marks({"startArrowhead": "arrow",
+                                      "endArrowhead": None}), 2)
+
+    def test_the_start_end_keeps_its_own_default_of_none(self) -> None:
+        """The third pole: the two ends do NOT share a default.
+
+        `startArrowhead` destructures to `null`, so an arrow that omits
+        BOTH keys is headed at one end only. Without this arm a fix that
+        defaulted both ends to `"arrow"` would satisfy the absent-key
+        pole above and quietly reverse every relation's readable
+        direction into a bidirectional one.
+        """
+        self.assertEqual(self._marks({}), 2)
+        self.assertEqual(self._marks({"startArrowhead": "arrow"}), 3)
+
+
+# ---------------------------------------------------------------------------
 # THE BUDGET THAT HAS NEVER SEEN A STICKY (curator batch 27, 2026-08-17,
 # relayed from TASK-NARRATION/task 30's landing). r5-7 was a check reading
 # the wrong shape and firing; this is the mirror image — a check reading
