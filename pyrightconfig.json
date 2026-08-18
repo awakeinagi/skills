@@ -5,6 +5,8 @@
         "tests"
     ],
     "exclude": [
+        ".venv",
+        ".superpowers",
         "**/node_modules",
         "**/__pycache__",
         ".scratch",
