@@ -2178,10 +2178,45 @@ def _interpret_user_composites(new_els, old_els):
     ``reconcile_composed`` re-derives the parts. Undo round-trips: the
     stroke restored flips ``checked`` back, with a fact.
 
+    THE POSTED SEQUENCE IS THE USER'S AND IS GIVEN BACK UNCHANGED.
+    `reconcile_composed` re-derives a host's parts by REMOVING and
+    RE-APPENDING them — `_compose_body_lines` rebuilds every wavy line,
+    `_reset_attribute_rows` every entity row — so a part that sat in
+    the middle of the posted list came back at its end. On a scene with
+    two composites that is a real permutation: reposting
+    `Store.scenes[aid]` byte for byte re-seated a checkbox's bound
+    label from the end of the array to just behind its check stroke,
+    the differ saw the body's lines one slot later than the baseline
+    held them, and the save minted the user a `reordered` fact per
+    displaced element — 2 at minimum scale, 5 on `testMini`, on the
+    FIRST save of any two-composite artifact, where it took the
+    headline's "(+N more)" from whatever the user had actually done
+    (curator batch 35).
+
+    `align_baseline_order` states the invariant for the OTHER side of
+    the same diff: a `reordered` fact is a claim about a person's
+    action, so the only sequence it may be measured against is the one
+    that person was shown. Task 52 made that true of the BASELINE, by
+    taking its order from the cache the client reads. This makes it
+    true of the POSTED list, by giving normalization no vote on
+    sequence at all — a stable sort back into the seats the caller
+    handed us, with genuinely NEW parts (a check stroke that just
+    appeared) keeping their append-at-the-end placement because they
+    have no posted seat to return to. A deliberate restack survives
+    untouched: the order restored IS the order posted.
+
+    Fixed here rather than in each branch of `reconcile_composed`
+    because two branches already churn and any third would have to
+    remember; and not in `reconcile_composed` itself because the seed
+    and agent paths call it too, and their order is not a user's claim
+    about anything.
+
     Args:
         new_els: The incoming normalized user scene, mutated in place.
         old_els: The base-state elements (replayed history).
     """
+    seats = {e.get("id"): i for i, e in enumerate(new_els)
+             if isinstance(e, dict)}
     old_ix = {e["id"]: e for e in old_els}
     new_ix = {e["id"]: e for e in new_els
               if isinstance(e, dict) and not e.get("isDeleted")}
@@ -2231,6 +2266,13 @@ def _interpret_user_composites(new_els, old_els):
                 v = round(max(0.0, min(100.0, v)), 1)
                 el["customData"] = dict(cd, value=v)
         reconcile_composed(new_els, None, None, el)
+    # Back into the posted seats. `sort` is stable and every part minted
+    # during the pass misses `seats`, so they all score `len(seats)` and
+    # keep the relative order the recomposition appended them in — the
+    # placement they have today — while everything the client posted
+    # returns to exactly where the client had it.
+    new_els.sort(key=lambda e: seats.get(
+        e.get("id") if isinstance(e, dict) else None, len(seats)))
 
 
 def reconcile_composed(els, index, existing, el):

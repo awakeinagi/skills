@@ -21844,29 +21844,29 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # rule above was written to prevent. Re-read both `WHO FLIPS THIS:`
 # paragraphs the day that triage names its tasks.
 #
-# ONE JOINED on 2026-08-18 (curator batch 35) AND HALVED THE SAME DAY.
-# `TestALineDecorationRemeasureIsNotAUserEdit` is the SECOND entry here
-# filed off another agent's witnessed miss rather than off a sweep or a
-# spike — the Pin-to-Canvas client-surface agent handed over a browser
-# measurement instead of closing with it in prose, which is the motion batch
-# 32's entry established and the one worth keeping. It arrived carrying TWO
-# reds against ONE base scene, a shape this dict had not held before: two
-# unrelated mechanisms (a role the derived-geometry predicate did not know,
-# and a composite pass that re-seats the posted list after the baseline was
-# aligned to it) reaching the reader as one sentence in one save.
+# ONE JOINED AND LEFT on 2026-08-18, inside one day, which is the shortest
+# stay this dict has recorded. `TestALineDecorationRemeasureIsNotAUserEdit`
+# arrived with curator batch 35 as the SECOND entry filed off another
+# agent's witnessed miss rather than off a sweep or a spike — the
+# Pin-to-Canvas client-surface agent handed over a browser measurement
+# instead of closing with it in prose, which is the motion batch 32's entry
+# established and the one worth keeping — and the v0.9 commit-narration task
+# flipped both reds the same day.
 #
-# The curator's warning that the count would drop to 1 rather than to 0 when
-# the FIRST owner landed was CORRECT, and this line is that event: the v0.9
-# commit-narration task taught `_geometry_derived` the `decoration` role and
-# the tick's re-measure went quiet, while the byte-identical repost stayed
-# red under its own separate mechanism. A batch reading the number 2 become
-# a 1 as "the class is done" would be wrong; the class is HALF done, and the
-# remaining red names the same owner. Neither red is a `Mutant`: what is
-# wrong is what `Store.commit` writes into the save record,
-# `collect_findings` has no code for it, and `lint_layout` is right to be
-# silent — the picture is fine.
+# It carried TWO reds against ONE base scene, a shape this dict had not held
+# before: two unrelated mechanisms (a role the derived-geometry predicate
+# did not know, and a composite pass that re-seated the posted list after
+# the baseline had been aligned to it) reaching the reader as one sentence
+# in one save. The curator's warning that the count would drop to 1 rather
+# than to 0 when the first owner landed was CORRECT and is worth keeping as
+# precedent: it did, and the two fixes were independent — `_geometry_derived`
+# learning the `decoration` role, and `_interpret_user_composites` restoring
+# the posted order — each proven by stubbing it and watching only its own
+# red return. Neither was ever a `Mutant`: what was wrong is what
+# `Store.commit` writes into the save record, `collect_findings` has no code
+# for it, and `lint_layout` was right to be silent — the picture was fine.
+# The class stays in the file at five green tests; only the colour moved.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALineDecorationRemeasureIsNotAUserEdit": 1,
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
 }
@@ -23698,15 +23698,16 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
     drifted elements were `line`s, `dirtyMap` read false, and the next
     save recorded a `resized` fact against the tick.
 
-    ONE FLIPPED 2026-08-18 (v0.9 commit-narration): the tick's
-    re-measure, taken first because it is the handover's own defect and
-    a one-token change to one predicate. The count therefore drops
-    2 -> 1 and not 2 -> 0, exactly as the curator's routing note
-    predicted — the two mechanisms are independent, proven by stubbing
-    this fix and watching only this red come back. The byte-identical
-    repost below is still RED and is the same task's next change.
+    BOTH FLIPPED 2026-08-18 (v0.9 commit-narration), by two separate
+    changes as the curator's routing note predicted — the count dropped
+    2 -> 1 -> 0 and never 2 -> 0, and each fix was proven to own exactly
+    its own red by stubbing it and watching that red alone come back.
+    The tick's re-measure was first, because it is the handover's defect
+    and a one-token change to one predicate. Each method's docstring
+    carries its own `THE FIX THAT FLIPPED THIS` paragraph; the three
+    poles below were re-verified green in all four stub configurations.
 
-    WHO FLIPS THESE: the work package that owns the re-measure guard,
+    WHO FLIPPED THESE: the work package that owns the re-measure guard,
     i.e. whoever owns `_geometry_derived` / `_text_metric_derived` and
     `Store.commit`'s composite pass. Not the curator and not the client-
     surface agent who witnessed it — a fix and its acceptance test from
@@ -23838,7 +23839,6 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             "the browser re-measured a composed check stroke on load and "
             "the save blamed the user for resizing it")
 
-    @unittest.expectedFailure
     def test_a_byte_identical_repost_narrates_nothing(self) -> None:
         """The save that changed nothing and narrated two changes.
 
@@ -23869,6 +23869,29 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
         FIRST user save of any artifact carrying two composites,
         including a save whose real content is one deliberate edit,
         where it takes the headline's `(+N more)` and buries it.
+
+        THE FIX THAT FLIPPED THIS, the same day (v0.9 commit-narration):
+        `_interpret_user_composites` now snapshots the POSTED order on
+        entry and stable-sorts back into it once the reconciliation is
+        done, so normalization gets no vote on sequence — parts minted
+        during the pass miss the snapshot and keep the append-at-the-end
+        placement they have today. Fixed at that one site rather than in
+        `reconcile_composed`'s branches because TWO of them already
+        churn, measured: `_compose_body_lines` rebuilds every wavy line
+        and `_reset_attribute_rows` every entity row, both by removal
+        and re-append, and a third branch written later would have had
+        to remember. Not fixed inside `reconcile_composed` itself
+        because the seed and agent paths call it too, and their order is
+        nobody's claim about anything — which is also why the seed path
+        and the commit path now agree rather than the commit path having
+        been taught the seed's answer.
+
+        Task 52's ground did not move. `align_baseline_order` states
+        this same invariant for the BASELINE side of the diff and is
+        untouched; this makes it true of the POSTED side, so both
+        sequences the differ compares now come from what the person was
+        actually shown. Origin: curator batch 35, 2026-08-18; flipped
+        2026-08-18.
         """
         store = _composed_screen(with_body=True)
         cached = [e["id"] for e in store.scenes["screen"]]

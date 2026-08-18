@@ -376,22 +376,32 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**5 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**4 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
 counts` stays as the second lock on the sentence's freshness, uniqueness
 and anchor; see this repo's `tests/livedoc.py` header on why a TOTAL may
 be live where the catalogue-reds table beside it may not. Re-derived
-2026-08-18 at the COMMIT-NARRATION task's first fold, which flipped the
-FIRST of curator batch 35's pair (`TestALineDecorationRemeasureIsNot
-AUserEdit`) by teaching `_geometry_derived` the `decoration` role, so a
-composed check stroke's browser-re-measured height stops narrating as
-`resized` against a box nobody clicked — taking the tree 6 -> 5; the
-count had reached 6 by way of curator batches 34 and 35 landing two
-pairs on the same day, and that batch's SECOND red (a byte-identical
-repost narrating `reordered`) is a separate mechanism still open with
-the same owner. Before that it was
+2026-08-18 at the COMMIT-NARRATION task's second fold, which flipped the
+SECOND of curator batch 35's pair by making
+`_interpret_user_composites` restore the posted order after
+reconciliation, so a byte-identical repost of a two-composite scene
+stops narrating `reordered` facts about elements the server itself
+displaced — draining that class 1 -> 0 and taking the tree 5 -> 4, with
+the 4 that remain being curator batch 34's pairs, whose owner is
+elsewhere; the 5 was
+re-derived 2026-08-18 at the same task's first fold, which flipped the
+FIRST of that pair (`TestALineDecorationRemeasureIsNotAUserEdit`) by
+teaching `_geometry_derived` the `decoration` role, so a composed check
+stroke's browser-re-measured height stops narrating as `resized`
+against a box nobody clicked — taking the tree 6 -> 5, the count having
+reached 6 by way of curator batches 34 and 35 landing two pairs on the
+same day. The two folds are two changes and not one on purpose: the
+mechanisms are independent, each was proven to own exactly its own red
+by stubbing it and watching that red alone return, and the curator's
+routing note had predicted the count would pass through 1. Before that
+it was
 re-derived 2026-08-18 at the FINAL FIX ROUND's fold,
 which flipped the freedraw pair (`TestAFreedrawKeepsTheGeometryItWasGiven`)
 by giving `make_element` a `freedraw` branch — points, pressures,
