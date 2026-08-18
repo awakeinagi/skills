@@ -288,6 +288,50 @@ class TestRefreshCannotEatItsOwnAnswer(LiveDocCase):
                     "reported: %r" % (len(changed), changed))
                 self.assertEqual(livedoc.check_files([path]), [])
 
+    def test_the_repairs_are_reported_in_the_order_they_were_asked_for(
+            self) -> None:
+        """The de-duplication keeps the caller's order, and that is checked.
+
+        `dict.fromkeys` and not `set(paths)`, and until this test the
+        difference was PROSE ONLY: the branch review substituted
+        `list(set(paths))` and all 32 tests in this file passed. A
+        rationale nothing measures is a comment, and this repo has a
+        name for the shape.
+
+        WHY THE ORDER IS WORTH A TEST rather than a preference. The
+        returned list is what `main` prints, line by line, as the record
+        of what a refresh changed — and the caller's order is
+        `tracked_prose_files`' SORTED order, so the printout is
+        alphabetical and a human scanning it can find a file. Under a
+        set it is hash order: stable within one run, different across
+        runs once `PYTHONHASHSEED` moves, so the same repair prints in a
+        different order each time and a diff of two refresh logs is
+        noise.
+
+        EIGHT FILES AND NOT TWO, deliberately. A set of two paths
+        preserves the given order half the time by luck, so a two-file
+        test would report the substitution as fine on every second seed.
+        Eight makes an accidental pass a 1-in-40,320 event, which is
+        what lets the failure be read as a finding. One path is repeated
+        as well, so the de-duplication and the ordering are asserted on
+        one call rather than trusted separately.
+        """
+        want = ["ord-%d.md" % n for n in (7, 2, 5, 0, 6, 1, 4, 3)]
+        paths = [self.doc("canvas.py is %s lines.\n"
+                          % self.marked("canvas_py_lines", "0"), name=name)
+                 for name in want]
+        changed = livedoc.refresh_files([paths[3], *paths])
+        got = [line.split(":", 1)[0].rsplit("/", 1)[-1] for line in changed]
+        self.assertEqual(
+            got, [want[3], *[n for n in want if n != want[3]]],
+            "`refresh_files` reported its repairs as %r for a call that "
+            "named them %r. Order is the caller's — `dict.fromkeys`, not "
+            "`set` — because this list is what `main` prints and the "
+            "caller's order is alphabetical" % (got, [want[3], *want]))
+        self.assertEqual(len(changed), len(want),
+                         "the repeated path was repaired twice: %r"
+                         % (changed,))
+
     def test_the_duplicate_costs_no_extra_write(self) -> None:
         """Idempotence survives the duplicate, which is the other half.
 

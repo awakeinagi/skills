@@ -10155,10 +10155,11 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
     `arrowhead_of({"type": "line"}, True)` answered `"arrow"`. Two
     independent things in the bundle say no, and either alone would
     settle it. `restoreElement` has a THIRD destructuring site,
-    `case "line": case "draw":` (offset 630332 of
+    `case "line": case "draw":` (offset 630480 of
     `scripts/web/assets/index-QQVNNFtd.js`), where BOTH ends default to
     `null`; and the shape generator draws heads inside
-    `if (e.type === "arrow")` (offset 502927), so a line's stored
+    `if (e.type === "arrow")` (offset 503083, the destructuring it
+    guards at 503101), so a line's stored
     `endArrowhead` is never read for painting at all — an EXPLICIT
     `"arrow"` on a line draws nothing. The second is the stronger fact
     and it is why this gates on the type rather than merely changing the

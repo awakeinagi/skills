@@ -6966,17 +6966,54 @@ class TestUnreadableColourIsReported(unittest.TestCase):
         self.assertEqual(self._warnings(self._scene(stroke="#000000")), [])
 
     def test_the_label_funnel_treats_bare_hex_as_unreadable_too(self):
-        """A bare-hex fill mints DARK ink, which is the safe direction.
+        """A bare-hex fill mints DARK ink. NO direction here is safe.
 
-        The funnel asks `parse_color` (fix round 1), so this change
+        The funnel asks `parse_color` (fix round 1), so the `#`-anchoring
         reaches it: `000000` used to resolve to black and mint WHITE
         label ink, and now resolves to None and keeps the `#1e1e1e`
-        default. Both are wrong about a fill nobody can paint, and they
-        are wrong in opposite directions — white ink on this skill's
-        #fdfcf8 paper is invisible, dark ink on it reads. The None
-        branch's own comment already claimed the dark default is "the
-        right ink on this skill's paper"; this is the assertion that it
-        is what a bare-hex fill now gets.
+        default.
+
+        THE FIRST DRAFT CALLED DARK "THE SAFE DIRECTION" AND THAT WAS
+        MEASURED WRONG, so the claim is written out here rather than
+        quietly dropped. It rested on the paper premise — an unpainted
+        fill leaves this skill's #fdfcf8 ground, where white ink is
+        invisible and dark reads. The premise does not survive contact
+        with the consumers, and they disagree with each other:
+
+          - SVG (the tier-3 fallback, and what the raster tier
+            rasterizes): an invalid paint value makes the property
+            unspecified, so `fill` falls back to its INITIAL value,
+            which is black. So a bare-DARK-hex fill paints BLACK, not
+            paper — and dark ink on it reads 1.26:1 where the old white
+            ink read 21.00:1. Our change is the WORSE reading for this
+            class.
+          - An extended CSS name (`lightgray`, the OTHER unreadable
+            class and the numerous one — 175 unreadable strings over 26
+            shape libraries) is a perfectly valid SVG paint and paints
+            as named. Light ground, so dark ink reads 11.14:1 and white
+            would read 1.50:1. Our change is the BETTER reading here.
+          - Canvas 2d (the live client): an unparseable `fillStyle`
+            assignment is IGNORED, so the shape keeps whatever paint the
+            context last held. Indeterminate — not a colour this file
+            can reason about at all.
+
+        Every ratio above is this file's own `contrast_ratio`. One ink
+        cannot be right across three consumers that disagree, so the
+        honest statement is that an unreadable ground has NO safe ink,
+        and the ink is not the remedy: THE REPORT IS. Base was silent on
+        `000000` — it measured it as black and said nothing. This change
+        reports it, and the finding names the one character that would
+        make the declaration readable ("Restate it in `#`-anchored
+        hex"). That is what the change buys; the ink direction is a
+        consequence of the None branch, not an argument for it.
+
+        WHY THE BEHAVIOUR STANDS ANYWAY. Reverting to `lstrip` would buy
+        the better ratio for bare-dark-hex by going back to a CONFIDENT
+        WRONG MEASUREMENT of a value nothing can paint — the outcome
+        this task's doctrine ranks below silence — and would keep the
+        WORSE ratio for the extended-name class, which is the one the
+        library census actually found. Deciding the ink per class would
+        need the parser to read colours it has already refused.
 
         THE `#`-ANCHORED POLES ARE UNCHANGED and asserted beside it,
         because that is the documented behaviour this must not disturb:
@@ -13319,7 +13356,7 @@ class TestTheArrowheadKeyCensusIsStatedRatherThanAssumed(unittest.TestCase):
         is where a defaults-only fix and a type-gated one part company.
         A line storing `endArrowhead: "arrow"` still draws NOTHING — the
         bundle's shape generator puts both head calls inside
-        `if (e.type === "arrow")` (offset 502927), so the field is never
+        `if (e.type === "arrow")` (offset 503083), so the field is never
         read for painting on a line at all. Answering `"arrow"` there
         would be a mark the agent narrates and the user cannot see.
         """
@@ -13341,6 +13378,164 @@ class TestTheArrowheadKeyCensusIsStatedRatherThanAssumed(unittest.TestCase):
             "the line blindness this pair is about")
         self.assertIsNone(canvas.arrowhead_of({"type": "arrow",
                                                "endArrowhead": None}, True))
+
+
+class TestTheBidirectionalFindingReadsTheClientsDefaults(unittest.TestCase):
+    """`points both ways` through `lint_layout`, at all four poles.
+
+    THE FIX THAT NOTHING WATCHED. v0.9's absent-vs-null sweep routed this
+    check through `arrowhead_of` instead of the raw keys it had always
+    read, and the branch review then reverted that call site and ran the
+    whole suite: 1501 tests, all green. A demonstrated surviving mutant.
+    The sweep's corpus differential was honest — 0 of 174 corpus arrows
+    omit `endArrowhead`, so no FINDING moved — but "the census did not
+    move" and "the behaviour is pinned" are different claims, and only
+    the first had been made.
+
+    EXACTLY ONE POLE SEPARATES THE TWO READERS, which is why it is
+    written out rather than left to a round trip. The raw-key form was
+    `e.get("type") == "arrow" and e.get("startArrowhead") and
+    e.get("endArrowhead")`, and an absent key is FALSY in Python where
+    it is a HEAD in the client — the destructuring default
+    `endArrowhead: u = "arrow"` fires on `undefined` and never on an
+    explicit `null`. So an arrow carrying a start head and simply
+    OMITTING `endArrowhead` is drawn double-headed by Excalidraw and was
+    passed over here in silence: a false negative, measured silent at
+    base and firing now. The other three poles agree between the two
+    readers and are here as the contrast that makes the first one a
+    finding rather than a change of mood.
+
+    THE LINE POLE IS THE STRONGER BUNDLE FACT, and it is not the
+    destructuring default. `restoreElement`'s `case "line": case "draw":`
+    (offset 630480 of `scripts/web/assets/index-QQVNNFtd.js`) does
+    default both ends to `null`, but the shape generator puts BOTH head
+    calls inside `if (e.type === "arrow")` (offset 503083, the
+    destructuring itself at 503101) — so a line never gets a head drawn
+    whatever it stores, and an EXPLICIT `"arrow"` on both ends of a line
+    is still not a bidirectional anything. `lint_layout` binds
+    `arrows = [... type in ("arrow", "line") ...]`, so this check really
+    is handed lines; the type test is `arrowhead_of`'s own now.
+
+    Through `lint_layout` and not through `arrowhead_of` directly,
+    deliberately: the helper already has its own unit poles two classes
+    up, and what the review reverted was a CALL SITE. A pin that asked
+    the helper again would have stayed green through the same revert.
+    """
+
+    @staticmethod
+    def _scene(etype, **heads):
+        """One long straight connector of `etype`, styled to order.
+
+        300px of run, so the label-width and diagonal arms above this
+        check have nothing to say and the only warning a pole can
+        produce is the one under test.
+
+        Args:
+            etype: `arrow` or `line`.
+            **heads: `startArrowhead` / `endArrowhead` overrides. A key
+                left out here is left out of the ELEMENT, which is the
+                whole distinction this class is about.
+
+        Returns:
+            A one-element scene.
+        """
+        e = {"id": "a1", "type": etype, "x": 100.0, "y": 100.0,
+             "width": 300.0, "height": 0.0, "points": [[0, 0], [300, 0]],
+             "opacity": 100, "strokeColor": "#1e1e1e",
+             "backgroundColor": "transparent",
+             "customData": {"role": "edge"}}
+        e.update(heads)
+        return [e]
+
+    def _fires(self, etype, **heads):
+        """Whether the bidirectional warning is reported for one scene.
+
+        Args:
+            etype: `arrow` or `line`.
+            **heads: As `_scene` takes them.
+
+        Returns:
+            True if `lint_layout` reported `points both ways`.
+        """
+        return bool([w for w in
+                     canvas.lint_layout(self._scene(etype, **heads))
+                     ["warnings"] if "points both ways" in w])
+
+    def test_a_start_head_with_an_absent_end_key_is_reported(self):
+        """THE POLE THE FIX CLOSED, and the only one that moved.
+
+        Silent at base, because `e.get("endArrowhead")` on an arrow that
+        omits the key is None and None is falsy. The client draws the
+        head: absent means `"arrow"` there. So the drawing said "these
+        two initiate each other" and the lint said nothing at all —
+        the silence-is-a-bug shape, on the one finding whose whole job
+        is to notice a direction the agent did not mean.
+        """
+        self.assertTrue(
+            self._fires("arrow", startArrowhead="arrow"),
+            "an arrow with a start head and NO `endArrowhead` key is "
+            "drawn double-headed by the client and reported by nothing "
+            "here — the false negative the absent-vs-null sweep closed")
+
+    def test_an_explicit_null_end_stays_silent(self):
+        """The distinction the whole family turns on, on one element.
+
+        Same start head, same absence of a mark at the far end in
+        Python's eyes — and the opposite answer, because a stored
+        `null` is the author saying "no head" while an absent key is
+        the author saying nothing and the client saying `"arrow"`. A
+        fix that read both as "no head" would pass the sibling above
+        and be wrong here; a fix that read both as "head" would pass
+        here and over-fire on every honestly one-way arrow the seeder
+        emits.
+        """
+        self.assertFalse(
+            self._fires("arrow", startArrowhead="arrow", endArrowhead=None),
+            "an explicit null end head was read as a head, so every "
+            "one-way arrow with a start mark now reports as bidirectional")
+
+    def test_two_explicit_heads_still_report(self):
+        """The live pole, unchanged by the sweep and required by it.
+
+        What stops the class reading as "the check went quiet": the
+        ordinary double-headed arrow — both ends spelled out — is the
+        finding's original subject and still fires. Without this, a
+        `return` planted at the top of the check would satisfy the two
+        silence arms above.
+        """
+        self.assertTrue(
+            self._fires("arrow", startArrowhead="arrow",
+                        endArrowhead="arrow"),
+            "the ordinary double-headed arrow stopped being reported")
+
+    def test_a_line_with_two_explicit_heads_is_not_bidirectional(self):
+        """The type gate, and it needs the EXPLICIT heads to mean anything.
+
+        A defaults-only fix — one that taught the reader
+        `case "line": case "draw":`'s `null` defaults and stopped there
+        — passes every other arm in this class and fails here: the
+        stored value is present and is `"arrow"` at both ends, so only
+        the shape generator's `if (e.type === "arrow")` says the client
+        draws nothing. `lint_layout` really does hand this check lines
+        (`arrows` is bound over both types), so the gate is reachable
+        rather than theoretical.
+        """
+        self.assertFalse(
+            self._fires("line", startArrowhead="arrow",
+                        endArrowhead="arrow"),
+            "a line with a head stored at both ends reported as "
+            "bidirectional; the client draws no head on a line under "
+            "any circumstances, so there is no direction to split")
+
+    def test_an_arrow_with_no_start_head_is_not_reported(self):
+        """The ordinary case, so the first arm is not merely 'any arrow'.
+
+        `startArrowhead` absent and `endArrowhead` absent is the shape
+        `_flow_seed_ops` emits seven times over, and it is one-way. If
+        this fired the check would be reporting the whole corpus.
+        """
+        self.assertFalse(self._fires("arrow"),
+                         "a plain one-way arrow reports as bidirectional")
 
 
 class TestNoOpRewireIsNotASequenceChange(Base):

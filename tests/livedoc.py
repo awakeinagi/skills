@@ -547,8 +547,22 @@ def tracked_prose_files() -> list[Path]:
     in the pre-commit hook's name — untracked scratch files and the
     gitignored `docs/` tree are not merely skipped, they are never listed.
 
+    DE-DUPLICATED HERE, AT THE SOURCE, as well as defensively inside
+    `refresh_files`. `git ls-files` prints one row per STAGE for an
+    UNMERGED path, so a conflicted file carrying a marker appears two or
+    three times — and the corruption `refresh` was reported for is only
+    the loudest of three things that follow. The other two are quieter
+    and were both measured: `check_files` emits n identical drift lines
+    for one file, so a reader resolving one conflict is told three
+    numbers have moved; and `main`'s "N tracked markdown file(s)"
+    over-counts by one per extra stage, which is a census this repo
+    would otherwise have to guard. Fixing only the writer left the
+    reader lying. BOTH and not either: this is the route in, and
+    `refresh_files` keeps its own line because it is a public function
+    that takes any list a caller hands it.
+
     Returns:
-        Absolute paths, sorted, fixtures excluded.
+        Absolute paths, sorted and distinct, fixtures excluded.
 
     Raises:
         AssertionError: If git cannot list the index, which means this is
@@ -565,7 +579,7 @@ def tracked_prose_files() -> list[Path]:
             "scan surface would let every live value pass by measuring "
             "nothing" % (REPO, exc)) from exc
     names = [n for n in out.stdout.split("\0") if n]
-    return sorted(REPO / n for n in names if not n.startswith(_FIXTURES))
+    return sorted({REPO / n for n in names if not n.startswith(_FIXTURES)})
 
 
 def _values(markers: Iterable[tuple[Path, Marker]]) -> dict[str, str]:
