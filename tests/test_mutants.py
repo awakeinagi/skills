@@ -9808,6 +9808,29 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
 # literal because the elected path is the very thing the fix moves, and a
 # live half read off it would break at the flip it exists to survive.
 #
+# A FOURTH NEIGHBOUR JOINED ON 2026-08-17, HOURS OLD AND BOUGHT AT THE
+# COST OF THE FLIP SIGNAL ITSELF, which makes it the most instructive
+# entry in this block. TASK-ROUTERLEG ran their fix against the red and
+# found it still red — because the red interpolated `pts[-3]` into its
+# FAILURE MESSAGE, the message is built before `assertLessEqual` judges
+# anything, and the fix elects a two-point path. `IndexError` under
+# `@unittest.expectedFailure` is indistinguishable from a wrong answer,
+# so the mutant went on reporting "still broken" over a repaired router.
+# Doctrine 6's trap, inside the file that documents it.
+#
+# WHY THE ORIGINAL PROOF MISSED IT, recorded because the proof looked
+# complete: the curator's stub charged only paths of THREE or more
+# points, so it elected candidate 2 (a three-point path) and `pts[-3]`
+# stayed legal. The stub and the real fix were different shapes of
+# repair, and only the real one reached the crash. A flip proof is worth
+# what its stub resembles — a lesson this file now owns, and the reason
+# the repair's own re-proof uses a stub that elects TWO points and was
+# checked against the geometry TASK-ROUTERLEG reported by hand.
+#
+# The repair is `_leg_quote`, and the red's message goes through it. The
+# fourth neighbour exercises both branches ungated, so the red can never
+# again lose the ability to report its own repair.
+#
 # SCOPE, re-derived in this tree rather than inherited: over a 4641-arrival
 # grid (dx 200..1200 step 20, dy -90..90 step 2, this base's boxes) 1394
 # elected arrivals read past 70 degrees and 2642 past 45, worst 89.18 at
@@ -9896,6 +9919,45 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
         cos = canvas.side_normal_cos(side, prev, foot)
         return side, math.degrees(math.acos(max(-1.0, min(1.0, cos))))
 
+    @staticmethod
+    def _leg_quote(pts: list[list[float]]) -> str:
+        """Name the elected path's terminal leg, at ANY point count.
+
+        THIS EXISTS BECAUSE ITS EAGER FORM COST THE FLIP SIGNAL, and the
+        incident is the reason it is a function rather than two lines
+        inside the assertion. The red below quoted `pts[-3]` while
+        building its failure message, which is evaluated BEFORE
+        `assertLessEqual` decides anything. TASK-ROUTERLEG's fix elects
+        a straight TWO-POINT path — the outcome the red's own docstring
+        predicts — so `pts[-3]` raised `IndexError`,
+        `@unittest.expectedFailure` swallowed it exactly as it swallows
+        a failure, and the red stayed red while the defect was gone.
+        Doctrine 6's trap, arriving in the one place that is supposed to
+        be immune to it: a mutant that cannot tell "still broken" from
+        "fixed" is worse than no mutant, because it reports confidence.
+
+        Found by TASK-ROUTERLEG against their own fix, 2026-08-17, and
+        repaired here rather than there — the fix may not edit the test
+        that judges it.
+
+        Args:
+            pts: The elected arrow's stored points, relative to its
+                origin. Two or more.
+
+        Returns:
+            A phrase for the failure message: the terminal leg against
+            the run feeding it, or a statement that there is no elbow
+            at all when the path is a single straight segment.
+        """
+        if len(pts) < 3:
+            return ("a straight two-point path, which has no terminal "
+                    "leg to be short")
+        leg = math.hypot(pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1])
+        run = math.hypot(pts[-2][0] - pts[-3][0], pts[-2][1] - pts[-3][1])
+        share = (100.0 * leg / run) if run else float("inf")
+        return "a %.0fpx final leg under a %.0fpx run (%.1f%% of it)" % (
+            leg, run, share)
+
     @unittest.expectedFailure
     def test_the_elected_path_does_not_graze_the_face_it_lands_on(
             self) -> None:
@@ -9928,19 +9990,22 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
         `unexpected success` — which is the signal to delete this
         decorator in the same commit as the fix. Do not weaken the bar
         to get there; 45 degrees is already twice the healthy pole.
+
+        THE MESSAGE IS BUILT THROUGH `_leg_quote` AND NOT INLINE, and
+        that indirection is load-bearing rather than tidy: the inline
+        form indexed `pts[-3]` on the two-point path the sentence above
+        predicts, and the resulting `IndexError` read as a healthy red
+        under the mask. See that helper for the incident.
         """
         dst, arrow = self._routed(-32)
         side, off = self._drawn_arrival(arrow, dst)
         pts = arrow["points"]
-        leg = math.hypot(pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1])
-        run = math.hypot(pts[-2][0] - pts[-3][0], pts[-2][1] - pts[-3][1])
         self.assertLessEqual(
             off, self.GRAZE_BAR_DEG,
-            "the elected path arrives %.2f degrees off %s's %s face — a "
-            "%.0fpx final leg under a %.0fpx run (%.1f%% of it), which "
-            "`score` cannot see because none of its four terms reads how "
-            "the length is distributed: %r"
-            % (off, dst["id"], side, leg, run, 100.0 * leg / run, pts))
+            "the elected path arrives %.2f degrees off %s's %s face — "
+            "%s, which `score` cannot see because none of its four terms "
+            "reads how the length is distributed: %r"
+            % (off, dst["id"], side, self._leg_quote(pts), pts))
 
     def test_the_scorer_had_a_square_arrival_among_its_own_candidates(
             self) -> None:
@@ -9978,6 +10043,54 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
             "the best straight candidate arrives %.2f degrees off its "
             "face, so a readable arrival was NOT available and the red "
             "above is mis-filed" % best)
+
+    def test_the_reds_own_message_survives_the_geometry_its_fix_elects(
+            self) -> None:
+        """The pole the harness bought on 2026-08-17, at a flip's cost.
+
+        The other three greens judge the ROUTER. This one judges the
+        RED, and it is here because the red was briefly unable to report
+        its own repair: its failure message reached `pts[-3]` on a path
+        the fix makes two points long, and `@unittest.expectedFailure`
+        cannot tell an `IndexError` from a wrong answer. The mutant went
+        on saying "still broken" over a fixed router, which is the one
+        failure mode this whole file exists to prevent.
+
+        So the quoting is exercised DIRECTLY, ungated, over both point
+        counts: the elbow the router elects today and the straight pair
+        TASK-ROUTERLEG's fix elects instead. Neither may raise, and each
+        must say something a reader can act on — the two-point branch
+        cannot silently report a 0px leg, because "the terminal leg is
+        0px" is exactly the wrong sentence about a path that has none.
+
+        THE GENERAL RULE this stands for, since it will outlive the
+        incident: a red's message is evaluated before its assertion, so
+        every value it interpolates must be legal on the geometry the
+        FIX produces, not merely on the geometry the defect produces.
+        """
+        elbow = [[0.0, 0.0], [240.0, 0.0], [240.0, -2.0]]
+        straight = [[0.0, 0.0], [180.0, -19.0]]
+        elbow_said = self._leg_quote(elbow)
+        straight_said = self._leg_quote(straight)
+        self.assertIn("2px final leg", elbow_said)
+        self.assertIn("240px run", elbow_said)
+        self.assertIn("two-point", straight_said)
+        self.assertNotIn(
+            "final leg", straight_said,
+            "the two-point branch describes a terminal leg that does "
+            "not exist, which reads as a 0px leg — the most grazing "
+            "answer possible — about the path the fix elects: %r"
+            % straight_said)
+        # And the whole message, assembled the way the red assembles it,
+        # over the fix's geometry. Formatting a phrase in isolation is
+        # not the thing that broke; interpolating it beside `%r` of a
+        # two-point path is.
+        self.assertIn(
+            "two-point",
+            "the elected path arrives %.2f degrees off %s's %s face — "
+            "%s, which `score` cannot see because none of its four terms "
+            "reads how the length is distributed: %r"
+            % (6.03, "d", "left", straight_said, straight))
 
     def test_a_proportionate_final_leg_is_elected_when_the_offset_allows(
             self) -> None:
@@ -21091,7 +21204,9 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # path is DRAWN, there is no finding code for a `FindingSpec` to name, and
 # `collect_findings` is silent on the scene by design. Its flip belongs to
 # TASK-ROUTERLEG, which owns the scoring term; this dict loses the line the
-# day that term lands and the red reports `unexpected-success`.
+# day that term lands and the red reports `unexpected-success` — a sentence
+# that was briefly untrue of the red as first written, and is guarded now
+# by the fourth green in that class rather than by this comment.
 #
 # ONE LEFT on 2026-08-17 (v0.9 TASK-VOCAB), one day after it joined:
 # `TestARerouteFactImpliesAChangedPath`, whose single red flipped on the
