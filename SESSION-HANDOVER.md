@@ -376,12 +376,15 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**2 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-18 at curator batch 33's fold, which
-lands the freedraw pair (`TestAFreedrawKeepsTheGeometryItWasGiven`) RED —
-`make_element` drops a freedraw's points and the client then draws the
-whole artifact blank — with the flip owned by the FINAL FIX ROUND, the
-wave's last writer; the 0 was
+**0 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-18 at the FINAL FIX ROUND's fold,
+which flipped the freedraw pair (`TestAFreedrawKeepsTheGeometryItWasGiven`)
+by giving `make_element` a `freedraw` branch — points, pressures,
+simulatePressure — and drained the tree 2 -> 0; the 2 was
+re-derived 2026-08-18 at curator batch 33's fold, which
+landed that pair RED — `make_element` dropped a freedraw's points and the
+client then drew the whole artifact blank — with the flip owned by the
+FINAL FIX ROUND, the wave's last writer; the 0 was
 re-derived 2026-08-18 at TASK-ROUTERLEG's fold, which
 flipped the router-graze red in the same change that landed the scoring
 term and its scene guard, draining the tree again 1 -> 0; the 1 was

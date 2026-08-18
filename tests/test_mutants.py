@@ -9960,11 +9960,12 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
 
     def test_the_elected_path_does_not_graze_the_face_it_lands_on(
             self) -> None:
-        """FLIPPED 2026-08-18 (v0.9 TASK-ROUTERLEG): the scoring term
-        `_grazing_terminal_legs` (weight 2 in the shape slot) makes the
-        router elect the proportionate candidate, so this passes on the
-        assertion it always stated. Decorator dropped in the fold that
-        landed the fix, per the flip contract.
+        """FLIPPED 2026-08-18 (v0.9 TASK-ROUTERLEG).
+
+        The scoring term `_grazing_terminal_legs` (weight 2 in the shape
+        slot) makes the router elect the proportionate candidate, so this
+        passes on the assertion it always stated. Decorator dropped in
+        the fold that landed the fix, per the flip contract.
 
         The router elects a 240px run elbowed into a 2px stub.
 
@@ -14649,8 +14650,10 @@ class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# HAND-AUTHORED RED — `TestAFreedrawKeepsTheGeometryItWasGiven`, the one
-# this batch mints, and `HAND_AUTHORED_RED_CLASSES` names it.
+# FLIPPED GREEN by the v0.9 FINAL FIX ROUND, 2026-08-18 — the record of
+# what `TestAFreedrawKeepsTheGeometryItWasGiven` was RED for is kept here
+# because it is the magnitude, and a class read after the fix has no way
+# to recover it. `HAND_AUTHORED_RED_CLASSES` no longer names it.
 #
 # BASE: one 200x100 node and one three-point `freedraw`, both through
 # `make_element`, which is the shipped construction funnel every agent op
@@ -14703,13 +14706,25 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
     of this wave, and is deliberately not asserted: a red nobody can flip
     is a red that teaches the reader to ignore the colour.
 
-    THE FIX THAT FLIPS THIS is `make_element` giving `freedraw` its
-    `points` — and, since the client's restore path reads them, the
-    `pressures` / `simulatePressure` pair that goes with a freehand
-    stroke. The assertions below deliberately ask only for the geometry,
-    because pinning the pressure fields would prejudge the shape of a
-    fix this file is not entitled to design. Origin: spike-derivedframe
-    §8, curated during curator batch 33, 2026-08-18.
+    THE FIX THAT FLIPPED THIS, the same day (v0.9 FINAL FIX ROUND):
+    `make_element` grew a `freedraw` branch writing `points`,
+    `pressures`, `simulatePressure` and `lastCommittedPoint`. The red
+    deliberately asked only for the geometry, because pinning the
+    pressure fields would have prejudged a fix this file is not entitled
+    to design; the fix read the client instead, and the field set below
+    is now asserted BECAUSE the bundle decided it rather than because a
+    test guessed. What the bundle says, at
+    `scripts/web/assets/index-QQVNNFtd.js`: `restoreElement`'s
+    `case "freedraw"` (offset 630243) forwards all three fields with no
+    defaults, and the path builder (offset 496985) dereferences `points`
+    on both of its arms and `pressures` only when `simulatePressure` is
+    falsy. Origin: spike-derivedframe §8, curated during curator batch
+    33, 2026-08-18; flipped 2026-08-18.
+
+    STILL NOT ASSERTED, and still with an owner elsewhere: the client
+    rendering NOTHING rather than what it can. This fix stops the
+    backend handing it an unpaintable element; it does not make the
+    client survive one from any other source.
     """
 
     @staticmethod
@@ -14736,10 +14751,20 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
         return el(id="n1", type="rectangle", x=0.0, y=0.0, width=200.0,
                   height=100.0, customData={"role": "node"})
 
-    @unittest.expectedFailure
     def test_red_a_freedraw_built_through_the_funnel_keeps_its_points(
             self) -> None:
-        """The three points an agent supplied reach the stored element."""
+        """FLIPPED 2026-08-18. Kept its red-era name.
+
+        STRENGTHENED IN THE FLIP, and only the flip could strengthen it:
+        the red asked for `points` alone on purpose, and the fix's own
+        reading of the bundle is what makes the other three fields
+        assertable. `pressures` and `simulatePressure` are not
+        decoration — the path builder maps `e.pressures[i]` over every
+        point whenever `simulatePressure` is falsy, so `points` without
+        one of them is the same blank canvas by a different throw. The
+        pair is asserted as a PAIR for that reason: `simulatePressure`
+        True is what makes an empty `pressures` legal.
+        """
         errors: list[str] = []
         stroke = canvas.make_element(self._spec("freedraw"), set(), errors)[0]
         self.assertEqual(
@@ -14748,17 +14773,41 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
             "nothing in the errors list (%r), so the agent's stroke is "
             "gone and nothing said so"
             % (stroke.get("points"), errors))
+        self.assertIs(
+            stroke.get("simulatePressure"), True,
+            "the stroke stores simulatePressure=%r, so the client takes "
+            "the arm that reads a pressure per point"
+            % (stroke.get("simulatePressure"),))
+        self.assertEqual(
+            stroke.get("pressures"), [],
+            "the stroke stores pressures=%r; with simulatePressure on, "
+            "the channel is unread and empty is the honest value — a "
+            "server-authored stroke had nobody pressing anything"
+            % (stroke.get("pressures"),))
+        self.assertEqual(errors, [])
 
-    @unittest.expectedFailure
     def test_red_the_drawing_measures_the_stroke_it_was_given(self) -> None:
-        """The extent counts the freedraw's ink, not just the node's.
+        """FLIPPED 2026-08-18. Kept its red-era name.
 
-        The second red rather than a second assertion in the first,
-        because they fail for the same cause and are two different
+        The second test rather than a second assertion in the first,
+        because they failed for the same cause and are two different
         claims: one is about what is stored, one is about what every
         consumer that frames a picture then measures. `ink_extent` is
         the tier-1 export floor and the connected tab's frame, so a
         stroke it cannot see is a stroke the export crops.
+
+        STRENGTHENED IN THE FLIP, and the strengthening is the second
+        stroke rather than a second number about the first. `_spec`'s
+        stored 100x80 box at (100, 100) is EXACTLY the span of its own
+        points, so the assertion above passes against a reader that
+        takes the stored box and against one that takes the points —
+        two different questions the red could not tell apart. The
+        overhanging stroke below separates them: its box claims 10x10
+        while its points paint 100x80, which is the case `ink_extent`'s
+        own comment is written for (a freedraw's stored width and height
+        are the client's summary of a stroke and the ink regularly
+        overhangs them), and a box-reader answers 10px of height where
+        the picture has 80.
         """
         errors: list[str] = []
         stroke = canvas.make_element(self._spec("freedraw"), set(), errors)[0]
@@ -14769,6 +14818,51 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
             "from y=100 to y=180 and contributes ZERO px of the 80 it "
             "paints, so the export frames a picture with a hole in it"
             % (canvas.ink_extent([self._node(), stroke], pad=0),))
+        over = dict(self._spec("freedraw"), id="f2", width=10, height=10)
+        overhung = canvas.make_element(over, set(), errors)[0]
+        self.assertEqual(
+            canvas.ink_extent([overhung], pad=0), (100, 100, 100, 80),
+            "a stroke storing a 10x10 box and painting 100x80 measures "
+            "%r, so the extent is reading the stored box and the export "
+            "crops every mark that overhangs it"
+            % (canvas.ink_extent([overhung], pad=0),))
+
+    def test_the_stroke_survives_the_op_pipeline_into_the_export(
+            self) -> None:
+        """The whole trip, because the funnel is only the first hop.
+
+        ADDED WITH THE FLIP. `make_element` is called by `apply_ops`,
+        whose output is stored, and the picture an agent reads without a
+        browser is `render_svg` over what came back off the store. Each
+        hop could drop the geometry independently — the export did
+        exactly that for this class until v0.9 WP4 — so the class that
+        pins the write path also pins that the write path's answer
+        reaches the drawing. One polyline, and an export tall enough to
+        hold the stroke: 180px of ink plus the 40px pad on each side.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-freedraw-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "sketch",
+            "create": {"id": "sketch", "name": "Sketch", "type": "flow",
+                       "concept": "checkout", "concept_name": "Checkout"},
+            "ops": [{"op": "add", "element": {
+                        "type": "rectangle", "id": "n1", "x": 0, "y": 0,
+                        "width": 200, "height": 100, "role": "node"}},
+                    {"op": "add", "element": self._spec("freedraw")}]})
+        els = store.scenes["sketch"]
+        stroke = next(e for e in els if e["type"] == "freedraw")
+        self.assertEqual(stroke["points"], [[0, 0], [50, 80], [100, 10]],
+                         "the store dropped the points the funnel kept")
+        svg, _w, height = canvas.render_svg(els)
+        self.assertEqual(svg.count("<polyline"), 1,
+                         "the freedraw is not in the export at all")
+        self.assertEqual(height, 180 + 80,
+                         "the export frames %dpx where the ink spans 180 "
+                         "plus two 40px margins" % height)
 
     def test_an_arrow_and_a_line_keep_theirs(self) -> None:
         """The live pole: the identical call, two types over.
@@ -21599,10 +21693,18 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestAFreedrawKeepsTheGeometryItWasGiven": 2,
-}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
+# EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
+# this dict was written. `TestAFreedrawKeepsTheGeometryItWasGiven` left it
+# the day after curator batch 33 filed it, with both of its reds flipped by
+# one branch in `make_element` — so the dict lost a LINE and not a number,
+# the ninth time that has been the shape here. The class stayed and grew a
+# fifth test; only the colour moved. An empty dict is not a slack state:
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reads the
+# file for `@unittest.expectedFailure` outside `TestMutantCatalogue` and
+# fails the moment a plain red is written without a line here.
+#
 # ONE LEFT on 2026-08-18 (v0.9 TASK-ROUTERLEG's fold), one train-stop after
 # it joined: the router-graze red flipped when the scoring term landed, so
 # the dict lost its line the same day batch 32 folded it in — the shortest

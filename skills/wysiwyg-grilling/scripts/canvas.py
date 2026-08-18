@@ -1630,6 +1630,50 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         el["endArrowhead"] = spec.get("endArrowhead",
                                       "arrow" if etype == "arrow" else None)
         el["elbowed"] = False
+    if etype == "freedraw":
+        # A FREEHAND STROKE IS ITS POINTS, and until 2026-08-18 this
+        # funnel wrote them for exactly the two types the branch above
+        # names. `freedraw` is in `ELEMENT_TYPES`, `render_svg` paints it
+        # as a polyline and `ink_extent` reasons in its own comment about
+        # its ink overhanging its box — three parts of the product treat
+        # it as supported — so an op that built one stored a box with no
+        # geometry and the `errors` list came back EMPTY. The measured
+        # cost was the whole picture, not the stroke: the client throws
+        # on the first unpaintable element and the canvas goes blank with
+        # no console error (spike-derivedframe §8; one rectangle and two
+        # anchors exported 248x208 with 928 ink px, and 80x80 with zero
+        # after one freedraw joined them).
+        #
+        # THE FIELD SET IS THE CLIENT'S, READ OFF THE BUNDLE rather than
+        # guessed — `scripts/web/assets/index-QQVNNFtd.js`, and the two
+        # sites disagree about what is optional, which is why the whole
+        # trio is written here:
+        #
+        #   * `restoreElement`, `case "freedraw"` (offset 630243), is
+        #     `qs(e, {points: e.points, lastCommittedPoint: null,
+        #     simulatePressure: e.simulatePressure, pressures:
+        #     e.pressures})` — it FORWARDS all three with no defaults of
+        #     its own, so whatever is missing here is still missing after
+        #     restore. (Contrast `case "line"`/`case "draw"` two clauses
+        #     down, which substitutes a two-point path for a bad one.)
+        #   * the path builder (offset 496985) is
+        #     `e.simulatePressure ? e.points : e.points.length ?
+        #     e.points.map(([x, y], i) => [x, y, e.pressures[i]]) :
+        #     [[0, 0, .5]]`. `points` is dereferenced on BOTH arms, so an
+        #     absent one throws before a pixel is drawn; `pressures` is
+        #     dereferenced only on the arm `simulatePressure` turns off.
+        #
+        # So `simulatePressure` True with an EMPTY `pressures` is the one
+        # combination that needs no per-point pressure channel — and it
+        # is what the client itself writes when a stroke starts from a
+        # device that reports no pressure (offset 1185296: `pressures:
+        # y ? [] : [o.pressure], simulatePressure: y`). It is also the
+        # honest description of a server-authored stroke: nobody pressed
+        # anything.
+        el["points"] = spec.get("points", [[0, 0], [el["width"] or 100, 0]])
+        el["pressures"] = []
+        el["simulatePressure"] = True
+        el["lastCommittedPoint"] = None
     out = [el]
     if label:
         lbl_id = el_id + "-label"
