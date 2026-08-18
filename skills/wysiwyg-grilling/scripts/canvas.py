@@ -6108,6 +6108,56 @@ def _scene_route_cost(els):
             crossings, corridors)
 
 
+def server_routed_connectors(els):
+    """The connectors a geometry pass owns and may redraw, in scene order.
+
+    ONE POPULATION, AND IT IS NOT "ARROWS". `_tidy_pass` and
+    `reroute_scene` each run three geometry passes —
+    `fan_attach_points`, `contention_feet`, `fan_attach_points` — and
+    every one of them iterates `("arrow", "line")`, because
+    `_router_owns` is the repo's answer to who owns a connector's shape
+    and its own docstring says only arrows and lines can be
+    server-routed at all. Both callers then spelled the population they
+    NARRATE as `type == "arrow"`, so a bound `line` was moved by the
+    pass and counted by neither sentence (v0.9 whole-branch review C-3,
+    in the two doors its `apply_ops` fix did not reach). Measured
+    2026-08-18: one press of tidy pulls two coincident bound lines 13px
+    apart each and says "re-routed 0 of 0"; the identical scene typed
+    `arrow` lands them on the SAME two coordinates and says "2 of 2".
+
+    THE DEFINITION IS `Store.tidy`'s OWN WORDS, not a new rule — its
+    DENOMINATOR paragraph says "server-owned and bound at both ends",
+    and that sentence was already true of the two lines it reported as
+    zero. So this is the number the docstring always promised, computed
+    where a second reader cannot re-derive it differently.
+
+    NOT THE ROUTER'S SET. `route_arrow` is still handed arrows alone by
+    both callers, and that is untouched here: this is what the passes
+    may REDRAW, which is the population a note about geometry has to
+    quote. A caller wanting the routing loop's narrower set intersects
+    this with `type == "arrow"` at the loop, which is exactly what both
+    now do.
+
+    Args:
+        els: A scene's elements. Not mutated, and nothing is required to
+            be a connector — a scene of none answers empty.
+
+    Returns:
+        `[element_id, ...]` for every arrow or line whose geometry the
+        server owns and whose two bindings both resolve inside `els`.
+        An unbound end has no pair to route between and an authored path
+        is nobody's to redraw, so neither is in the set — which is what
+        makes this an honest denominator: the connectors outside it were
+        never candidates.
+    """
+    ix = {e["id"]: e for e in els if e.get("id") is not None}
+    return [c["id"] for c in els if _router_owns(c)
+            and ix.get((c.get("startBinding") or {}).get("elementId"))
+            is not None
+            and ix.get((c.get("endBinding") or {}).get("elementId"))
+            is not None]
+
+
 def routable_arrows(els):
     """The arrows a routing pass is handed, in scene order.
 
@@ -6134,6 +6184,16 @@ def routable_arrows(els):
         (`server_owns_geometry`), so neither is in the set — which is
         why this is the honest denominator for "re-routed N of M": the
         arrows outside it were never candidates.
+
+    THE WIDER SIBLING IS `server_routed_connectors`, and the two are
+    not redundant (v0.9 C-3 fold, 2026-08-19). This is what
+    `route_arrow` is HANDED; that is what a geometry pass may REDRAW,
+    which also holds bound `line`s the fan and the contention pass move.
+    `routable_arrows(els)` is exactly its `type == "arrow"` subset —
+    same ownership rule, same both-ends-bound rule, same id-indexed
+    lookup — and both callers here rely on THIS one staying arrow-only,
+    because neither router loop carries a type check of its own. Widen
+    this and geometry moves; widen the other and only the sentence does.
     """
     ix = {e["id"]: e for e in els if e.get("id") is not None}
     return [a["id"] for a in els if a.get("type") == "arrow"
@@ -6163,6 +6223,22 @@ def reroute_scene(els):
     server-owned arrow on every apply, and a focus aiming the client
     somewhere the path does not go is exactly what a fossil is.
 
+    THAT SENTENCE WAS TRUE OF THE MOVING AND FALSE OF THE REPORTING
+    until 2026-08-18, and the code was changed to match it rather than
+    the other way round. The set `fan_attach_points` iterates is
+    `("arrow", "line")`; `changes` was built under a `type != "arrow"`
+    gate, so a bound `line` this function pulled 13px off its foot was
+    absent from the list, from `Store.reroute`'s per-element prose, from
+    its `rerouted` facts, and from `Store.legacy_routing`'s count — a
+    scope statement a reader could check against the geometry and not
+    against the record (v0.9 whole-branch review C-3). TWO LOOPS, TWO
+    POPULATIONS, and now each says which it is: the routing loop below
+    is `type == "arrow"` because `route_arrow` is what elects a path and
+    both callers hand it arrows alone, while the fan, the contention
+    pass and this change list are `server_routed_connectors` — what a
+    pass may REDRAW. Widening the router's own set would move geometry
+    and is not this repair.
+
     NOTHING IS MUTATED. The work happens on a deep copy, which is what
     lets a caller show the user what WOULD change before anything does —
     the load path detects and the CLI's dry run reports, and neither can
@@ -6187,7 +6263,9 @@ def reroute_scene(els):
         its new geometry — skip that and 22 of the 58 endpoints this
         fixes read as non-normal again, because a re-routed path keeps a
         curvature it can no longer earn. `changes` has one entry per
-        arrow that actually moved: `{"id", "moved_px", "refocused",
+        CONNECTOR that actually moved — arrow or line, the set the fan
+        iterates and not the narrower one the router loop does:
+        `{"id", "moved_px", "refocused",
         "was_points", "now_points", "path_changed"}`, sorted by id.
         `path_changed` is the DRAWN half on its own (`drawn_path_changed`)
         and it is what the `rerouted` fact is gated on: an entry with
@@ -6286,11 +6364,20 @@ def reroute_scene(els):
         plain = drawn(False)[0]
         if _worse(_scene_route_cost(out), _scene_route_cost(plain)):
             out = plain
-    was = {e["id"]: e for e in els if e.get("type") == "arrow"}
+    # THE SCAN IS THE FAN'S SET, not the router loop's (2026-08-18).
+    # Kept deliberately LOOSE — every connector present, not
+    # `server_routed_connectors` — because this list answers "what
+    # MOVED", and narrowing it to what was eligible would let a pass
+    # that moved something outside its own population stay quiet about
+    # exactly the case worth hearing. Nothing outside that population
+    # can move today; this is what makes the sentence survive the day
+    # something does.
+    was = {e["id"]: e for e in els
+           if e.get("type") in ("arrow", "line")}
     changes = []
     for a in out:
         old = was.get(a.get("id"))
-        if a.get("type") != "arrow" or old is None:
+        if a.get("type") not in ("arrow", "line") or old is None:
             continue
         moved = _reroute_shift(old, a)
         refocused = _reroute_refocus(old, a)
@@ -20826,15 +20913,28 @@ class Store:
             base: The artifact's elements. Not mutated.
 
         Returns:
-            `(elements, snapped, routed, pinned)` for the tidied copy.
-            `routed` is the SET of arrow ids this pass handed to the
-            router — arrows EXAMINED, which is not the same question as
-            arrows moved and is deliberately not counted as if it were.
+            `(elements, snapped, connectors, pinned)` for the tidied
+            copy. `connectors` is the SET of ids this pass may REDRAW
+            (`server_routed_connectors`) — connectors EXAMINED, which
+            is not the same question as connectors moved and is
+            deliberately not counted as if it were. `pinned` is the SET
+            of ids this pass declined to move because they are pinned,
+            a set for the same reason.
+
+            THE NARRATION'S SET IS THE FAN'S; THE ROUTER LOOP'S IS ITS
+            OWN, and the two are now separate locals rather than one
+            (v0.9 whole-branch review C-3). What was returned used to be
+            `routable_arrows` — the arrows handed to `route_arrow` —
+            while the three geometry passes that follow it all iterate
+            `("arrow", "line")`, so a bound `line` this pass pulled 13px
+            off its foot could not appear in the note built from it and
+            the press reported "0 of 0" over a drawing it had visibly
+            changed. The loop below still iterates `routable_arrows`,
+            untouched, because widening THAT would move geometry.
+
             A set rather than a count because `Store.tidy` unions it
             across passes: summing per-pass counts made "re-routed 6
-            arrow(s)" sayable of a scene holding three. `pinned` is the
-            SET of ids this pass declined to move because they are
-            pinned, a set for the same reason.
+            arrow(s)" sayable of a scene holding three.
         """
         els = [dict(e) for e in base]
         index = {e["id"]: e for e in els}
@@ -20881,6 +20981,14 @@ class Store:
         # produced — routing one arrow changes neither the bindings nor
         # the ownership of another.
         routed = set(routable_arrows(els))
+        # ...and the NARRATION's population, which is wider than the
+        # loop's: the three geometry passes below iterate
+        # `("arrow", "line")`, so a bound `line` is redrawn here
+        # and used to be counted by neither the numerator nor the
+        # denominator of the sentence this returns (C-3). Read
+        # before any routing for the same reason `routed` is:
+        # routing changes neither bindings nor ownership.
+        connectors = set(server_routed_connectors(els))
         for e in els:
             if e.get("id") not in routed:
                 continue
@@ -20913,7 +21021,7 @@ class Store:
         pinned |= {a["id"] for a in els
                    if a.get("type") in ("arrow", "line")
                    and pinned_to_canvas(a) and server_owns_geometry(a)}
-        return normalize_z_order(els), snapped, routed, pinned
+        return normalize_z_order(els), snapped, connectors, pinned
 
     def tidy(self, aid):
         """One-click repair (Phase 6): snap nodes to the 4px grid,
@@ -20959,7 +21067,7 @@ class Store:
                         "summary": {"headline": headline,
                                     "verb_counts": {}, "suppressed": 0}}
 
-            els, snapped, routed, held = self._tidy_pass(base)
+            els, snapped, connectors, held = self._tidy_pass(base)
             seen = {self._tidy_hash(base), self._tidy_hash(els)}
             for _ in range(self.TIDY_MAX_PASSES - 1):
                 nxt, s2, r2, h2 = self._tidy_pass(els)
@@ -20975,7 +21083,8 @@ class Store:
                         "keeps undoing the attach-point fan. Author the "
                         "paths with `mod points`, or move the nodes apart")
                 seen.add(h)
-                els, snapped, routed = nxt, snapped + s2, routed | r2
+                els, snapped, connectors = nxt, snapped + s2, \
+                    connectors | r2
                 held |= h2
             if self._tidy_hash(els) == self._tidy_hash(base):
                 # nothing to repair — committing anyway would write an
@@ -20990,9 +21099,9 @@ class Store:
                         % pinned_clause(len(held)))
                 return noop("already tidy — nothing to change")
             # THE DENOMINATOR NAMES ITS POPULATION ("N of M server-routed
-            # arrow(s)"), added 2026-08-18. `M` is `len(routed)` — arrows
-            # the router was HANDED, which is server-owned and bound at
-            # both ends — and it had no anchor in the sentence, unlike
+            # connector(s)"), added 2026-08-18. `M` is
+            # `len(connectors)` — server-owned and bound at both ends —
+            # and it had no anchor in the sentence, unlike
             # `Store.reroute`'s, which prints the per-arrow list naming
             # all M underneath it. So a user reading "re-routed 2 of 3"
             # beside a drawing holding four arrows had no way to learn
@@ -21004,7 +21113,21 @@ class Store:
             # `test_the_denominator_is_the_arrows_examined_not_the_
             # arrows_present`.
             #
-            # NET, not per-pass. `routed` is what the passes EXAMINED;
+            # AND THE POPULATION IS CONNECTORS, NOT ARROWS (2026-08-18,
+            # C-3). The sentence quoted the ROUTER LOOP's set while the
+            # three geometry passes that follow it iterate
+            # `("arrow", "line")`, so one press that pulled two
+            # coincident bound lines 13px apart each said "re-routed 0
+            # of 0 server-routed arrow(s)" — wrong in the numerator by
+            # what it redrew, wrong in the denominator by this comment's
+            # OWN definition, and wrong in its noun. The identical scene
+            # typed `arrow` lands the two feet on the SAME coordinates
+            # and says "2 of 2", which is what makes it a narration
+            # defect and not a geometry one. `server_routed_connectors`
+            # is the population; nothing about what moves changed.
+            #
+            # NET, not per-pass. `connectors` is what the passes
+            # EXAMINED;
             # what the note may call re-routed is what ended up drawn
             # somewhere else, measured once across the whole tidy
             # (2026-08-17 ruling, extending the `rerouted` ink gate to
@@ -21018,15 +21141,15 @@ class Store:
             # drawing cannot corroborate.
             was = {e["id"]: e for e in base}
             now = {e["id"]: e for e in els}
-            redrew = sum(1 for i in routed if i in was and i in now
+            redrew = sum(1 for i in connectors if i in was and i in now
                          and drawn_path_changed(was[i], now[i]))
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
                 user_note="tidy: snapped %d node(s) to grid, re-routed "
-                          "%d of %d server-routed arrow(s), normalized "
-                          "z-order%s"
-                          % (snapped, redrew, len(routed),
+                          "%d of %d server-routed connector(s), "
+                          "normalized z-order%s"
+                          % (snapped, redrew, len(connectors),
                              "" if not held
                              else " — " + pinned_clause(len(held))))
 
@@ -21128,12 +21251,18 @@ class Store:
     def legacy_routing_notes(self):
         """The load-time NOTE, one line per artifact a re-route would fix.
 
+        `connector(s)` rather than `arrow(s)` since 2026-08-18:
+        `reroute_scene`'s change list is the fan's `("arrow", "line")`
+        set, so this count includes a bound `line` a re-route would
+        redraw and the noun has to say so (C-3).
+
         Returns:
             `[str]` — empty when nothing is fossilised, which is the
             everyday case and has to stay silent: a resume surface that
             says something on every project trains an agent to skip it.
         """
-        return ["%s: %d arrow(s) carry legacy routing and %d endpoint(s) "
+        return ["%s: %d connector(s) carry legacy routing and %d "
+                "endpoint(s) "
                 "arrive crooked — `canvas.py reroute --artifact %s` shows "
                 "what today's router would draw instead; nothing changes "
                 "without --apply"
@@ -21206,7 +21335,7 @@ class Store:
         disown every arrow it touched and freeze the fossil in place
         permanently.
 
-        Every arrow whose DRAWN PATH changed gets its own `rerouted`
+        Every connector whose DRAWN PATH changed gets its own `rerouted`
         fact, so the save narrates arrow by arrow instead of as one
         anonymous count. The geometry diff alone would not: bound-arrow
         geometry is derived, and a save carrying only derived changes
@@ -21223,12 +21352,25 @@ class Store:
         silence — the re-solve is in the change record, which is what
         replay rebuilds from, and the note still names it — so what
         drains is narration and never state. `changes` is therefore
-        still built from every arrow that moved at all; only the fact
-        list is filtered, and `path_changed` is the one predicate both
-        it and `reroute_line` read.
+        still built from every connector that moved at all; only the
+        fact list is filtered, and `path_changed` is the one predicate
+        both it and `reroute_line` read.
+
+        CONNECTOR, NOT ARROW, everywhere in this paragraph and in the
+        note (2026-08-18, C-3). `reroute_scene` runs the same three
+        geometry passes tidy does and they all iterate
+        `("arrow", "line")`, but its change list was `type != "arrow"`
+        gated — so on a scene where ONE crooked arrow opened
+        `reroute_is_fossil`'s door, two bound lines were pulled 13px
+        each off the foot the user drew them on, and the record said
+        "re-routed 1 of 1" with one `rerouted` fact naming the arrow
+        alone. The same scene with those two typed `arrow` says "3 of
+        3" and mints three facts. The list, the counts and the facts
+        all read the widened `changes`, so the collateral cannot go
+        unnamed on one surface while another names it.
 
         THE NOTE'S OPENING COUNT STATES BOTH TRUTHS — "re-routed N of M
-        server-routed arrow(s)" — and that is the same ruling reaching
+        server-routed connector(s)" — and that is the same ruling reaching
         one line further than it first did. `M` is what the pass
         touched; `N` is what it redrew. Writing `M` alone put the
         NARROWED word in front of the UN-NARROWED number, so the shipped
@@ -21236,7 +21378,8 @@ class Store:
         the defect this method was fixed for, surviving in the one
         sentence that had quoted it.
 
-        `M` IS `routable_arrows`, NOT `len(changes)`, since 2026-08-18.
+        `M` IS `server_routed_connectors`, NOT `len(changes)`, since
+        2026-08-18.
         The sentence said "of M" while M counted the arrows that MOVED,
         so the fraction read "how many of the arrows I changed changed
         their ink" and carried no scope at all: `argus-r5 /
@@ -21258,6 +21401,17 @@ class Store:
         two, and each is separately checkable against the ink: examined,
         redrawn, and changed in any way at all — the last being the one
         `changes` was always built from, `path_changed` or not.
+
+        AND `M` IS CONNECTORS, NOT ARROWS, since 2026-08-19 (C-3).
+        `changes` is the fan's `("arrow", "line")` set, so the
+        per-element list, the `rerouted` facts and `len(changes)` all
+        name bound lines this pass redrew; `M` counted arrows alone, and
+        a fold of the two commits that each fixed half of this printed
+        "re-routed 3 of 1" — N above M, three entries under a count of
+        one — which is the very failure the paragraph above records.
+        The pinned clause counts connectors for the same reason: the fan
+        and the contention pass both decline a pinned `line`.
+
 
         GATED ON `reroute_is_fossil`, not on "a pass would change
         something" — that is the difference between a verb the user can
@@ -21283,22 +21437,38 @@ class Store:
             if declined is not None:
                 return declined
             base = self.head_revn()
-            examined = len(routable_arrows(self.scenes[aid]))
+            # `server_routed_connectors`, not `routable_arrows`: this
+            # note's LIST, its `rerouted` facts and `len(changes)` are
+            # all the fan's `("arrow", "line")` set, so an arrow-only
+            # `M` puts a shorter count above a longer list. Measured on
+            # the fold of the two commits that each fixed half of this:
+            # "re-routed 3 of 1 server-routed arrow(s)" over three
+            # named entries (C-3 fold, 2026-08-19).
+            examined = len(server_routed_connectors(self.scenes[aid]))
             els, changes = reroute_scene(self.scenes[aid])
             redrew = sum(1 for c in changes if c["path_changed"])
-            # The pinned arrows are named beside the count for the same
-            # reason `M` is: this note's per-arrow list is the anchor a
-            # reader checks the number against, and an arrow that is on
-            # the canvas, is bound at both ends, is server-owned, and is
-            # absent from the list would otherwise read as an undercount
-            # rather than as a pin being honoured.
+            # The pinned connectors are named beside the count for the
+            # same reason `M` is: this note's per-element list is the
+            # anchor a reader checks the number against, and a connector
+            # that is on the canvas, is bound at both ends, is
+            # server-owned, and is absent from the list would otherwise
+            # read as an undercount rather than as a pin being honoured.
+            #
+            # `("arrow", "line")`, matching `M` and matching
+            # `_tidy_pass`'s own pinned fold-in, which already counted
+            # both. `fan_attach_points` and `contention_feet` each skip
+            # a pinned LINE exactly as they skip a pinned arrow, so an
+            # arrow-only count here left a held line out of the one
+            # clause that exists to explain why it did not move — the
+            # same blind spot in the same sentence, one clause over.
             held = sum(1 for e in self.scenes[aid]
-                       if e.get("type") == "arrow" and pinned_to_canvas(e)
+                       if e.get("type") in ("arrow", "line")
+                       and pinned_to_canvas(e)
                        and server_owns_geometry(e))
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=base,
-                user_note="re-routed %d of %d server-routed arrow(s); %d "
+                user_note="re-routed %d of %d server-routed connector(s); %d "
                           "moved or were re-aimed: %s%s — %s"
                           % (redrew, examined, len(changes),
                              # " | ", not "; ": `reroute_line` uses "; "

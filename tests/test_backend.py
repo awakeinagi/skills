@@ -14196,6 +14196,17 @@ class TestTidyCountsTheArrowsItRedrew(Base):
     settles in two passes with the second one breaking on an unchanged
     hash. The net diff covers that case by construction rather than by
     coincidence, but no scene here exercises it.
+
+    THE NOUN IS `connector(s)` SINCE 2026-08-18 and every number in this
+    class is unmoved by that. The population tidy narrates widened from
+    the router loop's arrows to `server_routed_connectors` — the
+    `("arrow", "line")` set the fan iterates — because a bound `line` it
+    moved was counted by neither the numerator nor the denominator
+    (v0.9 whole-branch review C-3, `TestTidyNarratesTheFeetItMoves`).
+    This scaffolding holds no lines, so the two populations coincide on
+    it and the arms below still read 2 of 3; what moved was the word.
+    A scene where they DIFFER is exactly what the mutant class is, and
+    it is deliberately not duplicated here.
     """
 
     def setUp(self):
@@ -14232,7 +14243,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "arrows; it moved %r, so the counts below would be pinning "
             "something else" % (moved,))
         self.assertIn(
-            "re-routed %d of %d server-routed arrow(s)"
+            "re-routed %d of %d server-routed connector(s)"
             % (len(moved), len(arrows)),
             rec["user_note"],
             "tidy's note disagrees with the drawing: %d arrow(s) moved "
@@ -14254,7 +14265,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "`t1` moved after all, so it is no longer the unmoved arrow "
             "this test is about")
         self.assertIn(
-            "re-routed 2 of 3 server-routed arrow(s)", rec["user_note"],
+            "re-routed 2 of 3 server-routed connector(s)", rec["user_note"],
             "`t1` was routed but not redrawn and the note counted it "
             "anyway: %r" % rec["user_note"])
 
@@ -14279,7 +14290,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
         """
         rec = self.store.tidy("checkout-flow")
         arrows = [e["id"] for e in self.base if e.get("type") == "arrow"]
-        got = int(re.search(r"re-routed \d+ of (\d+) server-routed arrow\(s\)",
+        got = int(re.search(r"re-routed \d+ of (\d+) server-routed connector\(s\)",
                             rec["user_note"]).group(1))
         self.assertLessEqual(
             got, len(arrows),
@@ -14331,7 +14342,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "this scene is supposed to hold four arrows, one of them "
             "unbound; it holds %r" % (present,))
         self.assertIn(
-            "re-routed 2 of 3 server-routed arrow(s)", rec["user_note"],
+            "re-routed 2 of 3 server-routed connector(s)", rec["user_note"],
             "tidy's denominator counted %d arrow(s) where three were "
             "examined and four are present, so `M` is no longer 'the "
             "ones the router was handed': %r"
