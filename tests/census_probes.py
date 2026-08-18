@@ -199,11 +199,31 @@ PROBES: dict[str, dict[str, str]] = {
         "file": "tests/test_mutants.py",
         "why": "CATALOGUE_RED_IDS declares a red the decorators do not "
                "carry",
-        # `= ` and not `= {`: set union reads the same against `set()`
-        # and against a literal, so this one also survives the catalogue
-        # emptying again — which is what killed both previous anchors.
-        "old": "CATALOGUE_RED_IDS = ",
-        "new": 'CATALOGUE_RED_IDS = {"a_red_nobody_declared"} | ',
+        # THE FOURTH ANCHOR, and it stops chasing the shape by taking the
+        # sibling probe's answer above rather than inventing a third of
+        # its own. The third anchor died on 2026-08-17 (v0.9
+        # TASK-ARRIVALLINT) the same way the second did and the same way
+        # `HAND_AUTHORED_RED_CLASSES`' fifth did — the set EMPTIED, and
+        # an empty one takes `: set[str]` between the name and the `=`,
+        # so `CATALOGUE_RED_IDS = ` stopped occurring at all.
+        #
+        # Its own comment had predicted the wrong half of this: it said
+        # `= ` rather than `= {` would survive "the catalogue emptying
+        # again", and emptying is indeed what happened — but what breaks
+        # the anchor is not the VALUE going empty, it is the ANNOTATION
+        # that an empty value drags in with it. Two probes have now been
+        # killed by that same annotation on two different tables, which
+        # is what makes it a shape and not an accident.
+        #
+        # So: a newline plus the name, which is the one occurrence at
+        # COLUMN ZERO (the other seven are indented uses or prose), and a
+        # perturbation that prepends a whole new definition and renames
+        # the original out of the way. That works against an empty set
+        # and a full one without knowing which it is, and it does not
+        # care whether the definition carries an annotation.
+        "old": "\nCATALOGUE_RED_IDS",
+        "new": '\nCATALOGUE_RED_IDS = {"a_red_nobody_declared"}'
+               '\n_SHADOWED_CATALOGUE_RED_IDS',
     },
     # THE THIRD CENSUS THIS FILE WATCHES, added by curator batch 27
     # (2026-08-17): SKILL.md's event taxonomy, which is the copy an AGENT

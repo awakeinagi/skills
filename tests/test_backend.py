@@ -17519,6 +17519,191 @@ class TestBorderCollinearExit(Base):
         self.assertEqual(len(arrow["points"]), 3)
 
 
+class TestGrazingArrival(Base):
+    """`arrival_through_side` (v0.9 TASK-ARRIVALLINT).
+
+    An arrow can be legally attached, run no length on or inside its
+    node, and still not say where it connects: if the last leg is nearly
+    parallel to the face it stops on, the eye follows it PAST the box
+    and the arrowhead lands edge-on. Nothing measured that before this,
+    because every squareness reading in the repo is taken off the
+    nearest CARDINAL and a stroke running along a face scores 0.0 from
+    those — 13.24 degrees where this check says 76.76, on one stroke.
+
+    The poles here are the DESIGN and not only the constant. Two of
+    them pin refusals that cost measured findings, and both refusals
+    exist because the naive check fires where nothing can be repaired.
+    """
+
+    def _scene(self, foot, adj, kind="rectangle"):
+        """One node at (400, 200) and one arrow landing on it.
+
+        Args:
+            foot: Absolute point the arrow's end lands on.
+            adj: Absolute point it travels from.
+            kind: The bound node's type.
+
+        Returns:
+            `[node, arrow]`, the arrow bound at its end only.
+        """
+        node = {"id": "n", "type": kind, "x": 400, "y": 200, "width": 120,
+                "height": 60, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": "arrow", "x": adj[0], "y": adj[1],
+                 "points": [[0, 0], [foot[0] - adj[0], foot[1] - adj[1]]],
+                 "endBinding": {"elementId": "n", "focus": 0, "gap": 0},
+                 "startBinding": None, "customData": {"role": "edge"}}
+        return [node, arrow]
+
+    def _graze(self, lint):
+        """Every grazing-arrival finding in a lint result.
+
+        Args:
+            lint: A `lint_layout` result dict.
+
+        Returns:
+            The matching warning lines.
+        """
+        return [m for m in lint["warnings"] if "degrees off square" in m]
+
+    def test_a_grazing_arrival_is_named_with_its_angle_and_its_face(self):
+        """77 degrees onto a left face, and the message says both.
+
+        The angle is the finding, so a message carrying the wrong one is
+        a message about a different picture — and the FACE is half of
+        it, because this same stroke arriving at the same node's BOTTOM
+        edge is an ordinary drawing.
+        """
+        els = self._scene((400, 230), (360, 60))
+        hits = self._graze(canvas.lint_layout(els, artifact_type="flow"))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("77 degrees off square", hits[0])
+        self.assertIn("left edge", hits[0])
+
+    def test_a_square_arrival_on_the_same_face_says_nothing(self):
+        """The plain quiet pole: one variable moves, the finding goes."""
+        els = self._scene((400, 230), (200, 230))
+        self.assertFalse(
+            self._graze(canvas.lint_layout(els, artifact_type="flow")))
+
+    def test_the_bar_is_seventy_degrees_and_is_pinned_from_both_sides(self):
+        """68 degrees is silent and 72 speaks, on one geometry.
+
+        The calibration's content is where the step falls, so this is
+        the pole that notices a bar rounded to a tidier number in either
+        direction. Built from the angle rather than from coordinates so
+        that the two scenes differ in the bar and in nothing else.
+        """
+        for deg, want in ((68.0, False), (72.0, True)):
+            r = math.radians(deg)
+            # the left face's inward normal is (1, 0); rotate it by `deg`
+            adj = (400 - math.cos(r) * 300, 230 - math.sin(r) * 300)
+            els = self._scene((400, 230), adj)
+            got = bool(self._graze(
+                canvas.lint_layout(els, artifact_type="flow")))
+            self.assertEqual(got, want, "%s deg" % deg)
+
+    def test_a_curve_may_bow_the_drawing_while_the_foot_stays_square(self):
+        """The refusal the router's own output made necessary.
+
+        A three-point elbow whose stored final leg is DEAD SQUARE on the
+        top face, bowed by its own roundness to 80 degrees on the
+        tangent the client draws. Reading the drawing alone — the
+        obvious implementation, and the one this check's own
+        `ASPIRATIONAL` entry described — fires here, and would fire on
+        88 arrivals `route_arrow` emits in a 2500-pair grid, because
+        that is the shape it gives a far-apart barely-offset pair: a
+        long run elbowed into a final leg of a few px.
+
+        NOT SILENT BECAUSE THE ANGLE IS SMALL — it is larger than the
+        mutant's. Silent because the foot is already in the only place a
+        foot can go, so "bring it in across the face" is advice nobody
+        can take, and a lint that gives it is one agents learn to skip.
+        """
+        node = {"id": "n", "type": "rectangle", "x": 400, "y": 200,
+                "width": 120, "height": 60, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": "arrow", "x": -20.0, "y": 190.0,
+                 "points": [[0, 0], [480, 0], [480, 10]],
+                 "endBinding": {"elementId": "n", "focus": 0, "gap": 0},
+                 "startBinding": None, "customData": {"role": "edge"}}
+        arrow["roundness"] = canvas.derived_roundness(arrow)
+        self.assertTrue(arrow["roundness"], "the scene must be curved")
+        seq, head = canvas._arrival_path(arrow, True)
+        drawn = canvas.side_normal_cos("top", head, seq[0])
+        chord = canvas.side_normal_cos(
+            "top", (arrow["x"] + 480, arrow["y"]), seq[0])
+        self.assertLess(drawn, canvas.GRAZE_COS)    # the drawing grazes
+        self.assertAlmostEqual(chord, 1.0, places=6)  # the model does not
+        self.assertFalse(self._graze(
+            canvas.lint_layout([node, arrow], artifact_type="flow")))
+
+    def test_a_conic_gets_no_verdict_because_its_box_is_not_its_outline(self):
+        """The second refusal, and the shape-blindness family's seventh site.
+
+        `_edge_side` names a side for a foot anywhere on a rhombus's
+        ink, but the reading is taken against the BOX side's normal, and
+        on a conic those two directions agree at four points and nowhere
+        else — up to 68.20 degrees apart, which is further than the bar
+        itself. So the answer is not noisy, it is unrelated.
+
+        The foot is the same point in all three: (400, 230) is a
+        rectangle's left-edge midpoint, a rhombus's LEFT VERTEX and an
+        ellipse's leftmost extremum, which is the coincidence
+        `endpoint_port` already documents. So the scenes differ in the
+        SHAPE and in nothing else — same foot, same approach, same
+        angle — and only the one whose box is its outline is answered.
+        `tuesday-triage` is where this was measured: its two arrows
+        leave a rhombus's left and right vertices travelling straight
+        down, the box reading calls both a dead 90-degree graze, the ink
+        reading calls both 21.80 degrees, and the render agrees with the
+        ink.
+        """
+        for kind, want in (("rectangle", True), ("diamond", False),
+                           ("ellipse", False)):
+            els = self._scene((400, 230), (360, 60), kind=kind)
+            got = bool(self._graze(
+                canvas.lint_layout(els, artifact_type="flow")))
+            self.assertEqual(got, want, kind)
+
+    def test_at_ninety_degrees_the_border_run_check_takes_over(self):
+        """The hand-off, inherited from the mutant's old neighbour.
+
+        An arrival lying exactly ALONG a face is this check's own
+        extreme, and it is deliberately not this check's finding:
+        `crosses_through_bound` sees the same stroke as a run drawn on
+        the outline, reports it in PIXELS, and gives the better sentence
+        for it. The arrival check sits behind that finding's `continue`,
+        so the endpoint is indicted once.
+
+        This pins both halves. It was the mutant
+        `grazing_arrival_reads_as_square`'s neighbour before the flip —
+        the borrow that proved the geometry reached a live detector as
+        soon as the angle reached 90 — and it is kept here rather than
+        dropped, because the flip's own neighbour had to become this
+        check's quiet pole and a claim is not a thing to spend twice.
+        """
+        els = self._scene((400, 250), (400, 190))
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        self.assertFalse(self._graze(lint), lint["warnings"])
+        self.assertTrue([m for m in lint["warnings"] + lint["errors"]
+                         if "own border" in m], lint)
+
+    def test_a_recorded_waive_silences_one_end_of_one_arrow(self):
+        """The waive channel, keyed per arrow END and not per arrow.
+
+        A two-ended arrow can graze at one end and be square at the
+        other, and a key that could not tell them apart would make
+        settling one question settle a different one unasked.
+        """
+        els = self._scene((400, 230), (360, 60))
+        key = "graze:art:a:end"
+        lint = canvas.lint_layout(els, artifact_type="flow",
+                                  waives={key: {"reason": "deliberate"}},
+                                  aid="art")
+        self.assertFalse(self._graze(lint), lint["warnings"])
+        self.assertIn(key, self._graze(
+            canvas.lint_layout(els, artifact_type="flow", aid="art"))[0])
+
+
 def _box_anchor(el, other_cx, other_cy):
     """`edge_anchor`'s pre-WP4 closed form, kept as an independent check.
 

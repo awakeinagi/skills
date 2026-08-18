@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `grazing_arrival_reads_as_square` (the css-keyword red flipped 2026-08-17 by TASK-COLORPARSE) |
+| model (default suite) | *none* — emptied 2026-08-17 by TASK-ARRIVALLINT, which promoted the grazing-arrival reading to a live lint and flipped the last red-by-absence pin (the css-keyword red flipped the same day by TASK-COLORPARSE). Second drain; the first, on 2026-08-16, lasted one commit before the spike programme refilled it, so read this one as an event too. (No backticked id in this row, deliberately: the guard below harvests every backticked id in it, so an id named here as *history* would read as a live red) |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
 
@@ -376,11 +376,19 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**1 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-18 at TASK-ELBOX's fold, which
+**0 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-18 at TASK-ARRIVALLINT's fold, which
+flipped `grazing_arrival_reads_as_square` by promoting
+`arrival_through_side` to a live lint and added no red, taking
+`test_mutants.py` DOWN BY ONE from the 1 below. That is the only claim
+this parenthesis makes about the total, deliberately: the number beside
+it is guarded and will fail loudly the moment work landing around it
+moves the count, but a sentence describing what the *whole harness*
+looks like is guarded by nothing and goes quietly false at every fold —
+which is exactly what the re-derivations recorded below are. The
+1 was re-derived 2026-08-18 at TASK-ELBOX's fold, which
 flipped the elBox and pin-hug reds together with their e2e half and took
-the merged tree 3 -> 1 — the one left is `grazing_arrival_reads_as_square`,
-whose flip is in TASK-ARRIVALLINT's fold; the 3 was
+the merged tree 3 -> 1; the 3 was
 re-derived 2026-08-17 at TASK-VOCAB's fold, which
 flipped the vocabulary red and took the merged tree 4 -> 3; the 4 was
 re-derived at TASK-COLORPARSE's fold, which
@@ -683,7 +691,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **29 detectors, 25 proven, 3 render-tier, 1
+  a reason. Coverage totals: **30 detectors, 26 proven, 3 render-tier, 1
   UNCOVERED** — CHECKED as of v0.9 WP7 task 29 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked

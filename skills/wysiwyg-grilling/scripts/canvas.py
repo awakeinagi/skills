@@ -10424,6 +10424,48 @@ NORMAL_COS = 0.9063
 # bound endpoints, against the 72 non-normal arrivals spike-focus-verify
 # counted in a live browser over the same 346 by a different instrument.
 
+GRAZE_COS = 0.342
+# cos(70 degrees) — how oblique an approach has to be before the drawing
+# stops saying WHERE the arrow connects. `NORMAL_COS` above is the same
+# axis read from the other end: under 25 degrees the side is worth
+# naming, over 70 the picture does not show one, and the band between is
+# legible without being worth a sentence. The two are NOT complements of
+# one number and were calibrated separately.
+#
+# CALIBRATED ON PICTURES, not swept and not derived from `NORMAL_COS`
+# (90 - 25 = 65 is arithmetic, not evidence — nothing says the angle at
+# which a side stops being worth naming is the angle at which it stops
+# being visible). Two renders were made and shown to a reader who was
+# told nothing about the check, and they disagreed in a way that is the
+# whole content of this number:
+#
+#   AN ISOLATED LADDER — one box, one arrow, eleven rungs from 0 to 90 —
+#   reads CLEAR to 60, "have to look twice" from 65 to 75, and does not
+#   fail outright until 80. On its own this says the bar is 80.
+#
+#   THE SAME ANGLES IN A REAL DRAWING fail much earlier. Asked which
+#   connections in `tearsheet-pipeline` they could not make out, the same
+#   reader named `t-market-compute`'s arrival at `input-cutoff` first and
+#   unprompted — "long shallow descent touching the box at its top-left
+#   corner, top edge or left edge, can't tell". That arrival is 72.08
+#   degrees, squarely inside the band the ladder called merely marginal.
+#
+# The difference is the rest of the picture: that box carries five other
+# feet, and near-parallel arrivals are legible one at a time and not as a
+# set. A ladder rung has nothing to be confused with, so 80 is the
+# ceiling of the easiest case there is, and an artifact is never the
+# easiest case. 70 is set from the in-situ reading and sits deliberately
+# inside the ladder's look-twice band, which is the right side to err on
+# for a WARNING phrased as a question rather than a verdict.
+#
+# The quiet pole is calibrated on the same corpus: `tearsheet-pipeline`'s
+# other arrivals, at 45 to 52 degrees, meet their faces cleanly in the
+# render and the reader raised none of them.
+#
+# It is a FLOOR ON BOTH READINGS OF THE STROKE, which is the part that
+# matters more than the number; see the check itself for why, and for
+# the 88 router-emitted arrivals that measurement disqualified.
+
 SIDE_INWARD_NORMAL = {"left": (1.0, 0.0), "right": (-1.0, 0.0),
                       "top": (0.0, 1.0), "bottom": (0.0, -1.0)}
 # Which way is INTO the node from each face. Inward and not outward
@@ -12057,6 +12099,134 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                         "geometry); re-route deliberately and narrate it")
                 else:
                     errors.append(msg)
+                continue
+            # ---- WARNING: an arrival that grazes the side it lands on --
+            # v0.9 TASK-ARRIVALLINT, and the check that flips
+            # `grazing_arrival_reads_as_square` out of red-by-absence.
+            # The foot is legally attached and no length of the stroke is
+            # drawn on the node, so both findings above are silent by
+            # construction; what is wrong is that the last leg runs so
+            # nearly ALONG the face it stops on that the reader's eye
+            # follows it PAST the box rather than INTO it, and the
+            # arrowhead lands edge-on where no head can be read.
+            #
+            # WHY IT IS ITS OWN CHECK. `instruments.arrival_squareness`
+            # and `_arrival_lean` both measure lean off the nearest
+            # CARDINAL, so a stroke running straight along the face it
+            # lands on scores a perfect 0.0 from them. On the scene the
+            # mutant pins, the cardinal reading is 13.24 degrees and the
+            # side reading is 76.76 — two readings of one stroke, 63.5
+            # degrees apart, and the one the repo already computed was
+            # the one that said the picture was fine.
+            #
+            # BOTH READINGS OF THE STROKE HAVE TO BE OBLIQUE, and this is
+            # the design rather than a guard bolted onto it. `side_normal
+            # _cos` is asked twice: once about the tangent the client
+            # DRAWS at the foot, and once about the chord the model
+            # STORES. On a sharp arrow those are the same number by
+            # construction — `_rendered_stretches` hands a sharp arrow
+            # its chords unsampled — so the second reading costs nothing
+            # and changes nothing there. On a CURVED one it is the whole
+            # discriminator: a three-point elbow whose stored final leg
+            # is DEAD SQUARE can still have its drawn tangent bowed 80-odd
+            # degrees off the normal by the curve alone, and on such a
+            # picture the foot is already in the only place it can be —
+            # so a lint saying "bring it in across the face" would be
+            # advising something nobody can do.
+            #
+            # THAT CLASS IS NOT HYPOTHETICAL AND NOT RARE: measured over
+            # a 2500-arrival grid of routed pairs, `route_arrow` ITSELF
+            # emits 88 of them (worst 83.60 degrees drawn against 0.00
+            # stored, a 730px run elbowed into a 10px final leg between
+            # two nodes 800px apart and 40px offset). Reading the drawn
+            # tangent alone would have put a warning on the repo's own
+            # router output — the regression class TASK-LINTPROMOTE made
+            # a load-bearing quiet pole — and the two-reading floor takes
+            # those 88 to 0 without touching a single frozen-corpus
+            # finding. The bow itself is a real defect in the ROUTER and
+            # is filed as one; it is not this reader's to report, and
+            # the sentence that would report it is a different sentence.
+            #
+            # THE PLACEMENT IS PART OF THE CHECK. It sits after both
+            # findings above and behind their `continue`s, so an endpoint
+            # already indicted for where its foot IS never also gets
+            # indicted for how it got there. That is what keeps the
+            # 90-degree pole — an arrival lying ON the face — with
+            # `crosses_through_bound`, which measures the run in pixels
+            # and gives the better sentence; it is also, measured, what
+            # keeps this check off 412 of the 413 grazing arrivals in the
+            # cramped-side sweep, whose builder starts every arrow on its
+            # source's own border.
+            # ONLY WHERE THE BOX IS THE OUTLINE, and this is the shape
+            # -blindness family's seventh site answered before it could
+            # ship rather than after. `_edge_side` names a side for a
+            # foot standing anywhere on a rhombus's or an ellipse's INK,
+            # in the shape's own units — but `side_normal_cos` measures
+            # against the BOX side's normal, and on a conic those two are
+            # the same direction at exactly four points. Walked all the
+            # way round both outlines at four sizes, the box normal sits
+            # up to 68.20 degrees off the ink's (ellipse 200x80; the
+            # rhombus of the same size gives 68.20 too, and a square one
+            # gives 45.00 for both) — a divergence LARGER THAN THE
+            # THRESHOLD ITSELF, so on a conic this reading is not a noisy
+            # version of the right answer, it is unrelated to it.
+            #
+            # Measured on the corpus rather than reasoned: the two
+            # findings this guard removes are `tuesday-triage`'s
+            # `tt-diff-knob` and `tt-diff-market`, which leave a rhombus's
+            # LEFT AND RIGHT VERTEX travelling straight down. The box
+            # reading calls both 90.00 degrees — a dead graze — and the
+            # ink reading calls both 21.80, an ordinary departure, which
+            # is what the render shows. Two false positives out of six.
+            #
+            # THE BLIND SPOT IS REAL AND IS RECORDED, not hidden: a
+            # genuinely grazing arrival on a rhombus or an ellipse is not
+            # reported by anything. Closing it needs the outline's own
+            # normal, which is a NEW reading — and this file's rule is
+            # that narration, the contention trigger and this check share
+            # ONE reading of one stroke, so growing a second one is a
+            # change to `side_normal_cos`'s three callers and not a line
+            # here. Filed for the curator with these numbers.
+            #
+            # The tuple matches `_edge_side`'s own conic branch and
+            # `endpoint_gap`'s, deliberately: a third shape whose box is
+            # not its outline has to be added to all three, and this is
+            # the one that goes silent rather than wrong if it is missed.
+            pts = a.get("points") or []
+            foot_side = _edge_side(tgt, px, py)
+            if tgt.get("type") in ("diamond", "ellipse") or \
+                    foot_side is None or len(pts) < 2 or head_from is None:
+                continue    # no nameable face, or no leg to be oblique
+            back = pts[1] if key == "startBinding" else pts[-2]
+            drawn_cos = side_normal_cos(foot_side, head_from, (px, py))
+            chord_cos = side_normal_cos(
+                foot_side, (a.get("x", 0) + back[0], a.get("y", 0) + back[1]),
+                (px, py))
+            if drawn_cos is None or chord_cos is None:
+                continue
+            if max(drawn_cos, chord_cos) > GRAZE_COS:
+                continue
+            # The DRAWN reading is the one reported, because the drawing
+            # is what the reader is looking at; the stored chord is a
+            # gate and never a magnitude. Clamped before `acos` — a
+            # cosine assembled from a square root lands an ulp outside
+            # [-1, 1] on a dead-flat leg and raises.
+            off = math.degrees(math.acos(max(-1.0, min(1.0, drawn_cos))))
+            key_w = "graze:%s:%s:%s" % (aid or "<artifact>",
+                                        slugify(a["id"]), side)
+            if waives and key_w in waives:
+                continue
+            warnings.append(
+                "arrow %s arrives at %s's %s edge %d degrees off square "
+                "(%s point) — the last leg runs so nearly along that "
+                "edge that the drawing does not say where the two "
+                "connect, and the arrowhead reads as a corner rather "
+                "than an attachment. Bring it in across the face: elbow "
+                "the final leg with `mod points`, or re-route from a "
+                "border that faces the other end. Meant to graze? waive "
+                "{action: waive, key: %r, reason: ...}"
+                % (a["id"], name(tgt["id"]), foot_side, round(off), side,
+                   key_w))
 
     # ---- ERROR: flow-kind structural invariants ----------------------
     kinds = {e["id"]: (e.get("customData") or {}).get("kind")

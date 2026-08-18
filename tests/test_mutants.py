@@ -322,6 +322,36 @@ _UNREADABLE_COLOR_RE = re.compile(
     r"(?:stroke|fill|background) as ['\"].+?['\"], which this check "
     r"cannot read as a colour")
 
+# v0.9 TASK-ARRIVALLINT: the check that flips
+# `grazing_arrival_reads_as_square`. `element` is the ARROW — the one
+# thing a repair moves, and unlike `_SHARED_ATTACH_RE`'s node there is no
+# symmetry here to make the pick arbitrary. MAGNITUDE is the angle in
+# DEGREES and not a distance, the first non-pixel magnitude in this table
+# after the contrast ratios, because the whole finding is an angle: the
+# same stroke arriving at the same point on the same face is a perfectly
+# ordinary picture at 20 degrees.
+#
+# DIRECTION IS THE SIDE, and it carries more of this finding than any
+# other dirmap in this table carries of its own. "Which face" is not an
+# axis annotation here, it is the subject: 77 degrees off the LEFT face's
+# normal and 77 degrees off the BOTTOM face's normal, at the same foot,
+# are two different drawings and only one of them is wrong. The map is
+# the identity because the message prints the side name the check
+# computed and there is nothing to translate — written out rather than
+# omitted so that a message that started saying "west" would fail here
+# instead of silently reporting `None`.
+#
+# The number is matched as a bare `\d+` and the degree word is pinned
+# instead, the choice `_MIN_CLEARANCE_RE` records for its floor: this
+# regex reads what the check MEASURED, and the day the bar moves the
+# finding is still the same finding. What may not drift is the UNIT — a
+# check that reported a cosine, or a lean off the nearest cardinal (which
+# is the wrong reading this mutant exists to distinguish, and answers
+# 13.24 where this answers 76.76), matches nothing here.
+_ARRIVAL_SIDE_RE = re.compile(
+    r"arrow (?P<element>[\w-]+) arrives at .+?'s "
+    r"(?P<dir>left|right|top|bottom) edge (?P<mag>\d+) degrees off square")
+
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
     """One finding whose magnitude is the scene's crossing count.
@@ -501,6 +531,25 @@ DETECTORS: dict[str, dict] = {
     # at all, and the entry lands with the check so that no mutant can be
     # written against an unregistered name in the meantime.
     "unreadable_color": {"lint_re": _UNREADABLE_COLOR_RE},
+    # v0.9 TASK-ARRIVALLINT. The row that empties `ASPIRATIONAL` for the
+    # second time, and the row `grazing_arrival_reads_as_square` has been
+    # waiting on since the spike program filed it: the lint landed, this
+    # entry arrived in the same change, and the mutant dropped its
+    # `expectedFailure` and its borrowed neighbour together.
+    #
+    # THE DIRMAP IS THE IDENTITY AND IS STILL WRITTEN OUT — see the
+    # regex. Every other dirmap here translates a phrase an agent reads
+    # into a token a test asserts; this one exists to make the four legal
+    # answers a closed set at the point the finding is normalized, so a
+    # fifth would arrive as itself and fail loudly rather than as `None`.
+    #
+    # ARRIVES PROVEN, where its neighbour above arrives UNCOVERED, and
+    # the pair is worth reading together: both entries landed with their
+    # checks, and the difference is only that this one had a mutant
+    # waiting for it since the spike programme filed the red.
+    "arrival_through_side": {"lint_re": _ARRIVAL_SIDE_RE,
+                             "dirmap": {"left": "left", "right": "right",
+                                        "top": "top", "bottom": "bottom"}},
     "crossings_count": {"collect": _collect_crossings},
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
@@ -18521,6 +18570,44 @@ def _grazing_arrival(origin: tuple[float, float],
                                     foot[1] - origin[1])], "src", "dst")]
 
 
+def _bowed_arrival(first: float, last: float) -> list[dict[str, Any]]:
+    """A CURVED elbow onto `dst`'s top face, square in the model.
+
+    The other pole of `arrival_through_side`, and the one the check is
+    designed around rather than merely calibrated against. The stored
+    final leg is vertical — dead square on the face it lands on, the
+    best placement a foot has — while the roundness bows the tangent the
+    client actually DRAWS at that foot far past any grazing bar. So the
+    two readings of one stroke disagree maximally, and the drawing's own
+    reading is the one no foot placement can repair.
+
+    `dst` is at (400, 200) as everywhere in this family, and the foot is
+    its top face's midpoint, so the scene differs from
+    `_grazing_arrival`'s in the arrow and in nothing else.
+
+    THE REGIME IS THE ROUTER'S OWN, reproduced literally per this
+    family's convention: `route_arrow` emits exactly this shape — a long
+    run elbowed into a final leg of a few px — for a pair of nodes far
+    apart and barely offset, 88 times in a 2500-arrival grid, worst
+    83.60 degrees drawn against 0.00 stored.
+
+    Args:
+        first: Length of the horizontal run into the elbow.
+        last: Length of the vertical final leg. The bow grows as this
+            shrinks; it is the whole variable.
+
+    Returns:
+        `[dst, src, e1]`, with `e1` carrying `derived_roundness`.
+    """
+    fx, fy = 460.0, 200.0
+    ox, oy = fx - first, fy - last
+    arrow = _facing_arrow("e1", ox, oy,
+                          [(0, 0), (first, 0), (first, last)], "src", "dst")
+    arrow["roundness"] = canvas.derived_roundness(arrow)
+    return [_facing_node("dst", 400, 200),
+            _facing_node("src", ox - 120, oy - 30), arrow]
+
+
 def _corner_feet(dx: float, dy: float) -> list[dict[str, Any]]:
     """Two arrows landing either side of one node's top-left corner.
 
@@ -18581,12 +18668,26 @@ _register(Mutant(
                         FindingSpec("crosses_through_bound", element="e1",
                                     magnitude=(40, 0.10)))))
 
-# RED BY ABSENCE. `arrival_through_side` is a check nobody has written; the
-# spec is here so that whoever writes it has to get the magnitude and the
-# direction right rather than merely fire. Named as its own check and not
-# as an arm of `crosses_through_bound` because the geometry is different:
-# this stroke never touches the node until its last pixel, so there is no
-# run to measure and the existing lint has nothing to say by construction.
+# FLIPPED 2026-08-17 (v0.9 TASK-ARRIVALLINT). Was RED BY ABSENCE for six
+# days; `arrival_through_side` is now a live lint with a `DETECTORS` row,
+# and this entry's demand — that whoever wrote it get the magnitude and
+# the direction right rather than merely fire — is what the spec below
+# still enforces. Named as its own check and not as an arm of
+# `crosses_through_bound` because the geometry is different: this stroke
+# never touches the node until its last pixel, so there is no run to
+# measure and the existing lint has nothing to say by construction.
+#
+# WHAT THE FLIP COST, recorded because the spec below does not show it.
+# The check is not the predicate: reading `side_normal_cos` against the
+# drawn tangent and thresholding it — the whole of what this entry
+# described — indicts 88 arrivals the repo's OWN `route_arrow` emits in a
+# 2500-pair grid, and mistakes a rhombus's vertex for a face by up to
+# 68.20 degrees. The shipped check therefore requires BOTH readings of
+# the stroke to be oblique (the drawn tangent and the stored chord, which
+# are the same number on a sharp arrow and diverge only under
+# curvature), speaks only where the box IS the outline, and sits behind
+# the two existing endpoint findings so nothing is indicted twice. Its
+# whole frozen-corpus fire is 4 findings on 1 of 24 artifacts.
 #
 # WHY NO EXISTING INSTRUMENT COVERS IT, measured rather than asserted.
 # `instruments.arrival_squareness` DOES answer about this endpoint, and it
@@ -18614,23 +18715,36 @@ _register(Mutant(
 # whole content of the finding: the same 76.76 degrees arriving at the
 # BOTTOM face of the same box is a perfectly ordinary picture.
 #
-# THE NEIGHBOUR IS THE 90-DEGREE POLE OF THE SAME SPECTRUM, and it fires:
-# an arrival exactly along the left face lies ON the border, so
-# `crosses_through_bound` reports its 50px run. That is a different check
-# from the one the mutant names, which is the borrow this file already has
-# a precedent for (`frame_containment` before its lint existed) — and it is
-# the borrow that stops this red hiding a dead reader, because it proves
-# the geometry reaches a live detector as soon as the angle reaches 90.
+# THE NEIGHBOUR CHANGED AT THE FLIP, which is the debt every flip in this
+# file owes: it used to borrow `crosses_through_bound`'s 50px run on an
+# arrival lying exactly ALONG the left face, because no `arrival_through
+# _side` existed to have a pole. That borrow did real work — it proved the
+# geometry reached a live detector as soon as the angle reached 90 — and
+# it is preserved, not discarded: the 90-degree scene is now
+# `test_at_ninety_degrees_the_border_run_check_takes_over` in
+# `test_backend.py`, where it also pins the hand-off the new check
+# depends on.
+#
+# WHAT REPLACES IT IS THE POLE THE BORROW COULD NOT REACH, and it is not
+# the obvious one. The easy quiet pole would be an arrival a few degrees
+# under the bar — a statement about the CONSTANT, which the mutant's own
+# 2% magnitude band already makes twice over (it excludes 13.24, 90 and
+# 0). This one is a statement about the CHECK: a curved elbow whose
+# stored final leg is DEAD SQUARE on the face, bowed by its own roundness
+# to 80.32 degrees on the tangent the client draws. Every naive
+# implementation of this entry's own description fires here — that is
+# measured, not supposed, and it is what the repo's `route_arrow` emits
+# 88 times in a 2500-pair grid — and the shipped one is silent, because
+# the foot is already in the only place a foot can go and "bring it in
+# across the face" would be advice nobody can take.
 _register(Mutant(
     "grazing_arrival_reads_as_square",
     build=lambda: _grazing_arrival((360, 60), (400, 230), (300, 0)),
     op="unchanged", args={},
     expect=FindingSpec("arrival_through_side", element="e1",
                        magnitude=(76.76, 0.02), direction="left"),
-    neighbour=Neighbour(
-        lambda: _grazing_arrival((400, 190), (400, 250), (340, 130)),
-        FindingSpec("crosses_through_bound", element="e1",
-                    magnitude=(50, 0.10)))))
+    neighbour=Neighbour(lambda: _bowed_arrival(480, 10),
+                        Silence("arrival_through_side"))))
 
 # AN INVERTED-MAGNITUDE MISS, which is the rarest of the three shapes this
 # file collects and the most persuasive: the check is not merely quiet on
@@ -19665,15 +19779,26 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same stroke at 40px is reported, once per bound node."""
         self._run_neighbour("flush_stack_border_run_under_the_band")
 
-    @unittest.expectedFailure
     def test_mutant_grazing_arrival_reads_as_square(self) -> None:
         """77 degrees off the face it lands on reads as 13 off a cardinal."""
-        # No check measures a leg against its foot's SIDE; flips when one
-        # does, and only if it reports the side reading and names the face.
+        # FLIPPED 2026-08-17 (v0.9 TASK-ARRIVALLINT). `arrival_through
+        # _side` is a live lint measuring the arrival against the SIDE
+        # the foot stands on, and it reports the side reading and names
+        # the face — the two things this entry demanded of whoever wrote
+        # it, and the two an existence assertion over
+        # `instruments.arrival_squareness` would have passed without.
         self._run("grazing_arrival_reads_as_square")
 
     def test_neighbour_grazing_arrival_reads_as_square(self) -> None:
-        """At 90 degrees the same stroke lies on the face and is reported."""
+        """A curve may bow the drawn arrival; the foot is still square.
+
+        The pole that separates a check from its predicate. The stored
+        final leg here is dead square on the face, and the roundness
+        alone carries the DRAWN tangent to 80.32 degrees — past the bar
+        the mutant clears at 76.76. An implementation that read the
+        drawing and stopped there fires on this scene, and would fire on
+        88 arrivals the repo's own router emits.
+        """
         self._run_neighbour("grazing_arrival_reads_as_square")
 
     def test_mutant_corner_feet_outside_the_square(self) -> None:
@@ -20248,18 +20373,27 @@ ASPIRATIONAL: dict[str, str] = {
     # rather than a forecast, and the machinery task 29 built to make an
     # addition safe was exercised by the very next commit to touch it.
     #
-    # The first entry here that is not a contrast probe, and the first
-    # whose predicate is already written down in prose: spike-attach.md
-    # §1.2 sizes it at ~12 lines over `_edge_side` + `_rendered_stretches`.
-    "arrival_through_side":
-        "the angle between an arrow's final leg and the SIDE NORMAL of "
-        "the foot it lands on, not yet built. Distinct from "
-        "`instruments.arrival_squareness`, which measures lean off the "
-        "nearest CARDINAL and answers 13.24 degrees about the 76.76-degree "
-        "arrival `grazing_arrival_reads_as_square` pins — two readings of "
-        "one stroke, and the one the repo computes says nothing is wrong. "
-        "Owner: whichever WP takes spike-attach's trigger E; the same "
-        "predicate is what narration's `endpoint_port` needs",
+    # (`arrival_through_side` left this table on 2026-08-17, v0.9
+    # TASK-ARRIVALLINT — the entry that refilled it, gone in six days.
+    # The lint landed, took a `DETECTORS` entry, and the mutant flipped in
+    # the same change, with its borrowed `crosses_through_bound`
+    # neighbour replaced by this check's own quiet pole. SO THE TABLE IS
+    # EMPTY AGAIN, for the second time; task 29's sentence about reading
+    # that emptiness as an event rather than a state stands unchanged,
+    # and has now been proved right once.
+    #
+    # ONE THING THIS ENTRY GOT WRONG IS WORTH KEEPING, because it is the
+    # kind of error a size estimate makes. It said the predicate was "not
+    # yet built" and spike-attach sized the check at ~12 lines. The
+    # predicate was built by TASK-ATTACH before this landed
+    # (`side_normal_cos`), so the writing really was ~12 lines — and they
+    # were the cheap part. What the estimate had no way to price was that
+    # the naive reading of it OVER-FIRES: on a 2500-arrival grid the
+    # repo's own `route_arrow` emits 88 arrivals a drawn-tangent
+    # threshold would indict, and a conic's box-side normal sits up to
+    # 68.20 degrees off its ink's. Both were found by measuring, both
+    # cost a design decision rather than a line, and neither is visible
+    # from the predicate. A check is not its predicate.)
 }
 
 # FOR WHOEVER FLIPS THESE. No aspirational mutant has a neighbour asserting
@@ -21065,7 +21199,22 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS = {"grazing_arrival_reads_as_square"}
+CATALOGUE_RED_IDS: set[str] = set()
+# `grazing_arrival_reads_as_square` left on 2026-08-17 (v0.9
+# TASK-ARRIVALLINT), the last of the three the spike program put here and
+# the only red-by-absence among them. `arrival_through_side` became a
+# live lint and a `DETECTORS` row in one change, and the borrowed
+# `crosses_through_bound` neighbour became this check's own quiet pole —
+# a curved elbow, square in the model, bowed past the bar in the drawing.
+#
+# THAT DEPARTURE IS ALL THIS NOTE CLAIMS, and the restraint is the point.
+# The obvious sentence to write here was about the SET — that it is empty
+# again. The set's contents are derived and guarded from three
+# directions; a sentence about how many times it has been empty is
+# guarded by nothing, and every task landing beside this one changes the
+# fact it asserts without touching the words. So: one id left, by this
+# change, for this reason. Whatever else stands here is owned by its own
+# fix task and will say so in its own line.
 # `css_keyword_stroke_is_never_read` joined on 2026-08-17 (curator batch
 # 30) and LEFT THE SAME DAY (v0.9 TASK-COLORPARSE), the shortest stay any
 # entry has had. It was filed because `parse_hex_color` answered None for
@@ -21122,10 +21271,10 @@ CATALOGUE_RED_IDS = {"grazing_arrival_reads_as_square"}
 # What changed is that four spikes went looking, and three of the things
 # they found had no reader.
 #
-# THESE THREE ARE NOT THE SHAPE THAT LEFT. Every id this set has ever held
-# was red BY ABSENCE — a check nobody had written. Only ONE of these three
-# is (`grazing_arrival_reads_as_square`, and `arrival_through_side` is
-# declared in `ASPIRATIONAL` for it). The other two are reds against checks
+# THOSE THREE WERE NOT THE SHAPE THAT LEFT. Every id this set has ever held
+# was red BY ABSENCE — a check nobody had written. Only ONE of those three
+# was (`grazing_arrival_reads_as_square`, declared in `ASPIRATIONAL` as
+# `arrival_through_side` until it flipped). The other two were reds against checks
 # that exist, fire, and are already `proven` in the coverage table:
 # `crosses_through_bound` is proven and blind from 8px to 28px, and
 # `shared_attach_point` is proven and answers a 12x12 SQUARE, so its
@@ -22161,11 +22310,19 @@ class TestCoverage(unittest.TestCase):
         Enumerated 2026-08-17 (curator batch 29): 35 entries have
         Silence neighbours and all 35 already had a firing companion, so
         this arrives green and stays a gate rather than a repair. The
-        one check with no ungated firing expectation anywhere is
-        `arrival_through_side`, which is red BY ABSENCE — no such check
-        is written — and its neighbour deliberately borrows a live
-        `crosses_through_bound` finding for exactly this reason, stated
-        in its own entry.
+        one check with no ungated firing expectation anywhere was
+        `arrival_through_side`, which was red BY ABSENCE — no such check
+        was written — and its neighbour deliberately borrowed a live
+        `crosses_through_bound` finding for exactly this reason.
+
+        THAT EXCEPTION CLOSED ITSELF on 2026-08-17 (v0.9
+        TASK-ARRIVALLINT), and the way it closed is the argument for
+        this gate. The flip gave that mutant a `Silence` neighbour on
+        its own check — the arrangement this test exists to police —
+        and the same flip made the mutant's own `FindingSpec` ungated by
+        dropping it from `CATALOGUE_RED_IDS`. Both halves had to move
+        together: a `Silence` neighbour landed alone, while the mutant
+        was still masked, is exactly the both-poles-green state below.
         """
         firing: dict[str, list[str]] = {}
         for mid, mutant in CATALOGUE.items():
@@ -22322,13 +22479,36 @@ class TestCoverage(unittest.TestCase):
         follows the one-site-per-check rule the paragraph above sets: two
         FIELDS can be unreadable on one element and both come out of this
         template, exactly as `contrast_text`'s four paths do.
+
+        62 -> 63 on 2026-08-17 (v0.9 TASK-ARRIVALLINT): the grazing
+        arrival, `arrival_through_side`. No `UNCOVERED` row, and for the
+        strongest version of the reason the rows above give — the check
+        did not merely arrive with a `DETECTORS` entry and a proving
+        pair, it arrived because a pair had been waiting six days for it
+        (`grazing_arrival_reads_as_square`), and the same change emptied
+        both `ASPIRATIONAL` and `CATALOGUE_RED_IDS`.
+
+        THE TWO ROWS ABOVE ARE THE SAME DAY AND OPPOSITE SHAPES, which
+        is worth one sentence here because the ledger cannot say it:
+        `unreadable_color` arrived with a check and no mutant and took
+        an `UNCOVERED` row, and this one arrived with a check and a
+        six-day-old mutant and took none. Both are correct, and the rule
+        that produced both is the same one — a fix's author does not
+        write its acceptance test, and this check's was written before
+        the fix existed.
+
+        ONE SITE, on a check with three distinct ways to stay quiet —
+        the conic guard, the two-reading floor, and sitting behind the
+        two existing endpoint findings. That is the 58 -> 61 judgement
+        applied to refusals rather than to arms: a check speaks once per
+        element however many reasons it had not to.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 62,
+        self.assertEqual(sites, 63,
                          "canvas.py lint_layout append-site count changed "
-                         "(62 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(63 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
