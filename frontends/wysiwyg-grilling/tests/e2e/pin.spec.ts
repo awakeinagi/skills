@@ -243,25 +243,51 @@ async function commitBaseline(page: import("@playwright/test").Page) {
  * @param specs Element specs to add (id, x, y, width, height, label).
  */
 async function seedRects(
-  canvas: { cli: (...a: string[]) => { stdout: string }; project: string },
+  canvas: Canvasish,
   page: import("@playwright/test").Page,
   specs: Array<Record<string, unknown>>): Promise<void> {
-  const bpath = path.join(canvas.project, `seed-${specs[0].id}.json`);
+  const last = String(specs[specs.length - 1].id);
+  await agentBatch(canvas, page, `seed-${specs[0].id}`,
+    specs.map((s) => ({ op: "add", element: { type: "rectangle", ...s } })),
+    async () => (await scene(page)).some((e) => e.id === last));
+}
+
+/** The fixture's shape, as much of it as these helpers touch. */
+type Canvasish = { cli: (...a: string[]) => { stdout: string; stderr: string };
+                   project: string };
+
+/**
+ * Apply an agent batch and wait for it to actually reach the open tab.
+ *
+ * The Apply-now step is not optional and the assertion has to be on the
+ * TAB, not on the CLI's stdout. These tests share one server per worker,
+ * so an earlier test can leave the tab with unsaved work, and an agent
+ * revision arriving then is HELD behind the pending banner under the
+ * default per-round cadence — which reads exactly like an apply that
+ * silently failed, and only shows up when the suite runs as a whole.
+ * @param canvas The per-worker canvas fixture.
+ * @param page The page under test, already loaded.
+ * @param name A filename stem for the batch.
+ * @param ops The ops to apply.
+ * @param landed Predicate that is true once the tab shows the change.
+ */
+async function agentBatch(canvas: Canvasish,
+  page: import("@playwright/test").Page, name: string,
+  ops: Array<Record<string, unknown>>,
+  landed: () => Promise<boolean>): Promise<void> {
+  const bpath = path.join(canvas.project, `${name}.json`);
   fs.writeFileSync(bpath, JSON.stringify({
-    base_revn: revn(canvas), artifact: "screen",
-    ops: specs.map((s) => ({ op: "add",
-      element: { type: "rectangle", ...s } })),
+    base_revn: revn(canvas), artifact: "screen", ops,
   }));
   const out = canvas.cli("apply", "--file", bpath);
   const banner = page.locator(".banner.pending");
-  const last = String(specs[specs.length - 1].id);
   await expect.poll(async () => {
     if (await banner.isVisible().catch(() => false))
       await banner.locator("button", { hasText: "Apply now" })
         .click().catch(() => { /* raced with its own apply */ });
-    return (await scene(page)).some((e) => e.id === last);
+    return landed();
   }, { timeout: 20_000,
-       message: `seed never reached the tab. apply said: ${out.stdout}${out.stderr}` })
+       message: `batch never reached the tab. apply said: ${out.stdout}${out.stderr}` })
     .toBe(true);
 }
 
@@ -290,6 +316,20 @@ async function ensureNothingPinned(page: import("@playwright/test").Page,
   }
   await expect.poll(async () => (await scene(page)).some((e) => e.locked),
     { timeout: 5000 }).toBe(false);
+}
+
+/** The next `/api/save` response body, as the server actually sent it.
+ *
+ * The narration banner renders `verb_counts` only when there is more
+ * than one verb, so a save whose whole content is pins shows a headline
+ * and nothing else — the fact NAMES a contract test is about are not on
+ * screen at all. Call this BEFORE clicking Save and await it after.
+ * @param page The page under test.
+ * @returns The parsed save response.
+ */
+function saveResponse(page: import("@playwright/test").Page): Promise<any> {
+  return page.waitForResponse((r) => r.url().includes("/api/save") &&
+    r.request().method() === "POST", { timeout: 15_000 }).then((r) => r.json());
 }
 
 /** The current head revision number, from the server. */
@@ -408,6 +448,63 @@ test("Pin ALL takes the owners and leaves the derived pieces alone; " +
       { timeout: 5000 }).toBe(false);
   });
 
+test("a pinned FRAME gets a tack — the class the hover test used to skip",
+  async ({ page, canvas }) => {
+    // Regression for the review's Spec FAIL. `hitAtClient` skips
+    // `type === "frame"`, so before the fix a pinned frame had NO
+    // affordance at all: measured, hover gave 0 tacks at its interior,
+    // edge and corner, a click selected nothing (so no Inspector), and a
+    // right-click offered no pin group. Since Excalidraw makes a locked
+    // element unselectable, that is pinned-and-unreachable.
+    await page.goto(canvas.url);
+    await page.locator("button", { hasText: "fit" }).click();
+    await ensureNothingPinned(page, await emptySpot(page));
+    await openCanvasMenu(page, await emptySpot(page));
+    await page.locator("li.wg-pin-all").click();
+    await expect.poll(async () => (await one(page, "frame1")).locked,
+      { timeout: 5000 }).toBe(true);
+    // hover the frame's own corner — its clear interior belongs to its
+    // children, and the tack hangs off the bottom-right
+    const f = await one(page, "frame1");
+    const p = await at(page, f.x + f.w - 6, f.y + f.h - 6);
+    await page.mouse.move(p.x - 5, p.y - 5);
+    await page.mouse.move(p.x, p.y);
+    const tack = page.locator(".pin-tack").first();
+    await expect(tack).toBeVisible({ timeout: 5000 });
+    await tack.click();
+    await expect.poll(async () => (await one(page, "frame1")).locked,
+      { timeout: 5000 }).toBe(false);
+  });
+
+test("“Unpin ALL Elements” unpins a label the agent locked, not just its own scope",
+  async ({ page, canvas }) => {
+    // The other half of the Spec FAIL, and the sharper one: `pinnable`
+    // excluded `role: "label"` in BOTH directions, so an item reading
+    // "Unpin ALL Elements" left a locked label pinned. Agents are
+    // instructed to lock what's settled (SKILL.md), so this is doctrine
+    // rather than a hypothetical — the label is locked here through the
+    // real agent write path.
+    await page.goto(canvas.url);
+    await expect(page.locator(".save-btn")).toBeVisible({ timeout: 10_000 });
+    await agentBatch(canvas, page, "locklabel",
+      [{ op: "mod", id: "cb-label", attrs: { locked: true } }],
+      async () => (await one(page, "cb-label")).locked);
+    await page.locator("button", { hasText: "fit" }).click();
+    const spot = await emptySpot(page);
+    await openCanvasMenu(page, spot);
+    // pin everything, so the item offers the unpin direction
+    await page.locator("li.wg-pin-all").click();
+    await expect.poll(async () => (await one(page, "kpi")).locked,
+      { timeout: 5000 }).toBe(true);
+    await openCanvasMenu(page, spot);
+    await expect(page.locator("li.wg-pin-all"))
+      .toContainText("Unpin ALL Elements", { timeout: 5000 });
+    await page.locator("li.wg-pin-all").click();
+    // the promise the item makes in plain words: nothing left pinned
+    await expect.poll(async () => (await scene(page))
+      .filter((e) => e.locked).map((e) => e.id), { timeout: 5000 }).toEqual([]);
+  });
+
 test("the “always show pin icon” preference persists across a reload",
   async ({ page, canvas }) => {
     await page.goto(canvas.url);
@@ -415,6 +512,12 @@ test("the “always show pin icon” preference persists across a reload",
     await pinViaMenu(page, "kpi");
     await expect.poll(async () => (await one(page, "kpi")).locked,
       { timeout: 5000 }).toBe(true);
+    // The invariant is "a tack for every pinned element", NOT a literal
+    // count: this fixture is worker-scoped, so an earlier test's
+    // agent-committed lock is still on disk and legitimately shows its
+    // own tack. Asserting `1` measured the fixture, not the preference.
+    const pinnedCount = async () =>
+      (await scene(page)).filter((e) => e.locked).length;
     // off by default: pointer away and nothing selected means no tack
     await clickEl(page, "kpi");
     await page.mouse.move(5, 5);
@@ -423,7 +526,10 @@ test("the “always show pin icon” preference persists across a reload",
     await (await pinFlyout(page))
       .filter({ hasText: "Always show pin icon" }).click();
     await page.mouse.move(5, 5);
-    await expect(page.locator(".pin-tack")).toHaveCount(1, { timeout: 5000 });
+    await expect(page.locator(".pin-tack"))
+      .toHaveCount(await pinnedCount(), { timeout: 5000 });
+    expect(await pinnedCount(),
+      "the preference is meaningless with nothing pinned").toBeGreaterThan(0);
     // the pin itself has to survive the reload too, so record it
     await page.locator(".save-btn").click();
     await expect.poll(() => onDisk(canvas.project)
@@ -432,7 +538,8 @@ test("the “always show pin icon” preference persists across a reload",
     await expect(page.locator(".save-btn")).toBeVisible({ timeout: 10_000 });
     await page.locator("button", { hasText: "fit" }).click();
     await page.mouse.move(5, 5);
-    await expect(page.locator(".pin-tack")).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator(".pin-tack"))
+      .toHaveCount(await pinnedCount(), { timeout: 10_000 });
   });
 
 test("a pinned element resists a drag that moves an unpinned one",
@@ -506,19 +613,24 @@ test("a bulk pin narrates as a pin, not as a no-op",
     // Flipping `locked` emits no fact today, so a save that does nothing
     // but pin reports "saved without changing anything" while N pins land
     // — the third instance of a class this repo has already fixed twice
-    // (`link`, and the tidy pass). Verbatim contract from the server half:
-    // fact names `pinned`/`unpinned`, headline "pinned <label> to the
-    // canvas", `(+N more)` supplied by `mechanical_summary`.
+    // (`link`, and the tidy pass).
+    //
+    // Asserted off the `/api/save` RESPONSE, not off the banner alone.
+    // The banner renders `verb_counts` only when there is more than one
+    // verb, so a save whose entire content is pins — the case this test
+    // exists for — shows the headline and nothing else, and a UI-only
+    // assertion could never see the fact NAMES the contract is about.
+    // Both directions are exercised: `pinned` and `unpinned`.
     await page.goto(canvas.url);
     await page.locator("button", { hasText: "fit" }).click();
     await ensureNothingPinned(page, await emptySpot(page));
-    // Burn one save first. Restoring a scene re-measures bound text and
-    // re-sorts the element array, so the FIRST save a page makes always
-    // carries that drift — on this fixture "resized cb-chk … 1× resized,
-    // 5× reordered" — no matter what the user did. It is not dirty (the
-    // baseline fingerprint is taken from whatever the canvas settled on),
-    // so it cannot be committed until something else is. Pinning one
-    // element is that something; the save under test comes after.
+    // Burn one save first. Loading a scene the client's restore
+    // normalises differently from disk leaves the buffer already
+    // diverged, so the save that follows carries that drift no matter
+    // what the user did. It is not dirty (the baseline fingerprint is
+    // taken from whatever the canvas settled on after restore), so it
+    // cannot be committed until something else is. Pinning one element is
+    // that something; the save under test comes after.
     await pinViaMenu(page, "kpi");
     await commitBaseline(page);
     await dismissBanners(page);
@@ -530,12 +642,32 @@ test("a bulk pin narrates as a pin, not as a no-op",
     const n = (await scene(page)).filter((e) => e.locked).length;
     // this save now contains NOTHING but lock flips, which is what makes
     // the headline a statement about pinning rather than about drift
+    const pinned = saveResponse(page);
     await page.locator(".save-btn").click();
+    const pinBody = await pinned;
+    // `^pinned` anchored: an unanchored /pinned .* to the canvas/ also
+    // matches the word "unpinned", which is a loose anchor for the one
+    // assertion whose whole job is telling those two apart
+    expect(pinBody.summary.headline).toMatch(/^pinned .+ to the canvas/);
+    expect(pinBody.summary.verb_counts.pinned).toBe(n);
     const banner = page.locator(".banner.narration");
     await expect(banner).toBeVisible({ timeout: 10_000 });
     await expect(banner).not.toContainText("saved without changing anything");
-    await expect(banner).toContainText(/pinned .* to the canvas/);
     const line = canvas.events().filter((l) => l.includes('"save"')).pop() || "";
-    expect(line).toMatch(/pinned .* to the canvas/);
-    expect(n).toBeGreaterThan(1);
+    expect(line).toMatch(/pinned .+ to the canvas/);
+
+    // …and the other direction, which had no coverage at all
+    await dismissBanners(page);
+    const spot2 = await emptySpot(page);
+    await openCanvasMenu(page, spot2);
+    await expect(page.locator("li.wg-pin-all"))
+      .toContainText("Unpin ALL Elements", { timeout: 5000 });
+    await page.locator("li.wg-pin-all").click();
+    await expect.poll(async () => (await scene(page)).some((e) => e.locked),
+      { timeout: 5000 }).toBe(false);
+    const unpinned = saveResponse(page);
+    await page.locator(".save-btn").click();
+    const unpinBody = await unpinned;
+    expect(unpinBody.summary.headline).toMatch(/^unpinned /);
+    expect(unpinBody.summary.verb_counts.unpinned).toBe(n);
   });

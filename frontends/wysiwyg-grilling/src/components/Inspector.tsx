@@ -1,4 +1,5 @@
 import React from "react";
+import { isComposedPiece } from "../composed";
 
 /** Element interactivity inspector (v0.3): before this, the only user
  * levers were Excalidraw's native link dialog (with the undiscoverable
@@ -45,11 +46,11 @@ export function Inspector({ el, artifactType, artifacts, docs, disabled,
 }) {
   const cd = el?.customData || {};
   // composed pieces (attribute rows, glyphs, X-box strokes, labels) are
-  // the server's — the owner element is the thing to edit
-  const composed = cd.role === "label" || cd.role === "decoration" ||
-    cd.attr_of || cd.x_of || cd.value_of || cd.box_of || cd.chk_of ||
-    cd.thumb_of || cd.track_of;
-  if (!el || composed) return null;
+  // the server's — the owner element is the thing to edit. The rule is
+  // shared with the pin surfaces rather than restated: the enumerated
+  // `_of` list that used to live here was missing `body_of`, and so was
+  // its twin next door.
+  if (!el || isComposedPiece(el)) return null;
   const linkTarget = String(el.link || "").startsWith("artifact:")
     ? String(el.link).slice("artifact:".length) : "";
   const isPinOrAnno = cd.role === "pin";

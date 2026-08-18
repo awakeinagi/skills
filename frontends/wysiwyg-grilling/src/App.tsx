@@ -12,6 +12,7 @@ import { DocReader } from "./components/DocReader";
 import { AnchoredPopover, AnchoredQuestion, anchorStyle } from "./components/AnchoredPopover";
 import { TooltipCard, TooltipEditor } from "./components/Tooltip";
 import { Inspector } from "./components/Inspector";
+import { hostIdOf, isComposedPiece } from "./composed";
 import { libraryItems, TEMPLATES, templateElements } from "./library";
 
 const POLL_MS = 2500;
@@ -359,6 +360,11 @@ const unionBox = (els: SceneEl[]): Rect | null => {
 /** Where the "always show pin icon" preference persists. */
 const PIN_ALWAYS_KEY = "wysiwyg-pin-always";
 
+/** Screen px the group tack sits clear of its union box's corner, so it
+ * reads as OUTSIDE the selection the way `markerAnchor` puts a single
+ * tack outside its shape. */
+const TACK_GAP = 8;
+
 /** What the pin rules need to read off an element. */
 type PinEl = Omit<SceneEl, "customData"> & {
   locked?: boolean; containerId?: string | null;
@@ -382,28 +388,8 @@ type PinEl = Omit<SceneEl, "customData"> & {
 const pinnable = (e: PinEl) => {
   if (e.isDeleted) return false;
   const cd: Record<string, unknown> = e.customData || {};
-  if (["label", "decoration", "pin"].includes(String(cd.role || ""))) return false;
-  return !e.containerId && !hostIdOf(e);
-};
-
-/**
- * The element a composed piece belongs to, if it is one.
- *
- * The server names the relationship with a `<thing>_of` key — `box_of`,
- * `chk_of`, `thumb_of`, `value_of`, `attr_of`, `x_of`, `track_of`,
- * `body_of` — so the SUFFIX is the rule rather than a list that goes
- * stale. It already had: an enumerated list here missed `body_of`, and a
- * click on a body block (whose rectangle is transparent, so Excalidraw's
- * fill-aware hit test reaches the wavy lines instead) offered to pin five
- * decoration strokes and nothing else.
- * @param e A live scene element.
- * @returns The host element's id, or null when it is not a piece of one.
- */
-const hostIdOf = (e: PinEl): string | null => {
-  if (e.containerId) return String(e.containerId);
-  const cd: Record<string, unknown> = e.customData || {};
-  const key = Object.keys(cd).find((k) => k.endsWith("_of") && cd[k]);
-  return key ? String(cd[key]) : null;
+  if (String(cd.role || "") === "pin") return false;
+  return !isComposedPiece(e);
 };
 
 /**
@@ -1500,6 +1486,45 @@ export default function App() {
     return best;
   }, [sceneAt]);
 
+  /** The smallest PINNED element whose box contains the point.
+   *
+   * Deliberately NOT `hitAtClient`, which skips `type === "frame"` and
+   * `role === "label"`. Those exclusions are right for a tooltip — you do
+   * not want a frame's card when you hover its children — and they were
+   * catastrophic here. Every route to a tack ran through that hit test or
+   * through selection, and Excalidraw makes a locked element
+   * unselectable, so a class the hover test skipped was a class that
+   * could be pinned and then never unpinned: measured on a pinned frame,
+   * hover gave no tack at its interior, edge OR corner, a click selected
+   * nothing so the Inspector never rendered, and a right-click offered no
+   * pin group at all. The only ways out were a preference living in some
+   * OTHER element's menu, or restoring the all-pinned state.
+   *
+   * Smallest-area-first, so a pinned child inside a pinned frame still
+   * wins its own tack, and bounded by `elBox` so an arrow is measured by
+   * its POINTS rather than a stored width it may not reach.
+   * @param clientX Pointer x in client coords.
+   * @param clientY Pointer y in client coords.
+   * @returns The pinned element under the pointer, or null.
+   */
+  const pinnedAtClient = useCallback((clientX: number, clientY: number) => {
+    const api = apiRef.current;
+    const p = sceneAt(clientX, clientY);
+    if (!api || !p) return null;
+    let best: any = null;
+    let bestArea = Infinity;
+    for (const e of api.getSceneElements()) {
+      if (e.isDeleted || !e.locked) continue;
+      const b = elBox(e);
+      if (p.sx >= b.x && p.sx <= b.x + b.w &&
+          p.sy >= b.y && p.sy <= b.y + b.h) {
+        const area = (b.w * b.h) || 1;
+        if (area < bestArea) { best = e; bestArea = area; }
+      }
+    }
+    return best;
+  }, [sceneAt]);
+
   /** Patch a live element (fields + customData; null cd value deletes the
    * key). Version bump makes the change reach the dirty fingerprint, so
    * it lands in the next Save and narrates like any user edit. */
@@ -1553,10 +1578,22 @@ export default function App() {
     // NOT through `restoreForRender`, unlike `patchElement` and
     // `flipControl`. Those two change geometry or add elements, so they
     // need the re-measure; this flips one boolean on elements the canvas
-    // already restored. Sending them back through restore re-sorts the
-    // scene and re-measures bound text, and a bulk pin came back narrating
-    // "resized cb-chk … 1× resized, 5× reordered" — five phantom facts on
-    // a save whose entire content was the pins (measured, 2026-08-18).
+    // already restored.
+    //
+    // A/B, both builds run through Pin ALL → Save on the rich fixture and
+    // diffed on what reached DISK: routing the flip through restore
+    // rewrote the x and width of **27 bound labels** and nothing else
+    // (`btn-rerun-all-label` 912→904, w 214→230; `cb-macro-label` w
+    // 100→106; …). Pinning is a promise not to move things, so a pin that
+    // re-measures every label in the artifact and saves the new numbers
+    // is the one thing it must not do.
+    //
+    // What this does NOT do — corrected 2026-08-18 after review built the
+    // counterfactual — is change the narration. Both variants narrate
+    // identically (`resized cb-market-chk (+6 more) — 7× resized, 3×
+    // moved`). That drift is the r5b-2 class, server-side, and is owned
+    // by curator batch 35's reds; an earlier version of this comment
+    // claimed the credit for it and was wrong.
     api.updateScene({ elements: els });
     const what = n === 1 ? "this element" : `${n} elements`;
     toast(pinned
@@ -1791,10 +1828,20 @@ export default function App() {
           parent.append(btn, sub);
           menu.appendChild(parent);
         };
-        const sep = document.createElement("li");
-        sep.className = "context-menu-item-separator wg-tooltip-item";
-        menu.appendChild(sep);
+        // the separator is appended by whichever item comes first, not up
+        // front: on an artifact with nothing drawn, neither arm has
+        // anything to offer and an eagerly-added separator left the
+        // native menu ending in a rule with nothing under it.
+        let sepDone = false;
+        const sep = () => {
+          if (sepDone) return;
+          sepDone = true;
+          const li = document.createElement("li");
+          li.className = "context-menu-item-separator wg-tooltip-item";
+          menu.appendChild(li);
+        };
         if (targets.length) {
+          sep();
           const allPinned = targets.every((x) => x.locked);
           const what = targets.length === 1
             ? "this element" : `${targets.length} elements`;
@@ -1805,20 +1852,39 @@ export default function App() {
               fn: () => setPinAlways((v) => !v) },
           ]);
         } else {
-          // the empty-canvas arm. Scope is exactly what is drawn NOW:
+          // The empty-canvas arm. Scope is exactly what is drawn NOW:
           // anything added later arrives unpinned, which is the only
           // reading of "all" that does not quietly become a mode.
-          const all = scene.filter(pinnable);
-          if (all.length) {
-            const allPinned = all.every((x) => x.locked);
-            const allIds = all.map((x) => x.id);
-            menu.appendChild(mk(
-              allPinned ? "📌 Unpin ALL Elements"
-                : "📌 Pin ALL Elements to Canvas",
-              () => setPinned(allIds, !allPinned), "wg-pin-item wg-pin-all"));
+          //
+          // The two directions have DIFFERENT scopes, deliberately.
+          // Pinning targets owners only — a derived position is not the
+          // user's to pin. Unpinning must reach EVERYTHING locked,
+          // however it got that way: the agent's `mod {"locked": true}`
+          // on a settled label is doctrine (`SKILL.md`, "lock what's
+          // settled"), and running the pin scope in both directions meant
+          // a menu item reading "Unpin ALL Elements" left that label
+          // pinned. An item makes a promise in plain words; this is the
+          // scope that keeps it.
+          const pinScope = scene.filter(pinnable);
+          const lockedNow = scene.filter((x) => x.locked);
+          const scopePinned = pinScope.length > 0 &&
+            pinScope.every((x) => x.locked);
+          const unpinArm = lockedNow.length > 0 &&
+            (scopePinned || pinScope.length === 0);
+          if (unpinArm) {
+            const ids2 = lockedNow.map((x) => x.id);
+            sep();
+            menu.appendChild(mk("📌 Unpin ALL Elements",
+              () => setPinned(ids2, false), "wg-pin-item wg-pin-all"));
+          } else if (pinScope.length) {
+            const ids2 = pinScope.map((x) => x.id);
+            sep();
+            menu.appendChild(mk("📌 Pin ALL Elements to Canvas",
+              () => setPinned(ids2, true), "wg-pin-item wg-pin-all"));
           }
         }
         if (hit) {
+          sep();
           const live = targets.find((x: any) => x.id === hit.id) ||
             scene.find((x: any) => x.id === hit.id) || hit;
           const has = !!live.customData?.tooltip;
@@ -1842,12 +1908,13 @@ export default function App() {
     const { clientX, clientY } = e;
     // the tack appears on hover unless the preference pins it on. The hit
     // test is skipped outright while nothing on this artifact is pinned,
-    // so an unpinned drawing pays nothing at pointer rate; `hitAtClient`
-    // does not filter `locked`, which is why hovering a pinned element
-    // still finds it when nothing else in the app can select it.
-    const pinnedNow = pinnedIdsRef.current;
-    const over = pinnedNow.size ? hitAtClient(clientX, clientY) : null;
-    const pinId = over && pinnedNow.has(over.id) ? over.id : null;
+    // so an unpinned drawing pays nothing at pointer rate — and it is
+    // `pinnedAtClient`, not `hitAtClient`, because the latter skips
+    // frames and labels and the tack is a pinned element's only
+    // affordance.
+    const over = pinnedIdsRef.current.size
+      ? pinnedAtClient(clientX, clientY) : null;
+    const pinId = over?.id ?? null;
     setHoverPinId((h) => (h === pinId ? h : pinId));
     hoverTimerRef.current = setTimeout(() => {
       const el = hitAtClient(clientX, clientY);
@@ -1855,7 +1922,7 @@ export default function App() {
       const p = sceneAt(clientX, clientY);
       if (text && p) setHoverTip({ x: p.wx + 14, y: p.wy + 12, text });
     }, 450);
-  }, [hitAtClient, sceneAt, hoverTip, walkIdx]);
+  }, [hitAtClient, pinnedAtClient, sceneAt, hoverTip, walkIdx]);
 
   const onWrapPointerLeave = useCallback(() => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
@@ -1949,7 +2016,20 @@ export default function App() {
    * Two or more selected elements drove no UI at all before this — every
    * anchored surface in the app is `selIds.length === 1 ? … : null`. A
    * per-element tack each would stack N badges over a region the user is
-   * treating as one thing, so the group gets one badge and one verb. */
+   * treating as one thing, so the group gets one badge and one verb.
+   *
+   * A DECISION the spec did not ask for, recorded as one: on an UNPINNED
+   * multi-selection this renders 📍 and pins, which is a canvas pinning
+   * affordance that single-select deliberately does not have. It is the
+   * natural home for the union-box requirement — a group's verb has
+   * nowhere else to live — but it is an addition, not a reading of the
+   * brief, and it should be the first thing cut if the surface feels
+   * crowded.
+   *
+   * The `+ TACK_GAP` matches the single tack's placement: `markerAnchor`
+   * puts a badge OUTSIDE the shape's bottom-right, and the raw union
+   * corner with `translate(-50%,-50%)` would sit centred on the corner
+   * instead, which reads as a different affordance at a glance. */
   const groupTack = useMemo(() => {
     if (viewingRevn != null || selOwners.length < 2 || !apiRef.current) return null;
     const els = apiRef.current.getSceneElements()
@@ -1959,7 +2039,8 @@ export default function App() {
     const b = screenBox(box, camera);
     return { ids: els.map((e: any) => e.id), n: els.length,
              pinned: els.every((e: any) => e.locked),
-             style: { left: b.left + b.width, top: b.top + b.height } };
+             style: { left: b.left + b.width + TACK_GAP,
+                      top: b.top + b.height + TACK_GAP } };
   }, [selOwners, geomTick, viewingRevn, camera]);
 
   /* ---------------- Phase 6: wireframing power tools ---------------- */
