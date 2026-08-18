@@ -9028,9 +9028,15 @@ PIN_GLYPH_GONE = "pin %s resolved; its ❓ was already gone"
 # MIN-2, agreed with `impl-minors` before the fold).
 #
 # FOLD NOTE: `impl-minors` adds this same constant, same name, same
-# value, in the same change that points their check at it. The two
-# definitions are duplicates, not conflicts — DELETE ONE at the fold
-# and leave both readers on the survivor. Do not let a merge keep two.
+# value, near `PIN_INK`. The two definitions are duplicates, not
+# conflicts, so a merge keeps BOTH silently — DELETE THEIRS and leave
+# both readers on this one. Settled between the two streams rather than
+# left to the folder: this copy sits beside `PIN_GLYPH_GONE` and the
+# pruning code that writes these statuses, theirs sits in a palette
+# block whose neighbours are colours, and proximity to the reader beats
+# proximity to the alphabet. Their
+# `test_the_closed_status_set_is_defined_exactly_once` fails if both
+# survive, so the guard catches a fold that ignores this comment.
 CLOSED_PIN_STATUSES = ("pruned", "resolved", "dismissed")
 
 
