@@ -16803,6 +16803,114 @@ class TestRouterInteriorElbows(Base):
         self.assertGreaterEqual(len(arrow["points"]), 3)
 
 
+class TestRouterTerminalLegGraze(Base):
+    """v0.9 TASK-ROUTERLEG: the router stops electing a vanishing end leg.
+
+    These pin the DESIGN of `_grazing_terminal_legs`, not the single
+    scene the catalogue's red reproduces. Three properties, each of
+    which a plausible edit would silently break and none of which one
+    end-to-end mutant can state: the measure is a RATIO, it looks at
+    BOTH ends, and it is inert on proportionate candidates.
+    """
+
+    def _drawn(self, arrow, tgt, at_end):
+        """The angle the arrow is DRAWN at, off `tgt`'s face normal.
+
+        Args:
+            arrow: A routed arrow element.
+            tgt: The node the endpoint is bound to.
+            at_end: True for the `endBinding` side.
+
+        Returns:
+            Degrees off the landing side's inward normal, or None when
+            the leg has no direction.
+        """
+        seq, prev = canvas._arrival_path(arrow, at_end)
+        side = canvas._edge_side(tgt, seq[0][0], seq[0][1])
+        cos = canvas.side_normal_cos(side, prev, seq[0])
+        return None if cos is None else math.degrees(
+            math.acos(max(-1.0, min(1.0, cos))))
+
+    def test_the_measure_is_a_ratio_not_a_pixel_floor(self):
+        """2px after 1140px is the disease; 2px after 6px is a small drawing.
+
+        The identical final leg, in two drawings three orders of
+        magnitude apart in scale. An absolute floor — "no leg under
+        Npx" — cannot tell these apart in either direction, and would
+        either miss the first or bend every tiny drawing in the corpus.
+        """
+        big = [(0, 0), (1140, 0), (1140, 2)]
+        small = [(0, 0), (6, 0), (6, 2)]
+        self.assertEqual(canvas._grazing_terminal_legs(big), 1)
+        self.assertEqual(canvas._grazing_terminal_legs(small), 0)
+
+    def test_both_ends_are_measured_because_the_elbows_are_mirrors(self):
+        """`L_h` and `L_v` carry the SAME defect at opposite ends.
+
+        `_route_candidates` emits them as mirror images that tie on
+        bends and on length, so an end-only penalty does not remove the
+        graze, it re-elects the mirror and moves it to the start. Both
+        paths must therefore count.
+        """
+        end_short = [(0, 0), (1140, 0), (1140, 2)]
+        start_short = [(0, 0), (0, 2), (1140, 2)]
+        self.assertEqual(canvas._grazing_terminal_legs(end_short), 1)
+        self.assertEqual(canvas._grazing_terminal_legs(start_short), 1)
+        both = [(0, 0), (0, 2), (1140, 2), (1140, 4)]
+        self.assertEqual(canvas._grazing_terminal_legs(both), 2)
+
+    def test_a_proportionate_candidate_is_scored_exactly_as_before(self):
+        """The silent half: the penalty must not touch ordinary routes.
+
+        A symmetric Z and a plain two-point run are the shapes the
+        router elects everywhere; both score zero, so their cost vector
+        is bit-for-bit what it was before this term existed.
+        """
+        for path in ([(0, 0), (540, 0), (540, 32), (1080, 32)],
+                     [(0, 0), (240, 0), (240, 170)],
+                     [(0, 0), (1080, 28)]):
+            self.assertEqual(canvas._grazing_terminal_legs(path), 0, path)
+
+    def test_the_router_no_longer_elects_the_vanishing_leg(self):
+        """The end-to-end reading, on the reviewer's own worst offset.
+
+        `dx=1200, dy=-32` used to route `[(0,0),(1140,0),(1140,-2)]` —
+        an 1140px run into a 2px leg, drawn 89.18 degrees off the face
+        it lands on while the stored chord read a flat 0.00, which is
+        why every reader of stored geometry was honest and silent.
+        """
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 120, "height": 60}
+        dst = {"id": "d", "type": "rectangle", "x": 1200, "y": -32,
+               "width": 120, "height": 60}
+        arrow = {"id": "a", "type": "arrow"}
+        canvas.route_arrow(arrow, src, dst)
+        self.assertEqual(canvas._grazing_terminal_legs(
+            [(arrow["x"] + p[0], arrow["y"] + p[1])
+             for p in arrow["points"]]), 0)
+        self.assertLess(self._drawn(arrow, dst, True), 45.0)
+
+    def test_the_bar_the_ratio_encodes_is_the_one_the_comment_claims(self):
+        """`theta = atan(0.1221 * r / l)` — the derivation, not a fit.
+
+        `GRAZE_LEG_RATIO` is chosen by solving the head secant over a
+        rounded right-angle corner, so the constant and the angle it
+        buys are one claim. If the client's sampling point or the
+        spline's handle changes, this fails rather than drifting.
+        """
+        run = 1000.0
+        leg = run * canvas.GRAZE_LEG_RATIO
+        arrow = {"id": "a", "type": "arrow", "x": 0, "y": 0,
+                 "points": [[0, 0], [run, 0], [run, leg]]}
+        arrow["roundness"] = canvas.derived_roundness(arrow)
+        tgt = {"id": "d", "type": "rectangle", "x": run - 60,
+               "y": leg, "width": 120, "height": 60}
+        self.assertAlmostEqual(self._drawn(arrow, tgt, True),
+                               math.degrees(math.atan(
+                                   0.1221 / canvas.GRAZE_LEG_RATIO)),
+                               places=1)
+
+
 class TestPhantomPassThrough(Base):
     """WP4b e1: a node with a stroke drawn across it stops being a step.
 

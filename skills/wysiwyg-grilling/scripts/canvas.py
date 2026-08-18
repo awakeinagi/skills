@@ -3241,6 +3241,98 @@ def _route_candidates(src, dst):
     return routed or out
 
 
+GRAZE_LEG_RATIO = 0.125
+# The shortest a TERMINAL leg may be, as a fraction of the run feeding
+# it, before the drawing stops saying where the arrow lands.
+#
+# SCALE-RELATIVE BY CONSTRUCTION, and it has to be: a 2px leg after
+# 1140px is the disease, a 2px leg after 6px is just a small drawing.
+# The ratio is the whole quantity — no absolute floor appears here,
+# because the thing that bows the ink is itself a ratio.
+#
+# WHY A RATIO BOWS INK. The client draws a rounded polyline as a
+# Catmull-Rom spline (`_bezier_spans`), whose handle at a corner is one
+# sixth of the chord ACROSS that corner — so the RUN's length reaches
+# past the corner and out along the leg. Solving the head secant
+# (`HEAD_SECANT_T`) over a right-angle corner of run `r` and leg `l`
+# gives the angle the arrowhead is actually drawn at, measured off the
+# landing face's own inward normal:
+#
+#     theta = atan(0.1221 * r / l)
+#
+# — exact, and confirmed to 0.01 degrees against `_arrival_path` at
+# r/l = 570 (89.18 deg), 19 (66.68) and 1.33 (9.25). At this ratio the
+# bar is `atan(0.1221 * 8)` = 44.3 degrees, and 44.33 is precisely where
+# the measured worst case over the reviewer's targeted grid lands once
+# the penalty is on (down from 89.18). Tightening to 1/6 buys 8.4
+# degrees for a third more re-routing; 1/8 already collapses the census
+# to zero over 70 degrees, so 1/8. `TestRouterTerminalLegGraze` pins the
+# derivation itself, so the constant and its angle move together.
+#
+# NOTHING ELSE IN THE FILE SEES THIS. `gate_curvature`'s squareness arm
+# would be the natural catcher and is blind to it by construction:
+# `_arrival_lean` measures off the nearest CARDINAL, and a leg swallowed
+# by the bow arrives along the run — 0.014 against a 0.25 bar on the
+# 89.18-degree case, so the gate reads the worst arrival in the file as
+# the squarest thing in it. Stored geometry is square too (0.00 chord),
+# so every reader of `points` is honest and silent. It is a defect only
+# in the picture, which is why it belongs to the producer.
+
+
+def _grazing_terminal_legs(path):
+    """How many of a candidate's two ends leave in a leg too short to read.
+
+    A terminal leg short against the run feeding it is drawn almost
+    entirely inside the corner's bow, so the stroke arrives along the
+    RUN instead of into the face it lands on: `route_arrow` elbowing an
+    1140px run into a 2px final leg draws its head 89.18 degrees off
+    that face's normal while the stored chord reads a perfect 0.00.
+
+    BOTH ENDS, and the symmetry is load-bearing rather than tidy.
+    `_route_candidates` emits its two L-elbow orientations as mirror
+    images — `L_h` puts the short leg at the END, `L_v` puts the same
+    short leg at the START — and they tie on bends AND on length, so the
+    winner is settled by emission order alone. A penalty that looked
+    only at the arrowhead's end would therefore not remove the defect,
+    it would hand every one of those ties to `L_v` and move all 1394
+    grazing arrivals in the reviewer's targeted grid onto the START ends
+    at the same 89.18 degrees. Measured both ways before this was
+    written; the end-only variant's census does not fall by one.
+
+    That a start end usually carries no arrowhead is not a reason to
+    excuse it. The quantity is "the direction a reader follows into the
+    node", which is why `HEAD_SECANT_T` already serves both ends.
+
+    Args:
+        path: A candidate polyline as absolute `(x, y)` pairs.
+
+    Returns:
+        0, 1 or 2 — how many ends have a leg under `GRAZE_LEG_RATIO` of
+        its adjacent run. Always 0 below three points: an arrow with no
+        turn has no corner to bow, which is the same population
+        `derived_roundness` declines to curve.
+    """
+    if len(path) < 3:
+        return 0
+
+    def short(leg, run):
+        """Is `leg` short enough against `run` to vanish into the bow?
+
+        Args:
+            leg: The terminal `(p, q)` point pair.
+            run: The `(p, q)` point pair feeding into it.
+
+        Returns:
+            True when the leg is under the ratio, False otherwise.
+        """
+        ll = math.hypot(leg[1][0] - leg[0][0], leg[1][1] - leg[0][1])
+        rl = math.hypot(run[1][0] - run[0][0], run[1][1] - run[0][1])
+        return rl > 0 and ll < GRAZE_LEG_RATIO * rl
+
+    return (int(short((path[-2], path[-1]), (path[-3], path[-2]))) +
+            int(short((path[0], path[1]), (path[1], path[2]))))
+
+
 def _segs_cross(ax, ay, bx, by, cx, cy, dx, dy):
     """Do open segments AB and CD properly intersect? (orientation test)"""
     def orient(px, py, qx, qy, rx, ry):
@@ -3399,7 +3491,22 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
         diag = any(abs(bx - ax) > 12 and abs(by - ay) > 12
                    for (ax, ay), (bx, by) in zip(path, path[1:]))
         # a true diagonal reads worse than one clean bend (layout.md §6.1)
-        return (hits(path), soft(path), bends + (2 if diag else 0), length)
+        # ...and a terminal leg that vanishes into its own corner reads
+        # worse still, so it is priced AT the diagonal's rate, per end.
+        # Two is the smallest weight that is decisive: at 1 the length
+        # tie-break still elects 8 grazing elbows over the clean routes
+        # beside them on the coarse grid, and at 3 nothing further moves.
+        # It rides the SHAPE term rather than taking a slot of its own
+        # because this is a claim about how the path is shaped, and
+        # because a slot above `bends` would outrank obstacle avoidance's
+        # own tie-breaks for a defect that is strictly cosmetic. Both
+        # corpus routes this moves tie with their predecessor at
+        # `(hits=0, soft=1)`, so the dominant terms decided as much as
+        # they ever did. A candidate with proportionate legs scores
+        # exactly what it scored before.
+        return (hits(path), soft(path),
+                bends + (2 if diag else 0)
+                + 2 * _grazing_terminal_legs(path), length)
 
     if src is dst or src.get("id") == dst.get("id"):
         # reflexive relationship (v0.8) — deterministic, obstacle-blind
