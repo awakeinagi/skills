@@ -7545,10 +7545,38 @@ def _router_owns(el):
 
 def _geometry_derived(el):
     """Elements whose geometry is derived from an anchor, not user intent:
-    bound labels (browser re-measures text), pins, and bound arrows (routing
-    follows the endpoints). Their coordinate churn never narrates."""
+    bound labels (browser re-measures text), pins, composed decorations
+    (`reconcile_composed` re-derives them from their host), and bound
+    arrows (routing follows the endpoints). Their coordinate churn never
+    narrates.
+
+    `decoration` joined the roles in v0.9 for the same reason `label`
+    was there already, one element type over. Excalidraw's `restore`
+    recomputes a linear element's `width`/`height` from its `points` on
+    load, so a checkbox's check stroke stored 10x8 posts back 10x10
+    having been touched by nobody, and the save narrated `resized
+    cb-chk` against a box the user never clicked (curator batch 35,
+    witnessed in a browser on `testMini`). `_text_metric_derived`
+    answers only for `type == "text"`, and a `line` carrying no
+    bindings reached neither reader — the same rule, the sibling
+    element type, straight past a guard that was five-for-five green on
+    text.
+
+    The role is the right axis and not a proxy for one: every element
+    carrying it comes from `_deco`, which stamps it alongside an
+    `<owner>_of` key, and `reconcile_composed` rewrites that element's
+    geometry from the host on every write path there is. A `line` the
+    user draws and drags carries no composer role and stays narratable.
+
+    Args:
+        el: The element being judged.
+
+    Returns:
+        True when this element's geometry is derived from something
+        else, so a change to it is measurement rather than intent.
+    """
     role = (el.get("customData") or {}).get("role")
-    if role in ("label", "pin"):
+    if role in ("label", "pin", "decoration"):
         return True
     if el.get("type") == "text" and el.get("containerId"):
         return True

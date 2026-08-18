@@ -21844,23 +21844,29 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # rule above was written to prevent. Re-read both `WHO FLIPS THIS:`
 # paragraphs the day that triage names its tasks.
 #
-# ONE JOINED on 2026-08-18 (curator batch 35), and it is the SECOND entry
-# here filed off another agent's witnessed miss rather than off a sweep or a
+# ONE JOINED on 2026-08-18 (curator batch 35) AND HALVED THE SAME DAY.
+# `TestALineDecorationRemeasureIsNotAUserEdit` is the SECOND entry here
+# filed off another agent's witnessed miss rather than off a sweep or a
 # spike — the Pin-to-Canvas client-surface agent handed over a browser
 # measurement instead of closing with it in prose, which is the motion batch
-# 32's entry established and the one worth keeping.
-# `TestALineDecorationRemeasureIsNotAUserEdit` carries TWO reds against ONE
-# base scene, which is a shape this dict has not held before: they are two
-# unrelated mechanisms (a role the derived-geometry predicate does not know,
+# 32's entry established and the one worth keeping. It arrived carrying TWO
+# reds against ONE base scene, a shape this dict had not held before: two
+# unrelated mechanisms (a role the derived-geometry predicate did not know,
 # and a composite pass that re-seats the posted list after the baseline was
-# aligned to it) that reach the reader as one sentence in one save. Their
-# count may therefore drop to 1 rather than to 0 when the first owner lands,
-# and a batch that reads a line vanishing as "the class is done" would be
-# wrong twice over. Neither is a `Mutant`: what is wrong is what
-# `Store.commit` writes into the save record, `collect_findings` has no code
-# for it, and `lint_layout` is right to be silent — the picture is fine.
+# aligned to it) reaching the reader as one sentence in one save.
+#
+# The curator's warning that the count would drop to 1 rather than to 0 when
+# the FIRST owner landed was CORRECT, and this line is that event: the v0.9
+# commit-narration task taught `_geometry_derived` the `decoration` role and
+# the tick's re-measure went quiet, while the byte-identical repost stayed
+# red under its own separate mechanism. A batch reading the number 2 become
+# a 1 as "the class is done" would be wrong; the class is HALF done, and the
+# remaining red names the same owner. Neither red is a `Mutant`: what is
+# wrong is what `Store.commit` writes into the save record,
+# `collect_findings` has no code for it, and `lint_layout` is right to be
+# silent — the picture is fine.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALineDecorationRemeasureIsNotAUserEdit": 2,
+    "TestALineDecorationRemeasureIsNotAUserEdit": 1,
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
 }
@@ -23692,6 +23698,14 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
     drifted elements were `line`s, `dirtyMap` read false, and the next
     save recorded a `resized` fact against the tick.
 
+    ONE FLIPPED 2026-08-18 (v0.9 commit-narration): the tick's
+    re-measure, taken first because it is the handover's own defect and
+    a one-token change to one predicate. The count therefore drops
+    2 -> 1 and not 2 -> 0, exactly as the curator's routing note
+    predicted — the two mechanisms are independent, proven by stubbing
+    this fix and watching only this red come back. The byte-identical
+    repost below is still RED and is the same task's next change.
+
     WHO FLIPS THESE: the work package that owns the re-measure guard,
     i.e. whoever owns `_geometry_derived` / `_text_metric_derived` and
     `Store.commit`'s composite pass. Not the curator and not the client-
@@ -23778,7 +23792,6 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             "saying `saved_no_changes`, so the red below is not about "
             "the second composite after all")
 
-    @unittest.expectedFailure
     def test_the_ticks_remeasured_height_is_not_a_user_resize(self) -> None:
         """The handover's defect: the tick inside a box nobody clicked.
 
@@ -23804,6 +23817,19 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
         that re-derives composed parts before the diff instead — and a
         red that had named the flag would have to be rewritten to accept
         the second.
+
+        THE FIX THAT FLIPPED THIS, the same day (v0.9 commit-narration):
+        `decoration` joined `label` and `pin` in `_geometry_derived`'s
+        role tuple — the obvious shape this docstring named, taken
+        because the role is the honest axis and not a proxy for one:
+        every element carrying it is minted by `_deco` with an
+        `<owner>_of` key, and `reconcile_composed` rewrites its geometry
+        from the host on every write path there is. One predicate and
+        not two readers, deliberately — `_text_metric_derived` answers a
+        different question (font metrics on text), and teaching it about
+        lines would have been this wave's headline defect, one rule
+        typed at two sites, for the sixth time. Origin: curator batch
+        35, 2026-08-18; flipped 2026-08-18.
         """
         self.assertEqual(
             _resave(_composed_screen(with_body=False),
