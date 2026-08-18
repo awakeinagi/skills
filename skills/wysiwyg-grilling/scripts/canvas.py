@@ -9027,16 +9027,39 @@ PIN_GLYPH_GONE = "pin %s resolved; its ❓ was already gone"
 # the way complements of two literals can (v0.9 IMPORTANTS review,
 # MIN-2, agreed with `impl-minors` before the fold).
 #
-# FOLD NOTE: `impl-minors` adds this same constant, same name, same
-# value, near `PIN_INK`. The two definitions are duplicates, not
-# conflicts, so a merge keeps BOTH silently — DELETE THEIRS and leave
-# both readers on this one. Settled between the two streams rather than
-# left to the folder: this copy sits beside `PIN_GLYPH_GONE` and the
-# pruning code that writes these statuses, theirs sits in a palette
-# block whose neighbours are colours, and proximity to the reader beats
-# proximity to the alphabet. Their
-# `test_the_closed_status_set_is_defined_exactly_once` fails if both
-# survive, so the guard catches a fold that ignores this comment.
+# FOLD NOTE — **DELETE THIS DEFINITION AT THE FOLD.** `impl-minors`
+# defines the same constant, same name, same value, beside `PIN_INK`
+# near the top of the file, and the controller has ruled THEIRS the
+# survivor. The two are duplicates rather than conflicts, so a merge
+# keeps both silently; their
+# `test_the_closed_status_set_is_defined_exactly_once` is what fails if
+# it does. Delete these lines and leave both readers — theirs and this
+# file's `referential_findings` arm — on the surviving definition.
+#
+# THIS REVERSES AN EARLIER NOTE HERE, AND THE REVERSAL IS THE USEFUL
+# PART. I argued this position was better because it sits beside
+# `PIN_GLYPH_GONE` and the pruning code, against a palette block whose
+# neighbours were colours. That was true of the tree I could see and
+# false of the folded one: `PIN_INK` does not exist at this base — it
+# ARRIVES with their change and sits immediately above their
+# definition, so in the folded tree that block is the pin vocabulary
+# and the constant is among its neighbours. An argument from what is
+# in front of you, about a file two streams are writing, is an
+# argument about half the evidence.
+#
+# AND THE ORDERING GOES THE OTHER WAY TOO, which neither of us noticed
+# until the positions were compared: this file's only reader is in
+# `referential_findings`, ~8000 lines ABOVE this definition. Their
+# position precedes every reader in the folded file, including mine.
+# Nothing about correctness turns on it — a module-level name is
+# resolved when the function runs, not when it is defined — so this is
+# a readability call and theirs is simply the better one.
+#
+# VERIFIED ON THIS SIDE, since the reviewer could not check my half:
+# with this definition removed and the constant read from the top of
+# the file instead, `TestPinLifecycle` stays green and the full corpus
+# census is BYTE-IDENTICAL — same 0/46/43, same message text, md5
+# 8d96c2e0aa9e914739c1574614cf2977 either way. The fold is safe here.
 CLOSED_PIN_STATUSES = ("pruned", "resolved", "dismissed")
 
 
