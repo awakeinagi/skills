@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `css_keyword_stroke_is_never_read`, `grazing_arrival_reads_as_square` |
+| model (default suite) | `grazing_arrival_reads_as_square` (the css-keyword red flipped 2026-08-17 by TASK-COLORPARSE) |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
 
@@ -376,8 +376,10 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**5 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at curator batch 31's fold onto
+**4 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at TASK-COLORPARSE's fold, which
+flipped `css_keyword_stroke_is_never_read` and took the merged tree
+5 -> 4; the 5 was re-derived at curator batch 31's fold onto
 batch 30's, and the arithmetic is the warning below happening a THIRD
 time in one wave: batch 30 wrote **4** and batch 31 wrote **2**, each
 true of its own head and both wrong of the merged tree, which is 4 + 1.
@@ -675,7 +677,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **28 detectors, 25 proven, 3 render-tier, 0
+  a reason. Coverage totals: **29 detectors, 25 proven, 3 render-tier, 1
   UNCOVERED** — CHECKED as of v0.9 WP7 task 29 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked

@@ -6776,6 +6776,27 @@ class TestUnreadableColourIsReported(unittest.TestCase):
         return [w for w in self._warnings(els, waives)
                 if "cannot read as a colour" in w]
 
+    def _labelled_box(self, fill, ink="#f0f0f0"):
+        """A filled box with a bound label, for the ground resolution.
+
+        Args:
+            fill: The box's `backgroundColor` — the ground `drawn_on`
+                resolves for the label.
+            ink: The label's `strokeColor`.
+
+        Returns:
+            The two-element scene: box `b1`, its bound label `b1-label`.
+        """
+        return [{"id": "b1", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 200, "height": 100, "strokeColor": "#1e1e1e",
+                 "backgroundColor": fill, "opacity": 100,
+                 "customData": {"role": "node"}},
+                {"id": "b1-label", "type": "text", "x": 20, "y": 40,
+                 "width": 60, "height": 20, "text": "Hello",
+                 "fontSize": 16, "opacity": 100, "strokeColor": ink,
+                 "backgroundColor": "transparent", "containerId": "b1",
+                 "customData": {"role": "label"}}]
+
     def test_a_css_keyword_is_measured_and_not_merely_noticed(self):
         """`white` reads 1.03:1 — the same number `#ffffff` reads.
 
@@ -6907,6 +6928,137 @@ class TestUnreadableColourIsReported(unittest.TestCase):
                            "only %d colour strings were read, so the "
                            "silence above is about an empty scan"
                            % strings)
+
+    def test_an_unreadable_ground_silences_the_ratio_it_would_fake(self):
+        """The 1.4.3 arm declines rather than measure against paper.
+
+        FIX ROUND 1, ruled after review measured what the fallback cost.
+        `drawn_on` resolves a bound label's ground to its container's
+        fill and used to fall back to the #fdfcf8 paper when it could not
+        read that fill — so a `#f0f0f0` label in a `darkslategray` box
+        was reported at 1.11:1 against a ground it is not drawn on, when
+        the truth against the box is 7.83:1 and PASSING, and the
+        computed shade the finding offered would have taken it to
+        1.91:1. A confident wrong number whose advice makes the drawing
+        worse is the one output worse than silence.
+
+        So the ground refuses, the pairing goes quiet, and the fact is
+        not lost: the container's own declaration is reported by
+        `unreadable_color` in the same pass. The two halves are asserted
+        together here, because the silence alone would be indistinguish-
+        able from the check having stopped answering.
+        """
+        els = self._labelled_box("darkslategray")
+        self.assertEqual([w for w in self._warnings(els)
+                          if "1.4.3 asks" in w], [],
+                         "the label was measured against a ground this "
+                         "check cannot read")
+        said = self._unreadable(els)
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("b1", said[0])
+        self.assertIn("declares its fill as 'darkslategray'", said[0])
+        # The number the old fallback produced, and the number that is
+        # true — computed here rather than quoted, so the argument for
+        # the silence is checked and not merely told.
+        ink, paper = canvas.parse_color("#f0f0f0"), canvas.parse_color(
+            canvas.SVG_GROUND)
+        self.assertAlmostEqual(canvas.contrast_ratio(ink, paper), 1.11,
+                               delta=0.01)
+        self.assertAlmostEqual(
+            canvas.contrast_ratio(ink, (47, 79, 79)), 7.83, delta=0.01)
+
+    def test_a_readable_ground_is_still_measured_both_spellings(self):
+        """The other direction, or the silence above proves nothing.
+
+        The same scene with a ground this file CAN read must still be
+        measured — and by both spellings of it, since the keyword table
+        is what makes `black` a ground rather than a refusal. A fix that
+        made `drawn_on` refuse too eagerly would pass the test above and
+        fail here, which is the pair's whole job.
+
+        BOTH VERDICTS are driven, on one box: dark ink on a black fill
+        is asked about at 1.26:1, and the pale ink that the unreadable
+        ground above produced a FALSE 1.11:1 finding for is correctly
+        SILENT here at 18:1. The second is the sharper half — it is the
+        same element and the same ink, told apart only by whether the
+        ground could be read.
+        """
+        for fill in ("black", "#000000"):
+            dark = [w for w in
+                    self._warnings(self._labelled_box(fill, ink="#1e1e1e"))
+                    if "1.4.3 asks" in w]
+            self.assertEqual(len(dark), 1, "%s: %r" % (fill, dark))
+            self.assertIn("on #000000", dark[0])
+            self.assertIn("reads 1.26:1", dark[0])
+            pale = self._labelled_box(fill, ink="#f0f0f0")
+            self.assertEqual([w for w in self._warnings(pale)
+                              if "1.4.3 asks" in w], [],
+                             "%s: pale ink on a dark box was asked about "
+                             "as if it were on paper" % fill)
+            self.assertEqual(self._unreadable(pale), [],
+                             "%s is a colour this check reads" % fill)
+        # And the paper case, where no container speaks at all.
+        plain = [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 60,
+                  "height": 20, "text": "Hello", "fontSize": 16,
+                  "opacity": 100, "strokeColor": "#f0f0f0",
+                  "backgroundColor": "transparent"}]
+        self.assertEqual(
+            len([w for w in self._warnings(plain) if "1.4.3 asks" in w]), 1,
+            "free text on paper stopped being measured")
+
+    def test_a_texts_own_unreadable_background_silences_its_ratio(self):
+        """The resolution order's first hop refuses too, and says so.
+
+        `drawn_on` reads a text's OWN `backgroundColor` before it looks
+        at any container, so that hop needs the same refusal — and the
+        finding about it must call the field a text's BACKGROUND rather
+        than its fill, which is the noun `drawn_on` uses for the same
+        field. One field described by two words is how a reader
+        concludes there are two fields.
+        """
+        els = [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 60,
+                "height": 20, "text": "Hello", "fontSize": 16,
+                "opacity": 100, "strokeColor": "#f0f0f0",
+                "backgroundColor": "darkslategray"}]
+        self.assertEqual([w for w in self._warnings(els)
+                          if "1.4.3 asks" in w], [])
+        said = self._unreadable(els)
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("text t1 declares its background as 'darkslategray'",
+                      said[0])
+        self.assertIn("which this check cannot read either", said[0],
+                      "the finding names a ground it just refused to read")
+
+    def test_the_label_funnel_reads_the_same_colours_the_lint_does(self):
+        """A `black`-filled box gets white label ink, not #1e1e1e.
+
+        The SECOND colour parser in `canvas.py`, folded into the first by
+        fix round 1. `make_element`'s label funnel had a private
+        `#(3|6|8)-digit` regex deciding dark-fill-gets-white-ink, so a
+        box filled with a KEYWORD fell through to the dark default and
+        the funnel minted #1e1e1e on black — a defect the lint reports
+        only after the ink has landed. This asserts the funnel stops
+        minting it.
+
+        `test_label_color_reads_short_and_alpha_hex` is the other half
+        and is deliberately left alone: it pins the inputs the regex
+        already handled, so the reuse is watched not changing them.
+        """
+        for fill in ("black", "navy", "#000000"):
+            els = canvas.make_element(
+                {"type": "rectangle", "id": "b", "label": "Hi", "x": 0,
+                 "y": 0, "backgroundColor": fill}, set(), [])
+            lbl = next(e for e in els if e["type"] == "text")
+            self.assertEqual(lbl["strokeColor"], "#ffffff",
+                             "%s fill minted %s label ink"
+                             % (fill, lbl["strokeColor"]))
+        for fill in ("white", "#ffffff", "transparent", "rgb(0,0,0)"):
+            els = canvas.make_element(
+                {"type": "rectangle", "id": "b", "label": "Hi", "x": 0,
+                 "y": 0, "backgroundColor": fill}, set(), [])
+            lbl = next(e for e in els if e["type"] == "text")
+            self.assertEqual(lbl["strokeColor"], "#1e1e1e",
+                             "%s fill stopped getting dark ink" % fill)
 
     def test_the_parser_tells_absent_from_unreadable(self):
         """`parse_color` answers a triple; `unreadable_color` answers why.

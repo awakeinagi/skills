@@ -304,11 +304,23 @@ _MIN_FONT_RE = re.compile(
 # is how a role like `note-text` made a lint speak while
 # `collect_findings` returned nothing. The FIELD is matched but not
 # captured, and matched as an alternation rather than `\w+` on purpose —
-# `stroke` and `fill` are the only two colour fields an element has, so
-# a third arriving is a change that should reach this regex.
+# an element has exactly two colour fields, spoken of as three words
+# (`backgroundColor` is a shape's `fill` and a text's `background`), so
+# a fourth arriving is a change that should reach this regex.
+#
+# THE QUOTES ARE A CHARACTER CLASS because the message renders the spec
+# with `%r`, and `%r` PICKS ITS QUOTE STYLE FROM THE DATA: a colour
+# string containing an apostrophe comes out double-quoted, and a pattern
+# with a literal `'` then matches nothing while the lint speaks — the
+# lint-fires-detector-silent split that `hyphen_in_the_role_blinds_the_
+# object_reader` is the curated red for. Caught in review of the same
+# commit that added this regex, one field over from the trap the commit
+# had checked for. The input is implausible for a colour and the fix is
+# one character, which is the whole argument for making it.
 _UNREADABLE_COLOR_RE = re.compile(
-    r"^.+? (?P<element>[\w-]+)(?: \(.+?\))? declares its (?:stroke|fill) "
-    r"as '.+?', which this check cannot read as a colour")
+    r"^.+? (?P<element>[\w-]+)(?: \(.+?\))? declares its "
+    r"(?:stroke|fill|background) as ['\"].+?['\"], which this check "
+    r"cannot read as a colour")
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -1670,6 +1682,42 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
                       hits[0]["raw"])
         self.assertIsNone(hits[0]["magnitude"])
         self.assertIsNone(hits[0]["direction"])
+
+    def test_unreadable_color_parses_whatever_quote_repr_picks(self) -> None:
+        """The one detector whose message quotes ARBITRARY user data.
+
+        v0.9 TASK-COLORPARSE fix round 1, from that task's review. The
+        finding renders the offending spec with `%r`, and `%r` chooses
+        its quote style FROM THE DATA: a value containing an apostrophe
+        comes out double-quoted. `_UNREADABLE_COLOR_RE` opened with a
+        literal `'`, so on that one input the lint spoke and
+        `collect_findings` returned NOTHING — the same
+        lint-fires-detector-silent split
+        `hyphen_in_the_role_blinds_the_object_reader` is the curated red
+        for, one field over from the trap the commit had checked.
+
+        A colour string with an apostrophe is implausible input, which is
+        the argument for a one-character pattern fix rather than for
+        constraining the message. All three quoting outcomes are driven
+        here — plain, apostrophe, embedded double quote — because the
+        property under test is that the regex does not depend on which
+        one `%r` picks.
+        """
+        for spec in ("rgb(0,0,0)", "it's blue", 'say "blue"'):
+            scene = [el(id="n1", type="rectangle", x=0, y=0, width=200,
+                        height=100, strokeColor=spec,
+                        backgroundColor="transparent")]
+            lint = canvas.lint_layout(scene, artifact_type="flow")
+            spoke = [w for w in lint["warnings"]
+                     if "cannot read as a colour" in w]
+            hits = [f for f in collect_findings(scene)
+                    if f["check"] == "unreadable_color"]
+            self.assertEqual(len(spoke), 1, spec)
+            self.assertEqual([f["element"] for f in hits], ["n1"],
+                             "the lint spoke about %r and the detector "
+                             "heard nothing: %r" % (spec, spoke))
+            self.assertIsNone(hits[0]["magnitude"],
+                              "this finding has no number to report")
 
 
 # ---------------------------------------------------------------------------
@@ -18519,12 +18567,13 @@ _register(Mutant(
                         FindingSpec("contrast_object", element="n1",
                                     magnitude=(2.11, 0.05)))))
 
-# The same shape one layer down, and the worse of the two: the check does
-# not merely go unread here, it is never RUN. `parse_hex_color` returns None
-# for anything that is not `#rgb`/`#rrggbb`/`#rrggbbaa` — a CSS keyword, a
-# `rgb()` triple, a typo'd hex — and the 1.4.11 arm reads BOTH the stroke
-# and the fill through it, then `continue`s when neither parses. So a shape
-# stroked `white` with no fill is drawn on #fdfcf8 paper at 1.03:1,
+# The same shape one layer down, and the worse of the two: the check did
+# not merely go unread here, it was never RUN. `parse_hex_color` — the name
+# `parse_color` carried until the fix below renamed it — returned None
+# for anything that was not `#rgb`/`#rrggbb`/`#rrggbbaa`: a CSS keyword, an
+# `rgb()` triple, a typo'd hex. The 1.4.11 arm read BOTH the stroke
+# and the fill through it, then `continue`d when neither parsed. So a shape
+# stroked `white` with no fill was drawn on #fdfcf8 paper at 1.03:1,
 # invisible, and unreported.
 #
 # THE PAIR IS ONE COLOUR SPELLED TWO WAYS. `#ffffff` and `white` are the
@@ -18534,26 +18583,41 @@ _register(Mutant(
 # "something should fire" but "the number the OTHER spelling already
 # produces".
 #
-# THE SKIPPING BRANCH IS DOCUMENTED FOR A DIFFERENT CASE, which is how it
-# survived — its comment reads "Nothing declared to read — an Excalidraw
+# THE SKIPPING BRANCH WAS DOCUMENTED FOR A DIFFERENT CASE, which is how it
+# survived — its comment read "Nothing declared to read — an Excalidraw
 # `image` carries a transparent stroke and its picture is bytes this file
 # is never handed", and that is a correct decline for an image. A colour
 # the parser does not happen to speak is not a colour that is absent, and
-# one `continue` serves both.
+# one `continue` served both.
 #
 # HONEST ABOUT REACH, censused rather than asserted: the frozen corpus
 # holds 1,952 colour strings, 931 of them `transparent` and ZERO CSS
-# keywords, so nothing in it trips this today. The hazard is arriving, not
+# keywords, so nothing in it tripped this. The hazard was arriving, not
 # hypothetical — spike-shapelibs measured 176 keyword-coloured elements in
 # the downloaded shape libraries whose stamp it prototypes, and a paste
 # from any other tool is one keyword away.
 #
-# THE FIX THAT FLIPS THIS is either teaching `parse_hex_color` the CSS
-# named colours (it is a table, and `transparent` already gets a special
-# reading) or making the 1.4.11 arm distinguish "declared nothing" from
-# "declared something unreadable" and say so. It belongs to whoever owns
-# the WCAG lint surface, not here. Origin: spike-shapelibs by-product,
-# curated during curator batch 30, 2026-08-17.
+# FLIPPED 2026-08-17 (v0.9 TASK-COLORPARSE), one day after filing — the
+# shortest stay any entry in this catalogue has had. The filing offered
+# two candidate fixes and BOTH landed, which is why the pair reads as
+# history rather than as a choice deferred: `parse_color` (renamed from
+# `parse_hex_color` in the same change, because the old name invited the
+# very misreading this red is about) learned the 16 CSS Level 1 names, so
+# `white` resolves and is MEASURED at the 1.03:1 its `#ffffff` neighbour
+# always reported; and the arms now distinguish "declared nothing" from
+# "declared something unreadable" and say so, as `unreadable_color`.
+#
+# THE PAIR CHOSE BETWEEN THEM, which is the reusable part. Both fixes
+# produce a finding on this scene; only the keyword table produces the
+# NUMBER, and the neighbour's magnitude is what this entry asserts. A red
+# that says "fire" can be answered by any noise. Origin: spike-shapelibs
+# by-product, curated during curator batch 30, 2026-08-17.
+#
+# WHAT IS STILL UNCAUGHT and is a curator's, named here so the flip does
+# not read as closure: the report half has NO catalogue entry — no scene
+# in this file makes `unreadable_color` fire, which is what its
+# `UNCOVERED` row says and why the row exists. Its poles live in
+# tests/test_backend.TestUnreadableColourIsReported.
 _register(Mutant(
     "css_keyword_stroke_is_never_read",
     build=lambda: _styled_scene(stroke="white"),

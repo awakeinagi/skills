@@ -1642,17 +1642,21 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         fs = spec.get("fontSize", 16)
         lw, lh = text_dims(label, fs)
         label_color = "#1e1e1e"
-        bg = el.get("backgroundColor") or ""
-        # 3-, 6- and 8-digit hex: an agent batch passing "#000" or a
-        # picker emitting alpha must not fall through to dark-on-dark
-        m = re.match(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$", bg)
-        if m:
-            hx = m.group(1)
-            if len(hx) == 3:
-                hx = "".join(ch * 2 for ch in hx)
-            r, g, b = (int(hx[i:i + 2], 16) for i in (0, 2, 4))
-            if 0.299 * r + 0.587 * g + 0.114 * b < 110:  # dark fill
-                label_color = "#ffffff"
+        # An agent batch passing "#000" or a picker emitting alpha must
+        # not fall through to dark-on-dark. This READ THE FIELD ITSELF
+        # until 2026-08-17 — a private `#(3|6|8)-digit` regex, the second
+        # colour parser in this file — so a box filled `black` got #1e1e1e
+        # ink on it and the funnel could not see why. It now asks
+        # `parse_color`, which is the same question the legibility lint
+        # asks one screen down and now answers for keywords too (v0.9
+        # TASK-COLORPARSE fix round 1, from that task's own review).
+        # `None` — transparent, absent, or a colour neither reader
+        # speaks — keeps the dark default, which is the right ink on this
+        # skill's paper and the same answer the regex gave.
+        fill = parse_color(el.get("backgroundColor"))
+        if fill is not None and (0.299 * fill[0] + 0.587 * fill[1]
+                                 + 0.114 * fill[2]) < 110:   # dark fill
+            label_color = "#ffffff"
         lbl = dict(BASE_DEFAULTS)
         lbl.update({
             "id": lbl_id, "type": "text",
@@ -11284,21 +11288,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         not a shape this skill composes, and a resolver that walked would
         need a cycle guard for a case no scene produces.
 
+        IT REFUSES RATHER THAN FALLING BACK when the ground it would
+        resolve is DECLARED AND UNREADABLE — v0.9 TASK-COLORPARSE fix
+        round 1, ruled after review measured the cost of the fallback: a
+        `#f0f0f0` label in a `darkslategray`-filled box was reported at
+        1.11:1 against the PAPER, when the truth against its actual box
+        is 7.83:1 and passing, and the computed shade the finding offered
+        would have taken it to 1.91:1. A confident wrong number whose
+        advice makes the drawing worse is the one output worse than
+        silence, and the same argument as the check this task landed:
+        report, don't guess. The declaration itself is never lost — the
+        element that owns it gets an `unreadable_color` finding in the
+        same pass — so the pairing goes quiet and the fact still travels.
+
         Args:
             e: The element whose background is wanted.
 
         Returns:
-            An (r, g, b) triple.
+            An (r, g, b) triple, or None when the ground is declared and
+            unreadable, which asks every caller to decline rather than
+            measure against a colour that is not there.
         """
         if e.get("type") == "text":
-            own = parse_color(e.get("backgroundColor"))
-            if own is not None:
-                return composite_over(own, ground, e.get("opacity", 100))
+            own = e.get("backgroundColor")
+            if unreadable_color(own) is not None:
+                return None
+            col = parse_color(own)
+            if col is not None:
+                return composite_over(col, ground, e.get("opacity", 100))
         host = ix.get(e.get("containerId") or "")
         if host is not None:
-            hb = parse_color(host.get("backgroundColor"))
-            if hb is not None:
-                return composite_over(hb, ground, host.get("opacity", 100))
+            hb = host.get("backgroundColor")
+            if unreadable_color(hb) is not None:
+                return None
+            col = parse_color(hb)
+            if col is not None:
+                return composite_over(col, ground, host.get("opacity", 100))
         return ground
 
     def hexof(rgb):
@@ -11393,17 +11418,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # proven legible, because the cheap version of that gate is
         # wrong: a rectangle with a readable dark stroke and an
         # unreadable fill passes 1.4.11 on the stroke, and its fill is
-        # still what the LABEL inside it is measured against — that is
-        # `drawn_on`'s one-hop resolution reading a wrong ground and
-        # reporting a confident ratio. Reporting the declaration where it
+        # still the ground the LABEL inside it resolves — `drawn_on` now
+        # REFUSES that ground rather than falling back to paper (fix
+        # round 1; the measured cost of the fallback is in its
+        # docstring), so the label's own question goes quiet and this is
+        # the finding that says why. Reporting the declaration where it
         # is made puts the fact in front of the agent once, on the
         # element that owns it. The noise this buys is measured at ZERO:
         # 1,952 colour strings over the 24 frozen artifacts, none of them
         # unreadable.
         #
-        # ONE FINDING PER FIELD rather than per element: `stroke` and
-        # `fill` are separately fixable and separately waivable, and the
+        # ONE FINDING PER FIELD rather than per element: the two colour
+        # fields are separately fixable and separately waivable, and the
         # element's own id is in both keys.
+        #
+        # THE FIELD'S NOUN FOLLOWS THE ELEMENT, and the waive key follows
+        # the noun: `backgroundColor` is a shape's FILL and a text's
+        # BACKGROUND, which is the word `drawn_on` uses for the same
+        # field one screen up. Two sentences about one field reading it
+        # two ways is how a reader concludes there are two fields.
         #
         # An EMPTY text slot is declined here exactly as 1.4.3 declines
         # it four lines down ("an empty slot has no ink to read"): the
@@ -11411,8 +11444,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # fields are numerous enough that the difference would show.
         if ((etype in CONTRAST_OBJECT_TYPES)
                 or (etype == "text" and (e.get("text") or "").strip())):
+            under = drawn_on(e)
+            against = ("against %s" % hexof(under) if under is not None
+                       else "against the colour under it, which this "
+                            "check cannot read either")
             for src, raw in (("stroke", e.get("strokeColor")),
-                             ("fill", e.get("backgroundColor"))):
+                             ("background" if etype == "text" else "fill",
+                              e.get("backgroundColor"))):
                 bad = unreadable_color(raw)
                 key = "color:%s:%s:%s" % (aid or "<artifact>",
                                           slugify(eid), src)
@@ -11420,12 +11458,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     continue
                 warnings.append(
                     "%s %s declares its %s as %r, which this check cannot "
-                    "read as a colour — so its legibility against %s is "
+                    "read as a colour — so its legibility %s is "
                     "UNMEASURED, not fine. What is read: %s. Meant as "
                     "written? Restate it in hex, or record the decision "
                     "with waive {action: waive, key: %r, reason: ...}"
                     % (noun_of(etype, e), name(eid), src, bad,
-                       hexof(drawn_on(e)), COLOR_FORMS, key))
+                       against, COLOR_FORMS, key))
         if etype == "text":
             body = e.get("text") or ""
             if not body.strip():
@@ -11436,8 +11474,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # own relaxation rather than a tolerance of ours.
             ink = parse_color(e.get("strokeColor"))
             fs = e.get("fontSize") or 16
-            if ink is not None:
-                bg = drawn_on(e)
+            bg = drawn_on(e)
+            # `bg is None` is the ground REFUSING to be guessed at, not a
+            # scene without one — see `drawn_on`. The pairing is declined
+            # and the reason is reported above, on the element whose
+            # declaration could not be read.
+            if ink is not None and bg is not None:
                 seen = composite_over(ink, bg, opac)
                 got = contrast_ratio(seen, bg)
                 floor = (CONTRAST_TEXT_LARGE if fs >= CONTRAST_LARGE_PX
@@ -11493,6 +11535,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # the reading is the BETTER of the two, and a finding means
             # neither reaches the floor.
             bg = drawn_on(e)
+            if bg is None:
+                continue        # the ground refused; see `drawn_on`
             best, from_ = None, None
             for src, raw in (("stroke", e.get("strokeColor")),
                              ("fill", e.get("backgroundColor"))):
