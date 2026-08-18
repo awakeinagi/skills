@@ -116,6 +116,16 @@ FURNITURE_INK = "#8d877a"
 # stand — correctly, because they are true of those drawings. What
 # changes is that every pin minted from here on is compliant.
 PIN_INK = "#a54c08"
+# Registry pin states that mean THE QUESTION IS SETTLED — as opposed to
+# `open` (never answered) and `answered` (answered, and the glyph still
+# carries the answer). Named because two checks now depend on being
+# exact complements of each other: the pin-pruning finding fires ON this
+# set, and the pin-drift check is silent on it. If they ever disagreed,
+# one pin would draw two findings pulling opposite ways — "delete this
+# glyph" and "move it closer" — which is what v0.9 MIN-2 caught before
+# the fold. ONE SPELLING, so the disjointness is a fact about the code
+# and not a coincidence between two literals.
+CLOSED_PIN_STATUSES = ("pruned", "resolved", "dismissed")
 # The largest raster this skill will ever produce, in device pixels. ONE
 # ceiling, shared by the two places that used to hold their own:
 # `render_svg` scales a drawing down uniformly to fit it, and
@@ -12115,7 +12125,7 @@ def waive_hint(key):
 
 
 def lint_layout(els, artifact_type=None, budget=None, waives=None,
-                aid=None):
+                aid=None, closed_pins=None):
     """Layout lint for headless agents (who can't see their own drawing),
     tiered per references/layout.md:
       errors   — the drawing does not say what the agent meant; repair in
@@ -12142,6 +12152,14 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             (e.g. the Q25 progress-indicator note) go quiet once a
             waive keyed "<check>:<artifact>" is recorded (v0.4).
         aid: Optional artifact id, needed to resolve waive keys.
+        closed_pins: Optional set of pin ids the REGISTRY has closed.
+            Threaded from `project_lint` exactly as `waives` is, and for
+            the same reason: the registry is the authority on whether a
+            question is still live and `lint_layout` cannot see it. The
+            pin-drift check uses it to stay silent on a settled question
+            — see that check for what goes wrong without it. Absent (a
+            direct `lint_layout` call in a test) means "none known",
+            which is the pre-existing behaviour.
     """
     errors, warnings, notes = [], [], []
     node_budget = 8 if artifact_type == "domain" else 9
@@ -14619,9 +14637,35 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                  if e.get("type") in ("rectangle", "diamond", "ellipse")
                  and role_of(e) not in ("label", "pin", "decoration",
                                         "annotation")]
+    #
+    # A SETTLED QUESTION IS NOT THIS CHECK'S BUSINESS, and the status it
+    # asks comes from the REGISTRY rather than from the element's own
+    # copy of it. That distinction is the whole of v0.9 MIN-2 and it was
+    # got wrong here first: this read `customData["status"]`. On the
+    # frozen corpus the two copies differ on 9 of 41 pins, and on 8 of
+    # them THE VERDICT FLIPS — element `open` against registry
+    # `resolved`. The ninth (`pin-cutoff`, element `resolved` against
+    # registry `pruned`) differs as a string while both readings agree
+    # the pin is closed, so it changes no behaviour. 9 rows, 8
+    # decisions: the counts-versus-sets distinction this branch keeps
+    # relearning, and the number that matters here is 8.
+    #
+    # `answer_pin` writes both copies, so they agree when a pin is
+    # closed through that path and drift when anything else closes it. A
+    # check about a pin and the fact about it having diverged, reading
+    # the diverged copy, is the joke telling itself: it fired on
+    # `pin-book-fails` — a question the project had already answered —
+    # and told an agent to move a glyph that the pin-pruning note was
+    # simultaneously telling it to delete.
+    #
+    # The registry wins because it is what `answer_pin` and the pruner
+    # write, and because the complement of this set is exactly the
+    # predicate the pruning finding fires on: the two checks cannot both
+    # speak about one pin, by construction rather than by coincidence.
+    closed = closed_pins or frozenset()
     for e in els:
         cd = e.get("customData") or {}
-        if cd.get("role") != "pin" or cd.get("status") == "resolved":
+        if cd.get("role") != "pin" or e.get("id") in closed:
             continue
         tgt = ix.get(cd.get("target") or "")
         if tgt is None:
@@ -16049,8 +16093,14 @@ def project_lint(project, els, registry=None, artifact_type=None,
     if registry is not None and aid:
         budget = (registry.get("budgets") or {}).get(aid)
         waives = registry.get("waives") or {}
+    # NOT GATED ON `aid`, unlike the two above: a pin's status is a fact
+    # about the pin and not about which artifact is being linted, and
+    # the ids are unique across the project.
+    closed_pins = frozenset(
+        p.get("id") for p in ((registry or {}).get("pins") or [])
+        if p.get("status") in CLOSED_PIN_STATUSES)
     lint = lint_layout(els, artifact_type=artifact_type, budget=budget,
-                       waives=waives, aid=aid)
+                       waives=waives, aid=aid, closed_pins=closed_pins)
     avoid, terms, aliases = {}, [], {}
     ctx = project.pk / "CONTEXT.md"
     ctx_exists = False

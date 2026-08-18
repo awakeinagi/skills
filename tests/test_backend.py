@@ -20764,7 +20764,7 @@ class TestShapeAwareLabelRoom(Base):
         self.assertAlmostEqual(interval_over, drawn_w - room, places=9)
 
 
-class TestAPinReadsAsBelongingToWhateverItSitsBeside(unittest.TestCase):
+class TestAPinReadsAsBelongingToWhateverItSitsBeside(Base):
     """v0.9 whole-branch review M-4: the ❓ that drifted off its subject.
 
     `pin_spot` already owns the rule — "hugging the target, never in a
@@ -20867,7 +20867,7 @@ class TestAPinReadsAsBelongingToWhateverItSitsBeside(unittest.TestCase):
         self.assertTrue(canvas._rect_contains(els[-1], els[0]))
         self.assertEqual(self._drift(els), [])
 
-    def test_a_resolved_pin_is_not_this_checks_business(self):
+    def test_a_closed_pin_is_not_this_checks_business(self):
         """The boundary with the pin-pruning defect, drawn deliberately.
 
         THE REASON IS THE QUESTION'S STATUS, NOT THE GLYPH'S ABSENCE.
@@ -20878,21 +20878,105 @@ class TestAPinReadsAsBelongingToWhateverItSitsBeside(unittest.TestCase):
         is still live; it does not delete it, because deleting it would
         be the tool editing the drawing in a revision nobody asked for,
         which is this review's own headline defect one layer out. So a
-        resolved ❓ genuinely stays on the canvas and a reader genuinely
+        closed ❓ genuinely stays on the canvas and a reader genuinely
         sees it.
 
         The silence holds anyway, for the reason that survives: where a
         question the project has already CLOSED happens to sit is not a
         fact worth moving anything over. Its repair is a `del`, which
         the pruning check asks for; moving it would be answering the
-        wrong question about it. Two checks, two remedies, no overlap.
+        wrong question about it.
 
-        Measured on the corpus: 8 of 41 pins here are resolved and still
-        drawn — 16 of 73 filed pins once the registry side is counted
-        too — and two of them are the instances the review filed under
-        this heading.
+        AND THE STATUS COMES FROM THE REGISTRY. This test used to pass a
+        `customData["status"]` of "resolved" and watch the check go
+        quiet, which was the wrong store: on the frozen corpus the two
+        copies differ on 9 of 41 pins and the VERDICT flips on 8 of them
+        (element "open", registry "resolved"). The ninth differs only as
+        a string — `pin-cutoff`, element "resolved" against registry
+        "pruned" — and both readings agree it is closed, so 9 rows carry
+        8 decisions and 8 is the number that moved this check. Counts
+        are not sets; the sibling stream caught me quoting the row count
+        for the decision count, which is the same error IMP-1 and I-4
+        were filed for.
+
+        `answer_pin` writes both copies and nothing else does, which is
+        why they drift. A check about a pin and its fact having diverged
+        cannot read the diverged copy — it fired on `pin-book-fails`, a
+        question the project had already answered, at the same time as
+        the pruning note told an agent to delete that very glyph
+        (v0.9 MIN-2).
         """
-        self.assertEqual(self._drift(self._scene(360, status="resolved")), [])
+        # the element still says "open" — as 9 corpus pins do — and the
+        # registry is what decides
+        els = self._scene(360, status="open")
+        self.assertEqual(len(self._drift(els)), 1,
+                         "premise: this placement is a finding when the "
+                         "question is live")
+        self.assertEqual(
+            [w for w in canvas.lint_layout(
+                els, aid="d", closed_pins=frozenset({"pin-q"}))["warnings"]
+             if "asks about" in w and "reads as" in w], [])
+
+    def test_the_two_pin_checks_are_exact_complements(self):
+        """Disjoint by construction, not by two literals agreeing.
+
+        The pruning finding fires ON `CLOSED_PIN_STATUSES` and this one
+        is silent on it, so no pin can draw both "delete this glyph" and
+        "move it closer". Asserted against the constant rather than
+        against a copy of its contents, because a second spelling is
+        exactly how the two would drift back apart.
+        """
+        self.assertEqual(canvas.CLOSED_PIN_STATUSES,
+                         ("pruned", "resolved", "dismissed"))
+        self.assertNotIn("open", canvas.CLOSED_PIN_STATUSES)
+        self.assertNotIn("answered", canvas.CLOSED_PIN_STATUSES,
+                         "an answered pin still carries its answer on the "
+                         "canvas; it is not a closed question")
+
+    def test_the_closed_status_set_is_defined_exactly_once(self):
+        """A fold hazard, made loud instead of silent.
+
+        The pin-pruning stream hoisted this same constant, same name and
+        same value, at a different place in this same file. Two
+        definitions of one name is the dangerous shape rather than the
+        merely untidy one: git merges both without a conflict, Python
+        keeps whichever is last, and NOTHING FAILS — so the duplicate
+        would survive precisely because it is invisible. The whole point
+        of the constant is that the two checks are complements of ONE
+        spelling; two spellings that happen to be equal today is the
+        thing it exists to prevent, one level up.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        defs = [ln for ln in src.splitlines()
+                if ln.startswith("CLOSED_PIN_STATUSES")]
+        self.assertEqual(
+            len(defs), 1,
+            "CLOSED_PIN_STATUSES is defined %d times — the fold merged two "
+            "copies and Python silently kept the last: %r" % (len(defs), defs))
+
+    def test_project_lint_reads_the_status_from_the_registry(self):
+        """The threading, end to end, through the funnel that has both.
+
+        `lint_layout` cannot see the registry, so a pin's liveness has
+        to arrive the way `waives` does. Driven through `project_lint`
+        rather than by passing `closed_pins` by hand, because the defect
+        MIN-2 caught was in the wiring and not in the predicate.
+        """
+        els = self._scene(360, status="open")
+        self.store.registry["pins"] = [
+            {"id": "pin-q", "artifact": "d", "element": "left",
+             "question": "which one?", "status": "open"}]
+        got = canvas.project_lint(self.project, els,
+                                  registry=self.store.registry, aid="d")
+        self.assertTrue([w for w in got["warnings"]
+                         if "asks about" in w and "reads as" in w])
+        self.store.registry["pins"][0]["status"] = "resolved"
+        got = canvas.project_lint(self.project, els,
+                                  registry=self.store.registry, aid="d")
+        self.assertEqual([w for w in got["warnings"]
+                          if "asks about" in w and "reads as" in w], [],
+                         "the registry closed the question and the check "
+                         "is still talking about where its glyph sits")
 
     def test_the_waive_key_round_trips(self):
         """A finding an agent cannot silence is a finding it will ignore."""
