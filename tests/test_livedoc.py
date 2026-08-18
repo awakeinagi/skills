@@ -188,6 +188,122 @@ class TestRefreshRepairs(LiveDocCase):
         self.assertEqual(livedoc.check_files([path]), [])
 
 
+class TestRefreshCannotEatItsOwnAnswer(LiveDocCase):
+    """The repair command that was reported to corrupt what it repaired.
+
+    TWO WITNESSES, ONE WRONG DIAGNOSIS. TASK-ELBOX (concern 8) and
+    curator batch 31 (concern 6) both watched `refresh` turn a marker
+    holding the sentinel `0` into `1410410410410410410410410410` and
+    both concluded the replacement was substring-based, so a stored
+    value that is a substring of its answer eats itself. Measured here
+    before anything was written: it is not. `refresh_files` splices by
+    OFFSET (`text[:marker.start] + fresh + text[marker.end:]`) and walks
+    each file's markers right to left, so a digit sentinel is perfectly
+    safe — the first test below drives the exact shape the reports
+    blame and it converges in one pass. The advice they leave behind
+    ("use a letter, not a digit") is harmless and its stated reason is
+    wrong, which is worse than no reason: it points the next reader
+    away from the real trigger.
+
+    THE REAL TRIGGER IS A DUPLICATED PATH, and it is reproduced below.
+    `refresh_files` scans ALL paths first and then rewrites file by
+    file, so a path appearing twice in `paths` has its markers found
+    twice AND is opened twice — n entries give n*n splices, each one
+    laying the fresh value over the FIRST CHARACTER of the value the
+    previous splice wrote. The answer is `fresh + fresh[1:] * (n*n - 1)`,
+    which is exactly the shape of the corruption both reports quote:
+    `1410` followed by `410` over and over.
+
+    HOW A DUPLICATE GETS IN. `tracked_prose_files` builds `paths` from
+    `git ls-files`, which prints one row per STAGE for an unmerged path
+    — and both witnesses hit this while resolving a merge conflict in
+    the file that carries the marker. That route is named rather than
+    asserted (a test that needs a conflicted index would be measuring
+    git); what is pinned is the function's own contract, which is where
+    the repair belongs.
+
+    WHY THIS IS GREEN. It asserts the CORRUPTION, not the fix, which is
+    the `test_the_pipeline_really_does_not_settle` shape: the repair is
+    one line in `refresh_files` (de-duplicate `paths`, or scan and write
+    per unique file), it belongs to whoever owns this module, and the
+    day it lands this class fails and asks to be rewritten as the
+    guarantee instead. `check` catches the mangled value afterwards, so
+    nothing could ship — but a repair tool that silently damages what it
+    repairs is the "silence is a bug" shape and should not be
+    undocumented. Origin: TASK-ELBOX concern 8 and curator batch 31
+    concern 6; measured and re-diagnosed during curator batch 33,
+    2026-08-18.
+    """
+
+    def test_a_sentinel_that_is_a_substring_of_its_answer_is_safe(self
+                                                                  ) -> None:
+        """The shape both reports blame, driven directly. It converges.
+
+        Three sentinels, each genuinely a substring of the derived
+        value and derived from it rather than hardcoded, so this cannot
+        go stale when the suite grows: the first character, the tail,
+        and the whole answer with its last character dropped.
+        """
+        fresh = livedoc.canvas_py_lines()
+        for n, stored in enumerate((fresh[0], fresh[1:], fresh[:-1])):
+            with self.subTest(stored=stored):
+                self.assertIn(stored, fresh)
+                self.assertNotEqual(stored, fresh)
+                path = self.doc(
+                    "canvas.py is %s lines.\n"
+                    % self.marked("canvas_py_lines", stored),
+                    name="substring-%d.md" % n)
+                self.assertEqual(len(livedoc.refresh_files([path])), 1)
+                self.assertEqual(livedoc.check_files([path]), [])
+                self.assertIn(">%s<" % fresh,
+                              path.read_text(encoding="utf-8"))
+
+    def test_the_same_file_named_twice_is_written_into_itself(self) -> None:
+        """A PREMISE PIN on the corruption, with its arithmetic.
+
+        `n` copies of one path produce `n*n` splices and the value
+        `fresh + fresh[1:] * (n*n - 1)`. Asserted for two and three
+        copies rather than one, because a formula pinned at a single
+        point is a coincidence.
+        """
+        fresh = livedoc.canvas_py_lines()
+        for copies in (2, 3):
+            with self.subTest(copies=copies):
+                path = self.doc(
+                    "canvas.py is %s lines.\n"
+                    % self.marked("canvas_py_lines", "0"),
+                    name="dup-%d.md" % copies)
+                livedoc.refresh_files([path] * copies)
+                got = path.read_text(encoding="utf-8").split("-->")[1] \
+                                                      .split("<!--")[0]
+                self.assertEqual(
+                    got, fresh + fresh[1:] * (copies * copies - 1),
+                    "`refresh_files` handed %d copies of one path wrote "
+                    "%r. If it now writes %r, the de-duplication landed "
+                    "— rewrite this class as the guarantee and delete "
+                    "its diagnosis paragraph" % (copies, got, fresh))
+
+    def test_the_damage_is_what_check_then_reports(self) -> None:
+        """The system's own alarm, so the blast radius is named too.
+
+        What kept this from shipping is that `check` fails loudly on the
+        mangled value. Pinned so the pair reads honestly: the repair
+        tool can damage a file, and the guard catches it, and those are
+        two separate facts about the same module.
+        """
+        path = self.doc("canvas.py is %s lines.\n"
+                        % self.marked("canvas_py_lines", "0"))
+        livedoc.refresh_files([path, path])
+        drifted = livedoc.check_files([path])
+        self.assertEqual(len(drifted), 1, drifted)
+        self.assertIn("live:canvas_py_lines", drifted[0])
+        self.assertEqual(
+            len(livedoc.refresh_files([path])), 1,
+            "a refresh over the DAMAGED file, named once, must repair "
+            "it — the tool is only dangerous on the duplicate")
+        self.assertEqual(livedoc.check_files([path]), [])
+
+
 class TestACalculatorNeverFallsBackToTheProse(LiveDocCase):
     """The failure mode that would make this tool worse than literals."""
 

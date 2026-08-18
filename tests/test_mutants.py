@@ -14568,6 +14568,241 @@ class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
             "frame and note — is now an obstacle of size zero and "
             "`dropClear` clears nothing: %r" % body)
 
+    def test_the_stated_one_divergence_from_ink_extent_is_two(self) -> None:
+        """A PREMISE PIN on a divergence the parity gate cannot see.
+
+        `elBox`'s JSDoc says "ONE DIVERGENCE, stated" from `ink_extent`
+        and names the no-points fallback. There are two: `ink_extent`
+        turns its points by the element's `angle` (`_turned_points`,
+        v0.9 TASK-MICROFIX) and `elBox` does not read `angle` at all.
+        Found in the TASK-ELBOX review (M-1) and pre-existing rather
+        than introduced — but the EXHAUSTIVE claim is new, which is what
+        makes an unstated second divergence a finding about the sentence
+        as well as about the code.
+
+        THE DIRECTION IS THE UNSAFE ONE, and this is why it is worth a
+        pin rather than a comment. Measured on a 100px horizontal stroke
+        turned 45 degrees about its own centre: `ink_extent` reports
+        70.71 x 70.71 and the raw point hull reports 100 x 0 — a box
+        with NO vertical extent at all for a stroke painting 70.71px of
+        it. `dropClear` reads `elBox` as its obstacle map, so it clears
+        an insert straight through the middle of a turned stroke. That
+        is exactly the direction `elBox`'s own docstring argues against
+        when it justifies the no-points fallback ("for a CLEARANCE test
+        the stored box is the safe direction to be wrong in").
+
+        WHY THIS IS GREEN AND NOT RED. The fix is in `App.tsx` and needs
+        the bundle rebuilt beside it, and the population is zero: the
+        frozen corpus carries a non-zero `angle` on 0 of its elements,
+        so no drawing the repo has can exhibit it. So this asserts what
+        is TRUE TODAY — the divergence exists, and it is latent — and
+        goes red the day either half changes: teach `elBox` the angle
+        and the first assertion fails; ship one turned element in a
+        fixture and the third does. Neither failure is a regression;
+        both are this pin asking to be rewritten by whoever moved it.
+
+        THE STRENGTHENED PARITY GATE ABOVE STRUCTURALLY CANNOT SEE
+        THIS — it compares TYPE SETS, and both sides agree about the
+        types. That is the reusable part: a parity instrument proves the
+        thing it compares and says nothing about the rest of two
+        functions that are supposed to be one rule. Origin: TASK-ELBOX
+        review M-1, curated during curator batch 33, 2026-08-18.
+        """
+        body = re.sub(r"//[^\n]*", "", re.sub(
+            r"/\*.*?\*/", "", _app_tsx_body(
+                "const elBox = ", "Where a `w`×`h` insert"), flags=re.S))
+        self.assertNotIn(
+            "angle", body,
+            "`elBox` has learned to read `angle`. That is the fix this "
+            "premise pin was waiting for — delete the pin in the same "
+            "change, and check the JSDoc's divergence count with it")
+        self.assertIn(
+            "_turned_points", inspect.getsource(canvas.ink_extent),
+            "`ink_extent` stopped turning its points by `angle`, so the "
+            "two sides no longer diverge — but they now agree on the "
+            "WRONG answer, which TestInkExtentIsRotationBlind exists to "
+            "refuse")
+        turned = el(id="a1", type="arrow", x=0.0, y=0.0, width=100.0,
+                    height=0.0, angle=math.pi / 4,
+                    points=[[0, 0], [100, 0]])
+        _, _, _, painted_h = canvas.ink_extent([turned], pad=0)
+        raw_h = (max(p[1] for p in turned["points"])
+                 - min(p[1] for p in turned["points"]))
+        self.assertGreater(
+            painted_h - raw_h, 70.0,
+            "the turned stroke no longer paints outside its raw point "
+            "hull, so this scene has stopped demonstrating the "
+            "divergence: ink_extent %r against hull %r"
+            % (painted_h, raw_h))
+        corpus = sorted((Path(__file__).resolve().parent
+                         / "fixtures").rglob("*.excalidraw"))
+        turned_els = [(p.name, e.get("id")) for p in corpus
+                      for e in json.loads(p.read_text(encoding="utf-8")
+                                          )["elements"]
+                      if e.get("angle")]
+        self.assertEqual(
+            turned_els, [],
+            "the corpus has grown %d element(s) carrying a non-zero "
+            "angle (%r), so the elBox divergence above has stopped "
+            "being latent and is now a live placement defect on a real "
+            "drawing" % (len(turned_els), turned_els[:3]))
+
+
+# ---------------------------------------------------------------------------
+# HAND-AUTHORED RED — `TestAFreedrawKeepsTheGeometryItWasGiven`, the one
+# this batch mints, and `HAND_AUTHORED_RED_CLASSES` names it.
+#
+# BASE: one 200x100 node and one three-point `freedraw`, both through
+# `make_element`, which is the shipped construction funnel every agent op
+# goes through. MUTATION: none — the funnel IS the defect, so there is no
+# operator to apply, which is the same arrangement
+# `TestRouterPassesDoNotWorsenTheDrawing` uses and for the same reason.
+# MAGNITUDE: three stored points in, ZERO out, and the drawing's measured
+# extent losing 80 of its 180px of height — every pixel of it the stroke's.
+# DIRECTION: the extent UNDER-reports, which is the unsafe direction for
+# every consumer that frames a picture by it. NEIGHBOUR, green and in the
+# same class: `arrow` and `line` through the identical call keep their
+# points, so this is not a claim that `make_element` drops geometry.
+# ---------------------------------------------------------------------------
+
+
+class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
+    """A supported class may not lose its stroke on the way in.
+
+    `make_element` writes `points` only for `arrow` and `line`
+    (canvas.py, `if etype in ("arrow", "line")`), so an agent that builds
+    a `freedraw` gets a stored element with no `points`, no `pressures`
+    and no `simulatePressure` — and the funnel reports nothing: the
+    `errors` list it is handed comes back empty, `lint_layout` emits no
+    warning, and `collect_findings` returns nothing but a crossings
+    count of zero.
+
+    THREE PARTS OF THE PRODUCT TREAT `freedraw` AS SUPPORTED, which is
+    what makes this a defect rather than a boundary. It is in
+    `canvas.ELEMENT_TYPES`, so the funnel accepts it; `render_svg` draws
+    it and gives it round caps and joins with a comment explaining why a
+    freehand stroke needs them; and `ink_extent` reasons in its own
+    comment about freedraw ink overhanging its stored box. The write path
+    loses the geometry all three of those are written for.
+
+    WHAT THE PICTURE WRONGLY SAYS, and it is the whole drawing rather
+    than the stroke. SPIKE-DERIVEDFRAME reproduced the client half in a
+    browser: a scene of one rectangle and two anchors exports at 248x208
+    with 928 ink pixels, and adding one `freedraw` makes the same export
+    come back 80x80 with ZERO ink — the empty-scene size — while the
+    app's own canvas goes blank with no console error, the rail and
+    history still rendering normally and the history entry reading
+    "added r1 (+1 more)". Every element vanishes because one of them is
+    unpaintable.
+
+    TWO CLAIMS, ONE OWNER EACH, and only the first is pinned here. The
+    backend dropping a supported class's geometry is a small repair in
+    `make_element` and it is what this red asks for. The client rendering
+    NOTHING rather than rendering what it can is a separate defect with a
+    separate owner in App.tsx and Excalidraw's own restore path, is out
+    of this wave, and is deliberately not asserted: a red nobody can flip
+    is a red that teaches the reader to ignore the colour.
+
+    THE FIX THAT FLIPS THIS is `make_element` giving `freedraw` its
+    `points` — and, since the client's restore path reads them, the
+    `pressures` / `simulatePressure` pair that goes with a freehand
+    stroke. The assertions below deliberately ask only for the geometry,
+    because pinning the pressure fields would prejudge the shape of a
+    fix this file is not entitled to design. Origin: spike-derivedframe
+    §8, curated during curator batch 33, 2026-08-18.
+    """
+
+    @staticmethod
+    def _spec(etype: str) -> dict[str, Any]:
+        """One three-point stroke spec of the given type.
+
+        Args:
+            etype: `freedraw`, `arrow` or `line`.
+
+        Returns:
+            An op spec in the shape `make_element` is handed.
+        """
+        return {"type": etype, "id": etype[0] + "1", "x": 100, "y": 100,
+                "width": 100, "height": 80,
+                "points": [[0, 0], [50, 80], [100, 10]]}
+
+    @staticmethod
+    def _node() -> dict[str, Any]:
+        """A 200x100 node at the origin, so the extent has a floor.
+
+        Returns:
+            A `role: node` rectangle.
+        """
+        return el(id="n1", type="rectangle", x=0.0, y=0.0, width=200.0,
+                  height=100.0, customData={"role": "node"})
+
+    @unittest.expectedFailure
+    def test_red_a_freedraw_built_through_the_funnel_keeps_its_points(
+            self) -> None:
+        """The three points an agent supplied reach the stored element."""
+        errors: list[str] = []
+        stroke = canvas.make_element(self._spec("freedraw"), set(), errors)[0]
+        self.assertEqual(
+            stroke.get("points"), [[0, 0], [50, 80], [100, 10]],
+            "`make_element` stored a freedraw with points=%r and put "
+            "nothing in the errors list (%r), so the agent's stroke is "
+            "gone and nothing said so"
+            % (stroke.get("points"), errors))
+
+    @unittest.expectedFailure
+    def test_red_the_drawing_measures_the_stroke_it_was_given(self) -> None:
+        """The extent counts the freedraw's ink, not just the node's.
+
+        The second red rather than a second assertion in the first,
+        because they fail for the same cause and are two different
+        claims: one is about what is stored, one is about what every
+        consumer that frames a picture then measures. `ink_extent` is
+        the tier-1 export floor and the connected tab's frame, so a
+        stroke it cannot see is a stroke the export crops.
+        """
+        errors: list[str] = []
+        stroke = canvas.make_element(self._spec("freedraw"), set(), errors)[0]
+        self.assertEqual(
+            canvas.ink_extent([self._node(), stroke], pad=0),
+            (0, 0, 200, 180),
+            "the drawing measures %r — the node alone. The stroke runs "
+            "from y=100 to y=180 and contributes ZERO px of the 80 it "
+            "paints, so the export frames a picture with a hole in it"
+            % (canvas.ink_extent([self._node(), stroke], pad=0),))
+
+    def test_an_arrow_and_a_line_keep_theirs(self) -> None:
+        """The live pole: the identical call, two types over.
+
+        What stops the reds above reading as "`make_element` drops
+        geometry". It does not — it writes `points` for exactly the two
+        types its `if` names, and this proves the funnel reached them
+        with the agent's own list rather than with a default.
+        """
+        for etype in ("arrow", "line"):
+            with self.subTest(etype=etype):
+                errors: list[str] = []
+                built = canvas.make_element(
+                    self._spec(etype), set(), errors)[0]
+                self.assertEqual(built.get("points"),
+                                 [[0, 0], [50, 80], [100, 10]])
+                self.assertEqual(errors, [])
+
+    def test_the_funnel_accepts_freedraw_in_the_first_place(self) -> None:
+        """The precondition that makes the reds a defect and not a refusal.
+
+        A funnel that REJECTED `freedraw` would be a defensible design
+        and the reds above would be asking it to grow a feature. It does
+        not reject it: the type is in `ELEMENT_TYPES`, the call returns
+        an element, and the errors list is empty. That is the difference
+        between an unsupported class and a supported one that loses its
+        geometry silently.
+        """
+        self.assertIn("freedraw", canvas.ELEMENT_TYPES)
+        errors: list[str] = []
+        built = canvas.make_element(self._spec("freedraw"), set(), errors)
+        self.assertEqual(errors, [])
+        self.assertEqual([e["type"] for e in built], ["freedraw"])
+
 
 class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
     """The audit trail may not say a path moved when the path did not."""
@@ -15988,10 +16223,19 @@ def _short_finals(rounded: bool) -> list[dict]:
     window — and neither reaches the 60px overlap, so the finals are the
     only pair that can speak.
 
-    The drawn separation is the point of the pin: sampled at the finals'
-    midpoint the two strokes sit 15.4px apart curved against 15.0px
-    sharp. The picture a reader sees is the same thick stroke in both;
-    only the check's willingness to look at it moved.
+    THE DRAWN SEPARATION IS NOT WHAT THIS DOCSTRING USED TO SAY, and the
+    correction is curator batch 33's (2026-08-18). It claimed the two
+    strokes sit "15.4px apart curved against 15.0px sharp, sampled at
+    their midpoint" and therefore that "the picture a reader sees is the
+    same thick stroke in both". Both bows point INWARD, so the signed
+    separation runs +15.00 -> -20.85 -> -15.31 -> +0.29 -> +15.00 and the
+    strokes cross twice, at 68.20 and 47.62 degrees. The old 15.4 was
+    that profile's magnitude read 36px after the first crossing, with
+    the sign thrown away. What the two poles genuinely share is the
+    80px EXTENT, which curvature cannot move because a Catmull-Rom span
+    interpolates its stored endpoints. See the mutant entry for what
+    survives of the verdict and `TestTheCurvedFinalsCrossRatherThanRun`
+    for the numbers under test.
 
     Args:
         rounded: True to stamp `{"type": 2}` on both arrows.
@@ -17737,10 +17981,49 @@ _register(Mutant(
 # gates on it, which is why none of the six things the naive widen-the-
 # constant fix broke moved this time. See `_stretch_axis`.
 #
-# WHAT MAKES IT A DEFECT AND NOT A SENSITIVITY DROP: the two finals are
-# 15.0px apart sharp and 15.4px apart drawn, sampled at their midpoint. The
-# drawing does not change. A reader sees one thick stroke either way and
-# the check reports it once and then stops.
+# WHAT MAKES IT A DEFECT AND NOT A SENSITIVITY DROP — REWRITTEN 2026-08-18
+# (curator batch 33), because the justification this paragraph used to
+# carry was measurably false and SPIKE-CORRIDOR caught it. It read: "the
+# two finals are 15.0px apart sharp and 15.4px apart drawn, sampled at
+# their midpoint. The drawing does not change." Re-measured here, off
+# `rendered_stretches` on this very scene, at 2px along-axis steps:
+#
+#   bows              22.18px (fa) and 13.68px (fb), TOWARD each other
+#   signed sep (fb-fa) +15.00 -> -20.85 -> -15.31 -> +0.29 -> +15.00
+#   sign changes      x = 102..104 and x = 158..160 — they CROSS TWICE
+#   crossing_sites    2 crossings, at 68.20 and 47.62 degrees (0 sharp)
+#
+# So "15.4px at the midpoint" was an UNSIGNED distance taken 36px after
+# the strokes had already swapped sides, and the sentence it supported —
+# "the drawing does not change" — is the one claim the numbers refuse.
+# The drawing changes a great deal: a parallel pair becomes a tangle.
+#
+# THE VERDICT STANDS ANYWAY, decided by measurement and not by leaving
+# it alone. What this entry is FOR is F8 — a straightness gate that
+# rejected a short final on its NEIGHBOUR's length and dropped the pair
+# out of `shared_corridors` entirely — and that rejection is a fact
+# about the gate, not about whether these two particular strokes happen
+# to cross inside the lane they share. The shared extent is 80px in both
+# poles and curvature cannot move it: a Catmull-Rom span interpolates
+# its stored endpoints, so both ends of both runs are pinned. The
+# crossings are not lost either — `crossing_sites` reports both, which
+# is a different check answering a different question about the same
+# picture. What the corrected reading costs this entry is the claim that
+# the two poles are the SAME PICTURE; they are not, and the pair now
+# claims only that they occupy the same 80px lane.
+#
+# THE TRIPWIRE THIS BECOMES, named because it is load-bearing for the
+# work SPIKE-CORRIDOR deferred. Its §4 records a planned collapse to
+# "one reader measuring separation on the ink always". Measured on this
+# scene, that reader answers `_lane_overlap` = 41.27px at separation
+# 0.0 — under `minover` (60) — so an ink-always `shared_corridors`
+# reports NOTHING here and this mutant goes red with "no finding of
+# check='shared_corridor'". That is not an argument against the
+# collapse; it is the conversation the collapse owes this entry, and
+# widening the magnitude band to accept 41 would be answering it by
+# deleting the question. Pinned in
+# `TestTheCurvedFinalsCrossRatherThanRun` so the numbers above cannot
+# rot the way the ones they replace did.
 #
 # MAGNITUDE 80px, the finals' shared extent, and the band excludes the two
 # readings a wrong fix gives: 300 and 185 (the APPROACH extents, which is
@@ -18793,6 +19076,82 @@ class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
             "the fallback put the glyph at %r, which is not inside the "
             "200x100 target it is a question about" % (spot,))
 
+    def test_a_deleted_neighbour_still_takes_the_hug_away(self) -> None:
+        """A PREMISE PIN: the server counts a rubbed-out box as an occluder.
+
+        THE DIVERGENCE, measured on this class's own scene. `pinSpot` in
+        App.tsx filters `!e.isDeleted` before it tests for collision;
+        `canvas.pin_spot`'s loop does not skip deleted elements at all.
+        Hand both sides the same target with a soft-deleted neighbour on
+        the hug square and they answer 36px apart — the client hugs at
+        (208, -8), the server falls back to (172, 2) — for a box that is
+        not on the page. Excalidraw's undo model keeps deleted elements
+        in the scene array, so "deleted" is a flag and not an absence,
+        which is exactly why one side reading it and the other not is a
+        divergence rather than a difference of inputs.
+
+        WHY THIS ASSERTS THE WRONG ANSWER. `pin_spot` is the SERVER, so
+        the assertion below is the fallback the server gives today, not
+        the hug it should give. Asserting the fix would be a red, and a
+        red here has no owner inside this wave: `pin_spot`'s repair is
+        one predicate but its acceptance test is a two-sided parity
+        question, and the same seam has just been through TASK-ELBOX.
+        This is the shape `test_the_pipeline_really_does_not_settle`
+        uses — pin the imperfect truth, and let the fix be what breaks
+        it. When `pin_spot` learns `isDeleted`, this fails with the
+        fallback it was told to expect, and the repair is to swap the
+        expected spot for `self._hug()` and delete this paragraph.
+
+        LATENT, and the denominator is the right one: 0 of the frozen
+        corpus's 976 elements carry `isDeleted` at all, so no drawing
+        the repo has can show it. That is measured in
+        `test_the_corpus_carries_no_soft_deleted_shape` beside this,
+        rather than asserted here, so the two claims fail separately.
+
+        THE PARITY GATE CANNOT SEE IT, which is the finding's real
+        content: `TestThePinSpotMirrorCarriesTheServersConstants`
+        compares two membership LISTS, and both sides agree about those.
+        A parity instrument proves what it compares. Origin: TASK-ELBOX
+        review M-2, curated during curator batch 33, 2026-08-18.
+        """
+        target = self._target()
+        dead = el(id="nb", type="rectangle", x=220.0, y=-20.0,
+                  width=100.0, height=80.0, isDeleted=True,
+                  customData={"role": "node"})
+        spot = canvas.pin_spot(target, [target, dead])
+        self.assertNotEqual(
+            spot, self._hug(),
+            "`pin_spot` now skips soft-deleted elements and agrees with "
+            "`pinSpot`. That is the fix — assert `self._hug()` here "
+            "instead and drop this premise pin's paragraph")
+        self.assertEqual(
+            spot, (200.0 - 26 - 2, 0.0 + 2),
+            "`pin_spot` moved the glyph somewhere new for a deleted "
+            "neighbour: %r. It used to take the ordinary fallback, so "
+            "whatever changed is not the isDeleted fix this pin is "
+            "waiting for" % (spot,))
+
+    def test_the_corpus_carries_no_soft_deleted_shape(self) -> None:
+        """The denominator that makes the divergence above latent.
+
+        Split from its sibling deliberately: "the two sides disagree"
+        and "no drawing can show it" are two claims with two different
+        repairs, and a single test would report either failure under the
+        other's name.
+        """
+        corpus = sorted((Path(__file__).resolve().parent
+                         / "fixtures").rglob("*.excalidraw"))
+        dead = [(p.name, e.get("id")) for p in corpus
+                for e in json.loads(p.read_text(encoding="utf-8"))["elements"]
+                if e.get("isDeleted")
+                and e.get("type") in ("rectangle", "diamond", "ellipse")]
+        self.assertEqual(
+            dead, [],
+            "the corpus has grown %d soft-deleted pin-candidate "
+            "shape(s) (%r), so `pin_spot`'s isDeleted divergence is no "
+            "longer latent — a ❓ can now be dragged off clear air by a "
+            "box nobody can see" % (len(dead), dead[:3]))
+
     def test_a_container_frame_does_not_take_the_hug_away(self) -> None:
         """The frame an element lives in is not a neighbour.
 
@@ -19333,6 +19692,50 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _styled_scene(stroke="#ffffff"),
                         FindingSpec("contrast_object", element="n1",
                                     magnitude=(1.03, 0.01)))))
+
+# THE OTHER HALF OF TASK-COLORPARSE, and the entry the paragraph above
+# says is owed: the REPORT arm. `unreadable_color` was the coverage
+# table's one UNCOVERED row from the day it landed — a registered
+# detector whose poles were pinned only in `TestUnreadableColourIsReported`
+# (tests/test_backend.py), so a rewrite that kept the behaviour and
+# reworded the sentence past `_UNREADABLE_COLOR_RE` would have passed
+# everything that existed. That row is deleted in this change. Nothing
+# about the check was broken and nothing here is red: this is the
+# acceptance test its author was forbidden to write, which is the whole
+# of why it waited (curator batch 33, from the TASK-COLORPARSE review's
+# M-2, 2026-08-18).
+#
+# THE PAIR IS ONE COLOUR SPELLED TWO WAYS, deliberately the same shape as
+# `css_keyword_stroke_is_never_read` above and deliberately the opposite
+# reading. `lightgray` and `#d3d3d3` are the same pixels in every
+# renderer this skill ships through and the scenes are identical to the
+# byte otherwise. The hex spelling is MEASURED — `contrast_object` at
+# 1.46:1 on #fdfcf8 paper, an honest complaint about a pale stroke. The
+# keyword spelling is refused, and the point of the check is that being
+# refused is SAID rather than skipped: "UNMEASURED, not fine".
+#
+# NO MAGNITUDE, and the reason is the finding's own subject rather than
+# an omission — this is the one row in `DETECTORS` with no `mag` group,
+# because it reports a measurement that could not be taken. `Silence` on
+# the readable pole is what carries the claim instead, the way
+# `flush_escape_is_reported_without_a_number` carries its numberless arm:
+# fires on `lightgray`, silent on `#d3d3d3`, one string apart. A check
+# that simply announced every declared colour satisfies the mutant and
+# fails the neighbour.
+#
+# WHAT THIS DOES NOT PROVE, named so the deleted `UNCOVERED` row is not
+# read as closing more than it does: the FIELD (`stroke` vs `fill` vs a
+# text's `background`) is in the message and in `raw`, and `FindingSpec`
+# has no way to assert it. Both fields are exercised in
+# `TestUnreadableColourIsReported`; what lands here is the check speaking
+# through `collect_findings` at all.
+_register(Mutant(
+    "unreadable_stroke_is_reported_not_skipped",
+    build=lambda: _styled_scene(stroke="lightgray"),
+    op="unchanged", args={},
+    expect=FindingSpec("unreadable_color", element="n1"),
+    neighbour=Neighbour(lambda: _styled_scene(stroke="#d3d3d3"),
+                        Silence("unreadable_color"))))
 
 
 class TestMutantCatalogue(unittest.TestCase):
@@ -20146,6 +20549,17 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_css_keyword_stroke_is_never_read(self) -> None:
         """The same white, spelled `#ffffff`, reads 1.03:1 and is reported."""
         self._run_neighbour("css_keyword_stroke_is_never_read")
+
+    def test_mutant_unreadable_stroke_is_reported_not_skipped(self) -> None:
+        """`lightgray` is refused, and the refusal is said out loud."""
+        # The row this pair deletes from `UNCOVERED` was the table's
+        # only one, so `--coverage` now reports 29 detectors and no gap.
+        # That number is derived by `coverage_table`, not stated here.
+        self._run("unreadable_stroke_is_reported_not_skipped")
+
+    def test_neighbour_unreadable_stroke_is_reported_not_skipped(self) -> None:
+        """The same grey, spelled `#d3d3d3`, is measured and not reported."""
+        self._run_neighbour("unreadable_stroke_is_reported_not_skipped")
 
     def test_mutant_pale_stroke_node(self) -> None:
         """#b0b0b0 stroke is 2.11:1 where 1.4.11 asks 3:1."""
@@ -21072,29 +21486,18 @@ UNCOVERED: dict[str, str] = {
     "label_wider_than_container_refit":
         "enumerated 2026-08-12; no proving mutant yet — "
         "ART-011, validate_scene",
-    # Added 2026-08-17 (v0.9 TASK-COLORPARSE) and DIFFERENT IN KIND from
-    # every row above it: this one names a detector that IS registered in
-    # `DETECTORS`, so `coverage_table` reads it and the census reports 1
-    # UNCOVERED where it reported 0. That number moving is the point of
-    # the row, not a regression to be tidied away — the alternative was
-    # the check's own author writing the mutant that proves it, which is
-    # the arrangement `TestFrameContainment`'s note two screens up and
-    # the mutant-curator's own charter both forbid, and which shipped
-    # run 5's failure-path defects.
-    #
-    # WHAT IS ALREADY PROVEN WITHOUT IT, so the gap is narrow and named:
-    # `TestUnreadableColourIsReported` (tests/test_backend.py) pins both
-    # poles through the real lint — the finding on `rgb(0,0,0)` and the
-    # silence on the same colour spelled `#000000` — plus the corpus-wide
-    # silence and the keyword measurement. What no CATALOGUE entry
-    # asserts is the finding through `collect_findings`, so a rewrite
-    # that kept the behaviour and reworded the sentence past
-    # `_UNREADABLE_COLOR_RE` would pass everything that exists.
-    "unreadable_color":
-        "landed 2026-08-17 (TASK-COLORPARSE) with both poles pinned in "
-        "tests/test_backend.TestUnreadableColourIsReported; the CATALOGUE "
-        "mutant is a curator's — the hands that wrote the fix do not "
-        "write its acceptance test",
+    # `unreadable_color` LEFT THIS DICT on 2026-08-18 (curator batch 33),
+    # one day after TASK-COLORPARSE put it here, and the row is worth a
+    # sentence on its way out because it is the only one this dict has
+    # ever held that named a REGISTERED detector. Every other row above
+    # is an artifact behaviour with no `DETECTORS` entry at all, so the
+    # census read 1 UNCOVERED for a day and now reads 0 again — that
+    # number moving in both directions inside two days is the ledger
+    # working, not drift. What deleted it is
+    # `unreadable_stroke_is_reported_not_skipped`, written by the curator
+    # rather than by the check's own author, which is the arrangement
+    # `TestFrameContainment`'s note above and the mutant-curator's
+    # charter both require and the reason the gap was a day wide.
 }
 
 
@@ -21196,7 +21599,10 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestAFreedrawKeepsTheGeometryItWasGiven": 2,
+}
+
 # ONE LEFT on 2026-08-18 (v0.9 TASK-ROUTERLEG's fold), one train-stop after
 # it joined: the router-graze red flipped when the scoring term landed, so
 # the dict lost its line the same day batch 32 folded it in — the shortest
@@ -22220,6 +22626,259 @@ RULE8_EXEMPT: dict[str, str] = {
         "`_attach_chain(shared=True)` through the same `collect_findings` "
         "call, and dies with the detector (stub-checked 2026-08-16)",
 }
+
+
+class TestTheCurvedFinalsCrossRatherThanRun(unittest.TestCase):
+    """The numbers `curved_short_finals_escape_the_corridor` rests on.
+
+    A JUSTIFICATION UNDER TEST, which is the unusual thing here. That
+    entry stood for three days on the sentence "15.0px apart sharp and
+    15.4px apart drawn, sampled at their midpoint — the drawing does not
+    change", and SPIKE-CORRIDOR found the sentence false: the two bows
+    point INWARD, so the strokes swap sides and cross twice, and the
+    15.4 was an unsigned reading taken after the first crossing. The
+    verdict survived the correction (the shared extent is 80px in both
+    poles and curvature cannot move it) but the prose that carried it
+    did not, and prose is what a curator reads before deciding whether
+    an entry still means anything. So the corrected numbers live here,
+    where they fail when they stop being true, instead of only in a
+    comment. Curator batch 33, from spike-corridor-report §11.1,
+    2026-08-18.
+    """
+
+    def _finals(self) -> tuple[list[tuple[float, float]],
+                               list[tuple[float, float]]]:
+        """The two arrows' FINAL stretches, rendered, on the curved pole.
+
+        Returns:
+            `(fa, fb)` sampled in absolute coordinates.
+        """
+        els = {e["id"]: e for e in _short_finals(rounded=True)}
+        return (instruments.rendered_stretches(els["fa"])[1],
+                instruments.rendered_stretches(els["fb"])[1])
+
+    @staticmethod
+    def _y_at(stretch: list[tuple[float, float]], x: float) -> float:
+        """One stretch's y where it crosses the vertical line `x`.
+
+        Linear inside the flattening's own micro-segments, which is what
+        the renderer draws between samples, so this reads the ink rather
+        than re-deriving a curve the drawing does not have.
+
+        Args:
+            stretch: A sampled stretch, monotone in x over its extent.
+            x: The along-axis coordinate to read at.
+
+        Returns:
+            The interpolated y.
+
+        Raises:
+            AssertionError: If `x` is outside the stretch's extent, which
+                would mean this scene stopped spanning the run the
+                assertions below are written over.
+        """
+        for (x1, y1), (x2, y2) in zip(stretch, stretch[1:]):
+            if min(x1, x2) - 1e-9 <= x <= max(x1, x2) + 1e-9 and x1 != x2:
+                return y1 + (x - x1) / (x2 - x1) * (y2 - y1)
+        raise AssertionError(
+            "x=%r is off the end of the final stretch %r..%r"
+            % (x, stretch[0], stretch[-1]))
+
+    def test_the_two_bows_face_each_other(self) -> None:
+        """22.18px and 13.68px, inward, off chords 15px apart.
+
+        The magnitudes are asserted in a band and the SIGNS are asserted
+        exactly, because the sign is the whole correction: a bow of the
+        same size pointing outward leaves two parallel strokes and every
+        sentence the old justification wrote would have been true.
+        """
+        fa, fb = self._finals()
+        self.assertAlmostEqual(instruments._stretch_bow(fa), 22.18, places=1)
+        self.assertAlmostEqual(instruments._stretch_bow(fb), 13.68, places=1)
+        self.assertGreater(
+            self._y_at(fa, 124.0), fa[0][1],
+            "`fa`'s final no longer bows DOWN toward `fb`, so the pair "
+            "has stopped being the crossing case this class measures")
+        self.assertLess(
+            self._y_at(fb, 124.0), fb[0][1],
+            "`fb`'s final no longer bows UP toward `fa`")
+
+    def test_the_signed_separation_changes_sign_twice(self) -> None:
+        """They cross, run past each other, and cross back.
+
+        Sampled at 0.5px along the whole 80px run rather than at the
+        midpoint, which is precisely the reading that went wrong: one
+        probe point on a profile that changes sign twice can report any
+        magnitude it likes and say nothing about the picture.
+        """
+        fa, fb = self._finals()
+        sep = [self._y_at(fb, 100.0 + i * 0.5)
+               - self._y_at(fa, 100.0 + i * 0.5) for i in range(161)]
+        flips = sum(1 for a, b in zip(sep, sep[1:]) if (a > 0) != (b > 0))
+        self.assertEqual(
+            flips, 2,
+            "the finals' signed separation changes sign %d time(s), not "
+            "2: %r" % (flips, [round(s, 2) for s in sep[::20]]))
+        self.assertAlmostEqual(sep[0], 15.0, places=2)
+        self.assertAlmostEqual(sep[-1], 15.0, places=2)
+        self.assertAlmostEqual(min(sep), -20.85, places=1)
+        self.assertLess(
+            min(abs(s) for s in sep), 1.0,
+            "the two strokes never come within a pixel of each other, "
+            "so they do not actually meet: %r" % (min(abs(s) for s in sep),))
+
+    def test_the_crossings_are_reported_and_the_sharp_pole_has_none(
+            self) -> None:
+        """68.20 and 47.62 degrees, curved; nothing at all, sharp.
+
+        The half that keeps the corrected justification honest in the
+        entry's favour: the tangle is NOT unreported. `crossing_sites`
+        names both crossings, so what `shared_corridor` adds on this
+        scene is a claim about the lane and not the only thing said
+        about the picture.
+        """
+        curved = instruments.crossing_sites(_short_finals(rounded=True))
+        self.assertEqual(
+            sorted(round(c["angle"], 2) for c in curved), [47.62, 68.2],
+            "the curved finals' crossing angles moved: %r"
+            % [round(c["angle"], 2) for c in curved])
+        self.assertEqual(
+            instruments.crossing_sites(_short_finals(rounded=False)), [],
+            "the SHARP pole crosses too, so the curvature is no longer "
+            "what makes the difference between the two poles")
+
+    def test_an_ink_only_reader_would_lose_this_corridor(self) -> None:
+        """The tripwire SPIKE-CORRIDOR's deferred collapse has to clear.
+
+        Its §4 records the intended end state: one reader, measuring
+        separation on the ink always. On this scene that reader answers
+        41.27px of contiguous run at separation 0.0 — under
+        `shared_corridors`' own `minover` of 60 — so it reports NOTHING
+        here and `curved_short_finals_escape_the_corridor` goes red with
+        "no finding of check='shared_corridor'".
+
+        THIS IS NOT AN ARGUMENT AGAINST THE COLLAPSE. It is the number
+        whoever lands it has to answer, and it is pinned so the answer
+        cannot be "widen the mutant's band" made quietly. The additive
+        arm shipped today is why the entry is green in the meantime.
+        """
+        fa, fb = self._finals()
+        run, sep = instruments._lane_overlap(fa, fb, "h", 16.0)
+        self.assertAlmostEqual(run, 41.27, places=1)
+        self.assertAlmostEqual(sep, 0.0, places=2)
+        self.assertLess(
+            run, 60.0,
+            "the ink run has grown past `minover`, so an ink-only reader "
+            "would now report this pair after all — re-read the mutant's "
+            "entry before changing anything here")
+        self.assertEqual(
+            [h["overlap"] for h in
+             instruments.shared_corridors(_short_finals(rounded=True))],
+            [80.0],
+            "the shipped reader stopped answering the CHORD's 80px "
+            "extent on this pair; the additive arm has taken a finding "
+            "away, which spike-corridor's fix promised it never would")
+
+
+class TestTheRouterAndTheInstrumentCountDifferentCrossings(unittest.TestCase):
+    """A PREMISE PIN: two crossing counters, one scene, two answers.
+
+    `route_arrow`'s soft term walks the STORED polylines of the other
+    arrows (`_segs_cross` over `zip(opts, opts[1:])`, canvas.py) during a
+    sequential pass, so its notion of "this path crosses another" is a
+    statement about chords. `instruments.crossing_sites` flattens the
+    RENDERED curve of the finished scene. On any pair whose stored
+    chords miss and whose drawn curves meet, the router scores a layout
+    clean that the instrument scores crossed — and that gap is not
+    theoretical: TASK-ROUTERLEG filed it as a candidate in the same
+    report where a cascade had already shipped a corpus defect through
+    it.
+
+    THE SCENE IS `_short_finals`, ON PURPOSE, and reusing it is the
+    point rather than laziness. That builder is already the base for
+    `curved_short_finals_escape_the_corridor`, and one defect class
+    reached from two directions on one picture is cheaper to keep true
+    than two near-identical scenes that drift apart. It is also the
+    minimal shape: two elbows whose stored chords run parallel 15px
+    apart and whose bows carry them across each other twice.
+
+    WHY GREEN AND NOT RED. Nothing here is wrong in the sense a fix
+    repairs — the router is a placement search that must be cheap and
+    runs before the ink exists, and the instrument measures a finished
+    drawing. Asserting they should AGREE would be asserting a design
+    this repo has not chosen. What is wrong is that the disagreement is
+    unstated, so a cascade can ship through it silently, which is what
+    it did. This asserts the disagreement, with both numbers, and goes
+    red the day someone unifies the two readings — at which point the
+    right repair is to delete this class and say where the single
+    reading lives. TASK-ROUTERLEG's own fix guards the CONSEQUENCE at
+    scene level; this names the MECHANISM. Curator batch 33, from
+    task-routerleg-report concern 1, 2026-08-18.
+    """
+
+    @staticmethod
+    def _stored_crossings(scene: list[dict[str, Any]]) -> int:
+        """Crossings between two arrows' stored polylines.
+
+        The router's own predicate over the router's own data — the same
+        `canvas._segs_cross` the `soft` closure calls, walked over the
+        same `(x, y, points)` triples `_tidy_pass` and `reroute_scene`
+        hand it as `other_arrows`. Transcribed rather than called
+        because `soft` is a closure inside `route_arrow` with no seam,
+        and a transcription that drifted would be caught by the sharp
+        pole below, where the two readings must AGREE.
+
+        Args:
+            scene: A scene holding exactly the two arrows `fa` and `fb`.
+
+        Returns:
+            How many stored segment pairs properly intersect.
+        """
+        els = {e["id"]: e for e in scene}
+        fa, fb = els["fa"], els["fb"]
+        return sum(
+            1
+            for p1, p2 in zip(fa["points"], fa["points"][1:])
+            for q1, q2 in zip(fb["points"], fb["points"][1:])
+            if canvas._segs_cross(
+                fa["x"] + p1[0], fa["y"] + p1[1],
+                fa["x"] + p2[0], fa["y"] + p2[1],
+                fb["x"] + q1[0], fb["y"] + q1[1],
+                fb["x"] + q2[0], fb["y"] + q2[1]))
+
+    def test_the_stored_chords_miss_where_the_drawn_curves_meet(self
+                                                               ) -> None:
+        """0 by the router's reading, 2 by the instrument's."""
+        curved = _short_finals(rounded=True)
+        stored = self._stored_crossings(curved)
+        drawn = len(instruments.crossing_sites(curved))
+        self.assertEqual(
+            (stored, drawn), (0, 2),
+            "the two counters no longer disagree on this scene: the "
+            "router's stored-polyline reading says %d and "
+            "`crossing_sites` says %d. If they were unified, delete "
+            "this class and name where the single reading lives; if the "
+            "SCENE moved, this pin is measuring something else"
+            % (stored, drawn))
+
+    def test_the_sharp_pole_is_where_they_agree(self) -> None:
+        """Same nodes, same chords, no roundness — both read 0.
+
+        The control that makes the pair evidence rather than a pair of
+        unrelated numbers: only `roundness` moves between the poles, no
+        endpoint moves at all, and the transcription above is proved
+        against `crossing_sites` on a scene where the two genuinely have
+        the same answer. A transcription that had simply stopped finding
+        anything would pass the mutant pole and fail here.
+        """
+        sharp = _short_finals(rounded=False)
+        self.assertEqual(self._stored_crossings(sharp), 0)
+        self.assertEqual(instruments.crossing_sites(sharp), [])
+        self.assertEqual(
+            [e.get("roundness") for e in _short_finals(rounded=True)
+             if e.get("type") == "arrow"], [{"type": 2}, {"type": 2}],
+            "the curved pole stopped being curved, so the two poles no "
+            "longer differ by the one thing this pair varies")
 
 
 class TestCoverage(unittest.TestCase):

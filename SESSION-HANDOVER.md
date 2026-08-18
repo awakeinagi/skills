@@ -376,8 +376,13 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**0 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-18 at TASK-ROUTERLEG's fold, which
+**2 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-18 at curator batch 33's fold, which
+lands the freedraw pair (`TestAFreedrawKeepsTheGeometryItWasGiven`) RED —
+`make_element` drops a freedraw's points and the client then draws the
+whole artifact blank — with the flip owned by the FINAL FIX ROUND, the
+wave's last writer; the 0 was
+re-derived 2026-08-18 at TASK-ROUTERLEG's fold, which
 flipped the router-graze red in the same change that landed the scoring
 term and its scene guard, draining the tree again 1 -> 0; the 1 was
 re-derived at curator batch 32's fold, which
@@ -699,7 +704,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
-  a reason. Coverage totals: **30 detectors, 26 proven, 3 render-tier, 1
+  a reason. Coverage totals: **30 detectors, 27 proven, 3 render-tier, 0
   UNCOVERED** — CHECKED as of v0.9 WP7 task 29 by
   `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
   parses that sentence and compares it to `coverage_table()`. It is checked

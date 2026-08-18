@@ -9,6 +9,8 @@ import ast
 import base64
 import contextlib
 import copy
+import hashlib
+import inspect
 import io
 import json
 import math
@@ -17,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from typing import ClassVar
@@ -12961,6 +12964,264 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "tidy says it examined %d arrow(s) in a scene holding %d — "
             "the count is of visits, not of arrows: %r"
             % (got, len(arrows), rec["user_note"]))
+
+    def test_the_denominator_is_the_arrows_examined_not_the_arrows_present(
+            self):
+        """A PREMISE PIN on what `M` in "re-routed N of M" counts.
+
+        THE TWO POPULATIONS COINCIDE ON EVERY OTHER SCENE IN THIS CLASS,
+        which is exactly why this needed writing. `Store.tidy` prints
+        `len(routed)` — arrows the router was handed, i.e. server-owned
+        AND bound at both ends — while the three arms above build their
+        expected `M` from every arrow PRESENT. Those agree here only
+        because this scaffolding's three arrows all happen to qualify;
+        the TASK-VOCAB re-review measured the corpus disagreeing
+        (`argus-r4-arm4` / `enrichment-flow` says "1 of 8" on a drawing
+        holding thirteen arrows), so the semantics were pinned in
+        neither direction. This scene separates them by one unbound
+        arrow: four present, three examined, and the note must say 3.
+
+        WHAT IT ASSERTS IS TODAY'S ANSWER, not the right one. `M` has no
+        anchor in tidy's sentence — unlike `Store.reroute`'s, where the
+        per-arrow list printed underneath names all M — so a user
+        reading "re-routed 2 of 3 arrow(s)" beside four arrows has no
+        way to learn that the 3 means "the ones I looked at". The repair
+        the review recommends is prose ("re-routed 2 of 3 server-routed
+        arrow(s)"), and it belongs to whoever owns the note. When it
+        lands, this test fails on the string and the repair is to widen
+        the pattern — which is the point: the semantics stop being
+        coincidental either way. Origin: TASK-VOCAB re-review NEW-1,
+        curated during curator batch 33, 2026-08-18.
+        """
+        loose = {"id": "t9", "type": "arrow", "x": 400.0, "y": 400.0,
+                 "width": 60.0, "height": 0.0, "points": [[0, 0], [60, 0]],
+                 "startBinding": None, "endBinding": None,
+                 "customData": {"role": "edge"}}
+        self.store.scenes["checkout-flow"].append(loose)
+        self.base = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        rec = self.store.tidy("checkout-flow")
+        self.assertFalse(rec.get("noop"), rec["summary"]["headline"])
+        present = [e["id"] for e in self.base if e.get("type") == "arrow"]
+        self.assertEqual(
+            len(present), 4,
+            "this scene is supposed to hold four arrows, one of them "
+            "unbound; it holds %r" % (present,))
+        self.assertIn(
+            "re-routed 2 of 3 arrow(s)", rec["user_note"],
+            "tidy's denominator counted %d arrow(s) where three were "
+            "examined and four are present, so `M` is no longer 'the "
+            "ones the router was handed': %r"
+            % (len(present), rec["user_note"]))
+
+
+class TestEverySavedRecordAddressesItsOwnContents(unittest.TestCase):
+    """`short_id` is a content address, so recompute it from the content.
+
+    THE GUARD THAT WAS MISSING WHEN THE CORPUS WAS AMENDED. TASK-VOCAB
+    edited two frozen save records by hand — six false `rerouted` facts
+    dropped, two summaries re-derived — and re-derived both `short_id`s
+    correctly. Nothing in the tree could have told it apart from an
+    amendment that left the addresses stale, which is the whole finding:
+    the amendment was safe because the implementer was careful, and the
+    next one has no reason to be. Six lines close it (TASK-VOCAB review
+    MIN-2; curated during curator batch 33, 2026-08-18).
+
+    THE KEY SET IS DERIVED FROM `commit`, NOT TRANSCRIBED, and that is
+    the part worth reading. `short_id` hashes the record as it stood at
+    minting time, before the writer adds anything else, so a hand-copied
+    key list would be a second place for the recipe to live and would go
+    stale silently the moment `commit` grows a field — leaving this
+    guard green over records it can no longer address. The list comes
+    out of `commit`'s own AST instead, so a new field makes every record
+    in the corpus fail at once, loudly, which is the correct reaction:
+    the addresses really would all have moved.
+    """
+
+    @staticmethod
+    def _record_keys() -> list[str]:
+        """The keys `Store.commit` hashes, read off its own source.
+
+        Returns:
+            The literal key order of `commit`'s `record = {...}`.
+
+        Raises:
+            AssertionError: If that assignment is no longer a single dict
+                literal named `record` — in which case the recipe has
+                moved and this guard must be rewritten rather than
+                silently measuring nothing.
+        """
+        tree = ast.parse(textwrap.dedent(
+            inspect.getsource(canvas.Store.commit)))
+        found = [[k.value for k in node.value.keys]
+                 for node in ast.walk(tree)
+                 if isinstance(node, ast.Assign)
+                 and isinstance(node.value, ast.Dict)
+                 and any(getattr(t, "id", None) == "record"
+                         for t in node.targets)]
+        if len(found) != 1:
+            raise AssertionError(
+                "`Store.commit` has %d `record = {...}` literals; this "
+                "guard needs exactly one to know what `short_id` hashes"
+                % len(found))
+        return found[0]
+
+    def test_every_frozen_save_records_hashes_to_its_stored_short_id(self):
+        """Recompute all 136 addresses from the bytes beside them."""
+        keys = self._record_keys()
+        self.assertIn("saved_at", keys)
+        saves = sorted((Path(__file__).resolve().parent
+                        / "fixtures").glob("*/saves/*.json"))
+        self.assertGreater(
+            len(saves), 100,
+            "only %d frozen save record(s) found — the corpus this "
+            "guard walks has moved, and a check over nothing passes"
+            % len(saves))
+        wrong = []
+        for path in saves:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+            body = {k: rec[k] for k in keys if k in rec}
+            got = hashlib.sha1(
+                json.dumps(body, sort_keys=True, default=str)
+                .encode("utf-8")).hexdigest()[:7]
+            if got != rec.get("short_id"):
+                wrong.append((path.name, rec.get("short_id"), got))
+        self.assertEqual(
+            wrong, [],
+            "%d save record(s) do not address their own contents "
+            "(name, stored, derived): %r. Either the record was edited "
+            "without re-deriving its `short_id`, or `commit`'s recipe "
+            "changed and every stored address is now historical"
+            % (len(wrong), wrong[:5]))
+
+    def test_a_single_edited_byte_moves_the_address(self):
+        """The guard's own live pole: prove it can fail.
+
+        A recomputation that agreed with everything would agree with a
+        tampered record too, and there is no way to tell those apart
+        from a green run. So one record is amended in memory the way
+        TASK-VOCAB amended two on disk — a fact removed — and the
+        address must move.
+        """
+        keys = self._record_keys()
+        path = next(iter(sorted((Path(__file__).resolve().parent
+                                 / "fixtures").glob("*/saves/*.json"))))
+        rec = json.loads(path.read_text(encoding="utf-8"))
+        tampered = dict(rec, user_note=(rec.get("user_note") or "") + " .")
+
+        def address(source):
+            """The short_id `commit` would mint for this record body."""
+            body = {k: source[k] for k in keys if k in source}
+            return hashlib.sha1(
+                json.dumps(body, sort_keys=True, default=str)
+                .encode("utf-8")).hexdigest()[:7]
+
+        self.assertEqual(address(rec), rec["short_id"])
+        self.assertNotEqual(
+            address(tampered), rec["short_id"],
+            "one character added to `user_note` left the content "
+            "address unchanged, so the recomputation above is not "
+            "reading the fields it claims to")
+
+
+class TestTheArrowheadKeyCensusIsStatedRatherThanAssumed(unittest.TestCase):
+    """An OBSERVATION about the corpus, not a floor over it.
+
+    WHAT IT CONVERTS. TASK-MICROFIX-3 taught the backend to read an
+    absent `endArrowhead` the way the client's destructuring default
+    does, and argued the change was zero-cost because no stored arrow
+    omits the key. That argument is correct and it was measured — but
+    the measurement lived only in a task report, so the tree could not
+    tell "0 affected" from "nobody counted". This states it.
+
+    IT IS DELIBERATELY NOT A GATE ON THE COUNT. An absent-key arrow
+    renders CORRECTLY under that fix; the population going nonzero is
+    desirable, merely currently silent. So what is asserted is that the
+    census was TAKEN — the denominators are the ones that make a zero
+    mean something — and the first offender of each kind is named in the
+    message rather than forbidden. If a future reading wants the numbers
+    themselves guarded, that is a different artefact with a different
+    argument. Origin: TASK-MICROFIX-3 review, advisory answer (b);
+    curated during curator batch 33, 2026-08-18.
+
+    THE `line` HALF IS THE REVIEW'S MINOR 1 AND IS NOT DECORATION.
+    `arrowhead_of` applies the ARROW rule unconditionally, so a `line`
+    that omits `endArrowhead` reads as terminated where the client's
+    `case "line": case "draw":` branch defaults BOTH ends to null and
+    draws nothing. Same absent-vs-null family, one type over, and the
+    only thing between it and a live misreading is this zero.
+    """
+
+    def _census(self):
+        """Walk every tracked scene and count the two absent-key classes.
+
+        `boundElements` refs are arrow-TYPED dicts that carry no
+        geometry, and a naive deep walk counts 1,255 of them and doubles
+        the real arrows besides — the trap the review reconciled
+        digit-for-digit. So this reads `["elements"]` and nothing else.
+
+        Returns:
+            `(arrows, arrows_absent, lines, lines_absent)` where the
+            `absent` entries are `(file, id)` lists.
+        """
+        arrows = lines = 0
+        arrows_absent, lines_absent = [], []
+        for path in sorted((Path(__file__).resolve().parent
+                            / "fixtures").rglob("*.excalidraw")):
+            for e in json.loads(path.read_text(encoding="utf-8"))["elements"]:
+                if e.get("type") == "arrow":
+                    arrows += 1
+                    if "endArrowhead" not in e:
+                        arrows_absent.append((path.name, e.get("id")))
+                elif e.get("type") == "line":
+                    lines += 1
+                    if "endArrowhead" not in e:
+                        lines_absent.append((path.name, e.get("id")))
+        return arrows, arrows_absent, lines, lines_absent
+
+    def test_the_absent_key_census_has_a_denominator(self):
+        """State the numbers, and refuse a census that measured nothing."""
+        arrows, arrows_absent, lines, lines_absent = self._census()
+        self.assertGreater(
+            arrows, 100,
+            "the arrowhead census walked %d arrow element(s). The zero "
+            "it reports is about nothing at all — either the corpus "
+            "moved or this walk stopped reading scenes" % arrows)
+        self.assertGreater(
+            lines, 10,
+            "the arrowhead census walked %d line element(s), which is "
+            "too few for the `line` half of the observation to mean "
+            "anything" % lines)
+        self.assertEqual(
+            (len(arrows_absent), len(lines_absent)), (0, 0),
+            "THIS IS AN OBSERVATION, NOT A DEFECT. The corpus now holds "
+            "%d arrow(s) and %d line(s) with no `endArrowhead` key, out "
+            "of %d and %d walked. First witnesses: %r / %r. Arrows are "
+            "FINE — `arrowhead_of` reads an absent key as the client's "
+            "`\"arrow\"` default, which is what TASK-MICROFIX-3 landed. "
+            "LINES ARE NOT: the client defaults both ends of a line to "
+            "null and draws no head, while `arrowhead_of` is type-blind "
+            "and answers `\"arrow\"`, so an attachment cue is now being "
+            "read off a head nobody draws. Restate this observation "
+            "with the new numbers, and file the line half if any."
+            % (len(arrows_absent), len(lines_absent), arrows, lines,
+               arrows_absent[:1], lines_absent[:1]))
+
+    def test_the_type_blind_helper_is_what_makes_the_line_half_matter(self):
+        """`arrowhead_of` answers "arrow" for a line, today.
+
+        The premise the observation above rests on, asserted rather than
+        described — if `arrowhead_of` learned the type, the `line` half
+        of that census would stop being a hazard and the paragraph
+        naming it would be wrong. Failing here is the good outcome and
+        the repair is to rewrite the sibling's message, not this.
+        """
+        self.assertEqual(canvas.arrowhead_of({"type": "line"}, True), "arrow")
+        self.assertEqual(
+            canvas.arrowhead_of({"type": "arrow"}, True), "arrow",
+            "the arrow default moved, which is a much bigger event than "
+            "the line blindness this pair is about")
+        self.assertIsNone(canvas.arrowhead_of({"type": "arrow",
+                                               "endArrowhead": None}, True))
 
 
 class TestNoOpRewireIsNotASequenceChange(Base):

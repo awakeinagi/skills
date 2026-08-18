@@ -1008,6 +1008,21 @@ class TestModelTierMortality(_Mortal):
         """Type below the measured legibility floor, unreported."""
         self.assertMortal("min_font")
 
+    def test_unreadable_color_death_is_noticed(self) -> None:
+        """A colour the check cannot read, silently skipped again."""
+        # The fourth of that family and the one whose row could not be
+        # OBSERVED until curator batch 33: `_LINT` derives from
+        # `DETECTORS`, so this check joined the sweep on the day it was
+        # registered, but `assertKillTookEffect`'s `base.get(check) > 0`
+        # arm is only reached from a named method like this one — and
+        # until `unreadable_stroke_is_reported_not_skipped` joined the
+        # CATALOGUE there was no scene in it that made the check fire,
+        # so `probe()` had nothing to watch go quiet. Landing the pair
+        # and this row together is what the TASK-COLORPARSE review asked
+        # for; landing this row alone would have asserted a surgicality
+        # probe over an empty baseline (2026-08-18).
+        self.assertMortal("unreadable_color")
+
     def test_crossings_count_death_is_noticed(self) -> None:
         """`edge_crossings` answering "none", everywhere."""
         self.assertMortal("crossings_count")
