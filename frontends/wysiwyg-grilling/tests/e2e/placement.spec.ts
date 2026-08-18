@@ -446,24 +446,27 @@ test("a leftward arrow inks only the half of its box it reaches",
 
 test("a note dropped in that empty quadrant does not move",
   async ({ page, canvas }) => {
-    test.fail();   // RED BY INTENT — `elBox` unions in the stored width
     // The consequence, driven end to end. The viewport centre sits in
     // the quadrant the test above measured as blank, so `clearSpot`'s
     // first line — "a drop that is ALREADY clear is returned untouched"
     // — is the whole expected behaviour and the note must land exactly
     // on the centred want.
     //
-    // Measured today: it lands 119px lower. `elBox` puts the arrow's box
-    // at y1 = c.y + 50, the down candidate steps to y1 + DROP_GAP =
-    // c.y + 74, and the want was c.y - 45.
+    // FLIPPED 2026-08-17 by v0.9 TASK-ELBOX, with the assertion
+    // untouched as this comment required. It was RED BY INTENT under
+    // `test.fail()` while `elBox` unioned the stored width in: the note
+    // landed 119px lower, because `elBox` put the arrow's box at
+    // y1 = c.y + 50, the down candidate stepped to y1 + DROP_GAP =
+    // c.y + 74, and the want was c.y - 45. Point-strung classes are now
+    // bound by their points, so the box ends at the ink (y1 = c.y - 150)
+    // and the centred want is already clear.
     //
-    // OWNER: TASK-ELBOX, in flight, which owns the `elBox` fix. This red
-    // and its model-tier sibling `TestTheClientBoxIsBoundByItsPoints` (a
-    // source read on the same union) are one defect from two directions
-    // and flip TOGETHER in that task's fold: drop the stored width and
-    // height from the union for the point-strung classes, which is the
-    // rule `canvas.ink_extent`'s own comment already states in words.
-    // Removing `test.fail()` is the flip; do not weaken the assertion.
+    // WATCHED FLIPPING, not assumed: run against the fixed source before
+    // the bundle was rebuilt, this test still failed as declared — the
+    // browser was serving the OLD bundle. That is the trap this pair is
+    // most exposed to, and it is why the rebuild is its own commit. The
+    // flip only appeared once the bundle carried the fix, as Playwright's
+    // "Expected to fail, but passed".
     await page.goto(canvas.url);
     await expect(page.locator(".save-btn")).toBeVisible({ timeout: 10_000 });
     const c = await centreAt(page, 0.5);

@@ -13983,67 +13983,139 @@ class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
             "bound-by-points rule is the one this file measures the "
             "client against")
 
-    @unittest.expectedFailure
-    def test_red_the_clients_box_helper_unions_the_stored_box(self) -> None:
-        """`elBox` maximises a stored magnitude against a point coordinate.
+    def test_the_server_bounds_an_upward_stroke_by_its_ink(self) -> None:
+        """The other sign, and the class that is not an arrow.
 
-        The expression is `Math.max(e.width || 0, ...xs)`, and for every
-        arrow whose points run left or up it is the stored width that
-        wins — 600px of declared box where there is no ink, beyond the
-        origin, on the empty side.
+        The leftward pole above fixes the rule on ONE axis for ONE type,
+        which is exactly enough for a reader to conclude the rule is
+        about arrows going left. It is about a magnitude being compared
+        to a coordinate, so it has four corners; this is the vertical
+        one, on a `freedraw` whose stored box UNDER-reports its own ink
+        as well (`height: 40` against 120px of stroke). Both halves of
+        `ink_extent`'s sentence are live here: the hull is taken raw, so
+        the stored 40 neither widens the box nor caps it.
 
-        MEASURED REACH, on the frozen corpus at this head: 194 elements
-        carry a `points` list, 68 of them have an `elBox` that overhangs
-        their own point hull, and 63 overhang it by more than `LANE_TOL`.
-        The worst is `review-publish-flow`'s `r-held-vets` at 600px — a
-        box exactly twice the stroke it describes. So "conservative but
-        against the rule" is only half true: the box is never too small,
-        and the excess is up to 100% of the element's own extent.
-
-        WHAT THE PICTURE WRONGLY SAYS: `elBox` feeds `clearSpot` (every
-        ＋ insert and the 🗒 note) and `pinSpot`'s buried test, so a user
-        inserting beside a leftward arrow is pushed out of clear canvas,
-        and a ❓ hugging a target beside one falls inside its own corner
-        for a collision with air. Both are the r4b-3 shape — a marker
-        that reads as being about the wrong thing — arriving through a
-        box instead of through an offset.
-
-        A SOURCE ASSERTION, and the limitation is the point rather than
-        an oversight: the model tier cannot execute `App.tsx`, and this
-        file's client gates are literal reads for that reason (the same
-        instrument as the `customData` and `exportPadding` parity tests).
-        The BEHAVIOURAL pin belongs in the e2e tier, driving ❓ against a
-        leftward arrow, and it is named here as owed rather than left as
-        a silence. **IT LANDED THE NEXT DAY** (curator batch 31,
-        2026-08-17), so read this red beside it rather than alone:
-        `placement.spec.ts` measures a leftward arrow's ink off the app's
-        own canvas — 300px short of `elBox`'s answer in x, 200px in y,
-        with ZERO ink counted in the invented quadrant — and watches a 🗒
-        dropped in that measured-blank quadrant get shoved 119px clear of
-        nothing. The two are one defect from two directions: this one can
-        only say the expression is present, that one says what the
-        expression does to a picture, and a fix written a third way would
-        have to satisfy both. THEY FLIP TOGETHER, in TASK-ELBOX's fold.
-
-        THE FIX IS NOT THIS FILE'S: `elBox` belongs to the frontend
-        placement surface (v0.9 TASK-PLACEMENT's lineage, now TASK-ELBOX,
-        whose review filed this as a nit before it was measured), and a
-        curator who repairs the helper is a curator grading their own
-        homework. Origin: TASK-PLACEMENT review nit, measured during
-        curator batch 30, 2026-08-17.
+        Load-bearing for the gate below rather than decorative — the
+        client is asserted to apply its rule to exactly the three types
+        this function does, and a pole that only ever exercised `arrow`
+        would leave `freedraw` a name in a set nothing reads.
         """
-        body = _app_tsx_body("const elBox = ", "Where a `w`×`h` insert")
+        stroke = el(id="f", type="freedraw", x=300, y=700, width=0,
+                    height=40, points=[[0, 0], [0, -120]])
+        self.assertEqual(
+            canvas.ink_extent([stroke], pad=0), (300, 580, 0, 120),
+            "the server bounded an upward freedraw by its stored box "
+            "instead of its stroke")
+
+    def test_red_the_clients_box_helper_unions_the_stored_box(self) -> None:
+        """`elBox` may not weigh a stored magnitude against a coordinate.
+
+        FLIPPED 2026-08-17 by v0.9 TASK-ELBOX, which is the fix curator
+        batch 30 named as owed to the frontend placement surface. The
+        red-era method name is kept: it names the DEFECT this refuses,
+        which is this file's convention for a flipped pin (see
+        `test_red_a_retyped_focus_reaches_disk_but_not_history`), and
+        both census guards read the decorator rather than the name.
+
+        THE DEFECT, for the reader who has to re-earn this: the
+        expression was `Math.max(e.width || 0, ...xs)`, maximising a
+        stored MAGNITUDE against a point COORDINATE. They agree for a
+        rightward arrow and diverge for every leftward or upward one,
+        where the stored width wins and the box grows a phantom half on
+        the side the arrow never reaches. MEASURED REACH on the frozen
+        corpus: 194 elements carry a `points` list, 68 had an `elBox`
+        overhanging their own point hull, 63 by more than `LANE_TOL`,
+        worst `r-held-vets` at 600px — a box exactly twice its stroke.
+
+        WHAT THE PICTURE WRONGLY SAID: `elBox` is `dropClear`'s obstacle
+        map, so every ＋ insert and every 🗒 note was pushed out of
+        canvas that is clear. (Batch 30's docstring also named
+        `pinSpot`'s buried test as a victim; TASK-ELBOX measured that
+        and it is NOT one — `pinSpot`'s `foreign` filter admits only
+        `rectangle`/`diamond`/`ellipse`/`frame`, none of which carry
+        points, so the phantom half never reached it. The blast radius
+        is `dropClear` alone. Corrected here rather than left standing,
+        because an overstated consequence is the same class of unread
+        sentence as an understated one.)
+
+        STRENGTHENED IN THE FLIPPING CHANGE, against batch 30's own
+        disclosure that this was the weakest pin in its batch — "a fix
+        written a third way could satisfy it while still being wrong".
+        Three tightenings, each of which the old form admitted:
+
+        1. The absence regex matched ONE argument order. `Math.max(...xs,
+           e.width || 0)` is the identical defect and the old pin was
+           green on it; the pattern here is order-free and covers `min`
+           as well as `max`.
+        2. The rule is now asserted to apply to the same three types the
+           SERVER applies it to, both sets parsed from source — the
+           `pinSpot` parity instrument, not a literal. A client that
+           bounds arrows by points and leaves `freedraw` on its stored
+           box fails here, and so does a server that grows a fourth
+           point-strung class the client never hears about.
+        3. The stored box must SURVIVE for everything else. A "fix" that
+           deleted `e.width`/`e.height` outright is points-pure and
+           bounds every rectangle at 0x0 — clearance for nothing at all.
+
+        STILL A SOURCE READ, and the limitation is the point rather than
+        an oversight: the model tier cannot execute `App.tsx`. The
+        BEHAVIOURAL pin is curator batch 31's, in `placement.spec.ts`,
+        and it landed the day after this one was filed: it measures a
+        leftward arrow's ink off the app's own canvas — 300px short of
+        `elBox`'s answer in x, 200px in y, with ZERO ink counted in the
+        invented quadrant — and watches a 🗒 dropped in that
+        measured-blank quadrant get shoved 119px clear of nothing. The
+        two are one defect from two directions: this one can only say
+        the expression is present, that one says what the expression
+        does to a picture, and a fix written a third way would have to
+        satisfy both. THEY FLIPPED TOGETHER, in TASK-ELBOX's fold, which
+        is what batch 31's own comment asked for — and the browser half
+        was watched flipping (Playwright: "Expected to fail, but
+        passed") rather than assumed. Origin: TASK-PLACEMENT review nit,
+        measured during curator batch 30, pinned behaviourally by batch
+        31, fixed and strengthened by TASK-ELBOX, 2026-08-17.
+        """
+        # COMMENTS OUT FIRST, in both directions. The JSDoc above `elBox`
+        # now quotes the defective expression to explain the fix, which a
+        # raw read would score as the defect itself; and a fix that left
+        # the union commented out would otherwise read as still broken.
+        # The converse matters more: nothing may pass this gate by being
+        # written where the browser never sees it.
+        body = re.sub(r"//[^\n]*", "", re.sub(
+            r"/\*.*?\*/", "", _app_tsx_body(
+                "const elBox = ", "Where a `w`×`h` insert"), flags=re.S))
         self.assertIn(
             "points", body,
             "elBox no longer reads `points` at all, so this test is "
             "measuring something else entirely")
         self.assertEqual(
-            re.findall(r"Math\.max\(e\.(width|height) \|\| 0, \.\.\.\w+\)",
-                       body), [],
-            "elBox bounds a point-strung element by the maximum of its "
-            "stored box and its point hull, so a leftward or upward "
-            "polyline declares up to twice the box it paints — 63 of the "
-            "corpus's 194 point-strung elements, worst case 600px")
+            re.findall(
+                r"Math\.(?:max|min)\([^)]*e\.(?:width|height)[^)]*\.\.\.",
+                body)
+            + re.findall(
+                r"Math\.(?:max|min)\([^)]*\.\.\.[^)]*e\.(?:width|height)",
+                body), [],
+            "elBox weighs a stored magnitude against a point coordinate "
+            "again, in one order or the other; a leftward or upward "
+            "polyline then declares up to twice the box it paints — 63 "
+            "of the corpus's 194 point-strung elements, worst 600px")
+        server = set(re.findall(
+            r"e\.get\(\"type\"\) in \(([^)]*)\)",
+            inspect.getsource(canvas.ink_extent))[0].replace('"', "").split(","))
+        client = set(re.findall(r"\"(arrow|line|freedraw|rectangle|diamond"
+                                r"|ellipse|text|frame|image)\"", body))
+        self.assertEqual(
+            client, {t.strip() for t in server if t.strip()},
+            "the two sides of the wire disagree about which classes are "
+            "bound by their points; `ink_extent` says %r and `elBox` "
+            "says %r, so one of them is measuring a class by a box the "
+            "other measures by ink" % (server, client))
+        self.assertTrue(
+            re.search(r"e\.width", body) and re.search(r"e\.height", body),
+            "elBox stopped reading the stored box entirely, so every "
+            "element that is NOT point-strung — every node, label, "
+            "frame and note — is now an obstacle of size zero and "
+            "`dropClear` clears nothing: %r" % body)
 
 
 class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
@@ -18270,9 +18342,8 @@ class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
             "the fallback put the glyph at %r, which is not inside the "
             "200x100 target it is a question about" % (spot,))
 
-    @unittest.expectedFailure
     def test_a_container_frame_does_not_take_the_hug_away(self) -> None:
-        """RED: the frame an element lives in is not a neighbour.
+        """The frame an element lives in is not a neighbour.
 
         One element stands beside the target and it is the screen the
         target is drawn on. The hug spot is clear air inside that screen
@@ -18286,9 +18357,25 @@ class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
         the same scene WITHOUT the frame answers correctly, so the frame
         is the whole cause and nothing else in the predicate is at fault.
 
-        WHEN THIS FLIPS: drop `"frame"` from `pin_spot`'s candidate types
-        and from `pinSpot`'s in App.tsx. Owner: the placement surface
-        (TASK-PLACEMENT's lineage). Do not flip it by widening the tuple.
+        FLIPPED 2026-08-17 by v0.9 TASK-ELBOX, exactly as this docstring
+        asked: `"frame"` dropped from `pin_spot`'s candidate types AND
+        from `pinSpot`'s in App.tsx, the tuple not widened, both sides in
+        one commit with this file's parity gate holding them together.
+        The red-era name is kept, per this file's convention for a
+        flipped pin; the census guards read the decorator.
+
+        THE CHOICE THIS DOCSTRING LEFT OPEN WAS MEASURED, not argued. The
+        coordinator proposed the narrower rule — exclude only the
+        target's OWN container — which would also have flipped this test,
+        since the scene's frame contains its target. Over the frozen
+        corpus: of the 54 elements that fall back only because a frame
+        contains them, ZERO are moved by a frame that does NOT contain
+        them. The two rules are therefore indistinguishable on every
+        drawing the repo has, and the wider one was taken because it is
+        the rule `dropClear` already states as doctrine, and because it
+        is the only one this file's parity gate can see — a geometric
+        containment test lives outside the membership filters both sides
+        are parsed from, and would let the fix go one-sided again.
         """
         target = self._target()
         frame = el(id="f", type="frame", x=-100.0, y=-100.0, width=600.0,
@@ -20561,8 +20648,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheClientBoxIsBoundByItsPoints": 1,
-    "TestThePinHugSurvivesItsOwnContainer": 1,
 }
 # ONE LEFT on 2026-08-17 (v0.9 TASK-VOCAB), one day after it joined:
 # `TestARerouteFactImpliesAChangedPath`, whose single red flipped on the
@@ -20609,6 +20694,30 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # measure the leftward arrow's ink off the app's own canvas and watch a
 # note shoved 119px out of the blank quadrant `elBox` invents. The source
 # read and the behaviour now flip together, in TASK-ELBOX's fold.
+#
+# ...AND BOTH OF THEM LEFT AGAIN IN THAT VERY FOLD (v0.9 TASK-ELBOX,
+# 2026-08-17), which is why this dict is back to one line. Read the two
+# paragraphs above as the record of a state that lasted one commit, not as
+# a description of this dict: batch 31 wrote them knowing the fix was being
+# written beside it, and said so in both docstrings.
+# `TestTheClientBoxIsBoundByItsPoints` flipped when `elBox` stopped weighing
+# a stored magnitude against a point coordinate, and its flip carried a
+# STRENGTHENING, per batch 30's own disclosure that this was the weakest pin
+# in its batch: the old assertion was one absence regex and it was GREEN on
+# `Math.max(...xs, e.width || 0)`, the identical defect with its arguments
+# transposed (measured, not supposed). It now refuses either order, drives
+# the point-strung TYPE SET against `ink_extent`'s own, and requires the
+# stored box to survive for the classes painted inside it.
+# `TestThePinHugSurvivesItsOwnContainer` flipped when `pin_spot` and its
+# client mirror stopped counting a frame as a neighbour. The narrow fix
+# (exclude only the target's own container) was MEASURED against the wide
+# one (drop the type) before choosing: zero of the 54 fall back for a frame
+# that does not contain them, so the two are indistinguishable on every
+# drawing the repo has, and the wide one is the rule `dropClear` already
+# states as doctrine and the only one this file's parity gate can see.
+# NEITHER WAS A RACE. Both reds were filed with an owner NAMED, and the next
+# task on that surface took both — which is the curator boundary producing
+# exactly the shape it exists for, twice in two days.
 #
 # ONE JOINED AND LEFT INSIDE ONE BATCH on 2026-08-17 (curator batch 30),
 # which is the shortest round trip this dict has recorded and is worth

@@ -267,21 +267,38 @@ const NOTE_W = 180, NOTE_H = 90;
 /**
  * A live element's occupied box.
  *
- * Arrows, lines and freedraw carry their real extent in `points`, which run
- * from `x`/`y` and may go LEFT of or ABOVE it; stored `width`/`height` alone
- * would leave a note dropped on half an arrow. The union of the stored box
- * and the point hull is what an insert has to clear, and it degrades to the
- * stored box for every element that has no points.
+ * Arrows, lines and freedraw are bounded by their POINTS, which run from
+ * `x`/`y` and may go LEFT of or ABOVE it. This used to union the point hull
+ * with the stored box — `Math.max(e.width || 0, ...xs)` — which maximises a
+ * stored MAGNITUDE against a point COORDINATE. They coincide for a rightward
+ * arrow and diverge for every leftward or upward one, where the stored width
+ * wins and the box grows a phantom half on the side the arrow never reaches:
+ * 63 of the frozen corpus's 194 point-strung elements overhung their own ink
+ * by more than `LANE_TOL`, the worst by 600px — a box exactly twice its
+ * stroke (`r-held-vets`, w 1200 against 600px of ink). `dropClear` reads
+ * these as obstacles, so an insert was pushed out of canvas that is clear
+ * (curator batch 30 item 5, measured; v0.9 TASK-ELBOX).
+ *
+ * `canvas.py`'s `ink_extent` answers the same question on the other side of
+ * the wire and this mirrors it deliberately, down to taking the hull raw
+ * rather than unioned with the element's own origin — *"what a polyline
+ * paints is its points, and its stored box is a summary of them that this
+ * loop has never been entitled to widen by"*. ONE DIVERGENCE, stated: a
+ * point-strung element carrying NO points falls back to its stored box here
+ * where `ink_extent` reads a zero-size box at `x`/`y`. Excalidraw never
+ * writes one, and for a CLEARANCE test the stored box is the safe direction
+ * to be wrong in, where a 0x0 obstacle is not.
  * @param e Any live scene element.
  * @returns The element's occupied rectangle in scene coords.
  */
 const elBox = (e: SceneEl): Rect => {
   const pts: number[][] = Array.isArray(e.points) ? e.points : [];
+  if (!["arrow", "line", "freedraw"].includes(e.type || "") || !pts.length)
+    return { x: e.x, y: e.y, w: e.width || 0, h: e.height || 0 };
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-  const x = e.x + Math.min(0, ...xs), y = e.y + Math.min(0, ...ys);
-  return { x, y,
-           w: e.x + Math.max(e.width || 0, ...xs) - x,
-           h: e.y + Math.max(e.height || 0, ...ys) - y };
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  return { x: e.x + x0, y: e.y + y0,
+           w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 };
 };
 
 /**
@@ -345,6 +362,17 @@ const clearSpot = (want: Pt, w: number, h: number,
  * target entirely and sat inside the NEXT panel, reading as a question
  * about that one. On flows, where there are hundreds of px of air, nothing
  * moves.
+ *
+ * A FRAME IS NOT A NEIGHBOUR — the same rule `dropClear` states in its own
+ * docstring below, which this used to contradict from twenty lines away. A
+ * frame is the screen an element is drawn INSIDE, so on any wireframe the
+ * hug spot always overlapped it, `buried` was always true, and the glyph was
+ * always pulled out of clear air onto the tile it asks about: the r5-13
+ * shape arriving through the function written to prevent its sibling. 54 of
+ * the corpus's 291 pin-eligible elements (18.6%) fell back for this reason
+ * alone, every one with a clear hug spot, and none of them for a frame that
+ * did NOT contain them — so the type goes rather than a containment test
+ * (curator batch 31, driving this; v0.9 TASK-ELBOX).
  * @param target The element the question is about.
  * @param live The scene, as collision candidates.
  * @param size Glyph bbox edge in px.
@@ -354,7 +382,7 @@ const pinSpot = (target: SceneEl, live: SceneEl[], size = 26): Pt => {
   const p = markerAnchor(target, 8, -8, "tr");
   const foreign = live.filter((e) =>
     e.id !== target.id && !e.isDeleted &&
-    ["rectangle", "diamond", "ellipse", "frame"].includes(e.type || "") &&
+    ["rectangle", "diamond", "ellipse"].includes(e.type || "") &&
     !["label", "pin", "decoration", "annotation"]
       .includes(e.customData?.role || ""));
   const buried = foreign.some((e) => {

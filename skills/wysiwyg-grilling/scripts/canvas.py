@@ -9022,6 +9022,21 @@ def pin_spot(anchor, els, size=26):
     to inside the target's own top-right corner — on flows (hundreds of
     px of air) nothing changes.
 
+    A FRAME IS NOT A NEIGHBOUR. It is the screen an element is drawn
+    INSIDE, so for anything on a wireframe the hug spot always overlapped
+    it, `buried` was always true, and the glyph was always dragged out of
+    clear air onto the tile it is asking about — the r5-13 shape arriving
+    through the very function written to prevent its sibling. `dropClear`
+    in App.tsx states the rule this now follows: containers you draw
+    things inside are not obstacles for the things. Censused when it was
+    fixed: of 291 pin-eligible corpus elements, 54 (18.6%) fell back ONLY
+    because a frame contained them, and every one had a clear hug spot.
+    Zero of the 54 were moved by a frame that did NOT contain them, which
+    is why this drops the type outright rather than testing containment —
+    the narrower rule is not distinguishable on any drawing the repo has,
+    and the wider one is the rule already written down next door (found
+    by curator batch 31 driving the client, fixed by v0.9 TASK-ELBOX).
+
     Args:
         anchor: The target element.
         els: The scene (collision candidates).
@@ -9035,8 +9050,7 @@ def pin_spot(anchor, els, size=26):
     for e in els:
         if e is anchor or e.get("id") == anchor.get("id"):
             continue
-        if e.get("type") not in ("rectangle", "diamond", "ellipse",
-                                 "frame"):
+        if e.get("type") not in ("rectangle", "diamond", "ellipse"):
             continue
         if role_of(e) in ("label", "pin", "decoration", "annotation"):
             continue
