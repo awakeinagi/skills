@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import ast
 import base64
+import colorsys
 import contextlib
 import copy
 import hashlib
@@ -7710,6 +7711,274 @@ class TestTheRepairNamesTheDirectionItMoved(unittest.TestCase):
         self.assertEqual(len(got), 1, got)
         self.assertNotIn("shade of the same hue", got[0])
         self.assertIn("raise its opacity or darken the ink", got[0])
+
+
+class TestASuggestedShadeClearsTheFloorAtThePrecisionItIsPrinted(
+        unittest.TestCase):
+    """The colour a finding names must pass the check it cites.
+
+    THE DEFECT (v0.9 minors review, IM-1). N-1's straddle arm needed the
+    "compliant on every ground" question and got a SECOND search written
+    beside `nearest_compliant` rather than a generalisation of it. The
+    second one scanned in floats and verified the float, while the
+    message printed `hexof(...)` — 8 bits. So the shade the sentence
+    named was not the shade the search had checked, and it could round
+    back under the floor it claimed to clear: 102 of 765 constructed
+    straddles printed a failing suggestion, the worst at 4.4885 against
+    a floor of 4.5.
+
+    This is the confident-wrong-advice family C-1 was filed for, one
+    rounding step down, and it is also this branch's own recurring
+    shape: one rule, two sites, only one carrying the fix. The repair
+    was the factoring — there is now one walk and one quantization —
+    so the pins below are written against the PROPERTY rather than
+    against the straddle arm, and any future third caller inherits them.
+    """
+
+    PAPER = None
+
+    def setUp(self):
+        self.PAPER = canvas.parse_color(canvas.PAPER_GROUND)
+
+    def _shade(self, msg):
+        """The hex a finding suggests, as a triple.
+
+        Args:
+            msg: One warning line.
+
+        Returns:
+            The parsed (r, g, b), or None when it names no shade.
+        """
+        m = re.search(r"(?:shade of the same hue: |recolour it to )"
+                      r"(#[0-9a-f]{6})", msg)
+        return canvas.parse_color(m.group(1)) if m else None
+
+    def test_the_searcher_returns_a_shade_that_is_already_8_bit(self):
+        """The property, stated where it is now enforced.
+
+        Asserted on the returned triple rather than through a message,
+        because that is the seam the two callers share: a float here is
+        the defect regardless of which sentence prints it.
+        """
+        got = canvas.nearest_compliant_all(
+            canvas.parse_color("#d0d0d0"),
+            [canvas.parse_color("#f2f2f2"), self.PAPER],
+            canvas.CONTRAST_TEXT, 100)
+        self.assertIsNotNone(got)
+        for channel in got:
+            self.assertIsInstance(channel, int, got)
+        # and it clears the floor on BOTH, as the 8-bit colour it is
+        for bg in (canvas.parse_color("#f2f2f2"), self.PAPER):
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(canvas.composite_over(got, bg, 100), bg),
+                canvas.CONTRAST_TEXT)
+
+    def test_the_straddle_case_that_used_to_print_a_failing_shade(self):
+        """The reproduction, through `lint_layout` and not the helper.
+
+        `#d0d0d0` ink across an `#f2f2f2` box and the paper suggested
+        `#6f6f6f`, which reads 4.4885 on the box. The number is pinned
+        rather than described so that a regression is visible as a
+        number and not as a re-worded sentence.
+        """
+        els = [{"id": "bx", "type": "rectangle", "x": 100, "y": 100,
+                "width": 200, "height": 60, "backgroundColor": "#f2f2f2",
+                "strokeColor": "#1e1e1e", "opacity": 100,
+                "customData": {"role": "node"}},
+               {"id": "t1", "type": "text", "x": 200, "y": 115,
+                "width": 200, "height": 25, "text": "Dashboard",
+                "fontSize": 20, "strokeColor": "#d0d0d0",
+                "backgroundColor": "transparent", "opacity": 100}]
+        got = [w for w in canvas.lint_layout(els, aid="d")["warnings"]
+               if "TWO grounds" in w]
+        self.assertEqual(len(got), 1, got)
+        shade = self._shade(got[0])
+        self.assertIsNotNone(shade, got[0])
+        # the OLD answer, kept as the thing that must not come back
+        self.assertLess(
+            canvas.contrast_ratio(
+                canvas.composite_over(canvas.parse_color("#6f6f6f"),
+                                      canvas.parse_color("#f2f2f2"), 100),
+                canvas.parse_color("#f2f2f2")),
+            canvas.CONTRAST_TEXT,
+            "#6f6f6f is the shade that used to be printed here; if it "
+            "now passes, this test has stopped measuring the defect")
+        for bg in (canvas.parse_color("#f2f2f2"), self.PAPER):
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(
+                    canvas.composite_over(shade, bg, 100), bg),
+                canvas.CONTRAST_TEXT,
+                "the printed shade fails the floor it claims: %r" % got[0])
+
+    def test_no_arm_prints_a_shade_that_misses_its_floor(self):
+        """All three suggestion sites, swept — the sibling check IM-1 asked for.
+
+        `nearest_compliant`'s quantization was already right, so the two
+        older arms were correct; sweeping them anyway is what turns
+        "I read the code" into "I measured it", and it is what would
+        catch a fourth arm added without the property.
+        """
+        checked = 0
+        for ink in ("#ffffff", "#d0d0d0", "#c0c0c0", "#7a5230", "#c0d8e8"):
+            for fill in ("#f2f2f2", "#efefef", "#dadada", "#a5a5a5",
+                         "transparent"):
+                for opac in (100, 85):
+                    box = canvas.parse_color(fill)
+                    ground = box if box is not None else self.PAPER
+                    node = {"id": "bx", "type": "rectangle", "x": 100,
+                            "y": 100, "width": 300, "height": 80,
+                            "backgroundColor": fill,
+                            "strokeColor": "#1e1e1e", "opacity": 100,
+                            "customData": {"role": "node"}}
+                    text = {"id": "t1", "type": "text", "y": 120,
+                            "width": 200, "height": 25, "text": "Dashboard",
+                            "fontSize": 20, "strokeColor": ink,
+                            "backgroundColor": "transparent",
+                            "opacity": opac}
+                    cases = (
+                        ([node, dict(text, x=120)], [ground]),
+                        ([node, dict(text, x=350)],
+                         [g for g in (box, self.PAPER) if g is not None]),
+                        ([{"id": "s1", "type": "rectangle", "x": 100,
+                           "y": 100, "width": 120, "height": 60,
+                           "backgroundColor": "transparent",
+                           "strokeColor": ink, "opacity": opac,
+                           "customData": {"role": "node"}}], [self.PAPER]),
+                    )
+                    for els, grounds in cases:
+                        for w in canvas.lint_layout(els, aid="d")["warnings"]:
+                            floor = (canvas.CONTRAST_OBJECT
+                                     if "1.4.11" in w else
+                                     canvas.CONTRAST_TEXT)
+                            shade = self._shade(w)
+                            if shade is None:
+                                continue
+                            checked += 1
+                            for bg in grounds:
+                                self.assertGreaterEqual(
+                                    canvas.contrast_ratio(
+                                        canvas.composite_over(shade, bg,
+                                                              opac), bg),
+                                    floor,
+                                    "printed shade misses its floor: %r" % w)
+        self.assertGreater(checked, 100,
+                           "the sweep found almost no suggestions to check, "
+                           "so its silence means nothing (%d)" % checked)
+
+
+class TestTheToolsOwnFurniturePassesItsOwnCheck(Base):
+    """The ❓ amber cleared the floor this file enforces on everyone else.
+
+    THE DEFECT (v0.9 minors round, third item). `#b45309` reads 4.33:1
+    on `reader-backdrop` and 3.99:1 on `nav` — two panel colours the
+    skill's own wireframes use — against the 4.5:1 its 1.4.3 check asks
+    of everybody. So the tool shipped furniture that its own lint
+    reports, which is the report-don't-guess doctrine failing in the
+    cheapest place there is to keep it: a constant.
+
+    The repair is the CHECK'S OWN ANSWER and not a designer's eye —
+    `nearest_compliant_all` over all five grounds at once — which is why
+    it is a palette change and not a geometry one, and why hue and
+    saturation come through held.
+
+    THE FROZEN CORPUS IS NOT MIGRATED and the two findings on
+    `argus-r4-arm3/dashboard` stand. Those 41 elements across 21
+    artifacts were drawn before this ruling; rewriting them would be the
+    tool editing drawings nobody asked it to edit, which is this
+    review's own headline defect. A lint reporting an old drawing's real
+    legibility problem is the lint working.
+    """
+
+    #: Every ground this file actually draws a pin on.
+    GROUNDS = ("#faf8f2", "#fdfcf8", "#f0eeea", "#e9e5da", "#ffffff")
+
+    def test_the_pin_ink_clears_the_text_floor_on_every_ground(self):
+        """The property, on all five, as the colour that is stored."""
+        ink = canvas.parse_color(canvas.PIN_INK)
+        for ground in self.GROUNDS:
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(ink, canvas.parse_color(ground)),
+                canvas.CONTRAST_TEXT,
+                "%s fails 1.4.3 on %s, and this file enforces that floor "
+                "on the user" % (canvas.PIN_INK, ground))
+
+    def test_the_old_amber_is_the_thing_that_must_not_come_back(self):
+        """The firing direction: without it the test above proves nothing.
+
+        A pin colour that happened to pass would satisfy the assertion
+        above whether or not anyone had ever looked. This names the two
+        grounds the old one failed, with the readings, so a revert is
+        visible as the defect rather than as a diff.
+        """
+        old = canvas.parse_color("#b45309")
+        failures = {g: canvas.contrast_ratio(old, canvas.parse_color(g))
+                    for g in self.GROUNDS
+                    if canvas.contrast_ratio(old, canvas.parse_color(g))
+                    < canvas.CONTRAST_TEXT}
+        self.assertEqual(sorted(failures), ["#e9e5da", "#f0eeea"], failures)
+        self.assertAlmostEqual(failures["#f0eeea"], 4.33, delta=0.01)
+        self.assertAlmostEqual(failures["#e9e5da"], 3.99, delta=0.01)
+
+    def test_the_repair_holds_the_hue_so_the_marker_stays_the_marker(self):
+        """Recognisably the same amber, or the fix costs the language."""
+        old = colorsys.rgb_to_hls(
+            *(c / 255.0 for c in canvas.parse_color("#b45309")))
+        new = colorsys.rgb_to_hls(
+            *(c / 255.0 for c in canvas.parse_color(canvas.PIN_INK)))
+        self.assertAlmostEqual(old[0], new[0], places=3)   # hue
+        self.assertAlmostEqual(old[2], new[2], places=2)   # saturation
+        self.assertLess(new[1], old[1], "the repair darkens")
+
+    def test_a_pin_minted_today_is_silent_on_the_panel_it_used_to_fail(self):
+        """Through the real op funnel, on the ground that used to fire.
+
+        Both placements, because they are the two arms N-1 split: wholly
+        on the panel goes through `contrast_text` and straddling its edge
+        through `contrast_straddle`, and the old amber tripped both.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "d",
+            "create": {"id": "d", "name": "D", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "panel", "x": 100, "y": 100,
+                "width": 300, "height": 100, "backgroundColor": "#e9e5da",
+                "strokeColor": "#1e1e1e", "role": "node"}},
+                {"op": "pin", "target": "panel",
+                 "question": "whose word is this?"}]})
+        els = self.store.scenes["d"]
+        pin = next(e for e in els
+                   if (e.get("customData") or {}).get("role") == "pin")
+        self.assertEqual(pin["strokeColor"], canvas.PIN_INK)
+        for x in (150, 390):
+            pin["x"], pin["y"] = x, 130
+            self.assertEqual(
+                [w for w in canvas.lint_layout(
+                    els, artifact_type="wireframe", aid="d")["warnings"]
+                 if "1.4.3 asks" in w], [],
+                "a pin minted today still fails the tool's own floor at x=%d"
+                % x)
+            # ...and the OLD colour on the same scene does fire, so the
+            # silence above is the colour and not the placement.
+            pin["strokeColor"] = "#b45309"
+            self.assertTrue(
+                [w for w in canvas.lint_layout(
+                    els, artifact_type="wireframe", aid="d")["warnings"]
+                 if "1.4.3 asks" in w],
+                "the old amber went quiet at x=%d, so this scene no longer "
+                "measures the defect" % x)
+            pin["strokeColor"] = canvas.PIN_INK
+
+    def test_no_amber_literal_survives_outside_the_constant(self):
+        """One name, for the reason `FURNITURE_INK` gives beside it.
+
+        It was four literals and moving it meant grep. The docstring
+        recording the old value is allowed; a live one is not.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        live = [ln for ln in src.splitlines()
+                if "#b45309" in ln and not ln.lstrip().startswith("#")]
+        self.assertEqual(live, [],
+                         "the pin amber is spelled outside PIN_INK: %r" % live)
 
 
 class TestEveryWaiveSuggestionCanBeApplied(Base):

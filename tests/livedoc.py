@@ -339,31 +339,59 @@ def corpus_census() -> str:
     """What the frozen corpus lints to, by a convention that is CODE.
 
     THE DISAGREEMENT THIS SETTLES (v0.9 whole-branch review, N-3). Two
-    competent readers measured the same 24 artifacts and published
-    `0/46/27` and `0/38/20`. Neither was careless; they counted
-    different things, and the prose said which for neither. Re-derived
-    here at `10dc4bf`, the two live conventions are:
+    readers measured the same 24 artifacts and published `0/46/27` and
+    `0/38/20`.
 
-      * `0/46/27` — every line the `lint` CLI PRINTS, over each project
-        in turn. This is what a reviewer running the tool sees.
-      * `0/38/18` — `project_lint` called once per artifact and summed.
-        Lower, and lower for a REASON rather than by rounding: the
-        registry is a scope with findings of its own and no artifact
-        behind it, so a per-artifact walk cannot see them. `cmd_lint`
-        says as much in its own comment ("SCOPES, not ARTIFACTS").
+    THE FIRST EXPLANATION OF THAT GAP, SHIPPED HERE, WAS WRONG, and it
+    is corrected rather than quietly replaced because the wrong version
+    was the more comfortable one. It said the gap was the registry
+    pseudo-scope — a scope with findings of its own and no artifact
+    behind it, which a per-artifact walk cannot see. That is a real
+    thing, and it is not the cause: measured at `10dc4bf` the registry
+    scope carries **0 warnings**, so it cannot account for a warnings
+    gap at all. "Two legitimate conventions" was a plausible story that
+    nobody had measured, which is the exact failure this whole review
+    round has been about.
 
-    THE CLI'S CONVENTION IS THE ONE PINNED, because it is the number a
-    human can reproduce by running the tool, and because the other one
-    is missing findings rather than counting differently. Derived
-    through `Store.lint_lines()`, which is the same call `cmd_lint`
-    prints from — not a re-implementation of it, for the reason
-    `_harness` gives about second copies of a derivation.
+    WHAT ACTUALLY PRODUCES THE TWO NUMBERS, re-derived at `10dc4bf`:
 
-    A THIRD NUMBER IS THE POINT. Neither published figure is reproduced
-    exactly by either convention (`0/38/20` is nobody's), which is what
-    an unpinned convention buys: three readers, three answers, and an
-    argument about arithmetic instead of about drawings. After this the
-    disagreement can only be about the corpus.
+      * WARNINGS, 46 vs 38 — not a convention. A per-artifact reader
+        asked for the artifact's type as
+        `registry["artifacts"][aid]["type"]`, and **the registry has no
+        `artifacts` key**: `.get("artifacts", {})` returns `{}` and the
+        type comes back `None` for all 24, silently. That switches off
+        every type-gated check (the wireframe reading-order family), and
+        it is worth exactly the 8 warnings in question. The type lives
+        in `artifact_meta` and is reached by `Store.artifact_type()`,
+        which defaults to `"flow"`. Hand the per-artifact walk the RIGHT
+        type and it reports 46 — and the message SETS are identical, not
+        merely the totals, which is the check that distinguishes "same
+        answer" from "two errors cancelling".
+
+      * NOTES, 27 vs 18 — structural, and genuinely two things a
+        per-artifact call cannot reach: 5 registry-scope notes (settled
+        glossary terms with no concept, view debt) and 4 cross-artifact
+        notes from `cross_lint` (unmapped KPI tiles, a wireframe label
+        colliding with a domain term). Those 9 are the whole gap.
+
+    So there is ONE right answer for warnings and one reader that was
+    misreading a key, and a real structural difference for notes only.
+
+    WHAT I CANNOT REPRODUCE, SAID PLAINLY. The published `0/38/20` has
+    38 warnings, which the mis-keyed reading gives exactly, and **20
+    notes, which no reading I have found produces** — the mis-keyed walk
+    gives 18. I have not identified what makes 20 and I am not going to
+    guess at it: an unexplained two-note discrepancy labelled as
+    unexplained is worth more than a second plausible cause, which is
+    how the first version of this docstring went wrong.
+
+    THE CLI'S READING IS THE ONE PINNED — every line `lint` prints, over
+    each project in turn — because it is what a human reproduces by
+    running the tool, and because the alternative is missing findings
+    rather than counting them differently. Derived through
+    `Store.lint_lines()`, the same call `cmd_lint` prints from, not a
+    re-implementation of it, for the reason `_harness` gives about
+    second copies of a derivation.
 
     Returns:
         `E errors / W warnings / N notes across A artifacts in P

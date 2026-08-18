@@ -82,6 +82,40 @@ SVG_GROUND = "#fdfcf8"
 # at: they read 2.06:1 and 3.48:1 on the old one. The ruling survives
 # the move with room to spare — the point was never the decimal.
 FURNITURE_INK = "#8d877a"
+# The amber this file mints its OWN markers in — the ❓ pin glyph (agent
+# and user), and `render_svg`'s tripwire mark and its caption. Named for
+# the reason `FURNITURE_INK` above is: it was four string literals, and
+# moving it meant grep.
+#
+# IT WAS #b45309, AND IT FAILED THE FLOOR THIS FILE ENFORCES ON EVERYONE
+# ELSE. Measured against every ground the tool actually draws a pin on:
+#
+#     PAPER_GROUND     4.73    SVG_GROUND       4.89
+#     white panel      5.02    reader-backdrop  4.33   <- under 4.5
+#                              nav              3.99   <- under 4.5
+#
+# So the skill shipped furniture that its own 1.4.3 check reports, and
+# the v0.9 whole-branch review found exactly that on a frozen artifact:
+# two pins on `argus-r4-arm3/dashboard` reading 4.33:1 and 3.99:1. The
+# tool asking a user to fix a ratio it does not itself meet is the
+# report-don't-guess doctrine failing in the one place it is cheapest to
+# keep — a constant.
+#
+# #a54c08 clears 4.5:1 on all five, computed by this file's own
+# `nearest_compliant_all` over the whole set rather than picked by eye,
+# so the repair is the check's own answer and not a designer's guess.
+# Hue and saturation are held to four decimals (HSL 0.0721 -> 0.0722,
+# 0.9048 -> 0.9075); only lightness moves, 0.3706 -> 0.3392. It is
+# recognisably the same amber, which is what keeps the marker language
+# intact through the fix.
+#
+# THE FROZEN CORPUS KEEPS THE OLD AMBER, deliberately. Those 41 elements
+# across 21 artifacts are a record of drawings made before this ruling,
+# and rewriting them would be the tool editing drawings nobody asked it
+# to edit. So the corpus census does not move and the two findings
+# stand — correctly, because they are true of those drawings. What
+# changes is that every pin minted from here on is compliant.
+PIN_INK = "#a54c08"
 # The largest raster this skill will ever produce, in device pixels. ONE
 # ceiling, shared by the two places that used to hold their own:
 # `render_svg` scales a drawing down uniformly to fit it, and
@@ -7269,7 +7303,7 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                 "fontFamily": FONT_LEGIBLE, "textAlign": "center",
                 "verticalAlign": "top", "lineHeight": 1.25,
                 "containerId": None, "autoResize": True,
-                "strokeColor": "#b45309",
+                "strokeColor": PIN_INK,
                 "customData": {"role": "pin", "question": q,
                                "target": target, "status": "open",
                                "answer": None, "author": "agent"},
@@ -10726,10 +10760,10 @@ def render_svg(els: list[dict[str, Any]], title: str = "",
         mx = e.get("x", 0) + e.get("width", 0) - 4
         my = e.get("y", 0) + 4
         out.append("<circle cx='%f' cy='%f' r='8' fill='#fdfcf8' "
-                   "stroke='#b45309' stroke-width='1'/>" % (mx, my))
-        out.append("<text x='%f' y='%f' font-size='10' fill='#b45309' "
+                   "stroke='%s' stroke-width='1'/>" % (mx, my, PIN_INK))
+        out.append("<text x='%f' y='%f' font-size='10' fill='%s' "
                    "text-anchor='middle' font-family='Nunito, sans-serif'>%d</text>"
-                   % (mx, my + 3.5, n))
+                   % (mx, my + 3.5, PIN_INK, n))
     if note_lines:
         fy = miny + h - foot_h + 12
         out.append("<line x1='%f' y1='%f' x2='%f' y2='%f' stroke='#ccc' "
@@ -11917,6 +11951,11 @@ def composite_over(fg, bg, opacity):
 def nearest_compliant(rgb, bg, floor, opacity=100):
     """The nearest shade of the same hue that clears `floor` against `bg`.
 
+    ONE GROUND, which is the common case; `nearest_compliant_all` is the
+    same search over several and this is its one-ground spelling. They
+    are one function and not two on purpose — see that one's header for
+    the defect that made the point.
+
     The computed half of the three-part contrast ruling (user, 2026-08-17):
     a finding that says "reads 2.06:1 where 3:1 is asked" hands the agent a
     number and a search problem. This hands it the answer.
@@ -11972,6 +12011,52 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
         1/255 lightness grid, verified compliant — or None when no shade
         of this hue reaches the floor at this opacity.
     """
+    return nearest_compliant_all(rgb, (bg,), floor, opacity)
+
+
+def nearest_compliant_all(rgb, bgs, floor, opacity=100):
+    """The nearest shade of the same hue clearing `floor` on EVERY ground.
+
+    THE DEFECT THAT MADE THIS ONE FUNCTION (v0.9 whole-branch review of
+    the minors round, IM-1). N-1's straddle arm needed this question
+    asked of two grounds at once, and it got a second search written
+    beside the first rather than a generalisation of it. The second one
+    scanned a 1/500 grid in FLOATS and verified the float, while the
+    finding printed `hexof(...)` — 8 bits. So the shade the message
+    named was not the shade the search had checked, and it could round
+    back under the floor it claimed to clear: measured over 765
+    constructed straddles, **102** printed a suggestion that fails, the
+    worst reading 4.4885 against a floor of 4.5.
+
+    That is this branch's own recurring shape — one rule, two sites,
+    only one of them carrying the fix — and the repair is the factoring
+    rather than a second `int(round(...))`. There is now ONE walk, ONE
+    quantization and ONE definition of "nearest", so a reader comparing
+    two findings is not comparing two search strategies and the next
+    caller cannot inherit half the rule.
+
+    VERIFY WHAT YOU WILL PRINT, AT THE PRECISION YOU PRINT IT: the
+    candidate is quantized to 8 bits BEFORE `contrast_ratio` sees it, so
+    the triple returned is the one a renderer will actually paint.
+
+    Args:
+        rgb: The declared (r, g, b) triple to move.
+        bgs: The grounds it must clear, as (r, g, b) triples. ALL of
+            them, which is what makes the answer safe for a text lying
+            across more than one: a shade compliant on the worse ground
+            alone would fix half the word and break the other half.
+        floor: The ratio the criterion asks.
+        opacity: The element's opacity, folded into each candidate
+            inside the loop, so a faded element gets None rather than
+            advice it cannot follow.
+
+    Returns:
+        The nearest such shade as an 8-bit (r, g, b), or None when no
+        shade of this hue clears the floor on every ground at once —
+        which is not rare and not a failure: white ink across a navy box
+        and cream paper genuinely has no such shade, and the honest
+        answer there is the geometry.
+    """
     h, lightness, s = colorsys.rgb_to_hls(*(c / 255.0 for c in rgb))
     best = None
     for sign in (-1, 1):
@@ -11982,7 +12067,8 @@ def nearest_compliant(rgb, bg, floor, opacity=100):
                 break
             cand = tuple(int(round(c * 255))
                          for c in colorsys.hls_to_rgb(h, level, s))
-            if contrast_ratio(composite_over(cand, bg, opacity), bg) >= floor:
+            if all(contrast_ratio(composite_over(cand, bg, opacity), bg)
+                   >= floor for bg in bgs):
                 if best is None or step < best[0]:
                     best = (step, cand)
                 break
@@ -12521,52 +12607,6 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         return (under["id"],
                 [(name(under["id"]), box), ("the paper", ground)])
 
-    def compliant_on_all(col, bgs, floor, opac):
-        """One shade of this hue that clears `floor` on EVERY ground.
-
-        MEASURED, AND THE MEASUREMENT IS WHY THIS FUNCTION EXISTS. The
-        review suggested reporting the worse ground and, by implication,
-        repairing against it. Searching the hue's lightness axis over
-        the straddle cases says that is often impossible: white text
-        across a navy box and cream paper has NO shade of its hue that
-        clears 4.5:1 on both — the compliant shades for the two grounds
-        are `#fefefe` and `#727272`, and every shade between fails one
-        of them. Offering either would be a repair that fixes half the
-        word and breaks the other half, which is the same
-        confident-wrong-advice C-1 was told off for.
-
-        So the caller offers a shade only when one exists for BOTH, and
-        otherwise says the truth: no colour fixes this, the straddle
-        does. That is the honest remedy anyway — the text is illegible
-        BECAUSE it lies across two grounds, so the repair is to stop
-        lying across them.
-
-        Args:
-            col: The declared (r, g, b) triple.
-            bgs: The grounds it must clear, as (r, g, b) triples.
-            floor: The ratio the criterion asks.
-            opac: The element's opacity, folded into each candidate.
-
-        Returns:
-            The nearest such shade as (r, g, b), or None when no shade
-            of this hue clears the floor on every ground at once.
-
-            NEAREST IS BY LIGHTNESS DISTANCE, along the one axis
-            `nearest_compliant` moves, so this and that answer the same
-            question the same way and a reader comparing two findings is
-            not comparing two search strategies.
-        """
-        h, was, s = colorsys.rgb_to_hls(*(c / 255.0 for c in col))
-        best = None
-        for step in range(0, 501):
-            cand_l = step / 500.0
-            cand = tuple(c * 255.0 for c in colorsys.hls_to_rgb(h, cand_l, s))
-            if all(contrast_ratio(composite_over(cand, bg, opac), bg) >= floor
-                   for bg in bgs):
-                if best is None or abs(cand_l - was) < abs(best[0] - was):
-                    best = (cand_l, cand)
-        return None if best is None else best[1]
-
     def hexof(rgb):
         """An (r, g, b) triple as `#rrggbb`, for the message.
 
@@ -12808,13 +12848,22 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                         drawn = ("%s at %d%% opacity"
                                  % (hexof(ink), int(opac))
                                  if int(opac) != 100 else hexof(ink))
-                        both = compliant_on_all(
+                        # THE SAME SEARCHER THE ONE-GROUND ARM USES,
+                        # over both grounds at once. It used to be a
+                        # second search written beside it, which
+                        # verified a FLOAT while this message printed 8
+                        # bits — so 102 of 765 constructed straddles
+                        # named a shade that rounds back under the floor
+                        # it claims to clear (IM-1). One walk, one
+                        # quantization, one "nearest".
+                        both = nearest_compliant_all(
                             ink, [g for _l, g in pair], floor, opac)
                         # NO SHADE FIXES A STRADDLE on a dark cover and
-                        # pale paper — measured, see `compliant_on_all`
-                        # — and the true remedy is the geometry that
-                        # made two grounds out of one. Said plainly
-                        # rather than dressed as a colour suggestion.
+                        # pale paper — measured, see
+                        # `nearest_compliant_all` — and the true remedy
+                        # is the geometry that made two grounds out of
+                        # one. Said plainly rather than dressed as a
+                        # colour suggestion.
                         # The geometric remedy is stated about the
                         # STRADDLE and not about the worse ground:
                         # "move it clear of the paper" is a sentence
@@ -23412,7 +23461,7 @@ def _x_user_pin(target, question, x, y):
         "type": "text", "x": x, "y": y, "width": 26, "height": 26,
         "text": "❓", "originalText": "❓", "fontSize": 20,
         "fontFamily": FONT_LEGIBLE, "textAlign": "center",
-        "strokeColor": "#b45309", "autoResize": True,
+        "strokeColor": PIN_INK, "autoResize": True,
         "customData": {"role": "pin", "author": "user", "target": target,
                        "question": question, "status": "open",
                        "direction": "user"}})
