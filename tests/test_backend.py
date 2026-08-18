@@ -7807,8 +7807,8 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
                         spellings)
         self.assertEqual(
-            src.count("waive_hint("), 15,
-            "the waive call sites moved — 14 findings plus the "
+            src.count("waive_hint("), 16,
+            "the waive call sites moved — 15 findings plus the "
             "definition. Re-derive this count; do not relax it")
 
 
@@ -20448,6 +20448,563 @@ class TestBeatsBFixes(Base):
         store2 = canvas.Store(self.project)
         ids2 = [e["id"] for e in store2.scenes["checkout-flow"]]
         self.assertEqual(len(ids2), len(set(ids2)))
+
+
+# ---------------------------------------------------------------------------
+# Pin to Canvas — `locked` enforced (v0.9 ownership family: C-3..C-6)
+# ---------------------------------------------------------------------------
+
+def _pin(store, aid, *ids):
+    """Pin elements the way the user does: an ordinary whole-scene save.
+
+    Args:
+        store: The Store.
+        aid: Artifact id.
+        *ids: Element ids to pin.
+
+    Returns:
+        The save record, so a caller can read its narration.
+    """
+    els = [dict(e) for e in store.scenes[aid]]
+    for e in els:
+        if e["id"] in ids:
+            e["locked"] = True
+    return store.commit(author="user", new_scenes={aid: els},
+                        base_revn=store.head_revn())
+
+
+def _xy(store, aid, eid):
+    """The stored position of one element.
+
+    Args:
+        store: The Store.
+        aid: Artifact id.
+        eid: Element id.
+
+    Returns:
+        `(x, y)`.
+    """
+    e = next(e for e in store.scenes[aid] if e["id"] == eid)
+    return (e.get("x"), e.get("y"))
+
+
+def _path(store, aid, eid):
+    """An arrow's drawn geometry, comparably.
+
+    Args:
+        store: The Store.
+        aid: Artifact id.
+        eid: Element id.
+
+    Returns:
+        `(x, y, points-as-json)`.
+    """
+    e = next(e for e in store.scenes[aid] if e["id"] == eid)
+    return (e.get("x"), e.get("y"), json.dumps(e.get("points") or []))
+
+
+class TestLockedHasExactlyOneReader(unittest.TestCase):
+    """`locked` may be read through `pinned_to_canvas` and nowhere else.
+
+    THE RULE THIS PINS IS THE ONE THE WAVE'S OWN REVIEW HEADLINED: one
+    rule typed at two sites drifts, and the pin guard reads `locked` at
+    a dozen call sites across tidy, the fan, the feet, the router, the
+    z-rebanding, relayout and the op gate. A second inline
+    `.get("locked")` would be a second definition of what a pin means,
+    free to disagree with the first — which is exactly how three
+    subsystems came to disagree about "may the tool move this node"
+    (C-5). Enforced by reading the source, because no behavioural test
+    can see a duplicate predicate that currently happens to agree.
+    """
+
+    def test_locked_is_read_only_inside_the_predicate(self):
+        # TOKENISED, not grepped: this function's own docstring names the
+        # rule it enforces, and a plain substring scan counted that
+        # sentence as a violation. Comments and strings are where a rule
+        # gets EXPLAINED, so the check has to read code only.
+        import tokenize
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        rows = set()
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+        for i, tok in enumerate(toks):
+            if tok.type != tokenize.STRING or tok.string != '"locked"':
+                continue
+            prev = [t for t in toks[max(0, i - 3):i]
+                    if t.type not in (tokenize.NL, tokenize.NEWLINE,
+                                      tokenize.INDENT, tokenize.DEDENT)]
+            if len(prev) >= 2 and prev[-1].string == "(" \
+                    and prev[-2].string == "get":
+                rows.add(tok.start[0])
+        lines = sorted(src.splitlines()[r - 1].strip() for r in rows)
+        self.assertEqual(
+            lines, ['return bool(el.get("locked"))'],
+            "`locked` must be read through `pinned_to_canvas` only; found "
+            "at lines %r" % (sorted(rows),))
+
+    def test_the_predicate_treats_absent_false_and_none_alike(self):
+        self.assertFalse(canvas.pinned_to_canvas({}))
+        self.assertFalse(canvas.pinned_to_canvas({"locked": False}))
+        self.assertFalse(canvas.pinned_to_canvas({"locked": None}))
+        self.assertTrue(canvas.pinned_to_canvas({"locked": True}))
+
+
+class TestPinnedSurvivesEveryNonUserMover(Base):
+    """Each pass skips pinned elements AND still processes unpinned ones.
+
+    BOTH DIRECTIONS ON EVERY PASS, deliberately. A guard that skipped
+    everything would pass a one-sided "the pinned thing did not move"
+    test while silently disabling the repair the pass exists for — and
+    the frozen corpus has ZERO locked elements, so no corpus
+    differential can catch that. The second assertion in each test is
+    the one doing the work.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_tidy_snap_skips_pinned_and_still_snaps_the_rest(self):
+        _pin(self.store, "checkout-flow", "cart")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("cart", "payment"):
+                e["x"] = e["x"] + 3         # both off the 4px grid
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        before_pinned = _xy(self.store, "checkout-flow", "cart")
+        before_free = _xy(self.store, "checkout-flow", "payment")
+        self.store.tidy("checkout-flow")
+        self.assertEqual(_xy(self.store, "checkout-flow", "cart"),
+                         before_pinned, "tidy moved a pinned node")
+        self.assertNotEqual(_xy(self.store, "checkout-flow", "payment"),
+                            before_free, "tidy stopped snapping entirely")
+
+    def test_tidy_says_how_many_it_left_alone(self):
+        _pin(self.store, "checkout-flow", "cart")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("cart", "payment"):
+                e["x"] = e["x"] + 3
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        rec = self.store.tidy("checkout-flow")
+        self.assertIn("left 1 pinned element where it is",
+                      rec.get("user_note") or "")
+
+    def test_a_bare_zero_is_never_printed(self):
+        # the zeros doctrine: a pass with nothing pinned says nothing
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "payment":
+                e["x"] = e["x"] + 3
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        rec = self.store.tidy("checkout-flow")
+        self.assertNotIn("pinned", rec.get("user_note") or "")
+
+    def test_the_fan_skips_pinned_arrows_and_still_fans_the_others(self):
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "add", "element": {"type": "arrow", "id": "t9"},
+                      "from": "cart", "to": "payment"}]})
+        _pin(self.store, "checkout-flow", "t1")
+        was_pinned = _path(self.store, "checkout-flow", "t1")
+        was_free = _path(self.store, "checkout-flow", "t9")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment",
+                      "attrs": {"x": 520, "y": 200}}]})
+        self.assertEqual(_path(self.store, "checkout-flow", "t1"), was_pinned,
+                         "the fan/router moved a pinned arrow")
+        self.assertNotEqual(_path(self.store, "checkout-flow", "t9"), was_free,
+                            "the fan/router stopped touching arrows entirely")
+
+    def test_z_rebanding_holds_a_pinned_elements_slot(self):
+        els = list(self.store.scenes["checkout-flow"])
+        shuffled = list(reversed(els))
+        pinned = dict(shuffled[3], locked=True)
+        scene = [pinned if e["id"] == shuffled[3]["id"] else e
+                 for e in shuffled]
+        out = canvas.normalize_z_order(scene)
+        self.assertEqual([e["id"] for e in out].index(pinned["id"]), 3,
+                         "z-rebanding moved a pinned element's index")
+        plain = canvas.normalize_z_order(
+            [dict(e, locked=False) for e in scene])
+        self.assertNotEqual([e["id"] for e in plain],
+                            [e["id"] for e in scene],
+                            "z-rebanding stopped sorting")
+
+    def test_recenter_label_honours_a_pinned_label(self):
+        # DRIVEN DIRECTLY, because the op path cannot reach this: pinning
+        # a label makes its container a dependent ("is the container of"),
+        # so `mod cart width` is held before `recenter_label` is called.
+        # The guard still has to exist — tidy, the router and the fan all
+        # call this function on paths no op gates.
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        ix = {e["id"]: e for e in scene}
+        ix["cart-label"]["locked"] = True
+        pinned_before = (ix["cart-label"]["x"], ix["cart-label"]["y"])
+        free_before = (ix["payment-label"]["x"], ix["payment-label"]["y"])
+        ix["cart"]["width"] = 260
+        ix["cart"]["height"] = 120
+        ix["payment"]["width"] = 300
+        ix["payment"]["height"] = 140
+        canvas.recenter_label(scene, ix["cart"])
+        canvas.recenter_label(scene, ix["payment"])
+        self.assertEqual((ix["cart-label"]["x"], ix["cart-label"]["y"]),
+                         pinned_before, "a pinned label was re-centred")
+        self.assertNotEqual(
+            (ix["payment-label"]["x"], ix["payment-label"]["y"]),
+            free_before, "recenter_label stopped working")
+
+    def test_pinning_a_label_holds_ops_on_its_container(self):
+        _pin(self.store, "checkout-flow", "cart-label")
+        head = self.store.head_revn()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": head, "artifact": "checkout-flow",
+                 "ops": [{"op": "mod", "id": "cart",
+                          "attrs": {"width": 260}}]})
+        self.assertIn("is the container of",
+                      "\n".join(cm.exception.errors))
+
+    def test_reroute_leaves_pinned_arrows_alone(self):
+        _pin(self.store, "checkout-flow", "t1")
+        was = _path(self.store, "checkout-flow", "t1")
+        els, changes = canvas.reroute_scene(self.store.scenes["checkout-flow"])
+        now = next(e for e in els if e["id"] == "t1")
+        self.assertEqual((now.get("x"), now.get("y"),
+                          json.dumps(now.get("points") or [])), was)
+        self.assertNotIn("t1", {c["id"] for c in changes})
+
+
+class TestPinnedRefusesAgentOps(Base):
+    """An op touching a pin is refused loudly; the rest of the batch lands."""
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_a_mod_on_a_pinned_element_is_held_and_the_rest_applies(self):
+        _pin(self.store, "checkout-flow", "cart")
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment", "attrs": {"x": 500}},
+                     {"op": "mod", "id": "cart", "attrs": {"x": 999}},
+                     {"op": "mod", "id": "confirm", "attrs": {"x": 720}}]})
+        self.assertEqual(_xy(self.store, "checkout-flow", "cart")[0], 40)
+        self.assertEqual(_xy(self.store, "checkout-flow", "payment")[0], 500)
+        self.assertEqual(_xy(self.store, "checkout-flow", "confirm")[0], 720)
+        held = "\n".join(rec.get("pin_held") or [])
+        self.assertIn("2 of 3 op(s) applied", held)
+        self.assertIn("op 1", held)
+        self.assertIn("cart", held)
+
+    def test_a_del_on_a_pinned_element_is_refused(self):
+        _pin(self.store, "checkout-flow", "cart")
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow",
+                 "ops": [{"op": "del", "id": "cart"}]})
+        self.assertTrue(any(e["id"] == "cart"
+                            for e in self.store.scenes["checkout-flow"]))
+
+    def test_dependent_ops_sink_and_unrelated_ones_do_not(self):
+        _pin(self.store, "checkout-flow", "cart")
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "t1",
+                      "attrs": {"strokeColor": "#ff0000"}},
+                     {"op": "mod", "id": "t3",
+                      "attrs": {"strokeColor": "#00ff00"}}]})
+        by_id = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        self.assertNotEqual(by_id["t1"]["strokeColor"], "#ff0000",
+                            "an arrow bound to a pin was not held")
+        self.assertEqual(by_id["t3"]["strokeColor"], "#00ff00",
+                         "an unrelated arrow was held")
+        self.assertIn("is an arrow bound to",
+                      "\n".join(rec.get("pin_held") or []))
+
+    def test_a_batch_with_nothing_left_is_refused_outright(self):
+        _pin(self.store, "checkout-flow", "cart")
+        head = self.store.head_revn()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": head, "artifact": "checkout-flow",
+                 "ops": [{"op": "mod", "id": "cart", "attrs": {"x": 999}}]})
+        self.assertEqual(self.store.head_revn(), head,
+                         "a fully-held batch still wrote a revision")
+        self.assertIn("0 of 1 op(s) applied", "\n".join(cm.exception.errors))
+
+    def test_mod_locked_is_legal_and_narrates(self):
+        _pin(self.store, "checkout-flow", "cart")
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "cart",
+                      "attrs": {"locked": False}}]})
+        by_id = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        self.assertFalse(by_id["cart"].get("locked"))
+        self.assertEqual(rec["summary"]["verb_counts"].get("unpinned"), 1)
+
+    def test_an_unpin_bundled_with_a_move_is_refused_whole(self):
+        _pin(self.store, "checkout-flow", "cart")
+        head = self.store.head_revn()
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": head, "artifact": "checkout-flow",
+                 "ops": [{"op": "mod", "id": "cart",
+                          "attrs": {"locked": False, "x": 999}}]})
+        self.assertEqual(_xy(self.store, "checkout-flow", "cart")[0], 40)
+
+    def test_a_dry_run_names_the_held_ops_too(self):
+        _pin(self.store, "checkout-flow", "cart")
+        out = self.store.check_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment", "attrs": {"x": 500}},
+                     {"op": "mod", "id": "cart", "attrs": {"x": 999}}]})
+        self.assertTrue(out["ok"])
+        self.assertIn("1 of 2 op(s) applied", "\n".join(out["notes"]))
+
+
+class TestPinnedBookkeepingIsNotProtected(Base):
+    """A dead binding is corruption, not arrangement — cleared, and said."""
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_a_pinned_arrows_dead_binding_is_cleared_without_moving_it(self):
+        _pin(self.store, "checkout-flow", "t1")
+        was = _path(self.store, "checkout-flow", "t1")
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "del", "id": "checkout"}]})
+        arrow = next(e for e in self.store.scenes["checkout-flow"]
+                     if e["id"] == "t1")
+        self.assertIsNone(arrow.get("endBinding"),
+                          "the dead binding was left in place")
+        self.assertEqual(_path(self.store, "checkout-flow", "t1"), was,
+                         "clearing a binding moved a pinned arrow")
+        said = "\n".join(rec.get("housekeeping") or [])
+        self.assertIn("cleared the dead binding", said)
+        self.assertIn("not moved", said)
+        self.assertIn("pinned", said)
+
+
+class TestHousekeepingNarratesWhatItMoved(Base):
+    """Unpinned elements may still be repaired — but never silently (C-3)."""
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_arrows_no_op_named_are_reported_when_the_repairs_move_them(self):
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment",
+                      "attrs": {"x": 520, "y": 260}}]})
+        said = "\n".join(rec.get("housekeeping") or [])
+        self.assertIn("re-routed", said)
+        self.assertIn("no op named", said)
+
+    def test_the_report_is_aggregated_not_one_line_per_element(self):
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "checkout",
+                      "attrs": {"x": 300, "y": 300}},
+                     {"op": "mod", "id": "payment",
+                      "attrs": {"x": 560, "y": 320}}]})
+        lines = [ln for ln in (rec.get("housekeeping") or [])
+                 if "re-routed" in ln]
+        self.assertLessEqual(len(lines), 1,
+                             "housekeeping printed one line per element")
+
+    def test_a_batch_that_moves_nothing_extra_says_nothing(self):
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "cart",
+                      "attrs": {"strokeColor": "#123456"}}]})
+        self.assertEqual(rec.get("housekeeping") or [], [])
+
+
+class TestPinNarration(Base):
+    """Pinning must not narrate as "saved without changing anything"."""
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def test_a_pin_produces_a_fact(self):
+        rec = _pin(self.store, "checkout-flow", "cart")
+        self.assertEqual(rec["summary"]["verb_counts"].get("pinned"), 1)
+        self.assertNotIn("saved_no_changes", rec["summary"]["verb_counts"])
+        self.assertIn("pinned", rec["summary"]["headline"])
+
+    def test_an_unpin_produces_its_own_fact(self):
+        _pin(self.store, "checkout-flow", "cart")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "cart":
+                e["locked"] = False
+        rec = self.store.commit(author="user",
+                                new_scenes={"checkout-flow": els},
+                                base_revn=self.store.head_revn())
+        self.assertEqual(rec["summary"]["verb_counts"].get("unpinned"), 1)
+
+    def test_a_bulk_pin_reads_as_one_headline_plus_a_count(self):
+        ids = [e["id"] for e in self.store.scenes["checkout-flow"]
+               if e.get("type") == "rectangle"]
+        rec = _pin(self.store, "checkout-flow", *ids)
+        self.assertEqual(rec["summary"]["verb_counts"].get("pinned"), len(ids))
+        self.assertTrue(rec["summary"]["headline"].startswith("pinned "))
+        self.assertIn("to the canvas", rec["summary"]["headline"])
+
+    def test_the_headline_says_canvas_so_it_cannot_read_as_a_question(self):
+        # `pin` means a ❓ glyph in this repo; the two must not collide
+        self.assertIn("to the canvas",
+                      canvas.headline_for({"fact": "pinned",
+                                           "element": "x", "label": "Login"}))
+
+    def test_every_new_fact_is_in_salience(self):
+        for name in ("pinned", "unpinned", "widget_ungrouped"):
+            self.assertIn(name, canvas.SALIENCE)
+
+    def test_every_new_fact_headlines_itself(self):
+        for name in ("pinned", "unpinned"):
+            line = canvas.headline_for({"fact": name, "element": "e1",
+                                        "label": "Cart"})
+            self.assertIn("Cart", line)
+        line = canvas.headline_for({"fact": "widget_ungrouped",
+                                    "element": "sl", "label": "Volume",
+                                    "parts": ["a", "b"]})
+        self.assertIn("Volume", line)
+        self.assertIn("2 parts", line)
+
+
+class TestComposedWidgetsAreRealGroups(Base):
+    """Every composed part shares its body's group (root fix for C-6)."""
+
+    WIDGETS = (
+        {"kind": "slider", "value": 60},
+        {"kind": "checkbox", "checked": True},
+        {"kind": "toggle", "checked": True},
+        {"kind": "kpi", "value": "$4.2M"},
+        {"kind": "input", "value": "09:00"},
+        {"kind": "image"},
+        {"kind": "entity", "attributes": ["id", "total"]},
+    )
+
+    def _mint(self, spec):
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "w", "type": "rectangle", "x": 100, "y": 200,
+                  "width": 160, "height": 60, "label": "W"}, **spec),
+            set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_every_composed_part_is_in_its_bodys_group(self):
+        for spec in self.WIDGETS:
+            with self.subTest(kind=spec["kind"]):
+                out = self._mint(spec)
+                self.assertEqual(canvas.composed_group_gaps(out), [],
+                                 "%s has parts outside its body's group"
+                                 % spec["kind"])
+
+    def test_the_bound_label_is_in_the_group_too(self):
+        # the measured drift: 7 of 22 parts were outside, all of them labels
+        for spec in self.WIDGETS:
+            with self.subTest(kind=spec["kind"]):
+                out = self._mint(spec)
+                body = out[0]
+                label = next((e for e in out if e.get("containerId") == "w"),
+                             None)
+                self.assertIsNotNone(label)
+                self.assertTrue(
+                    set(label.get("groupIds") or []) &
+                    set(body.get("groupIds") or []),
+                    "%s's label is in no group with its body" % spec["kind"])
+
+    def test_a_body_block_puts_its_owner_in_the_parts_group(self):
+        out = self._mint({"kind": "body"})
+        self.assertEqual(canvas.composed_group_gaps(out), [])
+
+    def test_a_plain_labelled_box_is_not_treated_as_a_composite(self):
+        errors = []
+        out = canvas.make_element(
+            {"id": "b", "type": "rectangle", "x": 0, "y": 0, "width": 100,
+             "height": 40, "label": "Plain"}, set(), errors, 0)
+        self.assertEqual(errors, [])
+        self.assertEqual([e.get("groupIds") or [] for e in out],
+                         [[] for _ in out],
+                         "a plain labelled box was given a group")
+        self.assertEqual(canvas.composed_group_gaps(out), [])
+
+    def test_tidy_moves_a_widget_as_one_thing(self):
+        self.store.apply_batch(
+            {"base_revn": 0,
+             "create": {"id": "w1", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "sl", "type": "rectangle",
+                      "x": 100, "y": 200, "width": 160, "height": 44,
+                      "label": "Volume", "kind": "slider", "value": 60}]})
+        els = [dict(e) for e in self.store.scenes["w1"]]
+        for e in els:
+            e["x"] = e.get("x", 0) + 3
+            e["y"] = e.get("y", 0) - 3
+        self.store.commit(author="user", new_scenes={"w1": els},
+                          base_revn=self.store.head_revn())
+        before = {e["id"]: (e.get("x"), e.get("y"))
+                  for e in self.store.scenes["w1"]}
+        self.store.tidy("w1")
+        after = {e["id"]: (e.get("x"), e.get("y"))
+                 for e in self.store.scenes["w1"]}
+        deltas = {i: (after[i][0] - before[i][0], after[i][1] - before[i][1])
+                  for i in before if i in after}
+        self.assertEqual(
+            len(set(deltas.values())), 1,
+            "tidy tore the widget apart: %r" % (deltas,))
+
+    def test_a_user_ungroup_is_narrated_and_never_repaired(self):
+        self.store.apply_batch(
+            {"base_revn": 0,
+             "create": {"id": "w2", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "sl", "type": "rectangle",
+                      "x": 100, "y": 200, "width": 160, "height": 44,
+                      "label": "Volume", "kind": "slider", "value": 60}]})
+        els = [dict(e, groupIds=[]) for e in self.store.scenes["w2"]]
+        rec = self.store.commit(author="user", new_scenes={"w2": els},
+                                base_revn=self.store.head_revn())
+        self.assertEqual(rec["summary"]["verb_counts"].get("widget_ungrouped"),
+                         1)
+        self.assertIn("ungrouped", rec["summary"]["headline"])
+        self.store.tidy("w2")
+        self.assertTrue(all(not (e.get("groupIds") or [])
+                            for e in self.store.scenes["w2"]),
+                        "the tool silently re-grouped an ungrouped widget")
+
+    def test_a_hand_made_group_with_no_owner_is_left_alone(self):
+        scene = [mk_el(id="a", type="rectangle", groupIds=["g"]),
+                 mk_el(id="b", type="rectangle", groupIds=["g"]),
+                 mk_el(id="c", type="rectangle", groupIds=["g"])]
+        owners, parts = canvas._group_owners(scene)
+        self.assertEqual(owners, {})
+        self.assertEqual(parts, set())
+
+
+class TestPinnedAddSpec(Base):
+    """`add` may mint a born-pinned element."""
+
+    def test_add_can_mint_a_pinned_element(self):
+        errors = []
+        out = canvas.make_element(
+            {"id": "n", "type": "rectangle", "x": 0, "y": 0, "width": 80,
+             "height": 40, "locked": True}, set(), errors, 0)
+        self.assertEqual(errors, [])
+        self.assertTrue(canvas.pinned_to_canvas(out[0]))
 
 
 if __name__ == "__main__":

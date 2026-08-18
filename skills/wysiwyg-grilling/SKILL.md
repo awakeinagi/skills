@@ -573,6 +573,33 @@ and priority order when suggesting views.
   disturb it — and narrate the lock. Unlocking is the user's right-click
   (or your mod) and always legitimate; a lock is a guardrail, never a
   wall. Don't lock what's still in play.
+- **`locked` is now ENFORCED, and it is the user's "Pin to Canvas"**. It
+  stopped being advisory in v0.9: no tool-side pass will move a pinned
+  element — not tidy's snap, the fan, the router, re-routes, z-rebanding,
+  focus solving, contention feet or relayout — and each of those says how
+  many it left alone. Three things follow for you:
+  - **Your ops on a pinned element are refused**, and so are ops on
+    anything one dependency hop away (an arrow bound to it, a group
+    sibling, its container or frame). *Everything else in the batch still
+    applies* — read the response's `notes`: it says "5 of 8 op(s)
+    applied; ops 3,4,6 held: login-box is pinned". Do not re-send the
+    whole batch; the other five landed.
+  - **Pinning and unpinning are the ONE thing you may still do**, because
+    the doctrine above tells you to. `mod {"attrs": {"locked": false}}`
+    is never refused. But **ask first** — a pin is usually the user's,
+    and unpinning to make room for your own layout is exactly what it
+    exists to prevent. Bundling an unpin with a move in one op is
+    refused; unpin in one op, move in the next, so both narrate.
+  - **Bookkeeping is not protected.** If a pinned arrow's target is
+    deleted, its dead binding is cleared and it does not move. Say that
+    plainly — "I cleared the dead binding; it has not moved, it's
+    pinned" — because a cleared binding and a drag look identical in a
+    diff.
+- **Housekeeping now narrates.** Repairs that used to move things
+  silently — the routing post-pass re-drawing arrows no op named — report
+  it in `notes`, aggregated to one line with a count. Read it and pass it
+  on: an arrow that moved because of *your* unrelated op is the user's
+  drawing changing under them, and it was invisible until v0.9.
 - **Deletion conversations** (config `deletion_conversation`, default on):
   a deletion opens a short why-conversation. Per-deletion opt-out: the user
   saying "pruning X, no need to discuss" (or deleting with a note) IS the

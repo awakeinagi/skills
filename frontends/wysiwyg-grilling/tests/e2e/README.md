@@ -17,7 +17,7 @@ with the pinned `@playwright/test`; regenerate with
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
   reconciliation, composed-part invariants, metrics, mermaid mapping.
-  <!-- live:unittest_suite_cases -->1540<!-- /live:unittest_suite_cases -->
+  <!-- live:unittest_suite_cases -->1575<!-- /live:unittest_suite_cases -->
   tests, mutation harness and render tier included — a **live value**
   computed by `tests/livedoc.py` and held current by its pre-commit hook,
   because this exact number needed a commit of its own (`cb533ab`) to move

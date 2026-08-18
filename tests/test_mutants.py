@@ -21546,6 +21546,24 @@ UNCOVERED: dict[str, str] = {
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "decoration_overhang":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
+    # Added 2026-08-18 (v0.9 TASK-PIN-BACKEND) with the template itself.
+    # It takes the SHAPE OF THE TWO ROWS ABOVE — a lint_layout note with
+    # no `DETECTORS` entry — rather than `unreadable_color`'s, and that
+    # is the deliberate half: registering a detector obliges a proving
+    # mutant, and a fix's author does not write its own acceptance test
+    # (the mutant-curator's charter, and the reason `unreadable_color`
+    # sat here for a day). Both poles ARE proven ungated in
+    # tests/test_backend.TestComposedWidgetsAreRealGroups — every minted
+    # widget silent, a de-grouped one reported — so the gap this row
+    # names is specific: nothing asserts the note's WORDING or its
+    # per-widget aggregation through `collect_findings`, so a rewrite
+    # that kept the behaviour and split it back to one line per part
+    # would pass the catalogue. Draining it needs a `DETECTORS` entry
+    # with a `lint_re` over the "outside its own group" clause, authored
+    # by a curator.
+    "widget_group_incomplete":
+        "added 2026-08-18 with the check; the proving mutant is a "
+        "curator's to author — in lint_layout",
     # Added 2026-08-14 (v0.9 WP4, task 24) with the template itself, which
     # is what this ledger is for: WP4b's e15 arrived with no CATALOGUE
     # mutant because no defect indicts it — it is input hygiene, and the
@@ -24271,13 +24289,41 @@ class TestCoverage(unittest.TestCase):
         two existing endpoint findings. That is the 58 -> 61 judgement
         applied to refusals rather than to arms: a check speaks once per
         element however many reasons it had not to.
+
+        63 -> 64 on 2026-08-18 (v0.9 TASK-PIN-BACKEND):
+        `widget_group_incomplete`, the note asking whether a composed
+        widget whose parts sit outside its own group was ungrouped on
+        purpose. It DOES take an `UNCOVERED` row, and unlike 61 -> 62's
+        it takes one without a `DETECTORS` entry — the shape
+        `budget_override_note` and `decoration_overhang` have carried
+        since the 2026-08-12 enumeration. The reason is the same rule
+        that put `unreadable_color` here for a day: registering a
+        detector obliges a proving mutant, and the hands that wrote this
+        check do not get to write its acceptance test.
+
+        ONE SITE PER WIDGET, not per part, which is 49 -> 50's
+        degenerate-arrow judgement: the finding is keyed on the OWNER and
+        lists its loose parts, because a widget with three of them has
+        one repair and should file one question.
+
+        THE CORPUS DOES NOT EXERCISE THAT AGGREGATION, and saying so is
+        the point of measuring rather than asserting: the 24 frozen
+        artifacts hold 45 loose parts across 6 drawings, and they
+        collapse to 45 findings, not fewer — every affected widget has
+        exactly ONE loose part, and it is always the bound label, because
+        the label is minted ~120 lines before any composite block knows
+        what kind of widget it is building. So the grouping-by-owner is
+        proven by construction in
+        tests/test_backend.TestComposedWidgetsAreRealGroups and by
+        nothing in the corpus; a change that reverted it to one line per
+        part would leave every corpus count identical.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 63,
+        self.assertEqual(sites, 64,
                          "canvas.py lint_layout append-site count changed "
-                         "(63 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(64 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
