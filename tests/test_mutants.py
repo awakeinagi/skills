@@ -4507,15 +4507,19 @@ class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
         `TestStoredHeightMatchesThePaintedLineHeight` in test_backend.py
         asserts 96px stored against the default's 60 at fontSize 16.
 
-        THE MEASURING HALF IS STILL OPEN and still not pinned, for the
-        reason that keeps this test green: `lint_layout`'s composed
-        check and `shape_clip` read at the default, the EXPORT is
-        protected regardless (`ink_extent` takes `max(stored,
-        estimate-at-the-element's-own-lineHeight)`), and a red there
-        would assert a miss nobody has demonstrated on a real scene —
-        exactly the trap the paragraph above declines. If the
-        line-height work later demonstrates a lint going quiet on it,
-        those two call sites are named here and this is the pin to grow.
+        THE MEASURING HALF IS CLOSED TOO, on 2026-08-18. It was left
+        open here — "`lint_layout`'s composed check and `shape_clip`
+        read at the default, the EXPORT is protected regardless, and a
+        red there would assert a miss nobody has demonstrated" — and the
+        v0.9 whole-branch review then demonstrated it: a three-line
+        bound label whose ink `render_svg` puts 4px below its container
+        while the fit check is silent, and a fit warning quoting a 60px
+        block for one drawn 64px tall. Curator batch 34 pinned both,
+        TASK-ENTITY-LINEHEIGHT threaded the element's own multiplier
+        into every reader that holds an element, and
+        `TestOneLineHeightHasTwoReaders` is where that lives. This test
+        keeps its own subject: the three WRAP rules, which is a
+        different disagreement about the same string.
         """
         boxed = el(id="t1", type="text", x=0, y=0, width=200, height=20,
                    text="yes\nno maybe", fontSize=16, autoResize=False,
@@ -4528,9 +4532,11 @@ class TestBoundsLoopReadsTheLineHeight(unittest.TestCase):
             "the renderer paints %r and the lint rules measure %r: the "
             "newline divergence has moved, so re-derive the heights below"
             % (painted, collapsed))
+        lh = boxed["lineHeight"]
         self.assertEqual(
-            (canvas.text_dims("\n".join(painted), fs)[1],
-             canvas.text_dims("\n".join(collapsed), fs)[1]), (40, 20),
+            (canvas.text_dims("\n".join(painted), fs, lh)[1],
+             canvas.text_dims("\n".join(collapsed), fs, lh)[1]),
+            (int(2 * fs * lh), int(fs * lh)),
             "the two readings of one string no longer differ by a factor "
             "of two; if they now agree, the collapse has been removed and "
             "this pin should be deleted rather than re-tuned")
@@ -4976,7 +4982,14 @@ class TestStoreIntegrity(unittest.TestCase):
                         {"0001-x": _GOOD_SAVE})
         self.assertIn("ART-011", {i.get("code") for i in st.issues})
         n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
-        self.assertEqual(n1["height"], 136)
+        # the grown box is the refitted label's band plus the fitter's
+        # 16px, DERIVED because the band follows the spacing the client
+        # paints at: 136 while `text_dims` defaulted to Excalidraw's
+        # generic 1.25, 145 since it became Nunito's own 1.35
+        # (TASK-ENTITY-LINEHEIGHT, 2026-08-18). The wrap is width-driven
+        # and unchanged, so the LINE COUNT is what is written here.
+        self.assertEqual(n1["height"],
+                         canvas.text_dims("\n".join(["x"] * 6), 16)[1] + 16)
 
     # -- Two CLASS pins from the v0.9 Task-18 cycle (2026-08-14), written
     # from third hands. The instances are fixed and covered by the tests
@@ -22749,10 +22762,14 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # frozen artifacts is byte-identical under both doors. What is left in this
 # dict is what its own comment predicts: a smaller dict, two classes that
 # stayed and grew assertions, and no number anybody had to edit twice.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheEntityNameClearsItsOwnAttributeRows": 2,
-    "TestOneLineHeightHasTwoReaders": 2,
-}
+# BOTH LEFT on 2026-08-18, the day after they joined, flipped together by
+# TASK-ENTITY-LINEHEIGHT — the pair arrived from one reading and left by one
+# task, which is the routing rule working rather than a coincidence: the
+# controller's triage named the task the `WHO FLIPS THIS:` paragraphs were
+# waiting on, and both classes stayed, kept every test, and grew their
+# assertions past what the reds could state. The dict lost two LINES and not
+# two numbers, for the tenth and eleventh time.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
 # this dict was written. `TestAFreedrawKeepsTheGeometryItWasGiven` left it
@@ -24063,6 +24080,16 @@ class TestTheRouterAndTheInstrumentCountDifferentCrossings(unittest.TestCase):
 # defect is what `apply_ops` MINTS. There is no operator that can express
 # "reach the same entity by the other verb", and — see the class docstring —
 # no detector that answers about the picture it leaves either.
+#
+# FLIPPED GREEN 2026-08-18 by TASK-ENTITY-LINEHEIGHT, and the repair was NOT
+# the one line the curator named. The two sites were folded into
+# `_compose_attribute_rows`, which both verbs now call, so the reds below
+# could stop asking "do these two agree about the label" and start asking
+# the whole question: the two verbs produce the SAME SCENE, field for field.
+# The user's ruling, in their words: factor the two sites into one layout
+# function that both paths call, because this wave's headline defects were
+# all one rule typed at two sites where only one got fixed, and patching the
+# copy leaves the shape intact.
 # ---------------------------------------------------------------------------
 _ENTITY_ADD = {"op": "add", "id": "E1", "type": "rectangle", "x": 100,
                "y": 100, "width": 160, "height": 80, "label": "Order",
@@ -24075,21 +24102,27 @@ def _entity_rows_scene(seeded: bool) -> list[dict]:
 
     THE REAL ENTRY POINT, not the two helpers side by side, because the
     defect is what the pipeline DRAWS and not what either function
-    contains. `make_element` re-aligns the bound label when it mints
-    rows (canvas.py, `verticalAlign = "top"` and `y = el["y"] + 6`);
-    `_reset_attribute_rows` claims in its own docstring to mirror that
-    minting — "same geometry" — and omits exactly those two lines. Both
-    sites agree about `header_h`/`row_h`, the `+ 8` height rule and the
-    14-key row dict, which is what makes the drift survive a reading.
+    contains. `make_element` used to re-align the bound label when it
+    minted rows (`verticalAlign = "top"` and `y = el["y"] + 6`) while
+    `_reset_attribute_rows`, whose own docstring claimed to mirror that
+    minting — "same geometry" — omitted exactly those two lines. Both
+    sites agreed about `header_h`/`row_h`, the `+ 8` height rule and the
+    14-key row dict, which is what made the drift survive a reading.
+    Both verbs now call `_compose_attribute_rows` and there is nothing
+    left to mirror; this helper still reaches them through `apply_ops`,
+    because a test that called the shared function twice would be
+    asserting that one function agrees with itself.
 
     The geometry is the reviewer's, re-derived here: a 160x80 box at
     (100, 100) with two rows. Two rows and not three because two is the
-    fewest that puts the centred label's own band (y=130..150) INSIDE the
+    fewest that put the centred label's own band (y=130..150) INSIDE the
     first row's (y=132..148) rather than merely across it — total
     containment reads as one defect on the page instead of as a near
     miss. The box is 80px because `need` is `32 + 20*2 + 8` = 80, so
     neither path grows it and the container's geometry is identical in
-    both poles: the ONLY thing that differs is where the name is drawn.
+    both poles: the ONLY thing that ever differed is where the name is
+    drawn, which is what makes the scene-equality assertion below a
+    statement about the label rather than about the box.
 
     Args:
         seeded: True to mint the entity and its rows in one `add` (the
@@ -24144,34 +24177,47 @@ def _row_band(scene: list[dict], eid: str) -> tuple[float, float]:
 
 
 class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
-    """A domain entity's name, drawn on top of its first attribute.
+    """A domain entity's name, once drawn on top of its first attribute.
 
     Witnessed by the v0.9 whole-branch review, 2026-08-18: `add` an
-    entity WITH attributes and its name is set `top` at y=106, clear
+    entity WITH attributes and its name was set `top` at y=106, clear
     above the rows; `add` a bare entity and then `mod attributes` and
-    the name stays `middle` at y=130, spanning 130..150 while the first
-    row spans 132..148. The name is drawn ON its first attribute, and
-    `lint_layout` returns zero errors and zero warnings about it.
+    the name stayed `middle` at y=130, spanning 130..150 while the first
+    row spanned 132..148. The name was drawn ON its first attribute, and
+    `lint_layout` returned zero errors and zero warnings about it.
 
-    WHO FLIPS THIS: the v0.9 whole-branch review triage
-    (controller-assigned), which owns the disposition of both sites.
-    Not this file and not a curator — `_reset_attribute_rows` is
-    canvas.py's, and the fix and its acceptance test coming from the
-    same hands is the run-5 pattern this harness exists to refuse. Both
-    reds flip on one repair: give the mirror the label re-alignment the
-    minting does.
+    FLIPPED by TASK-ENTITY-LINEHEIGHT the same day, by folding the two
+    sites into `_compose_attribute_rows` rather than by copying the
+    seeder's two lines into the mirror. The reds were written to survive
+    either repair — they named the drift and the drawing, not a
+    coordinate — and the fold let them be strengthened past what either
+    repair was asked for: the two verbs now produce the same scene field
+    for field, so a future divergence has nowhere to hide that this
+    class does not look.
 
-    NO CHECK OWNS THE PICTURE, which is a separate finding and is why
-    the second red is stated as a DRAWING claim rather than as a
-    `FindingSpec`. Measured on this scene: `label_label_overlap` walks
-    bound labels against bound labels and the attribute row is unbound,
-    `text_overlaps_node` skips any text carrying a `containerId` on the
-    text side and any `decoration` role on the other, and both skips
-    fire here — so a bound label lying on its own container's decoration
-    text is a pair nothing in `lint_layout` compares. `collect_findings`
-    over this scene returns one `crossings=0` metric and nothing else.
-    A red naming a check that does not exist would have no owner, so
-    that gap is reported to the fix task instead of pinned here.
+    WHAT WOULD HAVE TO HAPPEN NOW for the two paths to drift again:
+    someone would have to give `_compose_attribute_rows` a second caller
+    that does part of the layout itself, or re-inline it. Both are
+    visible at the call site and both fail
+    `test_both_verbs_draw_the_same_entity` on the first field that
+    differs. The old shape — two bodies that look alike, one of which
+    quietly lacks a line — is no longer available, because there is only
+    one body.
+
+    NO CHECK OWNED THE PICTURE, which was a separate finding and is why
+    the second red was stated as a DRAWING claim rather than as a
+    `FindingSpec`. Measured on this scene at the time:
+    `label_label_overlap` walks bound labels against bound labels and
+    the attribute row is unbound, `text_overlaps_node` skips any text
+    carrying a `containerId` on the text side and any `decoration` role
+    on the other, and both skips fired here — so a bound label lying on
+    its own container's decoration text was a pair nothing in
+    `lint_layout` compared. That gap is now `text_over_text`, added by
+    the same task at WARNING tier and proven in
+    `TestTextDrawnOnText` below; it is a different claim from these
+    tests and deliberately lives in its own class, because a layout that
+    stops producing the overlap and a check that would report it if
+    something else did are two independent defences.
     """
 
     def test_the_seeded_entity_draws_its_name_above_its_rows(self) -> None:
@@ -24190,48 +24236,71 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
         self.assertEqual(
             (label.get("verticalAlign"), top, bottom,
              _row_band(scene, "E1-attr-1")),
-            ("top", 106, 126, (132, 148)),
+            ("top", 106, 106 + canvas.text_dims(
+                label["text"], label["fontSize"],
+                label["lineHeight"])[1], (132, 148)),
             "the `add` path's own geometry has moved, so the poles below "
             "no longer differ by the label re-alignment alone")
 
-    @unittest.expectedFailure
-    def test_both_paths_align_the_entity_label_the_same_way(self) -> None:
-        """The drift itself: one rule, two sites, two answers.
+    def test_both_verbs_draw_the_same_entity(self) -> None:
+        """One layout rule, one function, one answer — field for field.
 
-        The narrowest statement of the defect, and the one that survives
-        whichever way the repair is written — it names no coordinate, so
-        a fix that re-aligns to some third position still flips it as
-        long as both verbs agree. MEASURED 2026-08-18: `("top", 106)`
-        from the seeder against `("middle", 130.0)` from the mirror.
+        WAS the drift, stated as `(verticalAlign, y)` equality because
+        that was the axis the two sites disagreed on. It is now the whole
+        element list, because the repair was a fold rather than a patch:
+        `_compose_attribute_rows` is called by both verbs, so anything
+        the two scenes disagree about is a NEW divergence and this is
+        where it should surface — not just the label's band, which is
+        merely where the first one happened to land.
 
-        `y` and `verticalAlign` together and not either alone, because
-        the client re-derives the drawn baseline from both: `middle` at
-        y=106 and `top` at y=130 are each half a fix, and half a fix
-        leaves the name in a third wrong place.
+        `VOLATILE_ATTRS` is stripped because canvas.py declares those to
+        be the fields two constructions of one drawing are allowed to
+        differ on; everything else, geometry and content and stamps
+        alike, must match. MEASURED 2026-08-18: they match exactly,
+        including element order.
         """
-        seeded = next(e for e in _entity_rows_scene(seeded=True)
-                      if e["id"] == "E1-label")
-        modded = next(e for e in _entity_rows_scene(seeded=False)
-                      if e["id"] == "E1-label")
-        self.assertEqual(
-            (modded.get("verticalAlign"), modded.get("y")),
-            (seeded.get("verticalAlign"), seeded.get("y")),
-            "`mod attributes` leaves the bound label where a bare entity "
-            "put it while `add` re-aligns it, so one layout rule is typed "
-            "at two sites and they disagree")
+        def drawn(scene: list[dict]) -> list[dict]:
+            """One scene with its declared-volatile fields removed.
 
-    @unittest.expectedFailure
+            Args:
+                scene: The element list to strip.
+
+            Returns:
+                The same elements, in order, without `VOLATILE_ATTRS`.
+            """
+            return [{k: v for k, v in e.items()
+                     if k not in canvas.VOLATILE_ATTRS} for e in scene]
+
+        seeded, modded = (_entity_rows_scene(seeded=True),
+                          _entity_rows_scene(seeded=False))
+        self.assertEqual(
+            drawn(modded), drawn(seeded),
+            "`add` with attributes and `add` + `mod attributes` no longer "
+            "draw the same entity. One layout rule reached by two verbs "
+            "has diverged again — the label alignment was the first time "
+            "(2026-08-18) and cost the name being drawn on its own first "
+            "attribute with every check silent")
+
     def test_the_relabelled_entity_keeps_its_name_off_the_first_row(self
                                                                    ) -> None:
-        """What the reader sees: the name sitting on its first attribute.
+        """What the reader sees: the name clear of every attribute.
 
         The drift's consequence, asserted on the DRAWING rather than on
         the two functions, because a fix that made the two sites agree on
-        a position that still overlapped would pass the red above and
-        leave the picture broken. MEASURED 2026-08-18: the label spans
-        130.0..150.0 and `E1-attr-1` spans 132..148, so the row is
-        wholly inside the name's band — 16px of vertical overlap over
-        the 44px the two share horizontally.
+        a position that still overlapped would pass the test above and
+        leave the picture broken. MEASURED 2026-08-18 before the fix: the
+        label spanned 130.0..150.0 and `E1-attr-1` spanned 132..148, so
+        the row was wholly inside the name's band — 16px of vertical
+        overlap over the 44px the two share horizontally.
+
+        STRENGTHENED past the flip, three ways. It asserts a positive
+        gap rather than the absence of overlap, so a name that lands
+        flush against its first row — legal under the old assertion, and
+        unreadable — fails. It walks EVERY row rather than the first,
+        because the header band is what the label must clear and a
+        second row is as covered as the first if it stops. And it runs
+        over BOTH verbs, so the claim is about the entity rather than
+        about the path taken to it.
 
         The assertion is on the vertical band alone. The two are
         horizontally nested by construction (the label is centred in a
@@ -24240,14 +24309,18 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
         in would let a fix that merely narrowed the label pass without
         moving the name off the row.
         """
-        scene = _entity_rows_scene(seeded=False)
-        (ltop, lbot), (rtop, rbot) = (_row_band(scene, "E1-label"),
-                                      _row_band(scene, "E1-attr-1"))
-        self.assertLessEqual(
-            min(lbot, rbot) - max(ltop, rtop), 0,
-            "the entity's name is drawn across its own first attribute: "
-            "the label spans %s..%s and the row spans %s..%s"
-            % (ltop, lbot, rtop, rbot))
+        for seeded in (True, False):
+            scene = _entity_rows_scene(seeded=seeded)
+            ltop, lbot = _row_band(scene, "E1-label")
+            for rid in ("E1-attr-1", "E1-attr-2"):
+                rtop, rbot = _row_band(scene, rid)
+                self.assertGreaterEqual(
+                    rtop - lbot, 4,
+                    "the entity's name is drawn on (or flush against) its "
+                    "own attribute %s in the %s scene: the label spans "
+                    "%s..%s and the row spans %s..%s"
+                    % (rid, "add" if seeded else "mod attributes",
+                       ltop, lbot, rtop, rbot))
 
 
 # ---------------------------------------------------------------------------
@@ -24275,32 +24348,60 @@ _CLIENT_FONT_METRICS = re.compile(
     r"descender:-353,lineHeight:([\d.]+)\}")
 
 
+def _drawn_block(scene: list[dict]) -> int:
+    """The height `paint` lays the bound label of `_line_height_box` down in.
+
+    Derived from the label's own fields — its text, its size and its
+    `lineHeight` — rather than written down, so a change to the estimator
+    moves this and the check it is compared against together and the
+    tests below go on asking the same question.
+
+    Args:
+        scene: A `_line_height_box` scene: node `n1`, bound label `t1`.
+
+    Returns:
+        The painted block's height in px.
+    """
+    lbl = next(e for e in scene if e["id"] == "t1")
+    room_w = int(next(e for e in scene if e["id"] == "n1")["width"]) - 8
+    return canvas.text_dims(
+        canvas.wrap_label_text(lbl["text"], room_w, lbl["fontSize"]),
+        lbl["fontSize"], lbl["lineHeight"])[1]
+
+
 class TestOneLineHeightHasTwoReaders(unittest.TestCase):
-    """`render_svg` reads the element's `lineHeight`; `lint_layout` does not.
+    """`render_svg` read the element's `lineHeight`; `lint_layout` did not.
 
     canvas.py's `paint` lays every line down at `fontSize * (lineHeight
-    or 1.25)` and `render_svg`'s bounds loop reserves height the same
-    way — a comment there records that a written-in 1.25 was itself a
-    defect. `lint_layout` never got the same treatment: its three
-    `text_dims(txt, fs)` calls in the fit check and the one in
-    `fit_label_in` all take the 1.25 default, so the checker measures a
-    block the renderer does not draw.
+    or NUNITO_LINE_HEIGHT)` and `render_svg`'s bounds loop reserves
+    height the same way — a comment there records that a written-in
+    number was itself a defect. `lint_layout` never got the same
+    treatment: its three `text_dims(txt, fs)` calls in the fit check and
+    the one in `fit_label_in` all took the default, so the checker
+    measured a block the renderer does not draw.
 
     THE FIELD ARRIVES FROM THE BROWSER, which is what makes this reachable
     rather than theoretical. `lineHeight` is absent from `MOD_ATTRS`, so no
-    agent op can write it; `normalize_element` writes 1.25; and it survives
-    a round trip. The only writer is the client — and the shipped client
-    gives Nunito, this repo's `FONT_LEGIBLE`, a default of 1.35. The first
-    test below is that referee, read off the bundle the page loads.
+    agent op can write it, and it survives a round trip. The only other
+    writer is the client — and the shipped client gives Nunito, this repo's
+    `FONT_LEGIBLE`, a default of 1.35. The first test below is that referee,
+    read off the bundle the page loads.
 
-    WHO FLIPS THIS: the v0.9 whole-branch review triage
-    (controller-assigned). Both reds flip on one repair — thread the
-    element's own `lineHeight` into the fit check's `text_dims` calls,
-    the way `render_svg` already does — and they flip together on
-    purpose: one says the check is silent where the ink leaves the box,
-    the other says that when it does speak its number describes the
-    wrong block. A fix that only lowered a threshold would answer the
-    first and not the second.
+    FLIPPED by TASK-ENTITY-LINEHEIGHT, 2026-08-18, both halves of the
+    user's ruling in one change: every reader holding an element now
+    passes that element's own multiplier, and the DEFAULT those readers
+    fall back to stopped being Excalidraw's generic 1.25 and became
+    `canvas.NUNITO_LINE_HEIGHT` — this file's own font's number, derived
+    from the client and pinned against it by the first test, so a bundle
+    that re-tunes the metric fails here instead of silently re-opening
+    the gap.
+
+    The two reds flipped together on purpose: one said the check is
+    silent where the ink leaves the box, the other said that when it does
+    speak its number describes the wrong block. A fix that only lowered a
+    threshold would have answered the first and not the second, and both
+    are now asserted across three multipliers rather than at the one the
+    client happens to ship today.
 
     WHICH ARM THIS PROVES, stated because the review flagged the other
     one as open: this is the EXPORT arm, server-side and complete —
@@ -24316,13 +24417,28 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
 
     def test_the_shipped_client_gives_nunito_a_line_height_of_1_35(self
                                                                    ) -> None:
-        """The referee: 1.35 is the client's number, not this test's.
+        """The referee: 1.35 is the client's number, and now it is ours.
 
-        Without this the two reds rest on a multiplier nobody can source,
-        and "1.35" reads as a value picked to make a check fail. The
-        client's own per-font metrics table is what decides the drawn
+        Without this the poles below rest on a multiplier nobody can
+        source, and "1.35" reads as a value picked to make a check fail.
+        The client's own per-font metrics table is what decides the drawn
         block, and it is in the tree — so the calibration-literal
         discipline says derive it rather than write it down.
+
+        STRENGTHENED past the flip into the second half of the user's
+        ruling: it no longer only reads the client's number, it PINS
+        `canvas.NUNITO_LINE_HEIGHT` against it. That constant is what
+        this server writes into every text it mints and what every reader
+        falls back to, so if a bundle update re-tunes Nunito's metric the
+        two stop matching and this fails loudly — instead of the server
+        going on reserving 8% less height than the browser draws, which
+        is the shape of the defect this class was opened for. Nunito is
+        `FONT_LEGIBLE` (fontFamily 6), which is the link that makes the
+        client's per-font row OUR number rather than a neighbour's: the
+        same table gives Excalifont 1.25, Lilita One 1.15 and Comic
+        Shanns 1.25, and 1.25 — the value written in at nine sites here
+        until 2026-08-18 — was the DEFAULT FONT'S, which this repo does
+        not use.
 
         The bundle is globbed because its filename carries a content
         hash; the assertion is on the ONE bundle `index.html` loads, so a
@@ -24344,6 +24460,14 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
             "(fontFamily %d, this repo's FONT_LEGIBLE) a default "
             "lineHeight of 1.35 — re-read %s and re-derive the poles below "
             "before touching them" % (canvas.FONT_LEGIBLE, src[0]))
+        self.assertEqual(
+            [str(canvas.NUNITO_LINE_HEIGHT)], found,
+            "this server mints text at lineHeight %r while the client it "
+            "ships lays Nunito out at %s. Every extent reserved here is "
+            "then measured against a block the browser draws taller — the "
+            "direction that puts ink outside the box — so re-derive "
+            "NUNITO_LINE_HEIGHT from %s rather than re-tuning it"
+            % (canvas.NUNITO_LINE_HEIGHT, found, src[0]))
 
     def test_the_export_paints_the_block_at_the_elements_line_height(self
                                                                      ) -> None:
@@ -24398,60 +24522,78 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
             "the fit check's firing pole has moved; re-derive the two "
             "reds in this class before reading their colour")
 
-    @unittest.expectedFailure
     def test_the_fit_check_sees_the_ink_leave_the_box(self) -> None:
-        """The silent pole: 4px of the last line is drawn outside the box.
+        """The once-silent pole: 4px of the last line is outside the box.
 
         MEASURED 2026-08-18 on a 200x64 node whose bound label wraps to
         three lines. `room_h` is 60; at the client's 1.35 the drawn block
         is 3 * 16 * 1.35 = 64.8px and the export's ink reaches y=68,
-        4px below the container. The check measures 60 against 60,
-        calls it a fit, and says nothing — zero errors, zero warnings.
+        4px below the container. The check measured 60 against 60, called
+        it a fit, and said nothing — zero errors, zero warnings.
 
-        The assertion counts the fit warnings rather than matching the
-        sentence, because the number this check will quote once it reads
-        the element's own multiplier is the subject of the red below and
-        must not be pre-judged here. This one says only: speak.
+        STRENGTHENED past the flip into the differential the red could
+        not state: the SAME box, the SAME label, one field apart. At the
+        element's own 1.25 the block ends flush on the container's edge
+        and the check must stay quiet; at 1.35 the ink leaves the box and
+        it must speak, once, about `n1`. A check that read the element
+        and then reported everything would pass the red's "speak" and
+        fail here.
+
+        It still does not match the sentence — the number quoted is the
+        next test's subject, and asserting it twice would make one repair
+        answerable in two places.
         """
-        lint = canvas.lint_layout(_line_height_box(height=64,
-                                                   line_height=1.35))
-        self.assertNotEqual(
-            [w for w in lint["warnings"] if "does not fit" in w], [],
-            "the label's last line is drawn 4px below its container and "
-            "the fit check is silent: it reserved height at the 1.25 "
-            "default while `paint` drew at the element's own 1.35")
+        for lh, expect in ((1.25, 0), (1.35, 1)):
+            scene = _line_height_box(height=64, line_height=lh)
+            fits = [w for w in canvas.lint_layout(scene)["warnings"]
+                    if "does not fit" in w]
+            self.assertEqual(
+                len(fits), expect,
+                "at lineHeight %s the 64px box holds a block %dpx tall and "
+                "the fit check said %r. It reserved height at the default "
+                "while `paint` drew at the element's own multiplier, which "
+                "is how 4px of the last line came to be drawn below the "
+                "container in silence" % (lh, _drawn_block(scene), fits))
+            if expect:
+                self.assertIn("n1", fits[0])
 
-    @unittest.expectedFailure
     def test_the_overflow_warning_quotes_the_height_that_is_drawn(self
                                                                   ) -> None:
-        """The magnitude arm: it speaks, and the number is 4px short.
+        """The magnitude arm: it speaks, and the number is the drawn one.
 
-        The pole that a threshold change would not answer. On the same
-        base scene with the container at 56px the check DOES fire — the
-        green above pins that at 1.25 — but at the client's 1.35 it
-        still quotes `needs ~172x60px` for a block the export paints
-        64px tall. A reader widening the box by the number they were
-        given lands 4px short of the ink.
+        The pole a threshold change would not have answered. On the same
+        base scene with the container at 56px the check fires at every
+        multiplier — the green above pins that at 1.25 — but it used to
+        quote `needs ~172x60px` whatever the element carried, so at the
+        client's 1.35 a reader widening the box by the number they were
+        given landed 4px short of the ink.
 
         Read against `text_dims` at the element's own multiplier rather
-        than against a literal 64, per the calibration-literal
-        discipline: the expected value is what `paint` uses, so a fix
-        that changes the estimator moves both sides together and this
-        pin keeps asking the same question.
+        than against a literal, per the calibration-literal discipline:
+        the expected value is what `paint` uses, so a fix that changes
+        the estimator moves both sides together and this pin keeps asking
+        the same question.
+
+        STRENGTHENED past the flip to THREE multipliers, because one is
+        not evidence that the number is being read: 1.25 was the old
+        written-in constant, 1.35 is what the client ships today for this
+        font, and 2.0 is the double spacing a user can pick in the
+        line-height control — 60, 64 and 96px of block against one 52px
+        room. A check that had merely been re-tuned to today's client
+        would pass at 1.35 and fail at both ends.
         """
-        scene = _line_height_box(height=56, line_height=1.35)
-        label = next(e for e in scene if e["id"] == "t1")
-        drawn = canvas.text_dims(
-            canvas.wrap_label_text(label["text"], 192, 16), 16,
-            label["lineHeight"])[1]
-        quoted = [int(m) for w in canvas.lint_layout(scene)["warnings"]
-                  for m in re.findall(r"needs ~\d+x(\d+)px", w)]
-        self.assertEqual(
-            quoted, [drawn],
-            "the fit warning quotes %s where the export paints a %dpx "
-            "block — the check reserved height at the 1.25 default and "
-            "the number a reader would widen the box by is short by %d"
-            % (quoted, drawn, drawn - (quoted[0] if quoted else drawn)))
+        for lh in (1.25, 1.35, 2.0):
+            scene = _line_height_box(height=56, line_height=lh)
+            drawn = _drawn_block(scene)
+            quoted = [int(m) for w in canvas.lint_layout(scene)["warnings"]
+                      for m in re.findall(r"needs ~\d+x(\d+)px", w)]
+            self.assertEqual(
+                quoted, [drawn],
+                "at lineHeight %s the fit warning quotes %s where the "
+                "export paints a %dpx block — the number a reader would "
+                "widen the box by is short by %d"
+                % (lh, quoted, drawn,
+                   drawn - (quoted[0] if quoted else drawn)))
 
 
 # ---------------------------------------------------------------------------

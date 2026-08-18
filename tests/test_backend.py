@@ -3752,6 +3752,14 @@ class TestLoadRepairRerouteAndConfess(Base):
     that made every note-bearing project repair itself on load."""
 
     LONG = "Escalate to the compliance review board immediately"
+    # The refitted label's height, DERIVED and not written down: the
+    # fitter wraps `LONG` into six lines inside a 120px box and reserves
+    # `6 * fontSize * lineHeight` for them, so this number moves with the
+    # spacing the client paints at. It read 120 while the default was
+    # Excalidraw's generic 1.25 and reads 129 now that it is Nunito's own
+    # 1.35 (TASK-ENTITY-LINEHEIGHT, 2026-08-18); the wrap is width-driven
+    # and unchanged, which is why the LINE COUNT is what is written here.
+    FITTED_H = canvas.text_dims("\n".join(["x"] * 6), 16)[1]
 
     def oversized(self, arrows):
         """A 120x60 box with a 400px label, plus the given arrows.
@@ -3834,7 +3842,8 @@ class TestLoadRepairRerouteAndConfess(Base):
         _, issues = canvas.validate_scene(self.oversized([routed]), "a")
         self.assertEqual([i.code for i in issues], ["ART-011", "ART-012"])
         self.assertTrue(issues[1].repaired)
-        self.assertIn("resized n1 (120x60 to 120x136)", issues[1].msg)
+        self.assertIn("resized n1 (120x60 to 120x%d)" % (self.FITTED_H + 16),
+                      issues[1].msg)
         self.assertIn("re-routed a1", issues[1].msg)
 
     def test_a_refit_that_resizes_nothing_confesses_nothing(self):
@@ -3884,7 +3893,7 @@ class TestLoadRepairRerouteAndConfess(Base):
         self.assertEqual([i.code for i in issues2], ["ART-011", "ART-012"])
         t1 = next(e for e in doc2["elements"] if e["id"] == "t1")
         self.assertEqual((t1["x"], t1["y"], t1["width"], t1["height"]),
-                         (12, 8, 96, 120))
+                         (12, 8, 96, self.FITTED_H))
 
     def test_the_reroute_persists_instead_of_recurring(self):
         # The re-route is itself a load-time geometry change, which is
@@ -11790,8 +11799,12 @@ class TestStoredHeightMatchesThePaintedLineHeight(Base):
     every later reader inherits.
 
     The numbers throughout are batch 26's own, at fontSize 16: three
-    lines at `lineHeight: 2.0` is 96px and at the 1.25 default 60px, and
-    the 36px gap is exactly the under-measure that was filed.
+    lines at `lineHeight: 2.0` is 96px, and the gap against whatever the
+    default reads is exactly the under-measure that was filed. That
+    default was Excalidraw's generic 1.25 (60px, a 36px gap) until
+    2026-08-18 and is `canvas.NUNITO_LINE_HEIGHT` — this repo's own
+    font's 1.35, 64px, a 32px gap — since. The assertions below derive
+    both sides for that reason; the CLAIM is the gap, not either number.
     """
 
     TEXT = "aaa\nbbb\nccc"
@@ -11809,15 +11822,28 @@ class TestStoredHeightMatchesThePaintedLineHeight(Base):
             where: The site's name, for the failure message.
         """
         fs = el.get("fontSize", 16)
+        lines = len(self.TEXT.split("\n"))
         self.assertEqual(
             el.get("lineHeight"), 2.0,
             "%s overwrote the client's line height, so this measures the "
             "default twice" % where)
         self.assertEqual(
-            (el["height"], canvas.text_dims(self.TEXT, fs)[1]), (96, 60),
-            "%s stored %rpx where the paint draws 96 at lineHeight 2.0 "
-            "(the default reads 60) — batch 26's 36px under-measure"
-            % (where, el["height"]))
+            el["height"], int(lines * fs * 2.0),
+            "%s stored %rpx where the paint draws %dpx at lineHeight 2.0 "
+            "— batch 26's under-measure"
+            % (where, el["height"], int(lines * fs * 2.0)))
+        # ...and NOT the default's reading, which is the half that fails
+        # if `text_dims` stops varying with `line_height`. The default is
+        # `canvas.NUNITO_LINE_HEIGHT` and is no longer written down here:
+        # it read 60 against 96 while it was Excalidraw's generic 1.25 and
+        # reads 64 now that it is this repo's font's own 1.35
+        # (TASK-ENTITY-LINEHEIGHT, 2026-08-18). What the pin claims is the
+        # GAP, and the gap survives the constant moving.
+        self.assertNotEqual(
+            el["height"], canvas.text_dims(self.TEXT, fs)[1],
+            "%s stored the height the DEFAULT multiplier gives, so this "
+            "scene can no longer tell an element-aware reader from a "
+            "blind one" % where)
 
     def seed_text(self, tid="t1"):
         """Seed one text element and give it the client's double spacing.
@@ -19038,9 +19064,17 @@ class TestXAsUserFidelity(unittest.TestCase):
                          "the rename overwrote the client's line height, "
                          "so this measures the default twice")
         self.assertEqual(
-            (lbl["height"], canvas.text_dims(text, fs)[1]), (96, 60),
-            "`x-as-user rename` stored %rpx where the paint draws 96 at "
-            "lineHeight 2.0 (the default reads 60)" % (lbl["height"],))
+            lbl["height"], int(len(text.split("\n")) * fs * 2.0),
+            "`x-as-user rename` stored %rpx where the paint draws %dpx at "
+            "lineHeight 2.0" % (lbl["height"],
+                                int(len(text.split("\n")) * fs * 2.0)))
+        # the default's own reading, derived rather than written down —
+        # see `assert_reserved_at_double_spacing`, whose note explains why
+        # the number moved on 2026-08-18 and why the GAP is the claim
+        self.assertNotEqual(
+            lbl["height"], canvas.text_dims(text, fs)[1],
+            "`x-as-user rename` stored the DEFAULT multiplier's height, "
+            "so this scene no longer tells the two readers apart")
 
     def test_verbs_write_what_the_client_writes(self):
         # rename re-measures like the client does
@@ -21915,10 +21949,17 @@ class TestShapeAwareLabelRoom(Base):
         On a narrow rhombus the first shape-aware step lands on the 60px
         floor, skipping a budget between the two ends that beats both:
         a 90x100 diamond wrapping this label to the box rule's 66px
-        overhangs by 30px, and to the floor's 60px by 42px, because the
-        narrower wrap costs a fourth line and a rhombus charges for
+        overhangs by 33.6px, and to the floor's 60px by 45.9px, because
+        the narrower wrap costs a fourth line and a rhombus charges for
         height. Keeping `box` in the candidate set is what makes "never
         worse than the rule it replaces" true by construction.
+
+        The two overhangs were 30 and 42 while text was measured at
+        Excalidraw's generic 1.25; they are re-derived here at Nunito's
+        own 1.35, which is what this repo's font is painted at
+        (TASK-ENTITY-LINEHEIGHT, 2026-08-18). The ORDER — the reason
+        this test exists — is unchanged, and it is the order that is
+        being asserted; both numbers grew because both bands did.
         """
         text = "Send for second review"
         cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
@@ -21928,9 +21969,16 @@ class TestShapeAwareLabelRoom(Base):
                "width": canvas.text_dims(text, 16)[0], "height": 20,
                "containerId": "n1"}
         canvas.fit_label_in(cont, lbl)
-        self.assertEqual((lbl["width"], lbl["height"]), (66, 60))  # 90 - 24
+        # the height is DERIVED at the label's own spacing, the way the
+        # sibling test above derives it: the walk's answer is the WIDTH
+        # (90 - 24), and the band that width forces follows from the line
+        # count and the multiplier the client paints at
+        self.assertEqual(
+            (lbl["width"], lbl["height"]),
+            (66, canvas.text_dims(canvas.wrap_label_text(text, 66, 16),
+                                  16)[1]))                  # 90 - 24
         self.assertAlmostEqual(
-            lbl["width"] - canvas.label_room(cont, lbl["height"]), 30.0)
+            lbl["width"] - canvas.label_room(cont, lbl["height"]), 33.6)
 
     def test_an_integer_wide_box_gives_an_integer_room(self):
         """Float dust off the clip must not reach a stored label width.

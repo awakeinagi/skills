@@ -729,7 +729,7 @@ def validate_scene(doc, artifact_id):
                 cont["originalText"] = content
                 cont["width"], cont["height"] = text_dims(
                     content, cont.get("fontSize", 16),
-                    cont.get("lineHeight") or 1.25)
+                    cont.get("lineHeight") or NUNITO_LINE_HEIGHT)
             cont["boundElements"] = [
                 b for b in (cont.get("boundElements") or [])
                 if b.get("id") != el["id"]]
@@ -1412,6 +1412,29 @@ def mint_id(label, kind, existing):
     return cand
 
 
+# The line-height multiplier the CLIENT gives this file's font. Read off
+# the shipped bundle's own per-font metrics table, where
+# `[dn.Nunito]:{metrics:{...,lineHeight:1.35}` sits beside Excalifont's
+# 1.25, Lilita One's 1.15 and Comic Shanns' 1.25 — and `FONT_LEGIBLE` is
+# Nunito, so 1.25 was the DEFAULT FONT'S number and this file does not
+# use that font. It was written in at nine sites anyway, which meant
+# every extent this server reserved for its own text was 8% short of the
+# block the client lays down for the same string.
+#
+# DERIVED AND PINNED, not transcribed: `TestOneLineHeightHasTwoReaders`
+# globs the one entry bundle `index.html` loads, re-reads that table, and
+# asserts THIS constant against it — so a bundle update that re-tunes the
+# font metric fails loudly here instead of silently re-opening the gap
+# (the user's ruling, 2026-08-18: "we should be measuring this in our
+# test so we can catch any future drift").
+#
+# It is the DEFAULT and never an override. Every element carries its own
+# `lineHeight`, the client is free to write a different one — it is the
+# one text field no op can reach, absent from `MOD_ATTRS`, so the browser
+# is its only other author — and every reader takes the element's value
+# when it holds an element. This number is what we mint with and what a
+# reader measuring a bare string falls back to.
+NUNITO_LINE_HEIGHT = 1.35
 # THE VENDORED FACE'S OWN ADVANCE TABLE, per character, in ems.
 #
 # NOT a calibration and not an estimate: Nunito's `unitsPerEm` is 1000
@@ -1611,7 +1634,8 @@ def _display_width(line):
 
 
 def text_dims(text: str | None, font_size: float,
-              line_height: float = 1.25) -> tuple[int, int]:
+              line_height: float = NUNITO_LINE_HEIGHT
+              ) -> tuple[int, int]:
     """Compute the extents a string occupies when it is painted.
 
     THE SERVER HAS THE FACE'S METRICS NOW, and this docstring used to say
@@ -1647,18 +1671,23 @@ def text_dims(text: str | None, font_size: float,
     have to agree closely enough that nothing lands outside a frame
     drawn around it.
 
-    `line_height` is a PARAMETER and not the 1.25 that used to be written
-    in, because `paint` lays text out at `fontSize * (lineHeight or
-    1.25)` and a caller that reserves height at a different multiplier is
-    describing a different block than the one drawn. The two disagree by
-    `(lineHeight - 1.25) * fontSize` per line, downward — off the bottom
-    of the export, the direction that loses content rather than margin —
-    and at double spacing that is the whole last line of a three-line
-    text (v0.9 Task 24 follow-up, curator batch 23 item 3). It defaults
-    to Excalidraw's own default so the callers that measure a string
-    rather than an element — wrap budgets, seeded values, label fits —
-    read unchanged; a caller holding an element should pass the
-    element's.
+    `line_height` is a PARAMETER and not a written-in number, because
+    `paint` lays text out at `fontSize * (lineHeight or
+    NUNITO_LINE_HEIGHT)` and a caller that reserves height at a different
+    multiplier is describing a different block than the one drawn. The
+    two disagree by `(lineHeight - default) * fontSize` per line,
+    downward — off the bottom of the export, the direction that loses
+    content rather than margin — and at double spacing that is the whole
+    last line of a three-line text (v0.9 Task 24 follow-up, curator batch
+    23 item 3).
+
+    EVERY CALLER HOLDING AN ELEMENT MUST PASS THE ELEMENT'S. The default
+    is for the callers that measure a bare string — wrap budgets, seeded
+    values — and it is this file's own font's number, not Excalidraw's
+    generic one. Four readers inside `lint_layout` and `fit_label_in`
+    took the default while holding the element, which is how the fit
+    check came to measure a 60px block the export painted 64px tall and
+    say nothing (curator batch 34 miss 2).
 
     Args:
         text: The string to measure. `None` and `""` both measure as one
@@ -1733,13 +1762,20 @@ def fit_label_in(container, lbl):
     text would poison originalText, facts, and replay), size the label
     box to the wrapped line count, and grow the container's height.
     Shapes and frames only; arrow labels ride midpoints and are covered
-    by the clear-run lint instead."""
+    by the clear-run lint instead.
+
+    Measured at the LABEL'S OWN `lineHeight`, which is the height the
+    client will paint it at: this walk buys width by spending height, so
+    reading the spacing wrong prices every candidate wrong and grows the
+    container to a band the text then overflows (curator batch 34
+    miss 2)."""
     if container.get("type") not in ("rectangle", "diamond", "ellipse",
                                      "frame"):
         return
     fs = lbl.get("fontSize", 16)
+    lh = lbl.get("lineHeight") or NUNITO_LINE_HEIGHT
     text = lbl.get("originalText") or lbl.get("text") or ""
-    tw = text_dims(text, fs)[0]
+    tw = text_dims(text, fs, lh)[0]
     # Once the container is not a box, room and height define each other:
     # the budget depends on how deep a band the label occupies, and the
     # band depends on how many lines that budget forces. So walk the
@@ -1773,7 +1809,7 @@ def fit_label_in(container, lbl):
     inner, best, keep = tw, None, True
     while True:
         cand_w = min(tw, inner)
-        cand_h = text_dims(wrap_label_text(text, inner, fs), fs)[1]
+        cand_h = text_dims(wrap_label_text(text, inner, fs), fs, lh)[1]
         # against the container this candidate would LEAVE behind, not
         # the one it found: the grow below is part of the same fit, and
         # scoring a tall candidate against the ungrown box reads its
@@ -1972,11 +2008,12 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         el["fontFamily"] = spec.get("fontFamily", FONT_LEGIBLE)
         el["textAlign"] = spec.get("textAlign", "left")
         el["verticalAlign"] = spec.get("verticalAlign", "top")
-        el["lineHeight"] = 1.25
+        el["lineHeight"] = NUNITO_LINE_HEIGHT
         el["containerId"] = spec.get("containerId")
         el["autoResize"] = True
         if not spec.get("width"):
-            el["width"], el["height"] = text_dims(el["text"], fs)
+            el["width"], el["height"] = text_dims(el["text"], fs,
+                                                  el["lineHeight"])
         else:
             # Server-authored fixed-width text: pin autoResize off so the
             # client wraps INSIDE this box instead of re-measuring it out
@@ -1987,7 +2024,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             wrapped = wrap_label_text(el["text"],
                                       max(el["width"] - 8, 40), fs)
             el["height"] = max(el.get("height") or 0,
-                               text_dims(wrapped, fs)[1])
+                               text_dims(wrapped, fs,
+                                         el["lineHeight"])[1])
     if etype == "frame":
         el["name"] = label or spec.get("name") or el_id
         label = None  # frames carry their name natively, not a bound label
@@ -2080,7 +2118,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             "text": label, "originalText": label,
             "fontSize": fs, "fontFamily": spec.get("fontFamily", FONT_LEGIBLE),
             "textAlign": "center", "verticalAlign": "middle",
-            "lineHeight": 1.25, "containerId": el_id, "autoResize": True,
+            "lineHeight": NUNITO_LINE_HEIGHT, "containerId": el_id, "autoResize": True,
             "customData": {"role": "label", "author": "agent"},
         })
         lbl["strokeColor"] = label_color
@@ -2145,39 +2183,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # domain entity attribute rows (demo parity): the bound label
         # stays the EXACT glossary term (identity anchor); rows render
         # muted beneath it, one group with the entity
-        gid = el_id + "-grp"
-        el["groupIds"] = [*(el.get("groupIds") or []), gid]
-        header_h, row_h = 32, 20
-        need = header_h + row_h * len(attrs_list) + 8
-        if el.get("height", 0) < need:
-            el["height"] = need
-        if len(out) > 1 and out[1].get("containerId") == el_id:
-            out[1]["verticalAlign"] = "top"
-            out[1]["y"] = el["y"] + 6
-        for irow, attr_text in enumerate(attrs_list):
-            rid = "%s-attr-%d" % (el_id, irow + 1)
-            n2 = 2
-            while rid in existing_ids:
-                rid = "%s-attr-%d-%d" % (el_id, irow + 1, n2)
-                n2 += 1
-            existing_ids.add(rid)
-            row = dict(BASE_DEFAULTS)
-            row.update({
-                "id": rid, "type": "text",
-                "x": el["x"] + 10,
-                "y": el["y"] + header_h + irow * row_h,
-                "width": max(el.get("width", 160) - 20, 40),
-                "height": row_h - 4,
-                "text": str(attr_text), "originalText": str(attr_text),
-                "fontSize": 12, "fontFamily": FONT_LEGIBLE,
-                "textAlign": "left", "verticalAlign": "top",
-                "lineHeight": 1.25, "containerId": None,
-                "autoResize": False, "strokeColor": "#5c584d",
-                "groupIds": [gid],
-                "customData": {"role": "decoration", "attr_of": el_id,
-                               "author": "agent"},
-            })
-            out.append(row)
+        out.extend(_compose_attribute_rows(el, out, attrs_list,
+                                           existing_ids))
     if custom.get("kind") == "kpi" and etype == "rectangle":
         # KPI/stat tile (v0.3): big value above, small name below — the
         # semantic NAME stays the bound label (renames narrate "Alpha",
@@ -2293,6 +2300,91 @@ def _close_widget_group(out):
             e["groupIds"] = [*(e.get("groupIds") or []), gid]
 
 
+def _compose_attribute_rows(el, els, rows, existing_ids):
+    """Lay a domain entity's attribute rows out, and its name above them.
+
+    THE ONE SITE that decides an entity's row geometry — the 32px header
+    band, the 20px rows, the container's minimum height, and the bound
+    label's place in the header. It is one site because it was two, and
+    the two disagreed: this body used to be typed once inside
+    `make_element`'s `add` seeder and once inside `_reset_attribute_rows`
+    for `mod attributes`, whose docstring claimed it mirrored the seeder.
+    It mirrored everything except the label — so `add`ing an entity WITH
+    attributes drew the name at the top of the header while `add`ing it
+    bare and then setting the attributes left the name CENTRED in a box
+    that had just grown rows underneath it, drawn across its own first
+    attribute, with `lint_layout` reporting nothing (the v0.9
+    whole-branch review, 2026-08-18; curator batch 34 miss 1).
+
+    Copying the missing lines into the mirror was the small repair and
+    was refused: this wave's headline defects — the router graze, the
+    contrast ground, this — were all one rule typed at two sites where
+    only one got fixed. Two callers that pass their arguments to one
+    function cannot disagree about geometry; two bodies that look alike
+    can, and did, for as long as nobody drew the picture.
+
+    The label is re-aligned AFTER the container is grown, and the order
+    is load-bearing rather than incidental: `recenter_label` pins a
+    `top` label to `y + 6`, which does not depend on the height, but the
+    ROWS do, and a caller that grew the box afterwards would leave the
+    name measured against a box that no longer exists.
+
+    Args:
+        el: The entity element. Mutated: gains the composition group id
+            and grows to hold the header plus its rows.
+        els: The element list the entity's bound label lives in — `out`
+            during minting, the scene during a `mod`. Searched, never
+            mutated; the caller appends the returned rows itself.
+        rows: The attribute strings, in order. Coerced with `str`.
+        existing_ids: Ids already in use, mutated with each row minted.
+
+    Returns:
+        The row text elements, in order, for the caller to append.
+    """
+    eid = el["id"]
+    gid = eid + "-grp"
+    if gid not in (el.get("groupIds") or []):
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+    header_h, row_h = 32, 20
+    el["height"] = max(el.get("height", 0),
+                       header_h + row_h * len(rows) + 8)
+    label = next((t for t in els if t.get("type") == "text"
+                  and t.get("containerId") == eid), None)
+    if label is not None:
+        # the name belongs in the header band, not in the middle of a box
+        # whose middle is now an attribute. `recenter_label` owns what
+        # "top" means (`y + 6`) for entities, titled panels and sliders
+        # alike, so this asks it rather than writing the number again.
+        label["verticalAlign"] = "top"
+        recenter_label(els, el)
+    out = []
+    for irow, text in enumerate(rows):
+        rid = "%s-attr-%d" % (eid, irow + 1)
+        n2 = 2
+        while rid in existing_ids:
+            rid = "%s-attr-%d-%d" % (eid, irow + 1, n2)
+            n2 += 1
+        existing_ids.add(rid)
+        row = dict(BASE_DEFAULTS)
+        row.update({
+            "id": rid, "type": "text",
+            "x": el["x"] + 10,
+            "y": el["y"] + header_h + irow * row_h,
+            "width": max(el.get("width", 160) - 20, 40),
+            "height": row_h - 4,
+            "text": str(text), "originalText": str(text),
+            "fontSize": 12, "fontFamily": FONT_LEGIBLE,
+            "textAlign": "left", "verticalAlign": "top",
+            "lineHeight": NUNITO_LINE_HEIGHT, "containerId": None,
+            "autoResize": False, "strokeColor": "#5c584d",
+            "groupIds": [gid],
+            "customData": {"role": "decoration", "attr_of": eid,
+                           "author": "agent"},
+        })
+        out.append(row)
+    return out
+
+
 def _compose_body_lines(el, existing_ids):
     """Build a body-text block's wavy stand-in lines.
 
@@ -2377,7 +2469,7 @@ def _compose_kpi_value(el, value_text, existing_ids):
         y=el["y"] + 8, width=vw, height=vh,
         text=value_text, originalText=value_text,
         fontSize=24, fontFamily=FONT_LEGIBLE,
-        textAlign="center", verticalAlign="top", lineHeight=1.25,
+        textAlign="center", verticalAlign="top", lineHeight=NUNITO_LINE_HEIGHT,
         containerId=None, autoResize=False, strokeColor="#1e1e1e")
 
 
@@ -2407,7 +2499,7 @@ def _compose_input_value(el, value_text, existing_ids):
         width=vw, height=vh,
         text=value_text, originalText=value_text,
         fontSize=fs, fontFamily=FONT_LEGIBLE,
-        textAlign="left", verticalAlign="top", lineHeight=1.25,
+        textAlign="left", verticalAlign="top", lineHeight=NUNITO_LINE_HEIGHT,
         containerId=None, autoResize=False, strokeColor="#1e1e1e")
 
 
@@ -2423,7 +2515,8 @@ def _recompose_input_value(els, el, value_text):
         if (t.get("customData") or {}).get("value_of") == el["id"]:
             t["text"] = value_text
             t["originalText"] = value_text
-            vw, vh = text_dims(value_text or " ", t.get("fontSize", 14))
+            vw, vh = text_dims(value_text or " ", t.get("fontSize", 14),
+                               t.get("lineHeight") or NUNITO_LINE_HEIGHT)
             t["width"], t["height"] = vw, vh
             t["x"] = el["x"] + max(el.get("width", 160) - vw - 10, 6)
             return
@@ -2471,7 +2564,8 @@ def _recompose_kpi_value(els, el, value_text):
         if (t.get("customData") or {}).get("value_of") == el["id"]:
             t["text"] = value_text
             t["originalText"] = value_text
-            vw, vh = text_dims(value_text or " ", t.get("fontSize", 24))
+            vw, vh = text_dims(value_text or " ", t.get("fontSize", 24),
+                               t.get("lineHeight") or NUNITO_LINE_HEIGHT)
             t["width"], t["height"] = vw, vh
             t["x"] = el["x"] + max((el.get("width", 160) - vw) / 2, 4)
             return
@@ -8064,7 +8158,7 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     el["originalText"] = value
                     el["width"], el["height"] = text_dims(
                         value, el.get("fontSize", 16),
-                        el.get("lineHeight") or 1.25)
+                        el.get("lineHeight") or NUNITO_LINE_HEIGHT)
                 elif attr == "attributes":
                     # a domain entity's attribute rows. Accepted on `add`
                     # and nowhere else until v0.7, so the only way to
@@ -8564,7 +8658,7 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                 "width": gw, "height": gh, "text": "❓",
                 "originalText": "❓", "fontSize": PIN_GLYPH_FS,
                 "fontFamily": FONT_LEGIBLE, "textAlign": "center",
-                "verticalAlign": "top", "lineHeight": 1.25,
+                "verticalAlign": "top", "lineHeight": NUNITO_LINE_HEIGHT,
                 "containerId": None, "autoResize": True,
                 "strokeColor": PIN_INK,
                 "customData": {"role": "pin", "question": q,
@@ -11561,8 +11655,16 @@ def pin_spot(anchor, els, size=PIN_SLOT_PX):
 def _reset_attribute_rows(els, index, existing, el, rows):
     """Replace a domain entity's attribute rows, keeping the entity's id.
 
-    Mirrors the minting in the `add` seeder — same geometry, same
-    `attr_of` stamp — so the differ's existing `attribute_added` /
+    The rows are laid out by `_compose_attribute_rows`, the SAME function
+    the `add` seeder calls — this used to be a hand-copied mirror of that
+    body, and the copy left the bound label where it found it while the
+    seeder moved it into the header band. See that function for what the
+    divergence drew. What is left here is what actually differs between
+    the two verbs: an existing scene has old rows to remove and two
+    indexes to keep in step, and a fresh mint has neither.
+
+    The `attr_of` stamp and the geometry are therefore shared by
+    construction, so the differ's existing `attribute_added` /
     `attribute_removed` facts narrate the change without any new
     vocabulary. The entity element itself is never re-created, which is
     the whole point: its id carries the mappings, the pins and the
@@ -11582,37 +11684,9 @@ def _reset_attribute_rows(els, index, existing, el, rows):
         els.remove(e)
         index.pop(e["id"], None)
         existing.discard(e["id"])
-    gid = eid + "-grp"
-    if gid not in (el.get("groupIds") or []):
-        el["groupIds"] = [*(el.get("groupIds") or []), gid]
-    header_h, row_h = 32, 20
-    el["height"] = max(el.get("height", 0),
-                       header_h + row_h * len(rows) + 8)
-    for irow, text in enumerate(rows):
-        rid = "%s-attr-%d" % (eid, irow + 1)
-        n2 = 2
-        while rid in existing:
-            rid = "%s-attr-%d-%d" % (eid, irow + 1, n2)
-            n2 += 1
-        existing.add(rid)
-        row = dict(BASE_DEFAULTS)
-        row.update({
-            "id": rid, "type": "text",
-            "x": el["x"] + 10,
-            "y": el["y"] + header_h + irow * row_h,
-            "width": max(el.get("width", 160) - 20, 40),
-            "height": row_h - 4,
-            "text": text, "originalText": text,
-            "fontSize": 12, "fontFamily": FONT_LEGIBLE,
-            "textAlign": "left", "verticalAlign": "top",
-            "lineHeight": 1.25, "containerId": None,
-            "autoResize": False, "strokeColor": "#5c584d",
-            "groupIds": [gid],
-            "customData": {"role": "decoration", "attr_of": eid,
-                           "author": "agent"},
-        })
+    for row in _compose_attribute_rows(el, els, rows, existing):
         els.append(row)
-        index[rid] = row
+        index[row["id"]] = row
 
 
 def _set_label(els, index, existing, el, value):
@@ -11632,7 +11706,7 @@ def _set_label(els, index, existing, el, value):
         el["originalText"] = el["text"]
         el["width"], el["height"] = text_dims(el["text"],
                                               el.get("fontSize", 16),
-                                              el.get("lineHeight") or 1.25)
+                                              el.get("lineHeight") or NUNITO_LINE_HEIGHT)
         return
     label_el = None
     for e in els:
@@ -11645,7 +11719,7 @@ def _set_label(els, index, existing, el, value):
             label_el["originalText"] = value
             label_el["width"], label_el["height"] = text_dims(
                 value, label_el.get("fontSize", 16),
-                label_el.get("lineHeight") or 1.25)
+                label_el.get("lineHeight") or NUNITO_LINE_HEIGHT)
             fit_label_in(el, label_el)
             label_el["x"] = el["x"] + max(
                 (el.get("width", 0) - label_el["width"]) / 2, 4)
@@ -11663,7 +11737,7 @@ def _set_label(els, index, existing, el, value):
                 "width": lw, "height": lh, "text": value,
                 "originalText": value, "fontSize": fs,
                 "fontFamily": FONT_LEGIBLE, "textAlign": "center",
-                "verticalAlign": "middle", "lineHeight": 1.25,
+                "verticalAlign": "middle", "lineHeight": NUNITO_LINE_HEIGHT,
                 "containerId": el["id"], "autoResize": True,
                 "customData": {"role": "label"},
             })
@@ -11780,8 +11854,9 @@ def arrow_label_break(el):
     lines, fs = painted_text_lines(el)
     centred = el.get("textAlign") == "center"
     tx = el.get("x", 0) + (el.get("width", 0) / 2 if centred else 0)
-    lh = fs * (el.get("lineHeight") or 1.25)
-    twid = max(text_dims(ln, fs)[0] for ln in lines) if lines else 0
+    mult = el.get("lineHeight") or NUNITO_LINE_HEIGHT
+    lh = fs * mult
+    twid = max(text_dims(ln, fs, mult)[0] for ln in lines) if lines else 0
     return (tx - (twid / 2 if centred else 0) - 4, el.get("y", 0) - 2,
             twid + 8, max(len(lines), 1) * lh + 4)
 
@@ -12010,13 +12085,17 @@ def ink_extent(els, pad=40):
                 # a written-in 1.25 and `paint` drew at the element's, so
                 # a double-spaced three-line text was framed for two
                 # lines and the third was painted below the viewBox.
-                # Latent on the corpus (all 454 texts carry 1.25) and not
-                # harmless — nothing writes or validates the field, and
-                # the client's line-height control writes what the user
-                # picks.
+                # Latent on the corpus of the day (every text in it
+                # carried the written-in number) and not harmless —
+                # nothing writes or validates the field, and the
+                # client's line-height control writes what the user
+                # picks. This loop was the FIRST reader taught to ask the
+                # element; `lint_layout`'s four were the last, two
+                # curator batches later, and in between the export drew
+                # blocks the checker could not see (batch 34 miss 2).
                 tlines, tfs = painted_text_lines(e)
                 tw, th = text_dims("\n".join(tlines), tfs,
-                                   e.get("lineHeight") or 1.25)
+                                   e.get("lineHeight") or NUNITO_LINE_HEIGHT)
                 ew2, eh2 = max(ew2, tw), max(eh2, th)
                 if e.get("textAlign") == "center":
                     # ...and the same estimate overhangs LEFTWARD, which
@@ -12403,7 +12482,7 @@ def render_svg(els: list[dict[str, Any]], title: str = "",
             lines, fs = painted_text_lines(e)
             anchor = "middle" if e.get("textAlign") == "center" else "start"
             tx = x + (ew / 2 if anchor == "middle" else 0)
-            lh = fs * (e.get("lineHeight") or 1.25)
+            lh = fs * (e.get("lineHeight") or NUNITO_LINE_HEIGHT)
             # A label bound to an arrow rides its stroke (v0.6), and the
             # gap it sits in is cut out of that stroke up in `breaks`
             # rather than painted over it here — see `arrow_label_break`
@@ -16306,6 +16385,15 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         if not txt.strip():
             continue
         fs = t.get("fontSize") or 16
+        # AT THE TEXT'S OWN `lineHeight`, which is the field the renderer
+        # reads and the one field on a text element that no op can write
+        # — so its only other author is the browser, and a scene that has
+        # been through the client carries the client's number. Measuring
+        # at the default instead is how a three-line label whose ink the
+        # export puts 4px below its container passed this check in
+        # silence, and how the warning that did fire quoted a 60px block
+        # for one drawn 64px tall (curator batch 34 miss 2).
+        lh = t.get("lineHeight") or NUNITO_LINE_HEIGHT
         # composed rows (KPI values, entity attributes) are emitted one
         # per line and never wrap, so width alone decides. Everything
         # else — bound labels, sticky notes, fixed-width text — is
@@ -16316,12 +16404,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         room_w = int(owner.get("width") or 0) - pad
         room_h = int(owner.get("height") or 0) - 4
         if single_line:
-            tw, th = text_dims(txt, fs)
+            tw, th = text_dims(txt, fs, lh)
             over_w, over_h = tw > room_w, False
         else:
             wrapped = wrap_label_text(txt.replace("\n", " "), room_w, fs)
-            tw, th = text_dims(wrapped, fs)
-            longest = max((text_dims(w, fs)[0] for w in txt.split()),
+            tw, th = text_dims(wrapped, fs, lh)
+            longest = max((text_dims(w, fs, lh)[0] for w in txt.split()),
                           default=0)
             over_w, over_h = longest > room_w, th > room_h
         if over_w or over_h:
@@ -16374,11 +16462,17 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # applies there and only there: take the larger of stored and
         # estimated, because a stored extent is an estimate the client
         # re-derives and real glyph advance overhangs it.
+        #
+        # Both branches measure at the text's own `lineHeight` — the band
+        # this check reads the shape's width AT is the label's drawn
+        # height, so a block measured at the wrong spacing is scored
+        # against the wrong chord of the rhombus.
+        lh = t.get("lineHeight") or NUNITO_LINE_HEIGHT
         if t.get("autoResize") is False and box_w > 0:
             drawn_w, drawn_h = text_dims(
-                wrap_label_text(txt.replace("\n", " "), box_w, fs), fs)
+                wrap_label_text(txt.replace("\n", " "), box_w, fs), fs, lh)
         else:
-            tw, th = text_dims(txt, fs)
+            tw, th = text_dims(txt, fs, lh)
             drawn_w, drawn_h = max(tw, box_w), max(th, box_h)
         # the ink is centred in whatever box holds it, so the band it
         # occupies is its own height about that box's middle
@@ -26008,7 +26102,8 @@ def cmd_x_geometry(args):
             # command's scope — x-geometry printed NOTHING about the '62'
             # tile whose stored width the live editor wrapped. Compare
             # stored width against the measured need.
-            need, _ = text_dims(e.get("text") or "", e.get("fontSize", 16))
+            need, _ = text_dims(e.get("text") or "", e.get("fontSize", 16),
+                                e.get("lineHeight") or NUNITO_LINE_HEIGHT)
             if e.get("width", 0) + 0.5 < need:
                 wrap_note = ("stored width %d < needs %d — the editor "
                              "WRAPS this" % (e.get("width", 0), need))
@@ -26080,7 +26175,7 @@ def _x_user_note(text, x, y, w=230, h=90, existing=None):
         "id": nid + "-t", "type": "text", "x": x + 8, "y": y + 8,
         "width": w - 16, "height": h - 16, "text": text,
         "originalText": text, "fontSize": 14, "fontFamily": FONT_LEGIBLE,
-        "textAlign": "left", "verticalAlign": "top", "lineHeight": 1.25,
+        "textAlign": "left", "verticalAlign": "top", "lineHeight": NUNITO_LINE_HEIGHT,
         "containerId": nid, "autoResize": False,
         "customData": {"role": "label"}})
     return [rect, lbl]
@@ -26241,7 +26336,7 @@ def cmd_x_as_user(args):
         if lbl.get("autoResize", True):
             lbl["width"], lbl["height"] = text_dims(
                 args.text, lbl.get("fontSize", 16),
-                lbl.get("lineHeight") or 1.25)
+                lbl.get("lineHeight") or NUNITO_LINE_HEIGHT)
         if host is not None and host.get("type") in (
                 "rectangle", "diamond", "ellipse", "frame"):
             fit_label_in(host, lbl)
