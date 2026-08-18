@@ -2818,6 +2818,344 @@ class TestClientTierMechanisms(unittest.TestCase):
                          "above measured nothing" % digests)
 
 
+# --------------------------------------------------------------------------
+# THE FLATTENING MODEL, held to the client's own ink.
+#
+# `canvas._bezier_spans` is the arithmetic every rendered-geometry instrument
+# in this repo stands on: `_rendered_path` and `_rendered_stretches` feed
+# `gate_curvature`'s squareness arm, the arrival and binding checks, the
+# crossing walk, the lane and corridor readings, `false_bidi`, the label
+# anchors, and `tests/instruments.py`'s verbatim second copy of the same
+# lines. Every one of them answers a question about A PICTURE by reading a
+# polyline this repo computes.
+#
+# Nothing has ever checked that polyline against the picture. spike-flatten
+# (2026-08-16) did, out of tree: the model tracks the app's ink to 0.77px
+# worst on a real artifact's elbow, which is the finding that closed seed #6
+# as not-a-defect. That measurement lived only in a report, so a client
+# upgrade that changed roughjs's tangent estimate would have silently
+# invalidated the lot while every test in both tiers stayed green. This is
+# the spike's §6 P1 render arm, made executable — the pin that fails instead.
+#
+# Curator batch 31, item 3; browser-deferred by batch 27 for want of a
+# toolchain.
+# --------------------------------------------------------------------------
+
+# The bow a perpendicular elbow's final span draws, as a fraction of the
+# PRECEDING leg. Closed form, derived in spike-flatten §1.1 from roughjs's
+# own `_curve`: only the first control point carries an off-axis component,
+# equal to leg/6, and the cubic's `3u^2t` term peaks at t = 1/3 with value
+# 4/9, so the apex stands leg * 4/54 = leg/13.5 off the chord — independent
+# of the final run's length. Written here as the number the ink is judged
+# against, NOT as a second implementation: `canvas._rendered_stretches` is
+# what the tests below actually compare the pixels to, and this constant is
+# the reason its answer is the shape it is.
+_BOW_OVER_LEG = 1.0 / 13.5
+
+# Elbow legs the client is driven at. 30 is the small pole — a 2px bow, which
+# `_reads_as_line` still admits as one line — and 374 is the large one, at
+# 28px. 110 sits between them so the two "the chord is the wrong model"
+# readings are not one measurement quoted twice.
+_FLAT_LEGS = (30, 110, 374)
+
+# The final run every elbow below ends on, in px. Fixed across the sweep
+# BECAUSE the closed form says the bow does not depend on it: a table whose
+# run varied with its leg could not tell "the bow scales with the leg" from
+# "the bow scales with something".
+_FLAT_RUN = 39
+
+
+def _flat_elbow(leg: int, rounded: bool) -> list[dict]:
+    """One L-shaped arrow: `leg` px up, then `_FLAT_RUN` px right.
+
+    Perpendicular on purpose. The closed form above is exact only for a
+    right-angled corner, so a scene that sloped would need the general
+    bezier and the pin would be judged against arithmetic no simpler than
+    the code it is checking.
+
+    `roughness` is 0 because roughjs adds up to ~1.2px of seeded jitter
+    that does not move the control points: it would be noise of the same
+    order as the small pole's whole 2px bow.
+
+    Args:
+        leg: Length of the preceding vertical leg in px.
+        rounded: Whether the arrow carries `roundness` — the sharp arm is
+            the control, and it inks its chord exactly.
+
+    Returns:
+        A one-element scene.
+    """
+    return [el(id="a1", type="arrow", x=200.0, y=100.0 + leg,
+               width=float(_FLAT_RUN), height=float(leg),
+               points=[[0.0, 0.0], [0.0, -float(leg)],
+                       [float(_FLAT_RUN), -float(leg)]],
+               roughness=0, strokeWidth=2,
+               roundness={"type": 2} if rounded else None,
+               startArrowhead=None, endArrowhead=None)]
+
+
+def _raster_to_scene(shot: bytes, anchors: list[dict]
+                     ) -> tuple[float, float, float]:
+    """Locate the two framing anchors in a raster and solve for the mapping.
+
+    CALIBRATED, not derived. `_derived_frame` predicts the export's SIZE
+    from `canvas.ink_extent`, and that prediction is exact for every scene
+    this tier renders except this one: a curved elbow's bow leaves the
+    point hull, so the client frames 3px more than `ink_extent` reports
+    and an assumed origin puts every distance below out by that much —
+    which is the same order as the measurement. The anchors are 8x8
+    squares at known scene coordinates, so reading them back out of the
+    pixels gives the origin AND the scale with nothing assumed.
+
+    Args:
+        shot: The PNG bytes of the anchored variant.
+        anchors: The two anchor elements `_anchored` added.
+
+    Returns:
+        `(origin_x, origin_y, scale)` — scene = origin + raster / scale.
+
+    Raises:
+        RuntimeError: If the two anchors are not both found, or the two
+            axes disagree on the scale. Either means the raster is not
+            the picture that was asked for, and measuring it anyway is
+            exactly the failure `_refuse_unmeasurable` exists to refuse.
+    """
+    w, h, pix = read_png_gray(shot)
+    mask = bytearray(1 if p < INK_THRESHOLD else 0 for p in pix)
+    found = [c for c in components(w, h, mask)
+             if abs(c["bbox"][2] - c["bbox"][0] - _ANCHOR_SIDE) <= 2
+             and abs(c["bbox"][3] - c["bbox"][1] - _ANCHOR_SIDE) <= 2]
+    if len(found) != 2:
+        raise RuntimeError(
+            "expected the two %dpx framing anchors in this raster and found "
+            "%d square components — the export is not framed on the scene "
+            "that was asked for" % (_ANCHOR_SIDE, len(found)))
+    lo_r, hi_r = sorted((c["bbox"][0], c["bbox"][1]) for c in found)
+    lo_s, hi_s = sorted((a["x"], a["y"]) for a in anchors)
+    sx = (hi_r[0] - lo_r[0]) / (hi_s[0] - lo_s[0])
+    sy = (hi_r[1] - lo_r[1]) / (hi_s[1] - lo_s[1])
+    if abs(sx - sy) > 1e-6 or abs(sx - 1.0) > 1e-6:
+        raise RuntimeError(
+            "the anchors put this raster at scale (%.4f, %.4f); the export "
+            "is deterministic scene px at scale 1 and anything else means "
+            "these bytes were framed on something else" % (sx, sy))
+    return lo_s[0] - lo_r[0] / sx, lo_s[1] - lo_r[1] / sy, sx
+
+
+def _scene_ink(shot: bytes, anchors: list[dict]) -> list[tuple[float, float]]:
+    """Every inked pixel of a raster in SCENE coordinates, anchors dropped.
+
+    Args:
+        shot: The PNG bytes of the anchored variant.
+        anchors: The two anchor elements, both to calibrate with and to
+            subtract — their own ink is not part of the drawing under
+            measurement.
+
+    Returns:
+        One `(x, y)` per ink pixel.
+    """
+    ox, oy, scale = _raster_to_scene(shot, anchors)
+    w, h, pix = read_png_gray(shot)
+    out = []
+    for py in range(h):
+        row = py * w
+        for px in range(w):
+            if pix[row + px] >= INK_THRESHOLD:
+                continue
+            x, y = ox + px / scale, oy + py / scale
+            if any(a["x"] - 2 <= x <= a["x"] + _ANCHOR_SIDE + 2
+                   and a["y"] - 2 <= y <= a["y"] + _ANCHOR_SIDE + 2
+                   for a in anchors):
+                continue
+            out.append((x, y))
+    return out
+
+
+def _resampled(poly: Sequence[Sequence[float]], step: float = 2.0
+               ) -> list[tuple[float, float]]:
+    """Walk a polyline at roughly `step` px so long spans are not skipped.
+
+    Args:
+        poly: The polyline, as `(x, y)` pairs.
+        step: Target spacing in px.
+
+    Returns:
+        The resampled points, joints included.
+    """
+    out: list[tuple[float, float]] = []
+    for i in range(len(poly) - 1):
+        ax, ay = poly[i][0], poly[i][1]
+        bx, by = poly[i + 1][0], poly[i + 1][1]
+        n = max(1, int(math.hypot(bx - ax, by - ay) / step))
+        out.extend((ax + (bx - ax) * k / n, ay + (by - ay) * k / n)
+                   for k in range(n + 1))
+    return out
+
+
+def _spread_to_ink(poly: Sequence[Sequence[float]],
+                   ink: Sequence[tuple[float, float]]) -> float:
+    """How far the WORST point of a candidate path is from any real ink.
+
+    One-directional on purpose: it asks whether the model's path is drawn,
+    not whether everything drawn is on the model's path. The second
+    question is answered by the arrowless, labelless scene — there is
+    nothing in it but this stroke.
+
+    Args:
+        poly: The candidate path in scene coordinates.
+        ink: The client's ink, in scene coordinates.
+
+    Returns:
+        The maximum over the resampled path of the distance to the
+        nearest ink pixel, in scene px.
+    """
+    return max(min(math.hypot(mx - ix, my - iy) for ix, iy in ink)
+               for mx, my in _resampled(poly))
+
+
+@functools.lru_cache(maxsize=1)
+def _flatten_readings() -> dict[str, dict[str, float]]:
+    """Drive every elbow through the app once and reduce it to numbers.
+
+    One `_client_shots` call for all five variants, so a cold run pays one
+    session rather than one per assertion, and a warm cache pays none.
+
+    Returns:
+        Variant name (`curved30`, `sharp374`, ...) to a reading:
+        `bow` — how far the ink rises above the final chord, inside the
+        run and clear of both corners; `model` — the worst distance from
+        `canvas._rendered_path` to that ink; `chord` — the same for the
+        stored chord, which is the rival model this one replaced.
+    """
+    scenes = {}
+    for leg in _FLAT_LEGS:
+        scenes["curved%d" % leg] = _flat_elbow(leg, True)
+        scenes["sharp%d" % leg] = _flat_elbow(leg, False)
+    variants = {n: _anchored(s, _scene_bbox(s)) for n, s in scenes.items()}
+    shots = _client_shots(variants)
+    out = {}
+    for name, scene in scenes.items():
+        anchors = [e for e in variants[name]
+                   if e["id"].startswith("abl-anchor")]
+        ink = _scene_ink(shots[name], anchors)
+        arrow = scene[0]
+        chord = [(arrow["x"] + p[0], arrow["y"] + p[1])
+                 for p in arrow["points"]]
+        # the final run is horizontal, so the bow is a rise off its y.
+        # Trimmed 5px in from each end: the corner itself and the run's
+        # far tip are on the chord in both models, and including them
+        # would let a fat stroke read as a bow.
+        (fx0, fy0), (fx1, _fy1) = chord[-2], chord[-1]
+        inside = [p for p in ink if fx0 + 5 <= p[0] <= fx1 - 5]
+        out[name] = {
+            "bow": fy0 - min(p[1] for p in inside),
+            "model": _spread_to_ink(canvas._rendered_path(arrow), ink),
+            "chord": _spread_to_ink(chord, ink),
+        }
+    return out
+
+
+class TestFlatteningFidelity(unittest.TestCase):
+    """The model's flattened path IS the app's stroke, measured in pixels.
+
+    Both poles are firings rather than a silence, which is what this class
+    needs: the claim is an agreement, and an agreement between two things
+    that are both broken looks identical to one between two things that
+    are right. So every assertion is paired with a reading that must come
+    out DIFFERENT — the sharp control against the curved arm, and the
+    stored chord against the flattened path on the very same rasters.
+
+    WHEN THIS FLIPS: it is green today and is meant to stay green. It
+    fails the day the app's curve arithmetic moves — a roughjs
+    `curveTightness` default, an Excalidraw switch away from
+    `generator.curve`, a vendored-bundle bump — and the failure names
+    which of the two claims broke. That is the whole reason it exists:
+    spike-flatten's prototype (a), the "repair the tangent estimate to
+    match the client's corner" that reads plausible and is a 12px
+    regression against these pixels, would fail the second test here by a
+    factor of 17 rather than being caught by a reviewer's eye.
+    """
+
+    def test_the_client_inks_the_bow_the_closed_form_predicts(self) -> None:
+        """The bow is the app's, at two leg lengths, against a sharp control.
+
+        The magnitudes, measured through the real bundle: leg 30 inks 2px
+        of rise off its final chord and leg 374 inks 28px, against
+        leg/13.5 = 2.22 and 27.70. Both within a pixel, which is the
+        raster's own quantum at scale 1 — the model under-reads its apex
+        by 0.18% at `CURVE_SAMPLES` 20 and the rest is where a 2px stroke's
+        centre falls between two rows.
+
+        THE SMALL POLE IS NOT DECORATION. Without it the claim is
+        satisfied by "everything bows a lot", and 30 is the leg where
+        `_reads_as_line` still admits the span as one straight line — the
+        cell that keeps `false_bidi`'s band honest. The two legs differ by
+        12.5x and so do their bows, which is the closed form's whole
+        content.
+
+        The sharp arm of each scene is rendered in the same session and
+        inks 0px of rise, so the column is measuring the curve and not the
+        rasterizer.
+        """
+        r = _flatten_readings()
+        for leg in (30, 374):
+            want = leg * _BOW_OVER_LEG
+            got = r["curved%d" % leg]["bow"]
+            self.assertLessEqual(
+                abs(got - want), 1.0,
+                "leg %d: the app inked a %.1fpx bow where the flattening "
+                "model puts %.2fpx (leg/13.5). The client's curve "
+                "arithmetic has moved, and every rendered-geometry "
+                "instrument in this repo is now reading a path the app "
+                "does not draw" % (leg, got, want))
+            self.assertEqual(
+                r["sharp%d" % leg]["bow"], 0.0,
+                "leg %d: the SHARP arm inked a bow of %.1fpx, so the "
+                "curved reading above is not evidence about curvature"
+                % (leg, r["sharp%d" % leg]["bow"]))
+
+    def test_the_model_path_lands_on_the_ink_and_the_stored_chord_misses(
+            self) -> None:
+        """`_rendered_path` is on the stroke; the chord it replaced is not.
+
+        The fidelity claim proper, and the one a client upgrade breaks:
+        every point of `canvas._rendered_path` is within 1px of ink the
+        app actually laid down, at both leg lengths. Measured 0.70 and
+        0.68 — sub-pixel, on a 2px stroke.
+
+        The rival on the SAME rasters is the model this repo used to read
+        and spike-flatten's rejected prototype would return to: the stored
+        chord, which misses by 7.0px at leg 110 and 14.6px at leg 374. A
+        measurement that could not tell those apart would be measuring the
+        threshold; a ratio of 20 is not a threshold.
+
+        The sharp control closes it. There the two candidate paths ARE the
+        same polyline, so both readings collapse to the same 0.47px — the
+        distance from a path to the centre of a stroke drawn along it.
+        That number is the floor this instrument can report, so the 0.70
+        above is at the floor and the 14.6 is thirty times off it.
+        """
+        r = _flatten_readings()
+        for leg, chord_floor in ((110, 6.0), (374, 12.0)):
+            got = r["curved%d" % leg]
+            self.assertLessEqual(
+                got["model"], 1.0,
+                "leg %d: the flattened path stands %.2fpx off the app's own "
+                "ink at its worst point. The model and the drawing have "
+                "come apart" % (leg, got["model"]))
+            self.assertGreaterEqual(
+                got["chord"], chord_floor,
+                "leg %d: the stored chord is only %.2fpx off the same ink, "
+                "so this scene no longer separates the two models and the "
+                "agreement above is not evidence" % (leg, got["chord"]))
+        sharp = r["sharp374"]
+        self.assertLessEqual(
+            max(sharp["model"], sharp["chord"]), 0.5,
+            "the sharp arm reads %.2f / %.2f (path / chord) where the two "
+            "are the same polyline and must agree at the instrument's own "
+            "floor" % (sharp["model"], sharp["chord"]))
+
+
 # The L-shaped remnant curator batch 14 reproduced, in ink rather than as the
 # bbox it used to flatten to: the top run, then the leg turning down its right
 # end. Its bounding box is (122, 59, 283, 120) — tall AND wide, which is the

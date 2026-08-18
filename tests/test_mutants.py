@@ -13763,12 +13763,23 @@ class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
         instrument as the `customData` and `exportPadding` parity tests).
         The BEHAVIOURAL pin belongs in the e2e tier, driving ❓ against a
         leftward arrow, and it is named here as owed rather than left as
-        a silence. THE FIX IS NOT THIS FILE'S: `elBox` belongs to the
-        frontend placement surface (v0.9 TASK-PLACEMENT, whose review
-        filed this as a nit before it was measured), and a curator who
-        repairs the helper is a curator grading their own homework.
-        Origin: TASK-PLACEMENT review nit, measured during curator batch
-        30, 2026-08-17.
+        a silence. **IT LANDED THE NEXT DAY** (curator batch 31,
+        2026-08-17), so read this red beside it rather than alone:
+        `placement.spec.ts` measures a leftward arrow's ink off the app's
+        own canvas — 300px short of `elBox`'s answer in x, 200px in y,
+        with ZERO ink counted in the invented quadrant — and watches a 🗒
+        dropped in that measured-blank quadrant get shoved 119px clear of
+        nothing. The two are one defect from two directions: this one can
+        only say the expression is present, that one says what the
+        expression does to a picture, and a fix written a third way would
+        have to satisfy both. THEY FLIP TOGETHER, in TASK-ELBOX's fold.
+
+        THE FIX IS NOT THIS FILE'S: `elBox` belongs to the frontend
+        placement surface (v0.9 TASK-PLACEMENT's lineage, now TASK-ELBOX,
+        whose review filed this as a nit before it was measured), and a
+        curator who repairs the helper is a curator grading their own
+        homework. Origin: TASK-PLACEMENT review nit, measured during
+        curator batch 30, 2026-08-17.
         """
         body = _app_tsx_body("const elBox = ", "Where a `w`×`h` insert")
         self.assertIn(
@@ -17784,6 +17795,173 @@ class TestTurnedPolylineIsBoundByItsPoints(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE ❓ GLYPH'S HUG, AND THE CONTAINER THAT ALWAYS TAKES IT AWAY.
+# Curator batch 31, 2026-08-17, found by DRIVING the client rather than
+# reading it: batch 30 filed `pinSpot`'s buried predicate as "the arm no
+# fixture reaches and no one has ever observed executing" and named the
+# browser as what it needed. Under a browser the arm turns out to be the
+# arm the SEEDED FIXTURE takes — and to take it for the wrong reason.
+#
+# `pin_spot` counts a `frame` as a collision candidate. A frame is the
+# screen an element is drawn INSIDE, so for anything inside one the hug
+# spot always overlaps it, `buried` is always true, and the glyph is
+# always dragged from clear air onto the tile it is asking about. That is
+# the r5-13 shape — an annotation landing on the thing it annotates —
+# arriving through the very function written to prevent its sibling.
+#
+# `dropClear` in App.tsx, twenty lines from the client's mirror of this
+# function, states the opposite rule in its own docstring: "Frames are
+# containers you draw things INSIDE, so they are not obstacles for the
+# things — landing within one is the point". Two neighbouring placement
+# helpers, opposite rulings, and one of them written down as doctrine.
+#
+# NOT a `CATALOGUE` entry: `pin_spot` is a PRODUCER. It decides where a
+# glyph is minted, and `collect_findings` takes an element list and asks
+# the checks what they see — there is no finding code to name in a
+# `FindingSpec`. Same split `TestRouterPassesDoNotWorsenTheDrawing` set.
+#
+# BASE: one 200x100 target, alone. MUTATION: none injected — the three
+# poles differ by which SINGLE element stands beside the target (nothing,
+# a container frame, a real neighbour), which is the smallest scene that
+# separates the two reasons the fallback can fire. MAGNITUDE: where the
+# glyph's 26px box lands, to the pixel — (208, -8) hugging, (172, 2)
+# inside the target's own corner. DIRECTION: 36px LEFT and 10px DOWN, i.e.
+# from outside the target to inside it. NEIGHBOURS, both green and both
+# in this class: the lone target that keeps its hug, and the genuine
+# neighbour that legitimately takes it away.
+#
+# REACH, censused over the frozen fixture corpus at this head: of 291
+# pin-eligible elements (rectangle/diamond/ellipse, roles the filter
+# admits), 167 hug, 70 fall back because a real neighbour is in the way,
+# and 54 — 18.6% — fall back ONLY because a frame contains them. Measured
+# by running `pin_spot` twice per element, once with frames in the
+# candidate list and once without, and counting the elements whose answer
+# moves. Every one of the 54 had a clear hug spot.
+#
+# THE FIX THAT FLIPS THIS is dropping `"frame"` from the candidate types,
+# in `canvas.pin_spot` AND in `pinSpot` in App.tsx — batch 30's parity
+# gate parses both membership filters and would fail on a one-sided
+# change, which is what makes a single red here enough to drive both.
+# Whether a frame should instead be a SOFT obstacle (see `SOFT_ROLES`,
+# TASK-MICROFIX-2's ruling for annotations) is a placement question and
+# belongs to the placement owner, not to a curator. The client half is
+# driven end to end in `frontends/wysiwyg-grilling/tests/e2e/placement
+# .spec.ts` (curator batch 31, item 2), which holds the two arms this
+# class holds green.
+#
+# OWNER, and the handoff is LIVE rather than aspirational: TASK-ELBOX took
+# this in as a scope addition at batch 31's fold, alongside the `elBox`
+# fix it already owned. This red is expected to arrive red and to flip in
+# THAT task's fold, in the same change as the fix — the standing pattern,
+# and the same race batch 30's accept-guard red ran with TASK-ATTACH. If
+# TASK-ELBOX lands first this arrives as an UNEXPECTED SUCCESS and the
+# folder drops the decorator in the same change (durable count 5 -> 4);
+# if this lands first the fix flips it. Do not resolve the
+# `HAND_AUTHORED_RED_CLASSES` conflict by picking a side — re-derive with
+# the grep, which is what the paragraph beside that constant records
+# happening wrong twice and right once.
+# ---------------------------------------------------------------------------
+
+
+class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
+    """Where a ❓ lands, against the three things that can stand near it."""
+
+    @staticmethod
+    def _target() -> dict[str, Any]:
+        """The element the question is about: 200x100 at the origin.
+
+        Round and at the origin so every expected coordinate below is the
+        offset itself rather than an offset plus a base — `pin_spot`'s
+        whole content is four small numbers and they should be readable
+        in the assertion.
+
+        Returns:
+            A `role: node` rectangle.
+        """
+        return el(id="t", type="rectangle", x=0.0, y=0.0, width=200.0,
+                  height=100.0, customData={"role": "node"})
+
+    @staticmethod
+    def _hug() -> tuple[float, float]:
+        """The spot the hug arm returns, read from the product itself.
+
+        `marker_anchor` rather than the literal `(208, -8)`: this class is
+        about which ARM runs, and restating the arm's arithmetic here
+        would make a change to the offset read as a change to the
+        predicate.
+
+        Returns:
+            `(x, y)` of the hugging glyph's top-left.
+        """
+        return canvas.marker_anchor(
+            TestThePinHugSurvivesItsOwnContainer._target(),
+            dx=8, dy=-8, corner="tr")
+
+    def test_a_lone_target_keeps_the_hug(self) -> None:
+        """The quiet arm: hundreds of px of air, so nothing moves.
+
+        The live half of the red below, and the one that would catch a
+        `pin_spot` that had stopped hugging at all — a function that
+        always fell back would satisfy the fallback pole on its own.
+        """
+        target = self._target()
+        self.assertEqual(canvas.pin_spot(target, [target]), self._hug())
+
+    def test_a_real_neighbour_takes_the_hug_away(self) -> None:
+        """The firing pole: r4b-3, the defect the fallback exists for.
+
+        The neighbour overlaps the 26px hug square — (208,-8)..(234,18)
+        against a box at (220,-20) 100x80 — and nothing else, so the only
+        thing that can move the glyph is the collision test. It lands
+        inside the target's own top-right corner, which is asserted as a
+        containment and not only as a pair of numbers: the point of the
+        fallback is that the glyph reads as belonging to its target.
+        """
+        target = self._target()
+        neighbour = el(id="nb", type="rectangle", x=220.0, y=-20.0,
+                       width=100.0, height=80.0,
+                       customData={"role": "node"})
+        spot = canvas.pin_spot(target, [target, neighbour])
+        self.assertEqual(spot, (200.0 - 26 - 2, 0.0 + 2))
+        self.assertTrue(
+            spot[0] >= 0 and spot[0] + 26 <= 200
+            and spot[1] >= 0 and spot[1] + 26 <= 100,
+            "the fallback put the glyph at %r, which is not inside the "
+            "200x100 target it is a question about" % (spot,))
+
+    @unittest.expectedFailure
+    def test_a_container_frame_does_not_take_the_hug_away(self) -> None:
+        """RED: the frame an element lives in is not a neighbour.
+
+        One element stands beside the target and it is the screen the
+        target is drawn on. The hug spot is clear air inside that screen
+        — measured: with the frame dropped from the candidate list,
+        `pin_spot` returns the hug — and the glyph is nevertheless pulled
+        36px left and 10px down, onto the tile it asks about.
+
+        Both halves are asserted in ONE call over a tuple, deliberately.
+        Split in two, the "is it the hug" assertion fails first and the
+        reader never sees the second fact, which is the load-bearing one:
+        the same scene WITHOUT the frame answers correctly, so the frame
+        is the whole cause and nothing else in the predicate is at fault.
+
+        WHEN THIS FLIPS: drop `"frame"` from `pin_spot`'s candidate types
+        and from `pinSpot`'s in App.tsx. Owner: the placement surface
+        (TASK-PLACEMENT's lineage). Do not flip it by widening the tuple.
+        """
+        target = self._target()
+        frame = el(id="f", type="frame", x=-100.0, y=-100.0, width=600.0,
+                   height=400.0)
+        self.assertEqual(
+            (canvas.pin_spot(target, [target, frame]),
+             canvas.pin_spot(target, [target])),
+            (self._hug(), self._hug()),
+            "a frame containing the target moved the glyph off its hug; "
+            "the second entry is the same scene with the frame dropped, "
+            "and it hugs")
+
+
+# ---------------------------------------------------------------------------
 # THE ATTACH-SIDE FAMILY (curator batch for the spike program, 2026-08-16;
 # seeds from `.superpowers/sdd/2026-08-13-v0.9-work-packages/spike-attach.md`
 # §5 and `spike-anchor.md` §4/§6c). Three entries about one question the
@@ -19991,7 +20169,34 @@ def coverage_table() -> list[tuple[str, str, str]]:
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestARerouteFactImpliesAChangedPath": 1,
     "TestTheClientBoxIsBoundByItsPoints": 1,
+    "TestThePinHugSurvivesItsOwnContainer": 1,
 }
+# ONE JOINED on 2026-08-17 (curator batch 31), at a fold that RE-DERIVED
+# this dict rather than picking a side of it — the resolution the
+# MICROFIX-2 paragraph below asks for, performed. Batch 30 and batch 31
+# each wrote a dict that was true of its own head and wrong of the merged
+# tree (two entries against one); the answer is the union, taken from the
+# grep, and neither branch's literal.
+# `TestThePinHugSurvivesItsOwnContainer` is a producer claim like its two
+# neighbours — `pin_spot` decides where a glyph is MINTED, so there is no
+# finding code for a `FindingSpec` to name and the split is the one
+# `TestRouterPassesDoNotWorsenTheDrawing` set. What is new is that it was
+# found by DRIVING a surface rather than reading one: batch 30 filed the
+# buried predicate as an arm nothing reaches, and under a browser it is
+# the arm the seeded fixture takes, for a reason nobody had considered
+# (a container frame counts as an occluder, on 54 of 291 corpus
+# elements). Its client mirror is driven in `placement.spec.ts`, and this
+# batch's own parity gate below is what stops a one-sided fix.
+#
+# AND THE OWED HALF DIRECTLY ABOVE IS NOW DELIVERED, which is why these
+# two entries should be read together: batch 30's note on
+# `TestTheClientBoxIsBoundByItsPoints` ends "the behavioural pin it is
+# standing in for is named in the red's docstring as owed to the e2e
+# tier". Batch 31 landed it — three tests in `placement.spec.ts` that
+# measure the leftward arrow's ink off the app's own canvas and watch a
+# note shoved 119px out of the blank quadrant `elBox` invents. The source
+# read and the behaviour now flip together, in TASK-ELBOX's fold.
+#
 # ONE JOINED AND LEFT INSIDE ONE BATCH on 2026-08-17 (curator batch 30),
 # which is the shortest round trip this dict has recorded and is worth
 # reading as an event rather than as churn.
@@ -20028,7 +20233,8 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # tier cannot execute at all, so its red is a source read; its live half
 # is the same question answered correctly by `ink_extent`, in code, on
 # this side of the wire. The behavioural pin it is standing in for is
-# named in the red's docstring as owed to the e2e tier.
+# named in the red's docstring as owed to the e2e tier — DELIVERED by
+# batch 31, see the paragraph at the top of this block.
 #
 # EMPTY on 2026-08-17 (v0.9 TASK-ATTACH), when
 # `TestRouterPassesDoNotWorsenTheDrawing` lost its second red to

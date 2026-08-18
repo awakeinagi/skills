@@ -17,7 +17,7 @@ with the pinned `@playwright/test`; regenerate with
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
   reconciliation, composed-part invariants, metrics, mermaid mapping.
-  <!-- live:unittest_suite_cases -->1404<!-- /live:unittest_suite_cases -->
+  <!-- live:unittest_suite_cases -->1409<!-- /live:unittest_suite_cases -->
   tests, mutation harness and render tier included — a **live value**
   computed by `tests/livedoc.py` and held current by its pre-commit hook,
   because this exact number needed a commit of its own (`cb533ab`) to move
@@ -67,6 +67,8 @@ with the pinned `@playwright/test`; regenerate with
 | r5-13 sticky note trips ART-011 forever | unittest | `TestArgusR5Fixture.test_sticky_note_forces_a_repair_on_every_load` — flip it to `repairs == []` when fixed |
 | r5-10 ⌗ dialog import quality | e2e-flow | extend `mermaid.spec` — paste onto a non-empty artifact, assert no mid-word-broken label |
 | r5-10's other four insert sites | e2e-dom | `placement.spec` — **flipped green** (v0.9 TASK-PLACEMENT): 🗒 note and a template onto the tile the user has zoomed to, plus the opposite pole (a drop that was already clear does not move). `addStickyNote`, `insertFrame` and `insertTemplate` take their spot from `dropClear`; `askUserPin` never used `sceneCenter` — it is anchored to its target and took `pinSpot`, the client mirror of `pin_spot` (r4b-3) |
+| `elBox` unions the stored width into a point hull | e2e-dom | `placement.spec` — **one red by intent** (curator batch 31). A leftward/upward arrow's ink is measured off the app's own canvas (`getImageData`) and stops 300px short of `elBox`'s answer in x, 200px in y; a 🗒 dropped in that measured-blank quadrant is nevertheless shoved 119px clear of it. The mirrored arrow, whose box is honest, is the green pole and moves the same note the same way. Model-tier half: `TestTheClientBoxIsBoundByItsPoints` (a source read; this is the behaviour) |
+| `pinSpot`'s collision fallback, executed | e2e-dom | `placement.spec` — **green, both arms**: a lone target keeps the `+8/-8` hug, a neighbour overlapping the 26px hug square sends the glyph inside the target's own corner and out of the neighbour. Batch 30 could only transcribe the constants; this runs the predicate. The FRAME case it exposed is red in the model tier (`TestThePinHugSurvivesItsOwnContainer`) |
 | r5-5 border-collinear routing | unittest | an edge leaving a side-edge midpoint must not run along its own box's border |
 | Mermaid seed (WP9) | e2e-flow | `mermaid.spec` — CLI seed through the LIVE tab handshake (`--no-headless` so a fallback can't mask it), semantic slugs + self-loop on disk; import dialog → user Save. Skeleton→op mapping itself is unittest (`TestMermaidSeeding`, captured fixture) |
 

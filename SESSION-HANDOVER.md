@@ -376,9 +376,25 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-**4 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
-`test_backend.py` (re-derived 2026-08-17 at curator batch 30's fold onto
-TASK-ATTACH fix round 1, and re-derived is the operative word: the batch
+**5 / 0 / 0** for `test_mutants.py`, `test_mutants_render.py` and
+`test_backend.py` (re-derived 2026-08-17 at curator batch 31's fold onto
+batch 30's, and the arithmetic is the warning below happening a THIRD
+time in one wave: batch 30 wrote **4** and batch 31 wrote **2**, each
+true of its own head and both wrong of the merged tree, which is 4 + 1.
+The grep is the resolution; neither branch's literal is. Batch 31 added
+ONE model red — `TestThePinHugSurvivesItsOwnContainer`, the ❓ glyph
+pulled off its hug by the frame that CONTAINS its target, on 54 of 291
+corpus elements — taking `test_mutants.py` 4 -> 5. Its other three pins
+are green by construction and two are not in this file at all: the
+flattening-fidelity pair lives in `test_mutants_render.py` and is
+UNGATED-green there, and the `elBox` behavioural red is an e2e
+`test.fail()` in `frontends/wysiwyg-grilling/tests/e2e/placement.spec.ts`,
+which this grep does not and should not reach — so a reader counting
+batch 31's reds finds two, and only one of them is in this sentence's
+scope. That e2e red is the delivered half of batch 30's `elBox` source
+read below; both flip in TASK-ELBOX's fold, together.
+The batch-30 re-derivation this replaces read 4, and re-derived was the
+operative word there too: that batch
 recorded **5** at its own head and the fix round overtook it before the
 fold, so NEITHER SIDE of that number was true of the merged tree — the
 MICROFIX-2 lesson arriving again, one wave later, and the resolution is
