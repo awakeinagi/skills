@@ -19730,7 +19730,7 @@ def _parse_mermaid_er(text):
             "errors": errors}
 
 
-def _er_seed_ops(parsed):
+def _er_seed_ops(parsed: dict[str, Any]) -> list[dict[str, Any]]:
     """Map a parsed erDiagram to domain-artifact ops.
 
     Entities land on a declaration-order grid (the drawing is the truth
@@ -19740,16 +19740,31 @@ def _er_seed_ops(parsed):
     the many-side token joins the label ("places 0..*"), reflexive
     relations keep the verb alone with cardinality in the tooltip.
 
+    THE TOOLTIP FORMAT STRINGS BELOW ARE HALF OF A WIRE FORMAT — see
+    `_ER_TIP_RE`. Two of them (``"cardinality: %s %s — %s %s"`` and the
+    ``"attributes:\\n"`` list) are the ONLY place in this repo where a
+    HUMAN-READABLE string is later reparsed as structured data:
+    `domain_to_er_export` reads them back with `_ER_TIP_RE` and
+    `_ER_TIP_ATTR_RE` to recover the cardinality tokens and the typed
+    attribute rows, because the canvas stores no other copy of either.
+    Reword either string — a different dash, a dropped space, "cards:"
+    for "cardinality:" — and nothing here fails: the export goes
+    partial (attributes silently vanish) and then REFUSING (every
+    relation reads as carrying no cardinality and is named as
+    unexportable), which looks like a data problem in the user's
+    drawing rather than an edit to this function. The pin that makes
+    the pair fail together instead is
+    `test_er_tooltip_and_the_export_reader_are_one_contract`.
+
     Args:
         parsed: Output of `_parse_mermaid_er` (errors already empty).
 
     Returns:
         A list of add ops (entities first, then relations).
     """
-    existing = set()
-    ops = []
-    slug = {}
-    display_of = {}
+    existing: set[str] = set()
+    ops: list[dict[str, Any]] = []
+    slug, display_of = {}, {}
     ents = parsed["entities"]
     cols = max(1, int(math.ceil(math.sqrt(len(ents)))))
     for i, (key, ent) in enumerate(ents.items()):
@@ -20295,6 +20310,37 @@ def flow_to_mermaid_export(els, direction=None, kinds=True, lanes=False):
 
 _ER_CARD_OUT_L = {"0..1": "|o", "1": "||", "0..*": "}o", "1..*": "}|"}
 _ER_CARD_OUT_R = {"0..1": "o|", "1": "||", "0..*": "o{", "1..*": "|{"}
+# THE OTHER HALF OF A WIRE FORMAT — the writer is `_er_seed_ops`.
+#
+# These two patterns reparse a tooltip that was written to be READ BY A
+# HUMAN on hover, which is the only place in this repo that happens. The
+# canvas keeps no second copy of a relation's cardinality tokens or of an
+# entity's typed attribute rows, so `domain_to_er_export` recovers both
+# from the prose `_er_seed_ops` composed:
+#
+#   writer  `"cardinality: %s %s — %s %s"`  ->  reader  `_ER_TIP_RE`
+#   writer  `"- %s %s%s%s"` under `attributes:` -> `_ER_TIP_ATTR_RE`
+#
+# THE INVARIANT: every tooltip `_er_seed_ops` writes must parse here, and
+# every group these patterns name must be the value the seeder put there.
+# It is one contract in two functions 500 lines apart, and breaking it is
+# SILENT in both directions — a reworded format string leaves the seeder's
+# own tests green (they assert the drawing, not the prose) and turns the
+# export partial-then-refusing, which reads as the user's drawing being
+# incomplete rather than as an edit here.
+#
+# WHICH CHARACTERS ARE LOAD-BEARING, measured by perturbing the writer and
+# watching the pin rather than by reading the patterns: the em dash is (a
+# hyphen refuses), the `cardinality:` and `- ` prefixes are, and the
+# quotes around an attribute comment are. The WHITESPACE is not — `\s*`
+# and `\s+` absorb it, so losing the space after `cardinality:` changes
+# nothing and the pin stays green, correctly. Do not "tighten" that into
+# a literal space to make the pin louder: it would fail the export on
+# tooltips it can read perfectly well.
+#
+# `test_er_tooltip_and_the_export_reader_are_one_contract` in
+# tests/test_backend.py runs the pair end to end and fails naming this
+# block. Change either side and change that test in the same commit.
 _ER_TIP_RE = re.compile(
     r"^cardinality:\s*(?P<a>.+?)\s+(?P<lc>0\.\.1|1|0\.\.\*|1\.\.\*)\s+"
     r"—\s+(?P<rc>0\.\.1|1|0\.\.\*|1\.\.\*)\s+(?P<b>.+)$")

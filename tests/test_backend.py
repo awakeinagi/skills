@@ -15449,6 +15449,89 @@ class TestMermaidSeeding(Base):
                     if e.get("containerId") == one_many["id"])
         self.assertEqual(lbl2["text"], "places 0..*")
 
+    def test_er_tooltip_and_the_export_reader_are_one_contract(self):
+        """The tooltip is a WIRE FORMAT, and this is the only pin on it.
+
+        `--format er` is the one path in this repo that reparses a
+        human-readable string as structured data: `_er_seed_ops` writes
+        `"cardinality: %s %s — %s %s"` and an `attributes:` list for the
+        user to READ ON HOVER, and `domain_to_er_export` reads them back
+        with `_ER_TIP_RE` / `_ER_TIP_ATTR_RE` because the canvas stores
+        no second copy of a cardinality token or a typed attribute row.
+        Two functions 500 lines apart, one format, and nothing named
+        them as a pair until v0.9 TASK-MICROFIX-3 (task-export's concern
+        2, the wave's oldest unresolved chore).
+
+        THE FAILURE IT REPLACES IS SILENT IN BOTH DIRECTIONS. A reworded
+        format string — a hyphen for the em dash, "cards:" for
+        "cardinality:", a `*` bullet for the `- ` one — leaves every
+        seeder test green, because they assert the DRAWING and not the
+        prose. What breaks is the export, and it breaks by going partial
+        (attributes vanish from the entity blocks) and then REFUSING
+        (every relation reads as carrying no cardinality and is named
+        unexportable), which reads to a user as their own drawing being
+        incomplete. All four of those were perturbed and watched failing
+        here; whitespace was perturbed too and correctly did NOT fail,
+        because the patterns absorb it — the comment block beside
+        `_ER_TIP_RE` records which characters are load-bearing.
+
+        Written end to end rather than against literals: the tooltips
+        come out of `_er_seed_ops`, the parse comes from the module's own
+        regexes, and the assertion is that every FIELD survives the round
+        trip. A pin against a literal string would have to be edited by
+        whoever reworded the format, which is exactly the person it
+        exists to stop.
+        """
+        parsed = canvas._parse_mermaid_er(
+            'erDiagram\n'
+            '  CUSTOMER ||--o{ ORDER : places\n'
+            '  ORDER }|--|{ SKU : lists\n'
+            '  RUN ||--|| REPORT : yields\n'
+            '  CUSTOMER {\n'
+            '    string name PK "legal name"\n'
+            '    int age\n  }\n')
+        self.assertEqual(parsed["errors"], [])
+        ops = canvas._er_seed_ops(parsed)
+        tips = {o["element"]["id"]: o["element"].get("tooltip") for o in ops}
+        # selected by ELEMENT TYPE, never by the tooltip's own prefix: a
+        # rewording of `cardinality:` must fail at the parse below, with
+        # the contract named, rather than quietly emptying this dict and
+        # failing as "the seeder wrote nothing"
+        cards = {i: t for i, t in tips.items() if i.startswith("r-")}
+        self.assertEqual(len(cards), 3)   # not vacuous: three relations
+        self.assertNotIn(None, cards.values())
+        want = {("CUSTOMER", "1", "0..*", "ORDER"),
+                ("ORDER", "1..*", "1..*", "SKU"),
+                ("RUN", "1", "1", "REPORT")}
+        got = set()
+        for eid, tip in cards.items():
+            m = canvas._ER_TIP_RE.match(tip)
+            self.assertIsNotNone(
+                m, "`_ER_TIP_RE` could not read the tooltip "
+                   "`_er_seed_ops` wrote for %s: %r. These two are one "
+                   "contract (see the comment block at each site); "
+                   "whichever of them just changed, change the other"
+                   % (eid, tip))
+            got.add((m.group("a"), m.group("lc"), m.group("rc"),
+                     m.group("b")))
+        self.assertEqual(
+            got, want,
+            "`_ER_TIP_RE` read the tooltips but recovered the wrong "
+            "fields — a pattern that matches and mis-splits is worse "
+            "than one that refuses, because the export then states a "
+            "cardinality nobody wrote")
+        attr = tips["customer"]
+        self.assertTrue(attr.startswith("attributes:"))
+        rows = [canvas._ER_TIP_ATTR_RE.match(ln.strip())
+                for ln in attr.splitlines()[1:]]
+        self.assertNotIn(None, rows,
+                         "`_ER_TIP_ATTR_RE` could not read an attribute "
+                         "row `_er_seed_ops` wrote: %r" % attr)
+        self.assertEqual(
+            [(m.group("type"), m.group("name"), m.group("keys").strip(),
+              m.group("comment")) for m in rows],
+            [("string", "name", "PK", "legal name"), ("int", "age", "", None)])
+
     def test_flow_seed_from_captured_skeletons(self):
         """The real captured conversion maps, lands and lints clean."""
         skeletons = json.loads(self.SKELETONS.read_text())
