@@ -16890,6 +16890,26 @@ class TestRouterTerminalLegGraze(Base):
              for p in arrow["points"]]), 0)
         self.assertLess(self._drawn(arrow, dst, True), 45.0)
 
+    def test_a_corner_that_does_not_turn_is_not_charged(self):
+        """"No corner, no bow" — the rule the docstring states.
+
+        A collinear triple has three points and no turn, so nothing
+        bows and nothing may be charged. `_route_candidates` cannot
+        emit one; this pins the RULE rather than a reachable drawing,
+        because the guard reads `len(path) < 3` while the reason given
+        for it is about turns, and those two must not drift apart.
+
+        The two degenerate rows beside it are the deliberate half: a
+        zero-length RUN has nothing to swallow the leg, while a
+        zero-length LEG is the defect at its limit, not an exemption.
+        """
+        self.assertEqual(canvas._grazing_terminal_legs(
+            [(0, 0), (1000, 0), (1010, 0)]), 0)
+        self.assertEqual(canvas._grazing_terminal_legs(
+            [(0, 0), (0, 0), (0, 500)]), 1)
+        self.assertEqual(canvas._grazing_terminal_legs(
+            [(0, 0), (500, 0), (500, 0)]), 1)
+
     def test_the_bar_the_ratio_encodes_is_the_one_the_comment_claims(self):
         """`theta = atan(0.1221 * r / l)` — the derivation, not a fit.
 
@@ -16909,6 +16929,116 @@ class TestRouterTerminalLegGraze(Base):
                                math.degrees(math.atan(
                                    0.1221 / canvas.GRAZE_LEG_RATIO)),
                                places=1)
+
+
+class TestGrazeSceneGuard(Base):
+    """v0.9 TASK-ROUTERLEG fix 1: the penalty may not cost the scene.
+
+    A candidate-level term cannot see a CASCADE — arrow one re-elects,
+    `other_arrows` changes under arrow two, and arrow two re-elects
+    although no candidate of its own grazes. On `tearsheet-domain` that
+    invented a shared attach point; on `tearsheet-pipeline`, a
+    bidirectional misread. `reroute_scene` therefore compares the
+    penalised pass against the unpenalised one and keeps the better.
+    """
+
+    def _pair(self, dy=-32):
+        """Two nodes and one arrow at an offset that grazes.
+
+        Args:
+            dy: The destination's vertical offset. -32 elects a
+                diagonal under the lint's 40px bar; -46 elects one over
+                it, which is the pair that actually competes.
+
+        Returns:
+            A scene whose only arrow the penalty re-elects.
+        """
+        def node(nid, x, y):
+            return {"id": nid, "type": "rectangle", "x": x, "y": y,
+                    "width": 120, "height": 60, "boundElements": [],
+                    "customData": {"role": "node"}}
+        return [node("s", 0, 0), node("d", 1200, dy),
+                {"id": "a", "type": "arrow", "x": 0, "y": 0,
+                 "points": [[0, 0], [1, 0]], "customData": {"role": "edge"},
+                 "startBinding": {"elementId": "s", "focus": 0, "gap": 6},
+                 "endBinding": {"elementId": "d", "focus": 0, "gap": 6}}]
+
+    def test_a_scene_the_penalty_improves_keeps_the_penalised_route(self):
+        """The half that must NOT be guarded away.
+
+        A guard that declined here would eat the fix it exists to
+        bound. The elected path is the straight one, so the arrow
+        carries two points and no corner to bow.
+        """
+        out, _ = canvas.reroute_scene(self._pair())
+        arrow = next(e for e in out if e.get("type") == "arrow")
+        self.assertEqual(len(arrow["points"]), 2, arrow["points"])
+
+    def test_a_diagonal_is_discounted_so_the_cure_cannot_veto_itself(self):
+        """The bias the first cut of this guard shipped with.
+
+        A graze is invisible to every check in `canvas.py`; the
+        diagonal that replaces it draws a warning. Counted naively the
+        guard sees only the cure, and declines the repair on every
+        fresh scene where the two compete — 20 of 4641 grid scenes,
+        measured. `reads_as_diagonal` is what `_scene_route_cost`
+        discounts, and `route_arrow.score` has already charged it.
+        """
+        out, _ = canvas.reroute_scene(self._pair(dy=-46))
+        arrow = next(e for e in out if e.get("type") == "arrow")
+        self.assertTrue(canvas.reads_as_diagonal(arrow), arrow["points"])
+        said = [w for w in canvas.lint_layout(out)["warnings"]
+                if "runs diagonally" in w]
+        self.assertTrue(said, "the lint should still REPORT the diagonal — "
+                              "the guard discounts it, nobody hides it")
+        self.assertEqual(canvas._scene_route_cost(out)[1], 0,
+                         "the diagonal must not reach the guard's cost")
+
+    def test_the_guard_declines_the_two_artifacts_it_was_built_for(self):
+        """The corpus half, on the frozen artifacts themselves.
+
+        Both moves are cascade-tainted, so the shipped pass must leave
+        `tearsheet-domain` and `tearsheet-pipeline` exactly as today's
+        router draws them. Asserted as "no arrow moves relative to the
+        penalty being off", which keeps saying the right thing if the
+        fixtures are re-frozen.
+        """
+        root = Path(__file__).resolve().parent / "fixtures" / "tearsheet-demo"
+        for name in ("tearsheet-domain", "tearsheet-pipeline"):
+            path = root / "artifacts" / ("%s.excalidraw" % name)
+            doc, _ = canvas.validate_scene(json.loads(path.read_text()), name)
+            els = canvas.normalize_scene_doc(doc)["elements"]
+            shipped, _ = canvas.reroute_scene(copy.deepcopy(els))
+            real = canvas._grazing_terminal_legs
+            canvas._grazing_terminal_legs = lambda p: 0
+            try:
+                plain, _ = canvas.reroute_scene(copy.deepcopy(els))
+            finally:
+                canvas._grazing_terminal_legs = real
+            got = {e["id"]: e["points"] for e in shipped
+                   if e.get("type") == "arrow"}
+            want = {e["id"]: e["points"] for e in plain
+                    if e.get("type") == "arrow"}
+            with self.subTest(artifact=name):
+                self.assertEqual(got, want)
+
+    def test_the_second_pass_is_skipped_when_the_penalty_is_inert(self):
+        """`decisive` is what keeps the guard free on 22 of 24 artifacts.
+
+        `route_arrow` reports whether the penalty changed its election,
+        so a scene it never touched costs exactly one pass. Asserted
+        through the return value rather than by timing.
+        """
+        src = {"id": "s", "type": "rectangle", "x": 0, "y": 0,
+               "width": 120, "height": 60}
+        dst = {"id": "d", "type": "rectangle", "x": 400, "y": 300,
+               "width": 120, "height": 60}
+        arrow = {"id": "a", "type": "arrow"}
+        self.assertFalse(canvas.route_arrow(arrow, src, dst))
+        near = {"id": "d", "type": "rectangle", "x": 1200, "y": -32,
+                "width": 120, "height": 60}
+        self.assertTrue(canvas.route_arrow({"id": "b", "type": "arrow"},
+                                           src, near))
 
 
 class TestPhantomPassThrough(Base):

@@ -3308,9 +3308,11 @@ def _grazing_terminal_legs(path):
 
     Returns:
         0, 1 or 2 — how many ends have a leg under `GRAZE_LEG_RATIO` of
-        its adjacent run. Always 0 below three points: an arrow with no
-        turn has no corner to bow, which is the same population
-        `derived_roundness` declines to curve.
+        its adjacent run, at a corner that actually turns. Always 0
+        below three points: an arrow with no turn has no corner to bow,
+        which is the same population `derived_roundness` declines to
+        curve. `short` carries the same rule for the collinear triple
+        that has three points and still no turn.
     """
     if len(path) < 3:
         return 0
@@ -3318,16 +3320,40 @@ def _grazing_terminal_legs(path):
     def short(leg, run):
         """Is `leg` short enough against `run` to vanish into the bow?
 
+        A COLLINEAR PAIR IS EXEMPT, because the rule this file states is
+        "no corner, no bow" and a straight-through triple has no corner
+        even though it has three points. `_route_candidates` cannot emit
+        one — every candidate it builds turns at each interior vertex —
+        so this changes no drawing today; it is here because the guard
+        above it says `len(path) < 3` while the reason given is about
+        turns, and a rule whose code and rationale disagree is one edit
+        away from being wrong somewhere it matters.
+
+        A zero-length LEG is still charged, and deliberately: it is the
+        limiting case of the defect, not an exemption from it. A
+        zero-length RUN is not, because there is no run to be swallowed
+        by — the `rl > 0` test, unchanged.
+
+        The ratio's angle bar is derived for a RIGHT-ANGLE corner
+        (`GRAZE_LEG_RATIO`). Every candidate is orthogonal, so that is
+        the only corner this ever sees; an oblique corner would be
+        charged by a bar that was not solved for it.
+
         Args:
             leg: The terminal `(p, q)` point pair.
             run: The `(p, q)` point pair feeding into it.
 
         Returns:
-            True when the leg is under the ratio, False otherwise.
+            True when the leg is under the ratio at a real corner.
         """
-        ll = math.hypot(leg[1][0] - leg[0][0], leg[1][1] - leg[0][1])
-        rl = math.hypot(run[1][0] - run[0][0], run[1][1] - run[0][1])
-        return rl > 0 and ll < GRAZE_LEG_RATIO * rl
+        lx, ly = leg[1][0] - leg[0][0], leg[1][1] - leg[0][1]
+        rx, ry = run[1][0] - run[0][0], run[1][1] - run[0][1]
+        ll, rl = math.hypot(lx, ly), math.hypot(rx, ry)
+        if rl <= 0:
+            return False
+        if ll > 0 and abs(lx * ry - ly * rx) < 1e-9:
+            return False
+        return ll < GRAZE_LEG_RATIO * rl
 
     return (int(short((path[-2], path[-1]), (path[-3], path[-2]))) +
             int(short((path[0], path[1]), (path[1], path[2]))))
@@ -3437,7 +3463,7 @@ def soft_obstacles(els):
 
 
 def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
-                other_arrows=None):
+                other_arrows=None, graze=True):
     """Compute explicit geometry for a bound arrow (bindings do NOT route —
     feel-prototype finding) and attach start/end bindings. Off-axis pairs
     get orthogonal elbows (diagram-design §6.1); when the direct path
@@ -3457,6 +3483,16 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
             label is legal but reads badly; penalized below hard hits.
         other_arrows: [(id, x, y, points)] of other routed arrows —
             each crossing costs like a soft hit.
+        graze: Charge the terminal-leg penalty (`_grazing_terminal_legs`).
+            False reproduces the pre-v0.9 election exactly, which is what
+            `reroute_scene`'s scene-guard compares its candidate against.
+
+    Returns:
+        True when the graze penalty CHANGED which candidate won — the
+        signal a scene-level caller needs to know whether a second,
+        unpenalised pass is even worth running. False for a reflexive
+        loop (no candidates), for `graze=False`, and whenever the
+        penalty was inert, which is the overwhelming majority.
     """
     def hits(path):
         n = 0
@@ -3484,7 +3520,27 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
                         n += 1
         return n
 
-    def score(path):
+    def parts(path):
+        """Every score component for one candidate, computed ONCE.
+
+        `hits` and `soft` are the expensive pair — each walks the path
+        against every obstacle and every other arrow — and neither
+        depends on whether the graze penalty is charged. Scoring the
+        same candidate twice to find out whether the penalty was
+        decisive therefore doubled the router's real cost for an answer
+        that needs no obstacle work at all: measured at +44% over a
+        corpus re-route before this was split out. Held apart, both
+        orderings are re-assembled from one evaluation and the pass
+        costs exactly what it cost before the penalty existed.
+
+        Args:
+            path: A candidate polyline.
+
+        Returns:
+            `(hits, soft, shape, length, grazes)`, with `shape` already
+            carrying the diagonal charge and `grazes` still separate so
+            `ordering` can include or drop it.
+        """
         bends = len(path) - 2
         length = sum(abs(bx - ax) + abs(by - ay)
                      for (ax, ay), (bx, by) in zip(path, path[1:]))
@@ -3504,15 +3560,40 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
         # `(hits=0, soft=1)`, so the dominant terms decided as much as
         # they ever did. A candidate with proportionate legs scores
         # exactly what it scored before.
-        return (hits(path), soft(path),
-                bends + (2 if diag else 0)
-                + 2 * _grazing_terminal_legs(path), length)
+        return (hits(path), soft(path), bends + (2 if diag else 0),
+                length, _grazing_terminal_legs(path))
 
+    def ordering(scored, graze_on):
+        """The four-term cost tuple, with or without the graze charge.
+
+        Args:
+            scored: One `parts` tuple.
+            graze_on: Charge the terminal-leg penalty.
+
+        Returns:
+            `(hits, soft, shape, length)`.
+        """
+        n_hits, n_soft, shape, length, grazes = scored
+        return (n_hits, n_soft,
+                shape + (2 * grazes if graze_on else 0), length)
+
+    changed = False
     if src is dst or src.get("id") == dst.get("id"):
         # reflexive relationship (v0.8) — deterministic, obstacle-blind
         path = _self_loop_path(src)
     else:
-        path = min(_route_candidates(src, dst), key=score)
+        cands = [(p, parts(p)) for p in _route_candidates(src, dst)]
+        path = min(cands, key=lambda c: ordering(c[1], graze))[0]
+        # WAS THE PENALTY DECISIVE HERE? Asked by re-ordering the SAME
+        # scored list rather than by comparing geometry, so ties break
+        # the same way in both and identity is a sound test — `min`
+        # returns the first minimal element, so an unchanged election
+        # returns the very same object. Free, because `parts` already
+        # paid for the obstacle work, and it is what lets
+        # `reroute_scene` skip its second pass on every scene where the
+        # penalty never changed anything.
+        changed = graze and path is not min(
+            cands, key=lambda c: ordering(c[1], False))[0]
     x1, y1 = path[0]
     pts = [[px - x1, py - y1] for px, py in path]
     gap = 6
@@ -3552,6 +3633,7 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
               if not (b.get("id") == arrow["id"] and b.get("type") == "arrow")]
         bl.append({"id": arrow["id"], "type": "arrow"})
         node["boundElements"] = bl
+    return changed
 
 
 def reroute_and_confess(els, node, before, artifact_id):
@@ -5250,6 +5332,81 @@ def drawn_path_changed(was, now):
     return any(a.get(k) != b.get(k) for k in DRAWN_GEOM_ATTRS)
 
 
+def reads_as_diagonal(el):
+    """Is `el` a bound two-point arrow drawn well off both axes?
+
+    ONE AUTHORITY, TWO CALLERS, and they use it for opposite purposes,
+    which is exactly why it may not be written twice. `lint_layout`
+    REPORTS it: a diagonal reads worse than a clean elbow. The
+    `reroute_scene` scene-guard DISCOUNTS it: the router's own score
+    already charges `diag` two points when it elects a candidate, so
+    counting it again at scene level would let a shape preference the
+    scorer has already paid for veto a repair the scorer made.
+
+    That asymmetry is the whole reason the guard needs this by name.
+    A grazing terminal leg is invisible to every check in this file —
+    that is the defect `GRAZE_LEG_RATIO` exists for and what the
+    catalogue pins — while the diagonal that replaces it is visible.
+    Left in the guard's cost, the cure is reported and the disease is
+    not, so the guard declines the fix on every fresh scene where the
+    two compete: measured at 20 of 4641 targeted-grid scenes, which is
+    a fix eaten by its own safety net.
+
+    Args:
+        el: Any element; non-arrows and multi-point paths answer False.
+
+    Returns:
+        True when both legs of a bound 2-point path exceed 40px.
+    """
+    if len(el.get("points") or []) != 2:
+        return False
+    if not (el.get("startBinding") or el.get("endBinding")):
+        return False
+    return (abs(el["points"][-1][0]) > 40
+            and abs(el["points"][-1][1]) > 40)
+
+
+def _scene_route_cost(els):
+    """How badly a whole scene reads, in the terms a route pass can move.
+
+    `_scene_lane_cost` is the same idea one altitude down — it answers
+    "did these FEET get worse" for `contention_feet`, over arrows only.
+    This answers "did this DRAWING get worse" for a whole re-route, so
+    it adds the reader-facing tiers: a re-route can invent a shared
+    attach point or a bidirectional misread, and neither is a crossing
+    or a corridor.
+
+    ERRORS AND WARNINGS ARE SEPARATE SLOTS, not a sum, because `_worse`
+    is per-dimension and summing them would let a warning pay for an
+    error. Lint tiers that no geometry can move (node budget, vocabulary)
+    appear in both readings of any comparison this feeds and therefore
+    cancel; they cost a little time and buy immunity to the next check
+    that turns out to be geometric after all.
+
+    DIAGONALS ARE DISCOUNTED, and that exclusion is the one judgement
+    in here. The rule it follows is the same one `_scene_lane_cost`
+    states for itself — price what a per-candidate score CANNOT see —
+    and `route_arrow.score` already charges a diagonal two points when
+    it elects one. Counting it again here is double-charging, and it is
+    not symmetric double-charging: the graze this whole term exists to
+    remove is reported by nothing in this file, so a cost that sees the
+    cure and not the disease vetoes the repair every time the two meet.
+
+    Args:
+        els: A scene's elements, already through the pass being judged.
+
+    Returns:
+        `(errors, warnings, crossings, corridors)` — warnings net of
+        the per-arrow diagonal family.
+    """
+    found = lint_layout(els, None, None, {}, None)
+    crossings, corridors = _scene_lane_cost(
+        [e for e in els if e.get("type") in ("arrow", "line")])
+    diagonals = sum(1 for e in els if reads_as_diagonal(e))
+    return (len(found["errors"]), len(found["warnings"]) - diagonals,
+            crossings, corridors)
+
+
 def reroute_scene(els):
     """Redraw the scene's server-owned arrows the way today's router would.
 
@@ -5303,35 +5460,86 @@ def reroute_scene(els):
         rebuilds from that, not from facts — but is not a re-route the
         history narrates.
     """
-    out = copy.deepcopy(els)
-    ix = {e["id"]: e for e in out}
-    # One authority, five callers (2026-08-17). This site's comment used
-    # to record the disagreement it could see — "`apply_ops`' obstacle
-    # set is the one site that omits it — noted, not changed here" — and
-    # noting it is what let it stand; `hard_obstacles` is that note
-    # discharged.
-    obstacles = hard_obstacles(out)
-    soft = soft_obstacles(out)
-    for a in out:
-        if a.get("type") != "arrow":
-            continue
-        src = ix.get((a.get("startBinding") or {}).get("elementId"))
-        dst = ix.get((a.get("endBinding") or {}).get("elementId"))
-        if src is None or dst is None or not server_owns_geometry(a):
-            continue
-        # `other_arrows` is read fresh each time, as every other caller
-        # reads it: the crossing term must see the paths already re-routed
-        # in this pass, not the fossils they replaced.
-        route_arrow(a, src, dst, obstacles, soft_obstacles=soft,
-                    other_arrows=[(t["id"], t.get("x", 0), t.get("y", 0),
-                                   t.get("points") or [])
-                                  for t in out if t.get("type") == "arrow"
-                                  and len(t.get("points") or []) >= 2])
-        recenter_label(out, a)
-    fan_attach_points(out)
-    contention_feet(out)
-    fan_attach_points(out)
-    rebuild_bound_elements(out)
+    def drawn(graze):
+        """One whole pass, with or without the terminal-leg penalty.
+
+        Args:
+            graze: Charge `_grazing_terminal_legs` in the router's score.
+
+        Returns:
+            `(elements, decisive)` — the re-routed copy, and whether the
+            penalty changed any arrow's election during it.
+        """
+        out = copy.deepcopy(els)
+        ix = {e["id"]: e for e in out}
+        # One authority, five callers (2026-08-17). This site's comment
+        # used to record the disagreement it could see — "`apply_ops`'
+        # obstacle set is the one site that omits it — noted, not changed
+        # here" — and noting it is what let it stand; `hard_obstacles` is
+        # that note discharged.
+        obstacles = hard_obstacles(out)
+        soft = soft_obstacles(out)
+        decisive = False
+        for a in out:
+            if a.get("type") != "arrow":
+                continue
+            src = ix.get((a.get("startBinding") or {}).get("elementId"))
+            dst = ix.get((a.get("endBinding") or {}).get("elementId"))
+            if src is None or dst is None or not server_owns_geometry(a):
+                continue
+            # `other_arrows` is read fresh each time, as every other
+            # caller reads it: the crossing term must see the paths
+            # already re-routed in this pass, not the fossils they
+            # replaced. It is also what makes a CASCADE possible, which
+            # is the whole reason the guard below exists.
+            decisive |= route_arrow(
+                a, src, dst, obstacles, soft_obstacles=soft,
+                other_arrows=[(t["id"], t.get("x", 0), t.get("y", 0),
+                               t.get("points") or [])
+                              for t in out if t.get("type") == "arrow"
+                              and len(t.get("points") or []) >= 2],
+                graze=graze)
+            recenter_label(out, a)
+        fan_attach_points(out)
+        contention_feet(out)
+        fan_attach_points(out)
+        rebuild_bound_elements(out)
+        return out, decisive
+
+    out, decisive = drawn(True)
+    if decisive:
+        # THE GRAZE PENALTY MAY NOT MAKE A SCENE READ WORSE THAN THE
+        # ROUTER WITHOUT IT, and the baseline is the unpenalised PASS
+        # rather than the geometry on disk. That distinction is the whole
+        # design: measured over the 24 frozen artifacts with the penalty
+        # ablated, judging a pass against the stored geometry declines 5
+        # of them for reasons that predate this term entirely — it would
+        # throw away `tearsheet-pipeline`'s 18-warnings-to-2 repair
+        # because one corridor appeared alongside it. Comparing the two
+        # PASSES scopes the veto to exactly what this term changed, so
+        # the worst case is precisely today's drawing.
+        #
+        # A CASCADE IS WHY NO CANDIDATE-LEVEL TERM COULD DO THIS. Arrow
+        # one re-elects, `other_arrows` changes under arrow two, and
+        # arrow two re-elects although `_grazing_terminal_legs` is 0 on
+        # every one of its own candidates. Nothing scoring a single path
+        # can see that, which is the argument `contention_feet`'s
+        # accept-guard already won one altitude down; `_worse` is shared
+        # with it so the two cannot drift on what "worse" means.
+        #
+        # TERMINATION IS NOT AN ARGUMENT HERE. This is one comparison
+        # between two deterministic passes, not a search: no loop, no
+        # iteration, and the same scene always makes the same choice. It
+        # is also why a declined scene is a FIXED POINT of the guard
+        # rather than an oscillation — re-running it re-declines it.
+        #
+        # `decisive` keeps this free where it is pointless. A scene in
+        # which the penalty never changed an election cannot differ from
+        # the unpenalised pass, so the second pass is skipped outright:
+        # 22 of the 24 frozen artifacts never build it.
+        plain = drawn(False)[0]
+        if _worse(_scene_route_cost(out), _scene_route_cost(plain)):
+            out = plain
     was = {e["id"]: e for e in els if e.get("type") == "arrow"}
     changes = []
     for a in out:
@@ -12989,19 +13197,24 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "arrow %s points both ways — split it into two labeled "
                 "arrows; a bidirectional arrow says nothing about who "
                 "initiates" % e["id"])
-        # diagonal between off-axis endpoints (server output elbows these;
-        # a surviving diagonal is user-drawn or legacy)
-        if len(e.get("points") or []) == 2 and \
-                (e.get("startBinding") or e.get("endBinding")):
+        # diagonal between off-axis endpoints. The parenthetical this
+        # comment carried until v0.9 — "server output elbows these; a
+        # surviving diagonal is user-drawn or legacy" — stopped being
+        # true when `GRAZE_LEG_RATIO` landed: the router now ELECTS a
+        # diagonal on purpose wherever the elbow beside it would spend
+        # its whole run and arrive on a stub. The warning still stands
+        # (a diagonal does read worse than a clean elbow, and the agent
+        # may still want to move the nodes), but it is no longer
+        # evidence that nobody chose it.
+        if reads_as_diagonal(e):
             ddx = abs(e["points"][-1][0])
             ddy = abs(e["points"][-1][1])
-            if ddx > 40 and ddy > 40:
-                warnings.append(
-                    "arrow %s runs diagonally (%dx%dpx) — off-axis "
-                    "connections read better as two-segment elbows; "
-                    "re-route via mod from/to, or leave it if the "
-                    "diagonal is deliberate" % (e["id"], int(ddx),
-                                                int(ddy)))
+            warnings.append(
+                "arrow %s runs diagonally (%dx%dpx) — off-axis "
+                "connections read better as two-segment elbows; "
+                "re-route via mod from/to, or leave it if the "
+                "diagonal is deliberate" % (e["id"], int(ddx),
+                                            int(ddy)))
         # through-node crossing: test each real segment, never the
         # first-to-last chord — a correctly-routed elbow's chord crosses
         # boxes its actual path misses (v0.1 acceptance false positive)
