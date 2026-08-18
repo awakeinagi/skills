@@ -39,6 +39,37 @@ from tests_helpers import measured  # noqa: E402
 # first-party and stdlib-only, so this stays a plain import — the loud-skip
 # rule in AGENTS.md §5 is about third-party packages.
 
+# ONE TEST HERE DEFINES ITS SCAN SURFACE WITH `git ls-files`, and a tree
+# built from tracked files alone cannot answer it. `mutants_mortality.
+# _copy_tree` builds exactly such a tree on purpose — every tracked FILE at
+# its working-tree content and no `.git` — so `git ls-files` exits 128
+# there, the tripwire ERRORS, and `_control` refuses to instrument a model
+# tier that is not green. That took the whole mortality sweep down at the
+# v0.9 phase gate, on the first full run since the tripwire landed.
+#
+# THE SAME GATE `tests/livedoc.py` USES, and copied from it deliberately
+# rather than reinvented: `.exists()` and not `.is_dir()` because `.git` is
+# a FILE in a worktree and a directory in a clone, and this repo is worked
+# in worktrees. Presence and NOT "does `git ls-files` succeed", for the
+# reason that file's comment gives at length — a predicate that ran the
+# command it gates could never disagree with it, so a genuinely broken git
+# inside a real checkout would become a silent skip instead of a failure.
+#
+# NOT A FILESYSTEM WALK FALLBACK, which is the tempting repair and is the
+# defect the tripwire's own docstring records being fixed: an `rglob` reads
+# UNTRACKED files, the shared checkout carries `.scratch/<task>/base/
+# canvas.py` probe workspaces, and every one of them is a
+# `glossary_challenge` site by copy and none is a consumer. The scan
+# surface is git's or the question is unanswerable; a skip says the second
+# out loud.
+_CHECKOUT = (Path(__file__).resolve().parents[1] / ".git").exists()
+
+_NO_CHECKOUT = ("not a git checkout — this census's scan surface is "
+                "defined by `git ls-files`, and a copied tree without "
+                "`.git` cannot answer it. The mortality sweep's pristine "
+                "build (`mutants_mortality._copy_tree`) is such a tree, "
+                "as is `census_probes.py`'s")
+
 
 def seed_flow_batch(base_revn=0):
     """The feel-prototype checkout flow: cart → checkout → payment → confirm."""
@@ -14965,6 +14996,7 @@ class TestGlossaryDivergence(Base):
         self.assertEqual(len(self.rename("ent0", "Reservation")), 1)
         self.assertEqual(self.rename("ent1", "Slot", base_revn=2), [])
 
+    @unittest.skipUnless(_CHECKOUT, _NO_CHECKOUT)
     def test_the_glossary_challenge_flag_is_stamped_and_read_by_nobody(self):
         """`glossary_challenge=True` is inert, and now actively misleading.
 
@@ -15018,6 +15050,21 @@ class TestGlossaryDivergence(Base):
         comment says so; this is the same fix, and the empty-surface
         refusal below is copied from it for the same reason — a scan that
         found nothing would let this assertion pass by measuring nothing.
+
+        AND THAT SURFACE IS WHY THIS SKIPS OUTSIDE A CHECKOUT, which
+        cost a phase gate to discover and is the third thing this test
+        has learned about its own scan surface.
+        `mutants_mortality._copy_tree` builds its pristine tree from
+        tracked files ALONE and deliberately carries no `.git`, so
+        `git ls-files` exits 128 there and this ERRORED — and `_control`
+        refuses to instrument a model tier that is not green, so one
+        test took the whole mortality sweep down on the first full run
+        since this landed. The gate is `_CHECKOUT`, taken from
+        `tests/livedoc.py`, and the module comment beside it says why it
+        is presence-of-`.git` and not a filesystem-walk fallback. Both
+        poles are watched: this RUNS in a worktree (`.git` is a FILE
+        there and `.exists()` counts it) and SKIPS with its reason in a
+        tracked-only copy.
         """
         root = Path(canvas.__file__).resolve().parents[3]
         try:

@@ -10012,8 +10012,19 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
 
         The scoring term `_grazing_terminal_legs` (weight 2 in the shape
         slot) makes the router elect the proportionate candidate, so this
-        passes on the assertion it always stated. Decorator dropped in
-        the fold that landed the fix, per the flip contract.
+        passes on the assertion it always stated.
+
+        DECORATOR DROPPED IN THE SAME FOLD THAT LANDED THE FIX, which is
+        the flip contract's unit — and NOT in the same commit, which is
+        what a reader of that sentence would assume. The fix landed at
+        the fold's first commit (`1d20f74`) and the marker came off in
+        its amended last one (`e7bdb8e`), three commits apart, so a
+        bisect anywhere across `1d20f74..b46765f` finds this test
+        carrying `@unittest.expectedFailure` and PASSING — an
+        unexpected-success failure with nothing wrong in the tree.
+        Recorded rather than rewritten (ledger, 2026-08-18): the history
+        is published, and an accurate note costs a bisecting reader one
+        paragraph where a rebase would cost every other branch its base.
 
         The router elects a 240px run elbowed into a 2px stub.
 
