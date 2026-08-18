@@ -7501,6 +7501,161 @@ class TestFanAttachPoints(unittest.TestCase):
                 "as a lane to repair — the server would be telling a "
                 "user to undo what it just did: %s" % (shape, w, h, said))
 
+    def _bowed_fan(self) -> list[dict]:
+        """A routed, fanned pair whose bows close the lane the fan opened.
+
+        Built through `apply_ops` so the ROUTER picks the elbows and the
+        FAN picks the feet — nothing here is hand-placed geometry, which
+        is the whole point: the numbers below are the shipped producers'
+        own output, not a shape chosen to embarrass them.
+
+        Two sources 300px either side of a 100px hub 400px below. Each
+        edge turns horizontal, runs in, and drops onto the hub's top
+        side; the fan sets the two feet 34px apart — twice `LANE_TOL`
+        and well past `FAN_LANE_PITCH`, so by the chord reading these
+        two runs are comfortably separate. Each vertical run is fed by a
+        ~200px approach that turns it TOWARD the other, so the two bows
+        point into the gap and close 31px of it.
+
+        WHAT THIS NEEDS FROM THE ROUTER, written down so a scoring
+        change re-verifies the pin instead of silently voiding it: each
+        edge must be elected an elbow that runs HORIZONTAL FIRST and
+        arrives on the hub's TOP side, so the two terminal legs are the
+        parallel pair and the approaches are what bow them together. It
+        does NOT depend on a short terminal leg — the terminal legs are
+        370px against 193px approaches, the opposite ratio to the one
+        `TASK-ROUTERLEG` penalises — but it does depend on the
+        orientation election, which flips to vertical-first for a hub
+        wider than ~140px. If this class ever fails on the elbow shape
+        rather than on the magnitudes, that is the signal: the geometry
+        claim is pinned independently on authored points in
+        `TestCorridorKind`, and only the producer-reachability claim
+        lives here.
+
+        Returns:
+            The scene, routed and curved as the producers left it.
+        """
+        errors: list[str] = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "element": {"type": "rectangle", "id": "hub",
+                                      "x": 600, "y": 600, "width": 100,
+                                      "height": 60, "role": "node",
+                                      "label": "hub"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "srcL",
+                                      "x": 300, "y": 200, "width": 140,
+                                      "height": 60, "role": "node",
+                                      "label": "srcL"}},
+            {"op": "add", "element": {"type": "rectangle", "id": "srcR",
+                                      "x": 900, "y": 200, "width": 140,
+                                      "height": 60, "role": "node",
+                                      "label": "srcR"}},
+            {"op": "add", "element": {"type": "arrow", "id": "eL",
+                                      "from": "srcL", "to": "hub"}},
+            {"op": "add", "element": {"type": "arrow", "id": "eR",
+                                      "from": "srcR", "to": "hub"}}], errors)
+        self.assertEqual(errors, [])
+        return els
+
+    def test_the_lane_is_measured_on_the_ink_not_on_the_chord(self) -> None:
+        """Two feet the fan set 34px apart draw 3px apart, and it says so.
+
+        THE RESIDUAL `instruments._stretch_axis` USED TO RECORD, closed.
+        That note filed the case as needing "a bow of most of `tol`,
+        hence a neighbouring leg of ~14x that" and read its own
+        arithmetic as a bound. It is a FLOOR: 14x `LANE_TOL` is 216px,
+        and the corpus's curved multi-span arrows have a median leg of
+        240px, so the producers clear that floor as a matter of routine.
+
+        The scene is the shipped router's and the shipped fan's own
+        output. The chords say 34px apart over a 370px overlap — silent
+        for the check's own stated reason, twice the tolerance. The INK
+        says 2.5px apart for 221px, which is two thirds of the run
+        spent as one thick stroke that no reader can follow to either
+        node.
+
+        THE MAGNITUDES ARE ASSERTED, for the reason the canonical
+        corpus lane's pin gives: a check that finds this pair while
+        measuring the chord's 34px would satisfy a presence test and
+        hand the agent a number pointing at nothing it can see.
+
+        NOTHING ELSE CATCHES IT, which is why it is this check's to
+        make. The strokes converge without crossing, so `crossing_sites`
+        is silent by construction; the pair is a fan and not a reversal,
+        so `false_bidi` is too.
+        """
+        els = self._bowed_fan()
+        self.assertTrue(all(a.get("roundness") for a in els
+                            if a.get("type") == "arrow"))
+        said = [w for w in canvas.lint_layout(els)["warnings"]
+                if "run together for" in w]
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("run together for 221px, 3px apart", said[0])
+        self.assertIn("they arrive at hub", said[0])
+        self.assertEqual(instruments.crossing_sites(els), [])
+        self.assertEqual(instruments.false_bidi(els), [])
+        hits = instruments.shared_corridors(els)
+        self.assertEqual([(h["a"], h["b"], h["kind"]) for h in hits],
+                         [("eL", "eR", "fan")], hits)
+        self.assertAlmostEqual(hits[0]["overlap"], 220.85, places=1)
+
+    def test_the_same_scene_drawn_sharp_reports_no_lane(self) -> None:
+        """The quiet pole, and the one that proves it is the ink talking.
+
+        Same elements, same feet, same 34px of chord separation — only
+        the corners un-rounded. If this fired too, the finding above
+        would be about where the fan put the feet, and the repair the
+        warning names (separate them further) would be the wrong advice
+        for a picture whose feet are already twice `LANE_TOL` apart.
+
+        This is also the invariance the lane block's comment claims in
+        the other direction, and the honest statement of what changed:
+        a sharp drawing's answer is untouched, and a curved one's is
+        allowed to differ BECAUSE the ink differs. The corpus census is
+        the evidence that the first half holds — 6 corridor findings and
+        6 lane warnings before and after, with identical magnitudes.
+        """
+        els = self._bowed_fan()
+        for a in els:
+            if a.get("type") == "arrow":
+                a["roundness"] = None
+        self.assertEqual(
+            [w for w in canvas.lint_layout(els)["warnings"]
+             if "run together for" in w], [])
+        self.assertEqual(instruments.shared_corridors(els), [])
+
+    def test_the_gate_declines_the_curve_that_draws_the_lane(self) -> None:
+        """The picture repairs itself, by one arrow giving up its curve.
+
+        `gate_curvature`'s second arm — the finding set must not move —
+        is documented as firing nowhere on the 24-fixture corpus and
+        being pinned only synthetically. This is the arm doing real work
+        on producer output: with the lane read off the chord it had
+        nothing to notice here, so both curves stood and the merged
+        stroke reached the page.
+
+        ONE curve is declined, not both, and that is the gate working
+        as specified rather than a blunt retreat: it takes arrows in
+        sorted id order from an all-sharp start, so `eL` earns its curve
+        against a still-sharp `eR` (one bow closes 14px of 34, which is
+        not a lane), and `eR` is then the one whose curve would move the
+        finding set. Swap the ids and the other one declines; the
+        PICTURE is the same either way, which is what makes an
+        arbitrary-but-deterministic tie-break acceptable here.
+
+        Swept over 1,104 scenes of this family through the shipped
+        producers — hub 100-160px, sources 100-180px, reach 300-740px,
+        four hub depths — the baseline drew 550 of these merged strokes
+        with every check silent. With the lane read off the ink: none.
+        """
+        els = self._bowed_fan()
+        canvas.gate_curvature(els)
+        curved = {a["id"]: bool(a.get("roundness")) for a in els
+                  if a.get("type") == "arrow"}
+        self.assertEqual(curved, {"eL": True, "eR": False})
+        self.assertEqual(
+            [w for w in canvas.lint_layout(els)["warnings"]
+             if "run together for" in w], [])
+
     def test_a_side_too_short_for_the_pitch_still_spreads(self) -> None:
         """A 64px side cannot hold four lanes, and says so by trying.
 
@@ -7596,6 +7751,21 @@ class TestFanAttachPoints(unittest.TestCase):
         does is fix the ones that are fixable — and a search that
         silenced the rest would be hiding a shortfall rather than
         repairing it.
+
+        THE GATE IS PART OF THE PASS, and this test used to stop one
+        call short of it. `reroute_scene` runs `fan -> search -> fan ->
+        rebuild_bound_elements`, and the last of those is where
+        `gate_curvature` lives, so the state this measured without it
+        was a mid-pass one that no reader ever sees. That distinction
+        did not matter while the lane was read off the chords, because
+        the gate only moves `roundness` and the chords do not care. It
+        matters now: the fan sets these feet exactly `FAN_LANE_PITCH`
+        apart, and the two approach bows eat 10.5px of that 18px — the
+        clearance the pitch's own comment claims over `LANE_TOL` is a
+        CHORD clearance, and curvature spends most of it. The gate is
+        what answers that, by declining the curve rather than by
+        widening a constant that cannot be made wide enough (the bow
+        scales with the approach leg, and the pitch cannot).
         """
         for shape, w, h in (("rectangle", 160, 64), ("ellipse", 160, 64),
                             ("diamond", 200, 80)):
@@ -7603,6 +7773,7 @@ class TestFanAttachPoints(unittest.TestCase):
             canvas.fan_attach_points(els)
             canvas.contention_feet(els)
             canvas.fan_attach_points(els)
+            canvas.gate_curvature(els)
             said = [x for x in canvas.lint_layout(els)["warnings"]
                     if "run together for" in x]
             self.assertEqual(
@@ -7631,6 +7802,7 @@ class TestFanAttachPoints(unittest.TestCase):
         canvas.fan_attach_points(els)
         canvas.contention_feet(els)
         canvas.fan_attach_points(els)
+        canvas.gate_curvature(els)
         said = [x for x in canvas.lint_layout(els)["warnings"]
                 if "run together for" in x]
         self.assertTrue(

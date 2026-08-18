@@ -2515,6 +2515,151 @@ def _lane_axis(stretch):
     return None
 
 
+def _lane_bow(stretch):
+    """How far a drawn stretch's ink strays off its own chord, in px.
+
+    The PREFILTER TERM for the lane reading, and the reason that reading
+    can afford to be exact. A stretch's excursion peaks at `2/27` of the
+    NEIGHBOURING leg's perpendicular reach (`_bezier_spans`' arithmetic:
+    the control point sits one sixth of the way along the neighbour and
+    a cubic weights it `4/9` at most), so a 240px leg — the corpus's own
+    median on a curved multi-span arrow — bows 17.8px, which is MORE
+    than the whole of `LANE_TOL`. Two such bows facing each other close
+    35px of chord separation, and that is why comparing chords alone
+    cannot answer the lane question on a curved route.
+
+    Measured off the ink rather than derived from the neighbour, because
+    the neighbour is not always there to ask — a first or last span has
+    one free end — and because a hand-authored path need not obey the
+    router's arithmetic at all.
+
+    ZERO ON A SHARP ARROW, exactly, which is what makes this free where
+    it is cheapest to be: `_rendered_stretches` returns chords unsampled
+    when nothing is rounded, so the max below is over two points that
+    both sit on the chord, and `_lane_overlap`'s caller then prefilters
+    on precisely the number it used before this existed.
+
+    Args:
+        stretch: One sampled stretch, in scene coordinates.
+
+    Returns:
+        The greatest perpendicular distance from any sample to the chord
+        between the stretch's ends; 0.0 for a stretch of fewer than
+        three points or one with coincident ends.
+    """
+    if len(stretch) < 3:
+        return 0.0
+    (x1, y1), (x2, y2) = stretch[0], stretch[-1]
+    dx, dy = x2 - x1, y2 - y1
+    ln = (dx * dx + dy * dy) ** 0.5
+    if not ln:
+        return 0.0
+    return max(abs(((px - x1) * dy - (py - y1) * dx) / ln)
+               for (px, py) in stretch)
+
+
+def _lane_overlap(sa, sb, orient, tol=None):
+    """The longest run over which two DRAWN strokes stay within `tol`.
+
+    THE CHECK'S OWN WORDS, implemented. The lane finding claims "two
+    runs hold the same cross-axis coordinate to within `LANE_TOL` for
+    `LANE_RUN` of shared extent", and comparing the two chords' fixed
+    coordinates is an APPROXIMATION of that claim which a curve breaks:
+    the chord is where the ink is pinned at both ends and nowhere in
+    between. Through the shipped router and the shipped fan — a 100px
+    hub taking two edges from 300px either side — two feet the fan set
+    34px apart draw ink that runs 2.5px apart for 342px, and the chord
+    reading calls that silent for its own stated reason. `_lane_bow`
+    has the arithmetic that makes it reachable.
+
+    NOT the naive per-micro-segment relapse, which is a different and
+    worse thing: classifying each flattened sub-segment independently
+    goes SILENT on real corridors, because a flattened span is too
+    diagonal to classify for a third of its length and the rest carries
+    a DRIFTING fixed coordinate that cannot be paired across two
+    arrows' independent sample grids (`instruments._stretch_axis`
+    records the measurement). Orientation and extent still come from the
+    chord, once, exactly as before. Only the SEPARATION is read off the
+    ink, which is the one number the chord cannot supply.
+
+    EXACT, not sampled. Both strokes are polylines, so over any interval
+    where neither turns, their separation is linear in the along
+    coordinate — its extremes are at the ends, and the two crossings of
+    `+/-tol` solve in closed form. Walking segment pairs therefore gives
+    the true minimum and the true run, with no sampling rate to tune and
+    nothing that changes answer when `CURVE_SAMPLES` moves.
+
+    A SHARP PAIR GETS ITS OLD ANSWER BACK, digit for digit: two straight
+    runs are one segment each, their separation is the constant gap
+    between the chords, and the covered interval is the chord overlap.
+    That is what keeps the corpus census still.
+
+    Args:
+        sa: One sampled stretch, in scene coordinates.
+        sb: The other, already known to share `orient`.
+        orient: `"h"` or `"v"`, from `_lane_axis` on both.
+        tol: Lateral gap that still reads as one stroke; `LANE_TOL`
+            when omitted.
+
+    Returns:
+        `(run, sep)` — the longest CONTIGUOUS along-axis extent over
+        which the two strokes stay within `tol`, and the smallest
+        separation seen anywhere they share extent. `(0.0, None)` when
+        they share no extent at all.
+    """
+    tol = LANE_TOL if tol is None else tol
+    ai, ci = (0, 1) if orient == "h" else (1, 0)
+    near, spans = None, []
+    for pa, qa in zip(sa, sa[1:]):
+        if pa[ai] == qa[ai]:
+            continue
+        for pb, qb in zip(sb, sb[1:]):
+            if pb[ai] == qb[ai]:
+                continue
+            lo = max(min(pa[ai], qa[ai]), min(pb[ai], qb[ai]))
+            hi = min(max(pa[ai], qa[ai]), max(pb[ai], qb[ai]))
+            if hi <= lo:
+                continue
+            d0 = _cross_at(pa, qa, lo, ai, ci) - _cross_at(pb, qb, lo, ai, ci)
+            d1 = _cross_at(pa, qa, hi, ai, ci) - _cross_at(pb, qb, hi, ai, ci)
+            gap = 0.0 if d0 * d1 <= 0 else min(abs(d0), abs(d1))
+            near = gap if near is None else min(near, gap)
+            if d0 == d1:
+                if abs(d0) <= tol:
+                    spans.append((lo, hi))
+                continue
+            us = sorted(((-tol - d0) / (d1 - d0), (tol - d0) / (d1 - d0)))
+            ulo, uhi = max(0.0, us[0]), min(1.0, us[1])
+            if ulo < uhi:
+                spans.append((lo + (hi - lo) * ulo, lo + (hi - lo) * uhi))
+    if not spans:
+        return 0.0, near
+    spans.sort()
+    run, clo, chi = 0.0, spans[0][0], spans[0][1]
+    for lo, hi in spans[1:]:
+        if lo > chi:
+            run, clo, chi = max(run, chi - clo), lo, hi
+        else:
+            chi = max(chi, hi)
+    return max(run, chi - clo), near
+
+
+def _cross_at(p, q, along, ai, ci):
+    """The cross-axis coordinate of segment `p`-`q` at an along position.
+
+    Args:
+        p: The segment's first point.
+        q: Its second, with `p[ai] != q[ai]` guaranteed by the caller.
+        along: The along-axis coordinate to evaluate at.
+        ai: Index of the along axis, 0 for `"h"` and 1 for `"v"`.
+        ci: Index of the cross axis, the other one.
+
+    Returns:
+        The interpolated cross-axis coordinate.
+    """
+    return p[ci] + (q[ci] - p[ci]) * (along - p[ai]) / (q[ai] - p[ai])
+
+
 def _pair_kind(a, b):
     """Say what, if anything, explains two arrows lying on one line.
 
@@ -13597,21 +13742,78 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # beyond the sharing: there is one stretch per stored span whatever
     # the roundness, and the pair loop is the size the arrow budget
     # already caps.
+    #
+    # A SECOND ARM READS THE INK, and it is strictly ADDITIVE — the
+    # chord arm below is untouched and answers first, and the ink is
+    # asked only about pairs the chords called silent. `_lane_overlap`
+    # carries the reproduction and `_lane_bow` the arithmetic; the
+    # summary is that the excursion off a chord peaks at `2/27` of the
+    # neighbouring leg, the corpus's own curved multi-span arrows have a
+    # median leg of 240px, and 240/13.5 is 17.8px against a `LANE_TOL`
+    # of 16. Two bows facing each other close 35px of chord separation,
+    # so "the chords are 34px apart" stopped being an answer.
+    #
+    # WHAT IT CATCHES, swept through the shipped producers rather than
+    # argued: 1,104 scenes of one ordinary family — two sources either
+    # side of a hub, hub 100-160px, sources 100-180px, reach 300-740px,
+    # four depths — routed, fanned and GATED exactly as
+    # `rebuild_bound_elements` does it. 945 kept both curves through the
+    # gate and 550 of those drew two strokes within `LANE_TOL` for
+    # 90-270px, most of them touching. Every check silent. With this arm:
+    # none, because `gate_curvature`'s second arm now sees the finding
+    # appear and declines the curve that draws it.
+    #
+    # ADDITIVE ON PURPOSE, and the alternative was tried first. Letting
+    # the ink REPLACE the chord also suppresses, and the suppression is
+    # not obviously right: `curved_short_finals_escape_the_corridor`'s
+    # two finals bow 22.2 and 13.7px toward each other across a 15px
+    # gap, so the drawn strokes swap sides and cross TWICE at 68 and 48
+    # degrees. That is a crossing — `crossing_sites` reports both — and
+    # whether it is ALSO a lane is a judgement about the catalogue, not
+    # about this arithmetic. So this arm only ever speaks where the
+    # chords were silent, and no finding anywhere can be taken away by
+    # it. The residual left standing is named at the top of
+    # `_lane_overlap`.
+    #
+    # THE ZERO-BOW SKIP is what keeps it cheap, and it is exact rather
+    # than approximate: `_lane_bow` is 0.0 on a sharp arrow, and where
+    # both bows are 0 the ink IS the chord, so an arm that already
+    # declined on the chords cannot find anything. Counted over the 24
+    # artifacts it drops the exact reading to 33 calls per lint pass and
+    # 82 per gate pass.
+    #
+    # WHAT IT COSTS, measured the way the paragraph above insists on and
+    # reported with its noise rather than without it: `time.process_time`
+    # over all 24 artifacts, min of five per round, SIXTEEN rounds
+    # ALTERNATING between this tree and `git archive HEAD`. By median of
+    # the 16, lint +4.7% (0.2410 -> 0.2522s) and gate +6.5% (0.4581 ->
+    # 0.4879s). By min of mins, lint agrees at +5.3% and THE GATE COMES
+    # OUT 15% FASTER, which is not a speedup — it is one low outlier,
+    # and it is quoted here because a bare "+6.5%" would imply this
+    # machine can resolve 6.5% and it cannot. Take the honest reading as
+    # single digits, same order as the +9% the sharing above bought.
     drawn = [_rendered_stretches(a) for a in arrows]
-    lanes = [[ax for ax in (_lane_axis(s) for s in st) if ax is not None]
+    lanes = [[(ax, s, _lane_bow(s))
+              for ax, s in ((_lane_axis(s), s) for s in st) if ax is not None]
              for st in drawn]
     for i, la in enumerate(arrows):
         for j in range(i + 1, len(arrows)):
             lb = arrows[j]
             best = None
-            for axa in lanes[i]:
-                for axb in lanes[j]:
+            for axa, sa, ba in lanes[i]:
+                for axb, sb, bb in lanes[j]:
                     if axb[0] != axa[0]:
                         continue
                     sep = abs(axa[1] - axb[1])
-                    if sep > LANE_TOL:
+                    if sep > LANE_TOL + ba + bb:
                         continue
                     run = min(axa[3], axb[3]) - max(axa[2], axb[2])
+                    if sep > LANE_TOL or run < LANE_RUN:
+                        if not (ba or bb):
+                            continue
+                        run, sep = _lane_overlap(sa, sb, axa[0])
+                        if sep is None or sep > LANE_TOL:
+                            continue
                     # WORST pair, where the instrument takes the first
                     # that qualifies and breaks. Right for a count and
                     # wrong for a message: the magnitude an agent

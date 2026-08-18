@@ -254,6 +254,91 @@ class TestCorridorKind(unittest.TestCase):
         hits = instruments.shared_corridors(els)
         self.assertEqual([h["kind"] for h in hits], ["fan"], hits)
 
+    def _converging_elbows(self, gap: float, rounded: bool) -> list[dict]:
+        """Two elbows onto a shared band whose bows face each other.
+
+        `a` comes in from the LEFT and turns down; `b` from the RIGHT
+        and turns down beside it. The two vertical runs are `gap` apart
+        by chord, and each is fed by a 200px approach that turns it
+        toward the other, so both bows point into the gap and close
+        `200/13.5` = 14.8px each.
+
+        Args:
+            gap: Chord separation between the two vertical runs.
+            rounded: Whether to curve the elbows.
+
+        Returns:
+            The two arrows, with no bindings, so `kind` stays out of it.
+        """
+        out = []
+        for eid, x0, sign in (("a", 0.0, 1.0), ("b", gap, -1.0)):
+            pts = [[-200.0 * sign, 0.0], [0.0, 0.0], [0.0, 300.0]]
+            arrow = _edge(eid, x0, 0.0, pts)
+            arrow["roundness"] = {"type": 2} if rounded else None
+            out.append(arrow)
+        return out
+
+    def test_bows_that_face_each_other_close_a_lane_the_chords_open(
+            self) -> None:
+        """Chords 40px apart, ink 10px apart, and the instrument says so.
+
+        The residual `_stretch_axis` used to record, and the arithmetic
+        that closed it: the excursion off a chord peaks at `2/27` of the
+        neighbouring leg, so a 200px approach — well under the corpus's
+        240px median on a curved multi-span arrow — bows 14.8px, and two
+        of them facing each other close 29.6px. Forty is comfortably
+        past `tol`; ten is comfortably inside it.
+
+        The pair is deliberately unbound so that nothing but the
+        geometry is on trial here; `_corridor_kind`'s three answers have
+        their own pins above.
+        """
+        hits = instruments.shared_corridors(self._converging_elbows(40, True))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertGreater(hits[0]["overlap"], 100)
+
+    def test_the_same_elbows_drawn_sharp_share_no_lane(self) -> None:
+        """The quiet pole: 40px apart is 40px apart with square corners.
+
+        Same points, same 40px of chord separation, no curvature — and
+        no finding, which is what makes the test above a statement about
+        the drawn ink rather than about where the points are.
+        """
+        self.assertEqual(
+            instruments.shared_corridors(self._converging_elbows(40, False)),
+            [])
+
+    def test_bows_that_face_apart_still_report_the_chords_lane(self) -> None:
+        """The residual, pinned as what it is rather than left unsaid.
+
+        Reverse both approaches so each elbow bows AWAY from its
+        neighbour. The chords sit 12px apart over a 300px overlap and
+        this still reports a corridor — but the ink parts at the turn
+        and is only within `tol` for about 33px at each end, under the
+        60px that has to be shared before it is worth saying. A reader
+        sees two arrows that separate.
+
+        SO THIS ASSERTION IS NOT AN ENDORSEMENT. The ink arm is additive
+        by construction — it speaks only where the chords were silent —
+        and this is the case that costs: an over-report the chords make
+        and the ink would not. It is left standing because suppression
+        is a different decision with a different owner. Making the ink
+        arm authoritative also silences
+        `curved_short_finals_escape_the_corridor`, whose two finals
+        cross twice at 68 and 48 degrees rather than running together;
+        whether that scene is still a lane is a catalogue judgement for
+        `mutant-curator`, not a thing to settle from inside the fix.
+
+        WHAT WOULD REOPEN IT: a scene of this shape reachable through
+        the shipped producers. None was found in a 1,104-scene sweep,
+        while the opposite direction turned up 550, which is the whole
+        reason the arm points the way it does.
+        """
+        els = self._converging_elbows(12, True)
+        for a in els:
+            a["points"] = [[-p[0], p[1]] for p in a["points"]]
+        self.assertEqual(len(instruments.shared_corridors(els)), 1)
+
     def test_unbound_arrows_on_one_line_are_neither(self) -> None:
         """No binding, no relation to name — the third answer, not a fan."""
         els = [_edge("b1", 100, 200, [[0, 0], [400, 0]]),

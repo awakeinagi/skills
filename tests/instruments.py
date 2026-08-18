@@ -494,12 +494,19 @@ def _stretch_axis(
     widen-the-band-constant fix broke (curator batch 22 measured them):
     all six read `_reads_as_line`, and this does not touch it.
 
-    KNOWN RESIDUAL, recorded rather than built for: two runs whose
-    chords are further apart than `tol` but whose bows bring the DRAWN
-    strokes together in the middle are not reported. Reaching it needs a
-    bow of most of `tol`, hence a neighbouring leg of ~14x that, and the
-    strokes would still separate at both ends. Nothing in the corpus
-    reaches it.
+    THE RESIDUAL THIS ONCE RECORDED IS CLOSED, and the estimate that
+    filed it was the thing worth correcting. It said reaching the case
+    where two chords sit further apart than `tol` while the DRAWN
+    strokes converge inside it "needs a bow of most of `tol`, hence a
+    neighbouring leg of ~14x that" — arithmetic that is right and was
+    read as a bound when it is a floor. A leg of 14x `tol` is 216px, and
+    the corpus's own curved multi-span arrows have a MEDIAN leg of 240px
+    (52 legs over 26 such arrows, max 400px), so the corpus routinely
+    draws bows of 17.8px against a 16px `tol`. Two of them facing each
+    other close 35px of chord separation. `_lane_overlap` (canvas.py)
+    carries the reproduction, through the shipped router and the shipped
+    fan; the separation is read off the ink there and here, and only the
+    separation.
 
     Args:
         stretch: The sampled stretch in absolute coordinates.
@@ -511,6 +518,115 @@ def _stretch_axis(
     if len(stretch) < 2:
         return None
     return _axis((stretch[0], stretch[-1]))
+
+
+def _stretch_bow(stretch: list[tuple[float, float]]) -> float:
+    """How far a drawn stretch's ink strays off its own chord, in px.
+
+    Mirrors `canvas._lane_bow`, mirrored rather than imported for the
+    reason this whole module is standalone. Exactly 0.0 on a sharp
+    arrow, which is what makes the prefilter it feeds identical to the
+    chord comparison it replaced wherever nothing is rounded.
+
+    Args:
+        stretch: The sampled stretch in absolute coordinates.
+
+    Returns:
+        The greatest perpendicular distance from any sample to the chord
+        between the stretch's ends; 0.0 when there is no such distance
+        to take.
+    """
+    if len(stretch) < 3:
+        return 0.0
+    (x1, y1), (x2, y2) = stretch[0], stretch[-1]
+    dx, dy = x2 - x1, y2 - y1
+    ln = math.hypot(dx, dy)
+    if not ln:
+        return 0.0
+    return max(abs(((px - x1) * dy - (py - y1) * dx) / ln)
+               for (px, py) in stretch)
+
+
+def _lane_overlap(
+    sa: list[tuple[float, float]], sb: list[tuple[float, float]],
+    orient: str, tol: float,
+) -> tuple[float, float | None]:
+    """The longest run over which two DRAWN strokes stay within `tol`.
+
+    Mirrors `canvas._lane_overlap`, which carries the argument, the
+    reproduction and the exactness proof. The summary that binds here:
+    orientation and extent still come from the chord, once, because the
+    per-micro-segment relapse `_stretch_axis` documents is worse than
+    doing nothing; only the SEPARATION is read off the ink, because that
+    is the one number a chord cannot supply on a curved route. Two
+    straight runs get their old answer back digit for digit.
+
+    Args:
+        sa: One sampled stretch, in absolute coordinates.
+        sb: The other, already known to share `orient`.
+        orient: `"h"` or `"v"`, from `_stretch_axis` on both.
+        tol: Lateral gap that still reads as one stroke.
+
+    Returns:
+        `(run, sep)` — the longest CONTIGUOUS along-axis extent over
+        which the strokes stay within `tol`, and the smallest separation
+        seen anywhere they share extent. `(0.0, None)` when they share
+        no extent at all.
+    """
+    ai, ci = (0, 1) if orient == "h" else (1, 0)
+    near: float | None = None
+    spans: list[tuple[float, float]] = []
+    for pa, qa in zip(sa, sa[1:]):
+        if pa[ai] == qa[ai]:
+            continue
+        for pb, qb in zip(sb, sb[1:]):
+            if pb[ai] == qb[ai]:
+                continue
+            lo = max(min(pa[ai], qa[ai]), min(pb[ai], qb[ai]))
+            hi = min(max(pa[ai], qa[ai]), max(pb[ai], qb[ai]))
+            if hi <= lo:
+                continue
+            d0 = _cross_at(pa, qa, lo, ai, ci) - _cross_at(pb, qb, lo, ai, ci)
+            d1 = _cross_at(pa, qa, hi, ai, ci) - _cross_at(pb, qb, hi, ai, ci)
+            gap = 0.0 if d0 * d1 <= 0 else min(abs(d0), abs(d1))
+            near = gap if near is None else min(near, gap)
+            if d0 == d1:
+                if abs(d0) <= tol:
+                    spans.append((lo, hi))
+                continue
+            us = sorted(((-tol - d0) / (d1 - d0), (tol - d0) / (d1 - d0)))
+            ulo, uhi = max(0.0, us[0]), min(1.0, us[1])
+            if ulo < uhi:
+                spans.append((lo + (hi - lo) * ulo, lo + (hi - lo) * uhi))
+    if not spans:
+        return 0.0, near
+    spans.sort()
+    run, clo, chi = 0.0, spans[0][0], spans[0][1]
+    for lo, hi in spans[1:]:
+        if lo > chi:
+            run, clo, chi = max(run, chi - clo), lo, hi
+        else:
+            chi = max(chi, hi)
+    return max(run, chi - clo), near
+
+
+def _cross_at(
+    p: tuple[float, float], q: tuple[float, float], along: float,
+    ai: int, ci: int,
+) -> float:
+    """The cross-axis coordinate of segment `p`-`q` at an along position.
+
+    Args:
+        p: The segment's first point.
+        q: Its second, with `p[ai] != q[ai]` guaranteed by the caller.
+        along: The along-axis coordinate to evaluate at.
+        ai: Index of the along axis, 0 for `"h"` and 1 for `"v"`.
+        ci: Index of the cross axis, the other one.
+
+    Returns:
+        The interpolated cross-axis coordinate.
+    """
+    return p[ci] + (q[ci] - p[ci]) * (along - p[ai]) / (q[ai] - p[ai])
 
 
 def _corridor_kind(a: dict, b: dict) -> str:
@@ -596,15 +712,33 @@ def shared_corridors(
                 B = _stretch_axis(s2)
                 if not B or B[0] != A[0]:
                     continue
-                if abs(A[1] - B[1]) > tol:
+                chord = abs(A[1] - B[1])
+                bows = _stretch_bow(s1) + _stretch_bow(s2)
+                if chord > tol + bows:
                     continue
                 ov = min(A[3], B[3]) - max(A[2], B[2])
-                # abutting collinear runs read as ONE continuous stroke:
-                # negative overlap of a few px still joins visually
-                if ov >= minover or (-10 <= ov <= 0
-                                     and (A[3] - A[2]) >= 60
-                                     and (B[3] - B[2]) >= 60):
+                # THE CHORD ARM, unchanged, and it answers first —
+                # abutting runs included, which could not be otherwise:
+                # they read as one continuous stroke precisely BECAUSE
+                # they share no extent, and an ink separation measured
+                # over a shared extent that does not exist has nothing
+                # to say about them.
+                if chord <= tol and (ov >= minover
+                                     or (-10 <= ov <= 0
+                                         and (A[3] - A[2]) >= 60
+                                         and (B[3] - B[2]) >= 60)):
                     hits.append({"a": a["id"], "b": b["id"], "overlap": ov,
+                                 "kind": _corridor_kind(a, b)})
+                    break
+                # ...and the ink arm, ADDITIVE, asked only about pairs
+                # the chords called silent. `canvas._lane_overlap` has
+                # the argument, the reproduction and the reason this
+                # adds without ever taking away.
+                if not bows:
+                    continue
+                run, sep = _lane_overlap(s1, s2, A[0], tol)
+                if sep is not None and sep <= tol and run >= minover:
+                    hits.append({"a": a["id"], "b": b["id"], "overlap": run,
                                  "kind": _corridor_kind(a, b)})
                     break
             else:
