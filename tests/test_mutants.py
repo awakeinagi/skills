@@ -348,8 +348,18 @@ _UNREADABLE_COLOR_RE = re.compile(
 # check that reported a cosine, or a lean off the nearest cardinal (which
 # is the wrong reading this mutant exists to distinguish, and answers
 # 13.24 where this answers 76.76), matches nothing here.
+#
+# TWO VERBS, ONE CHECK, since 2026-08-18 (v0.9 whole-branch review I-3):
+# this check speaks about BOTH bound ends and the message used to say
+# "arrives at" about the start end too, which is the end an arrow LEAVES.
+# The regex is widened here rather than the message being kept wrong to
+# feed it — the ruling `_RUNS_INSIDE_RE` above records for its own second
+# opening, and the mistake task 19's first round made. The mutant below
+# fires on the END end, so its match is unmoved by the alternation; what
+# the alternation buys is that the start-end half of the same check is
+# readable by the harness at all.
 _ARRIVAL_SIDE_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) arrives at .+?'s "
+    r"arrow (?P<element>[\w-]+) (?:arrives at|leaves) .+?'s "
     r"(?P<dir>left|right|top|bottom) edge (?P<mag>\d+) degrees off square")
 
 

@@ -19775,6 +19775,139 @@ class TestGrazingArrival(Base):
         self.assertIn(key, self._graze(
             canvas.lint_layout(els, artifact_type="flow", aid="art"))[0])
 
+    def _departure(self, kind="arrow", start_head=None):
+        """The mirror scene: the arrow LEAVES `n` grazing its left face.
+
+        Geometrically `_scene`'s stroke run backwards, so the angle and
+        the face are the same numbers and the only variable is which
+        binding the foot belongs to.
+
+        Args:
+            kind: `"arrow"` or `"line"` — a line is in `lint_layout`'s
+                `arrows` list and can never paint a head.
+            start_head: What to store in `startArrowhead`.
+
+        Returns:
+            `[node, arrow]`, bound at its START only.
+        """
+        node = {"id": "n", "type": kind and "rectangle", "x": 400, "y": 200,
+                "width": 120, "height": 60, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": kind, "x": 400, "y": 230,
+                 "points": [[0, 0], [-40, -170]],
+                 "startBinding": {"elementId": "n", "focus": 0, "gap": 0},
+                 "endBinding": None, "startArrowhead": start_head,
+                 "endArrowhead": "arrow" if kind == "arrow" else None,
+                 "customData": {"role": "edge"}}
+        return [node, arrow]
+
+    def test_each_end_is_narrated_with_the_verb_that_is_true_of_it(self):
+        """"leaves" at the start, "arrives at" at the end — same geometry.
+
+        The v0.9 whole-branch review's I-3, first half. The verb was a
+        literal outside the loop that runs both bindings, so a foot on
+        the end an arrow LEAVES was reported as one it arrives at —
+        while `port_phrase`, the file's other arrival surface, said
+        "leaves" about the identical endpoint in the same session. The
+        pair is asserted here rather than one side of it, because a
+        repair that swapped the literal instead of keying it would pass
+        a one-sided test and invert the finding.
+
+        `assertNotIn` on the other verb is load-bearing: the sentence
+        names the node's id, and a message that opened "leaves" and then
+        said "arrives at" further along would satisfy the positive half
+        alone.
+        """
+        start = self._graze(canvas.lint_layout(self._departure(),
+                                               artifact_type="flow"))
+        end = self._graze(canvas.lint_layout(self._scene((400, 230),
+                                                         (360, 60)),
+                                             artifact_type="flow"))
+        self.assertEqual((len(start), len(end)), (1, 1), (start, end))
+        self.assertIn("arrow a leaves n's left edge", start[0])
+        self.assertNotIn("arrives at", start[0])
+        self.assertIn("arrow a arrives at n's left edge", end[0])
+        self.assertNotIn(" leaves ", end[0])
+        # and the verb both surfaces print is one value, not two literals
+        self.assertEqual(canvas.END_VERB["startBinding"], "leaves")
+        self.assertEqual(canvas.END_VERB["endBinding"], "arrives at")
+
+    def test_the_arrowhead_is_named_only_where_the_client_paints_one(self):
+        """Three ends, one geometry: head, no head, and a `line`.
+
+        The review's I-3, second and third halves. The sentence asserted
+        "the arrowhead reads as a corner" at a START end, where
+        `startArrowhead` defaults to None and the client paints nothing
+        — and it said the same of a `type: "line"`, which the bundle
+        never paints a head for at either end. `arrowhead_of` is the
+        file's authority on that question and this was the one caller
+        not asking it.
+
+        The TRIGGER may not move: all three still speak, because ink
+        lying along an outline is illegible whether or not it ends in a
+        head. What changes is only what the sentence claims is drawn
+        there — so the silent-pole risk of "fixing" this by declining to
+        report headless ends is closed by the count assertion.
+        """
+        cases = (("bare start", self._departure(), False),
+                 ("start with a head", self._departure(start_head="arrow"),
+                  True),
+                 ("a line", self._departure(kind="line"), False))
+        for what, els, head in cases:
+            with self.subTest(what):
+                hits = self._graze(canvas.lint_layout(els,
+                                                      artifact_type="flow"))
+                self.assertEqual(len(hits), 1, hits)
+                self.assertEqual("the arrowhead reads as a corner"
+                                 in hits[0], head, hits[0])
+                self.assertEqual("the stroke reads as part of that outline"
+                                 in hits[0], not head, hits[0])
+        # the referee, so the expectations above are not a second opinion
+        self.assertIsNone(canvas.arrowhead_of(self._departure()[1], False))
+        self.assertIsNone(
+            canvas.arrowhead_of(self._departure(kind="line")[1], True))
+
+    def test_the_bowed_sentence_also_stops_asserting_a_head(self):
+        """The other of the two sentences this check writes.
+
+        `bowed` has its own tail ("lays the arrowhead flat along it")
+        and it is reached only on authored curved geometry, so a repair
+        applied to the sentence the fixture happened to produce would
+        leave this one asserting the same absent mark. Both openings
+        come from one `head` reading.
+        """
+        node, arrow = self._bowed(authored=True)
+        arrow["endArrowhead"] = None
+        hits = self._graze(canvas.lint_layout([node, arrow],
+                                              artifact_type="flow"))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("lays the end of the stroke flat along it", hits[0])
+        self.assertNotIn("arrowhead", hits[0])
+
+    def test_the_corrected_verb_reaches_the_surface_an_agent_reads(self):
+        """Through `apply_batch` and `Store.lint_lines`, not `lint_layout`.
+
+        The firing pole through the real entry point: the sentence an
+        agent acts on comes off the standing lint debt, and a message
+        corrected only where a unit test calls the check would still
+        reach that agent wrong.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "graze",
+            "create": {"id": "graze", "name": "Graze", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n", "label": "N", "x": 400,
+                "y": 200, "width": 120, "height": 60, "role": "node"}}]})
+        els = [dict(e) for e in self.store.scenes["graze"]]
+        els.append(self._departure()[1])
+        self.store.commit(author="agent", new_scenes={"graze": els},
+                          base_revn=self.store.head_revn())
+        store = canvas.Store(self.project)
+        hits = [m for m in store.lint_lines()["graze"]["warnings"]
+                if "degrees off square" in m]
+        self.assertEqual(len(hits), 1, store.lint_lines()["graze"])
+        self.assertIn("leaves", hits[0])
+        self.assertNotIn("arrives at", hits[0])
+
 
 def _box_anchor(el, other_cx, other_cy):
     """`edge_anchor`'s pre-WP4 closed form, kept as an independent check.

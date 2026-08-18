@@ -11193,6 +11193,17 @@ def port_approach(node: dict[str, Any], arrow: dict[str, Any], at_end: bool,
     return endpoint_port(node, prev, seq[0], tol)
 
 
+# What an arrow DOES at each of its two ends, keyed by the binding
+# attribute — one authority for both surfaces that say it out loud.
+# `port_phrase` had the pair right and the graze arm in `lint_layout` had
+# a literal "arrives at" outside its loop, so the same session told a user
+# an arrow ARRIVED AT the end it LEAVES (v0.9 whole-branch review, I-3).
+# The two are not paraphrases of one another and a reader cannot repair
+# the wrong one from context: which end an arrow leaves is the direction
+# of the relationship the drawing asserts.
+END_VERB = {"startBinding": "leaves", "endBinding": "arrives at"}
+
+
 def port_phrase(arrow: dict[str, Any], ix: dict[str, Any]) -> str:
     """The port clause of an arrow's echo line, or "" when unsayable.
 
@@ -11219,8 +11230,8 @@ def port_phrase(arrow: dict[str, Any], ix: dict[str, Any]) -> str:
         centre"` and its variants, or `""` when neither end is nameable.
     """
     parts = []
-    for at_end, battr, verb in ((False, "startBinding", "leaves"),
-                                (True, "endBinding", "arrives at")):
+    for at_end, battr in ((False, "startBinding"), (True, "endBinding")):
+        verb = END_VERB[battr]
         nid = (arrow.get(battr) or {}).get("elementId")
         node = ix.get(nid) if nid else None
         if node is None:
@@ -13084,28 +13095,57 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # be made inaccurate to keep it matching. Saying "bring it in
             # across the face" about a foot already dead square on that
             # face would be the mistake that widened that regex.
+            # THE MARK, NOT THE ASSUMPTION — three defects in one
+            # sentence, closed together (v0.9 whole-branch review, I-3).
+            #
+            # The verb came from a literal outside this loop, so both
+            # ends said "arrives at" and the START end — the one the
+            # arrow LEAVES — was narrated backwards. `port_phrase`, the
+            # file's other arrival surface, had the pair right the whole
+            # time, so one session told a user two opposite things about
+            # one endpoint. `END_VERB` is now what both read.
+            #
+            # The arrowhead was ASSERTED. `startArrowhead` defaults to
+            # None, so on a start end there is usually no head at all,
+            # and a `line` — which `arrows` includes and which the
+            # bundle never paints a head for under any circumstance —
+            # got told about one at both ends. `arrowhead_of` is the
+            # authority for that question and this check was the one
+            # caller in the file not asking it. It answers None for
+            # every line by type, so the type case needs no test of its
+            # own here: what is drawn at that foot is the bare stroke,
+            # and the sentence now says so. The finding is the same
+            # finding either way — ink lying along an outline is
+            # illegible whether or not it ends in a head — so this
+            # changes the description and never the trigger.
+            head = arrowhead_of(a, key == "endBinding")
             if bowed:
                 leg = ((px - (a.get("x", 0) + back[0])) ** 2 +
                        (py - (a.get("y", 0) + back[1])) ** 2) ** 0.5
                 msg = ("its foot is square on that face, but the final "
                        "leg is only %dpx, so the curve through the last "
                        "corner is still turning when it reaches the edge "
-                       "and lays the arrowhead flat along it. Lengthen "
+                       "and lays %s flat along it. Lengthen "
                        "the final leg with `mod points` — this path is "
                        "your own geometry, so nothing will route it back"
-                       % round(leg))
+                       % (round(leg),
+                          "the arrowhead" if head else "the end of the "
+                          "stroke"))
             else:
                 msg = ("the last leg runs so nearly along that edge that "
                        "the drawing does not say where the two connect, "
-                       "and the arrowhead reads as a corner rather than "
-                       "an attachment. Bring it in across the face: "
+                       "and %s. Bring it in across the face: "
                        "elbow the final leg with `mod points`, or "
-                       "re-route from a border that faces the other end")
+                       "re-route from a border that faces the other end"
+                       % ("the arrowhead reads as a corner rather than "
+                          "an attachment" if head else
+                          "the stroke reads as part of that outline "
+                          "rather than an attachment"))
             warnings.append(
-                "arrow %s arrives at %s's %s edge %d degrees off square "
+                "arrow %s %s %s's %s edge %d degrees off square "
                 "(%s point) — %s. Meant to graze? %s"
-                % (a["id"], name(tgt["id"]), foot_side, round(off), side,
-                   msg, waive_hint(key_w)))
+                % (a["id"], END_VERB[key], name(tgt["id"]), foot_side,
+                   round(off), side, msg, waive_hint(key_w)))
 
     # ---- ERROR: flow-kind structural invariants ----------------------
     kinds = {e["id"]: (e.get("customData") or {}).get("kind")
