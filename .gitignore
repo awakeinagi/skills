@@ -1,9 +1,9 @@
 __pycache__/
 *.pyc
-node_modules/
+node_modules
 .playwright-cli/
 .scratch/
-frontends/*/node_modules/
+frontends/*/node_modules
 .venv/
 .agents/
 .claude/
