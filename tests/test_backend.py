@@ -14822,15 +14822,23 @@ class TestRerouteIsConsentGated(Base):
                       "or were re-aimed" % (redrew, len(
                           canvas.routable_arrows(base)), len(changes)),
                       note, note)
-        # counted by the ids the list names rather than by its
-        # separator: `reroute_line` uses "; " WITHIN an entry too
-        # ("path unchanged; start re-aimed"), so splitting on it counts
-        # clauses and not arrows
+        # SPLIT ON THE SEPARATOR, which is the point of MIN-1's repair.
+        # This counted `<id>: ` prefixes when it was written, because
+        # the between-entry separator was "; " and `reroute_line` uses
+        # "; " WITHIN an entry too ("path unchanged; start re-aimed") —
+        # so the list could not be split on its own separator and the
+        # test documented the workaround instead of exercising the
+        # surface. " | " separates entries now, so the split is the
+        # assertion (v0.9 IMPORTANTS review, MIN-1).
+        listed = note.split(": ", 1)[1].split(" — ")[0].split(" | ")
         self.assertEqual(
-            sum(1 for c in changes if "%s: " % c["id"] in note),
-            len(changes),
-            "the list under the note does not name as many arrows as "
-            "the count that introduces it: %r" % note)
+            [entry.split(":")[0] for entry in listed],
+            [c["id"] for c in changes],
+            "the list under the note does not split into the arrows the "
+            "count introduces: %r" % note)
+        self.assertTrue(any("; " in entry for entry in listed),
+                        "no entry carries an inner '; ', so this scene "
+                        "cannot tell the two separators apart: %r" % listed)
 
     def test_the_one_predicate_answers_for_every_pass_that_reads_it(self):
         """`routable_arrows` is what `reroute_scene` iterates, measured.
@@ -15275,6 +15283,188 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
         self.assertIn("would not straighten", head)
         for aid, side in crooked:
             self.assertIn("%s's %s" % (aid, side), head, head)
+
+
+class TestTheDeclineRunsOnePass(unittest.TestCase):
+    """v0.9 IMPORTANTS review, IMP-1: I-4 doubled the router pass.
+
+    `reroute_noop` asks `reroute_is_fossil`, which computes
+    `oblique_arrivals(reroute_scene(els)[0])` and throws it away, and
+    then hands the same scene to `reroute_decline`, which recomputed
+    precisely that. Two identical obstacle-aware passes over one scene.
+
+    COUNTED, NOT TIMED, AND THAT IS THE WHOLE LESSON. My own first
+    measurement of this was wall clock on a loaded machine; it came back
+    inside the run-to-run spread and I published "unmoved within
+    measurement noise", which was false. A router pass is deterministic
+    and a millisecond is not, so the pass is the unit — and the counts
+    below are the same on any machine, which is exactly what the number
+    I got wrong was not. Measured on the frozen corpus, whole-project
+    `canvas.py reroute` survey:
+
+    | project | base | I-4 as landed | now |
+    |---|---|---|---|
+    | acceptance-tearsheet | 1 | 2 | 1 |
+    | argus-r4-arm3 | 1 | 2 | 1 |
+    | argus-r4-arm4 | 1 | 2 | 1 |
+    | argus-r5 | 4 | 4 | 3 |
+    | tearsheet-demo | 3 | 3 | 2 |
+    | **total** | **10** | **13** | **8** |
+
+    Below base rather than back to it, because the memo also closes a
+    doubling that predates this wave: `legacy_routing_for` and
+    `reroute_noop`'s already-routed test asked the same question twice.
+    """
+
+    FIXTURE = "tearsheet-demo"
+    DECLINES = "tearsheet-domain"       # crooked, and the offer declines
+    OFFERS = "tearsheet-pipeline"       # crooked, and the offer stands
+
+    def setUp(self):
+        """Load the frozen fixture from a temp copy."""
+        self.tmp = Path(tempfile.mkdtemp(prefix="wysiwyg-passes-"))
+        src = Path(__file__).resolve().parent / "fixtures" / self.FIXTURE
+        shutil.copytree(src, self.tmp / "project_knowledge")
+        self.project = canvas.Project(self.tmp)
+
+    def tearDown(self):
+        """Remove the temp copy and the shared runtime files."""
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for p in (self.project.state_path, self.project.events_path,
+                  self.project.log_path):
+            if p.exists():
+                p.unlink()
+
+    @contextlib.contextmanager
+    def counting(self):
+        """Count `reroute_scene` calls for the duration of the block.
+
+        Patched on the MODULE rather than wrapped at one call site, so
+        a pass run anywhere under the code being measured is counted —
+        which is the property that makes this a census and not an
+        assertion about one function.
+
+        Yields:
+            A one-key dict whose `n` is the running count.
+        """
+        seen = {"n": 0}
+        real = canvas.reroute_scene
+
+        def wrapper(els):
+            seen["n"] += 1
+            return real(els)
+
+        canvas.reroute_scene = wrapper
+        try:
+            yield seen
+        finally:
+            canvas.reroute_scene = real
+
+    def cli(self, artifact=None):
+        """Run the `reroute` dry run and count the passes it costs.
+
+        Args:
+            artifact: Artifact id, or None for the whole-project survey.
+
+        Returns:
+            The number of router passes run.
+        """
+        ns = argparse.Namespace(project=str(self.tmp), artifact=artifact,
+                                apply=False)
+        with self.counting() as seen, \
+                contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            canvas.cmd_reroute(ns)
+        return seen["n"]
+
+    def test_the_premise_is_that_both_branches_are_reachable_here(self):
+        """One fixture, both verdicts — asserted before either count.
+
+        If this fixture ever stopped carrying one artifact that declines
+        AND one that offers, the two arms below would go on passing
+        while measuring the same branch twice.
+        """
+        store = canvas.Store(self.project)
+        self.assertTrue(canvas.oblique_arrivals(store.scenes[self.DECLINES]))
+        self.assertFalse(canvas.reroute_is_fossil(store.scenes[self.DECLINES]))
+        self.assertTrue(canvas.reroute_is_fossil(store.scenes[self.OFFERS]))
+
+    def test_a_declined_artifact_costs_one_pass(self):
+        """The regression itself: this was 2, and base was 1."""
+        self.assertEqual(
+            self.cli(self.DECLINES), 1,
+            "the decline path is routing the scene more than once — the "
+            "offer test and the decline sentence are two questions about "
+            "one pass")
+
+    def test_an_offered_artifact_costs_one_pass(self):
+        """The pre-existing doubling the memo closes on the way past."""
+        self.assertEqual(self.cli(self.OFFERS), 1)
+
+    def test_the_whole_project_survey_routes_each_drawing_at_most_once(self):
+        """The survey, which is what a user actually runs.
+
+        Bounded by the CROOKED artifacts rather than by all of them,
+        because `reroute_outlook`'s empty early-out answers a square
+        drawing without routing at all — the property that keeps
+        `Store.legacy_routing` cheap on the everyday project, and one a
+        memo could have quietly cost.
+        """
+        store = canvas.Store(self.project)
+        crooked = [aid for aid, els in store.scenes.items()
+                   if canvas.oblique_arrivals(els)]
+        square = [aid for aid in store.scenes if aid not in crooked]
+        self.assertTrue(crooked and square,
+                        "this fixture no longer holds both a crooked and "
+                        "a square drawing")
+        self.assertLessEqual(
+            self.cli(), len(crooked),
+            "the survey routes some drawing twice, or routes one with "
+            "nothing crooked in it")
+
+    def test_the_memo_does_not_outlive_a_write(self):
+        """The correctness half, and the one a cache is dangerous for.
+
+        `state_stamp` is the key for `legacy_routing`'s reason, so a
+        commit under the store must invalidate it. Asserted by moving
+        the geometry and reading the outlook back, not by inspecting the
+        cache: a memo tested through its own internals is tested against
+        itself.
+        """
+        store = canvas.Store(self.project)
+        before = store.reroute_outlook_for(self.OFFERS)
+        self.assertTrue(before[0], "nothing is crooked to move")
+        els = [dict(e) for e in store.scenes[self.OFFERS]]
+        store.commit(author="agent", new_scenes={self.OFFERS: els},
+                     base_revn=store.head_revn())
+        store.reroute(self.OFFERS)
+        after = store.reroute_outlook_for(self.OFFERS)
+        self.assertNotEqual(
+            before, after,
+            "the outlook memo survived a re-route of the same artifact, "
+            "so it is answering for geometry that is no longer on disk")
+        self.assertFalse(canvas.reroute_is_fossil(store.scenes[self.OFFERS],
+                                                  after))
+
+    def test_the_shared_outlook_says_what_computing_it_twice_would(self):
+        """The equivalence the sharing rests on, at both verdicts.
+
+        A cheaper answer is only worth having if it is the same answer,
+        and the two callers read different halves of the triple — so
+        this compares the sentence AND the offer AND the change list
+        against the values an unshared computation produces.
+        """
+        store = canvas.Store(self.project)
+        for aid in (self.DECLINES, self.OFFERS):
+            with self.subTest(aid):
+                els = store.scenes[aid]
+                shared = store.reroute_outlook_for(aid)
+                fresh = canvas.reroute_outlook(els)
+                self.assertEqual(shared, fresh)
+                self.assertEqual(canvas.reroute_is_fossil(els, shared),
+                                 canvas.reroute_is_fossil(els))
+                self.assertEqual(canvas.reroute_decline(els, aid, shared),
+                                 canvas.reroute_decline(els, aid))
 
 
 class TestTheDeclineReportsSetsAndNotACount(unittest.TestCase):

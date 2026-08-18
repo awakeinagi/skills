@@ -992,15 +992,30 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
     # Measured on the frozen corpus at this head: 16 of 73 filed pins
     # are closed in the registry with the ❓ still drawn — 1 pruned, 15
     # resolved — and every one of them was silent.
-    closed = {"pruned": "its target %s no longer exists",
-              "resolved": "the question was answered",
-              "dismissed": "the question was dismissed"}
+    #
+    # THE STATUS SET IS `CLOSED_PIN_STATUSES` AND NOT THIS MAP'S KEYS.
+    # The Minors stream's pin-placement warning skips exactly the set
+    # this speaks about, so the two are complements — and they collided
+    # on `pin-book-fails` precisely because that check was reading the
+    # GLYPH's own `customData.status` while this reads the registry's.
+    # Measured on the corpus: of the 41 pins with a live ❓ the two
+    # copies disagree about CLOSEDNESS on 8, all of them element `open`
+    # against registry `resolved`. So a check whose whole subject is
+    # that the two stores have diverged was deciding whether to speak
+    # by reading the diverged copy (v0.9 IMPORTANTS review, MIN-2). The
+    # map below supplies the CAUSE CLAUSE only; membership is the
+    # constant's, so a fourth closed status reaches both checks at once
+    # and reaches this one as a `KeyError` rather than as silence.
+    why_closed = {"pruned": "its target %s no longer exists",
+                  "resolved": "the question was answered",
+                  "dismissed": "the question was dismissed"}
     for p in (registry or {}).get("pins") or []:
-        why = closed.get(p.get("status"))
         aid = p.get("artifact")
-        if why is None or aid not in ids_by_aid \
+        if p.get("status") not in CLOSED_PIN_STATUSES \
+                or aid not in ids_by_aid \
                 or p.get("id") not in ids_by_aid[aid]:
             continue
+        why = why_closed[p["status"]]
         add(aid, "notes",
             "pin %s is %s in the registry and its ❓ is still drawn (%s) "
             "— the canvas is asking a question the project has already "
@@ -5755,7 +5770,62 @@ def oblique_arrivals(els):
     return out
 
 
-def reroute_is_fossil(els):
+def reroute_outlook(els):
+    """One re-route pass, and everything every caller decides from it.
+
+    ONE PASS, THREE QUESTIONS. `reroute_is_fossil` asks whether the
+    count strictly falls, `reroute_decline` asks which endpoints move
+    which way, and `legacy_routing_for` asks which arrows change — and
+    each of the three used to run its own obstacle-aware pass over the
+    same scene. That was 1 pass at v0.9's tip and 2 after I-4 landed,
+    because `reroute_noop` calls `reroute_is_fossil` and then hands the
+    same scene to `reroute_decline`, which recomputed precisely what the
+    first call had just thrown away.
+
+    IT WAS NOT NOISE AND THE REPORT THAT SAID SO WAS WRONG. Measured
+    best-of-5 on `canvas.py reroute` over the whole project, one router
+    pass being the deterministic unit underneath:
+
+    | project | 1 pass | 2 passes |
+    |---|---|---|
+    | acceptance-tearsheet | 962 ms | 1155 ms |
+    | argus-r4-arm3 | 1101 ms | 1773 ms |
+    | argus-r4-arm4 | 1369 ms | 1739 ms |
+    | argus-r5 | 1568 ms | 2640 ms |
+    | tearsheet-demo | 3188 ms | 7258 ms |
+
+    The lesson is in the unit rather than in the numbers: wall clock on
+    a loaded machine talked one measurement out of a regression that
+    COUNTING PASSES would have shown immediately, because a pass is
+    deterministic and a millisecond is not. `TestTheDeclineRunsOnePass`
+    counts passes for that reason.
+
+    THE EMPTY EARLY-OUT IS PRESERVED and is load-bearing: a drawing with
+    nothing crooked cannot be improved, so it is answered without
+    routing at all, which is what keeps `Store.legacy_routing` cheap on
+    the everyday project.
+
+    Args:
+        els: The scene's elements. Not mutated.
+
+    Returns:
+        `(before, after, changes)` — the crooked bound endpoints as
+        drawn and as one pass would leave them, both as sets of
+        `(arrow_id, "start"|"end")`, plus that pass's change list as
+        `reroute_scene` returns it. With nothing crooked, all three are
+        empty and no pass was run. The routed SCENE is deliberately not
+        returned: `Store.reroute` must route against the scene it is
+        about to commit, under the lock, and a scene computed earlier by
+        a reader is not that.
+    """
+    before = set(oblique_arrivals(els))
+    if not before:
+        return before, set(), []
+    routed, changes = reroute_scene(els)
+    return before, set(oblique_arrivals(routed)), changes
+
+
+def reroute_is_fossil(els, outlook=None):
     """Would a re-route make this drawing read straighter?
 
     THE OBVIOUS TEST IS WRONG, and getting it wrong is how this feature
@@ -5818,6 +5888,10 @@ def reroute_is_fossil(els):
 
     Args:
         els: The scene's elements, as loaded. Not mutated.
+        outlook: A `reroute_outlook(els)` triple already computed for
+            THIS scene, so a caller that also asks `reroute_decline` or
+            `legacy_routing_for` pays for one pass rather than two.
+            None computes it here.
 
     Returns:
         True when a re-route would leave strictly fewer crooked
@@ -5826,10 +5900,8 @@ def reroute_is_fossil(els):
         mechanism's reach — which callers must not narrate as one; see
         `reroute_decline`.
     """
-    before = len(oblique_arrivals(els))
-    if not before:
-        return False
-    return len(oblique_arrivals(reroute_scene(els)[0])) < before
+    before, after, _changes = outlook or reroute_outlook(els)
+    return bool(before) and len(after) < len(before)
 
 
 def _endpoint_list(ends, cap=3):
@@ -5850,7 +5922,7 @@ def _endpoint_list(ends, cap=3):
                    if len(shown) > cap else "")
 
 
-def reroute_decline(els, aid):
+def reroute_decline(els, aid, outlook=None):
     """Say why a re-route was NOT offered, without saying a false thing.
 
     `reroute_is_fossil` returns False for two unrelated reasons and the
@@ -5890,16 +5962,22 @@ def reroute_decline(els, aid):
     Args:
         els: The scene's elements.
         aid: The artifact id, named in the sentence.
+        outlook: A `reroute_outlook(els)` triple already computed for
+            THIS scene. `reroute_noop` always has one — it asked
+            `reroute_is_fossil` a line earlier — and passing it is what
+            keeps the decline path at ONE router pass. Recomputing it
+            here was I-4's own regression, caught in review: two
+            identical obstacle-aware passes over one scene, up to
+            +128% on `canvas.py reroute`. See `reroute_outlook`.
 
     Returns:
         The decline sentence, true of whichever case applies. Costs a
-        router pass only when something IS crooked, so the everyday
-        artifact still answers for the price of `oblique_arrivals`.
+        router pass only when something IS crooked, and none at all
+        when the caller brings its own outlook.
     """
-    before = set(oblique_arrivals(els))
+    before, after, _changes = outlook or reroute_outlook(els)
     if not before:
         return "nothing on %s arrives crooked — leaving it as drawn" % aid
-    after = set(oblique_arrivals(reroute_scene(els)[0]))
     fixed, broke = before - after, after - before
     if not fixed:
         return ("%d endpoint(s) on %s still arrive crooked (%s), and a "
@@ -8936,6 +9014,24 @@ def consequence_lines(record):
 
 
 PIN_GLYPH_GONE = "pin %s resolved; its ❓ was already gone"
+
+# The registry statuses that mean the question is SETTLED — no longer
+# asked, whoever settled it and however. `open` and `answered` are
+# deliberately out: an answered pin still carries its answer on the
+# canvas, so it is a question with a reply, not a closed one.
+#
+# ONE SPELLING FOR TWO CHECKS THAT MUST NOT BOTH SPEAK. The stale-glyph
+# note in `referential_findings` fires on exactly this set and the
+# Minors stream's pin-placement warning skips exactly this set, so they
+# are complements — and complements of one constant cannot drift apart
+# the way complements of two literals can (v0.9 IMPORTANTS review,
+# MIN-2, agreed with `impl-minors` before the fold).
+#
+# FOLD NOTE: `impl-minors` adds this same constant, same name, same
+# value, in the same change that points their check at it. The two
+# definitions are duplicates, not conflicts — DELETE ONE at the fold
+# and leave both readers on the survivor. Do not let a merge keep two.
+CLOSED_PIN_STATUSES = ("pruned", "resolved", "dismissed")
 
 
 def pin_glyph_notes(record, ops):
@@ -18858,10 +18954,44 @@ class Store:
             `[change, ...]` as `reroute_scene` returns them, empty when
             a re-route would not straighten this drawing.
         """
-        els = self.scenes.get(aid)
-        if els is None or not reroute_is_fossil(els):
-            return []
-        return reroute_scene(els)[1]
+        outlook = self.reroute_outlook_for(aid)
+        return outlook[2] if reroute_is_fossil(None, outlook) else []
+
+    def reroute_outlook_for(self, aid):
+        """`reroute_outlook` for one artifact, memoised on the state stamp.
+
+        THE MEMO IS WHAT MAKES ONE PASS REACH THREE CALLERS. Within one
+        CLI verb, `legacy_routing_for`, `reroute_noop` and `cmd_reroute`'s
+        decline loop all ask about the same artifact under the same
+        scenes, and each was running its own obstacle-aware pass — a
+        whole-project `reroute` survey therefore paid up to three passes
+        per crooked drawing where one answers every question (v0.9
+        IMPORTANTS review, IMP-1). `Store.reroute` is deliberately NOT a
+        reader: it must route against the scene it is about to commit,
+        under the lock, and reusing a reader's earlier pass would be the
+        write path trusting a value computed before it took the lock.
+
+        Keyed on `state_stamp` for `legacy_routing`'s reason and with
+        its guarantee: a write anywhere invalidates it, a poll does not.
+        What is held is small — two sets of `(id, end)` pairs and a
+        change list per artifact, never a routed scene.
+
+        Args:
+            aid: Artifact id. An unknown id answers the empty outlook
+                rather than raising, matching `legacy_routing_for`.
+
+        Returns:
+            `reroute_outlook`'s `(before, after, changes)` triple.
+        """
+        with self.lock:
+            stamp = self.state_stamp()
+            cache = getattr(self, "_reroute_outlook_cache", None)
+            if cache is None or cache[0] != stamp:
+                cache = (stamp, {})
+                self._reroute_outlook_cache = cache
+            if aid not in cache[1]:
+                cache[1][aid] = reroute_outlook(self.scenes.get(aid) or [])
+            return cache[1][aid]
 
     def legacy_routing_notes(self):
         """The load-time NOTE, one line per artifact a re-route would fix.
@@ -18904,11 +19034,17 @@ class Store:
             base = self.scenes.get(aid)
             if base is None:
                 raise BatchError(["reroute: unknown artifact %r" % aid])
-            if not reroute_is_fossil(base):
+            # ONE OUTLOOK, THREE READS. The offer test, the decline
+            # sentence and the already-routed test are three questions
+            # about one router pass, and each used to run its own
+            # (IMP-1).
+            outlook = self.reroute_outlook_for(aid)
+            if not reroute_is_fossil(base, outlook):
                 return {"revn": self.head_revn(), "noop": True,
-                        "summary": {"headline": reroute_decline(base, aid),
+                        "summary": {"headline": reroute_decline(base, aid,
+                                                                outlook),
                                     "verb_counts": {}, "suppressed": 0}}
-            if not reroute_scene(base)[1]:
+            if not outlook[2]:
                 return {"revn": self.head_revn(), "noop": True,
                         "summary": {"headline": "%s is already routed the "
                                                 "way today's router would "
@@ -19024,7 +19160,15 @@ class Store:
                 user_note="re-routed %d of %d server-routed arrow(s); %d "
                           "moved or were re-aimed: %s — %s"
                           % (redrew, examined, len(changes),
-                             "; ".join(reroute_line(c) for c in changes),
+                             # " | ", not "; ": `reroute_line` uses "; "
+                             # WITHIN an entry ("path unchanged; end
+                             # re-aimed", 18 of them across the frozen
+                             # corpus), so the list could not be split
+                             # on its own separator and a test had to
+                             # count `<id>: ` prefixes instead. One
+                             # token, on a surface an agent parses
+                             # (v0.9 IMPORTANTS review, MIN-1).
+                             " | ".join(reroute_line(c) for c in changes),
                              revert_hint(base, "the old geometry")),
                 extra_facts={aid: [{"fact": "rerouted", "element": c["id"],
                                     "arrow": c["id"]} for c in changes
@@ -19066,6 +19210,16 @@ class Store:
         anything to restore BEFORE a revision is written or queued, and
         deriving it twice is how two surfaces come to disagree about
         what counts as nothing to do.
+
+        `revert --to <head>` IS NOT ALWAYS A NO-OP, AND THAT IS THE
+        BRANCH SEMANTICS RATHER THAN A BUG (v0.9 IMPORTANTS review,
+        MIN-3). A fork writes only the artifacts it touched, while
+        `state_at` reports the whole branch's state, so on a forked head
+        this can name artifacts as changing that nobody edited since.
+        Recorded here so the next reader does not rediscover it as one:
+        the dry run's `CHANGED=` list surfaces exactly which artifacts
+        before any consent is given, which is what the dry-run default
+        is for.
 
         Args:
             revn: The revision whose state to restore.
@@ -21158,11 +21312,18 @@ def cmd_reroute(args):
         if arrows:
             note = ("nothing was changed — re-run with --artifact ID "
                     "--apply to accept this for one artifact")
+        # THROUGH THE MEMO, both arms. `legacy_routing` has already
+        # routed every crooked artifact by the time we get here, so a
+        # decline that computed its own pass would route the whole
+        # project twice to print one sentence per drawing (IMP-1).
         elif args.artifact:
-            note = reroute_decline(store.scenes[args.artifact], args.artifact)
+            note = reroute_decline(
+                store.scenes[args.artifact], args.artifact,
+                store.reroute_outlook_for(args.artifact))
         else:
-            note = "; ".join(reroute_decline(els, aid) for aid, els
-                             in sorted(store.scenes.items())) or \
+            note = "; ".join(
+                reroute_decline(els, aid, store.reroute_outlook_for(aid))
+                for aid, els in sorted(store.scenes.items())) or \
                 "this project has no artifacts"
         print_kv(artifacts=len(fossils), arrows=arrows, applied="false",
                  checkpoint=revert_hint(store.head_revn(),
