@@ -6928,6 +6928,74 @@ class TestUnreadableColourIsReported(unittest.TestCase):
                       "it CAN read, so its advice is unfollowable")
         self.assertEqual(self._warnings(self._scene(stroke="#000000")), [])
 
+    def test_a_bare_hex_string_is_reported_and_not_read_as_black(self):
+        """`000000` is a question; `#000000` is the same colour answered.
+
+        THE CONFIDENT WRONG MEASUREMENT, inside the parser rather than
+        around it, and left behind by fix round 1 (its own review's N-2).
+        `_parse_color_uncached` did `lstrip("#")`, so a colour string
+        that had lost its `#` came back BLACK — a measurement of a value
+        nothing can paint. `unreadable_color` therefore returned None for
+        it and the lint said nothing, which is the one outcome this
+        task's doctrine ranks below silence: silence at least does not
+        tell you a wrong number. The rule is now `#`-anchored hex, the
+        16 keywords, and `transparent`.
+
+        THE TWO POLES ARE THE SAME SIX DIGITS, which is what makes this
+        a differential rather than an existence check: `#000000` stays
+        MEASURED and silent, `000000` becomes reported. `lstrip` also
+        stripped a RUN, so `##000000` is pinned too — one slice cannot
+        reintroduce it, but nothing else in the tree said so.
+        """
+        for spec in ("000000", "##000000", "fff"):
+            with self.subTest(spec=spec):
+                self.assertIsNone(
+                    canvas.parse_color(spec),
+                    "%r parses to a colour, so a string nothing can "
+                    "paint is being measured" % spec)
+                self.assertEqual(canvas.unreadable_color(spec), spec)
+                said = self._unreadable(self._scene(stroke=spec))
+                self.assertEqual(len(said), 1, said)
+                self.assertIn("declares its stroke as %r" % spec, said[0])
+                self.assertIn(
+                    "`#`-anchored hex", said[0],
+                    "the finding does not name the one character the "
+                    "author is missing")
+        self.assertEqual(canvas.parse_color("#000000"), (0, 0, 0))
+        self.assertEqual(self._warnings(self._scene(stroke="#000000")), [])
+
+    def test_the_label_funnel_treats_bare_hex_as_unreadable_too(self):
+        """A bare-hex fill mints DARK ink, which is the safe direction.
+
+        The funnel asks `parse_color` (fix round 1), so this change
+        reaches it: `000000` used to resolve to black and mint WHITE
+        label ink, and now resolves to None and keeps the `#1e1e1e`
+        default. Both are wrong about a fill nobody can paint, and they
+        are wrong in opposite directions — white ink on this skill's
+        #fdfcf8 paper is invisible, dark ink on it reads. The None
+        branch's own comment already claimed the dark default is "the
+        right ink on this skill's paper"; this is the assertion that it
+        is what a bare-hex fill now gets.
+
+        THE `#`-ANCHORED POLES ARE UNCHANGED and asserted beside it,
+        because that is the documented behaviour this must not disturb:
+        `#000000` still mints white, `#ffffff` still mints dark.
+        """
+        for fill, ink in (("000000", "#1e1e1e"), ("ffffff", "#1e1e1e"),
+                          ("#000000", "#ffffff"), ("black", "#ffffff"),
+                          ("#ffffff", "#1e1e1e")):
+            with self.subTest(fill=fill):
+                errors = []
+                built = canvas.make_element(
+                    {"type": "rectangle", "id": "n1", "label": "Hi",
+                     "width": 100, "height": 60,
+                     "backgroundColor": fill}, set(), errors)
+                self.assertEqual(errors, [])
+                self.assertEqual(
+                    built[1]["strokeColor"], ink,
+                    "a %r fill minted %s label ink"
+                    % (fill, built[1]["strokeColor"]))
+
     def test_an_unreadable_fill_is_reported_under_a_legible_stroke(self):
         """The case a "only when nothing else parsed" gate would lose.
 
@@ -7096,8 +7164,13 @@ class TestUnreadableColourIsReported(unittest.TestCase):
         self.assertEqual(len(said), 1, said)
         self.assertIn("text t1 declares its background as 'darkslategray'",
                       said[0])
-        self.assertIn("which this check cannot read either", said[0],
-                      "the finding names a ground it just refused to read")
+        self.assertIn(
+            "which this check cannot read either, is UNMEASURED", said[0],
+            "the finding names a ground it just refused to read — and "
+            "the comma after `either` is asserted with it, because the "
+            "aside opened by the one after `it` never closed until "
+            "2026-08-18 and the clause ran together in the one sentence "
+            "an agent is meant to act on")
 
     def test_the_label_funnel_reads_the_same_colours_the_lint_does(self):
         """A `black`-filled box gets white label ink, not #1e1e1e.
@@ -12911,7 +12984,8 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "arrows; it moved %r, so the counts below would be pinning "
             "something else" % (moved,))
         self.assertIn(
-            "re-routed %d of %d arrow(s)" % (len(moved), len(arrows)),
+            "re-routed %d of %d server-routed arrow(s)"
+            % (len(moved), len(arrows)),
             rec["user_note"],
             "tidy's note disagrees with the drawing: %d arrow(s) moved "
             "out of %d examined, and the note says %r"
@@ -12932,7 +13006,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "`t1` moved after all, so it is no longer the unmoved arrow "
             "this test is about")
         self.assertIn(
-            "re-routed 2 of 3 arrow(s)", rec["user_note"],
+            "re-routed 2 of 3 server-routed arrow(s)", rec["user_note"],
             "`t1` was routed but not redrawn and the note counted it "
             "anyway: %r" % rec["user_note"])
 
@@ -12957,7 +13031,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
         """
         rec = self.store.tidy("checkout-flow")
         arrows = [e["id"] for e in self.base if e.get("type") == "arrow"]
-        got = int(re.search(r"re-routed \d+ of (\d+) arrow\(s\)",
+        got = int(re.search(r"re-routed \d+ of (\d+) server-routed arrow\(s\)",
                             rec["user_note"]).group(1))
         self.assertLessEqual(
             got, len(arrows),
@@ -12981,17 +13055,19 @@ class TestTidyCountsTheArrowsItRedrew(Base):
         neither direction. This scene separates them by one unbound
         arrow: four present, three examined, and the note must say 3.
 
-        WHAT IT ASSERTS IS TODAY'S ANSWER, not the right one. `M` has no
-        anchor in tidy's sentence — unlike `Store.reroute`'s, where the
-        per-arrow list printed underneath names all M — so a user
-        reading "re-routed 2 of 3 arrow(s)" beside four arrows has no
-        way to learn that the 3 means "the ones I looked at". The repair
-        the review recommends is prose ("re-routed 2 of 3 server-routed
-        arrow(s)"), and it belongs to whoever owns the note. When it
-        lands, this test fails on the string and the repair is to widen
-        the pattern — which is the point: the semantics stop being
-        coincidental either way. Origin: TASK-VOCAB re-review NEW-1,
-        curated during curator batch 33, 2026-08-18.
+        IT PINNED TODAY'S ANSWER AND THE ANSWER IS NOW ALSO SAYABLE.
+        When this was written `M` had no anchor in tidy's sentence —
+        unlike `Store.reroute`'s, where the per-arrow list printed
+        underneath names all M — so a user reading "re-routed 2 of 3
+        arrow(s)" beside four arrows had no way to learn that the 3
+        meant "the ones I looked at". The v0.9 FINAL FIX ROUND landed
+        the recommended prose the same day (2026-08-18), this test
+        failed on the string exactly as its own docstring predicted,
+        and widening the pattern was the whole repair. That sequence is
+        the point of the pin: the semantics stopped being coincidental
+        BEFORE the wording moved, so the wording could move without
+        anyone having to decide what `M` meant. Origin: TASK-VOCAB
+        re-review NEW-1, curated during curator batch 33, 2026-08-18.
         """
         loose = {"id": "t9", "type": "arrow", "x": 400.0, "y": 400.0,
                  "width": 60.0, "height": 0.0, "points": [[0, 0], [60, 0]],
@@ -13007,7 +13083,7 @@ class TestTidyCountsTheArrowsItRedrew(Base):
             "this scene is supposed to hold four arrows, one of them "
             "unbound; it holds %r" % (present,))
         self.assertIn(
-            "re-routed 2 of 3 arrow(s)", rec["user_note"],
+            "re-routed 2 of 3 server-routed arrow(s)", rec["user_note"],
             "tidy's denominator counted %d arrow(s) where three were "
             "examined and four are present, so `M` is no longer 'the "
             "ones the router was handed': %r"
@@ -13143,12 +13219,18 @@ class TestTheArrowheadKeyCensusIsStatedRatherThanAssumed(unittest.TestCase):
     argument. Origin: TASK-MICROFIX-3 review, advisory answer (b);
     curated during curator batch 33, 2026-08-18.
 
-    THE `line` HALF IS THE REVIEW'S MINOR 1 AND IS NOT DECORATION.
-    `arrowhead_of` applies the ARROW rule unconditionally, so a `line`
-    that omits `endArrowhead` reads as terminated where the client's
-    `case "line": case "draw":` branch defaults BOTH ends to null and
-    draws nothing. Same absent-vs-null family, one type over, and the
-    only thing between it and a live misreading is this zero.
+    THE `line` HALF WAS THE REVIEW'S MINOR 1 AND IS NOW CLOSED, which
+    changes what this census means for that type without retiring it.
+    `arrowhead_of` applied the ARROW rule unconditionally, so a `line`
+    omitting `endArrowhead` read as terminated where the client's
+    `case "line": case "draw":` branch defaults BOTH ends to null — and
+    where the shape generator draws heads only inside
+    `if (e.type === "arrow")` anyway. The v0.9 FINAL FIX ROUND gave the
+    helper the type gate (2026-08-18), so the only thing that stood
+    between this zero and a live misreading is no longer the zero. The
+    line denominator is kept because the census is what says the fix is
+    still unnecessary as well as correct: it is the same argument, held
+    from the other side.
     """
 
     def _census(self):
@@ -13195,27 +13277,46 @@ class TestTheArrowheadKeyCensusIsStatedRatherThanAssumed(unittest.TestCase):
             (len(arrows_absent), len(lines_absent)), (0, 0),
             "THIS IS AN OBSERVATION, NOT A DEFECT. The corpus now holds "
             "%d arrow(s) and %d line(s) with no `endArrowhead` key, out "
-            "of %d and %d walked. First witnesses: %r / %r. Arrows are "
-            "FINE — `arrowhead_of` reads an absent key as the client's "
-            "`\"arrow\"` default, which is what TASK-MICROFIX-3 landed. "
-            "LINES ARE NOT: the client defaults both ends of a line to "
-            "null and draws no head, while `arrowhead_of` is type-blind "
-            "and answers `\"arrow\"`, so an attachment cue is now being "
-            "read off a head nobody draws. Restate this observation "
-            "with the new numbers, and file the line half if any."
+            "of %d and %d walked. First witnesses: %r / %r. BOTH ARE "
+            "FINE as of 2026-08-18: `arrowhead_of` reads an absent key "
+            "on an ARROW as the client's `\"arrow\"` default "
+            "(TASK-MICROFIX-3) and answers None for a LINE at both ends, "
+            "which is what the client draws there. Restate this "
+            "observation with the new numbers; nothing here needs fixing "
+            "first."
             % (len(arrows_absent), len(lines_absent), arrows, lines,
                arrows_absent[:1], lines_absent[:1]))
 
-    def test_the_type_blind_helper_is_what_makes_the_line_half_matter(self):
-        """`arrowhead_of` answers "arrow" for a line, today.
+    def test_the_helper_reads_the_type_before_the_key(self):
+        """`arrowhead_of` answers None for a line at both ends.
 
-        The premise the observation above rests on, asserted rather than
-        described — if `arrowhead_of` learned the type, the `line` half
-        of that census would stop being a hazard and the paragraph
-        naming it would be wrong. Failing here is the good outcome and
-        the repair is to rewrite the sibling's message, not this.
+        WAS A PREMISE PIN ON THE OPPOSITE ANSWER, rewritten as the
+        guarantee on 2026-08-18 exactly as its own docstring instructed
+        ("failing here is the good outcome and the repair is to rewrite
+        the sibling's message, not this"). Both halves happened in one
+        change: the helper learned the type and the sibling's message
+        lost its hazard paragraph.
+
+        THE EXPLICIT-VALUE CASE IS THE ONE WORTH ASSERTING, because it
+        is where a defaults-only fix and a type-gated one part company.
+        A line storing `endArrowhead: "arrow"` still draws NOTHING — the
+        bundle's shape generator puts both head calls inside
+        `if (e.type === "arrow")` (offset 502927), so the field is never
+        read for painting on a line at all. Answering `"arrow"` there
+        would be a mark the agent narrates and the user cannot see.
         """
-        self.assertEqual(canvas.arrowhead_of({"type": "line"}, True), "arrow")
+        for at_end in (False, True):
+            with self.subTest(at_end=at_end):
+                self.assertIsNone(
+                    canvas.arrowhead_of({"type": "line"}, at_end))
+                self.assertIsNone(
+                    canvas.arrowhead_of(
+                        {"type": "line", "startArrowhead": "arrow",
+                         "endArrowhead": "arrow"}, at_end),
+                    "a line with an EXPLICIT head reads as headed, and "
+                    "the client draws no head on a line under any "
+                    "circumstances")
+        self.assertIsNone(canvas.arrowhead_of({"type": "freedraw"}, True))
         self.assertEqual(
             canvas.arrowhead_of({"type": "arrow"}, True), "arrow",
             "the arrow default moved, which is a much bigger event than "

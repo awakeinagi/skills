@@ -10131,8 +10131,8 @@ def exact_ink_extent(els, pad=40):
     return ink_extent([e for e in els if e.get("type") != "text"], pad=pad)
 
 
-def arrowhead_of(e: dict[str, Any], at_end: bool) -> Any:
-    """The arrowhead the CLIENT would draw at one end of an arrow.
+def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
+    """The arrowhead the CLIENT would draw at one end of an element.
 
     ABSENT IS NOT NONE, and the difference is a mark the user sees and
     the agent does not. Excalidraw reads both ends through a destructuring
@@ -10145,6 +10145,31 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> Any:
     not a truthy one, which is why this returns the value and callers
     ask `is not None` rather than `if`.
 
+    ONLY AN ARROW HAS ARROWHEADS, and this said otherwise until
+    2026-08-18: it applied the arrow rule to whatever it was handed, so
+    `arrowhead_of({"type": "line"}, True)` answered `"arrow"`. Two
+    independent things in the bundle say no, and either alone would
+    settle it. `restoreElement` has a THIRD destructuring site,
+    `case "line": case "draw":` (offset 630332 of
+    `scripts/web/assets/index-QQVNNFtd.js`), where BOTH ends default to
+    `null`; and the shape generator draws heads inside
+    `if (e.type === "arrow")` (offset 502927), so a line's stored
+    `endArrowhead` is never read for painting at all — an EXPLICIT
+    `"arrow"` on a line draws nothing. The second is the stronger fact
+    and it is why this gates on the type rather than merely changing the
+    default. `freedraw` (the bundle's legacy `draw`) is covered by the
+    same gate.
+
+    THE POPULATION WAS MEASURED BEFORE THE CHANGE, over the 24 frozen
+    artifacts: 174 arrows and 20 lines, and ZERO of either omit
+    `endArrowhead` — all 20 lines store an explicit `null`. So both
+    readings agree on every element this repo has, and the full lint
+    census is byte-identical across the change. What it buys is that the
+    repo's one canonical statement of the client's defaults stops being
+    silently wrong for a type its own callers hand it: `lint_layout`
+    binds `arrows = [... type in ("arrow", "line") ...]` and the
+    attachment-cue site reads this function off that list.
+
     `render_svg` used to truthy-test `e.get("endArrowhead")` directly,
     so a stored arrow lacking the key drew HEADLESS in the fallback
     picture while Excalidraw drew the head — the same family as the
@@ -10154,13 +10179,16 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> Any:
     with the writer.
 
     Args:
-        e: The arrow element, as loose Excalidraw JSON.
+        e: The element, as loose Excalidraw JSON.
         at_end: True for the `endArrowhead` end, False for the start.
 
     Returns:
         The arrowhead kind the client would draw there, or `None` for an
-        end that carries no mark.
+        end that carries no mark — which is both ends of anything that is
+        not an `arrow`.
     """
+    if e.get("type") != "arrow":
+        return None
     return e.get("endArrowhead", "arrow") if at_end \
         else e.get("startArrowhead")
 
@@ -11480,7 +11508,8 @@ def parse_color(spec):
             double-count), as are the 16 CSS Level 1 names,
             case-insensitively. Anything else — `transparent`, an
             extended CSS name, a 4-digit `#rgba`, an `rgb()` triple, a
-            gradient, None — returns None.
+            gradient, a BARE hex string with no `#`, None — returns
+            None.
 
     Returns:
         The (r, g, b) triple, or None if `spec` is not a color this file
@@ -11531,10 +11560,28 @@ def _parse_color_uncached(spec):
     Returns:
         The (r, g, b) triple, or None.
     """
-    named = _CSS_LEVEL1.get(spec.strip().lower())
+    s = spec.strip()
+    named = _CSS_LEVEL1.get(s.lower())
     if named is not None:
         return named
-    h = spec.strip().lstrip("#")
+    # `#`-ANCHORED, and this used to be `lstrip("#")` — which accepts a
+    # bare `"000000"` and returns black. That is the CONFIDENT WRONG
+    # MEASUREMENT this whole area is about, arriving inside the parser
+    # rather than around it: a colour string that lost its `#` is not a
+    # colour anywhere that consumes one (not CSS, not Excalidraw's own
+    # picker, not the client), so reading it as black is a measurement
+    # taken of a value nobody can paint. `unreadable_color` returned
+    # None for it too, so it was measured silently — the one outcome
+    # ranked below saying nothing. Now it is declared-but-unreadable and
+    # gets reported, with `COLOR_FORMS` in the finding naming the `#`
+    # form it is one character away from.
+    #
+    # `lstrip` was also wrong in a smaller way it is worth not
+    # reintroducing: it strips a RUN, so `"##000000"` parsed as black.
+    # A single slice cannot.
+    if not s.startswith("#"):
+        return None
+    h = s[1:]
     if len(h) == 3:
         h = "".join(c * 2 for c in h)
     if len(h) == 8:
@@ -12098,9 +12145,16 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         if ((etype in CONTRAST_OBJECT_TYPES)
                 or (etype == "text" and (e.get("text") or "").strip())):
             under = drawn_on(e)
+            # The comma after `either` closes the aside opened by the
+            # one after `it`. Without it the clause runs together
+            # ("…cannot read either is UNMEASURED") and the reader has
+            # to backtrack to find where the aside ended — which matters
+            # more than typo-level prose here, because this sentence is
+            # narration an agent is meant to act on and the
+            # readable-ground branch beside it is clean.
             against = ("against %s" % hexof(under) if under is not None
                        else "against the colour under it, which this "
-                            "check cannot read either")
+                            "check cannot read either,")
             for src, raw in (("stroke", e.get("strokeColor")),
                              ("background" if etype == "text" else "fill",
                               e.get("backgroundColor"))):
@@ -12113,8 +12167,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     "%s %s declares its %s as %r, which this check cannot "
                     "read as a colour — so its legibility %s is "
                     "UNMEASURED, not fine. What is read: %s. Meant as "
-                    "written? Restate it in hex, or record the decision "
-                    "with waive {action: waive, key: %r, reason: ...}"
+                    "written? Restate it in `#`-anchored hex, or record "
+                    "the decision with waive {action: waive, key: %r, "
+                    "reason: ...}"
                     % (noun_of(etype, e), name(eid), src, bad,
                        against, COLOR_FORMS, key))
         if etype == "text":
@@ -13235,8 +13290,20 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "label %r is wider than its arrow's %dpx run (%s) — "
                 "spread the endpoints or shorten the label"
                 % (lbl.get("text", "")[:30], int(run), e["id"]))
-        if e.get("type") == "arrow" and e.get("startArrowhead") \
-                and e.get("endArrowhead"):
+        # THROUGH `arrowhead_of`, not off the raw keys, since 2026-08-18.
+        # This read `e.get("startArrowhead") and e.get("endArrowhead")`,
+        # and an absent key is falsy in Python where it is a HEAD in the
+        # client — so a double-headed arrow that merely omitted
+        # `endArrowhead` was drawn by Excalidraw and passed over in
+        # silence here. A false negative, and the last of the four
+        # absent-vs-null sites (`render_svg`, the attachment cue below,
+        # this, and line-typed feet). Measured latent on the way in: 0 of
+        # 174 corpus arrows carry a start head with an absent
+        # `endArrowhead`, because 0 omit the key at all, so this changes
+        # no finding today and the census is byte-identical across it.
+        # The type test is now `arrowhead_of`'s own.
+        if arrowhead_of(e, False) is not None \
+                and arrowhead_of(e, True) is not None:
             warnings.append(
                 "arrow %s points both ways — split it into two labeled "
                 "arrows; a bidirectional arrow says nothing about who "
@@ -13968,6 +14035,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # defaults, since this site and `render_svg` disagreeing
             # about a missing key is exactly how the fallback picture
             # came to draw fewer heads than the canvas.
+            #
+            # `arrows` HOLDS LINES TOO (see its binding), and until
+            # 2026-08-18 a line omitting `endArrowhead` read as
+            # terminated here while the client drew no head on a line
+            # under any circumstances. That is `arrowhead_of`'s type
+            # gate now; no corpus line omits the key, so nothing moved.
             head = arrowhead_of(a, arriving)
             feet.setdefault(tgt_id, []).append(
                 (a["id"], arriving, axis, 1 if step > 0 else -1, foot,
@@ -18146,6 +18219,21 @@ class Store:
                 # empty "saved without changing anything" revision (v0.3
                 # assessment bug)
                 return noop("already tidy — nothing to change")
+            # THE DENOMINATOR NAMES ITS POPULATION ("N of M server-routed
+            # arrow(s)"), added 2026-08-18. `M` is `len(routed)` — arrows
+            # the router was HANDED, which is server-owned and bound at
+            # both ends — and it had no anchor in the sentence, unlike
+            # `Store.reroute`'s, which prints the per-arrow list naming
+            # all M underneath it. So a user reading "re-routed 2 of 3"
+            # beside a drawing holding four arrows had no way to learn
+            # that the 3 meant "the ones I looked at" — and the corpus
+            # really does disagree (`argus-r4-arm4` / `enrichment-flow`
+            # says 1 of 8 on a scene of thirteen arrows). Two words, and
+            # the reader can tell an unbound arrow's absence from an
+            # undercount. Origin: TASK-VOCAB re-review NEW-1, pinned by
+            # `test_the_denominator_is_the_arrows_examined_not_the_
+            # arrows_present`.
+            #
             # NET, not per-pass. `routed` is what the passes EXAMINED;
             # what the note may call re-routed is what ended up drawn
             # somewhere else, measured once across the whole tidy
@@ -18166,7 +18254,8 @@ class Store:
                 author="agent", new_scenes={aid: els},
                 base_revn=self.head_revn(),
                 user_note="tidy: snapped %d node(s) to grid, re-routed "
-                          "%d of %d arrow(s), normalized z-order"
+                          "%d of %d server-routed arrow(s), normalized "
+                          "z-order"
                           % (snapped, redrew, len(routed)))
 
     def legacy_routing(self):
