@@ -1,0 +1,22 @@
+{
+    "typeCheckingMode": "basic",
+    "extraPaths": [
+        "skills/wysiwyg-grilling/scripts",
+        "tests"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        ".scratch",
+        "skills/wysiwyg-grilling/scripts/web",
+        "docs",
+        "project_knowledge"
+    ],
+    "reportOptionalSubscript": "none",
+    "reportOptionalMemberAccess": "none",
+    "reportOptionalIterable": "none",
+    "reportOptionalOperand": "none",
+    "reportOperatorIssue": "none",
+    "reportArgumentType": "none",
+    "reportIndexIssue": "none"
+}
