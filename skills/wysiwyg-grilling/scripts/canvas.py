@@ -19961,14 +19961,16 @@ def _flow_to_mermaid(els: list[dict[str, Any]]) -> tuple[str, int]:
     twice over (ellipse → stadium, roundness dropped); the re-layout
     path reads x/y only, so nothing here ever noticed.
 
-    EDGE LABELS COME FROM `mermaid_label`, for the same reason and one
-    field over: this path used to escape them itself, as
+    EDGE LABELS COME FROM `mermaid_edge_label`, for the same reason and
+    one field over: this path used to escape them itself, as
     ``raw.replace("|", "/")``, which leaves a ``"`` intact — and a bare
     quote inside ``|…|`` opens a mermaid string the line never closes,
-    so `--relayout` died at the converter and moved nothing. The node
-    labels above still do their own ``"`` → ``'`` because a vertex is
-    quoted here (``["…"]``) where an edge label is not, so the two are
-    not the same substitution.
+    so `--relayout` died at the converter and moved nothing. That helper
+    also holds the newline down, which both emitters were still getting
+    wrong after they agreed on everything else. The node labels above
+    still do their own ``"`` → ``'`` because a vertex is quoted here
+    (``["…"]``) where an edge label is not, so the two are not the same
+    substitution.
 
     Args:
         els: The artifact's element list.
@@ -20021,9 +20023,8 @@ def _flow_to_mermaid(els: list[dict[str, Any]]) -> tuple[str, int]:
         if s not in node_ids or d not in node_ids:
             continue
         # the same escape `flow_to_mermaid_export` puts on an edge label,
-        # including the `|` substitution that ends the link text early
-        lbl = mermaid_label((labels.get(a["id"]) or "").strip())[0] \
-            .replace("|", "#124;")
+        # by calling the same function rather than by matching it
+        lbl = mermaid_edge_label((labels.get(a["id"]) or "").strip())
         left = side(s)
         lines.append("  %s -->%s %s"
                      % (left, ("|%s|" % lbl) if lbl else "", side(d)))
@@ -20100,7 +20101,8 @@ def mermaid_ident(text, fallback):
     return s[:48] or "n"
 
 
-def mermaid_label(text):
+def mermaid_label(text: str | None,
+                  markdown: bool = True) -> tuple[str, bool]:
     """Escape a label for a mermaid string, choosing the quote style.
 
     Mermaid has no backslash escape inside ``"…"``; the supported form
@@ -20109,20 +20111,65 @@ def mermaid_label(text):
     labels are rendered as HTML, so an unescaped ``<ok>`` is parsed as a
     tag and DISAPPEARS from the picture (measured, both directions).
 
+    The markdown form is the ONLY one that carries a real newline, and
+    it is available only where the caller can wrap the body in
+    backticks — a vertex can, an EDGE LABEL cannot, so
+    `mermaid_edge_label` turns it off and the ``<br/>`` branch runs
+    instead. Leaving the flag to the caller's discretion is what made
+    the defect that helper exists for: both emitters took ``[0]`` and
+    dropped the flag, so the raw newline went straight into a
+    ``|…|`` and broke the line.
+
     Args:
         text: Raw label text.
+        markdown: False to forbid the backtick form, for a position
+            that cannot wrap the body in backticks.
 
     Returns:
         ``(body, markdown)`` — wrap the body in backticks when
-        ``markdown`` is true.
+        ``markdown`` is true. It is never true when the argument of the
+        same name is False.
     """
     raw = text or ""
-    if "\n" in raw and not (_MERMAID_MD_UNSAFE & set(raw)):
+    if markdown and "\n" in raw and not (_MERMAID_MD_UNSAFE & set(raw)):
         return raw.replace("#", "#35;").replace('"', "#quot;"), True
     out = raw.replace("#", "#35;")
     out = out.replace("<", "#lt;").replace(">", "#gt;")
     out = out.replace('"', "#quot;").replace("\n", "<br/>")
     return out, False
+
+
+def mermaid_edge_label(text: str | None) -> str:
+    """Escape a label for the ``|…|`` between two mermaid nodes.
+
+    ONE SPELLING, TWO EMITTERS, third time: `mermaid_shape` folded the
+    shape map, `mermaid_label` folded the escaping, and this folds the
+    two things each caller was still doing on its own afterwards — the
+    ``|`` substitution, and the markdown flag NEITHER of them looked at.
+
+    A LINK IS ONE LINE. `mermaid_label` answers ``(raw, True)`` for a
+    label that holds a newline and no ``*_`<>``, meaning "wrap this in
+    backticks"; a vertex does exactly that, but an edge label has no
+    backtick form, so taking ``[0]`` and ignoring the flag put a literal
+    newline inside ``|…|`` and split the link across two lines. The
+    second line is not a mermaid statement, so the converter fails and
+    ``--relayout`` moves nothing — the same failure the bare quote used
+    to cause, one field over again. Forbidding markdown here routes the
+    newline to ``<br/>``, which is a break mermaid renders and a
+    character sequence that keeps the statement on one line.
+
+    The ``|`` is folded in because it is not optional either: an
+    unescaped one closes the link text early and everything after it
+    parses as a new edge.
+
+    Args:
+        text: Raw edge-label text, already stripped by the caller.
+
+    Returns:
+        Single-line body text for the inside of ``|…|`` (or of the
+        quoted ``-. "…" .->`` form), empty for an empty label.
+    """
+    return mermaid_label(text, markdown=False)[0].replace("|", "#124;")
 
 
 def mermaid_vertex(el, text):
@@ -20224,8 +20271,10 @@ def flow_to_mermaid_export(els, direction=None, kinds=True, lanes=False):
             continue
         raw = (labels.get(a["id"]) or "").strip()
         # the empty-body substitution above is a VERTEX rule; an edge
-        # label is simply omitted instead of becoming a space
-        body = mermaid_label(raw)[0].replace("|", "#124;") if raw else ""
+        # label is simply omitted instead of becoming a space. The
+        # escape itself is `mermaid_edge_label`'s, shared with the
+        # re-layout emitter so the two cannot drift a field apart again.
+        body = mermaid_edge_label(raw) if raw else ""
         dashed = a.get("strokeStyle") == "dashed"
         if body:
             link = '-. "%s" .->' % body if dashed else '-->|"%s"|' % body

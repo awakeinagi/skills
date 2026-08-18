@@ -3404,6 +3404,50 @@ class TestMermaidEdgeLabelEscaping(unittest.TestCase):
         self.assertIn('"%s"' % canvas.mermaid_label(label)[0],
                       canvas.flow_to_mermaid_export(self._flow(label)))
 
+    def test_a_newline_in_an_edge_label_breaks_neither_line(self) -> None:
+        """The third field, added green by v0.9 TASK-MICROFIX-3.
+
+        The flip above folded the ESCAPING and left the MARKDOWN FLAG,
+        which MICROFIX-2's own concern 4 named: `mermaid_label` answers
+        `(raw, True)` for a newline label carrying none of ``*_`<>``, and
+        both emitters took `[0]` and dropped the flag. So the two AGREED
+        — the claim this class makes — on a form that puts a literal
+        newline inside `|…|` and splits the link across two lines, of
+        which the second is not a mermaid statement. Agreement is not
+        correctness, which is why this arm asserts the line and not just
+        the match.
+
+        Both emitters, one label, three claims each: the link is on ONE
+        line, that line still carries both endpoints, and the newline
+        survives as `<br/>` rather than being deleted — a sanitizer that
+        dropped the character would pass the first two and silently lose
+        half the caption.
+        """
+        raw, plain = "hands\noff", "handsoff"
+        emit = {"relayout": lambda s: canvas._flow_to_mermaid(s)[0],
+                "export": canvas.flow_to_mermaid_export}
+        for name, fn in emit.items():
+            text = fn(self._flow(raw))
+            self.assertEqual(
+                len(text.splitlines()),
+                len(fn(self._flow(plain)).splitlines()),
+                "the %s emitter grew a line when the edge label gained a "
+                "newline; a raw newline inside |...| splits the statement "
+                "and the converter fails on the orphan half — %r"
+                % (name, text))
+            held = [ln for ln in text.splitlines() if "hands" in ln]
+            self.assertEqual(
+                len(held), 1,
+                "the %s emitter spread one label over %d lines"
+                % (name, len(held)))
+            self.assertIn("off", held[0],
+                          "the %s emitter left the second half of the "
+                          "label on another line: %r" % (name, held[0]))
+            self.assertIn("<br/>", held[0],
+                          "the %s emitter dropped the break instead of "
+                          "converting it: %r" % (name, held[0]))
+        self.assertNotIn("\n", canvas.mermaid_edge_label(raw))
+
 
 # ---------------------------------------------------------------------------
 # Paint order (found during the visualize-skill idea-mine, 2026-08-12 —

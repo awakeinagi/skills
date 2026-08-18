@@ -9459,6 +9459,45 @@ class TestMermaidExport(Base):
         self.assertFalse(md)
         self.assertIn("<br/>", body)
 
+    def test_an_edge_label_never_takes_the_markdown_form(self):
+        """A LINK IS ONE LINE, and only a vertex can wrap it in ticks.
+
+        `mermaid_label` answers `(raw, True)` for a newline label with no
+        `*_`<>` in it — "wrap this in backticks" — and a vertex does
+        exactly that. An edge label has no backtick form, so both
+        emitters took `[0]`, dropped the flag, and put a literal newline
+        inside `|…|`; the link then spans two lines and the second is not
+        a mermaid statement, so the converter fails and `--relayout`
+        moves nothing. `mermaid_edge_label` forbids the markdown branch,
+        which routes the newline to `<br/>` — a break mermaid renders,
+        and a character sequence that keeps the statement on one line.
+        """
+        self.assertNotIn("\n", canvas.mermaid_edge_label("two\nlines"))
+        self.assertEqual(canvas.mermaid_edge_label("two\nlines"),
+                         "two<br/>lines")
+        # the flag itself is off, not merely unread by the caller
+        self.assertFalse(canvas.mermaid_label("two\nlines",
+                                              markdown=False)[1])
+
+    def test_a_plain_edge_label_is_byte_unchanged(self):
+        """The other pole: forbidding markdown moved nothing else.
+
+        Every label that did NOT take the backtick branch must come out
+        of `mermaid_edge_label` exactly as it came out of the old
+        `mermaid_label(raw)[0].replace("|", "#124;")` — including the
+        labels carrying a newline AND an unsafe character, which already
+        took the `<br/>` branch. Written as an equality against
+        `mermaid_label`'s own non-markdown output so it cannot drift
+        into a second escaping table.
+        """
+        for raw in ("sends", 'say "hi"', "a|b", 'a #1 <b> "c" | d',
+                    "two\n*lines*", "", "50% > 30%"):
+            self.assertEqual(
+                canvas.mermaid_edge_label(raw),
+                canvas.mermaid_label(raw)[0].replace("|", "#124;"),
+                "the edge escape changed a label that never took the "
+                "markdown branch: %r" % raw)
+
     def test_an_empty_label_becomes_one_space(self):
         """`{""}` is a parse error in every bracket form."""
         self.assertEqual(canvas.mermaid_vertex({"type": "diamond"}, ""),
