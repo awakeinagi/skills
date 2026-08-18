@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
 import canvas
 import focus_probe
 import instruments
-from tests_helpers import el
+from tests_helpers import el, ink_box, measured
 
 # ---------------------------------------------------------------------------
 # Detector registry: lint detectors carry a compiled regex run over every
@@ -351,6 +351,43 @@ _UNREADABLE_COLOR_RE = re.compile(
 _ARRIVAL_SIDE_RE = re.compile(
     r"arrow (?P<element>[\w-]+) arrives at .+?'s "
     r"(?P<dir>left|right|top|bottom) edge (?P<mag>\d+) degrees off square")
+
+
+def batch_errors(escaped: object) -> str:
+    """The messages a rejected batch carried, as one searchable string.
+
+    THE NARROWING THE READS WERE MISSING. Twenty-eight sites in this file
+    joined `escaped.errors` by hand on a value typed `Exception |
+    None`, because `_send`/`_send_ops` deliberately hand back WHATEVER
+    escaped rather than narrowing with `assertRaises` — the reds turn on
+    which exception reaches the caller, so the type is the thing under
+    test. Each of those reads assumed a `BatchError` that the sibling
+    `assertIsInstance` had asserted two lines up but that nothing carried
+    across, and `unittest`'s assertion is not a narrowing one.
+
+    Raising rather than returning `[]` on the wrong type is the whole
+    value: a helper that answered "no messages" for a `TypeError` would
+    turn a crash into a quiet `assertIn` failure about a missing word,
+    which is a red reported as the wrong finding.
+
+    Args:
+        escaped: Whatever `_send` or `_send_ops` handed back.
+
+    Returns:
+        The `errors` list joined by newlines, for `assertIn`.
+
+    Raises:
+        AssertionError: If `escaped` is not a `BatchError` — including
+            `None`, which means the batch was APPLIED and the test's
+            premise is gone.
+    """
+    if not isinstance(escaped, canvas.BatchError):
+        raise AssertionError(
+            "expected a BatchError to read `errors` off and got %s(%r). "
+            "If this is None the batch was APPLIED rather than refused; "
+            "any other type is an escape nothing converts into the "
+            "agent's ERROR= line" % (type(escaped).__name__, escaped))
+    return "\n".join(escaped.errors)
 
 
 def _collect_crossings(els: list[dict]) -> list[dict]:
@@ -7081,7 +7118,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "surface converts that, so the agent is handed a traceback "
             "where the error envelope promises an ERROR= line"
             % (type(escaped).__name__, escaped))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("annotate_mapping", said)
         self.assertIn("index", said)
 
@@ -7124,7 +7161,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "remove_mapping index=-1 was accepted (escaped=%r) — the "
             "response tells the agent the removal it asked for happened"
             % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("remove_mapping", said)
         self.assertIn("index", said)
 
@@ -7206,7 +7243,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                 self.assertIsInstance(escaped, canvas.BatchError,
                                       "index=0 on an empty mapping list "
                                       "was not refused: %r" % (escaped,))
-                said = "\n".join(escaped.errors)
+                said = batch_errors(escaped)
                 self.assertIn(action, said)
                 self.assertIn("index", said)
 
@@ -7300,7 +7337,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "reorder index=-1 was accepted (escaped=%r) — the record "
             "narrates the new order as though it were asked for"
             % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("reorder", said)
         self.assertIn("index", said)
 
@@ -7348,7 +7385,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     escaped, canvas.BatchError,
                     "%s index=true was accepted (escaped=%r)"
                     % (action, escaped))
-                self.assertIn(action, "\n".join(escaped.errors))
+                self.assertIn(action, batch_errors(escaped))
 
     def test_red_a_non_dict_op_escapes_check_batch_as_a_bare_crash(
             self) -> None:
@@ -7506,7 +7543,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "a `mod` the router will undo has to be refused as a batch "
             "error — that is the 422 the CLI prints as `ERROR=`; got %r"
             % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         for word in ("roundness", "derived", "points"):
             with self.subTest(word=word):
                 self.assertIn(word, said,
@@ -7636,7 +7673,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                 self.assertIsInstance(
                     escaped, canvas.BatchError,
                     "index='1' was not refused: %r" % (escaped,))
-                self.assertIn(action, "\n".join(escaped.errors))
+                self.assertIn(action, batch_errors(escaped))
         self.assertEqual([m["concept"] for m in store.registry["mappings"]],
                          ["alpha", "beta"])
 
@@ -7840,7 +7877,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     "raw traceback naming a Python builtin instead of an "
                     "op, which is the r4-11 defect E-9 was written for"
                     % (name, type(escaped).__name__, escaped))
-                self.assertIn("op 0", "\n".join(escaped.errors))
+                self.assertIn("op 0", batch_errors(escaped))
             with self.subTest(case=name, surface="check"):
                 store, _ = self._store()
                 try:
@@ -8045,7 +8082,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     "%s was not refused (%r) — the rule that refuses it "
                     "is the only thing between this value and a scene "
                     "that stores it" % (name, escaped))
-                joined = "\n".join(escaped.errors)
+                joined = batch_errors(escaped)
                 self.assertIn(
                     "op 0", joined,
                     "%s came back as %r, which names no op — the gate "
@@ -8444,7 +8481,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                     "traceback naming a Python builtin instead of the "
                     "element that cannot be stored"
                     % (which, type(escaped).__name__, escaped))
-                joined = "\n".join(escaped.errors)
+                joined = batch_errors(escaped)
                 self.assertIn(
                     "posted-bad", joined,
                     "%s refused the save as %r, which does not name the "
@@ -8800,7 +8837,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "a pre-scan fault escaped as %r — the agent gets a raw "
             "traceback from the half of the pipeline the E-9 envelope "
             "never covered" % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("internal error validating the batch", said, said)
         self.assertIn("RuntimeError", said, said)
         self.assertIn("nothing partial landed", said, said)
@@ -8849,7 +8886,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
             "a rejected batch's writes")
         self.assertNotIn("n2", self._ids(store))
         self.assertIsInstance(escaped, canvas.BatchError, "%r" % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("internal error committing the batch", said, said)
         self.assertIn("nothing partial landed", said, said)
 
@@ -8878,7 +8915,7 @@ class TestBatchPathIntegrity(unittest.TestCase):
                                side_effect=RuntimeError("injected fault")):
             escaped = self._send_ops(store, self._legal_add())
         self.assertIsInstance(escaped, canvas.BatchError, "%r" % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("internal error persisting the batch", said, said)
         self.assertIn("only partly written", said, said)
         self.assertNotIn(
@@ -9909,13 +9946,24 @@ class TestTheElectedRouteIsReadableWhereItLands(unittest.TestCase):
             `(side, degrees)` — the face the foot stands on and the
             deviation from that face's inward normal, 0 for a dead
             square arrival and 90 for one sliding along the face.
+
+        Raises:
+            AssertionError: If the foot is not on `dst` at all, so there
+                is no face to read the arrival against.
         """
         seq, prev = canvas._arrival_path(arrow, True)
         foot = seq[0]
         side = canvas._edge_side(dst, foot[0], foot[1])
-        self.assertIsNotNone(
-            side, "the foot %r is not on %r at all, so there is no face "
-            "to read the arrival against" % (foot, dst["id"]))
+        # RAISED RATHER THAN `assertIsNotNone`d, and the message is the
+        # same one. `unittest`'s assertions are not narrowing functions,
+        # so the pair `assertIsNotNone(side)` + `return side, …` read as
+        # a check that had made the value safe and had not — while this
+        # method's own docstring promises the miss reads "as a failure
+        # with a name, not as a `None` propagating into `acos`".
+        if side is None:
+            raise AssertionError(
+                "the foot %r is not on %r at all, so there is no face "
+                "to read the arrival against" % (foot, dst["id"]))
         cos = canvas.side_normal_cos(side, prev, foot)
         return side, math.degrees(math.acos(max(-1.0, min(1.0, cos))))
 
@@ -11463,7 +11511,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "a second pin op reusing the open pin's id was accepted "
             "(escaped=%r) — one resolve now closes two questions"
             % (escaped,))
-        self.assertIn("pin-a", "\n".join(escaped.errors))
+        self.assertIn("pin-a", batch_errors(escaped))
         self.assertEqual(
             len(self._pin_records(store, "pin-a")), 1,
             "the registry holds %d records under one pin id: %r"
@@ -11588,8 +11636,8 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             escaped, canvas.BatchError,
             "two pin ops in one batch minted the same id (escaped=%r)"
             % (escaped,))
-        self.assertIn("op 1", "\n".join(escaped.errors))
-        self.assertIn("pin-c", "\n".join(escaped.errors))
+        self.assertIn("op 1", batch_errors(escaped))
+        self.assertIn("pin-c", batch_errors(escaped))
         self.assertEqual(self._pin_records(store, "pin-c"), [])
         self.assertEqual([e["id"] for e in store.scenes["other"]
                           if canvas.role_of(e) == "pin"], [])
@@ -11746,7 +11794,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "the batch resolves pin-a and re-draws it under the same id; "
             "it was accepted (escaped=%r) and the add was swallowed with "
             "nothing said about it" % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("pin-a", said)
         self.assertIn("op 1", said,
                       "the refusal must name the op that lost, or the "
@@ -11813,7 +11861,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             escaped, canvas.BatchError,
             "an explicit id colliding with the id its own batch had just "
             "minted was accepted (escaped=%r)" % (escaped,))
-        self.assertIn("pin-n1", "\n".join(escaped.errors))
+        self.assertIn("pin-n1", batch_errors(escaped))
 
     def test_red_the_add_door_admits_a_filed_pin_id(self) -> None:
         """Two doors to one wound, and only the spelled one is guarded.
@@ -11864,7 +11912,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             escaped, canvas.BatchError,
             "the `pin` op form of this id is refused and the `add` form "
             "was accepted (escaped=%r)" % (escaped,))
-        self.assertIn("pin-a", "\n".join(escaped.errors))
+        self.assertIn("pin-a", batch_errors(escaped))
 
     def test_red_a_pin_op_may_spell_an_ordinary_elements_id(self) -> None:
         """The tenth door: the question is filed and never drawn.
@@ -11921,7 +11969,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             escaped, canvas.BatchError,
             "a pin op spelling the rectangle's own id was accepted "
             "(escaped=%r)" % (escaped,))
-        self.assertIn("n1", "\n".join(escaped.errors))
+        self.assertIn("n1", batch_errors(escaped))
 
     def test_red_a_non_string_pin_target_arrives_as_an_internal_error(
             self) -> None:
@@ -11967,7 +12015,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                     {"op": "pin", "target": target, "question": "Q?"}])
                 self.assertIsInstance(escaped, canvas.BatchError,
                                       "%r" % (escaped,))
-                said = "\n".join(escaped.errors)
+                said = batch_errors(escaped)
                 self.assertNotIn(
                     "internal error", said,
                     "a wrong field type reached the unpredicted-fault "
@@ -12042,7 +12090,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "an unpredicted fault escaped the E-9 envelope as %r — the "
             "agent gets a raw traceback, which is the r4-11 defect"
             % (escaped,))
-        said = "\n".join(escaped.errors)
+        said = batch_errors(escaped)
         self.assertIn("internal error applying ops", said, said)
         self.assertIn("RuntimeError", said, said)
         self.assertIn("nothing partial landed", said, said)
@@ -12209,7 +12257,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             escaped, canvas.BatchError,
             "the apply site minted %r and the prediction did not refuse "
             "it — the two seeds have drifted apart" % (minted[0],))
-        self.assertIn(minted[0], "\n".join(escaped.errors))
+        self.assertIn(minted[0], batch_errors(escaped))
         self.assertEqual([p["id"] for p in store.registry["pins"]],
                          ["pin-a"])
 
@@ -12252,7 +12300,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                     escaped, canvas.BatchError,
                     "a ❓ spelled through %s slipped past the add door "
                     "(escaped=%r)" % (spelling, escaped))
-                self.assertIn("filed pin id", "\n".join(escaped.errors))
+                self.assertIn("filed pin id", batch_errors(escaped))
                 self.assertEqual(self._glyphs(store, "other"), [])
 
     def test_an_ordinary_namesake_of_a_filed_pin_id_stays_legal(
@@ -12334,7 +12382,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "resolve_pin named an ordinary node and was accepted "
             "(escaped=%r) — the echo then says the ❓ is STILL on canvas "
             "while the note says it was already gone" % (escaped,))
-        self.assertIn("m1", "\n".join(escaped.errors))
+        self.assertIn("m1", batch_errors(escaped))
 
     def test_red_the_auto_minter_reissues_a_live_pin_id(self) -> None:
         """Omitting `id` no longer walks around the refusal.
@@ -12418,7 +12466,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
             "a resolved pin's id was reissued (escaped=%r) — the "
             "id-global write-through marks the new question resolved "
             "before anyone can answer it" % (escaped,))
-        self.assertIn("pin-a", "\n".join(escaped.errors))
+        self.assertIn("pin-a", batch_errors(escaped))
         self.assertEqual([(p["id"], p["status"])
                           for p in store.registry["pins"]],
                          [("pin-a", "resolved")])
@@ -12622,7 +12670,7 @@ class TestPinIdentityIntegrity(unittest.TestCase):
                     escaped, canvas.BatchError,
                     "%s: the batch closes pin-a and re-draws it under the "
                     "same id, and was accepted: %r" % (name, escaped))
-                said = "\n".join(escaped.errors)
+                said = batch_errors(escaped)
                 self.assertIn("pin-a", said)
                 self.assertIn(loser, said,
                               "%s: the refusal must name the add that lost: "
@@ -14428,7 +14476,7 @@ class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
         arrow = el(id="a", type="arrow", x=840, y=464, width=600,
                    height=0, points=[[0, 0], [-600, 0]],
                    customData={"role": "edge"})
-        x0, y0, w, h = canvas.ink_extent([arrow], pad=0)
+        x0, y0, w, h = ink_box([arrow], pad=0)
         self.assertEqual(
             (x0, y0, w, h), (240, 464, 600, 0),
             "the server widened a leftward arrow past its own ink; the "
@@ -14626,7 +14674,7 @@ class TestTheClientBoxIsBoundByItsPoints(unittest.TestCase):
         turned = el(id="a1", type="arrow", x=0.0, y=0.0, width=100.0,
                     height=0.0, angle=math.pi / 4,
                     points=[[0, 0], [100, 0]])
-        _, _, _, painted_h = canvas.ink_extent([turned], pad=0)
+        _, _, _, painted_h = ink_box([turned], pad=0)
         raw_h = (max(p[1] for p in turned["points"])
                  - min(p[1] for p in turned["points"]))
         self.assertGreater(
@@ -18761,7 +18809,7 @@ class TestInkExtentIsRotationBlind(unittest.TestCase):
         Returns:
             `(minx, miny, maxx, maxy)` of the reported extent.
         """
-        x, y, w, h = canvas.ink_extent(scene, pad=0)
+        x, y, w, h = ink_box(scene, pad=0)
         return (x, y, x + w, y + h)
 
     def _escape(self, scene: list[dict[str, Any]]) -> float:
@@ -18927,7 +18975,7 @@ class TestTurnedPolylineIsBoundByItsPoints(unittest.TestCase):
         Returns:
             `(minx, miny, maxx, maxy)` of the reported extent.
         """
-        x, y, w, h = canvas.ink_extent(scene, pad=0)
+        x, y, w, h = ink_box(scene, pad=0)
         return (x, y, x + w, y + h)
 
     def _client_box(self, scene: list[dict[str, Any]]
@@ -22877,7 +22925,8 @@ class TestTheCurvedFinalsCrossRatherThanRun(unittest.TestCase):
         arm shipped today is why the entry is green in the meantime.
         """
         fa, fb = self._finals()
-        run, sep = instruments._lane_overlap(fa, fb, "h", 16.0)
+        run, raw_sep = instruments._lane_overlap(fa, fb, "h", 16.0)
+        sep = measured(raw_sep, "the lane separation")
         self.assertAlmostEqual(run, 41.27, places=1)
         self.assertAlmostEqual(sep, 0.0, places=2)
         self.assertLess(

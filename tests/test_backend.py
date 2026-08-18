@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import canvas  # noqa: E402
 import focus_probe  # noqa: E402
 import instruments  # noqa: E402
+from tests_helpers import measured  # noqa: E402
 
 # The instruments are the drawing's own measure, and one test here needs
 # them: `TestFanAttachPoints` asserts that the auto-fan's output draws no
@@ -13128,12 +13129,29 @@ class TestEverySavedRecordAddressesItsOwnContents(unittest.TestCase):
         """
         tree = ast.parse(textwrap.dedent(
             inspect.getsource(canvas.Store.commit)))
-        found = [[k.value for k in node.value.keys]
-                 for node in ast.walk(tree)
-                 if isinstance(node, ast.Assign)
-                 and isinstance(node.value, ast.Dict)
-                 and any(getattr(t, "id", None) == "record"
-                         for t in node.targets)]
+        found = []
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Assign)
+                    and isinstance(node.value, ast.Dict)
+                    and any(getattr(t, "id", None) == "record"
+                            for t in node.targets)):
+                continue
+            # A LOOP AND NOT A COMPREHENSION, and the keys are checked
+            # one at a time. `ast.Dict.keys` holds `None` for a `**`
+            # spread, so the old `k.value` read would have died with an
+            # AttributeError on a recipe that had grown one — a guard
+            # about KEY ORDER failing with a message about attributes.
+            keys = []
+            for k in node.value.keys:
+                if not isinstance(k, ast.Constant):
+                    raise AssertionError(
+                        "`record = {...}` carries a key that is not a "
+                        "literal (%s) — a `**` spread or a computed "
+                        "name — so the order read here is no longer the "
+                        "whole recipe `short_id` hashes"
+                        % ("**spread" if k is None else ast.dump(k)))
+                keys.append(k.value)
+            found.append(keys)
         if len(found) != 1:
             raise AssertionError(
                 "`Store.commit` has %d `record = {...}` literals; this "
@@ -17250,7 +17268,9 @@ class TestRouterTerminalLegGraze(Base):
         self.assertEqual(canvas._grazing_terminal_legs(
             [(arrow["x"] + p[0], arrow["y"] + p[1])
              for p in arrow["points"]]), 0)
-        self.assertLess(self._drawn(arrow, dst, True), 45.0)
+        drawn = measured(self._drawn(arrow, dst, True),
+                         "the angle the elected leg is drawn at")
+        self.assertLess(drawn, 45.0)
 
     def test_a_corner_that_does_not_turn_is_not_charged(self):
         """"No corner, no bow" — the rule the docstring states.
@@ -17287,7 +17307,9 @@ class TestRouterTerminalLegGraze(Base):
         arrow["roundness"] = canvas.derived_roundness(arrow)
         tgt = {"id": "d", "type": "rectangle", "x": run - 60,
                "y": leg, "width": 120, "height": 60}
-        self.assertAlmostEqual(self._drawn(arrow, tgt, True),
+        drawn = measured(self._drawn(arrow, tgt, True),
+                         "the angle the final leg is drawn at")
+        self.assertAlmostEqual(drawn,
                                math.degrees(math.atan(
                                    0.1221 / canvas.GRAZE_LEG_RATIO)),
                                places=1)
@@ -18576,9 +18598,15 @@ class TestGrazingArrival(Base):
         self.assertTrue(arrow["roundness"], "the scene must be curved")
         self.assertTrue(canvas.server_owns_geometry(arrow))
         seq, head = canvas._arrival_path(arrow, True)
-        drawn = canvas.side_normal_cos("top", head, seq[0])
-        chord = canvas.side_normal_cos(
-            "top", (arrow["x"] + 480, arrow["y"]), seq[0])
+        # BOTH READ THROUGH `measured`: `side_normal_cos` answers None
+        # for a segment with no direction, and a comparison against None
+        # is not the reading either line below is about.
+        drawn = measured(canvas.side_normal_cos("top", head, seq[0]),
+                         "the drawn arrival's cosine")
+        chord = measured(
+            canvas.side_normal_cos(
+                "top", (arrow["x"] + 480, arrow["y"]), seq[0]),
+            "the stored chord's cosine")
         self.assertLess(drawn, canvas.GRAZE_COS)    # the drawing grazes
         self.assertAlmostEqual(chord, 1.0, places=6)  # the model does not
         self.assertFalse(self._graze(
@@ -18727,6 +18755,91 @@ _WP4_ELL = {"id": "e", "type": "ellipse", "x": 60, "y": 280,
             "width": 240, "height": 64, "customData": {"role": "node"}}
 
 
+def _norm(el, x, y, inset=0.0):
+    """`shape_norm`, with the no-area answer refused rather than compared.
+
+    THE THREE SHAPE PRIMITIVES ANSWER `float | None`, and the None means
+    one thing: `inset` has eaten the shape, so there is no outline to
+    measure against. Every call below means "this shape has area", and
+    an assertion handed a None compares nothing and fails with a message
+    about types instead of about geometry. `test_norm_is_one_exactly_on
+    _each_outline` asserts the None pole DIRECTLY, through `canvas`, so
+    the refusal here is not a way of avoiding the case — it is what lets
+    the one place that means it stand out.
+
+    Args:
+        el: The node element.
+        x: Point x in scene px.
+        y: Point y in scene px.
+        inset: Shrink applied to the outline first, in px.
+
+    Returns:
+        Distance from the centre in outline units; 1.0 IS the edge.
+
+    Raises:
+        AssertionError: If the shrunk shape has no area.
+    """
+    got = canvas.shape_norm(el, x, y, inset)
+    if got is None:
+        raise AssertionError(
+            "shape_norm has no outline to measure: %s %dx%d inset %g"
+            % (el.get("type"), el.get("width", 0), el.get("height", 0),
+               inset))
+    return got
+
+
+def _clearance(el, x, y, inset=0.0):
+    """`shape_clearance`, with the no-area answer refused.
+
+    Args:
+        el: The node element.
+        x: Point x in scene px.
+        y: Point y in scene px.
+        inset: Shrink applied to the outline first, in px.
+
+    Returns:
+        Signed px to the outline — positive outside, negative inside.
+
+    Raises:
+        AssertionError: If the shrunk shape has no area. See `_norm`.
+    """
+    got = canvas.shape_clearance(el, x, y, inset)
+    if got is None:
+        raise AssertionError(
+            "shape_clearance has no outline to measure from: %s %dx%d "
+            "inset %g" % (el.get("type"), el.get("width", 0),
+                          el.get("height", 0), inset))
+    return got
+
+
+def _clip(el, x0, y0, dx, dy, inset=0.0):
+    """`shape_clip`, with the misses-entirely answer refused.
+
+    Args:
+        el: The node element.
+        x0: Ray origin x.
+        y0: Ray origin y.
+        dx: Ray direction x.
+        dy: Ray direction y.
+        inset: Shrink applied to the outline first, in px.
+
+    Returns:
+        `(t0, t1)`, the ray parameters where it crosses the outline.
+
+    Raises:
+        AssertionError: If the line misses the shape or the shape has no
+            area — either way there is no pair to unpack, and a caller
+            that wanted the miss should say so through `canvas` directly.
+    """
+    got = canvas.shape_clip(el, x0, y0, dx, dy, inset)
+    if got is None:
+        raise AssertionError(
+            "shape_clip found no crossing: %s %dx%d from (%g, %g) along "
+            "(%g, %g)" % (el.get("type"), el.get("width", 0),
+                          el.get("height", 0), x0, y0, dx, dy))
+    return got
+
+
 class TestInscribedShapeClip(Base):
     """v0.9 WP4: the primitive that measures the drawn shape, not its box.
 
@@ -18739,38 +18852,37 @@ class TestInscribedShapeClip(Base):
 
     def test_clip_reads_the_rhombus_not_the_box(self):
         """At y=305 the 200x100 rhombus spans x 390..410, not 300..500."""
-        t0, t1 = canvas.shape_clip(_WP4_DIA, 310, 305, 1, 0)
+        t0, t1 = _clip(_WP4_DIA, 310, 305, 1, 0)
         self.assertAlmostEqual(310 + t0, 390)
         self.assertAlmostEqual(310 + t1, 410)
 
     def test_norm_is_one_exactly_on_each_outline(self):
         """The shared containment contract: 1.0 IS the drawn edge."""
         # rhombus facet midpoint, ellipse's rightmost point, box corner
-        self.assertAlmostEqual(canvas.shape_norm(_WP4_DIA, 350, 325), 1.0)
-        self.assertAlmostEqual(canvas.shape_norm(_WP4_ELL, 300, 312), 1.0)
+        self.assertAlmostEqual(_norm(_WP4_DIA, 350, 325), 1.0)
+        self.assertAlmostEqual(_norm(_WP4_ELL, 300, 312), 1.0)
         self.assertAlmostEqual(
-            canvas.shape_norm(dict(_WP4_DIA, type="rectangle"), 500, 400),
-            1.0)
+            _norm(dict(_WP4_DIA, type="rectangle"), 500, 400), 1.0)
         # and the box's corner is OUTSIDE the two inscribed shapes
-        self.assertGreater(canvas.shape_norm(_WP4_DIA, 500, 400), 1.0)
-        self.assertGreater(canvas.shape_norm(_WP4_ELL, 300, 344), 1.0)
+        self.assertGreater(_norm(_WP4_DIA, 500, 400), 1.0)
+        self.assertGreater(_norm(_WP4_ELL, 300, 344), 1.0)
         self.assertIsNone(canvas.shape_norm(_WP4_DIA, 400, 350, inset=60))
 
     def test_clip_of_a_rectangle_is_its_box(self):
         """A rectangle fills its box, so the clip must not move its edges."""
         rect = dict(_WP4_DIA, type="rectangle")
-        t0, t1 = canvas.shape_clip(rect, 310, 305, 1, 0)
+        t0, t1 = _clip(rect, 310, 305, 1, 0)
         self.assertAlmostEqual(310 + t0, 300)
         self.assertAlmostEqual(310 + t1, 500)
 
     def test_clearance_is_exact_on_a_facet_and_zero_on_the_outline(self):
         """The rhombus's facets are planes, so first order is the answer."""
         # (350,325) is the top-left facet's midpoint: 0.5 + 0.5 == 1
-        self.assertAlmostEqual(canvas.shape_clearance(_WP4_DIA, 350, 325), 0)
+        self.assertAlmostEqual(_clearance(_WP4_DIA, 350, 325), 0)
         # (310,305) is 0.8 outline-units out, over a gradient of 0.02236
-        self.assertAlmostEqual(canvas.shape_clearance(_WP4_DIA, 310, 305),
+        self.assertAlmostEqual(_clearance(_WP4_DIA, 310, 305),
                                35.777, places=3)
-        self.assertLess(canvas.shape_clearance(_WP4_DIA, 400, 350), 0)
+        self.assertLess(_clearance(_WP4_DIA, 400, 350), 0)
 
     def _tail_at(self, node, tail, head):
         """One arrow whose START binds `node`, tail then head absolute."""
@@ -18793,9 +18905,8 @@ class TestInscribedShapeClip(Base):
         below. Clearance is what decides; the axis only reports.
         """
         els = self._tail_at(_WP4_ELL, (264, 280), (516, 184))
-        self.assertLess(canvas.shape_clearance(_WP4_ELL, 264, 280), 14)
-        self.assertGreater(canvas.shape_clip(_WP4_ELL, 264, 280, -1, 0)[0],
-                           80)
+        self.assertLess(_clearance(_WP4_ELL, 264, 280), 14)
+        self.assertGreater(_clip(_WP4_ELL, 264, 280, -1, 0)[0], 80)
         lint = canvas.lint_layout(els)
         self.assertFalse([m for m in lint["errors"] + lint["warnings"]
                           if "claims to bind" in m],
@@ -18804,7 +18915,7 @@ class TestInscribedShapeClip(Base):
     def test_the_same_tail_pulled_clear_of_the_shape_does_fire(self):
         """The live pole: 40px out on the same ellipse is still reported."""
         els = self._tail_at(_WP4_ELL, (264, 240), (516, 184))
-        self.assertGreater(canvas.shape_clearance(_WP4_ELL, 264, 240), 14)
+        self.assertGreater(_clearance(_WP4_ELL, 264, 240), 14)
         lint = canvas.lint_layout(els)
         self.assertTrue([m for m in lint["errors"] + lint["warnings"]
                          if "claims to bind" in m])
@@ -18822,7 +18933,7 @@ class TestInscribedShapeClip(Base):
             with self.subTest(shape=node["type"]):
                 ax, ay = canvas.edge_anchor(node, 900, 900)
                 self.assertAlmostEqual(
-                    canvas.shape_clearance(node, ax, ay), 0, places=6)
+                    _clearance(node, ax, ay), 0, places=6)
 
     def test_router_anchor_on_a_rectangle_is_byte_identical(self):
         """A box-filling shape must not drift through the new path."""

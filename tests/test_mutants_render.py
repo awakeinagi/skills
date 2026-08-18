@@ -84,7 +84,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
 import canvas
 import test_mutants as tm
 from pngdiff import components, read_png_gray, tolerant_diff, tolerant_diff_mask
-from tests_helpers import el
+from tests_helpers import el, ink_box
 
 RENDER = os.environ.get("MUTANTS_RENDER") == "1"
 
@@ -1787,7 +1787,9 @@ def _derived_frame(elements: list[dict]) -> tuple[int, int]:
     Returns:
         `(width, height)` in px.
     """
-    _x, _y, w, h = canvas.ink_extent(_anchored(elements, _scene_bbox(elements)))
+    _x, _y, w, h = ink_box(
+        _anchored(elements, _scene_bbox(elements)),
+        pad=_export_pad())
     return round(w), round(h)
 
 
@@ -2191,6 +2193,15 @@ class AblationLiveness:
     without inheriting anything else about how `TestRenderMutants`
     builds its drawings.
     """
+
+    # DECLARED, not inherited. `unittest.TestCase` is mixed in by the
+    # concrete classes and never here, because a mixin that subclassed
+    # TestCase would be COLLECTED as a test case in its own right and run
+    # with no scene. That leaves the one assertion helper this body calls
+    # unresolvable to anyone reading the class alone, which is a bare
+    # annotation's whole job: no runtime effect, and the contract with
+    # the host class stated where it is relied on.
+    assertEqual: Callable[..., None]
 
     def assertDetectorSpoke(self, finds: list[dict]) -> None:
         """Fail unless `ablation_findings` reported the liveness ghost.
@@ -4138,7 +4149,7 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
         scene = [{"id": "t1", "type": "text", "x": 0, "y": 0, "width": 20,
                   "height": 25, "fontSize": 20,
                   "text": "A" * 30, "originalText": "A" * 30}]
-        x, y, w, h = canvas.ink_extent(scene, pad=0)
+        x, y, w, h = ink_box(scene, pad=0)
         over = self._overhang(scene, (x, y, x + w, y + h))
         self.assertEqual(
             over, 0.0,
@@ -4437,7 +4448,7 @@ class TestSceneBboxBoundsTheStoredBoxRegime(unittest.TestCase):
             honest = [{"id": "t1", "type": "text", "x": 0, "y": 0,
                        "width": 440, "height": 25, "fontSize": 20,
                        "text": "A" * 30, "originalText": "A" * 30}]
-            x, y, w, h = canvas.ink_extent(honest, pad=0)
+            x, y, w, h = ink_box(honest, pad=0)
             self.assertEqual(self._overhang(honest, (x, y, x + w, y + h)),
                              0.0,
                              "a text whose stored width matches its advance "

@@ -53,7 +53,7 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
 PROTOCOL_VERSION = 1
 SOURCE_NAME = "wysiwyg-grilling"
@@ -3172,15 +3172,20 @@ def _route_candidates(src, dst):
         x1, y1 = edge_anchor(src, dcx, dcy)
         x2, y2 = edge_anchor(dst, scx, scy)
         cands.append([(x1, y1), (x2, y2)])
-    # drop zero-length segments left by coincident waypoints
+    # drop zero-length segments left by coincident waypoints.
+    # `kept` and not `clean`: this function ALSO defines `def clean(path)`
+    # sixty lines down — the predicate `return routed or out` filters
+    # on — so the two shared a name in one scope and a reader arriving at
+    # either had to work out which was live. Renamed 2026-08-18; no
+    # behaviour change (Python rebinds happily, which is the problem).
     out = []
     for path in cands:
-        clean = [path[0]]
+        kept = [path[0]]
         for p in path[1:]:
-            if abs(p[0] - clean[-1][0]) > 0.5 or abs(p[1] - clean[-1][1]) > 0.5:
-                clean.append(p)
-        if len(clean) >= 2:
-            out.append(clean)
+            if abs(p[0] - kept[-1][0]) > 0.5 or abs(p[1] - kept[-1][1]) > 0.5:
+                kept.append(p)
+        if len(kept) >= 2:
+            out.append(kept)
     if not out:
         # r4-11: coincident/concentric boxes collapse EVERY candidate —
         # including the degenerate fallback above, whose two edge anchors
@@ -10263,13 +10268,20 @@ def render_svg(els: list[dict[str, Any]], title: str = "",
         `(svg_text, width, height)`.
     """
     live = [e for e in els if not e.get("isDeleted")]
-    if not live:
+    # ONE EMPTINESS QUESTION, ASKED ONCE. This tested `not live` here and
+    # then unpacked `ink_extent(live)` below as if it could not be None —
+    # two statements of the same fact, the second unwritten. `ink_extent`
+    # returns None for exactly this scene and says so in its own Returns
+    # ("an empty drawing has no extent, which is not the same as one of
+    # zero size"), so asking IT is both shorter and the contract.
+    box = ink_extent(live)
+    if box is None:
         return ("<svg xmlns='http://www.w3.org/2000/svg' width='320' "
                 "height='80'><text x='16' y='45' font-size='14'>"
                 "(empty artifact)</text></svg>"), 320, 80
     notes = collect_footnotes(live) if footnotes else []
     gloss = list(glossary or []) if footnotes else []
-    minx, miny, w, h = ink_extent(live)
+    minx, miny, w, h = box
     # room under the drawing for the notes block, wrapped to the width
     note_lines = []
     for n, lbl, tip, _e in notes:
@@ -12254,7 +12266,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 got = contrast_ratio(composite_over(col, bg, opac), bg)
                 if best is None or got > best:
                     best, from_ = got, (col, src)
-            if best is None:
+            # BOTH HALVES TESTED, though they are assigned together and
+            # the second can only be None when the first is. The pair is
+            # one fact stored in two names, so nothing in the language
+            # holds them together; saying it here is what lets the
+            # unpacking below be read (and checked) without tracing the
+            # loop.
+            if best is None or from_ is None:
                 # Nothing declared to read — an Excalidraw `image` carries
                 # a transparent stroke and its picture is bytes this file
                 # is never handed. There is no colour to ask about; the
@@ -15318,7 +15336,12 @@ class Store:
         self.lock = threading.RLock()
         self.issues = []
         self.rollback = None          # {"matches_revn": N} when git-revert seen
-        self.checkout_revn = None     # detached checkout point (memory only)
+        # ANNOTATED for the same reason `ServerApp.httpd` is: the only
+        # writer that puts a NUMBER here is outside this class
+        # (`ServerApp`'s checkout handler), so a bare `= None` declared
+        # the attribute None-typed and every `if self.checkout_revn is
+        # not None` below read as dead code to a checker.
+        self.checkout_revn: int | None = None   # detached checkout point
         self.reconciliation = None    # last catch-up record revn
         self._dry_run = False         # inside _sandbox(): writers are no-ops
         self.state_epoch = 0          # rewrites under a head; `state_stamp`
@@ -15362,7 +15385,12 @@ class Store:
         reg, reg_issues = validate_registry(reg)
         reg, migrated = apply_migrations(reg, "registry", self.p.registry_path,
                                          self.p, self.log)
-        self.registry = reg
+        # `reg` is a dict by the time it lands here whatever the disk
+        # held: `validate_registry` substitutes `DEFAULT_REGISTRY` for a
+        # `None` and `apply_migrations` passes its input through. Stated
+        # rather than inferred, because the `None` two branches up is
+        # what a reader (and a checker) sees first.
+        self.registry: dict[str, Any] = reg
         if reg_issues or migrated or not self.p.registry_path.exists():
             write_json(self.p.registry_path, reg)
         for i in cfg_issues + reg_issues:
@@ -15944,7 +15972,16 @@ class Store:
                     # that lived here; the write-through moved to
                     # `commit`'s persist block, so no op inside this
                     # window touches a file to begin with.
-                    self.registry = pre_registry
+                    # The pre-image is taken under `if registry_ops`
+                    # and this handler only runs under the same test, so
+                    # it is never None here — a correlation the language
+                    # cannot hold, hence the `cast`. NOT `if
+                    # pre_registry is not None`: a guard would make a
+                    # future snapshot that really HAD gone missing skip
+                    # the restore silently, and a rejected batch quietly
+                    # keeping its half-written registry is the exact
+                    # failure this block exists to prevent.
+                    self.registry = cast("dict[str, Any]", pre_registry)
                     self.artifact_meta = pre_meta
                     raise
                 # a registry op can change artifact META, and `meta` was
@@ -18675,7 +18712,13 @@ class ServerApp:
         self.shot_seq = 0
         self.mermaid_requests = {}
         self.mermaid_seq = 0
-        self.httpd = None
+        # ANNOTATED because the only writer is OUTSIDE this class:
+        # `run_server` builds the server and hands it back here, so a
+        # bare `= None` declared the attribute as None-typed and made
+        # every reader's `self.httpd.shutdown()` unverifiable. The
+        # attribute stays initialised here — an app that is never served
+        # (the CLI verbs build one) must still answer the question.
+        self.httpd: ThreadingHTTPServer | None = None
         self.catchup_record = None
         self.load_pending()
 
