@@ -18589,7 +18589,18 @@ def _bowed_arrival(first: float, last: float) -> list[dict[str, Any]]:
     family's convention: `route_arrow` emits exactly this shape — a long
     run elbowed into a final leg of a few px — for a pair of nodes far
     apart and barely offset, 88 times in a 2500-arrival grid, worst
-    83.60 degrees drawn against 0.00 stored.
+    83.60 degrees drawn against 0.00 stored (a review's sharper grid
+    reaches 89.16 on a 2px leg under an 1120px run).
+
+    STAMPED SERVER-OWNED, and that is load-bearing rather than
+    decorative. The silence this scene pins is owed to the ROUTER's
+    geometry specifically — `mod points` on a server-owned path is
+    undone by the next re-route, so there is no repair to offer — and
+    the identical shape marked `routed: "authored"` is a real finding
+    with its own sentence. An unstamped arrow of three points reads as
+    AUTHORED (`server_owns_geometry`: unmarked and bent is the user's),
+    so leaving the mark off would quietly turn this pole into the other
+    one and assert the opposite of what it is here to say.
 
     Args:
         first: Length of the horizontal run into the elbow.
@@ -18597,13 +18608,15 @@ def _bowed_arrival(first: float, last: float) -> list[dict[str, Any]]:
             shrinks; it is the whole variable.
 
     Returns:
-        `[dst, src, e1]`, with `e1` carrying `derived_roundness`.
+        `[dst, src, e1]`, with `e1` carrying `derived_roundness` and the
+        route signature that marks it the server's.
     """
     fx, fy = 460.0, 200.0
     ox, oy = fx - first, fy - last
     arrow = _facing_arrow("e1", ox, oy,
                           [(0, 0), (first, 0), (first, last)], "src", "dst")
     arrow["roundness"] = canvas.derived_roundness(arrow)
+    arrow["customData"]["routed"] = canvas._route_sig(arrow)
     return [_facing_node("dst", 400, 200),
             _facing_node("src", ox - 120, oy - 30), arrow]
 
@@ -22485,8 +22498,11 @@ class TestCoverage(unittest.TestCase):
         strongest version of the reason the rows above give — the check
         did not merely arrive with a `DETECTORS` entry and a proving
         pair, it arrived because a pair had been waiting six days for it
-        (`grazing_arrival_reads_as_square`), and the same change emptied
-        both `ASPIRATIONAL` and `CATALOGUE_RED_IDS`.
+        (`grazing_arrival_reads_as_square`), and the same change drained
+        that pin from `CATALOGUE_RED_IDS` and its check from
+        `ASPIRATIONAL` — a claim about those two ROWS, not about whether
+        either table ended up empty, which is a fact other tasks landing
+        beside this one get a vote in.
 
         THE TWO ROWS ABOVE ARE THE SAME DAY AND OPPOSITE SHAPES, which
         is worth one sentence here because the ledger cannot say it:

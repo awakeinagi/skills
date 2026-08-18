@@ -12119,33 +12119,53 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # degrees apart, and the one the repo already computed was
             # the one that said the picture was fine.
             #
-            # BOTH READINGS OF THE STROKE HAVE TO BE OBLIQUE, and this is
-            # the design rather than a guard bolted onto it. `side_normal
-            # _cos` is asked twice: once about the tangent the client
-            # DRAWS at the foot, and once about the chord the model
-            # STORES. On a sharp arrow those are the same number by
+            # THE STROKE HAS TWO READINGS AND BOTH ARE ASKED FOR, which
+            # is the design rather than a guard bolted onto it.
+            # `side_normal_cos` is called twice: once about the tangent
+            # the client DRAWS at the foot, and once about the chord the
+            # model STORES. On a sharp arrow those are the same number by
             # construction — `_rendered_stretches` hands a sharp arrow
-            # its chords unsampled — so the second reading costs nothing
-            # and changes nothing there. On a CURVED one it is the whole
-            # discriminator: a three-point elbow whose stored final leg
-            # is DEAD SQUARE can still have its drawn tangent bowed 80-odd
-            # degrees off the normal by the curve alone, and on such a
-            # picture the foot is already in the only place it can be —
-            # so a lint saying "bring it in across the face" would be
-            # advising something nobody can do.
+            # its chords unsampled, and over the corpus's 294 sharp bound
+            # endpoints the two cosines differ by 0.00e+00, exactly — so
+            # the second reading costs nothing and changes nothing there,
+            # and `bowed` below is False for every sharp arrow as a
+            # theorem rather than as an observation.
             #
-            # THAT CLASS IS NOT HYPOTHETICAL AND NOT RARE: measured over
-            # a 2500-arrival grid of routed pairs, `route_arrow` ITSELF
-            # emits 88 of them (worst 83.60 degrees drawn against 0.00
-            # stored, a 730px run elbowed into a 10px final leg between
-            # two nodes 800px apart and 40px offset). Reading the drawn
-            # tangent alone would have put a warning on the repo's own
-            # router output — the regression class TASK-LINTPROMOTE made
-            # a load-bearing quiet pole — and the two-reading floor takes
-            # those 88 to 0 without touching a single frozen-corpus
-            # finding. The bow itself is a real defect in the ROUTER and
-            # is filed as one; it is not this reader's to report, and
-            # the sentence that would report it is a different sentence.
+            # ON A CURVED ONE THEY COME APART, and the gap is a whole
+            # second finding. A three-point elbow whose stored final leg
+            # is DEAD SQUARE can still have its drawn tangent swept 80-odd
+            # degrees off the normal by the curve alone: the foot is in
+            # the best place a foot has, and what grazes is the corner's
+            # bow. So the two cases get two sentences, because they have
+            # two different repairs — move the foot, or lengthen the leg.
+            #
+            # WHOSE GEOMETRY IT IS DECIDES WHETHER THE SECOND ONE IS SAID
+            # AT ALL, and that is the one branch here that is about
+            # ownership rather than about pixels. `route_arrow` ITSELF
+            # emits the bowed class constantly — measured over a
+            # 2500-arrival grid of routed pairs it produces 88 (worst
+            # 83.60 degrees drawn against 0.00 stored, a 730px run elbowed
+            # into a 10px final leg), and a review's sharper grid reaches
+            # 89.16 on a 2px leg under an 1120px run. On a SERVER-OWNED
+            # path there is no repair to offer: `mod points` on it is
+            # undone by the next re-route, so the finding would be about
+            # the router and addressed to someone who cannot act on it.
+            # Those stay silent, which is the quiet pole TASK-LINTPROMOTE
+            # made load-bearing, and the bow is filed as the producer
+            # defect it is.
+            #
+            # ON AUTHORED GEOMETRY THE SAME PICTURE IS A REAL FINDING,
+            # and the first cut of this check missed it by scoping the
+            # excuse to the shape instead of to the owner. `routed:
+            # "authored"` is never re-routed, re-fanned or flattened, so
+            # lengthening the final leg is durable — measured, the
+            # review's construction goes 80.32 degrees to 36.22 when a
+            # 10px leg becomes 80px, and nothing puts it back. Silence
+            # there was a lint declining to report the one version of
+            # this defect its reader can fix. The gate costs nothing to
+            # add: 0 new findings on the frozen corpus, 0 on the
+            # 120-row cramped sweep (whose arrows are all server-owned),
+            # 0 on the router grid.
             #
             # THE PLACEMENT IS PART OF THE CHECK. It sits after both
             # findings above and behind their `continue`s, so an endpoint
@@ -12204,29 +12224,57 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 (px, py))
             if drawn_cos is None or chord_cos is None:
                 continue
-            if max(drawn_cos, chord_cos) > GRAZE_COS:
-                continue
-            # The DRAWN reading is the one reported, because the drawing
-            # is what the reader is looking at; the stored chord is a
-            # gate and never a magnitude. Clamped before `acos` — a
-            # cosine assembled from a square root lands an ulp outside
-            # [-1, 1] on a dead-flat leg and raises.
+            if drawn_cos > GRAZE_COS:
+                continue        # the drawing does not graze at all
+            # `bowed` is "the foot is square and the CURVE is what
+            # grazes", which is false for every sharp arrow by the
+            # identity above, so this branch is unreachable without
+            # roundness and needs no roundness test of its own.
+            bowed = chord_cos > GRAZE_COS
+            if bowed and server_owns_geometry(a):
+                continue        # the router's own bow; no repair to offer
+            # The DRAWN reading is the one reported in both sentences,
+            # because the drawing is what the reader is looking at; the
+            # stored chord picks the sentence and is never a magnitude.
+            # Clamped before `acos` — a cosine assembled from a square
+            # root lands an ulp outside [-1, 1] on a dead-flat leg and
+            # raises.
             off = math.degrees(math.acos(max(-1.0, min(1.0, drawn_cos))))
             key_w = "graze:%s:%s:%s" % (aid or "<artifact>",
                                         slugify(a["id"]), side)
             if waives and key_w in waives:
                 continue
+            # TWO SENTENCES, ONE OPENING — the arrangement
+            # `crosses_through_bound` next door already uses, and for its
+            # reason: the finding, the element, the magnitude and the
+            # face are the same question, and only the REPAIR differs, so
+            # one detector regex reads both and neither sentence has to
+            # be made inaccurate to keep it matching. Saying "bring it in
+            # across the face" about a foot already dead square on that
+            # face would be the mistake that widened that regex.
+            if bowed:
+                leg = ((px - (a.get("x", 0) + back[0])) ** 2 +
+                       (py - (a.get("y", 0) + back[1])) ** 2) ** 0.5
+                msg = ("its foot is square on that face, but the final "
+                       "leg is only %dpx, so the curve through the last "
+                       "corner is still turning when it reaches the edge "
+                       "and lays the arrowhead flat along it. Lengthen "
+                       "the final leg with `mod points` — this path is "
+                       "your own geometry, so nothing will route it back"
+                       % round(leg))
+            else:
+                msg = ("the last leg runs so nearly along that edge that "
+                       "the drawing does not say where the two connect, "
+                       "and the arrowhead reads as a corner rather than "
+                       "an attachment. Bring it in across the face: "
+                       "elbow the final leg with `mod points`, or "
+                       "re-route from a border that faces the other end")
             warnings.append(
                 "arrow %s arrives at %s's %s edge %d degrees off square "
-                "(%s point) — the last leg runs so nearly along that "
-                "edge that the drawing does not say where the two "
-                "connect, and the arrowhead reads as a corner rather "
-                "than an attachment. Bring it in across the face: elbow "
-                "the final leg with `mod points`, or re-route from a "
-                "border that faces the other end. Meant to graze? waive "
-                "{action: waive, key: %r, reason: ...}"
+                "(%s point) — %s. Meant to graze? waive {action: waive, "
+                "key: %r, reason: ...}"
                 % (a["id"], name(tgt["id"]), foot_side, round(off), side,
-                   key_w))
+                   msg, key_w))
 
     # ---- ERROR: flow-kind structural invariants ----------------------
     kinds = {e["id"]: (e.get("customData") or {}).get("kind")

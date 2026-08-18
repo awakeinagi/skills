@@ -17602,6 +17602,27 @@ class TestGrazingArrival(Base):
                 canvas.lint_layout(els, artifact_type="flow")))
             self.assertEqual(got, want, "%s deg" % deg)
 
+    def _bowed(self, last=10, authored=False):
+        """A curved elbow: stored leg square, drawn tangent swept flat.
+
+        Args:
+            last: Length of the final leg. The bow grows as it shrinks.
+            authored: Mark the path the user's rather than the server's.
+
+        Returns:
+            `[node, arrow]`, the arrow curved and bound at its end.
+        """
+        node = {"id": "n", "type": "rectangle", "x": 400, "y": 200,
+                "width": 120, "height": 60, "customData": {"role": "node"}}
+        arrow = {"id": "a", "type": "arrow", "x": -20.0, "y": 200.0 - last,
+                 "points": [[0, 0], [480, 0], [480, last]],
+                 "endBinding": {"elementId": "n", "focus": 0, "gap": 0},
+                 "startBinding": None, "customData": {"role": "edge"}}
+        arrow["roundness"] = canvas.derived_roundness(arrow)
+        arrow["customData"]["routed"] = (
+            "authored" if authored else canvas._route_sig(arrow))
+        return [node, arrow]
+
     def test_a_curve_may_bow_the_drawing_while_the_foot_stays_square(self):
         """The refusal the router's own output made necessary.
 
@@ -17615,24 +17636,64 @@ class TestGrazingArrival(Base):
         long run elbowed into a final leg of a few px.
 
         NOT SILENT BECAUSE THE ANGLE IS SMALL — it is larger than the
-        mutant's. Silent because the foot is already in the only place a
-        foot can go, so "bring it in across the face" is advice nobody
-        can take, and a lint that gives it is one agents learn to skip.
+        mutant's. Silent because this path is the SERVER's, so the only
+        repair (`mod points`) is undone by the next re-route and the
+        finding would be addressed to someone who cannot act on it. The
+        same picture marked `authored` is a real finding, and the test
+        below is that half; the two together are what make this a
+        statement about ownership rather than about curvature.
         """
-        node = {"id": "n", "type": "rectangle", "x": 400, "y": 200,
-                "width": 120, "height": 60, "customData": {"role": "node"}}
-        arrow = {"id": "a", "type": "arrow", "x": -20.0, "y": 190.0,
-                 "points": [[0, 0], [480, 0], [480, 10]],
-                 "endBinding": {"elementId": "n", "focus": 0, "gap": 0},
-                 "startBinding": None, "customData": {"role": "edge"}}
-        arrow["roundness"] = canvas.derived_roundness(arrow)
+        node, arrow = self._bowed()
         self.assertTrue(arrow["roundness"], "the scene must be curved")
+        self.assertTrue(canvas.server_owns_geometry(arrow))
         seq, head = canvas._arrival_path(arrow, True)
         drawn = canvas.side_normal_cos("top", head, seq[0])
         chord = canvas.side_normal_cos(
             "top", (arrow["x"] + 480, arrow["y"]), seq[0])
         self.assertLess(drawn, canvas.GRAZE_COS)    # the drawing grazes
         self.assertAlmostEqual(chord, 1.0, places=6)  # the model does not
+        self.assertFalse(self._graze(
+            canvas.lint_layout([node, arrow], artifact_type="flow")))
+
+    def test_the_same_bow_on_authored_ink_is_named_by_its_final_leg(self):
+        """The other half of the ownership pair, and a fixed false negative.
+
+        `routed: "authored"` geometry is never re-routed, re-fanned or
+        flattened, so lengthening the final leg is a DURABLE repair —
+        which is exactly why the silence above must not extend here. The
+        first cut of this check scoped its excuse to the shape (a square
+        stored chord) rather than to the owner, and said nothing at all
+        about a drawing that does not say where it lands and that its
+        reader can fix in one `mod points`.
+
+        THE SENTENCE HAS TO DIFFER, not just the verdict. "Bring it in
+        across the face" is false advice about a foot already dead
+        square on that face; the repair axis here is the LEG'S LENGTH,
+        and the message names it and the number to grow.
+        """
+        node, arrow = self._bowed(authored=True)
+        self.assertFalse(canvas.server_owns_geometry(arrow))
+        hits = self._graze(canvas.lint_layout([node, arrow],
+                                              artifact_type="flow"))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("top edge 80 degrees off square", hits[0])
+        self.assertIn("final leg is only 10px", hits[0])
+        self.assertNotIn("Bring it in across the face", hits[0])
+
+    def test_lengthening_an_authored_final_leg_settles_it(self):
+        """The repair the message names, taken, on the same scene.
+
+        A finding whose advice is not measured is a finding that may be
+        advising nothing. 10px to 80px takes the drawn arrival from 80
+        degrees to 36 and the lint goes quiet — so the sentence points
+        at the axis that actually moves the number, which is the claim
+        the wording makes and the one nothing else here checks.
+        """
+        node, arrow = self._bowed(last=80, authored=True)
+        seq, head = canvas._arrival_path(arrow, True)
+        off = math.degrees(math.acos(
+            canvas.side_normal_cos("top", head, seq[0])))
+        self.assertLess(off, 40.0)
         self.assertFalse(self._graze(
             canvas.lint_layout([node, arrow], artifact_type="flow")))
 
