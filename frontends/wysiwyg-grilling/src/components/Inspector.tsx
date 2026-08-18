@@ -30,14 +30,17 @@ function kindsFor(artifactType: string): string[] {
  * `artifacts` ({id: {name}}), `docs` (project_knowledge-relative md
  * paths), `disabled` (time travel), `onPatch(patch, cdPatch)` (element
  * fields / customData; null value in cdPatch deletes the key),
- * `onEditTooltip` (opens the anchored editor).
+ * `onPin(pinned)` (the SAME action the canvas tack runs — routed through
+ * one handler so the two surfaces cannot disagree), `onEditTooltip`
+ * (opens the anchored editor).
  * @returns The inspector section, or null for composed/label pieces.
  */
 export function Inspector({ el, artifactType, artifacts, docs, disabled,
-  onPatch, onEditTooltip }: {
+  onPatch, onPin, onEditTooltip }: {
   el: any; artifactType: string;
   artifacts: Record<string, any>; docs: string[]; disabled: boolean;
   onPatch: (patch: any, cdPatch?: any) => void;
+  onPin: (pinned: boolean) => void;
   onEditTooltip: () => void;
 }) {
   const cd = el?.customData || {};
@@ -98,11 +101,21 @@ export function Inspector({ el, artifactType, artifacts, docs, disabled,
             </select>
           </label>
         )}
+        {/* the same switch as the canvas tack, on purpose. Both write
+            Excalidraw's native `locked` and nothing else, so the two
+            surfaces cannot get out of step — the checkbox reflects a pin
+            made by the tack, the menu, the agent, or a third-party file.
+            The old wording ("settled structure") described the agent's
+            reason for locking something, which now reads as a different
+            feature from the one the tack offers. */}
         <label className="insp-row check">
           <input type="checkbox" checked={!!el.locked}
-            onChange={(e) => onPatch({ locked: e.target.checked })} />
-          <span>locked (settled structure — not draggable)</span>
+            onChange={(e) => onPin(e.target.checked)} />
+          <span>📌 pinned to canvas (not draggable)</span>
         </label>
+        {!!el.locked && (
+          <div className="insp-note">a pin stops drags and resizes — not deletes</div>
+        )}
         <div className="insp-row">
           <button className="insp-btn" onClick={onEditTooltip}>
             🛈 {cd.tooltip ? "edit tooltip…" : "add tooltip…"}
