@@ -4214,19 +4214,6 @@ def fan_attach_points(els):
     # boxes; the fan must not undo that work by sliding a segment into one)
     fan_obstacles = hard_obstacles(els)
 
-    def _fan_hits(a, ax, ay, pts):
-        n = 0
-        keep = {(a.get("startBinding") or {}).get("elementId"),
-                (a.get("endBinding") or {}).get("elementId")}
-        for p1, p2 in zip(pts, pts[1:]):
-            for ob in fan_obstacles:
-                if ob.get("id") in keep:
-                    continue
-                if _seg_hits_rect(ax + p1[0], ay + p1[1],
-                                  ax + p2[0], ay + p2[1], ob):
-                    n += 1
-        return n
-
     def _elbowed_pts(a, sx, sy, exx, exy):
         old = a.get("points") or []
         if len(old) == 3:
@@ -4237,6 +4224,62 @@ def fan_attach_points(els):
             return [[0, 0], [corner[0] - sx, corner[1] - sy],
                     [exx - sx, exy - sy]]
         return [[0, 0], [exx - sx, exy - sy]]
+
+    # WHERE EVERY FANNED ARROW IS ABOUT TO BE, not where it still is.
+    # The crossing term below has to compare against this and not against
+    # stored geometry, and the difference is not a refinement: the whole
+    # point of a fan is that N arrows currently converge on ONE point, so
+    # scoring a spread foot against a sibling that has not moved yet
+    # counts crossings with a drawing that is one loop iteration from
+    # ceasing to exist. Measured — scoring against stored geometry made
+    # the fan decline so many slides that the cramped-side sweep went
+    # from 53 firing rows to 71, every one of them a phantom.
+    intended = {}
+    for aid, e2 in ends.items():
+        (isx, isy), (iex, iey) = e2["start"], e2["end"]
+        intended[aid] = [(isx + p[0], isy + p[1])
+                         for p in _elbowed_pts(ix[aid], isx, isy, iex, iey)]
+
+    def _fan_hits(a, ax, ay, pts):
+        # BOXES AND ARROWS, and the second half arrived on 2026-08-17
+        # (v0.9 TASK-ATTACH). The fan's whole purpose is legibility, and
+        # it scored every slide against foreign boxes and against the
+        # corner interior while never looking at another ARROW — so a
+        # slide that cleared a box could drive the stroke straight
+        # through a neighbour's, and nothing in the pass could tell.
+        # Measured on the frozen corpus: the shipped fan took
+        # `crossing_sites` 18 -> 21, all three in `tearsheet-pipeline`
+        # (`the_fan_adds_crossings_it_never_looks_for`).
+        #
+        # The two counts are summed rather than ranked, which is the
+        # cheap choice and the honest one to name: `route_arrow` ranks
+        # them (hard hits dominate soft), and doing that here would mean
+        # a comparable score vector rather than a scalar, for a pass
+        # whose only question is "is this slide worse than where we
+        # started". A slide that trades a box hit for an arrow crossing
+        # is a slide this pass declines either way.
+        n = 0
+        keep = {(a.get("startBinding") or {}).get("elementId"),
+                (a.get("endBinding") or {}).get("elementId")}
+        for p1, p2 in zip(pts, pts[1:]):
+            ux, uy = ax + p1[0], ay + p1[1]
+            vx, vy = ax + p2[0], ay + p2[1]
+            for ob in fan_obstacles:
+                if ob.get("id") in keep:
+                    continue
+                if _seg_hits_rect(ux, uy, vx, vy, ob):
+                    n += 1
+            for other in els:
+                oid = other.get("id")
+                if other.get("type") not in ("arrow", "line") or \
+                        oid == a.get("id"):
+                    continue
+                op = intended.get(oid) or _abs_pts(other)
+                for q1, q2 in zip(op, op[1:]):
+                    if _segs_cross(ux, uy, vx, vy,
+                                   q1[0], q1[1], q2[0], q2[1]):
+                        n += 1
+        return n
 
     def _corner_interior(a, ax, ay, pts):
         # v0.8: the invariant router candidates already obey — an elbow
@@ -9748,6 +9791,52 @@ NORMAL_COS = 0.9063
 # bound endpoints, against the 72 non-normal arrivals spike-focus-verify
 # counted in a live browser over the same 346 by a different instrument.
 
+SIDE_INWARD_NORMAL = {"left": (1.0, 0.0), "right": (-1.0, 0.0),
+                      "top": (0.0, 1.0), "bottom": (0.0, -1.0)}
+# Which way is INTO the node from each face. Inward and not outward
+# because every reader here asks the same question — does this arrow
+# arrive pointing at the shape — and the sign that answers it should not
+# have to be flipped at each call site.
+
+
+def side_normal_cos(side: str, adj: tuple[float, float],
+                    foot: tuple[float, float]) -> float | None:
+    """How square an arrival at `side` is, against that side's own normal.
+
+    THE READING NOTHING ELSE IN THIS REPO COMPUTES, and the distinction
+    is the whole reason it exists. `_arrival_lean` and
+    `instruments.arrival_squareness` both measure lean off the nearest
+    CARDINAL, so an arrow running straight ALONG the face it lands on
+    scores a perfect 0.0 from them; measured against the side it stands
+    on, the same stroke is 90 degrees wrong. On the scene
+    `grazing_arrival_reads_as_square` pins, the two readings of one leg
+    differ by 63.5 degrees and the one the repo computed said the
+    picture was fine.
+
+    Factored out of `endpoint_port` rather than written beside it: the
+    narration layer wants this against the DRAWN leg and the contention
+    search wants it against the STORED one, and two copies of a
+    trigonometric predicate is how the two would come to disagree about
+    one stroke.
+
+    Args:
+        side: `"left"`, `"right"`, `"top"` or `"bottom"`.
+        adj: The point the arrow travels FROM into the foot.
+        foot: The bound endpoint, in scene coordinates.
+
+    Returns:
+        The cosine between the leg and the side's inward normal — 1.0
+        for a dead-square arrival, 0.0 for one sliding along the face,
+        negative for one leaving. None when the leg has no length, which
+        is a leg with no direction to be square.
+    """
+    dx, dy = foot[0] - adj[0], foot[1] - adj[1]
+    mag = (dx * dx + dy * dy) ** 0.5
+    if mag < 1e-9:
+        return None
+    nx, ny = SIDE_INWARD_NORMAL[side]
+    return (dx * nx + dy * ny) / mag
+
 
 def endpoint_port(node: dict[str, Any], adj: tuple[float, float] | None,
                   foot: tuple[float, float],
@@ -9802,13 +9891,10 @@ def endpoint_port(node: dict[str, Any], adj: tuple[float, float] | None,
         return "off-shape", 0.0, False
     if adj is None:
         return "off-approach", 0.0, False
-    dx, dy = foot[0] - adj[0], foot[1] - adj[1]
-    mag = (dx * dx + dy * dy) ** 0.5
-    if mag < 1e-9:      # a degenerate leg has no direction to be square
+    cos = side_normal_cos(side, adj, foot)
+    if cos is None:     # a degenerate leg has no direction to be square
         return "off-approach", 0.0, False
-    nx, ny = {"left": (1.0, 0.0), "right": (-1.0, 0.0),
-              "top": (0.0, 1.0), "bottom": (0.0, -1.0)}[side]
-    if (dx * nx + dy * ny) / mag < NORMAL_COS:
+    if cos < NORMAL_COS:
         return "off-approach", 0.0, False
     w, h = node.get("width", 0), node.get("height", 0)
     # The midpoint of a side is the same point on the box and on the ink

@@ -9453,9 +9453,38 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
                         "a gapped pair should never need the totality "
                         "escape: %r" % (path,))
 
-    @unittest.expectedFailure
-    def test_red_the_fan_adds_crossings_it_never_looks_for(self) -> None:
-        """`fan_attach_points` takes a corpus flow from 1 crossing to 4.
+    def test_the_fan_adds_no_crossing_it_could_have_seen(self) -> None:
+        """`fan_attach_points` no longer takes a corpus flow from 1 to 4.
+
+        FLIPPED 2026-08-17 (v0.9 TASK-ATTACH): `_fan_hits` counts
+        crossings with other arrows beside its foreign-box hits, so a
+        slide that clears a box can no longer drive the stroke through a
+        neighbour's unseen. Re-measured at this head, on a corpus that
+        has been rebased since the filing: the shipped fan took the 24
+        artifacts from 18 crossings to 21, and now leaves them at 18 —
+        crossing-NEUTRAL, not merely no worse. `tearsheet-pipeline`, the
+        artifact that carried all three, goes 1 -> 1.
+
+        AND THERE IS NOW A FIXED POINT, which the filing named as the
+        second half of the defect and which is the part that could have
+        been missed: a third pass over the pass's own output reports 1
+        as well, where the shipped fan reported 4 then 3 and moved
+        geometry both times. A cosmetic pass that does not converge is a
+        drawing that changes every time anything is applied.
+
+        THE CROSSING TERM READS INTENDED GEOMETRY, not stored, and that
+        distinction is the whole implementation. A fan exists because N
+        arrows converge on ONE point, so scoring a spread foot against a
+        sibling that has not moved yet counts crossings with a drawing
+        one loop iteration from ceasing to exist. Measured: the stored
+        reading declined so many slides that the cramped-side sweep went
+        from 53 firing rows to 71, every one of those 18 a phantom.
+
+        The docstring below is kept in the tense it was filed in,
+        because its account of what the pass could not see is why the
+        term exists.
+
+        Historical account (2026-08-16, before the fix):
 
         The fan's whole purpose is legibility: N arrows on one attach
         point read as one arrow, so it spreads them. It scores each
@@ -9500,14 +9529,43 @@ class TestRouterPassesDoNotWorsenTheDrawing(unittest.TestCase):
         after = len(instruments.crossing_sites(once))
         twice = copy.deepcopy(once)
         canvas.fan_attach_points(twice)
+        thrice = len(instruments.crossing_sites(twice))
         self.assertLessEqual(
             after, before,
             "the fan took %s from %d crossings to %d — it scores its "
             "slides against foreign boxes and never against another "
             "arrow, and a third pass reports %d, so the pass has no "
-            "fixed point either"
-            % (path.name, before, after,
-               len(instruments.crossing_sites(twice))))
+            "fixed point either" % (path.name, before, after, thrice))
+        # THE SECOND HALF OF THE FILING, unasserted until the flip. The
+        # docstring named non-convergence — "a third pass gives 3, not
+        # 4, and moves geometry again" — and the only assertion was the
+        # crossing count, so a repair that made the fan crossing-safe
+        # and left it oscillating would have passed. Asserted as a
+        # PROPERTY of the pass rather than against a literal: the count
+        # after two applications equals the count after one, whatever
+        # that count is.
+        self.assertEqual(
+            thrice, after,
+            "the fan has no fixed point on %s: one pass reports %d "
+            "crossings and a second reports %d, so the drawing changes "
+            "every time anything is applied" % (path.name, after, thrice))
+        # WHAT IS NOT ASSERTED HERE, and it is a measurement rather than
+        # an omission: the fan reaches a fixed point in CROSSINGS and
+        # not in GEOMETRY. One arrow on this artifact still moves on the
+        # second pass (`t-compose`, x 1108 -> 1087), because `far_coord`
+        # orders the feet on a side by the FAR end's cross-coordinate
+        # and the far end may itself have been fanned by the previous
+        # pass — which is the cause the filing named and a different
+        # defect from the one this test is about. A geometric-identity
+        # assertion was written here, measured, and removed: it fails,
+        # and it would have been this test claiming a convergence
+        # nothing in the change delivers.
+        #
+        # OWNER: the orbit doctrine (contention-foot-search.md 6.3b),
+        # where the router — not the fan — is the established
+        # oscillator, and where `test_the_pipeline_really_does_not_
+        # settle` is the green premise pin that flips the day anyone
+        # lands convergence. Deliberately not in TASK-ATTACH's scope.
 
     def test_the_fan_adds_nothing_to_a_freshly_routed_hub(self) -> None:
         """The green pole: on geometry the router just made, the fan is safe.
@@ -18829,8 +18887,13 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # fingerprint, and two agents could still write the same plain red test under
 # different method names with nothing to notice. That exposure is unchanged;
 # what changed is that the sentence admitting it can no longer go stale.
-HAND_AUTHORED_RED_CLASSES = {
-    "TestRouterPassesDoNotWorsenTheDrawing": 1}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+# EMPTY on 2026-08-17 (v0.9 TASK-ATTACH), when
+# `TestRouterPassesDoNotWorsenTheDrawing` lost its second red to
+# the fan's crossing term. The last hand-authored red in this file;
+# read the emptiness as an event and not a state reached, which is
+# the reading `ASPIRATIONAL` asked for the last time it drained and
+# was refilled by the next curator batch.
 # ONE LEFT on 2026-08-17 (v0.9 TASK-ATTACH):
 # `TestTheObstacleSetsAgreeAboutASticky`, whose single red flipped on the
 # controller's ruling that annotations are SOFT obstacles everywhere. The
